@@ -29,7 +29,7 @@ func (item *GoPprof) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *GoPprof) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Params)
+	return basictl.StringWrite(w, item.Params), nil
 }
 
 func (item *GoPprof) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,21 +53,21 @@ func (item *GoPprof) ReadResult(w []byte, ret *string) (_ []byte, err error) {
 
 func (item *GoPprof) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
-func (item *GoPprof) ReadResultJSON(j interface{}, ret *string) error {
-	if err := JsonReadString(j, ret); err != nil {
+func (item *GoPprof) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *GoPprof) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *GoPprof) writeResultJSON(short bool, w []byte, ret string) (_ []byte, err error) {
+func (item *GoPprof) writeResultJSON(newTypeNames bool, short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -81,22 +81,19 @@ func (item *GoPprof) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ 
 	return r, w, err
 }
 
-func (item *GoPprof) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *GoPprof) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *GoPprof) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("go.pprof", err.Error())
-	}
 	var ret string
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -111,32 +108,53 @@ func (item GoPprof) String() string {
 	return string(w)
 }
 
-func GoPprof__ReadJSON(item *GoPprof, j interface{}) error { return item.readJSON(j) }
-func (item *GoPprof) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("go.pprof", "expected json object")
+func (item *GoPprof) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propParamsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "params":
+				if propParamsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("go.pprof", "params")
+				}
+				if err := Json2ReadString(in, &item.Params); err != nil {
+					return err
+				}
+				propParamsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("go.pprof", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jParams := _jm["params"]
-	delete(_jm, "params")
-	if err := JsonReadString(_jParams, &item.Params); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("go.pprof", k)
+	if !propParamsPresented {
+		item.Params = ""
 	}
 	return nil
 }
 
 func (item *GoPprof) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *GoPprof) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *GoPprof) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Params) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"params":`...)
-		w = basictl.JSONWriteString(w, item.Params)
+	backupIndexParams := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"params":`...)
+	w = basictl.JSONWriteString(w, item.Params)
+	if (len(item.Params) != 0) == false {
+		w = w[:backupIndexParams]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +164,7 @@ func (item *GoPprof) MarshalJSON() ([]byte, error) {
 }
 
 func (item *GoPprof) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("go.pprof", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("go.pprof", err.Error())
 	}
 	return nil

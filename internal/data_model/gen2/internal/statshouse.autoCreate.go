@@ -94,12 +94,8 @@ func (item *StatshouseAutoCreate) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Kind); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Kind)
 	if w, err = BuiltinVectorStringWrite(w, item.Tags); err != nil {
 		return w, err
 	}
@@ -107,9 +103,7 @@ func (item *StatshouseAutoCreate) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.Resolution)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringWrite(w, item.Description); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Description)
 	}
 	return w, nil
 }
@@ -134,19 +128,19 @@ func (item *StatshouseAutoCreate) WriteResult(w []byte, ret True) (_ []byte, err
 	return ret.WriteBoxed(w)
 }
 
-func (item *StatshouseAutoCreate) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *StatshouseAutoCreate) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseAutoCreate) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseAutoCreate) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *StatshouseAutoCreate) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -161,22 +155,19 @@ func (item *StatshouseAutoCreate) ReadResultWriteResultJSON(r []byte, w []byte) 
 	return r, w, err
 }
 
-func (item *StatshouseAutoCreate) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseAutoCreate) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseAutoCreate) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.autoCreate", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -191,100 +182,165 @@ func (item StatshouseAutoCreate) String() string {
 	return string(w)
 }
 
-func StatshouseAutoCreate__ReadJSON(item *StatshouseAutoCreate, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseAutoCreate) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.autoCreate", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jKind := _jm["kind"]
-	delete(_jm, "kind")
-	if err := JsonReadString(_jKind, &item.Kind); err != nil {
-		return err
-	}
-	_jTags := _jm["tags"]
-	delete(_jm, "tags")
-	_jResolution := _jm["resolution"]
-	delete(_jm, "resolution")
-	_jDescription := _jm["description"]
-	delete(_jm, "description")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.autoCreate", k)
-	}
-	if _jResolution != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jDescription != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
-	if err := BuiltinVectorStringReadJSON(_jTags, &item.Tags); err != nil {
-		return err
-	}
-	if _jResolution != nil {
-		if err := JsonReadInt32(_jResolution, &item.Resolution); err != nil {
-			return err
+func (item *StatshouseAutoCreate) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propMetricPresented bool
+	var propKindPresented bool
+	var propTagsPresented bool
+	var propResolutionPresented bool
+	var propDescriptionPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "kind":
+				if propKindPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "kind")
+				}
+				if err := Json2ReadString(in, &item.Kind); err != nil {
+					return err
+				}
+				propKindPresented = true
+			case "tags":
+				if propTagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "tags")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+					return err
+				}
+				propTagsPresented = true
+			case "resolution":
+				if propResolutionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "resolution")
+				}
+				if err := Json2ReadInt32(in, &item.Resolution); err != nil {
+					return err
+				}
+				propResolutionPresented = true
+			case "description":
+				if propDescriptionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "description")
+				}
+				if err := Json2ReadString(in, &item.Description); err != nil {
+					return err
+				}
+				propDescriptionPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.autoCreate", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = ""
+	}
+	if !propKindPresented {
+		item.Kind = ""
+	}
+	if !propTagsPresented {
+		item.Tags = item.Tags[:0]
+	}
+	if !propResolutionPresented {
 		item.Resolution = 0
 	}
-	if _jDescription != nil {
-		if err := JsonReadString(_jDescription, &item.Description); err != nil {
-			return err
-		}
-	} else {
+	if !propDescriptionPresented {
 		item.Description = ""
 	}
+	if propResolutionPresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propDescriptionPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (item *StatshouseAutoCreate) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseAutoCreate) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseAutoCreate) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if len(item.Kind) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"kind":`...)
-		w = basictl.JSONWriteString(w, item.Kind)
+	backupIndexKind := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"kind":`...)
+	w = basictl.JSONWriteString(w, item.Kind)
+	if (len(item.Kind) != 0) == false {
+		w = w[:backupIndexKind]
 	}
-	if len(item.Tags) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tags":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.Tags); err != nil {
-			return w, err
-		}
+	backupIndexTags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tags":`...)
+	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Tags); err != nil {
+		return w, err
+	}
+	if (len(item.Tags) != 0) == false {
+		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -304,11 +360,7 @@ func (item *StatshouseAutoCreate) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseAutoCreate) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.autoCreate", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.autoCreate", err.Error())
 	}
 	return nil
@@ -395,12 +447,8 @@ func (item *StatshouseAutoCreateBytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWriteBytes(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Kind); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Metric)
+	w = basictl.StringWriteBytes(w, item.Kind)
 	if w, err = BuiltinVectorStringBytesWrite(w, item.Tags); err != nil {
 		return w, err
 	}
@@ -408,9 +456,7 @@ func (item *StatshouseAutoCreateBytes) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.Resolution)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.Description); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.Description)
 	}
 	return w, nil
 }
@@ -435,19 +481,19 @@ func (item *StatshouseAutoCreateBytes) WriteResult(w []byte, ret True) (_ []byte
 	return ret.WriteBoxed(w)
 }
 
-func (item *StatshouseAutoCreateBytes) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *StatshouseAutoCreateBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseAutoCreateBytes) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseAutoCreateBytes) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *StatshouseAutoCreateBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -462,22 +508,19 @@ func (item *StatshouseAutoCreateBytes) ReadResultWriteResultJSON(r []byte, w []b
 	return r, w, err
 }
 
-func (item *StatshouseAutoCreateBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseAutoCreateBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseAutoCreateBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.autoCreate", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -492,100 +535,165 @@ func (item StatshouseAutoCreateBytes) String() string {
 	return string(w)
 }
 
-func StatshouseAutoCreateBytes__ReadJSON(item *StatshouseAutoCreateBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseAutoCreateBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.autoCreate", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadStringBytes(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jKind := _jm["kind"]
-	delete(_jm, "kind")
-	if err := JsonReadStringBytes(_jKind, &item.Kind); err != nil {
-		return err
-	}
-	_jTags := _jm["tags"]
-	delete(_jm, "tags")
-	_jResolution := _jm["resolution"]
-	delete(_jm, "resolution")
-	_jDescription := _jm["description"]
-	delete(_jm, "description")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.autoCreate", k)
-	}
-	if _jResolution != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jDescription != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
-	if err := BuiltinVectorStringBytesReadJSON(_jTags, &item.Tags); err != nil {
-		return err
-	}
-	if _jResolution != nil {
-		if err := JsonReadInt32(_jResolution, &item.Resolution); err != nil {
-			return err
+func (item *StatshouseAutoCreateBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propMetricPresented bool
+	var propKindPresented bool
+	var propTagsPresented bool
+	var propResolutionPresented bool
+	var propDescriptionPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "metric")
+				}
+				if err := Json2ReadStringBytes(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "kind":
+				if propKindPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "kind")
+				}
+				if err := Json2ReadStringBytes(in, &item.Kind); err != nil {
+					return err
+				}
+				propKindPresented = true
+			case "tags":
+				if propTagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "tags")
+				}
+				if err := BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+					return err
+				}
+				propTagsPresented = true
+			case "resolution":
+				if propResolutionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "resolution")
+				}
+				if err := Json2ReadInt32(in, &item.Resolution); err != nil {
+					return err
+				}
+				propResolutionPresented = true
+			case "description":
+				if propDescriptionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.autoCreate", "description")
+				}
+				if err := Json2ReadStringBytes(in, &item.Description); err != nil {
+					return err
+				}
+				propDescriptionPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.autoCreate", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = item.Metric[:0]
+	}
+	if !propKindPresented {
+		item.Kind = item.Kind[:0]
+	}
+	if !propTagsPresented {
+		item.Tags = item.Tags[:0]
+	}
+	if !propResolutionPresented {
 		item.Resolution = 0
 	}
-	if _jDescription != nil {
-		if err := JsonReadStringBytes(_jDescription, &item.Description); err != nil {
-			return err
-		}
-	} else {
+	if !propDescriptionPresented {
 		item.Description = item.Description[:0]
 	}
+	if propResolutionPresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propDescriptionPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (item *StatshouseAutoCreateBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseAutoCreateBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseAutoCreateBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if len(item.Kind) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"kind":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Kind)
+	backupIndexKind := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"kind":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Kind)
+	if (len(item.Kind) != 0) == false {
+		w = w[:backupIndexKind]
 	}
-	if len(item.Tags) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tags":`...)
-		if w, err = BuiltinVectorStringBytesWriteJSONOpt(short, w, item.Tags); err != nil {
-			return w, err
-		}
+	backupIndexTags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tags":`...)
+	if w, err = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Tags); err != nil {
+		return w, err
+	}
+	if (len(item.Tags) != 0) == false {
+		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -605,11 +713,7 @@ func (item *StatshouseAutoCreateBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseAutoCreateBytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.autoCreate", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.autoCreate", err.Error())
 	}
 	return nil

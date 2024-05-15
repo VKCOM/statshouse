@@ -281,6 +281,7 @@ func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, valu
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *rand.Rand, res []byte, historic bool) []byte {
+	startTime := time.Now()
 	var config ConfigAggregatorRemote
 	a.configMu.RLock()
 	config = a.configR
@@ -403,49 +404,49 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
 	sampler.Run(remainingBudget, &samplerStat)
-	key1 := int32(format.TagValueIDConveyorRecent)
+	historicTag := int32(format.TagValueIDConveyorRecent)
 	if historic {
-		key1 = format.TagValueIDConveyorHistoric
+		historicTag = format.TagValueIDConveyorHistoric
 	}
 	resPos := len(res)
 	for k, v := range samplerStat.Items {
 		// keep bytes
-		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key := a.aggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, historicTag, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]})
 		mi := data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
 		insertItem(key, &mi, 1)
 		// discard bytes
-		key = data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key = a.aggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, historicTag, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]})
 		mi = data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
 		insertItem(key, &mi, 1)
 	}
 	for _, s := range samplerStat.GetSampleFactors(nil) {
 		k := s.Metric
 		sf := float64(s.Value)
-		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
-		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
+		key := a.aggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize})
+		res = appendBadge(res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHost), metricCache, usedTimestamps)
 		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
 	}
 	// report budget used
-	budgetKey := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, key1}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	budgetKey := a.aggKey(b.time, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, historicTag})
 	budgetItem := data_model.MultiItem{}
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	insertItem(budgetKey, &budgetItem, 1)
 	for k, v := range samplerStat.Budget {
-		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingGroupBudget, [16]int32{0, key1, k[0], k[1]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key := a.aggKey(b.time, format.BuiltinMetricIDAggSamplingGroupBudget, [16]int32{0, historicTag, k[0], k[1]})
 		item := data_model.MultiItem{}
 		item.Tail.Value.AddValue(v)
 		insertItem(key, &item, 1)
 	}
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, key1},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(len(samplerStat.Metrics)), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeCounter},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeValue},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeValues), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizePercentiles},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizePercentiles), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeUnique},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeUniques), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, historicTag}),
+		float64(len(samplerStat.Metrics)), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeCounter}),
+		float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeValue}),
+		float64(sizeValues), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizePercentiles}),
+		float64(sizePercentiles), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeUnique}),
+		float64(sizeUniques), 1, a.aggregatorHost, metricCache, usedTimestamps)
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
@@ -454,14 +455,17 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Keys: [16]int32{0, int32(insertTimeUnix)}}
 		res = appendSimpleValueStat(res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil)
 	}
+	dur := time.Since(startTime)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggSamplingTime, [16]int32{0, 0, 0, 0, historicTag}),
+		float64(dur.Seconds()), 1, a.aggregatorHost, metricCache, usedTimestamps)
 
 	sizeBuiltin += len(res) - resPos
 	resPos = len(res)
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeStringTop},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeStringTops), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeStringTop}),
+		float64(sizeStringTops), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	sizeBuiltin += (len(res) - resPos) * 2 // hypothesis - next line inserts as many bytes as previous one
-	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeBuiltIn},
-		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeBuiltin), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeBuiltIn}),
+		float64(sizeBuiltin), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	return res
 }
 

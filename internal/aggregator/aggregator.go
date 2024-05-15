@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -31,7 +33,6 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"pgregory.net/rand"
 )
 
 type (
@@ -96,7 +97,7 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		scrape     *ScrapeServer
+		scrape     scrapeServer
 		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
@@ -106,7 +107,7 @@ type (
 	}
 )
 
-const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 // *3 is additional load for spares, when original aggregator is down
+const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 * 3 // *3 is additional load for spares, when original aggregator is down
 
 func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	b.mu.Lock()
@@ -119,6 +120,17 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
 		return fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
+	localAddresses := strings.Split(listenAddr, ",")
+	if len(localAddresses) != 1 {
+		if len(localAddresses) != 3 {
+			return fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
+		}
+		if config.LocalReplica < 1 || config.LocalReplica > 3 {
+			return fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
+		}
+		listenAddr = localAddresses[config.LocalReplica-1]
+	}
+
 	_, listenPort, err := net.SplitHostPort(listenAddr)
 	if err != nil {
 		return fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
@@ -137,9 +149,15 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	withoutCluster := false
 	if len(addresses) == 1 { // mostly demo runs with local non-replicated clusters
-		addresses = []string{addresses[0], addresses[0], addresses[0]}
-		withoutCluster = true
-		log.Printf("[warning] running with single-host cluster, probably demo")
+		if len(localAddresses) == 3 {
+			addresses = localAddresses
+			replicaKey = int32(config.LocalReplica)
+			log.Printf("[warning] running as a local replica %d with single-host cluster, probably demo", replicaKey)
+		} else {
+			addresses = []string{addresses[0], addresses[0], addresses[0]}
+			withoutCluster = true
+			log.Printf("[warning] running with single-host cluster, probably demo")
+		}
 	}
 	if len(addresses)%3 != 0 {
 		return fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
@@ -194,23 +212,36 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
-		rpc.ServerWithRequestMemoryLimit(2<<30))
+		rpc.ServerWithRequestMemoryLimit(2<<33))
 
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	a.scrape = newScrapeServer()
-	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, a.scrape.applyConfig)
-	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
+	a.scrape = newScrapeServer(shardKey, replicaKey)
+	if config.AutoCreate {
+		a.autoCreate = newAutoCreate(metadataClient, config.AutoCreateDefaultNamespace)
+		defer a.autoCreate.shutdown()
+	}
+	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, func(configID int32, configS string) {
+		a.scrape.applyConfig(configID, configS)
+		if a.autoCreate != nil {
+			a.autoCreate.applyConfig(configID, configS)
+		}
+	})
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	// TODO - pass storage dir after design is fixed
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
+		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
 	if err != nil {
 		return fmt.Errorf("built-in agent failed to start: %v", err)
 	}
 	a.sh2 = sh2
+	a.scrape.run(a.metricStorage, metricMetaLoader, sh2)
+	if a.autoCreate != nil {
+		a.autoCreate.run(a.metricStorage)
+	}
+	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, a, metricMetaLoader, a.config.Cluster)
@@ -229,10 +260,6 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		go a.goSend(i)
 	}
 	go a.goInternalLog()
-	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage)
-		defer a.autoCreate.shutdown()
-	}
 
 	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
 
@@ -253,7 +280,7 @@ func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, erro
 			return nil, fmt.Errorf("bootstrap data failed to load with error %v, and failed to get from disk cache: %w", err, errDiskCache)
 		}
 		if !ok {
-			return nil, fmt.Errorf("bootstrap data failed to load, and not int disk cache: %w", err)
+			return nil, fmt.Errorf("bootstrap data failed to load, and not in disk cache: %w", err)
 		}
 		log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
 		return cacheData, nil // from cache
@@ -325,7 +352,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	a.mu.Unlock()
 
 	writeWaiting := func(metricID int32, key4 int32, item *data_model.ItemValue) {
-		key := data_model.AggKey(0, metricID, [16]int32{0, 0, 0, 0, key4}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key := a.aggKey(0, metricID, [16]int32{0, 0, 0, 0, key4})
 		a.sh2.MergeItemValue(key, item, nil)
 	}
 	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorOriginal, &original)
@@ -333,9 +360,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
 
-	key := data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key := a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
 	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
-	key = data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key = a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
 	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
@@ -504,7 +531,7 @@ func (a *Aggregator) goSend(senderID int) {
 					delete(b.contributors, hctx)
 				}
 				b.mu.Unlock()
-				key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater}, a.aggregatorHost, a.shardKey, a.replicaKey)
+				key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
 				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
@@ -648,6 +675,7 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
+		a.scrape.reportConfigHash()
 		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {

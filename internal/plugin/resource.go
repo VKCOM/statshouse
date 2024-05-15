@@ -14,7 +14,6 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/resource/httpadapter"
 	"github.com/mailru/easyjson"
-
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/format"
 )

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"go.uber.org/atomic"
 )
 
@@ -30,7 +31,7 @@ type pointsCache struct {
 	now               func() time.Time
 }
 
-type pointsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo) ([]pSelectRow, error)
+type pointsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD) ([]pSelectRow, error)
 
 type timeRange struct {
 	from int64
@@ -55,9 +56,9 @@ func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, n
 	}
 }
 
-func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([]pSelectRow, error) {
+func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([]pSelectRow, error) {
 	if !avoidCache {
-		rows, ok := c.loadCached(key, lod.fromSec, lod.toSec)
+		rows, ok := c.loadCached(key, lod.FromSec, lod.ToSec)
 		if ok {
 			return rows, nil
 		}
@@ -89,7 +90,7 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 
 	e.lru.Store(c.now().UnixNano())
 	e.loadedAtNano = loadedAtNano
-	tr := timeRange{from: lod.fromSec, to: lod.toSec}
+	tr := timeRange{from: lod.FromSec, to: lod.ToSec}
 	if _, ok := e.rows[tr]; !ok {
 		c.size++
 	}

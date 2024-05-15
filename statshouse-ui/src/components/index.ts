@@ -17,3 +17,4 @@ export * from './ErrorMessages';
 export * from './AppRouter';
 export * from './TagSelect';
 export * from './VariableControl';
+export * from './SelectMertic';

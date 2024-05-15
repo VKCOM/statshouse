@@ -42,28 +42,38 @@ func BuiltinVectorDoubleWrite(w []byte, vec []float64) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorDoubleReadJSON(j interface{}, vec *[]float64) error {
-	l, _arr, err := JsonReadArray("[]float64", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]float64, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadFloat64(_arr[i], &(*vec)[i]); err != nil {
-			return err
+func BuiltinVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]float64) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]float64", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue float64
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadFloat64(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]float64", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorDoubleWriteJSON(w []byte, vec []float64) (_ []byte, err error) {
-	return BuiltinVectorDoubleWriteJSONOpt(false, w, vec)
+	return BuiltinVectorDoubleWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorDoubleWriteJSONOpt(short bool, w []byte, vec []float64) (_ []byte, err error) {
+func BuiltinVectorDoubleWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []float64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

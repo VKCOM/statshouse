@@ -72,43 +72,44 @@ func BuiltinVectorDictionaryFieldLongWrite(w []byte, m map[string]int64) (_ []by
 	return w, nil
 }
 
-func BuiltinVectorDictionaryFieldLongReadJSON(j interface{}, m *map[string]int64) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("map[string]int64", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
+func BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, m *map[string]int64) error {
 	var data map[string]int64
 	if *m == nil {
-		if l == 0 {
-			return nil
-		}
-		data = make(map[string]int64, l)
-		*m = data
+		*m = make(map[string]int64, 0)
+		data = *m
 	} else {
 		data = *m
 		for k := range data {
 			delete(data, k)
 		}
 	}
-	for _jkey, _jvalue := range _map {
-		var value int64
-		if err := JsonReadInt64(_jvalue, &value); err != nil {
-			return err
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]int64", "expected json object")
 		}
-		data[_jkey] = value
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			var value int64
+			if err := Json2ReadInt64(in, &value); err != nil {
+				return err
+			}
+			data[key] = value
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]int64", "expected json object's end")
+		}
 	}
 	return nil
 }
 
 func BuiltinVectorDictionaryFieldLongWriteJSON(w []byte, m map[string]int64) (_ []byte, err error) {
-	return BuiltinVectorDictionaryFieldLongWriteJSONOpt(false, w, m)
+	return BuiltinVectorDictionaryFieldLongWriteJSONOpt(true, false, w, m)
 }
-func BuiltinVectorDictionaryFieldLongWriteJSONOpt(short bool, w []byte, m map[string]int64) (_ []byte, err error) {
+func BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames bool, short bool, w []byte, m map[string]int64) (_ []byte, err error) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -118,7 +119,7 @@ func BuiltinVectorDictionaryFieldLongWriteJSONOpt(short bool, w []byte, m map[st
 	for _, key := range keys {
 		value := m[key]
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
+		w = basictl.JSONWriteString(w, key)
 		w = append(w, ':')
 		w = basictl.JSONWriteInt64(w, value)
 	}
@@ -182,43 +183,44 @@ func BuiltinVectorDictionaryFieldStringWrite(w []byte, m map[string]string) (_ [
 	return w, nil
 }
 
-func BuiltinVectorDictionaryFieldStringReadJSON(j interface{}, m *map[string]string) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("map[string]string", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
+func BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, m *map[string]string) error {
 	var data map[string]string
 	if *m == nil {
-		if l == 0 {
-			return nil
-		}
-		data = make(map[string]string, l)
-		*m = data
+		*m = make(map[string]string, 0)
+		data = *m
 	} else {
 		data = *m
 		for k := range data {
 			delete(data, k)
 		}
 	}
-	for _jkey, _jvalue := range _map {
-		var value string
-		if err := JsonReadString(_jvalue, &value); err != nil {
-			return err
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]string", "expected json object")
 		}
-		data[_jkey] = value
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			var value string
+			if err := Json2ReadString(in, &value); err != nil {
+				return err
+			}
+			data[key] = value
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]string", "expected json object's end")
+		}
 	}
 	return nil
 }
 
 func BuiltinVectorDictionaryFieldStringWriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
-	return BuiltinVectorDictionaryFieldStringWriteJSONOpt(false, w, m)
+	return BuiltinVectorDictionaryFieldStringWriteJSONOpt(true, false, w, m)
 }
-func BuiltinVectorDictionaryFieldStringWriteJSONOpt(short bool, w []byte, m map[string]string) (_ []byte, err error) {
+func BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, m map[string]string) (_ []byte, err error) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -228,7 +230,7 @@ func BuiltinVectorDictionaryFieldStringWriteJSONOpt(short bool, w []byte, m map[
 	for _, key := range keys {
 		value := m[key]
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
+		w = basictl.JSONWriteString(w, key)
 		w = append(w, ':')
 		w = basictl.JSONWriteString(w, value)
 	}
@@ -256,9 +258,7 @@ func (item *DictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *DictionaryFieldLong) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Key)
 	return basictl.LongWrite(w, item.Value), nil
 }
 
@@ -282,44 +282,72 @@ func (item DictionaryFieldLong) String() string {
 	return string(w)
 }
 
-func DictionaryFieldLong__ReadJSON(item *DictionaryFieldLong, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *DictionaryFieldLong) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("dictionaryField", "expected json object")
+func (item *DictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propKeyPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "value")
+				}
+				if err := Json2ReadInt64(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("dictionaryField", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadString(_jKey, &item.Key); err != nil {
-		return err
+	if !propKeyPresented {
+		item.Key = ""
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadInt64(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("dictionaryField", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
 func (item *DictionaryFieldLong) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *DictionaryFieldLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryFieldLong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteString(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteString(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteInt64(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteInt64(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -329,11 +357,7 @@ func (item *DictionaryFieldLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *DictionaryFieldLong) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("dictionaryField", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("dictionaryField", err.Error())
 	}
 	return nil
@@ -360,10 +384,8 @@ func (item *DictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *DictionaryFieldString) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.Value)
+	w = basictl.StringWrite(w, item.Key)
+	return basictl.StringWrite(w, item.Value), nil
 }
 
 func (item *DictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -386,44 +408,72 @@ func (item DictionaryFieldString) String() string {
 	return string(w)
 }
 
-func DictionaryFieldString__ReadJSON(item *DictionaryFieldString, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *DictionaryFieldString) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("dictionaryField", "expected json object")
+func (item *DictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propKeyPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "value")
+				}
+				if err := Json2ReadString(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("dictionaryField", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadString(_jKey, &item.Key); err != nil {
-		return err
+	if !propKeyPresented {
+		item.Key = ""
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadString(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("dictionaryField", k)
+	if !propValuePresented {
+		item.Value = ""
 	}
 	return nil
 }
 
 func (item *DictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *DictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryFieldString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteString(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteString(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
-	if len(item.Value) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteString(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteString(w, item.Value)
+	if (len(item.Value) != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -433,11 +483,7 @@ func (item *DictionaryFieldString) MarshalJSON() ([]byte, error) {
 }
 
 func (item *DictionaryFieldString) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("dictionaryField", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("dictionaryField", err.Error())
 	}
 	return nil

@@ -70,64 +70,110 @@ func (item FsbinlogLevUpgradeToGms) String() string {
 	return string(w)
 }
 
-func FsbinlogLevUpgradeToGms__ReadJSON(item *FsbinlogLevUpgradeToGms, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *FsbinlogLevUpgradeToGms) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", "expected json object")
+func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propPayloadOffsetPresented bool
+	var propCrcPresented bool
+	var propTsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "PayloadOffset":
+				if propPayloadOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "PayloadOffset")
+				}
+				if err := Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "Crc":
+				if propCrcPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "Crc")
+				}
+				if err := Json2ReadUint32(in, &item.Crc); err != nil {
+					return err
+				}
+				propCrcPresented = true
+			case "Ts":
+				if propTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "Ts")
+				}
+				if err := Json2ReadUint32(in, &item.Ts); err != nil {
+					return err
+				}
+				propTsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("fsbinlog.levUpgradeToGms", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jPayloadOffset := _jm["PayloadOffset"]
-	delete(_jm, "PayloadOffset")
-	if err := JsonReadInt64(_jPayloadOffset, &item.PayloadOffset); err != nil {
-		return err
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
 	}
-	_jCrc := _jm["Crc"]
-	delete(_jm, "Crc")
-	if err := JsonReadUint32(_jCrc, &item.Crc); err != nil {
-		return err
+	if !propCrcPresented {
+		item.Crc = 0
 	}
-	_jTs := _jm["Ts"]
-	delete(_jm, "Ts")
-	if err := JsonReadUint32(_jTs, &item.Ts); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("fsbinlog.levUpgradeToGms", k)
+	if !propTsPresented {
+		item.Ts = 0
 	}
 	return nil
 }
 
 func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.PayloadOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"PayloadOffset":`...)
-		w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	backupIndexPayloadOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"PayloadOffset":`...)
+	w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (item.PayloadOffset != 0) == false {
+		w = w[:backupIndexPayloadOffset]
 	}
-	if item.Crc != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"Crc":`...)
-		w = basictl.JSONWriteUint32(w, item.Crc)
+	backupIndexCrc := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"Crc":`...)
+	w = basictl.JSONWriteUint32(w, item.Crc)
+	if (item.Crc != 0) == false {
+		w = w[:backupIndexCrc]
 	}
-	if item.Ts != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"Ts":`...)
-		w = basictl.JSONWriteUint32(w, item.Ts)
+	backupIndexTs := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"Ts":`...)
+	w = basictl.JSONWriteUint32(w, item.Ts)
+	if (item.Ts != 0) == false {
+		w = w[:backupIndexTs]
 	}
 	return append(w, '}'), nil
 }
@@ -137,11 +183,7 @@ func (item *FsbinlogLevUpgradeToGms) MarshalJSON() ([]byte, error) {
 }
 
 func (item *FsbinlogLevUpgradeToGms) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", err.Error())
 	}
 	return nil

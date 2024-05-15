@@ -31,6 +31,11 @@ func (item *BarsicSkip) Reset() {
 	item.Length = 0
 }
 
+func (item *BarsicSkip) FillRandom(rg *basictl.RandGenerator) {
+	item.Offset = basictl.RandomLong(rg)
+	item.Length = basictl.RandomLong(rg)
+}
+
 func (item *BarsicSkip) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -67,19 +72,19 @@ func (item *BarsicSkip) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err er
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicSkip) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicSkip) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicSkip) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicSkip) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicSkip) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -94,22 +99,19 @@ func (item *BarsicSkip) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte,
 	return r, w, err
 }
 
-func (item *BarsicSkip) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicSkip) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicSkip) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.skip", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -124,52 +126,91 @@ func (item BarsicSkip) String() string {
 	return string(w)
 }
 
-func BarsicSkip__ReadJSON(item *BarsicSkip, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicSkip) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.skip", "expected json object")
+func (item *BarsicSkip) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propOffsetPresented bool
+	var propLengthPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "length":
+				if propLengthPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "length")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Length); err != nil {
+					return err
+				}
+				propLengthPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.skip", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
+	if !propOffsetPresented {
+		item.Offset = 0
 	}
-	_jLength := _jm["length"]
-	delete(_jm, "length")
-	if err := internal.JsonReadInt64(_jLength, &item.Length); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.skip", k)
+	if !propLengthPresented {
+		item.Length = 0
 	}
 	return nil
 }
 
 func (item *BarsicSkip) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSkip) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSkip) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if item.Length != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"length":`...)
-		w = basictl.JSONWriteInt64(w, item.Length)
+	backupIndexLength := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"length":`...)
+	w = basictl.JSONWriteInt64(w, item.Length)
+	if (item.Length != 0) == false {
+		w = w[:backupIndexLength]
 	}
 	return append(w, '}'), nil
 }
@@ -179,11 +220,7 @@ func (item *BarsicSkip) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSkip) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.skip", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.skip", err.Error())
 	}
 	return nil

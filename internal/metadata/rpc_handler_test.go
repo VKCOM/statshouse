@@ -38,8 +38,8 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 		RawGetEntity:           proxy.HandleProxy("", handler.RawGetEntity),
 		RawGetHistoryShortInfo: proxy.HandleProxy("", handler.RawGetHistory),
 
-		PutTagMappingBootstrap: handler.PutTagMappingBootstrap,
-		GetTagMappingBootstrap: handler.GetTagMappingBootstrap,
+		PutTagMappingBootstrap: HandleProxyGen(&proxy, "", handler.PutTagMappingBootstrap),
+		GetTagMappingBootstrap: HandleProxyGen(&proxy, "", handler.GetTagMappingBootstrap),
 	}
 	sh := tlmetadata.Handler{RawGetJournalnew: proxy.HandleProxy("", handler.RawGetJournal)}
 	server := rpc.NewServer(rpc.ServerWithHandler(h.Handle), rpc.ServerWithSyncHandler(sh.Handle), rpc.ServerWithLogf(log.Printf))

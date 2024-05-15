@@ -52,32 +52,53 @@ func (item RpcCancelReq) String() string {
 	return string(w)
 }
 
-func RpcCancelReq__ReadJSON(item *RpcCancelReq, j interface{}) error { return item.readJSON(j) }
-func (item *RpcCancelReq) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcCancelReq", "expected json object")
+func (item *RpcCancelReq) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query_id":
+				if propQueryIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcCancelReq", "query_id")
+				}
+				if err := Json2ReadInt64(in, &item.QueryId); err != nil {
+					return err
+				}
+				propQueryIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcCancelReq", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jQueryId := _jm["query_id"]
-	delete(_jm, "query_id")
-	if err := JsonReadInt64(_jQueryId, &item.QueryId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcCancelReq", k)
+	if !propQueryIdPresented {
+		item.QueryId = 0
 	}
 	return nil
 }
 
 func (item *RpcCancelReq) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcCancelReq) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcCancelReq) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.QueryId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"query_id":`...)
-		w = basictl.JSONWriteInt64(w, item.QueryId)
+	backupIndexQueryId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"query_id":`...)
+	w = basictl.JSONWriteInt64(w, item.QueryId)
+	if (item.QueryId != 0) == false {
+		w = w[:backupIndexQueryId]
 	}
 	return append(w, '}'), nil
 }
@@ -87,11 +108,7 @@ func (item *RpcCancelReq) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcCancelReq) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcCancelReq", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcCancelReq", err.Error())
 	}
 	return nil

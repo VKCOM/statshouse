@@ -183,9 +183,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.Time)
-	if w, err = basictl.StringWrite(w, item.BuildCommit); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
@@ -203,7 +201,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWrite(w, item.CompressedData)
+	return basictl.StringWrite(w, item.CompressedData), nil
 }
 
 func (item *StatshouseSendSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -227,21 +225,21 @@ func (item *StatshouseSendSourceBucket2) ReadResult(w []byte, ret *string) (_ []
 
 func (item *StatshouseSendSourceBucket2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
-func (item *StatshouseSendSourceBucket2) ReadResultJSON(j interface{}, ret *string) error {
-	if err := JsonReadString(j, ret); err != nil {
+func (item *StatshouseSendSourceBucket2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSendSourceBucket2) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseSendSourceBucket2) writeResultJSON(short bool, w []byte, ret string) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -255,22 +253,19 @@ func (item *StatshouseSendSourceBucket2) ReadResultWriteResultJSON(r []byte, w [
 	return r, w, err
 }
 
-func (item *StatshouseSendSourceBucket2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseSendSourceBucket2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseSendSourceBucket2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
-	}
 	var ret string
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -285,163 +280,277 @@ func (item StatshouseSendSourceBucket2) String() string {
 	return string(w)
 }
 
-func StatshouseSendSourceBucket2__ReadJSON(item *StatshouseSendSourceBucket2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSendSourceBucket2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jTime := _jm["time"]
-	delete(_jm, "time")
-	if err := JsonReadUint32(_jTime, &item.Time); err != nil {
-		return err
-	}
-	_jHistoric := _jm["historic"]
-	delete(_jm, "historic")
-	_jSpare := _jm["spare"]
-	delete(_jm, "spare")
-	_jBuildCommit := _jm["build_commit"]
-	delete(_jm, "build_commit")
-	if err := JsonReadString(_jBuildCommit, &item.BuildCommit); err != nil {
-		return err
-	}
-	_jBuildCommitDate := _jm["build_commit_date"]
-	delete(_jm, "build_commit_date")
-	if err := JsonReadInt32(_jBuildCommitDate, &item.BuildCommitDate); err != nil {
-		return err
-	}
-	_jBuildCommitTs := _jm["build_commit_ts"]
-	delete(_jm, "build_commit_ts")
-	if err := JsonReadInt32(_jBuildCommitTs, &item.BuildCommitTs); err != nil {
-		return err
-	}
-	_jQueueSizeDisk := _jm["queue_size_disk"]
-	delete(_jm, "queue_size_disk")
-	if err := JsonReadInt32(_jQueueSizeDisk, &item.QueueSizeDisk); err != nil {
-		return err
-	}
-	_jQueueSizeMemory := _jm["queue_size_memory"]
-	delete(_jm, "queue_size_memory")
-	if err := JsonReadInt32(_jQueueSizeMemory, &item.QueueSizeMemory); err != nil {
-		return err
-	}
-	_jQueueSizeDiskSum := _jm["queue_size_disk_sum"]
-	delete(_jm, "queue_size_disk_sum")
-	_jQueueSizeMemorySum := _jm["queue_size_memory_sum"]
-	delete(_jm, "queue_size_memory_sum")
-	_jQueueSizeDiskUnsent := _jm["queue_size_disk_unsent"]
-	delete(_jm, "queue_size_disk_unsent")
-	_jQueueSizeDiskSumUnsent := _jm["queue_size_disk_sum_unsent"]
-	delete(_jm, "queue_size_disk_sum_unsent")
-	_jOriginalSize := _jm["original_size"]
-	delete(_jm, "original_size")
-	if err := JsonReadInt32(_jOriginalSize, &item.OriginalSize); err != nil {
-		return err
-	}
-	_jCompressedData := _jm["compressed_data"]
-	delete(_jm, "compressed_data")
-	if err := JsonReadString(_jCompressedData, &item.CompressedData); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", k)
-	}
-	if _jHistoric != nil {
-		_bit := false
-		if err := JsonReadBool(_jHistoric, &_bit); err != nil {
-			return err
+func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propTimePresented bool
+	var trueTypeHistoricPresented bool
+	var trueTypeHistoricValue bool
+	var trueTypeSparePresented bool
+	var trueTypeSpareValue bool
+	var propBuildCommitPresented bool
+	var propBuildCommitDatePresented bool
+	var propBuildCommitTsPresented bool
+	var propQueueSizeDiskPresented bool
+	var propQueueSizeMemoryPresented bool
+	var propQueueSizeDiskSumPresented bool
+	var propQueueSizeMemorySumPresented bool
+	var propQueueSizeDiskUnsentPresented bool
+	var propQueueSizeDiskSumUnsentPresented bool
+	var propOriginalSizePresented bool
+	var propCompressedDataPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "time":
+				if propTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "time")
+				}
+				if err := Json2ReadUint32(in, &item.Time); err != nil {
+					return err
+				}
+				propTimePresented = true
+			case "historic":
+				if trueTypeHistoricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "historic")
+				}
+				if err := Json2ReadBool(in, &trueTypeHistoricValue); err != nil {
+					return err
+				}
+				trueTypeHistoricPresented = true
+			case "spare":
+				if trueTypeSparePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "spare")
+				}
+				if err := Json2ReadBool(in, &trueTypeSpareValue); err != nil {
+					return err
+				}
+				trueTypeSparePresented = true
+			case "build_commit":
+				if propBuildCommitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit")
+				}
+				if err := Json2ReadString(in, &item.BuildCommit); err != nil {
+					return err
+				}
+				propBuildCommitPresented = true
+			case "build_commit_date":
+				if propBuildCommitDatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_date")
+				}
+				if err := Json2ReadInt32(in, &item.BuildCommitDate); err != nil {
+					return err
+				}
+				propBuildCommitDatePresented = true
+			case "build_commit_ts":
+				if propBuildCommitTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_ts")
+				}
+				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+					return err
+				}
+				propBuildCommitTsPresented = true
+			case "queue_size_disk":
+				if propQueueSizeDiskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDisk); err != nil {
+					return err
+				}
+				propQueueSizeDiskPresented = true
+			case "queue_size_memory":
+				if propQueueSizeMemoryPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_memory")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeMemory); err != nil {
+					return err
+				}
+				propQueueSizeMemoryPresented = true
+			case "queue_size_disk_sum":
+				if propQueueSizeDiskSumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_sum")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskSum); err != nil {
+					return err
+				}
+				propQueueSizeDiskSumPresented = true
+			case "queue_size_memory_sum":
+				if propQueueSizeMemorySumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_memory_sum")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeMemorySum); err != nil {
+					return err
+				}
+				propQueueSizeMemorySumPresented = true
+			case "queue_size_disk_unsent":
+				if propQueueSizeDiskUnsentPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_unsent")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskUnsent); err != nil {
+					return err
+				}
+				propQueueSizeDiskUnsentPresented = true
+			case "queue_size_disk_sum_unsent":
+				if propQueueSizeDiskSumUnsentPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_sum_unsent")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskSumUnsent); err != nil {
+					return err
+				}
+				propQueueSizeDiskSumUnsentPresented = true
+			case "original_size":
+				if propOriginalSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
+				}
+				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+					return err
+				}
+				propOriginalSizePresented = true
+			case "compressed_data":
+				if propCompressedDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "compressed_data")
+				}
+				if err := Json2ReadString(in, &item.CompressedData); err != nil {
+					return err
+				}
+				propCompressedDataPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
 		}
 	}
-	if _jSpare != nil {
-		_bit := false
-		if err := JsonReadBool(_jSpare, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	if _jQueueSizeDiskSum != nil {
-		item.FieldsMask |= 1 << 2
+	if !propTimePresented {
+		item.Time = 0
 	}
-	if _jQueueSizeMemorySum != nil {
-		item.FieldsMask |= 1 << 2
+	if !propBuildCommitPresented {
+		item.BuildCommit = ""
 	}
-	if _jQueueSizeDiskUnsent != nil {
-		item.FieldsMask |= 1 << 3
+	if !propBuildCommitDatePresented {
+		item.BuildCommitDate = 0
 	}
-	if _jQueueSizeDiskSumUnsent != nil {
-		item.FieldsMask |= 1 << 3
+	if !propBuildCommitTsPresented {
+		item.BuildCommitTs = 0
 	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
+	if !propQueueSizeDiskPresented {
+		item.QueueSizeDisk = 0
 	}
-	if _jQueueSizeDiskSum != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskSum, &item.QueueSizeDiskSum); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeMemoryPresented {
+		item.QueueSizeMemory = 0
+	}
+	if !propQueueSizeDiskSumPresented {
 		item.QueueSizeDiskSum = 0
 	}
-	if _jQueueSizeMemorySum != nil {
-		if err := JsonReadInt32(_jQueueSizeMemorySum, &item.QueueSizeMemorySum); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeMemorySumPresented {
 		item.QueueSizeMemorySum = 0
 	}
-	if _jQueueSizeDiskUnsent != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskUnsent, &item.QueueSizeDiskUnsent); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeDiskUnsentPresented {
 		item.QueueSizeDiskUnsent = 0
 	}
-	if _jQueueSizeDiskSumUnsent != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskSumUnsent, &item.QueueSizeDiskSumUnsent); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeDiskSumUnsentPresented {
 		item.QueueSizeDiskSumUnsent = 0
+	}
+	if !propOriginalSizePresented {
+		item.OriginalSize = 0
+	}
+	if !propCompressedDataPresented {
+		item.CompressedData = ""
+	}
+	if trueTypeHistoricPresented {
+		if trueTypeHistoricValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeSparePresented {
+		if trueTypeSpareValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	if propQueueSizeDiskSumPresented {
+		item.FieldsMask |= 1 << 2
+	}
+	if propQueueSizeMemorySumPresented {
+		item.FieldsMask |= 1 << 2
+	}
+	if propQueueSizeDiskUnsentPresented {
+		item.FieldsMask |= 1 << 3
+	}
+	if propQueueSizeDiskSumUnsentPresented {
+		item.FieldsMask |= 1 << 3
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeHistoricPresented && !trueTypeHistoricValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeSparePresented && !trueTypeSpareValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *StatshouseSendSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSendSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if item.Time != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time":`...)
-		w = basictl.JSONWriteUint32(w, item.Time)
+	backupIndexTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time":`...)
+	w = basictl.JSONWriteUint32(w, item.Time)
+	if (item.Time != 0) == false {
+		w = w[:backupIndexTime]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -451,30 +560,40 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ [
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"spare":true`...)
 	}
-	if len(item.BuildCommit) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit":`...)
-		w = basictl.JSONWriteString(w, item.BuildCommit)
+	backupIndexBuildCommit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit":`...)
+	w = basictl.JSONWriteString(w, item.BuildCommit)
+	if (len(item.BuildCommit) != 0) == false {
+		w = w[:backupIndexBuildCommit]
 	}
-	if item.BuildCommitDate != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit_date":`...)
-		w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
+	backupIndexBuildCommitDate := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit_date":`...)
+	w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
+	if (item.BuildCommitDate != 0) == false {
+		w = w[:backupIndexBuildCommitDate]
 	}
-	if item.BuildCommitTs != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit_ts":`...)
-		w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	backupIndexBuildCommitTs := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit_ts":`...)
+	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	if (item.BuildCommitTs != 0) == false {
+		w = w[:backupIndexBuildCommitTs]
 	}
-	if item.QueueSizeDisk != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDisk)
+	backupIndexQueueSizeDisk := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDisk)
+	if (item.QueueSizeDisk != 0) == false {
+		w = w[:backupIndexQueueSizeDisk]
 	}
-	if item.QueueSizeMemory != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_memory":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
+	backupIndexQueueSizeMemory := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_memory":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
+	if (item.QueueSizeMemory != 0) == false {
+		w = w[:backupIndexQueueSizeMemory]
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -496,15 +615,19 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ [
 		w = append(w, `"queue_size_disk_sum_unsent":`...)
 		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
 	}
-	if item.OriginalSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"original_size":`...)
-		w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	backupIndexOriginalSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"original_size":`...)
+	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	if (item.OriginalSize != 0) == false {
+		w = w[:backupIndexOriginalSize]
 	}
-	if len(item.CompressedData) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"compressed_data":`...)
-		w = basictl.JSONWriteString(w, item.CompressedData)
+	backupIndexCompressedData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"compressed_data":`...)
+	w = basictl.JSONWriteString(w, item.CompressedData)
+	if (len(item.CompressedData) != 0) == false {
+		w = w[:backupIndexCompressedData]
 	}
 	return append(w, '}'), nil
 }
@@ -514,11 +637,7 @@ func (item *StatshouseSendSourceBucket2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseSendSourceBucket2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
 	}
 	return nil
@@ -694,9 +813,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.Time)
-	if w, err = basictl.StringWriteBytes(w, item.BuildCommit); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
@@ -714,7 +831,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWriteBytes(w, item.CompressedData)
+	return basictl.StringWriteBytes(w, item.CompressedData), nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -738,21 +855,21 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadResult(w []byte, ret *[]byte) 
 
 func (item *StatshouseSendSourceBucket2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret)
+	return basictl.StringWriteBytes(w, ret), nil
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {
-	if err := JsonReadStringBytes(j, ret); err != nil {
+func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
+	if err := Json2ReadStringBytes(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) WriteResultJSON(w []byte, ret []byte) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) writeResultJSON(short bool, w []byte, ret []byte) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
 }
@@ -766,22 +883,19 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadResultWriteResultJSON(r []byte
 	return r, w, err
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseSendSourceBucket2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
-	}
 	var ret []byte
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -796,163 +910,277 @@ func (item StatshouseSendSourceBucket2Bytes) String() string {
 	return string(w)
 }
 
-func StatshouseSendSourceBucket2Bytes__ReadJSON(item *StatshouseSendSourceBucket2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSendSourceBucket2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jTime := _jm["time"]
-	delete(_jm, "time")
-	if err := JsonReadUint32(_jTime, &item.Time); err != nil {
-		return err
-	}
-	_jHistoric := _jm["historic"]
-	delete(_jm, "historic")
-	_jSpare := _jm["spare"]
-	delete(_jm, "spare")
-	_jBuildCommit := _jm["build_commit"]
-	delete(_jm, "build_commit")
-	if err := JsonReadStringBytes(_jBuildCommit, &item.BuildCommit); err != nil {
-		return err
-	}
-	_jBuildCommitDate := _jm["build_commit_date"]
-	delete(_jm, "build_commit_date")
-	if err := JsonReadInt32(_jBuildCommitDate, &item.BuildCommitDate); err != nil {
-		return err
-	}
-	_jBuildCommitTs := _jm["build_commit_ts"]
-	delete(_jm, "build_commit_ts")
-	if err := JsonReadInt32(_jBuildCommitTs, &item.BuildCommitTs); err != nil {
-		return err
-	}
-	_jQueueSizeDisk := _jm["queue_size_disk"]
-	delete(_jm, "queue_size_disk")
-	if err := JsonReadInt32(_jQueueSizeDisk, &item.QueueSizeDisk); err != nil {
-		return err
-	}
-	_jQueueSizeMemory := _jm["queue_size_memory"]
-	delete(_jm, "queue_size_memory")
-	if err := JsonReadInt32(_jQueueSizeMemory, &item.QueueSizeMemory); err != nil {
-		return err
-	}
-	_jQueueSizeDiskSum := _jm["queue_size_disk_sum"]
-	delete(_jm, "queue_size_disk_sum")
-	_jQueueSizeMemorySum := _jm["queue_size_memory_sum"]
-	delete(_jm, "queue_size_memory_sum")
-	_jQueueSizeDiskUnsent := _jm["queue_size_disk_unsent"]
-	delete(_jm, "queue_size_disk_unsent")
-	_jQueueSizeDiskSumUnsent := _jm["queue_size_disk_sum_unsent"]
-	delete(_jm, "queue_size_disk_sum_unsent")
-	_jOriginalSize := _jm["original_size"]
-	delete(_jm, "original_size")
-	if err := JsonReadInt32(_jOriginalSize, &item.OriginalSize); err != nil {
-		return err
-	}
-	_jCompressedData := _jm["compressed_data"]
-	delete(_jm, "compressed_data")
-	if err := JsonReadStringBytes(_jCompressedData, &item.CompressedData); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", k)
-	}
-	if _jHistoric != nil {
-		_bit := false
-		if err := JsonReadBool(_jHistoric, &_bit); err != nil {
-			return err
+func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propTimePresented bool
+	var trueTypeHistoricPresented bool
+	var trueTypeHistoricValue bool
+	var trueTypeSparePresented bool
+	var trueTypeSpareValue bool
+	var propBuildCommitPresented bool
+	var propBuildCommitDatePresented bool
+	var propBuildCommitTsPresented bool
+	var propQueueSizeDiskPresented bool
+	var propQueueSizeMemoryPresented bool
+	var propQueueSizeDiskSumPresented bool
+	var propQueueSizeMemorySumPresented bool
+	var propQueueSizeDiskUnsentPresented bool
+	var propQueueSizeDiskSumUnsentPresented bool
+	var propOriginalSizePresented bool
+	var propCompressedDataPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "time":
+				if propTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "time")
+				}
+				if err := Json2ReadUint32(in, &item.Time); err != nil {
+					return err
+				}
+				propTimePresented = true
+			case "historic":
+				if trueTypeHistoricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "historic")
+				}
+				if err := Json2ReadBool(in, &trueTypeHistoricValue); err != nil {
+					return err
+				}
+				trueTypeHistoricPresented = true
+			case "spare":
+				if trueTypeSparePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "spare")
+				}
+				if err := Json2ReadBool(in, &trueTypeSpareValue); err != nil {
+					return err
+				}
+				trueTypeSparePresented = true
+			case "build_commit":
+				if propBuildCommitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit")
+				}
+				if err := Json2ReadStringBytes(in, &item.BuildCommit); err != nil {
+					return err
+				}
+				propBuildCommitPresented = true
+			case "build_commit_date":
+				if propBuildCommitDatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_date")
+				}
+				if err := Json2ReadInt32(in, &item.BuildCommitDate); err != nil {
+					return err
+				}
+				propBuildCommitDatePresented = true
+			case "build_commit_ts":
+				if propBuildCommitTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_ts")
+				}
+				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+					return err
+				}
+				propBuildCommitTsPresented = true
+			case "queue_size_disk":
+				if propQueueSizeDiskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDisk); err != nil {
+					return err
+				}
+				propQueueSizeDiskPresented = true
+			case "queue_size_memory":
+				if propQueueSizeMemoryPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_memory")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeMemory); err != nil {
+					return err
+				}
+				propQueueSizeMemoryPresented = true
+			case "queue_size_disk_sum":
+				if propQueueSizeDiskSumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_sum")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskSum); err != nil {
+					return err
+				}
+				propQueueSizeDiskSumPresented = true
+			case "queue_size_memory_sum":
+				if propQueueSizeMemorySumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_memory_sum")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeMemorySum); err != nil {
+					return err
+				}
+				propQueueSizeMemorySumPresented = true
+			case "queue_size_disk_unsent":
+				if propQueueSizeDiskUnsentPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_unsent")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskUnsent); err != nil {
+					return err
+				}
+				propQueueSizeDiskUnsentPresented = true
+			case "queue_size_disk_sum_unsent":
+				if propQueueSizeDiskSumUnsentPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "queue_size_disk_sum_unsent")
+				}
+				if err := Json2ReadInt32(in, &item.QueueSizeDiskSumUnsent); err != nil {
+					return err
+				}
+				propQueueSizeDiskSumUnsentPresented = true
+			case "original_size":
+				if propOriginalSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
+				}
+				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+					return err
+				}
+				propOriginalSizePresented = true
+			case "compressed_data":
+				if propCompressedDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "compressed_data")
+				}
+				if err := Json2ReadStringBytes(in, &item.CompressedData); err != nil {
+					return err
+				}
+				propCompressedDataPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
 		}
 	}
-	if _jSpare != nil {
-		_bit := false
-		if err := JsonReadBool(_jSpare, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	if _jQueueSizeDiskSum != nil {
-		item.FieldsMask |= 1 << 2
+	if !propTimePresented {
+		item.Time = 0
 	}
-	if _jQueueSizeMemorySum != nil {
-		item.FieldsMask |= 1 << 2
+	if !propBuildCommitPresented {
+		item.BuildCommit = item.BuildCommit[:0]
 	}
-	if _jQueueSizeDiskUnsent != nil {
-		item.FieldsMask |= 1 << 3
+	if !propBuildCommitDatePresented {
+		item.BuildCommitDate = 0
 	}
-	if _jQueueSizeDiskSumUnsent != nil {
-		item.FieldsMask |= 1 << 3
+	if !propBuildCommitTsPresented {
+		item.BuildCommitTs = 0
 	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
+	if !propQueueSizeDiskPresented {
+		item.QueueSizeDisk = 0
 	}
-	if _jQueueSizeDiskSum != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskSum, &item.QueueSizeDiskSum); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeMemoryPresented {
+		item.QueueSizeMemory = 0
+	}
+	if !propQueueSizeDiskSumPresented {
 		item.QueueSizeDiskSum = 0
 	}
-	if _jQueueSizeMemorySum != nil {
-		if err := JsonReadInt32(_jQueueSizeMemorySum, &item.QueueSizeMemorySum); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeMemorySumPresented {
 		item.QueueSizeMemorySum = 0
 	}
-	if _jQueueSizeDiskUnsent != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskUnsent, &item.QueueSizeDiskUnsent); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeDiskUnsentPresented {
 		item.QueueSizeDiskUnsent = 0
 	}
-	if _jQueueSizeDiskSumUnsent != nil {
-		if err := JsonReadInt32(_jQueueSizeDiskSumUnsent, &item.QueueSizeDiskSumUnsent); err != nil {
-			return err
-		}
-	} else {
+	if !propQueueSizeDiskSumUnsentPresented {
 		item.QueueSizeDiskSumUnsent = 0
+	}
+	if !propOriginalSizePresented {
+		item.OriginalSize = 0
+	}
+	if !propCompressedDataPresented {
+		item.CompressedData = item.CompressedData[:0]
+	}
+	if trueTypeHistoricPresented {
+		if trueTypeHistoricValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeSparePresented {
+		if trueTypeSpareValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	if propQueueSizeDiskSumPresented {
+		item.FieldsMask |= 1 << 2
+	}
+	if propQueueSizeMemorySumPresented {
+		item.FieldsMask |= 1 << 2
+	}
+	if propQueueSizeDiskUnsentPresented {
+		item.FieldsMask |= 1 << 3
+	}
+	if propQueueSizeDiskSumUnsentPresented {
+		item.FieldsMask |= 1 << 3
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeHistoricPresented && !trueTypeHistoricValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeSparePresented && !trueTypeSpareValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if item.Time != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time":`...)
-		w = basictl.JSONWriteUint32(w, item.Time)
+	backupIndexTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time":`...)
+	w = basictl.JSONWriteUint32(w, item.Time)
+	if (item.Time != 0) == false {
+		w = w[:backupIndexTime]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -962,30 +1190,40 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte)
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"spare":true`...)
 	}
-	if len(item.BuildCommit) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit":`...)
-		w = basictl.JSONWriteStringBytes(w, item.BuildCommit)
+	backupIndexBuildCommit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit":`...)
+	w = basictl.JSONWriteStringBytes(w, item.BuildCommit)
+	if (len(item.BuildCommit) != 0) == false {
+		w = w[:backupIndexBuildCommit]
 	}
-	if item.BuildCommitDate != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit_date":`...)
-		w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
+	backupIndexBuildCommitDate := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit_date":`...)
+	w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
+	if (item.BuildCommitDate != 0) == false {
+		w = w[:backupIndexBuildCommitDate]
 	}
-	if item.BuildCommitTs != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"build_commit_ts":`...)
-		w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	backupIndexBuildCommitTs := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"build_commit_ts":`...)
+	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	if (item.BuildCommitTs != 0) == false {
+		w = w[:backupIndexBuildCommitTs]
 	}
-	if item.QueueSizeDisk != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDisk)
+	backupIndexQueueSizeDisk := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDisk)
+	if (item.QueueSizeDisk != 0) == false {
+		w = w[:backupIndexQueueSizeDisk]
 	}
-	if item.QueueSizeMemory != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_memory":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
+	backupIndexQueueSizeMemory := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_memory":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
+	if (item.QueueSizeMemory != 0) == false {
+		w = w[:backupIndexQueueSizeMemory]
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1007,15 +1245,19 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte)
 		w = append(w, `"queue_size_disk_sum_unsent":`...)
 		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
 	}
-	if item.OriginalSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"original_size":`...)
-		w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	backupIndexOriginalSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"original_size":`...)
+	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	if (item.OriginalSize != 0) == false {
+		w = w[:backupIndexOriginalSize]
 	}
-	if len(item.CompressedData) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"compressed_data":`...)
-		w = basictl.JSONWriteStringBytes(w, item.CompressedData)
+	backupIndexCompressedData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"compressed_data":`...)
+	w = basictl.JSONWriteStringBytes(w, item.CompressedData)
+	if (len(item.CompressedData) != 0) == false {
+		w = w[:backupIndexCompressedData]
 	}
 	return append(w, '}'), nil
 }
@@ -1025,11 +1267,7 @@ func (item *StatshouseSendSourceBucket2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket2", err.Error())
 	}
 	return nil

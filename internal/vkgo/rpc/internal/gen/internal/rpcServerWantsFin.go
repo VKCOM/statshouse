@@ -19,14 +19,22 @@ type RpcServerWantsFin struct {
 func (RpcServerWantsFin) TLName() string { return "rpcServerWantsFin" }
 func (RpcServerWantsFin) TLTag() uint32  { return 0xa8ddbc46 }
 
-func (item *RpcServerWantsFin) Reset()                         {}
-func (item *RpcServerWantsFin) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *RpcServerWantsFin) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *RpcServerWantsFin) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xa8ddbc46)
+func (item *RpcServerWantsFin) Reset() {}
+
+func (item *RpcServerWantsFin) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *RpcServerWantsFin) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *RpcServerWantsFin) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xa8ddbc46); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *RpcServerWantsFin) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xa8ddbc46), nil
+	w = basictl.NatWrite(w, 0xa8ddbc46)
+	return item.Write(w)
 }
 
 func (item RpcServerWantsFin) String() string {
@@ -37,24 +45,27 @@ func (item RpcServerWantsFin) String() string {
 	return string(w)
 }
 
-func RpcServerWantsFin__ReadJSON(item *RpcServerWantsFin, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcServerWantsFin) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcServerWantsFin", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcServerWantsFin", k)
+func (item *RpcServerWantsFin) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("rpcServerWantsFin", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *RpcServerWantsFin) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcServerWantsFin) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcServerWantsFin) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -64,11 +75,7 @@ func (item *RpcServerWantsFin) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcServerWantsFin) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
 	}
 	return nil

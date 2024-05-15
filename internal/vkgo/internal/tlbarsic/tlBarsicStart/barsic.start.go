@@ -58,6 +58,27 @@ func (item *BarsicStart) Reset() {
 	item.Snapshots = item.Snapshots[:0]
 }
 
+func (item *BarsicStart) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.ClusterId = basictl.RandomString(rg)
+	item.ShardId = basictl.RandomString(rg)
+	item.EncryptionSecret = basictl.RandomString(rg)
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorString.BuiltinVectorStringFillRandom(rg, &item.EncryptionSecrets)
+	} else {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	tlBuiltinVectorString.BuiltinVectorStringFillRandom(rg, &item.Snapshots)
+}
+
 func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -83,15 +104,9 @@ func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicStart) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.EncryptionSecret); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterId)
+	w = basictl.StringWrite(w, item.ShardId)
+	w = basictl.StringWrite(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.EncryptionSecrets); err != nil {
 			return w, err
@@ -120,19 +135,19 @@ func (item *BarsicStart) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err e
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicStart) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicStart) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStart) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicStart) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicStart) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -147,22 +162,19 @@ func (item *BarsicStart) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 	return r, w, err
 }
 
-func (item *BarsicStart) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStart) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicStart) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.start", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -177,110 +189,176 @@ func (item BarsicStart) String() string {
 	return string(w)
 }
 
-func BarsicStart__ReadJSON(item *BarsicStart, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicStart) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.start", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jDump := _jm["dump"]
-	delete(_jm, "dump")
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadString(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadString(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jEncryptionSecret := _jm["encryptionSecret"]
-	delete(_jm, "encryptionSecret")
-	if err := internal.JsonReadString(_jEncryptionSecret, &item.EncryptionSecret); err != nil {
-		return err
-	}
-	_jEncryptionSecrets := _jm["encryptionSecrets"]
-	delete(_jm, "encryptionSecrets")
-	_jSnapshots := _jm["snapshots"]
-	delete(_jm, "snapshots")
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.start", k)
-	}
-	if _jDump != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jDump, &_bit); err != nil {
-			return err
+func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeDumpPresented bool
+	var trueTypeDumpValue bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propEncryptionSecretPresented bool
+	var propEncryptionSecretsPresented bool
+	var propSnapshotsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "dump":
+				if trueTypeDumpPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
+					return err
+				}
+				trueTypeDumpPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "shard_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "encryptionSecret":
+				if propEncryptionSecretPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecret")
+				}
+				if err := internal.Json2ReadString(in, &item.EncryptionSecret); err != nil {
+					return err
+				}
+				propEncryptionSecretPresented = true
+			case "encryptionSecrets":
+				if propEncryptionSecretsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecrets")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.EncryptionSecrets); err != nil {
+					return err
+				}
+				propEncryptionSecretsPresented = true
+			case "snapshots":
+				if propSnapshotsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "snapshots")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Snapshots); err != nil {
+					return err
+				}
+				propSnapshotsPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.start", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
 		}
 	}
-	if _jEncryptionSecrets != nil {
-		item.FieldsMask |= 1 << 1
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	if _jEncryptionSecrets != nil {
-		if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(_jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
-			return err
-		}
-	} else {
+	if !propClusterIdPresented {
+		item.ClusterId = ""
+	}
+	if !propShardIdPresented {
+		item.ShardId = ""
+	}
+	if !propEncryptionSecretPresented {
+		item.EncryptionSecret = ""
+	}
+	if !propEncryptionSecretsPresented {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(_jSnapshots, &item.Snapshots); err != nil {
-		return err
+	if !propSnapshotsPresented {
+		item.Snapshots = item.Snapshots[:0]
+	}
+	if trueTypeDumpPresented {
+		if trueTypeDumpValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if propEncryptionSecretsPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *BarsicStart) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStart) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"dump":true`...)
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteString(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteString(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteString(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteString(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if len(item.EncryptionSecret) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"encryptionSecret":`...)
-		w = basictl.JSONWriteString(w, item.EncryptionSecret)
+	backupIndexEncryptionSecret := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"encryptionSecret":`...)
+	w = basictl.JSONWriteString(w, item.EncryptionSecret)
+	if (len(item.EncryptionSecret) != 0) == false {
+		w = w[:backupIndexEncryptionSecret]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(short, w, item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	}
-	if len(item.Snapshots) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshots":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(short, w, item.Snapshots); err != nil {
-			return w, err
-		}
+	backupIndexSnapshots := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshots":`...)
+	if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
+		return w, err
+	}
+	if (len(item.Snapshots) != 0) == false {
+		w = w[:backupIndexSnapshots]
 	}
 	return append(w, '}'), nil
 }
@@ -290,11 +368,7 @@ func (item *BarsicStart) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicStart) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.start", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	return nil
@@ -341,6 +415,27 @@ func (item *BarsicStartBytes) Reset() {
 	item.Snapshots = item.Snapshots[:0]
 }
 
+func (item *BarsicStartBytes) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.ClusterId = basictl.RandomStringBytes(rg)
+	item.ShardId = basictl.RandomStringBytes(rg)
+	item.EncryptionSecret = basictl.RandomStringBytes(rg)
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorString.BuiltinVectorStringBytesFillRandom(rg, &item.EncryptionSecrets)
+	} else {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	tlBuiltinVectorString.BuiltinVectorStringBytesFillRandom(rg, &item.Snapshots)
+}
+
 func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -366,15 +461,9 @@ func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicStartBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.EncryptionSecret); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.ClusterId)
+	w = basictl.StringWriteBytes(w, item.ShardId)
+	w = basictl.StringWriteBytes(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.EncryptionSecrets); err != nil {
 			return w, err
@@ -403,19 +492,19 @@ func (item *BarsicStartBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicStartBytes) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicStartBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStartBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicStartBytes) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicStartBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -430,22 +519,19 @@ func (item *BarsicStartBytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ [
 	return r, w, err
 }
 
-func (item *BarsicStartBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStartBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicStartBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.start", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -460,110 +546,176 @@ func (item BarsicStartBytes) String() string {
 	return string(w)
 }
 
-func BarsicStartBytes__ReadJSON(item *BarsicStartBytes, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicStartBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.start", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jDump := _jm["dump"]
-	delete(_jm, "dump")
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadStringBytes(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadStringBytes(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jEncryptionSecret := _jm["encryptionSecret"]
-	delete(_jm, "encryptionSecret")
-	if err := internal.JsonReadStringBytes(_jEncryptionSecret, &item.EncryptionSecret); err != nil {
-		return err
-	}
-	_jEncryptionSecrets := _jm["encryptionSecrets"]
-	delete(_jm, "encryptionSecrets")
-	_jSnapshots := _jm["snapshots"]
-	delete(_jm, "snapshots")
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.start", k)
-	}
-	if _jDump != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jDump, &_bit); err != nil {
-			return err
+func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeDumpPresented bool
+	var trueTypeDumpValue bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propEncryptionSecretPresented bool
+	var propEncryptionSecretsPresented bool
+	var propSnapshotsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "dump":
+				if trueTypeDumpPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
+					return err
+				}
+				trueTypeDumpPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "shard_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "encryptionSecret":
+				if propEncryptionSecretPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecret")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.EncryptionSecret); err != nil {
+					return err
+				}
+				propEncryptionSecretPresented = true
+			case "encryptionSecrets":
+				if propEncryptionSecretsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecrets")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.EncryptionSecrets); err != nil {
+					return err
+				}
+				propEncryptionSecretsPresented = true
+			case "snapshots":
+				if propSnapshotsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "snapshots")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.Snapshots); err != nil {
+					return err
+				}
+				propSnapshotsPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.start", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
 		}
 	}
-	if _jEncryptionSecrets != nil {
-		item.FieldsMask |= 1 << 1
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	if _jEncryptionSecrets != nil {
-		if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(_jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
-			return err
-		}
-	} else {
+	if !propClusterIdPresented {
+		item.ClusterId = item.ClusterId[:0]
+	}
+	if !propShardIdPresented {
+		item.ShardId = item.ShardId[:0]
+	}
+	if !propEncryptionSecretPresented {
+		item.EncryptionSecret = item.EncryptionSecret[:0]
+	}
+	if !propEncryptionSecretsPresented {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(_jSnapshots, &item.Snapshots); err != nil {
-		return err
+	if !propSnapshotsPresented {
+		item.Snapshots = item.Snapshots[:0]
+	}
+	if trueTypeDumpPresented {
+		if trueTypeDumpValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if propEncryptionSecretsPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *BarsicStartBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStartBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"dump":true`...)
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if len(item.EncryptionSecret) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"encryptionSecret":`...)
-		w = basictl.JSONWriteStringBytes(w, item.EncryptionSecret)
+	backupIndexEncryptionSecret := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"encryptionSecret":`...)
+	w = basictl.JSONWriteStringBytes(w, item.EncryptionSecret)
+	if (len(item.EncryptionSecret) != 0) == false {
+		w = w[:backupIndexEncryptionSecret]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(short, w, item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	}
-	if len(item.Snapshots) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshots":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(short, w, item.Snapshots); err != nil {
-			return w, err
-		}
+	backupIndexSnapshots := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshots":`...)
+	if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
+		return w, err
+	}
+	if (len(item.Snapshots) != 0) == false {
+		w = w[:backupIndexSnapshots]
 	}
 	return append(w, '}'), nil
 }
@@ -573,11 +725,7 @@ func (item *BarsicStartBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicStartBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.start", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	return nil

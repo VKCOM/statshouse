@@ -63,6 +63,28 @@ func (item *BarsicChangeRole) Reset() {
 	item.ViewNumber = 0
 }
 
+func (item *BarsicChangeRole) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	if maskFieldsMask&(1<<2) != 0 {
+		item.FieldsMask |= (1 << 30)
+	}
+	item.Offset = basictl.RandomLong(rg)
+	if item.FieldsMask&(1<<30) != 0 {
+		item.EpochNumber = basictl.RandomLong(rg)
+	} else {
+		item.EpochNumber = 0
+	}
+	item.ViewNumber = basictl.RandomLong(rg)
+}
+
 func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -109,19 +131,19 @@ func (item *BarsicChangeRole) WriteResult(w []byte, ret tlTrue.True) (_ []byte, 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicChangeRole) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicChangeRole) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicChangeRole) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicChangeRole) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicChangeRole) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -136,22 +158,19 @@ func (item *BarsicChangeRole) ReadResultWriteResultJSON(r []byte, w []byte) (_ [
 	return r, w, err
 }
 
-func (item *BarsicChangeRole) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicChangeRole) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicChangeRole) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.changeRole", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -166,80 +185,130 @@ func (item BarsicChangeRole) String() string {
 	return string(w)
 }
 
-func BarsicChangeRole__ReadJSON(item *BarsicChangeRole, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicChangeRole) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.changeRole", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jMaster := _jm["master"]
-	delete(_jm, "master")
-	_jReady := _jm["ready"]
-	delete(_jm, "ready")
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jEpochNumber := _jm["epoch_number"]
-	delete(_jm, "epoch_number")
-	_jViewNumber := _jm["view_number"]
-	delete(_jm, "view_number")
-	if err := internal.JsonReadInt64(_jViewNumber, &item.ViewNumber); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.changeRole", k)
-	}
-	if _jMaster != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jMaster, &_bit); err != nil {
-			return err
+func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeMasterPresented bool
+	var trueTypeMasterValue bool
+	var trueTypeReadyPresented bool
+	var trueTypeReadyValue bool
+	var propOffsetPresented bool
+	var propEpochNumberPresented bool
+	var propViewNumberPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "master":
+				if trueTypeMasterPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "master")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeMasterValue); err != nil {
+					return err
+				}
+				trueTypeMasterPresented = true
+			case "ready":
+				if trueTypeReadyPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "ready")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeReadyValue); err != nil {
+					return err
+				}
+				trueTypeReadyPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "epoch_number":
+				if propEpochNumberPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "epoch_number")
+				}
+				if err := internal.Json2ReadInt64(in, &item.EpochNumber); err != nil {
+					return err
+				}
+				propEpochNumberPresented = true
+			case "view_number":
+				if propViewNumberPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "view_number")
+				}
+				if err := internal.Json2ReadInt64(in, &item.ViewNumber); err != nil {
+					return err
+				}
+				propViewNumberPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.changeRole", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propEpochNumberPresented {
+		item.EpochNumber = 0
+	}
+	if !propViewNumberPresented {
+		item.ViewNumber = 0
+	}
+	if trueTypeMasterPresented {
+		if trueTypeMasterValue {
 			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
 		}
 	}
-	if _jReady != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jReady, &_bit); err != nil {
-			return err
-		}
-		if _bit {
+	if trueTypeReadyPresented {
+		if trueTypeReadyValue {
 			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if _jEpochNumber != nil {
+	if propEpochNumberPresented {
 		item.FieldsMask |= 1 << 30
 	}
-	if _jEpochNumber != nil {
-		if err := internal.JsonReadInt64(_jEpochNumber, &item.EpochNumber); err != nil {
-			return err
-		}
-	} else {
-		item.EpochNumber = 0
+	// tries to set bit to zero if it is 1
+	if trueTypeMasterPresented && !trueTypeMasterValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeReadyPresented && !trueTypeReadyValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *BarsicChangeRole) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicChangeRole) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicChangeRole) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -249,20 +318,24 @@ func (item *BarsicChangeRole) WriteJSONOpt(short bool, w []byte) (_ []byte, err 
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ready":true`...)
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
 	if item.FieldsMask&(1<<30) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"epoch_number":`...)
 		w = basictl.JSONWriteInt64(w, item.EpochNumber)
 	}
-	if item.ViewNumber != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"view_number":`...)
-		w = basictl.JSONWriteInt64(w, item.ViewNumber)
+	backupIndexViewNumber := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"view_number":`...)
+	w = basictl.JSONWriteInt64(w, item.ViewNumber)
+	if (item.ViewNumber != 0) == false {
+		w = w[:backupIndexViewNumber]
 	}
 	return append(w, '}'), nil
 }
@@ -272,11 +345,7 @@ func (item *BarsicChangeRole) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicChangeRole) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.changeRole", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.changeRole", err.Error())
 	}
 	return nil

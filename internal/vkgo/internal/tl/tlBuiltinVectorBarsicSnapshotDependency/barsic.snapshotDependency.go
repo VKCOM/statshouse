@@ -16,6 +16,15 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+func BuiltinVectorBarsicSnapshotDependencyFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependency, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorBarsicSnapshotDependencyRead(w []byte, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -47,38 +56,57 @@ func BuiltinVectorBarsicSnapshotDependencyWrite(w []byte, vec []tlBarsicSnapshot
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotDependencyReadJSON(j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
-	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependency, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := tlBarsicSnapshotDependency.BarsicSnapshotDependency__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue tlBarsicSnapshotDependency.BarsicSnapshotDependency
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorBarsicSnapshotDependencyWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
-	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(false, w, vec)
+	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
 	return append(w, ']'), nil
 }
 
+func BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorBarsicSnapshotDependencyBytesRead(w []byte, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -110,32 +138,42 @@ func BuiltinVectorBarsicSnapshotDependencyBytesWrite(w []byte, vec []tlBarsicSna
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
-	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
-	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(false, w, vec)
+	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/atomic"
@@ -62,7 +64,7 @@ func mainTestParser() int {
 
 	build.FlagParseShowVersionHelp()
 
-	u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, false, nil, log.Printf)
+	u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, false, nil, log.Printf)
 	if err != nil {
 		logErr.Printf("ListenUDP: %v", err)
 		return 1
@@ -252,11 +254,11 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	metricStorage.Journal().Start(nil, nil, dolphinLoader)
 	mapper := mapping.NewMapper("", pmcLoader, nil, nil, 1000, handleMappedMetric)
 
-	recv, err := receiver.ListenUDP(listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
+	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	recv2, err := receiver.ListenUDP(listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
+	recv2, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -588,6 +590,130 @@ func mainTagMapping() {
 			fmt.Printf("%q set mapping budget %d, was %d, now %d\n", metric, budget, res.BudgetBefore, res.BudgetAfter)
 		} else {
 			fmt.Printf("%q ERROR <%v> setting mapping budget %d\n", metric, err, budget)
+		}
+	}
+}
+
+func mainPublishTagDrafts() {
+	var (
+		metadataNet     string
+		metadataAddr    string
+		metadataActorID int64
+	)
+	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
+	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
+	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+	build.FlagParseShowVersionHelp()
+	flag.Parse()
+	client := tlmetadata.Client{
+		Client: rpc.NewClient(
+			rpc.ClientWithCryptoKey(readAESPwd()),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		Network: metadataNet,
+		Address: metadataAddr,
+		ActorID: metadataActorID,
+	}
+	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
+	var (
+		config   aggregator.KnownTags
+		storage  *metajournal.MetricsStorage
+		workMu   sync.Mutex
+		work     = make(map[int32]map[int32]format.MetricMetaValue)
+		workCond = sync.NewCond(&workMu)
+	)
+	storage = metajournal.MakeMetricsStorage("", nil, nil, func(newEntries []tlmetadata.Event) {
+		var n int
+		for _, e := range newEntries {
+			switch e.EventType {
+			case format.MetricEvent:
+				meta := format.MetricMetaValue{}
+				err := meta.UnmarshalBinary([]byte(e.Data))
+				if err != nil {
+					fmt.Fprintln(os.Stderr, e.Data)
+					fmt.Fprintln(os.Stderr, err)
+					continue
+				}
+				if meta.NamespaceID == 0 || meta.NamespaceID == format.BuiltinNamespaceIDDefault {
+					continue
+				}
+				if len(meta.TagsDraft) == 0 {
+					continue
+				}
+				workCond.L.Lock()
+				if m := work[meta.NamespaceID]; m != nil {
+					m[meta.MetricID] = meta
+				} else {
+					work[meta.NamespaceID] = map[int32]format.MetricMetaValue{meta.MetricID: meta}
+				}
+				workCond.L.Unlock()
+				n++
+			case format.PromConfigEvent:
+				v, err := aggregator.ParseKnownTags([]byte(e.Data), storage)
+				fmt.Fprintln(os.Stderr, e.Data)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					continue
+				}
+				workCond.L.Lock()
+				config = v
+				workCond.L.Unlock()
+				n++
+			}
+		}
+		if n != 0 {
+			workCond.Signal()
+		}
+	})
+	storage.Journal().Start(nil, nil, loader.LoadJournal)
+	fmt.Println("Press <Enter> to start publishing tag drafts")
+	bufio.NewReader(os.Stdin).ReadString('\n')
+	fmt.Println("Publishing tag drafts")
+	for {
+		var meta format.MetricMetaValue
+		workCond.L.Lock()
+	outer:
+		for {
+			var ns map[int32]format.MetricMetaValue
+			for _, v := range work {
+				if len(v) != 0 {
+					ns = v
+					break
+				}
+			}
+			if len(ns) == 0 {
+				workCond.Wait()
+				continue
+			}
+			for k, v := range ns {
+				meta = v
+				delete(ns, k)
+				break outer
+			}
+		}
+		workCond.L.Unlock()
+		v := storage.GetMetaMetric(meta.MetricID)
+		if v == nil {
+			fmt.Fprintf(os.Stderr, "Failed to get metric %q\n", meta.Name)
+			continue
+		}
+		meta = *v
+		workCond.L.Lock()
+		n := config.PublishDraftTags(&meta)
+		workCond.L.Unlock()
+		if n == 0 {
+			continue
+		}
+		fmt.Println(meta.NamespaceID, meta.Name, meta.Version)
+		var err error
+		meta, err = loader.SaveMetric(context.Background(), meta, "")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		err = storage.Journal().WaitVersion(context.Background(), meta.Version)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 }

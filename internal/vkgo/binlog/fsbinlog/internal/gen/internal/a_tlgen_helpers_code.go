@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"github.com/mailru/easyjson/jlexer"
 )
 
 type UnionElement struct {
@@ -65,8 +67,16 @@ func ErrorInvalidUnionTagJSON(typeName string, tag string) error {
 	return fmt.Errorf("invalid union %q tag: %q", typeName, tag)
 }
 
+func ErrorInvalidUnionLegacyTagJSON(typeName string, tag string) error {
+	return fmt.Errorf("legacy union %q tag %q, please remove suffix", typeName, tag)
+}
+
 func ErrorInvalidJSON(typeName string, msg string) error {
 	return fmt.Errorf("invalid json for type %q - %s", typeName, msg)
+}
+
+func ErrorInvalidJSONWithDuplicatingKeys(typeName string, field string) error {
+	return fmt.Errorf("invalid json for type %q: %q repeats several times", typeName, field)
 }
 
 func ErrorInvalidJSONExcessElement(typeName string, key string) error {
@@ -91,6 +101,54 @@ func JsonReadUnionType(typeName string, j interface{}) (map[string]interface{}, 
 	}
 	delete(jm, "type")
 	return jm, ret, nil
+}
+
+func Json2ReadUnion(typeName string, in *jlexer.Lexer) (string, []byte, error) {
+	if in == nil {
+		return "", nil, ErrorInvalidJSON(typeName, "expected json object")
+	}
+	var valueFound bool
+	var valueSlice []byte
+
+	var typeFound bool
+	var typeValue string
+
+	in.Delim('{')
+	if !in.Ok() {
+		return "", nil, in.Error()
+	}
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(true)
+		in.WantColon()
+		switch key {
+		case "value":
+			if valueFound {
+				return "", nil, ErrorInvalidJSONWithDuplicatingKeys(typeName, "value")
+			}
+			valueSlice = in.Raw()
+			valueFound = true
+		case "type":
+			if typeFound {
+				return "", nil, ErrorInvalidJSONWithDuplicatingKeys(typeName, "type")
+			}
+			typeValue = in.UnsafeString()
+			typeFound = true
+		default:
+			return "", nil, ErrorInvalidJSON(typeName, "unexpected field \""+key+"\" in union")
+		}
+
+		in.WantComma()
+	}
+	in.Delim('}')
+	if !in.Ok() {
+		return "", nil, in.Error()
+	}
+
+	if !typeFound {
+		return "", nil, ErrorInvalidJSON(typeName, "type is absent")
+	}
+
+	return typeValue, valueSlice, nil
 }
 
 func JsonReadMaybe(typeName string, j interface{}) (bool, interface{}, error) {
@@ -124,6 +182,56 @@ func JsonReadMaybe(typeName string, j interface{}) (bool, interface{}, error) {
 	return dst, jvalue, nil
 }
 
+func Json2ReadMaybe(typeName string, in *jlexer.Lexer) (bool, []byte, error) {
+	if in == nil {
+		return false, nil, nil
+	}
+	var valueFound bool
+	var valueSlice []byte
+
+	var okFound bool
+	var okValue bool
+
+	in.Delim('{')
+	if !in.Ok() {
+		return false, nil, ErrorInvalidJSON(typeName, "expected json object")
+	}
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(true)
+		in.WantColon()
+		switch key {
+		case "value":
+			if valueFound {
+				return false, nil, ErrorInvalidJSONWithDuplicatingKeys(typeName, "value")
+			}
+			valueSlice = in.Raw()
+			valueFound = true
+		case "ok":
+			if okFound {
+				return false, nil, ErrorInvalidJSONWithDuplicatingKeys(typeName, "ok")
+			}
+			okValue = in.Bool()
+			okFound = true
+		default:
+			return false, nil, ErrorInvalidJSON(typeName, "unexpected field \""+key+"\" in maybe")
+		}
+
+		in.WantComma()
+	}
+	in.Delim('}')
+	if !in.Ok() {
+		return false, nil, in.Error()
+	}
+
+	if okFound && !okValue && valueSlice != nil {
+		return false, nil, ErrorInvalidJSON(typeName, "ok is false but value is presented in maybe")
+	}
+	if !okFound && valueSlice != nil {
+		okValue = true
+	}
+	return okValue, valueSlice, nil
+}
+
 func JsonReadArray(typeName string, j interface{}) (int, []interface{}, error) {
 	var arr []interface{}
 	var arrok bool
@@ -154,6 +262,18 @@ func JsonReadBool(j interface{}, dst *bool) error {
 		return fmt.Errorf("invalid json for bool")
 	}
 	*dst = jj
+	return nil
+}
+
+func Json2ReadBool(in *jlexer.Lexer, dst *bool) error {
+	if in == nil {
+		*dst = false
+		return nil
+	}
+	*dst = in.Bool()
+	if !in.Ok() {
+		return in.Error()
+	}
 	return nil
 }
 
@@ -209,6 +329,98 @@ func JsonReadStringBytes(j interface{}, dst *[]byte) error {
 	}
 }
 
+func Json2ReadString(in *jlexer.Lexer, dst *string) error {
+	if in == nil {
+		*dst = ""
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		*dst = in.String()
+	case jlexer.TokenDelim:
+		var findValue = false
+
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "base64":
+				if findValue {
+					return fmt.Errorf("base64 repeats several times")
+				}
+				*dst = string(in.Bytes())
+				findValue = true
+			default:
+				return fmt.Errorf("unexpected field \"" + key + "\"")
+			}
+
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+
+		if !findValue {
+			return fmt.Errorf("base64 is absent")
+		}
+	default:
+		return fmt.Errorf("invalid json for string")
+	}
+	return nil
+}
+
+func Json2ReadStringBytes(in *jlexer.Lexer, dst *[]byte) error {
+	if in == nil {
+		*dst = nil
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		*dst = append((*dst)[:0], in.String()...)
+	case jlexer.TokenDelim:
+		var findValue = false
+
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "base64":
+				if findValue {
+					return fmt.Errorf("base64 repeats several times")
+				}
+				*dst = in.Bytes()
+				findValue = true
+			default:
+				return fmt.Errorf("unexpected field \"" + key + "\"")
+			}
+
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+
+		if !findValue {
+			return fmt.Errorf("base64 is absent")
+		}
+	default:
+		return fmt.Errorf("invalid json for string")
+	}
+	return nil
+}
+
 // We allow to specify numbers as "123", so that JS can pass through int64 and bigger numbers
 func jsonNumberOrString(j interface{}) (string, bool) {
 	jn, ok := j.(json.Number)
@@ -236,6 +448,31 @@ func JsonReadUint32(j interface{}, dst *uint32) error {
 	return nil
 }
 
+func Json2ReadUint32(in *jlexer.Lexer, dst *uint32) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseUint(src, 10, 32)
+		if err != nil {
+			return err
+		}
+		*dst = uint32(value)
+	case jlexer.TokenNumber:
+		*dst = in.Uint32()
+	default:
+		return fmt.Errorf("invalid json for uint32")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
+	return nil
+}
+
 func JsonReadInt32(j interface{}, dst *int32) error {
 	if j == nil {
 		*dst = 0
@@ -250,6 +487,31 @@ func JsonReadInt32(j interface{}, dst *int32) error {
 		return fmt.Errorf("invalid number format for int32 %w", err)
 	}
 	*dst = int32(val)
+	return nil
+}
+
+func Json2ReadInt32(in *jlexer.Lexer, dst *int32) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseInt(src, 10, 32)
+		if err != nil {
+			return err
+		}
+		*dst = int32(value)
+	case jlexer.TokenNumber:
+		*dst = in.Int32()
+	default:
+		return fmt.Errorf("invalid json for int32")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
 	return nil
 }
 
@@ -270,6 +532,31 @@ func JsonReadInt64(j interface{}, dst *int64) error {
 	return nil
 }
 
+func Json2ReadInt64(in *jlexer.Lexer, dst *int64) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseInt(src, 10, 64)
+		if err != nil {
+			return err
+		}
+		*dst = value
+	case jlexer.TokenNumber:
+		*dst = in.Int64()
+	default:
+		return fmt.Errorf("invalid json for int64")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
+	return nil
+}
+
 func JsonReadFloat32(j interface{}, dst *float32) error {
 	if j == nil {
 		*dst = 0
@@ -287,6 +574,31 @@ func JsonReadFloat32(j interface{}, dst *float32) error {
 	return nil
 }
 
+func Json2ReadFloat32(in *jlexer.Lexer, dst *float32) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseFloat(src, 32)
+		if err != nil {
+			return err
+		}
+		*dst = float32(value)
+	case jlexer.TokenNumber:
+		*dst = in.Float32()
+	default:
+		return fmt.Errorf("invalid json for float32")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
+	return nil
+}
+
 func JsonReadFloat64(j interface{}, dst *float64) error {
 	if j == nil {
 		*dst = 0
@@ -301,6 +613,31 @@ func JsonReadFloat64(j interface{}, dst *float64) error {
 		return fmt.Errorf("invalid number format for float64 %w", err)
 	}
 	*dst = val
+	return nil
+}
+
+func Json2ReadFloat64(in *jlexer.Lexer, dst *float64) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseFloat(src, 64)
+		if err != nil {
+			return err
+		}
+		*dst = value
+	case jlexer.TokenNumber:
+		*dst = in.Float64()
+	default:
+		return fmt.Errorf("invalid json for float64")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
 	return nil
 }
 

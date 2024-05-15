@@ -196,8 +196,6 @@ type VectorSelector struct {
 	PosRange PositionRange
 
 	MatchingMetrics []*format.MetricMetaValue
-	MatchingNames   []string
-	MetricKindHint  string
 	Range           int64
 	What            string
 	Whats           []string

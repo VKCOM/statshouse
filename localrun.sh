@@ -20,6 +20,10 @@ case $1 in
     ;;
 esac
 
+export BUILD_COMMIT="$(git log --format="%H" -n 1)"
+export BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)"
+export BUILD_MACHINE="$(uname -n -m -r -s)"
+export BUILD_TIME="$(date +%FT%T%z)"
 docker compose -f localrun.yml --profile $PROFILE up -d --remove-orphans $@ # --build --force-recreate
 trap "{ docker compose -f localrun.yml --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...

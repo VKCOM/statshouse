@@ -55,7 +55,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
 	protocol := int32(hctx.ProtocolVersion())
 	requestLen := len(hctx.Request) // impl will release hctx
-	key := data_model.AggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key := a.aggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol})
 	err := a.handleClientImpl(ctx, hctx)
 	if err == rpc.ErrNoHandler {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusNoHandler
@@ -166,9 +166,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 	case constants.StatshouseGetTargets2:
 		{
-			if a.scrape == nil {
-				return fmt.Errorf("service discovery is not running")
-			}
 			ud := getUserData(hctx)
 			_, err := ud.getTargets2.Read(hctx.Request)
 			if err != nil {
@@ -210,6 +207,10 @@ func (a *Aggregator) getAgentEnv(isEnvStaging bool) int32 {
 	return format.TagValueIDProduction
 }
 
+func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) data_model.Key {
+	return data_model.AggKey(t, m, k, a.aggregatorHost, a.shardKey, a.replicaKey)
+}
+
 func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetConfig2) (err error) {
 	now := time.Now()
 	host := a.tagsMapper.mapHost(now, []byte(args.Header.HostName), format.BuiltinMetricNameBudgetHost, false)
@@ -221,12 +222,14 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContex
 	}
 
 	if args.Cluster != a.config.Cluster {
-		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
-		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
+		key := a.aggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
+		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(key, 1, host, nil)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
-	key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, a.aggregatorHost, a.shardKey, a.replicaKey)
-	a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
+	key := a.aggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
+	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	a.sh2.AddCounterHost(key, 1, host, nil)
 
 	ret := a.getConfigResult()
 	hctx.Response, err = args.WriteResult(hctx.Response, ret)
@@ -239,6 +242,10 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	host := a.tagsMapper.mapHost(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
 	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	route := int32(format.TagValueIDRouteDirect)
+	if args.Header.IsSetIngressProxy(args.FieldsMask) {
+		route = int32(format.TagValueIDRouteIngressProxy)
+	}
 	var bcStr []byte
 	bcTag := int32(0)
 	if format.ValidStringValue(mem.B(args.BuildCommit)) {
@@ -248,6 +255,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			bcTag = int32(binary.BigEndian.Uint32(bcStrRaw))
 		}
 	}
+	// TODO - if bcTag == 0 || args.BuildCommitTs == 0 { reply with error "agent must be built correctly with commit timestamp and hash"
 
 	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 	if args.Header.AgentIp[3] != 0 {
@@ -259,8 +267,9 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	a.mu.Lock()
 	if setShardReplica { // Skip old versions not yet updated
 		if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
-			key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
+			key := a.aggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddCounterHost(key, 1, host, nil)
 			return err // TODO - return code so clients will print into log and discard data
 		}
@@ -279,19 +288,21 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 
 	if args.IsSetHistoric() {
 		if roundedToOurTime > newestTime {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
+			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
-			return err
+			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
+			return nil
 		}
 		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
-			return err
+			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host)
+			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
+			return nil
 		}
 		if roundedToOurTime < oldestTime {
 			aggBucket = a.historicBuckets[args.Time]
@@ -310,17 +321,19 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 		}
 	} else {
 		if roundedToOurTime > newestTime { // AgentShard too far in a future
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
+			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
-			return err
+			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
+			return nil
 		}
 		if roundedToOurTime < oldestTime {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
+			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host)
 			return rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
@@ -347,7 +360,6 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	} else {
 		aggBucket.contributorsOriginal.AddCounterHost(1, host) // protected by a.mu
 	}
-	aggHost := a.aggregatorHost
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
 
@@ -364,10 +376,6 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	spare := int32(format.TagValueIDAggregatorOriginal)
 	if args.IsSetSpare() {
 		spare = format.TagValueIDAggregatorSpare
-	}
-	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
-		route = int32(format.TagValueIDRouteIngressProxy)
 	}
 
 	for _, item := range bucket.Metrics {
@@ -388,12 +396,23 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
 				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
-				// We need to set IP anyway, so set other keys here, not by source
-				k.Keys[4] = bcTag
-				k.Keys[5] = args.BuildCommitDate
-				k.Keys[6] = args.BuildCommitTs
-				k.Keys[7] = host
+				// In case of agent we need to set IP anyway, so set other keys here, not by source
+				// In case of api other tags are already set, so don't overwrite them
+				if k.Keys[4] == 0 {
+					k.Keys[4] = bcTag
+				}
+				if k.Keys[5] == 0 {
+					k.Keys[5] = args.BuildCommitDate
+				}
+				if k.Keys[6] == 0 {
+					k.Keys[6] = args.BuildCommitTs
+				}
+				if k.Keys[7] == 0 {
+					k.Keys[7] = host
+				}
+				// Valid for api as well because it is on the same host as agent
 				k.Keys[8] = int32(addrIPV4)
+
 			}
 			if k.Metric == format.BuiltinMetricIDRPCRequests {
 				k.Keys[7] = host // agent cannot easily map its own host for now
@@ -433,7 +452,8 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	// Write meta metrics. They all simply go to shard 0 independent of their keys.
 	s := aggBucket.lockShard(&lockedShard, 0)
 	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
-		key := data_model.AggKey(t, m, keys, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		key := a.aggKey(t, m, keys)
+		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		return data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil, nil)
 	}
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(rawSize), 1, host)
@@ -515,11 +535,16 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	host := a.tagsMapper.mapHost(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
 	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	route := int32(format.TagValueIDRouteDirect)
+	if args.Header.IsSetIngressProxy(args.FieldsMask) {
+		route = int32(format.TagValueIDRouteIngressProxy)
+	}
 
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
-		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		a.mu.Unlock()
+		key := a.aggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
+		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, host, nil)
 		return err
 	}
@@ -531,7 +556,6 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	aggBucket := a.recentBuckets[roundedToOurTime-oldestTime]
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	aggHost := a.aggregatorHost
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
 
@@ -540,15 +564,13 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	aggBucket.mu.Unlock()
 	// Write meta statistics
-	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
-		route = int32(format.TagValueIDRouteIngressProxy)
-	}
 
 	lockedShard := -1
 	s := aggBucket.lockShard(&lockedShard, 0)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	data_model.MapKeyItemMultiItem(&s.multiItems, data_model.AggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{}, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(1, host)
+	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
+	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(1, host)
 	aggBucket.lockShard(&lockedShard, -1)
 
 	return errHijack

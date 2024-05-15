@@ -19,14 +19,22 @@ type EngineIsProduction struct {
 func (EngineIsProduction) TLName() string { return "engine.isProduction" }
 func (EngineIsProduction) TLTag() uint32  { return 0xccdea0ac }
 
-func (item *EngineIsProduction) Reset()                         {}
-func (item *EngineIsProduction) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineIsProduction) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineIsProduction) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xccdea0ac)
+func (item *EngineIsProduction) Reset() {}
+
+func (item *EngineIsProduction) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineIsProduction) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineIsProduction) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xccdea0ac); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineIsProduction) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xccdea0ac), nil
+	w = basictl.NatWrite(w, 0xccdea0ac)
+	return item.Write(w)
 }
 
 func (item *EngineIsProduction) ReadResult(w []byte, ret *bool) (_ []byte, err error) {
@@ -37,18 +45,18 @@ func (item *EngineIsProduction) WriteResult(w []byte, ret bool) (_ []byte, err e
 	return BoolWriteBoxed(w, ret)
 }
 
-func (item *EngineIsProduction) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *EngineIsProduction) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineIsProduction) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineIsProduction) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
+func (item *EngineIsProduction) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -62,22 +70,19 @@ func (item *EngineIsProduction) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *EngineIsProduction) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineIsProduction) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineIsProduction) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.isProduction", err.Error())
-	}
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -92,24 +97,27 @@ func (item EngineIsProduction) String() string {
 	return string(w)
 }
 
-func EngineIsProduction__ReadJSON(item *EngineIsProduction, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineIsProduction) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.isProduction", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.isProduction", k)
+func (item *EngineIsProduction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.isProduction", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineIsProduction) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineIsProduction) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineIsProduction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -119,11 +127,7 @@ func (item *EngineIsProduction) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineIsProduction) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.isProduction", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.isProduction", err.Error())
 	}
 	return nil

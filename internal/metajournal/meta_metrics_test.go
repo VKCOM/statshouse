@@ -20,6 +20,7 @@ import (
 func newMetricStorage(loader MetricsStorageLoader) *MetricsStorage {
 	result := MakeMetricsStorage("", nil, nil)
 	result.journal.metaLoader = loader
+	result.journal.parseDiscCache()
 	return result
 }
 
@@ -721,14 +722,14 @@ func TestMetricsStorage(t *testing.T) {
 			v2 := incVersion()
 			events = []tlmetadata.Event{
 				{
-					Id:        351525,
+					Id:        format.PrometheusConfigID,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
 					Version:   v1,
 					Data:      "abc",
 				},
 				{
-					Id:        351525,
+					Id:        format.PrometheusConfigID,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
 					Version:   v2,
@@ -736,7 +737,7 @@ func TestMetricsStorage(t *testing.T) {
 				},
 			}
 			var promConfgString string
-			m.applyPromConfig = func(configString string) {
+			m.applyPromConfig = func(_ int32, configString string) {
 				promConfgString = configString
 			}
 			err = m.journal.updateJournal(nil)

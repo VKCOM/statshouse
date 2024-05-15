@@ -44,32 +44,42 @@ func BuiltinVectorStatshouseMappingWrite(w []byte, vec []StatshouseMapping) (_ [
 	return w, nil
 }
 
-func BuiltinVectorStatshouseMappingReadJSON(j interface{}, vec *[]StatshouseMapping) error {
-	l, _arr, err := JsonReadArray("[]StatshouseMapping", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseMapping, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseMapping__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMapping) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseMapping", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseMapping
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseMapping", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseMappingWriteJSON(w []byte, vec []StatshouseMapping) (_ []byte, err error) {
-	return BuiltinVectorStatshouseMappingWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStatshouseMappingWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseMappingWriteJSONOpt(short bool, w []byte, vec []StatshouseMapping) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMapping) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -107,32 +117,42 @@ func BuiltinVectorStatshouseMappingBytesWrite(w []byte, vec []StatshouseMappingB
 	return w, nil
 }
 
-func BuiltinVectorStatshouseMappingBytesReadJSON(j interface{}, vec *[]StatshouseMappingBytes) error {
-	l, _arr, err := JsonReadArray("[]StatshouseMappingBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseMappingBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseMappingBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMappingBytes) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseMappingBytes", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseMappingBytes
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseMappingBytes", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseMappingBytesWriteJSON(w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
-	return BuiltinVectorStatshouseMappingBytesWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStatshouseMappingBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(short bool, w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -160,9 +180,7 @@ func (item *StatshouseMapping) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseMapping) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Str); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Str)
 	return basictl.IntWrite(w, item.Value), nil
 }
 
@@ -186,44 +204,72 @@ func (item StatshouseMapping) String() string {
 	return string(w)
 }
 
-func StatshouseMapping__ReadJSON(item *StatshouseMapping, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseMapping) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.mapping", "expected json object")
+func (item *StatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propStrPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "str":
+				if propStrPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.mapping", "str")
+				}
+				if err := Json2ReadString(in, &item.Str); err != nil {
+					return err
+				}
+				propStrPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.mapping", "value")
+				}
+				if err := Json2ReadInt32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.mapping", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jStr := _jm["str"]
-	delete(_jm, "str")
-	if err := JsonReadString(_jStr, &item.Str); err != nil {
-		return err
+	if !propStrPresented {
+		item.Str = ""
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadInt32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.mapping", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMapping) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Str) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"str":`...)
-		w = basictl.JSONWriteString(w, item.Str)
+	backupIndexStr := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"str":`...)
+	w = basictl.JSONWriteString(w, item.Str)
+	if (len(item.Str) != 0) == false {
+		w = w[:backupIndexStr]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteInt32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteInt32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -233,11 +279,7 @@ func (item *StatshouseMapping) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseMapping) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.mapping", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.mapping", err.Error())
 	}
 	return nil
@@ -264,9 +306,7 @@ func (item *StatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseMappingBytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWriteBytes(w, item.Str); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Str)
 	return basictl.IntWrite(w, item.Value), nil
 }
 
@@ -290,44 +330,72 @@ func (item StatshouseMappingBytes) String() string {
 	return string(w)
 }
 
-func StatshouseMappingBytes__ReadJSON(item *StatshouseMappingBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseMappingBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.mapping", "expected json object")
+func (item *StatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propStrPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "str":
+				if propStrPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.mapping", "str")
+				}
+				if err := Json2ReadStringBytes(in, &item.Str); err != nil {
+					return err
+				}
+				propStrPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.mapping", "value")
+				}
+				if err := Json2ReadInt32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.mapping", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jStr := _jm["str"]
-	delete(_jm, "str")
-	if err := JsonReadStringBytes(_jStr, &item.Str); err != nil {
-		return err
+	if !propStrPresented {
+		item.Str = item.Str[:0]
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadInt32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.mapping", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMappingBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseMappingBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Str) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"str":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Str)
+	backupIndexStr := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"str":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Str)
+	if (len(item.Str) != 0) == false {
+		w = w[:backupIndexStr]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteInt32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteInt32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -337,11 +405,7 @@ func (item *StatshouseMappingBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseMappingBytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.mapping", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.mapping", err.Error())
 	}
 	return nil

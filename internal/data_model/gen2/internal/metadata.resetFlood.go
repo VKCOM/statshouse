@@ -29,7 +29,7 @@ func (item *MetadataResetFlood) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *MetadataResetFlood) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Metric)
+	return basictl.StringWrite(w, item.Metric), nil
 }
 
 func (item *MetadataResetFlood) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -52,19 +52,19 @@ func (item *MetadataResetFlood) WriteResult(w []byte, ret MetadataResetFloodResp
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataResetFlood) ReadResultJSON(j interface{}, ret *MetadataResetFloodResponse) error {
-	if err := MetadataResetFloodResponse__ReadJSON(ret, j); err != nil {
+func (item *MetadataResetFlood) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataResetFloodResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataResetFlood) WriteResultJSON(w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataResetFlood) writeResultJSON(short bool, w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *MetadataResetFlood) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *MetadataResetFlood) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *MetadataResetFlood) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataResetFlood) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataResetFloodResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataResetFlood) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.resetFlood", err.Error())
-	}
 	var ret MetadataResetFloodResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item MetadataResetFlood) String() string {
 	return string(w)
 }
 
-func MetadataResetFlood__ReadJSON(item *MetadataResetFlood, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataResetFlood) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.resetFlood", "expected json object")
+func (item *MetadataResetFlood) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetricPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFlood", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.resetFlood", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.resetFlood", k)
+	if !propMetricPresented {
+		item.Metric = ""
 	}
 	return nil
 }
 
 func (item *MetadataResetFlood) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataResetFlood) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataResetFlood) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *MetadataResetFlood) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataResetFlood) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.resetFlood", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.resetFlood", err.Error())
 	}
 	return nil

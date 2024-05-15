@@ -58,43 +58,69 @@ func (item MetadataCreateEntityEvent) String() string {
 	return string(w)
 }
 
-func MetadataCreateEntityEvent__ReadJSON(item *MetadataCreateEntityEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataCreateEntityEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.createEntityEvent", "expected json object")
+func (item *MetadataCreateEntityEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propMetricPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createEntityEvent", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createEntityEvent", "metric")
+				}
+				if err := item.Metric.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.createEntityEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.createEntityEvent", k)
-	}
-	if err := MetadataEvent__ReadJSON(&item.Metric, _jMetric); err != nil {
-		return err
+	if !propMetricPresented {
+		item.Metric.Reset()
 	}
 	return nil
 }
 
 func (item *MetadataCreateEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataCreateEntityEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataCreateEntityEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Metric.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -105,11 +131,7 @@ func (item *MetadataCreateEntityEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataCreateEntityEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.createEntityEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.createEntityEvent", err.Error())
 	}
 	return nil

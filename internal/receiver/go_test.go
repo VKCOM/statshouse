@@ -13,24 +13,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse-go"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
-var (
-	_ *goMachine // for staticcheck: type goMachine is unused (U1000)
-)
+var _ *goMachine // for staticcheck: type goMachine is unused (U1000)
 
 const (
-	goStatsHouseAddr = "127.0.0.1:"
-	envName          = "abc"
+	goStatsHouseAddr     = "127.0.0.1:"
+	goStatsHouseAddrUnix = "@statshouse-test"
+	envName              = "abc"
 )
 
 type tag struct {
@@ -148,7 +146,8 @@ func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
-	recv, err := receiver.ListenUDP(goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	// recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("unixgram", goStatsHouseAddrUnix, receiver.DefaultConnBufSize, true, nil, nil)
 	require.NoError(t, err)
 	g.recv = recv
 	g.addr = recv.Addr()
@@ -156,7 +155,7 @@ func (g *goMachine) init(t *rapid.T) {
 	if g.envIsSet {
 		env = envName
 	}
-	g.send = statshouse.NewClient(t.Logf, g.addr, env)
+	g.send = statshouse.NewClient(t.Logf, "unixgram", g.addr, env)
 }
 
 func (g *goMachine) Cleanup() {
@@ -354,6 +353,7 @@ func TestGoRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := goMachine{}
 		m.init(t)
+		defer m.Cleanup()
 		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }

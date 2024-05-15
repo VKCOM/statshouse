@@ -22,8 +22,8 @@ func Version() string {
 	return sqlite0.Version()
 }
 
-func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {
-	ro, err := openROWAL(path)
+func doSingleROToWALQuery(path string, pageSize int, f func(conn *sqliteConn) error) (err error) {
+	ro, err := openROWAL(path, pageSize)
 	if err != nil {
 		return err
 	}

@@ -44,32 +44,42 @@ func BuiltinVectorStatshouseSampleFactorWrite(w []byte, vec []StatshouseSampleFa
 	return w, nil
 }
 
-func BuiltinVectorStatshouseSampleFactorReadJSON(j interface{}, vec *[]StatshouseSampleFactor) error {
-	l, _arr, err := JsonReadArray("[]StatshouseSampleFactor", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseSampleFactor, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseSampleFactor__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseSampleFactor", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseSampleFactor
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseSampleFactor", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
-	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short bool, w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -121,44 +131,72 @@ func (item StatshouseSampleFactor) String() string {
 	return string(w)
 }
 
-func StatshouseSampleFactor__ReadJSON(item *StatshouseSampleFactor, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSampleFactor) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sample_factor", "expected json object")
+func (item *StatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetricPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "metric")
+				}
+				if err := Json2ReadInt32(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "value")
+				}
+				if err := Json2ReadFloat32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sample_factor", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadInt32(_jMetric, &item.Metric); err != nil {
-		return err
+	if !propMetricPresented {
+		item.Metric = 0
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadFloat32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sample_factor", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
 func (item *StatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSampleFactor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Metric != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteInt32(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteInt32(w, item.Metric)
+	if (item.Metric != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteFloat32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteFloat32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -168,11 +206,7 @@ func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
 	}
 	return nil

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"go.uber.org/atomic"
-	"go.uber.org/multierr"
 
 	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
@@ -97,7 +96,7 @@ func ChainHandler(ff ...HandlerFunc) HandlerFunc {
 }
 
 func Listen(network, address string, disableTCPReuseAddr bool) (net.Listener, error) {
-	if network != "tcp4" && network != "unix" {
+	if network != "tcp4" && network != "tcp6" && network != "tcp" && network != "unix" {
 		return nil, fmt.Errorf("unsupported network type %q", network)
 	}
 
@@ -112,7 +111,6 @@ func Listen(network, address string, disableTCPReuseAddr bool) (net.Listener, er
 func NewServer(options ...ServerOptionsFunc) *Server {
 	opts := ServerOptions{
 		Logf:                   log.Printf,
-		Hooks:                  func() ServerHookState { return nil },
 		MaxConns:               DefaultMaxConns,
 		MaxWorkers:             DefaultMaxWorkers,
 		MaxInflightPackets:     DefaultMaxInflightPackets,
@@ -130,12 +128,6 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 	}
 	for _, option := range options {
 		option(&opts)
-	}
-
-	for _, err := range opts.trustedSubnetGroupsParseErrors {
-		// opts.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
-		// we do not return error from this function, and do not want to ingore this error
-		log.Panicf("[rpc] failed to parse server trusted subnet %v", err)
 	}
 
 	host, _ := os.Hostname()
@@ -208,6 +200,7 @@ type Server struct {
 	lastHijackWarningLog time.Time
 	lastPacketTypeLog    time.Time
 	lastReadErrorLog     time.Time
+	lastPushToClosedLog  time.Time
 	lastOtherLog         time.Time // TODO - may be split this into different error classes
 
 	tracingMu  sync.Mutex
@@ -286,11 +279,10 @@ func (s *Server) Close() error {
 	}
 	s.serverStatus = serverStatusStopped
 
-	var closeErr error
+	cause := fmt.Errorf("server Close called")
 
 	for sc := range s.conns {
-		err := sc.Close()
-		multierr.AppendInto(&closeErr, err)
+		sc.close(cause)
 	}
 
 	s.mu.Unlock()
@@ -316,7 +308,7 @@ func (s *Server) Close() error {
 	if cur := s.statRequestsCurrent.Load(); cur != 0 {
 		s.opts.Logf("rpc: tracking of current requests invariant violated after close wait - %d requests", cur)
 	}
-	return closeErr
+	return nil
 }
 
 func (s *Server) requestBufTake(reqBodySize int) int {
@@ -523,13 +515,12 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 				s.opts.SocketHijackHandler(&HijackConnection{Magic: append(magicHead, conn.r.buf[conn.r.begin:conn.r.end]...), Conn: conn.conn})
 				return
 			}
-			if !commonConnCloseError(err) {
-				if len(magicHead) == 0 {
-					s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v", conn.remoteAddr, err)
-				} else {
-					s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v, peer sent: 0x%x", conn.remoteAddr, err, magicHead)
-				}
+			// We have some admin scripts which test port by connecting and then disconnecting, looks like port probing, but OK
+			// If you want to make logging unconditional, please ask Petr Mikushin @petr8822 first.
+			if len(magicHead) != 0 {
+				s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, peer sent(hex) %x, disconnecting: %v", conn.remoteAddr, magicHead, err)
 			}
+			// } else { s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v", conn.remoteAddr, err) }
 		}
 		_ = conn.Close()
 		return
@@ -543,7 +534,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		return
 	}
 
-	closeCtx, cancelCloseCtx := context.WithCancel(s.closeCtx)
+	closeCtx, cancelCloseCtx := context.WithCancelCause(s.closeCtx)
 
 	sc := &serverConn{
 		closeCtx:          closeCtx,
@@ -571,15 +562,15 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 
 	readErrCC := make(chan error, 1)
 	go s.receiveLoop(sc, readErrCC)
-	s.sendLoop(sc, wg)
+	writeErr := s.sendLoop(sc, wg)
 	if debugPrint {
 		fmt.Printf("%v server %p conn %p sendLoop quit\n", time.Now(), s, sc)
 	}
-	_ = sc.Close()    // after writer quit, there is no point to continue connection operation
-	err = <-readErrCC // wait for reader
+	sc.close(writeErr)     // after writer quit, there is no point to continue connection operation
+	readErr := <-readErrCC // wait for reader
 
 	if s.opts.DebugRPC {
-		s.opts.Logf("rpc: %s->%s Disconnect with err=%v", sc.conn.remoteAddr, sc.conn.localAddr, err)
+		s.opts.Logf("rpc: %s->%s Disconnect with readErr=%v writeErr=%v", sc.conn.remoteAddr, sc.conn.localAddr, readErr, writeErr)
 	}
 
 	defer s.dropConn(sc)
@@ -609,8 +600,8 @@ func (s *Server) acquireWorker() *worker {
 	}
 
 	w := &worker{
-		s:  s,
-		ch: make(chan *HandlerContext, 1),
+		workerPool: s.workerPool,
+		ch:         make(chan workerWork, 1),
 	}
 
 	go w.run(&s.workersGroup)
@@ -621,10 +612,10 @@ func (s *Server) acquireWorker() *worker {
 func (s *Server) receiveLoop(sc *serverConn, readErrCC chan<- error) {
 	hctxToRelease, err := s.receiveLoopImpl(sc)
 	if hctxToRelease != nil {
-		hctxToRelease.serverConn.releaseHandlerCtx(hctxToRelease)
+		sc.releaseHandlerCtx(hctxToRelease)
 	}
 	if err != nil {
-		_ = sc.Close()
+		sc.close(err)
 	}
 	sc.cancelAllLongpollResponses() // we always cancel from receiving goroutine.
 	readErrCC <- err
@@ -635,8 +626,8 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		// read header first, before acquiring handler context,
 		// to be able to disconnect event when all handler contexts are taken
 		var header packetHeader
-		head, isBuiltin, err := sc.conn.readPacketHeaderUnlocked(&header, DefaultPacketTimeout*11/10)
-		// motivation for slightly increasing timeout is so that client and server will not send pings to each other, only client will
+		head, isBuiltin, _, err := sc.conn.readPacketHeaderUnlocked(&header, DefaultPacketTimeout*11/10)
+		// motivation for slightly increasing timeout is so that client and server will not send pings to each other, client will do it first
 		if err != nil {
 			if len(head) == 0 && (err == io.EOF || err == io.ErrUnexpectedEOF) {
 				if debugPrint {
@@ -645,9 +636,11 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 				sc.SetReadFIN()
 				return nil, nil // clean shutdown, finish writing then close
 			}
-			if !sc.closed() && !commonConnCloseError(err) {
-				s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet header from %v, disconnecting: %v, head: %+q", sc.conn.remoteAddr, err, head)
+			if len(head) != 0 {
+				// We complain only if partially read header.
+				s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet header from %v, disconnecting: %v", sc.conn.remoteAddr, err)
 			}
+			// Also, returning error closes send loop, which will complain if there are responses not sent
 			return nil, err
 		}
 		if isBuiltin {
@@ -656,16 +649,15 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		}
 		requestTime := time.Now()
 
-		hctx, ok := sc.acquireHandlerCtx(header.tip, s.opts.Hooks)
+		hctx, ok := sc.acquireHandlerCtx(header.tip, &s.opts)
 		if !ok {
 			return nil, ErrServerClosed
 		}
 		s.statRequestsCurrent.Inc()
 
 		hctx.RequestTime = requestTime
-		hctx.reqHeader = header
 
-		req, reqTaken, err := s.acquireRequestBuf(sc.closeCtx, int(hctx.reqHeader.length))
+		req, reqTaken, err := s.acquireRequestBuf(sc.closeCtx, int(header.length))
 		if err != nil {
 			return hctx, err
 		}
@@ -674,14 +666,13 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		if hctx.request != nil {
 			hctx.Request = *hctx.request
 		}
-		hctx.Request, err = sc.conn.readPacketBodyUnlocked(&hctx.reqHeader, hctx.Request)
+		hctx.Request, err = sc.conn.readPacketBodyUnlocked(&header, hctx.Request)
 		if hctx.request != nil {
 			*hctx.request = hctx.Request[:0] // prepare for reuse immediately
 		}
 		if err != nil {
-			if !sc.closed() && !commonConnCloseError(err) {
-				s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet body from %v, disconnecting: %v", sc.conn.remoteAddr, err)
-			}
+			// failing to fully read packet is always problem we want to report
+			s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet body (%d/%d bytes read) from %v, disconnecting: %v", len(hctx.Request), header.length, sc.conn.remoteAddr, err)
 			return hctx, err
 		}
 
@@ -695,7 +686,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 
 		s.statRequestsTotal.Inc()
 
-		if !s.syncHandler(sc, hctx) {
+		if !s.syncHandler(header.tip, sc, hctx) {
 			if s.opts.MaxWorkers <= 0 {
 				// We keep this code, because in many projects maxWorkers are cmd argument,
 				// and they want to disable worker pool sometimes with this argument
@@ -705,22 +696,26 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 				if w == nil {
 					return hctx, ErrServerClosed
 				}
-				w.ch <- hctx
+				w.ch <- workerWork{sc: sc, hctx: hctx}
 			}
 		}
 	}
 }
 
-func (s *Server) sendLoop(sc *serverConn, wg *WaitGroup) {
+func (s *Server) sendLoop(sc *serverConn, wg *WaitGroup) error {
 	defer wg.Done()
 
-	toRelease := s.sendLoopImpl(sc)
-	for _, hctx := range toRelease {
-		hctx.serverConn.releaseHandlerCtx(hctx)
+	toRelease, err := s.sendLoopImpl(sc) // err is logged inside, if needed
+	if len(toRelease) != 0 {
+		s.rareLog(&s.lastPushToClosedLog, "failed to push %d responses because connection was closed to %v", len(toRelease), sc.conn.remoteAddr)
 	}
+	for _, hctx := range toRelease {
+		sc.releaseHandlerCtx(hctx)
+	}
+	return err
 }
 
-func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns contexts to release
+func (s *Server) sendLoopImpl(sc *serverConn) ([]*HandlerContext, error) { // returns contexts to release
 	writeQ := make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc())
 	sent := false // true if there is data to flush
 
@@ -741,11 +736,9 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 		sentNow := false
 		if writeBuiltin {
 			sentNow = true
-			if err := sc.conn.WritePacketBuiltinNoFlushUnlocked(); err != nil {
-				if !sc.closed() && !commonConnCloseError(err) {
-					s.rareLog(&s.lastOtherLog, "rpc: error writing builtin packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
-				}
-				return writeQ // release remaining contexts
+			if err := sc.conn.WritePacketBuiltinNoFlushUnlocked(DefaultPacketTimeout); err != nil {
+				// No log here, presumably failing to send ping/pong to closed connection is not a problem
+				return writeQ, err // release remaining contexts
 			}
 		}
 		if writeLetsFin {
@@ -757,7 +750,8 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 				s.opts.Logf("rpc: %s->%s Write Let's FIN packet\n", sc.conn.remoteAddr, sc.conn.localAddr)
 			}
 			if err := sc.conn.writePacketHeaderUnlocked(tl.RpcServerWantsFin{}.TLTag(), 0, DefaultPacketTimeout); err != nil {
-				return writeQ // release remaining contexts
+				// No log here, presumably failing to send letsFIN to closed connection is not a problem
+				return writeQ, err // release remaining contexts
 			}
 			sc.conn.writePacketTrailerUnlocked()
 		}
@@ -768,10 +762,8 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 			}
 			err := writeResponseUnlocked(sc.conn, hctx)
 			if err != nil {
-				if !sc.closed() && !commonConnCloseError(err) {
-					s.rareLog(&s.lastOtherLog, "rpc: error writing packet reqTag #%08x to %v, disconnecting: %v", hctx.reqTag, sc.conn.remoteAddr, err)
-				}
-				return writeQ[i:] // release remaining contexts
+				s.rareLog(&s.lastOtherLog, "rpc: error writing packet reqTag #%08x to %v, disconnecting: %v", hctx.reqTag, sc.conn.remoteAddr, err)
+				return writeQ[i:], err // release remaining contexts
 			}
 			sc.releaseHandlerCtx(hctx)
 		}
@@ -779,14 +771,15 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 			if s.opts.DebugRPC && !shouldStop { // this log during disconnect can be confusing
 				s.opts.Logf("rpc: %s->%s Flush\n", sc.conn.remoteAddr, sc.conn.localAddr)
 			}
-			if err := sc.flush(); err != nil {
-				return nil
+			if err := sc.conn.FlushUnlocked(); err != nil {
+				sc.server.rareLog(&sc.server.lastOtherLog, "rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
+				return nil, err
 			}
 			if shouldStop {
 				if debugPrint {
 					fmt.Printf("%v server %p conn %p sendLoop stop\n", time.Now(), s, sc)
 				}
-				return nil
+				return nil, nil
 			}
 		}
 		sent = sentNow
@@ -794,9 +787,9 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 	}
 }
 
-func (s *Server) syncHandler(sc *serverConn, hctx *HandlerContext) bool {
+func (s *Server) syncHandler(reqHeaderTip uint32, sc *serverConn, hctx *HandlerContext) bool {
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	err := s.doSyncHandler(hctx.serverConn.closeCtx, hctx)
+	err := s.doSyncHandler(reqHeaderTip, sc, hctx)
 	if err == ErrNoHandler {
 		hctx.UserData, sc.userData = sc.userData, hctx.UserData
 		return false
@@ -807,74 +800,78 @@ func (s *Server) syncHandler(sc *serverConn, hctx *HandlerContext) bool {
 		return true
 	}
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	s.pushResponse(hctx, err, false)
+	sc.pushResponse(hctx, err, false)
 	return true
 }
 
-func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error {
-	switch hctx.reqHeader.tip {
+func (s *Server) doSyncHandler(reqHeaderTip uint32, sc *serverConn, hctx *HandlerContext) error {
+	switch reqHeaderTip {
 	case tl.RpcCancelReq{}.TLTag():
 		cancelReq := tl.RpcCancelReq{}
 		if _, err := cancelReq.Read(hctx.Request); err != nil {
 			return err
 		}
 		if s.opts.DebugRPC {
-			s.opts.Logf("rpc: %s->%s Cancel queryID=%d\n", hctx.serverConn.conn.remoteAddr, hctx.serverConn.conn.localAddr, cancelReq.QueryId)
+			s.opts.Logf("rpc: %s->%s Cancel queryID=%d\n", sc.conn.remoteAddr, sc.conn.localAddr, cancelReq.QueryId)
 		}
 		hctx.noResult = true
-		hctx.serverConn.cancelLongpollResponse(cancelReq.QueryId)
+		sc.cancelLongpollResponse(cancelReq.QueryId)
 		return nil
 	case tl.RpcInvokeReqHeader{}.TLTag():
-		err := hctx.parseInvokeReq(s)
+		err := hctx.ParseInvokeReq(&s.opts)
 		if err != nil {
 			return err
 		}
 		if s.opts.DebugRPC {
-			s.opts.Logf("rpc: %s->%s SyncHandler packet tag=#%08x queryID=%d extra=%s body=%x\n", hctx.serverConn.conn.remoteAddr, hctx.serverConn.conn.localAddr, hctx.reqHeader.tip, hctx.queryID, hctx.RequestExtra.String(), hctx.Request)
+			s.opts.Logf("rpc: %s->%s SyncHandler packet tag=#%08x queryID=%d extra=%s body=%x\n", sc.conn.remoteAddr, sc.conn.localAddr, reqHeaderTip, hctx.queryID, hctx.RequestExtra.String(), hctx.Request)
 		}
 		if s.opts.SyncHandler == nil {
 			return ErrNoHandler
 		}
 		// No deadline on sync handler context, too costly
-		return s.opts.SyncHandler(ctx, hctx)
+		return s.opts.SyncHandler(sc.closeCtx, hctx)
 	}
 	hctx.noResult = true
-	s.rareLog(&s.lastPacketTypeLog, "unknown packet type 0x%x", hctx.reqHeader.tip)
+	s.rareLog(&s.lastPacketTypeLog, "unknown packet type 0x%x", reqHeaderTip)
 	return nil
 }
 
-func (s *Server) handle(hctx *HandlerContext) {
-	err := s.callHandler(hctx.serverConn.closeCtx, hctx)
-	s.pushResponse(hctx, err, false)
+func (sc *serverConn) handle(hctx *HandlerContext) {
+	err := sc.server.callHandler(sc.closeCtx, hctx)
+	sc.pushResponse(hctx, err, false)
 }
 
 func (s *Server) legacySyncHandler(sc *serverConn, hctx *HandlerContext) { // same as handle, but with swapping userData
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	err := s.callHandler(hctx.serverConn.closeCtx, hctx)
+	err := s.callHandler(sc.closeCtx, hctx)
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	s.pushResponse(hctx, err, false)
+	sc.pushResponse(hctx, err, false)
 }
 
-func (s *Server) pushResponse(hctx *HandlerContext, err error, isLongpoll bool) {
+func (sc *serverConn) pushResponse(hctx *HandlerContext, err error, isLongpoll bool) {
 	if !isLongpoll {
-		hctx.releaseRequest()
+		sc.releaseRequest(hctx)
 	}
-	hctx.prepareResponse(err)
+	hctx.PrepareResponse(err)
 	if !hctx.noResult { // do not spend time for accounting, will release anyway couple lines below
-		hctx.respTaken, _ = s.accountResponseMem(hctx.serverConn.closeCtx, hctx.respTaken, cap(hctx.Response), true)
+		hctx.respTaken, _ = sc.server.accountResponseMem(sc.closeCtx, hctx.respTaken, cap(hctx.Response), true)
 	}
-	hctx.serverConn.push(hctx, isLongpoll)
+	sc.push(hctx, isLongpoll)
 }
 
-func (hctx *HandlerContext) prepareResponse(err error) {
+// We serialize extra after body into Body, then write into reversed order
+// so full response is concatentation of hctx.Reponse[extraStart:], then hctx.Reponse[:extraStart]
+func (hctx *HandlerContext) PrepareResponse(err error) (extraStart int) {
 	if err = hctx.prepareResponseBody(err); err == nil {
-		return
+		return hctx.extraStart
 	}
 	// Too large packet. Very rare.
 	hctx.Response = hctx.Response[:0]
-	if err = hctx.prepareResponseBody(err); err != nil {
-		panic("prepareResponse with too large error is too large")
+	if err = hctx.prepareResponseBody(err); err == nil {
+		return hctx.extraStart
 	}
+	// err we passed above should be small, something is very wrong here
+	panic("PrepareResponse with too large error is itself too large")
 }
 
 func (hctx *HandlerContext) prepareResponseBody(err error) error {
@@ -896,7 +893,7 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		}
 
 		if hctx.noResult {
-			hctx.serverConn.server.rareLog(&hctx.serverConn.server.lastOtherLog, "rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqTag, respErr.Error())
+			hctx.commonConn.RareLog("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqTag, respErr.Error())
 			return nil
 		}
 
@@ -915,7 +912,7 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	}
 	if len(resp) == 0 {
 		// Handler should return ErrNoHandler if it does not know how to return response
-		hctx.serverConn.server.rareLog(&hctx.serverConn.server.lastOtherLog, "rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqTag)
+		hctx.commonConn.RareLog("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqTag)
 	}
 	hctx.extraStart = len(resp)
 	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}
@@ -1013,6 +1010,7 @@ func (s *Server) dropConn(sc *serverConn) {
 }
 
 func commonConnCloseError(err error) bool {
+	// TODO - better classification in some future go version
 	s := err.Error()
 	return strings.HasSuffix(s, "EOF") ||
 		strings.HasSuffix(s, "broken pipe") ||
@@ -1045,13 +1043,6 @@ func controlSetTCPReuseAddrPort(_ /*network*/ string, _ /*address*/ string, c sy
 		return err
 	}
 	return opErr
-}
-
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func IsHijackedResponse(err error) bool {

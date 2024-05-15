@@ -25,14 +25,22 @@ type EngineAlreadyInMasterMode struct {
 func (EngineAlreadyInMasterMode) TLName() string { return "engine.alreadyInMasterMode" }
 func (EngineAlreadyInMasterMode) TLTag() uint32  { return 0x402409cb }
 
-func (item *EngineAlreadyInMasterMode) Reset()                         {}
-func (item *EngineAlreadyInMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x402409cb)
+func (item *EngineAlreadyInMasterMode) Reset() {}
+
+func (item *EngineAlreadyInMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x402409cb); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineAlreadyInMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x402409cb), nil
+	w = basictl.NatWrite(w, 0x402409cb)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInMasterMode) String() string {
@@ -43,24 +51,27 @@ func (item EngineAlreadyInMasterMode) String() string {
 	return string(w)
 }
 
-func EngineAlreadyInMasterMode__ReadJSON(item *EngineAlreadyInMasterMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineAlreadyInMasterMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.alreadyInMasterMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.alreadyInMasterMode", k)
+func (item *EngineAlreadyInMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.alreadyInMasterMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineAlreadyInMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineAlreadyInMasterMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineAlreadyInMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -70,11 +81,7 @@ func (item *EngineAlreadyInMasterMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineAlreadyInMasterMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.alreadyInMasterMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.alreadyInMasterMode", err.Error())
 	}
 	return nil
@@ -92,14 +99,22 @@ type EngineAlreadyInReplicaMode struct {
 func (EngineAlreadyInReplicaMode) TLName() string { return "engine.alreadyInReplicaMode" }
 func (EngineAlreadyInReplicaMode) TLTag() uint32  { return 0xebd80142 }
 
-func (item *EngineAlreadyInReplicaMode) Reset()                         {}
-func (item *EngineAlreadyInReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xebd80142)
+func (item *EngineAlreadyInReplicaMode) Reset() {}
+
+func (item *EngineAlreadyInReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInReplicaMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xebd80142); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineAlreadyInReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xebd80142), nil
+	w = basictl.NatWrite(w, 0xebd80142)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInReplicaMode) String() string {
@@ -110,24 +125,27 @@ func (item EngineAlreadyInReplicaMode) String() string {
 	return string(w)
 }
 
-func EngineAlreadyInReplicaMode__ReadJSON(item *EngineAlreadyInReplicaMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineAlreadyInReplicaMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.alreadyInReplicaMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.alreadyInReplicaMode", k)
+func (item *EngineAlreadyInReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.alreadyInReplicaMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineAlreadyInReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -137,11 +155,7 @@ func (item *EngineAlreadyInReplicaMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineAlreadyInReplicaMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.alreadyInReplicaMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.alreadyInReplicaMode", err.Error())
 	}
 	return nil
@@ -169,7 +183,7 @@ func (item *EngineFailedToSwitchMode) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineFailedToSwitchMode) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Error)
+	return basictl.StringWrite(w, item.Error), nil
 }
 
 func (item *EngineFailedToSwitchMode) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -192,34 +206,53 @@ func (item EngineFailedToSwitchMode) String() string {
 	return string(w)
 }
 
-func EngineFailedToSwitchMode__ReadJSON(item *EngineFailedToSwitchMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineFailedToSwitchMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.failedToSwitchMode", "expected json object")
+func (item *EngineFailedToSwitchMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.failedToSwitchMode", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.failedToSwitchMode", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jError := _jm["error"]
-	delete(_jm, "error")
-	if err := JsonReadString(_jError, &item.Error); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.failedToSwitchMode", k)
+	if !propErrorPresented {
+		item.Error = ""
 	}
 	return nil
 }
 
 func (item *EngineFailedToSwitchMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineFailedToSwitchMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineFailedToSwitchMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Error) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error":`...)
-		w = basictl.JSONWriteString(w, item.Error)
+	backupIndexError := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error":`...)
+	w = basictl.JSONWriteString(w, item.Error)
+	if (len(item.Error) != 0) == false {
+		w = w[:backupIndexError]
 	}
 	return append(w, '}'), nil
 }
@@ -229,11 +262,7 @@ func (item *EngineFailedToSwitchMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineFailedToSwitchMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.failedToSwitchMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.failedToSwitchMode", err.Error())
 	}
 	return nil
@@ -392,67 +421,116 @@ func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) (_ []byte,
 	}
 }
 
-func EngineSwitchMasterReplicaModeResult__ReadJSON(item *EngineSwitchMasterReplicaModeResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchMasterReplicaModeResult) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.SwitchMasterReplicaModeResult", j)
+func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.SwitchMasterReplicaModeResult", in)
 	if err != nil {
 		return err
 	}
-	jvalue := _jm["value"]
 	switch _tag {
 	case "engine.switchedToMasterMode#95b13964", "engine.switchedToMasterMode", "#95b13964":
+		if !legacyTypeNames && _tag == "engine.switchedToMasterMode#95b13964" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterMode#95b13964")
+		}
 		item.index = 0
 	case "engine.switchedToReplicaMode#ad642a0b", "engine.switchedToReplicaMode", "#ad642a0b":
+		if !legacyTypeNames && _tag == "engine.switchedToReplicaMode#ad642a0b" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToReplicaMode#ad642a0b")
+		}
 		item.index = 1
 	case "engine.alreadyInMasterMode#402409cb", "engine.alreadyInMasterMode", "#402409cb":
+		if !legacyTypeNames && _tag == "engine.alreadyInMasterMode#402409cb" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInMasterMode#402409cb")
+		}
 		item.index = 2
 	case "engine.alreadyInReplicaMode#ebd80142", "engine.alreadyInReplicaMode", "#ebd80142":
+		if !legacyTypeNames && _tag == "engine.alreadyInReplicaMode#ebd80142" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInReplicaMode#ebd80142")
+		}
 		item.index = 3
 	case "engine.switchedToMasterModeForcefully#ec61b4be", "engine.switchedToMasterModeForcefully", "#ec61b4be":
+		if !legacyTypeNames && _tag == "engine.switchedToMasterModeForcefully#ec61b4be" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterModeForcefully#ec61b4be")
+		}
 		item.index = 4
-		if err := EngineSwitchedToMasterModeForcefully__ReadJSON(&item.valueSwitchedToMasterModeForcefully, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueSwitchedToMasterModeForcefully.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.failedToSwitchMode#17418662", "engine.failedToSwitchMode", "#17418662":
+		if !legacyTypeNames && _tag == "engine.failedToSwitchMode#17418662" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.failedToSwitchMode#17418662")
+		}
 		item.index = 5
-		if err := EngineFailedToSwitchMode__ReadJSON(&item.valueFailedToSwitchMode, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueFailedToSwitchMode.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	default:
 		return ErrorInvalidUnionTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.SwitchMasterReplicaModeResult", k)
 	}
 	return nil
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
-		return append(w, `{"type":"engine.switchedToMasterMode#95b13964"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToMasterMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToMasterMode#95b13964"`...)
+		}
+		return append(w, '}'), nil
 	case 1:
-		return append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToReplicaMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"`...)
+		}
+		return append(w, '}'), nil
 	case 2:
-		return append(w, `{"type":"engine.alreadyInMasterMode#402409cb"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.alreadyInMasterMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.alreadyInMasterMode#402409cb"`...)
+		}
+		return append(w, '}'), nil
 	case 3:
-		return append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.alreadyInReplicaMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"`...)
+		}
+		return append(w, '}'), nil
 	case 4:
-		w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be","value":`...)
-		if w, err = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToMasterModeForcefully"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 5:
-		w = append(w, `{"type":"engine.failedToSwitchMode#17418662","value":`...)
-		if w, err = item.valueFailedToSwitchMode.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.failedToSwitchMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.failedToSwitchMode#17418662"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueFailedToSwitchMode.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
@@ -473,12 +551,8 @@ func (item *EngineSwitchMasterReplicaModeResult) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *EngineSwitchMasterReplicaModeResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.SwitchMasterReplicaModeResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+func (item *EngineSwitchMasterReplicaModeResult) tUnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.SwitchMasterReplicaModeResult", err.Error())
 	}
 	return nil
@@ -496,14 +570,22 @@ type EngineSwitchedToMasterMode struct {
 func (EngineSwitchedToMasterMode) TLName() string { return "engine.switchedToMasterMode" }
 func (EngineSwitchedToMasterMode) TLTag() uint32  { return 0x95b13964 }
 
-func (item *EngineSwitchedToMasterMode) Reset()                         {}
-func (item *EngineSwitchedToMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x95b13964)
+func (item *EngineSwitchedToMasterMode) Reset() {}
+
+func (item *EngineSwitchedToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x95b13964); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineSwitchedToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x95b13964), nil
+	w = basictl.NatWrite(w, 0x95b13964)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToMasterMode) String() string {
@@ -514,24 +596,27 @@ func (item EngineSwitchedToMasterMode) String() string {
 	return string(w)
 }
 
-func EngineSwitchedToMasterMode__ReadJSON(item *EngineSwitchedToMasterMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToMasterMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToMasterMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToMasterMode", k)
+func (item *EngineSwitchedToMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.switchedToMasterMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineSwitchedToMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchedToMasterMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchedToMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -541,11 +626,7 @@ func (item *EngineSwitchedToMasterMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSwitchedToMasterMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToMasterMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToMasterMode", err.Error())
 	}
 	return nil
@@ -598,34 +679,53 @@ func (item EngineSwitchedToMasterModeForcefully) String() string {
 	return string(w)
 }
 
-func EngineSwitchedToMasterModeForcefully__ReadJSON(item *EngineSwitchedToMasterModeForcefully, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToMasterModeForcefully) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", "expected json object")
+func (item *EngineSwitchedToMasterModeForcefully) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBytesTruncatedPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "bytes_truncated":
+				if propBytesTruncatedPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.switchedToMasterModeForcefully", "bytes_truncated")
+				}
+				if err := Json2ReadInt64(in, &item.BytesTruncated); err != nil {
+					return err
+				}
+				propBytesTruncatedPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.switchedToMasterModeForcefully", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBytesTruncated := _jm["bytes_truncated"]
-	delete(_jm, "bytes_truncated")
-	if err := JsonReadInt64(_jBytesTruncated, &item.BytesTruncated); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToMasterModeForcefully", k)
+	if !propBytesTruncatedPresented {
+		item.BytesTruncated = 0
 	}
 	return nil
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.BytesTruncated != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"bytes_truncated":`...)
-		w = basictl.JSONWriteInt64(w, item.BytesTruncated)
+	backupIndexBytesTruncated := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"bytes_truncated":`...)
+	w = basictl.JSONWriteInt64(w, item.BytesTruncated)
+	if (item.BytesTruncated != 0) == false {
+		w = w[:backupIndexBytesTruncated]
 	}
 	return append(w, '}'), nil
 }
@@ -635,11 +735,7 @@ func (item *EngineSwitchedToMasterModeForcefully) MarshalJSON() ([]byte, error) 
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", err.Error())
 	}
 	return nil
@@ -657,14 +753,22 @@ type EngineSwitchedToReplicaMode struct {
 func (EngineSwitchedToReplicaMode) TLName() string { return "engine.switchedToReplicaMode" }
 func (EngineSwitchedToReplicaMode) TLTag() uint32  { return 0xad642a0b }
 
-func (item *EngineSwitchedToReplicaMode) Reset()                         {}
-func (item *EngineSwitchedToReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xad642a0b)
+func (item *EngineSwitchedToReplicaMode) Reset() {}
+
+func (item *EngineSwitchedToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToReplicaMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xad642a0b); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineSwitchedToReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xad642a0b), nil
+	w = basictl.NatWrite(w, 0xad642a0b)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToReplicaMode) String() string {
@@ -675,24 +779,27 @@ func (item EngineSwitchedToReplicaMode) String() string {
 	return string(w)
 }
 
-func EngineSwitchedToReplicaMode__ReadJSON(item *EngineSwitchedToReplicaMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToReplicaMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToReplicaMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToReplicaMode", k)
+func (item *EngineSwitchedToReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.switchedToReplicaMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineSwitchedToReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -702,11 +809,7 @@ func (item *EngineSwitchedToReplicaMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSwitchedToReplicaMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToReplicaMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToReplicaMode", err.Error())
 	}
 	return nil

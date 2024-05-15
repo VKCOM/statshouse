@@ -42,9 +42,8 @@ type HandlerOptions struct {
 	protectedMetricPrefixes []string
 	querySelectTimeout      time.Duration
 	weekStartAt             int
-
-	location  *time.Location
-	utcOffset int64
+	location                *time.Location
+	utcOffset               int64
 }
 
 func (argv *HandlerOptions) Bind(pflag *pflag.FlagSet) {
@@ -68,6 +67,6 @@ func (argv *HandlerOptions) LoadLocation() error {
 	if err != nil {
 		return fmt.Errorf("failed to load timezone %q: %w", argv.timezone, err)
 	}
-	argv.utcOffset = CalcUTCOffset(argv.location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
+	argv.utcOffset = calcUTCOffset(argv.location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
 	return nil
 }

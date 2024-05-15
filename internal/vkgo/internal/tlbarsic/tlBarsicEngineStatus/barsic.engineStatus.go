@@ -45,6 +45,18 @@ func (item *BarsicEngineStatus) Reset() {
 	item.PreparedSnapshotSize = 0
 }
 
+func (item *BarsicEngineStatus) FillRandom(rg *basictl.RandGenerator) {
+	item.Version = basictl.RandomString(rg)
+	item.LoadedSnapshot = basictl.RandomString(rg)
+	item.LoadedSnapshotOffset = basictl.RandomLong(rg)
+	item.LoadedSnapshotProgress = basictl.RandomLong(rg)
+	item.LoadedSnapshotSize = basictl.RandomLong(rg)
+	item.PreparedSnapshot = basictl.RandomString(rg)
+	item.PreparedSnapshotOffset = basictl.RandomLong(rg)
+	item.PreparedSnapshotProgress = basictl.RandomLong(rg)
+	item.PreparedSnapshotSize = basictl.RandomLong(rg)
+}
+
 func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -78,18 +90,12 @@ func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicEngineStatus) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.Version); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.LoadedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Version)
+	w = basictl.StringWrite(w, item.LoadedSnapshot)
 	w = basictl.LongWrite(w, item.LoadedSnapshotOffset)
 	w = basictl.LongWrite(w, item.LoadedSnapshotProgress)
 	w = basictl.LongWrite(w, item.LoadedSnapshotSize)
-	if w, err = basictl.StringWrite(w, item.PreparedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
 	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil
@@ -115,19 +121,19 @@ func (item *BarsicEngineStatus) WriteResult(w []byte, ret tlTrue.True) (_ []byte
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStatus) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicEngineStatus) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatus) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicEngineStatus) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicEngineStatus) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -142,22 +148,19 @@ func (item *BarsicEngineStatus) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *BarsicEngineStatus) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicEngineStatus) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicEngineStatus) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -172,124 +175,224 @@ func (item BarsicEngineStatus) String() string {
 	return string(w)
 }
 
-func BarsicEngineStatus__ReadJSON(item *BarsicEngineStatus, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicEngineStatus) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.engineStatus", "expected json object")
+func (item *BarsicEngineStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propLoadedSnapshotPresented bool
+	var propLoadedSnapshotOffsetPresented bool
+	var propLoadedSnapshotProgressPresented bool
+	var propLoadedSnapshotSizePresented bool
+	var propPreparedSnapshotPresented bool
+	var propPreparedSnapshotOffsetPresented bool
+	var propPreparedSnapshotProgressPresented bool
+	var propPreparedSnapshotSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "version")
+				}
+				if err := internal.Json2ReadString(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "loaded_snapshot":
+				if propLoadedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot")
+				}
+				if err := internal.Json2ReadString(in, &item.LoadedSnapshot); err != nil {
+					return err
+				}
+				propLoadedSnapshotPresented = true
+			case "loaded_snapshot_offset":
+				if propLoadedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotOffset); err != nil {
+					return err
+				}
+				propLoadedSnapshotOffsetPresented = true
+			case "loaded_snapshot_progress":
+				if propLoadedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotProgress); err != nil {
+					return err
+				}
+				propLoadedSnapshotProgressPresented = true
+			case "loaded_snapshot_size":
+				if propLoadedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotSize); err != nil {
+					return err
+				}
+				propLoadedSnapshotSizePresented = true
+			case "prepared_snapshot":
+				if propPreparedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot")
+				}
+				if err := internal.Json2ReadString(in, &item.PreparedSnapshot); err != nil {
+					return err
+				}
+				propPreparedSnapshotPresented = true
+			case "prepared_snapshot_offset":
+				if propPreparedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotOffset); err != nil {
+					return err
+				}
+				propPreparedSnapshotOffsetPresented = true
+			case "prepared_snapshot_progress":
+				if propPreparedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotProgress); err != nil {
+					return err
+				}
+				propPreparedSnapshotProgressPresented = true
+			case "prepared_snapshot_size":
+				if propPreparedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotSize); err != nil {
+					return err
+				}
+				propPreparedSnapshotSizePresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := internal.JsonReadString(_jVersion, &item.Version); err != nil {
-		return err
+	if !propVersionPresented {
+		item.Version = ""
 	}
-	_jLoadedSnapshot := _jm["loaded_snapshot"]
-	delete(_jm, "loaded_snapshot")
-	if err := internal.JsonReadString(_jLoadedSnapshot, &item.LoadedSnapshot); err != nil {
-		return err
+	if !propLoadedSnapshotPresented {
+		item.LoadedSnapshot = ""
 	}
-	_jLoadedSnapshotOffset := _jm["loaded_snapshot_offset"]
-	delete(_jm, "loaded_snapshot_offset")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotOffset, &item.LoadedSnapshotOffset); err != nil {
-		return err
+	if !propLoadedSnapshotOffsetPresented {
+		item.LoadedSnapshotOffset = 0
 	}
-	_jLoadedSnapshotProgress := _jm["loaded_snapshot_progress"]
-	delete(_jm, "loaded_snapshot_progress")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotProgress, &item.LoadedSnapshotProgress); err != nil {
-		return err
+	if !propLoadedSnapshotProgressPresented {
+		item.LoadedSnapshotProgress = 0
 	}
-	_jLoadedSnapshotSize := _jm["loaded_snapshot_size"]
-	delete(_jm, "loaded_snapshot_size")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotSize, &item.LoadedSnapshotSize); err != nil {
-		return err
+	if !propLoadedSnapshotSizePresented {
+		item.LoadedSnapshotSize = 0
 	}
-	_jPreparedSnapshot := _jm["prepared_snapshot"]
-	delete(_jm, "prepared_snapshot")
-	if err := internal.JsonReadString(_jPreparedSnapshot, &item.PreparedSnapshot); err != nil {
-		return err
+	if !propPreparedSnapshotPresented {
+		item.PreparedSnapshot = ""
 	}
-	_jPreparedSnapshotOffset := _jm["prepared_snapshot_offset"]
-	delete(_jm, "prepared_snapshot_offset")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotOffset, &item.PreparedSnapshotOffset); err != nil {
-		return err
+	if !propPreparedSnapshotOffsetPresented {
+		item.PreparedSnapshotOffset = 0
 	}
-	_jPreparedSnapshotProgress := _jm["prepared_snapshot_progress"]
-	delete(_jm, "prepared_snapshot_progress")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotProgress, &item.PreparedSnapshotProgress); err != nil {
-		return err
+	if !propPreparedSnapshotProgressPresented {
+		item.PreparedSnapshotProgress = 0
 	}
-	_jPreparedSnapshotSize := _jm["prepared_snapshot_size"]
-	delete(_jm, "prepared_snapshot_size")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotSize, &item.PreparedSnapshotSize); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", k)
+	if !propPreparedSnapshotSizePresented {
+		item.PreparedSnapshotSize = 0
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatus) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatus) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Version) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteString(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteString(w, item.Version)
+	if (len(item.Version) != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if len(item.LoadedSnapshot) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot":`...)
-		w = basictl.JSONWriteString(w, item.LoadedSnapshot)
+	backupIndexLoadedSnapshot := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot":`...)
+	w = basictl.JSONWriteString(w, item.LoadedSnapshot)
+	if (len(item.LoadedSnapshot) != 0) == false {
+		w = w[:backupIndexLoadedSnapshot]
 	}
-	if item.LoadedSnapshotOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotOffset)
+	backupIndexLoadedSnapshotOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotOffset)
+	if (item.LoadedSnapshotOffset != 0) == false {
+		w = w[:backupIndexLoadedSnapshotOffset]
 	}
-	if item.LoadedSnapshotProgress != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_progress":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotProgress)
+	backupIndexLoadedSnapshotProgress := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_progress":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotProgress)
+	if (item.LoadedSnapshotProgress != 0) == false {
+		w = w[:backupIndexLoadedSnapshotProgress]
 	}
-	if item.LoadedSnapshotSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_size":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotSize)
+	backupIndexLoadedSnapshotSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_size":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotSize)
+	if (item.LoadedSnapshotSize != 0) == false {
+		w = w[:backupIndexLoadedSnapshotSize]
 	}
-	if len(item.PreparedSnapshot) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot":`...)
-		w = basictl.JSONWriteString(w, item.PreparedSnapshot)
+	backupIndexPreparedSnapshot := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot":`...)
+	w = basictl.JSONWriteString(w, item.PreparedSnapshot)
+	if (len(item.PreparedSnapshot) != 0) == false {
+		w = w[:backupIndexPreparedSnapshot]
 	}
-	if item.PreparedSnapshotOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotOffset)
+	backupIndexPreparedSnapshotOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotOffset)
+	if (item.PreparedSnapshotOffset != 0) == false {
+		w = w[:backupIndexPreparedSnapshotOffset]
 	}
-	if item.PreparedSnapshotProgress != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_progress":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotProgress)
+	backupIndexPreparedSnapshotProgress := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_progress":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotProgress)
+	if (item.PreparedSnapshotProgress != 0) == false {
+		w = w[:backupIndexPreparedSnapshotProgress]
 	}
-	if item.PreparedSnapshotSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_size":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotSize)
+	backupIndexPreparedSnapshotSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_size":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotSize)
+	if (item.PreparedSnapshotSize != 0) == false {
+		w = w[:backupIndexPreparedSnapshotSize]
 	}
 	return append(w, '}'), nil
 }
@@ -299,11 +402,7 @@ func (item *BarsicEngineStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicEngineStatus) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	return nil
@@ -336,6 +435,18 @@ func (item *BarsicEngineStatusBytes) Reset() {
 	item.PreparedSnapshotOffset = 0
 	item.PreparedSnapshotProgress = 0
 	item.PreparedSnapshotSize = 0
+}
+
+func (item *BarsicEngineStatusBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.Version = basictl.RandomStringBytes(rg)
+	item.LoadedSnapshot = basictl.RandomStringBytes(rg)
+	item.LoadedSnapshotOffset = basictl.RandomLong(rg)
+	item.LoadedSnapshotProgress = basictl.RandomLong(rg)
+	item.LoadedSnapshotSize = basictl.RandomLong(rg)
+	item.PreparedSnapshot = basictl.RandomStringBytes(rg)
+	item.PreparedSnapshotOffset = basictl.RandomLong(rg)
+	item.PreparedSnapshotProgress = basictl.RandomLong(rg)
+	item.PreparedSnapshotSize = basictl.RandomLong(rg)
 }
 
 func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
@@ -371,18 +482,12 @@ func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicEngineStatusBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.Version); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.LoadedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Version)
+	w = basictl.StringWriteBytes(w, item.LoadedSnapshot)
 	w = basictl.LongWrite(w, item.LoadedSnapshotOffset)
 	w = basictl.LongWrite(w, item.LoadedSnapshotProgress)
 	w = basictl.LongWrite(w, item.LoadedSnapshotSize)
-	if w, err = basictl.StringWriteBytes(w, item.PreparedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
 	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil
@@ -408,19 +513,19 @@ func (item *BarsicEngineStatusBytes) WriteResult(w []byte, ret tlTrue.True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStatusBytes) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicEngineStatusBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatusBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicEngineStatusBytes) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicEngineStatusBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -435,22 +540,19 @@ func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *BarsicEngineStatusBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -465,124 +567,224 @@ func (item BarsicEngineStatusBytes) String() string {
 	return string(w)
 }
 
-func BarsicEngineStatusBytes__ReadJSON(item *BarsicEngineStatusBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicEngineStatusBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.engineStatus", "expected json object")
+func (item *BarsicEngineStatusBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propLoadedSnapshotPresented bool
+	var propLoadedSnapshotOffsetPresented bool
+	var propLoadedSnapshotProgressPresented bool
+	var propLoadedSnapshotSizePresented bool
+	var propPreparedSnapshotPresented bool
+	var propPreparedSnapshotOffsetPresented bool
+	var propPreparedSnapshotProgressPresented bool
+	var propPreparedSnapshotSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "version")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "loaded_snapshot":
+				if propLoadedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.LoadedSnapshot); err != nil {
+					return err
+				}
+				propLoadedSnapshotPresented = true
+			case "loaded_snapshot_offset":
+				if propLoadedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotOffset); err != nil {
+					return err
+				}
+				propLoadedSnapshotOffsetPresented = true
+			case "loaded_snapshot_progress":
+				if propLoadedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotProgress); err != nil {
+					return err
+				}
+				propLoadedSnapshotProgressPresented = true
+			case "loaded_snapshot_size":
+				if propLoadedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotSize); err != nil {
+					return err
+				}
+				propLoadedSnapshotSizePresented = true
+			case "prepared_snapshot":
+				if propPreparedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.PreparedSnapshot); err != nil {
+					return err
+				}
+				propPreparedSnapshotPresented = true
+			case "prepared_snapshot_offset":
+				if propPreparedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotOffset); err != nil {
+					return err
+				}
+				propPreparedSnapshotOffsetPresented = true
+			case "prepared_snapshot_progress":
+				if propPreparedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotProgress); err != nil {
+					return err
+				}
+				propPreparedSnapshotProgressPresented = true
+			case "prepared_snapshot_size":
+				if propPreparedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotSize); err != nil {
+					return err
+				}
+				propPreparedSnapshotSizePresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := internal.JsonReadStringBytes(_jVersion, &item.Version); err != nil {
-		return err
+	if !propVersionPresented {
+		item.Version = item.Version[:0]
 	}
-	_jLoadedSnapshot := _jm["loaded_snapshot"]
-	delete(_jm, "loaded_snapshot")
-	if err := internal.JsonReadStringBytes(_jLoadedSnapshot, &item.LoadedSnapshot); err != nil {
-		return err
+	if !propLoadedSnapshotPresented {
+		item.LoadedSnapshot = item.LoadedSnapshot[:0]
 	}
-	_jLoadedSnapshotOffset := _jm["loaded_snapshot_offset"]
-	delete(_jm, "loaded_snapshot_offset")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotOffset, &item.LoadedSnapshotOffset); err != nil {
-		return err
+	if !propLoadedSnapshotOffsetPresented {
+		item.LoadedSnapshotOffset = 0
 	}
-	_jLoadedSnapshotProgress := _jm["loaded_snapshot_progress"]
-	delete(_jm, "loaded_snapshot_progress")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotProgress, &item.LoadedSnapshotProgress); err != nil {
-		return err
+	if !propLoadedSnapshotProgressPresented {
+		item.LoadedSnapshotProgress = 0
 	}
-	_jLoadedSnapshotSize := _jm["loaded_snapshot_size"]
-	delete(_jm, "loaded_snapshot_size")
-	if err := internal.JsonReadInt64(_jLoadedSnapshotSize, &item.LoadedSnapshotSize); err != nil {
-		return err
+	if !propLoadedSnapshotSizePresented {
+		item.LoadedSnapshotSize = 0
 	}
-	_jPreparedSnapshot := _jm["prepared_snapshot"]
-	delete(_jm, "prepared_snapshot")
-	if err := internal.JsonReadStringBytes(_jPreparedSnapshot, &item.PreparedSnapshot); err != nil {
-		return err
+	if !propPreparedSnapshotPresented {
+		item.PreparedSnapshot = item.PreparedSnapshot[:0]
 	}
-	_jPreparedSnapshotOffset := _jm["prepared_snapshot_offset"]
-	delete(_jm, "prepared_snapshot_offset")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotOffset, &item.PreparedSnapshotOffset); err != nil {
-		return err
+	if !propPreparedSnapshotOffsetPresented {
+		item.PreparedSnapshotOffset = 0
 	}
-	_jPreparedSnapshotProgress := _jm["prepared_snapshot_progress"]
-	delete(_jm, "prepared_snapshot_progress")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotProgress, &item.PreparedSnapshotProgress); err != nil {
-		return err
+	if !propPreparedSnapshotProgressPresented {
+		item.PreparedSnapshotProgress = 0
 	}
-	_jPreparedSnapshotSize := _jm["prepared_snapshot_size"]
-	delete(_jm, "prepared_snapshot_size")
-	if err := internal.JsonReadInt64(_jPreparedSnapshotSize, &item.PreparedSnapshotSize); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", k)
+	if !propPreparedSnapshotSizePresented {
+		item.PreparedSnapshotSize = 0
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatusBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatusBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatusBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Version) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Version)
+	if (len(item.Version) != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if len(item.LoadedSnapshot) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot":`...)
-		w = basictl.JSONWriteStringBytes(w, item.LoadedSnapshot)
+	backupIndexLoadedSnapshot := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot":`...)
+	w = basictl.JSONWriteStringBytes(w, item.LoadedSnapshot)
+	if (len(item.LoadedSnapshot) != 0) == false {
+		w = w[:backupIndexLoadedSnapshot]
 	}
-	if item.LoadedSnapshotOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotOffset)
+	backupIndexLoadedSnapshotOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotOffset)
+	if (item.LoadedSnapshotOffset != 0) == false {
+		w = w[:backupIndexLoadedSnapshotOffset]
 	}
-	if item.LoadedSnapshotProgress != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_progress":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotProgress)
+	backupIndexLoadedSnapshotProgress := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_progress":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotProgress)
+	if (item.LoadedSnapshotProgress != 0) == false {
+		w = w[:backupIndexLoadedSnapshotProgress]
 	}
-	if item.LoadedSnapshotSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"loaded_snapshot_size":`...)
-		w = basictl.JSONWriteInt64(w, item.LoadedSnapshotSize)
+	backupIndexLoadedSnapshotSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"loaded_snapshot_size":`...)
+	w = basictl.JSONWriteInt64(w, item.LoadedSnapshotSize)
+	if (item.LoadedSnapshotSize != 0) == false {
+		w = w[:backupIndexLoadedSnapshotSize]
 	}
-	if len(item.PreparedSnapshot) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot":`...)
-		w = basictl.JSONWriteStringBytes(w, item.PreparedSnapshot)
+	backupIndexPreparedSnapshot := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot":`...)
+	w = basictl.JSONWriteStringBytes(w, item.PreparedSnapshot)
+	if (len(item.PreparedSnapshot) != 0) == false {
+		w = w[:backupIndexPreparedSnapshot]
 	}
-	if item.PreparedSnapshotOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotOffset)
+	backupIndexPreparedSnapshotOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotOffset)
+	if (item.PreparedSnapshotOffset != 0) == false {
+		w = w[:backupIndexPreparedSnapshotOffset]
 	}
-	if item.PreparedSnapshotProgress != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_progress":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotProgress)
+	backupIndexPreparedSnapshotProgress := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_progress":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotProgress)
+	if (item.PreparedSnapshotProgress != 0) == false {
+		w = w[:backupIndexPreparedSnapshotProgress]
 	}
-	if item.PreparedSnapshotSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prepared_snapshot_size":`...)
-		w = basictl.JSONWriteInt64(w, item.PreparedSnapshotSize)
+	backupIndexPreparedSnapshotSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prepared_snapshot_size":`...)
+	w = basictl.JSONWriteInt64(w, item.PreparedSnapshotSize)
+	if (item.PreparedSnapshotSize != 0) == false {
+		w = w[:backupIndexPreparedSnapshotSize]
 	}
 	return append(w, '}'), nil
 }
@@ -592,11 +794,7 @@ func (item *BarsicEngineStatusBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicEngineStatusBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	return nil

@@ -64,52 +64,91 @@ func (item BoolStat) String() string {
 	return string(w)
 }
 
-func BoolStat__ReadJSON(item *BoolStat, j interface{}) error { return item.readJSON(j) }
-func (item *BoolStat) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("boolStat", "expected json object")
+func (item *BoolStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propStatTruePresented bool
+	var propStatFalsePresented bool
+	var propStatUnknownPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "statTrue":
+				if propStatTruePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("boolStat", "statTrue")
+				}
+				if err := Json2ReadInt32(in, &item.StatTrue); err != nil {
+					return err
+				}
+				propStatTruePresented = true
+			case "statFalse":
+				if propStatFalsePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("boolStat", "statFalse")
+				}
+				if err := Json2ReadInt32(in, &item.StatFalse); err != nil {
+					return err
+				}
+				propStatFalsePresented = true
+			case "statUnknown":
+				if propStatUnknownPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("boolStat", "statUnknown")
+				}
+				if err := Json2ReadInt32(in, &item.StatUnknown); err != nil {
+					return err
+				}
+				propStatUnknownPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("boolStat", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jStatTrue := _jm["statTrue"]
-	delete(_jm, "statTrue")
-	if err := JsonReadInt32(_jStatTrue, &item.StatTrue); err != nil {
-		return err
+	if !propStatTruePresented {
+		item.StatTrue = 0
 	}
-	_jStatFalse := _jm["statFalse"]
-	delete(_jm, "statFalse")
-	if err := JsonReadInt32(_jStatFalse, &item.StatFalse); err != nil {
-		return err
+	if !propStatFalsePresented {
+		item.StatFalse = 0
 	}
-	_jStatUnknown := _jm["statUnknown"]
-	delete(_jm, "statUnknown")
-	if err := JsonReadInt32(_jStatUnknown, &item.StatUnknown); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("boolStat", k)
+	if !propStatUnknownPresented {
+		item.StatUnknown = 0
 	}
 	return nil
 }
 
 func (item *BoolStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BoolStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BoolStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.StatTrue != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"statTrue":`...)
-		w = basictl.JSONWriteInt32(w, item.StatTrue)
+	backupIndexStatTrue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"statTrue":`...)
+	w = basictl.JSONWriteInt32(w, item.StatTrue)
+	if (item.StatTrue != 0) == false {
+		w = w[:backupIndexStatTrue]
 	}
-	if item.StatFalse != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"statFalse":`...)
-		w = basictl.JSONWriteInt32(w, item.StatFalse)
+	backupIndexStatFalse := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"statFalse":`...)
+	w = basictl.JSONWriteInt32(w, item.StatFalse)
+	if (item.StatFalse != 0) == false {
+		w = w[:backupIndexStatFalse]
 	}
-	if item.StatUnknown != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"statUnknown":`...)
-		w = basictl.JSONWriteInt32(w, item.StatUnknown)
+	backupIndexStatUnknown := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"statUnknown":`...)
+	w = basictl.JSONWriteInt32(w, item.StatUnknown)
+	if (item.StatUnknown != 0) == false {
+		w = w[:backupIndexStatUnknown]
 	}
 	return append(w, '}'), nil
 }
@@ -119,11 +158,7 @@ func (item *BoolStat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BoolStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("boolStat", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("boolStat", err.Error())
 	}
 	return nil

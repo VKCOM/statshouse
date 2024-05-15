@@ -10,6 +10,8 @@
   --headerMenuSubColorBg: var(--bs-body-bg);
   --headerMenuSubColorBorder: var(--bs-secondary-bg);
   --headerMenuColorBorder: var(--bs-secondary-bg);
+  --headerActiveMenuSubColorBg: var(--bs-primary);
+  --headerActiveMenuColorBorder: var(--bs-primary);
 }
 
 .navOuter {
@@ -17,10 +19,22 @@
   background-color: var(--headerMenuColorBg);
   max-width: 60px;
 }
+.plotNav {
+  padding: 1px 0;
+  width: 100%;
+  border-right: var(--bs-border-width) var(--bs-border-style) var(--headerActiveMenuColorBorder);
+}
+.plotMenu {
+  width: calc(100% + var(--bs-border-width));
+}
 
 .nav {
   --bs-nav-link-padding-x: 18px;
   --bs-nav-link-padding-y: 11px;
+}
+
+.mainNav {
+  border-right: var(--bs-border-width) var(--bs-border-style) var(--headerActiveMenuColorBorder);
 }
 
 .sub {
@@ -53,15 +67,20 @@
 }
 
 .activePlotItem {
-  background-color: var(--headerMenuSubColorBg);
 }
 
 .activeItem {
+  width: calc(100% + var(--bs-border-width));
   background-color: var(--headerMenuSubColorBg);
-  border-bottom: var(--bs-border-width) var(--bs-border-style) var(--headerMenuColorBorder);
-  border-top: var(--bs-border-width) var(--bs-border-style) var(--headerMenuColorBorder);
+  border-bottom: var(--bs-border-width) var(--bs-border-style) var(--headerActiveMenuColorBorder);
+  border-top: var(--bs-border-width) var(--bs-border-style) var(--headerActiveMenuColorBorder);
+  border-left: var(--bs-border-width) var(--bs-border-style) var(--headerActiveMenuColorBorder);
+  border-right: var(--bs-border-width) var(--bs-border-style) var(--bs-body-bg);
+  z-index: 1;
   margin-bottom: -1px;
   margin-top: -1px;
+  margin-left: -1px;
+  left: 1px;
 }
 
 .preview {
@@ -69,11 +88,11 @@
   height: 37px;
   width: 100%;
   max-width: 100%;
-  margin-top: 5px;
-  margin-bottom: 4px;
+  padding: 0;
 }
 
-.preview {
+.preview403 {
+  padding: 7px var(--bs-nav-link-padding-x) 6px;
 }
 
 .previewEvent {
@@ -84,6 +103,7 @@
 }
 
 .icon {
+  display: block;
   width: 24px;
   height: 24px;
 }
@@ -96,9 +116,9 @@
   --bs-secondary-rgb: var(--bs-danger-rgb);
 }
 .scrollStyle {
-  --scroll-size: 4px;
-  width: 100%;
+  --scroll-size: 0px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 .scrollStyle::-webkit-scrollbar {
   height: var(--scroll-size);

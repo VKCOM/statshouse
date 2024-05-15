@@ -17,6 +17,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
@@ -36,12 +37,11 @@ type SeriesData struct {
 	MinMaxHost [2][]int32 // "min" at [0], "max" at [1]
 	Tags       SeriesTags
 	Offset     int64
-	What       int
+	What       SelectorWhat
 }
 
 type SeriesMeta struct {
 	Metric *format.MetricMetaValue
-	What   int
 	Total  int
 	STags  map[string]int
 	Units  string
@@ -205,6 +205,12 @@ func (sr *Series) dataAt(xs ...int) []SeriesData {
 }
 
 func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
+	if sr.Meta.Metric == nil {
+		return nil, fmt.Errorf("metric meta not found")
+	}
+	if len(sr.Meta.Metric.HistorgamBuckets) == 0 {
+		return nil, fmt.Errorf("histogram meta not found")
+	}
 	m, _, err := sr.group(ev, hashOptions{
 		tags: []string{labels.BucketLabel},
 		on:   false, // group excluding BucketLabel
@@ -214,23 +220,31 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	}
 	var res []histogram
 	for _, xs := range m {
-		var bs []bucket
+		buckets := make([]bucket, 0, len(sr.Meta.Metric.HistorgamBuckets))
 		for _, x := range xs {
 			if t, ok := sr.Data[x].Tags.get(labels.BucketLabel); ok {
+				var le float32
 				if t.stringified {
 					var v float64
 					v, err = strconv.ParseFloat(t.SValue, 32)
-					if err == nil {
-						bs = append(bs, bucket{x, float32(v)})
+					if err != nil {
+						return nil, err
 					}
+					le = float32(v)
 				} else {
-					bs = append(bs, bucket{x, statshouse.LexDecode(t.Value)})
+					le = statshouse.LexDecode(t.Value)
 				}
+				buckets = append(buckets, bucket{le: le, x: x})
 			}
 		}
-		if len(bs) != 0 {
-			sort.Slice(bs, func(i, j int) bool { return bs[i].le < bs[j].le })
-			res = append(res, histogram{sr, bs})
+		if len(buckets) != 0 {
+			sort.Slice(buckets, func(i, j int) bool {
+				return buckets[i].le < buckets[j].le
+			})
+			res = append(res, histogram{
+				Series:  sr,
+				buckets: buckets,
+			})
 		}
 	}
 	return res, nil
@@ -246,6 +260,10 @@ func (sr *Series) scalar() bool {
 		}
 	}
 	return true
+}
+
+func (sr *Series) empty() bool {
+	return len(sr.Data) == 0
 }
 
 func (h *histogram) seriesAt(x int) Series {
@@ -291,7 +309,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	var v string
 	switch tg.ID {
 	case LabelWhat:
-		v = DigestWhat(tg.Value).String()
+		v = DigestWhatString(data_model.DigestWhat(tg.Value))
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:
@@ -306,14 +324,18 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			}
 		}
 	case LabelMinHost, LabelMaxHost:
-		v = ev.h.GetHostName(tg.Value)
+		v = ev.GetHostName(tg.Value)
 	default:
-		v = ev.h.GetTagValue(TagValueQuery{
-			Version:    ev.opt.Version,
-			Metric:     tg.Metric,
-			TagID:      tg.ID,
-			TagValueID: tg.Value,
-		})
+		if !ev.opt.RawBucketLabel && tg.Name == labels.BucketLabel {
+			v = strconv.FormatFloat(float64(statshouse.LexDecode(tg.Value)), 'f', -1, 32)
+		} else {
+			v = ev.GetTagValue(TagValueQuery{
+				Version:    ev.opt.Version,
+				Metric:     tg.Metric,
+				TagID:      tg.ID,
+				TagValueID: tg.Value,
+			})
+		}
 	}
 	tg.setSValue(v)
 }
@@ -504,6 +526,12 @@ func (sr *Series) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matc
 	sr.Meta.Total = len(sr.Data)
 }
 
+func (sr *Series) pruneMinMaxHost() {
+	for i := range sr.Data {
+		sr.Data[i].pruneMinMaxHost()
+	}
+}
+
 func (sr *Series) free(ev *evaluator) {
 	ev.freeAll(sr.Data)
 }
@@ -516,7 +544,7 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 	n := 0
 	for i, maxHost := range d.MinMaxHost[x] {
 		discard := false
-		maxHostname := ev.h.GetHostName(maxHost)
+		maxHostname := ev.GetHostName(maxHost)
 		for _, matcher := range matchers {
 			if !matcher.Matches(maxHostname) {
 				discard = true
@@ -531,6 +559,23 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 		}
 	}
 	return n
+}
+
+func (d *SeriesData) pruneMinMaxHost() {
+	if len(d.MinMaxHost[0]) == 0 && len(d.MinMaxHost[1]) == 0 {
+		return
+	}
+	for i, v := range *d.Values {
+		if math.IsNaN(v) {
+			if i < len(d.MinMaxHost[0]) {
+				d.MinMaxHost[0][i] = 0
+
+			}
+			if i < len(d.MinMaxHost[1]) {
+				d.MinMaxHost[1][i] = 0
+			}
+		}
+	}
 }
 
 func (d *SeriesData) free(ev *evaluator) {
@@ -568,10 +613,14 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 		}
 	} else if len(opt.tags) == 0 || (len(opt.tags) == 1 && opt.tags[0] == labels.MetricName) {
 		if opt.listUsed || !tgs.hashSumValid {
-			for id := range tgs.ID2Tag {
-				if id != labels.MetricName {
-					ht.used = append(ht.used, id)
+			for id, tag := range tgs.ID2Tag {
+				if id == labels.MetricName {
+					continue
 				}
+				if tag.Name != "" {
+					id = tag.Name
+				}
+				ht.used = append(ht.used, id)
 			}
 		}
 		if tgs.hashSumValid {
@@ -715,9 +764,6 @@ func evalSeriesMeta(expr *parser.BinaryExpr, lhs SeriesMeta, rhs SeriesMeta) Ser
 	}
 	if rhs.Metric != nil && lhs.Metric != rhs.Metric {
 		lhs.Metric = nil
-	}
-	if rhs.What != 0 && lhs.What != rhs.What {
-		lhs.What = 0
 	}
 	if lhs.Total < rhs.Total {
 		lhs.Total = rhs.Total

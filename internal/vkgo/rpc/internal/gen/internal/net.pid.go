@@ -64,52 +64,91 @@ func (item NetPid) String() string {
 	return string(w)
 }
 
-func NetPid__ReadJSON(item *NetPid, j interface{}) error { return item.readJSON(j) }
-func (item *NetPid) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("net.pid", "expected json object")
+func (item *NetPid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propIpPresented bool
+	var propPortPidPresented bool
+	var propUtimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "ip":
+				if propIpPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("net.pid", "ip")
+				}
+				if err := Json2ReadUint32(in, &item.Ip); err != nil {
+					return err
+				}
+				propIpPresented = true
+			case "port_pid":
+				if propPortPidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("net.pid", "port_pid")
+				}
+				if err := Json2ReadUint32(in, &item.PortPid); err != nil {
+					return err
+				}
+				propPortPidPresented = true
+			case "utime":
+				if propUtimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("net.pid", "utime")
+				}
+				if err := Json2ReadUint32(in, &item.Utime); err != nil {
+					return err
+				}
+				propUtimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("net.pid", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jIp := _jm["ip"]
-	delete(_jm, "ip")
-	if err := JsonReadUint32(_jIp, &item.Ip); err != nil {
-		return err
+	if !propIpPresented {
+		item.Ip = 0
 	}
-	_jPortPid := _jm["port_pid"]
-	delete(_jm, "port_pid")
-	if err := JsonReadUint32(_jPortPid, &item.PortPid); err != nil {
-		return err
+	if !propPortPidPresented {
+		item.PortPid = 0
 	}
-	_jUtime := _jm["utime"]
-	delete(_jm, "utime")
-	if err := JsonReadUint32(_jUtime, &item.Utime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("net.pid", k)
+	if !propUtimePresented {
+		item.Utime = 0
 	}
 	return nil
 }
 
 func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetPid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Ip != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ip":`...)
-		w = basictl.JSONWriteUint32(w, item.Ip)
+	backupIndexIp := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ip":`...)
+	w = basictl.JSONWriteUint32(w, item.Ip)
+	if (item.Ip != 0) == false {
+		w = w[:backupIndexIp]
 	}
-	if item.PortPid != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"port_pid":`...)
-		w = basictl.JSONWriteUint32(w, item.PortPid)
+	backupIndexPortPid := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"port_pid":`...)
+	w = basictl.JSONWriteUint32(w, item.PortPid)
+	if (item.PortPid != 0) == false {
+		w = w[:backupIndexPortPid]
 	}
-	if item.Utime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"utime":`...)
-		w = basictl.JSONWriteUint32(w, item.Utime)
+	backupIndexUtime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"utime":`...)
+	w = basictl.JSONWriteUint32(w, item.Utime)
+	if (item.Utime != 0) == false {
+		w = w[:backupIndexUtime]
 	}
 	return append(w, '}'), nil
 }
@@ -119,11 +158,7 @@ func (item *NetPid) MarshalJSON() ([]byte, error) {
 }
 
 func (item *NetPid) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("net.pid", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("net.pid", err.Error())
 	}
 	return nil

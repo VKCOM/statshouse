@@ -4,12 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { ChangeEvent, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { produce } from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { Button, PlotControlFrom, PlotControlTimeShifts, PlotControlTo, SwitchBox, VariableControl } from '../index';
+import {
+  Button,
+  PlotControlFrom,
+  PlotControlTimeShifts,
+  PlotControlTo,
+  SwitchBox,
+  TextArea,
+  VariableControl,
+} from '../index';
 import {
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -34,6 +42,18 @@ import { MetricMetaValue } from '../../api/metric';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType, QueryWhat, toMetricType } from '../../api/enum';
 import { PlotParams } from '../../url/queryParams';
 import { getMetricType } from '../../common/formatByMetricType';
+
+const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
+  <div className="input-group">
+    <TextArea {...props} className="form-control-sm rounded font-monospace" autoHeight style={{ minHeight: 202 }} />
+  </div>
+);
+
+const PromQLEditor = lazy(() =>
+  import('../UI/PromQLEditor').catch(() => ({
+    default: FallbackEditor,
+  }))
+);
 
 const { setParams, setTimeRange } = useStore.getState();
 
@@ -113,9 +133,8 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     [setSel]
   );
 
-  const inputPromQL = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.currentTarget.value;
+  const inputPromQLValue = useCallback(
+    (value: string) => {
       setPromQL(value);
     },
     [setPromQL]
@@ -250,7 +269,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
               setNegative={setNegativeVariable}
               groupBy={variable.args.groupBy}
               setGroupBy={setGroupByVariable}
-              className={''}
+              className="mb-2"
               values={!variable.args.negative ? variable.values : undefined}
               notValues={variable.args.negative ? variable.values : undefined}
               onChange={setValuesVariable}
@@ -259,14 +278,9 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           ))}
         </div>
         <div className="row mb-3 align-items-baseline">
-          <div className="input-group">
-            <textarea
-              className="form-control font-monospace form-control-sm"
-              rows={10}
-              value={promQL}
-              onInput={inputPromQL}
-            ></textarea>
-          </div>
+          <Suspense fallback={<FallbackEditor value={promQL} onChange={inputPromQLValue} />}>
+            {!!PromQLEditor && <PromQLEditor className="input-group" value={promQL} onChange={inputPromQLValue} />}
+          </Suspense>
           <div className="d-flex flex-row justify-content-end mt-2">
             <Button
               onClick={toggleBigControl}

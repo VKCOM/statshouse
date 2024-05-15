@@ -1,0 +1,124 @@
+.leftMenu{
+  list-style: none;
+  padding: 1px 0 1em 0;
+  margin: 0 0 0 0;
+  flex-grow: 1;
+  height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-tertiary-bg);
+}
+
+.leftMenu:after{
+  position: absolute;
+  right: 0;
+  top:0;
+  height: 100%;
+  width: 1px;
+  content: '';
+  border-right: 1px solid var(--bs-primary);
+  z-index: 1;
+}
+
+.leftMenuItem{
+  margin: -1px 0 0 0;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.sub{
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-secondary-bg);
+  padding: 0;
+  margin: 0 0 0 -1px;
+  list-style: none;
+  border-bottom-right-radius: var(--bs-border-radius);
+  border-top-right-radius: var(--bs-border-radius);
+  box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
+  overflow: hidden;
+}
+
+.link{
+  display: flex;
+  padding: 10px 17px;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--bs-secondary);
+}
+
+.link[href], .link[role="button"]{
+  color: var(--bs-primary);
+}
+
+.icon{
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.splitter {
+  border-bottom: 1px solid var(--bs-secondary-bg);
+  margin: 1px 0.25rem;
+  padding: 0;
+}
+
+.active{
+  background-color: var(--bs-body-bg);
+  border: 1px solid  var(--bs-primary);
+  border-right: 0 none;
+  position: relative;
+  z-index: 2;
+}
+
+.active:after{
+  border-right: 1px solid var(--bs-body-bg);
+  position: absolute;
+  top:0;
+  right: 0;
+  height: 100%;
+  width: 1px;
+  content: '';
+  border-right: 1px solid var(--bs-body-bg);
+  z-index: 2;
+}
+
+.plotMenu{
+  margin: -1px 0 0 0;
+  padding: 1px 0 0 0;
+  overflow: scroll;
+  display: flex;
+  flex-direction: column;
+}
+
+.plotNav{
+  padding: 0 0 0 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.scrollStyle {
+  --scroll-size: 0px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scrollStyle::-webkit-scrollbar {
+  height: var(--scroll-size);
+  width: var(--scroll-size);
+  background: transparent;
+}
+
+.scrollStyle::-webkit-scrollbar-thumb {
+  background: var(--bs-tertiary-color);
+  border-radius: calc(var(--scroll-size) / 2);
+}
+
+.scrollStyle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollStyle::-webkit-scrollbar-corner {
+  background-color: var(--bs-tertiary-color);
+}

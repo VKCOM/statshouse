@@ -53,12 +53,8 @@ func (item *MetadataGetMapping) Read(w []byte) (_ []byte, err error) {
 
 func (item *MetadataGetMapping) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Key)
 	return w, nil
 }
 
@@ -82,19 +78,19 @@ func (item *MetadataGetMapping) WriteResult(w []byte, ret MetadataGetMappingResp
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMapping) ReadResultJSON(j interface{}, ret *MetadataGetMappingResponse) error {
-	if err := MetadataGetMappingResponse__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetMapping) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetMappingResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataGetMapping) writeResultJSON(short bool, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldMask); err != nil {
+func (item *MetadataGetMapping) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -109,22 +105,19 @@ func (item *MetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *MetadataGetMapping) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetMapping) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getMapping", err.Error())
-	}
 	var ret MetadataGetMappingResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -139,67 +132,110 @@ func (item MetadataGetMapping) String() string {
 	return string(w)
 }
 
-func MetadataGetMapping__ReadJSON(item *MetadataGetMapping, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetMapping) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getMapping", "expected json object")
-	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadString(_jKey, &item.Key); err != nil {
-		return err
-	}
-	_jCreateIfAbsent := _jm["createIfAbsent"]
-	delete(_jm, "createIfAbsent")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getMapping", k)
-	}
-	if _jCreateIfAbsent != nil {
-		_bit := false
-		if err := JsonReadBool(_jCreateIfAbsent, &_bit); err != nil {
-			return err
+func (item *MetadataGetMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propMetricPresented bool
+	var propKeyPresented bool
+	var trueTypeCreateIfAbsentPresented bool
+	var trueTypeCreateIfAbsentValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMapping", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMapping", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMapping", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "createIfAbsent":
+				if trueTypeCreateIfAbsentPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMapping", "createIfAbsent")
+				}
+				if err := Json2ReadBool(in, &trueTypeCreateIfAbsentValue); err != nil {
+					return err
+				}
+				trueTypeCreateIfAbsentPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getMapping", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = ""
+	}
+	if !propKeyPresented {
+		item.Key = ""
+	}
+	if trueTypeCreateIfAbsentPresented {
+		if trueTypeCreateIfAbsentValue {
 			item.FieldMask |= 1 << 1
-		} else {
-			item.FieldMask &^= 1 << 1
 		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCreateIfAbsentPresented && !trueTypeCreateIfAbsentValue && (item.FieldMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("metadata.getMapping", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *MetadataGetMapping) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteString(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteString(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
 	if item.FieldMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -213,11 +249,7 @@ func (item *MetadataGetMapping) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetMapping) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getMapping", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getMapping", err.Error())
 	}
 	return nil

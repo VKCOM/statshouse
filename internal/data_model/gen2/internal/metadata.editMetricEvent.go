@@ -66,54 +66,95 @@ func (item MetadataEditMetricEvent) String() string {
 	return string(w)
 }
 
-func MetadataEditMetricEvent__ReadJSON(item *MetadataEditMetricEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataEditMetricEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.editMetricEvent", "expected json object")
+func (item *MetadataEditMetricEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawMetric []byte
+	var propOldVersionPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editMetricEvent", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "metric":
+				if rawMetric != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editMetricEvent", "metric")
+				}
+				rawMetric = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "old_version":
+				if propOldVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editMetricEvent", "old_version")
+				}
+				if err := Json2ReadInt64(in, &item.OldVersion); err != nil {
+					return err
+				}
+				propOldVersionPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.editMetricEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOldVersionPresented {
+		item.OldVersion = 0
+	}
+	var inMetricPointer *basictl.JsonLexer
+	inMetric := basictl.JsonLexer{Data: rawMetric}
+	if rawMetric != nil {
+		inMetricPointer = &inMetric
+	}
+	if err := item.Metric.ReadJSON(legacyTypeNames, inMetricPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	_jOldVersion := _jm["old_version"]
-	delete(_jm, "old_version")
-	if err := JsonReadInt64(_jOldVersion, &item.OldVersion); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.editMetricEvent", k)
-	}
-	if err := MetadataMetricOld__ReadJSON(&item.Metric, _jMetric, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 func (item *MetadataEditMetricEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataEditMetricEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataEditMetricEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Metric.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if item.OldVersion != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"old_version":`...)
-		w = basictl.JSONWriteInt64(w, item.OldVersion)
+	backupIndexOldVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"old_version":`...)
+	w = basictl.JSONWriteInt64(w, item.OldVersion)
+	if (item.OldVersion != 0) == false {
+		w = w[:backupIndexOldVersion]
 	}
 	return append(w, '}'), nil
 }
@@ -123,11 +164,7 @@ func (item *MetadataEditMetricEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataEditMetricEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.editMetricEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.editMetricEvent", err.Error())
 	}
 	return nil

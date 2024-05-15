@@ -44,32 +44,42 @@ func BuiltinVectorStatshouseApiSeriesMetaWrite(w []byte, vec []StatshouseApiSeri
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiSeriesMetaReadJSON(j interface{}, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
-	l, _arr, err := JsonReadArray("[]StatshouseApiSeriesMeta", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseApiSeriesMeta, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseApiSeriesMeta__ReadJSON(&(*vec)[i], _arr[i], nat_t); err != nil {
-			return err
+func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiSeriesMeta", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseApiSeriesMeta
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiSeriesMeta", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseApiSeriesMetaWriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
-	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(false, w, vec, nat_t)
+	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w, nat_t); err != nil {
 			return w, err
 		}
 	}
@@ -235,14 +245,10 @@ func (item *StatshouseApiSeriesMeta) Write(w []byte, nat_query_fields_mask uint3
 		}
 	}
 	if nat_query_fields_mask&(1<<4) != 0 {
-		if w, err = basictl.StringWrite(w, item.Name); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Name)
 	}
 	if nat_query_fields_mask&(1<<5) != 0 {
-		if w, err = basictl.StringWrite(w, item.Color); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Color)
 	}
 	if nat_query_fields_mask&(1<<6) != 0 {
 		w = basictl.IntWrite(w, item.Total)
@@ -267,121 +273,173 @@ func (item *StatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_query_fields_mask 
 	return item.Write(w, nat_query_fields_mask)
 }
 
-func StatshouseApiSeriesMeta__ReadJSON(item *StatshouseApiSeriesMeta, j interface{}, nat_query_fields_mask uint32) error {
-	return item.readJSON(j, nat_query_fields_mask)
-}
-func (item *StatshouseApiSeriesMeta) readJSON(j interface{}, nat_query_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.seriesMeta", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jTimeShift := _jm["time_shift"]
-	delete(_jm, "time_shift")
-	if err := JsonReadInt64(_jTimeShift, &item.TimeShift); err != nil {
-		return err
-	}
-	_jTags := _jm["tags"]
-	delete(_jm, "tags")
-	_jWhat := _jm["what"]
-	delete(_jm, "what")
-	_jName := _jm["name"]
-	delete(_jm, "name")
-	_jColor := _jm["color"]
-	delete(_jm, "color")
-	_jTotal := _jm["total"]
-	delete(_jm, "total")
-	_jMaxHosts := _jm["max_hosts"]
-	delete(_jm, "max_hosts")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.seriesMeta", k)
-	}
-	if _jWhat != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if nat_query_fields_mask&(1<<4) == 0 && _jName != nil {
-		return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'name' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_query_fields_mask&(1<<5) == 0 && _jColor != nil {
-		return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'color' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_query_fields_mask&(1<<6) == 0 && _jTotal != nil {
-		return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'total' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_query_fields_mask&(1<<7) == 0 && _jMaxHosts != nil {
-		return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'max_hosts' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if err := BuiltinVectorDictionaryFieldStringReadJSON(_jTags, &item.Tags); err != nil {
-		return err
-	}
-	if _jWhat != nil {
-		if err := StatshouseApiFunction__ReadJSON(&item.What, _jWhat); err != nil {
-			return err
+func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
+	var propFieldsMaskPresented bool
+	var propTimeShiftPresented bool
+	var propTagsPresented bool
+	var propWhatPresented bool
+	var propNamePresented bool
+	var propColorPresented bool
+	var propTotalPresented bool
+	var propMaxHostsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "time_shift":
+				if propTimeShiftPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "time_shift")
+				}
+				if err := Json2ReadInt64(in, &item.TimeShift); err != nil {
+					return err
+				}
+				propTimeShiftPresented = true
+			case "tags":
+				if propTagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "tags")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+					return err
+				}
+				propTagsPresented = true
+			case "what":
+				if propWhatPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "what")
+				}
+				if err := item.What.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propWhatPresented = true
+			case "name":
+				if propNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "name")
+				}
+				if nat_query_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'name' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadString(in, &item.Name); err != nil {
+					return err
+				}
+				propNamePresented = true
+			case "color":
+				if propColorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "color")
+				}
+				if nat_query_fields_mask&(1<<5) == 0 {
+					return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'color' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadString(in, &item.Color); err != nil {
+					return err
+				}
+				propColorPresented = true
+			case "total":
+				if propTotalPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "total")
+				}
+				if nat_query_fields_mask&(1<<6) == 0 {
+					return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'total' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.Total); err != nil {
+					return err
+				}
+				propTotalPresented = true
+			case "max_hosts":
+				if propMaxHostsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "max_hosts")
+				}
+				if nat_query_fields_mask&(1<<7) == 0 {
+					return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'max_hosts' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.MaxHosts); err != nil {
+					return err
+				}
+				propMaxHostsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.seriesMeta", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propTimeShiftPresented {
+		item.TimeShift = 0
+	}
+	if !propTagsPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Tags)
+	}
+	if !propWhatPresented {
 		item.What.Reset()
 	}
-	if nat_query_fields_mask&(1<<4) != 0 {
-		if err := JsonReadString(_jName, &item.Name); err != nil {
-			return err
-		}
-	} else {
+	if !propNamePresented {
 		item.Name = ""
 	}
-	if nat_query_fields_mask&(1<<5) != 0 {
-		if err := JsonReadString(_jColor, &item.Color); err != nil {
-			return err
-		}
-	} else {
+	if !propColorPresented {
 		item.Color = ""
 	}
-	if nat_query_fields_mask&(1<<6) != 0 {
-		if err := JsonReadInt32(_jTotal, &item.Total); err != nil {
-			return err
-		}
-	} else {
+	if !propTotalPresented {
 		item.Total = 0
 	}
-	if nat_query_fields_mask&(1<<7) != 0 {
-		if err := BuiltinVectorStringReadJSON(_jMaxHosts, &item.MaxHosts); err != nil {
-			return err
-		}
-	} else {
+	if !propMaxHostsPresented {
 		item.MaxHosts = item.MaxHosts[:0]
+	}
+	if propWhatPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
 
 func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_query_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.TimeShift != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_shift":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeShift)
+	backupIndexTimeShift := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_shift":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeShift)
+	if (item.TimeShift != 0) == false {
+		w = w[:backupIndexTimeShift]
 	}
-	if len(item.Tags) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tags":`...)
-		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Tags); err != nil {
-			return w, err
-		}
+	backupIndexTags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tags":`...)
+	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags); err != nil {
+		return w, err
+	}
+	if (len(item.Tags) != 0) == false {
+		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = item.What.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.What.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -403,7 +461,7 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_quer
 	if nat_query_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_hosts":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.MaxHosts); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.MaxHosts); err != nil {
 			return w, err
 		}
 	}

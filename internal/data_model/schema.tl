@@ -114,6 +114,7 @@ statshouse.promTarget#ac5296df
 statshouse.getTargetsResult#51ac86df {fields_mask:#}
     targets: (vector statshouse.promTarget)
     hash: string
+    gauge_metrics:fields_mask.0?(vector string)
 = statshouse.GetTargetsResult fields_mask;
 
 ---functions---
@@ -194,6 +195,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     header: (statshouse.commonProxyHeader fields_mask)
     prom_host_name:string // in contrast to normalized and validated for statshouse key, like in header
     old_hash: string
+    gauge_metrics:fields_mask.0?Bool
      = statshouse.GetTargetsResult fields_mask;
 
 @readwrite statshouse.testConnection2#4285ff58

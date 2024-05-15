@@ -25,8 +25,10 @@ type Object interface {
 	ReadBoxed(w []byte) ([]byte, error)  // same as Read, but reads/checks TLTag first
 	WriteBoxed(w []byte) ([]byte, error) // same as Write, but writes TLTag first
 
-	MarshalJSON() ([]byte, error)       // returns type's JSON representation, plus error
-	UnmarshalJSON([]byte) error         // reads type's JSON representation
+	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
+	UnmarshalJSON([]byte) error   // reads type's JSON representation
+
+	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
 	WriteJSON(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
 }
 
@@ -36,8 +38,18 @@ type Function interface {
 	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
 	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 
-	// For transcoding short-long version during Long ID transition
-	ReadResultWriteResultJSONShort(r []byte, w []byte) ([]byte, []byte, error)
+	// For transcoding short-long version during Long ID and newTypeNames transition
+	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+}
+
+func GetAllTLItems() []TLItem {
+	var allItems []TLItem
+	for _, item := range itemsByName {
+		if item != nil {
+			allItems = append(allItems, *item)
+		}
+	}
+	return allItems
 }
 
 // for quick one-liners
@@ -115,16 +127,21 @@ func (item TLItem) String() string {
 	}
 	return string(w)
 }
-func (item *TLItem) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON(item.tlName, "expected json object")
+func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	in.Delim('{')
+	if !in.Ok() {
+		return in.Error()
 	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement(item.tlName, k)
+	for !in.IsDelim('}') {
+		return internal.ErrorInvalidJSONExcessElement(item.tlName, in.UnsafeFieldName(true))
+	}
+	in.Delim('}')
+	if !in.Ok() {
+		return in.Error()
 	}
 	return nil
 }
+
 func (item *TLItem) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
@@ -133,11 +150,7 @@ func (item *TLItem) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 func (item *TLItem) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON(item.tlName, err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON(item.tlName, err.Error())
 	}
 	return nil

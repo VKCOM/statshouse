@@ -38,7 +38,6 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 )
 
@@ -159,6 +158,9 @@ func runMain() int {
 		case "tag_mapping", "-tag_mapping", "--tag_mapping":
 			mainTagMapping()
 			return 0
+		case "publish_tag_drafts", "-publish_tag_drafts", "--publish_tag_drafts":
+			mainPublishTagDrafts()
+			return 0
 		default:
 			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", verb)
 			printVerbUsage()
@@ -264,13 +266,14 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
-	sh2, err := agent.MakeAgent("tcp4",
+	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
 		argv.configAgent,
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage,
+		dc,
 		log.Printf,
 		func(a *agent.Agent, t time.Time) {
 			k := data_model.Key{
@@ -300,9 +303,27 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		return 1
 	}
 	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
 		if err != nil {
 			logErr.Printf("ListenUDP: %v", err)
+			return 1
+		}
+		defer func() { _ = u.Close() }()
+		receiversUDP = append(receiversUDP, u)
+		if argv.listenAddrIPv6 != "" {
+			ipv6u, err := receiver.ListenUDP("udp", argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+			if err != nil {
+				logErr.Printf("ListenUDP IPv6: %v", err)
+				return 1
+			}
+			defer func() { _ = ipv6u.Close() }()
+			receiversUDP = append(receiversUDP, ipv6u)
+		}
+	}
+	if argv.listenAddrUnix != "" {
+		u, err := receiver.ListenUDP("unixgram", argv.listenAddrUnix, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("ListenUDP Unix: %v", err)
 			return 1
 		}
 		defer func() { _ = u.Close() }()
@@ -354,12 +375,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}(u)
 	}
 
-	runPromScraperAsync(!argv.promRemoteMod, w, sh2)
-	if argv.configAgent.RemoteWriteEnabled {
-		closer := prometheus.ServeRemoteWrite(argv.configAgent, w)
-		defer closer()
-	}
-
+	receiver.RunScrape(sh2, w)
 	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
@@ -385,12 +401,29 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
 	defer func() { _ = hijackListener.Close() }()
 
+	var rpcLnIPv6 net.Listener
+	if argv.listenAddrIPv6 != "" {
+		rpcLnIPv6, err = net.Listen("tcp6", argv.listenAddrIPv6)
+		if err != nil {
+			logErr.Fatalf("RPC listen failed IPv6: %v", err)
+		}
+	}
+
 	go func() {
 		err := srv.Serve(rpcLn)
 		if err != nil && err != rpc.ErrServerClosed {
 			logErr.Fatalf("RPC server failed: %v", err)
 		}
 	}()
+	if rpcLnIPv6 != nil {
+		go func() {
+			err := srv.Serve(rpcLnIPv6)
+			if err != nil && err != rpc.ErrServerClosed {
+				logErr.Fatalf("RPC server failed IPv6: %v", err)
+			}
+		}()
+	}
+
 	if argv.pprofHTTP {
 		go func() { // serve pprof on RPC port
 			m := http.NewServeMux()
@@ -482,11 +515,11 @@ func mainIngressProxy(aesPwd string) int {
 		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")
 		return 1
 	}
-	argv.configIngress.Network = "tcp4"
+	argv.configIngress.Network = "tcp"
 
 	// We use agent instance for ingress proxy built-in metrics
-	sh2, err := agent.MakeAgent("tcp4", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-		format.TagValueIDComponentIngressProxy, nil, log.Printf, nil, nil)
+	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
+		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
@@ -497,25 +530,4 @@ func mainIngressProxy(aesPwd string) int {
 		return 1
 	}
 	return 0
-}
-
-func runPromScraperAsync(localMode bool, handler receiver.Handler, sh *agent.Agent) prometheus.Syncer {
-	syncer := prometheus.NewSyncer(logOk, logErr, sh.LoadPromTargets)
-	var s *prometheus.Scraper
-	if localMode {
-		s = prometheus.NewScraper(prometheus.NewLocalMetricPusher(handler), syncer, logOk, logErr)
-	} else {
-		logErr.Printf("can't run prom scraper in remote mode")
-		return nil
-	}
-	go func() {
-		defer func() {
-			err := recover()
-			if err != nil {
-				logErr.Printf("panic in prometheus scraper: %v", err)
-			}
-		}()
-		s.Run()
-	}()
-	return syncer
 }

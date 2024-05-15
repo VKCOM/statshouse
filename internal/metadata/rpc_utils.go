@@ -27,3 +27,13 @@ func (h *ProxyHandler) HandleProxy(name string, f RpcMethod) func(ctx context.Co
 		return err
 	}
 }
+
+func HandleProxyGen[A, B any](h *ProxyHandler, name string, f func(ctx context.Context, req A) (B, string, error)) func(ctx context.Context, req A) (B, error) {
+	return func(ctx context.Context, a A) (B, error) {
+		start := time.Now()
+		resp, queryType, err := f(ctx, a)
+		duration := time.Since(start)
+		rpcDurationStat(h.Host, name, duration, err, queryType)
+		return resp, err
+	}
+}

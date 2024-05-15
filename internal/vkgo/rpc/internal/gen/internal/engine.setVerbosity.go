@@ -52,19 +52,19 @@ func (item *EngineSetVerbosity) WriteResult(w []byte, ret True) (_ []byte, err e
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSetVerbosity) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineSetVerbosity) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetVerbosity) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSetVerbosity) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSetVerbosity) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineSetVerbosity) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *EngineSetVerbosity) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetVerbosity) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSetVerbosity) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setVerbosity", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item EngineSetVerbosity) String() string {
 	return string(w)
 }
 
-func EngineSetVerbosity__ReadJSON(item *EngineSetVerbosity, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetVerbosity) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setVerbosity", "expected json object")
+func (item *EngineSetVerbosity) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propVerbosityPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "verbosity":
+				if propVerbosityPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setVerbosity", "verbosity")
+				}
+				if err := Json2ReadInt32(in, &item.Verbosity); err != nil {
+					return err
+				}
+				propVerbosityPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setVerbosity", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jVerbosity := _jm["verbosity"]
-	delete(_jm, "verbosity")
-	if err := JsonReadInt32(_jVerbosity, &item.Verbosity); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setVerbosity", k)
+	if !propVerbosityPresented {
+		item.Verbosity = 0
 	}
 	return nil
 }
 
 func (item *EngineSetVerbosity) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetVerbosity) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetVerbosity) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Verbosity != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"verbosity":`...)
-		w = basictl.JSONWriteInt32(w, item.Verbosity)
+	backupIndexVerbosity := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"verbosity":`...)
+	w = basictl.JSONWriteInt32(w, item.Verbosity)
+	if (item.Verbosity != 0) == false {
+		w = w[:backupIndexVerbosity]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *EngineSetVerbosity) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSetVerbosity) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setVerbosity", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setVerbosity", err.Error())
 	}
 	return nil

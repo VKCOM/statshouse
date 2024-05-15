@@ -54,12 +54,14 @@ func (pc *clientConn) close() error {
 }
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
-func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *callContext) (*callContext, error) {
-	cctx := pc.getCallContext()
+func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *callContext, cb ClientCallback, userData any) (*callContext, error) {
+	cctx := pc.client.getCallContext()
 	cctx.queryID = req.QueryID()
 	if multiResult != nil {
 		cctx.result = multiResult // overrides single-result channel
 	}
+	cctx.cb = cb
+	cctx.userData = userData
 	cctx.failIfNoConnection = req.Extra.FailIfNoConnection
 	cctx.readonly = req.ReadOnly
 	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
@@ -90,40 +92,40 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 	return cctx, nil
 }
 
-func (pc *clientConn) cancelCall(cctx *callContext, unblockWaitersError error) {
-	shouldRelease, shouldSignal := pc.cancelCallImpl(cctx)
-	if shouldRelease {
+func (pc *clientConn) cancelCall(queryID int64, deliverError error) (cancelled bool) {
+	cctx, shouldSignal := pc.cancelCallImpl(queryID)
+	if cctx != nil {
 		// exclusive ownership of cctx by this function
-		if unblockWaitersError != nil {
-			cctx.err = unblockWaitersError
-			cctx.result <- cctx // cctx owned by channel
+		if deliverError != nil {
+			cctx.err = deliverError
+			cctx.deliverResult(pc.client)
 		} else {
 			pc.client.putCallContext(cctx)
 		}
 	}
-	if shouldSignal {
+	if shouldSignal { // write tl.RpcCancelReq, Signal is outside lock for efficiency
 		pc.writeQCond.Signal()
 	}
+	return cctx != nil
 }
 
-func (pc *clientConn) cancelCallImpl(cctx *callContext) (shouldRelease bool, shouldSignal bool) {
+func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *callContext, shouldSignal bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	queryID := cctx.queryID
-	_, ok := pc.calls[queryID]
+	cctx, ok := pc.calls[queryID]
 	if !ok {
-		return false, false
+		return nil, false
 	}
 	delete(pc.calls, queryID)
 	if !cctx.sent {
 		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
-		return false, false
+		return nil, false
 	}
 	if pc.conn != nil && pc.conn.FlagCancelReq() {
 		pc.writeQ = append(pc.writeQ, writeReq{cancelQueryID: queryID})
-		return true, true
+		return cctx, true
 	}
-	return true, false
+	return cctx, false
 }
 
 func (pc *clientConn) finishCall(queryID int64) *callContext {
@@ -138,7 +140,7 @@ func (pc *clientConn) finishCall(queryID int64) *callContext {
 	return cctx
 }
 
-func (pc *clientConn) massCancelRequestsLocked() {
+func (pc *clientConn) massCancelRequestsLocked() (finishedCalls []*callContext) {
 	pc.writeFin = false
 	nQueued := 0
 	now := time.Now()
@@ -177,21 +179,36 @@ func (pc *clientConn) massCancelRequestsLocked() {
 		} else {
 			continue
 		}
-		cctx.result <- cctx
 		delete(pc.calls, queryID)
+		if cctx.cb == nil { // code moved from deliverResult to avoid allocation for common case of not using callbacks
+			cctx.result <- cctx
+		} else {
+			// we do some allocations here, but after disconnect we allocate anyway
+			// we cannot call callbacks under any lock, otherwise deadlock
+			finishedCalls = append(finishedCalls, cctx)
+		}
 	}
+	return
 }
 
 func (pc *clientConn) continueRunning(previousGoodHandshake bool) bool {
+	finishedCalls, result := pc.continueRunningImpl(previousGoodHandshake)
+	for _, cctx := range finishedCalls {
+		cctx.deliverResult(pc.client)
+	}
+	return result
+}
+
+func (pc *clientConn) continueRunningImpl(previousGoodHandshake bool) (finishedCalls []*callContext, _ bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
-	pc.massCancelRequestsLocked()
+	finishedCalls = pc.massCancelRequestsLocked()
 
 	if !previousGoodHandshake {
 		pc.waitingToReconnect = true
 	}
-	return pc.closeCC != nil && len(pc.calls) != 0
+	return finishedCalls, pc.closeCC != nil && len(pc.calls) != 0
 }
 
 func (pc *clientConn) putStaleRequest(wr writeReq) {
@@ -264,8 +281,11 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 			if debugPrint {
 				fmt.Printf("%v closeCC == nil for pc %p", time.Now(), pc)
 			}
-			pc.massCancelRequestsLocked()
+			finishedCalls := pc.massCancelRequestsLocked()
 			pc.mu.Unlock()
+			for _, cctx := range finishedCalls {
+				cctx.deliverResult(pc.client)
+			}
 			break
 		}
 		pc.mu.Unlock()
@@ -295,7 +315,7 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 }
 
 func (pc *clientConn) run() (goodHandshake bool) {
-	address := srvfunc.MaybeResolveHost(pc.address.Network, pc.address.Address)
+	address := srvfunc.MaybeResolveAddr(pc.address.Network, pc.address.Address)
 	nc, err := net.DialTimeout(pc.address.Network, address, DefaultHandshakeStepTimeout)
 	if err != nil {
 		pc.client.opts.Logf("rpc: failed to start new peer connection with %v: %v", pc.address, err)
@@ -345,7 +365,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 			return nil
 		}
 		if writeBuiltin {
-			err := pc.conn.WritePacketBuiltinNoFlushUnlocked()
+			err := conn.WritePacketBuiltinNoFlushUnlocked(pc.client.opts.PacketTimeout)
 			if err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to send ping/pong to %v, disconnecting: %v", conn.remoteAddr, err)
@@ -410,7 +430,7 @@ func (pc *clientConn) receiveLoop(conn *PacketConn) {
 		var err error
 
 		for {
-			typ, resp.Body, isBuiltin, err = conn.ReadPacketUnlocked(resp.body, pc.client.opts.PacketTimeout)
+			typ, resp.Body, isBuiltin, _, err = conn.ReadPacketUnlocked(resp.body, pc.client.opts.PacketTimeout)
 			resp.body = resp.Body[:0] // prepare for reuse immediately
 			if err != nil {
 				pc.client.PutResponse(resp)
@@ -488,7 +508,7 @@ func (pc *clientConn) handleResponse(queryID int64, resp *Response, rpcErr error
 		cctx.hookState.AfterReceive(cctx.resp, cctx.err)
 	}
 
-	cctx.result <- cctx
+	cctx.deliverResult(pc.client)
 	return false
 }
 

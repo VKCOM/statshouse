@@ -44,32 +44,42 @@ func BuiltinVectorMetadataHistoryShortResponseEventWrite(w []byte, vec []Metadat
 	return w, nil
 }
 
-func BuiltinVectorMetadataHistoryShortResponseEventReadJSON(j interface{}, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
-	l, _arr, err := JsonReadArray("[]MetadataHistoryShortResponseEvent", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]MetadataHistoryShortResponseEvent, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := MetadataHistoryShortResponseEvent__ReadJSON(&(*vec)[i], _arr[i], nat_t); err != nil {
-			return err
+func BuiltinVectorMetadataHistoryShortResponseEventReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]MetadataHistoryShortResponseEvent", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue MetadataHistoryShortResponseEvent
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]MetadataHistoryShortResponseEvent", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorMetadataHistoryShortResponseEventWriteJSON(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
-	return BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(false, w, vec, nat_t)
+	return BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(short bool, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w, nat_t); err != nil {
 			return w, err
 		}
 	}
@@ -100,7 +110,7 @@ func (item *MetadataHistoryShortResponseEvent) Read(w []byte, nat_field_mask uin
 
 func (item *MetadataHistoryShortResponseEvent) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Version)
-	return basictl.StringWrite(w, item.Metadata)
+	return basictl.StringWrite(w, item.Metadata), nil
 }
 
 func (item *MetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -115,44 +125,72 @@ func (item *MetadataHistoryShortResponseEvent) WriteBoxed(w []byte, nat_field_ma
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataHistoryShortResponseEvent__ReadJSON(item *MetadataHistoryShortResponseEvent, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataHistoryShortResponseEvent) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.history_short_response_event", "expected json object")
+func (item *MetadataHistoryShortResponseEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+	var propVersionPresented bool
+	var propMetadataPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response_event", "version")
+				}
+				if err := Json2ReadInt64(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "metadata":
+				if propMetadataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response_event", "metadata")
+				}
+				if err := Json2ReadString(in, &item.Metadata); err != nil {
+					return err
+				}
+				propMetadataPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.history_short_response_event", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := JsonReadInt64(_jVersion, &item.Version); err != nil {
-		return err
+	if !propVersionPresented {
+		item.Version = 0
 	}
-	_jMetadata := _jm["metadata"]
-	delete(_jm, "metadata")
-	if err := JsonReadString(_jMetadata, &item.Metadata); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.history_short_response_event", k)
+	if !propMetadataPresented {
+		item.Metadata = ""
 	}
 	return nil
 }
 
 func (item *MetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
+	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Version != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteInt64(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteInt64(w, item.Version)
+	if (item.Version != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if len(item.Metadata) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metadata":`...)
-		w = basictl.JSONWriteString(w, item.Metadata)
+	backupIndexMetadata := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metadata":`...)
+	w = basictl.JSONWriteString(w, item.Metadata)
+	if (len(item.Metadata) != 0) == false {
+		w = w[:backupIndexMetadata]
 	}
 	return append(w, '}'), nil
 }

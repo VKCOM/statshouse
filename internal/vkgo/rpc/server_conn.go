@@ -17,7 +17,7 @@ import (
 
 type serverConn struct {
 	closeCtx       context.Context
-	cancelCloseCtx context.CancelFunc
+	cancelCloseCtx context.CancelCauseFunc
 
 	server      *Server
 	listenAddr  net.Addr
@@ -45,6 +45,8 @@ type serverConn struct {
 	writeLetsFin bool
 }
 
+var _ HandlerContextConnection = &serverConn{}
+
 type hijackedResponse struct {
 	canceller HijackResponseCanceller
 	hctx      *HandlerContext
@@ -53,6 +55,31 @@ type hijackedResponse struct {
 // Motivation - we want zero allocations, so we cannot use lambda
 type HijackResponseCanceller interface {
 	CancelHijack(hctx *HandlerContext)
+}
+
+func (sc *serverConn) HijackResponse(hctx *HandlerContext, canceller HijackResponseCanceller) error {
+	// if hctx.noResult - we cannot return any other error from here because caller already updated its state. TODO - cancel immediately
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
+	sc.releaseRequest(hctx)
+	sc.makeLongpollResponse(hctx, canceller)
+	return errHijackResponse
+}
+
+func (sc *serverConn) SendHijackedResponse(hctx *HandlerContext, err error) {
+	if debugPrint {
+		fmt.Printf("longpollResponses send %d\n", hctx.queryID)
+	}
+	sc.pushResponse(hctx, err, true)
+}
+
+func (sc *serverConn) AccountResponseMem(hctx *HandlerContext, respBodySizeEstimate int) error {
+	respTaken, err := sc.server.accountResponseMem(sc.closeCtx, hctx.respTaken, respBodySizeEstimate, false)
+	hctx.respTaken = respTaken
+	return err
+}
+
+func (sc *serverConn) RareLog(format string, args ...any) {
+	sc.server.rareLog(&sc.server.lastOtherLog, format, args...)
 }
 
 func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
@@ -72,8 +99,13 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 		if debugTrace {
 			sc.server.addTrace(fmt.Sprintf("push (closedFlag | noResult) %p", hctx))
 		}
+		closedFlag := sc.closedFlag
 		sc.mu.Unlock()
-		hctx.serverConn.releaseHandlerCtx(hctx)
+		sc.releaseHandlerCtx(hctx)
+		if closedFlag {
+			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
+			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
+		}
 		return
 	}
 	if debugTrace {
@@ -102,16 +134,6 @@ func (sc *serverConn) sendLetsFin() {
 	sc.writeQCond.Signal()
 }
 
-func (sc *serverConn) flush() error {
-	err := sc.conn.FlushUnlocked()
-	if err != nil {
-		if !sc.closed() && !commonConnCloseError(err) {
-			sc.server.rareLog(&sc.server.lastOtherLog, "rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
-		}
-	}
-	return err
-}
-
 func (sc *serverConn) SetReadFIN() {
 	sc.mu.Lock()
 	sc.readFINFlag = true
@@ -126,11 +148,11 @@ func (sc *serverConn) SetWriteBuiltin() {
 	sc.writeQCond.Signal()
 }
 
-func (sc *serverConn) Close() error {
+func (sc *serverConn) close(cause error) {
 	sc.mu.Lock()
 	if sc.closedFlag {
 		sc.mu.Unlock()
-		return nil
+		return
 	}
 	sc.closedFlag = true
 	writeQ := sc.writeQ
@@ -142,18 +164,17 @@ func (sc *serverConn) Close() error {
 	}
 	sc.mu.Unlock()
 
-	sc.cancelCloseCtx()
+	sc.cancelCloseCtx(cause)
 
 	_ = sc.conn.Close()
 
 	for _, hctx := range writeQ {
-		hctx.releaseRequest()
-		hctx.releaseResponse()
+		sc.releaseRequest(hctx)
+		sc.releaseResponse(hctx)
 	}
 
 	sc.cond.Broadcast()    // wake up everyone who waits on !sc.closedFlag
 	sc.writeQCond.Signal() // or writeQ
-	return nil
 }
 
 func (sc *serverConn) WaitClosed() error {
@@ -167,12 +188,6 @@ func (sc *serverConn) WaitClosed() error {
 		sc.server.opts.Logf("rpc: connection write queue length (%d) invariant violated", len(sc.writeQ))
 	}
 	return nil
-}
-
-func (sc *serverConn) closed() bool {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.closedFlag
 }
 
 func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
@@ -193,7 +208,7 @@ func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
 	return nil
 }
 
-func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookState) (*HandlerContext, bool) {
+func (sc *serverConn) acquireHandlerCtx(tip uint32, options *ServerOptions) (*HandlerContext, bool) {
 	sc.mu.Lock()
 	for !(sc.closedFlag || len(sc.hctxPool) > 0 || sc.hctxCreated < sc.maxInflight) {
 		sc.server.rareLog(&sc.server.lastHctxWaitLog, "rpc: waiting to acquire handler context; consider increasing Server.MaxInflightPackets")
@@ -221,20 +236,22 @@ func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookS
 	}
 	sc.mu.Unlock()
 
-	hctx.serverConn = sc
+	hctx.commonConn = sc
 	hctx.listenAddr = sc.listenAddr
 	hctx.localAddr = sc.conn.conn.LocalAddr()
 	hctx.remoteAddr = sc.conn.conn.RemoteAddr()
 	hctx.keyID = sc.conn.keyID
 	hctx.protocolVersion = sc.conn.ProtocolVersion()
-	hctx.hooksState = stateInit()
-
+	hctx.protocolTransport = "TCP"
+	if options.Hooks != nil {
+		hctx.hooksState = options.Hooks()
+	}
 	return hctx, true
 }
 
 func (sc *serverConn) releaseHandlerCtx(hctx *HandlerContext) {
-	hctx.releaseRequest()
-	hctx.releaseResponse()
+	sc.releaseRequest(hctx)
+	sc.releaseResponse(hctx)
 	hctx.reset()
 
 	sc.mu.Lock()
@@ -258,6 +275,27 @@ func (sc *serverConn) releaseHandlerCtx(hctx *HandlerContext) {
 	}
 
 	sc.server.statRequestsCurrent.Dec()
+}
+
+func (sc *serverConn) releaseRequest(hctx *HandlerContext) {
+	sc.server.releaseRequestBuf(hctx.reqTaken, hctx.request)
+	hctx.reqTaken = 0
+	hctx.request = nil
+	hctx.Request = nil
+}
+
+func (sc *serverConn) releaseResponse(hctx *HandlerContext) {
+	if hctx.response != nil {
+		// if Response was reallocated and became too big, we will reuse original slice we got from pool
+		// otherwise, we will move reallocated slice into slice in heap
+		if cap(hctx.Response) <= sc.server.opts.ResponseBufSize {
+			*hctx.response = hctx.Response[:0]
+		}
+	}
+	sc.server.releaseResponseBuf(hctx.respTaken, hctx.response)
+	hctx.respTaken = 0
+	hctx.response = nil
+	hctx.Response = nil
 }
 
 func (sc *serverConn) makeLongpollResponse(hctx *HandlerContext, canceller HijackResponseCanceller) {
@@ -297,7 +335,7 @@ func (sc *serverConn) cancelLongpollResponse(queryID int64) {
 	}
 	sc.mu.Unlock()
 	resp.canceller.CancelHijack(resp.hctx)
-	resp.hctx.serverConn.releaseHandlerCtx(resp.hctx)
+	sc.releaseHandlerCtx(resp.hctx)
 }
 
 func (sc *serverConn) cancelAllLongpollResponses() {
@@ -316,6 +354,6 @@ func (sc *serverConn) cancelAllLongpollResponses() {
 			sc.server.addTrace(fmt.Sprintf("cancelAllLongpollResponse %d", resp.hctx.queryID))
 		}
 		resp.canceller.CancelHijack(resp.hctx)
-		resp.hctx.serverConn.releaseHandlerCtx(resp.hctx)
+		sc.releaseHandlerCtx(resp.hctx)
 	}
 }

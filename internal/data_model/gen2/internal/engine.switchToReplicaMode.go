@@ -19,14 +19,22 @@ type EngineSwitchToReplicaMode struct {
 func (EngineSwitchToReplicaMode) TLName() string { return "engine.switchToReplicaMode" }
 func (EngineSwitchToReplicaMode) TLTag() uint32  { return 0x23c3a87e }
 
-func (item *EngineSwitchToReplicaMode) Reset()                         {}
-func (item *EngineSwitchToReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchToReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchToReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x23c3a87e)
+func (item *EngineSwitchToReplicaMode) Reset() {}
+
+func (item *EngineSwitchToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchToReplicaMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchToReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x23c3a87e); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineSwitchToReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x23c3a87e), nil
+	w = basictl.NatWrite(w, 0x23c3a87e)
+	return item.Write(w)
 }
 
 func (item *EngineSwitchToReplicaMode) ReadResult(w []byte, ret *EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
@@ -37,19 +45,19 @@ func (item *EngineSwitchToReplicaMode) WriteResult(w []byte, ret EngineSwitchMas
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSwitchToReplicaMode) ReadResultJSON(j interface{}, ret *EngineSwitchMasterReplicaModeResult) error {
-	if err := EngineSwitchMasterReplicaModeResult__ReadJSON(ret, j); err != nil {
+func (item *EngineSwitchToReplicaMode) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineSwitchMasterReplicaModeResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSwitchToReplicaMode) WriteResultJSON(w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSwitchToReplicaMode) writeResultJSON(short bool, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSwitchToReplicaMode) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -64,22 +72,19 @@ func (item *EngineSwitchToReplicaMode) ReadResultWriteResultJSON(r []byte, w []b
 	return r, w, err
 }
 
-func (item *EngineSwitchToReplicaMode) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSwitchToReplicaMode) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineSwitchMasterReplicaModeResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSwitchToReplicaMode) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.switchToReplicaMode", err.Error())
-	}
 	var ret EngineSwitchMasterReplicaModeResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -94,24 +99,27 @@ func (item EngineSwitchToReplicaMode) String() string {
 	return string(w)
 }
 
-func EngineSwitchToReplicaMode__ReadJSON(item *EngineSwitchToReplicaMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchToReplicaMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchToReplicaMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchToReplicaMode", k)
+func (item *EngineSwitchToReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.switchToReplicaMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineSwitchToReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchToReplicaMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchToReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -121,11 +129,7 @@ func (item *EngineSwitchToReplicaMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSwitchToReplicaMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchToReplicaMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchToReplicaMode", err.Error())
 	}
 	return nil

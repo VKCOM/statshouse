@@ -52,19 +52,19 @@ func (item *EngineSendSignal) WriteResult(w []byte, ret True) (_ []byte, err err
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSendSignal) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineSendSignal) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSendSignal) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSendSignal) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSendSignal) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineSendSignal) ReadResultWriteResultJSON(r []byte, w []byte) (_ [
 	return r, w, err
 }
 
-func (item *EngineSendSignal) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSendSignal) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSendSignal) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.sendSignal", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,32 +106,53 @@ func (item EngineSendSignal) String() string {
 	return string(w)
 }
 
-func EngineSendSignal__ReadJSON(item *EngineSendSignal, j interface{}) error { return item.readJSON(j) }
-func (item *EngineSendSignal) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.sendSignal", "expected json object")
+func (item *EngineSendSignal) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSignalPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "signal":
+				if propSignalPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.sendSignal", "signal")
+				}
+				if err := Json2ReadInt32(in, &item.Signal); err != nil {
+					return err
+				}
+				propSignalPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.sendSignal", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jSignal := _jm["signal"]
-	delete(_jm, "signal")
-	if err := JsonReadInt32(_jSignal, &item.Signal); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.sendSignal", k)
+	if !propSignalPresented {
+		item.Signal = 0
 	}
 	return nil
 }
 
 func (item *EngineSendSignal) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSendSignal) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSendSignal) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Signal != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"signal":`...)
-		w = basictl.JSONWriteInt32(w, item.Signal)
+	backupIndexSignal := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"signal":`...)
+	w = basictl.JSONWriteInt32(w, item.Signal)
+	if (item.Signal != 0) == false {
+		w = w[:backupIndexSignal]
 	}
 	return append(w, '}'), nil
 }
@@ -144,11 +162,7 @@ func (item *EngineSendSignal) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSendSignal) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.sendSignal", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.sendSignal", err.Error())
 	}
 	return nil

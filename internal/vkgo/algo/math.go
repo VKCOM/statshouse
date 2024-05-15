@@ -8,20 +8,6 @@ package algo
 
 import "golang.org/x/exp/constraints"
 
-func Min[T constraints.Ordered](x T, y T) T {
-	if x <= y {
-		return x
-	}
-	return y
-}
-
-func Max[T constraints.Ordered](x T, y T) T {
-	if x >= y {
-		return x
-	}
-	return y
-}
-
 func Clamp[T constraints.Ordered](value T, low T, high T) T {
 	if value <= low {
 		return low
@@ -34,14 +20,6 @@ func Clamp[T constraints.Ordered](value T, low T, high T) T {
 
 func MinInt(x int, y int) int {
 	if x <= y {
-		return x
-	}
-
-	return y
-}
-
-func MaxInt(x int, y int) int {
-	if x >= y {
 		return x
 	}
 

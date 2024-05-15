@@ -84,15 +84,13 @@ type Journal struct {
 }
 
 func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
-	result := &Journal{
+	return &Journal{
 		dc:                     dc,
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
 		lastUpdateTime:         time.Now(),
 	}
-	result.parseDiscCache()
-	return result
 }
 
 func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
@@ -104,6 +102,7 @@ func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
 func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
 	ms.metaLoader = metaLoader
 	ms.sh2 = sh2
+	ms.parseDiscCache()
 	go ms.goUpdateMetrics(aggLog)
 }
 

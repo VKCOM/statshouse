@@ -88,6 +88,8 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["gc_pauses"] = string(gcPausesMs)
 	m["gc_pauses_mcs"] = string(gcPausesMcs)
 
+	m["trusted_subnets"] = s.opts.TrustedSubnetGroupsSt
+
 	m["average_idle_percent"] = strconv.Itoa(avgIdle)
 	m["recent_idle_percent"] = strconv.Itoa(curIdle)
 
@@ -128,8 +130,8 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, stats[k])
+		hctx.Response = basictl.StringWrite(hctx.Response, k)
+		hctx.Response = basictl.StringWrite(hctx.Response, stats[k])
 	}
 	return nil
 }
@@ -147,8 +149,8 @@ func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, stats[k])
+		hctx.Response = basictl.StringWrite(hctx.Response, k)
+		hctx.Response = basictl.StringWrite(hctx.Response, stats[k])
 	}
 
 	return nil

@@ -36,6 +36,9 @@ type callContext struct {
 	singleResult chan *callContext // channel for single caller is reused here
 	result       chan *callContext // can point to singleResult or multiResult if used by MultiClient
 
+	cb       ClientCallback // callback-style API, if set result channels are unused
+	userData any
+
 	// Response
 	resp *Response // if set, has priority
 	err  error     // otherwise err must be set. May point to rpcErr
@@ -130,4 +133,18 @@ func parseResponseExtra(resp *Response, logf LoggerFunc) (err error) {
 		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	}
 	return nil
+}
+
+func (cctx *callContext) deliverResult(c *Client) {
+	cb := cctx.cb
+	if cb == nil {
+		cctx.result <- cctx // cctx owned by channel
+		return
+	}
+	queryID := cctx.queryID
+	resp := cctx.resp
+	err := cctx.err
+	userData := cctx.userData
+	c.putCallContext(cctx)
+	cb(c, queryID, resp, err, userData)
 }

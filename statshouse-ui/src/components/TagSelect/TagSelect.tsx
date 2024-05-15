@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -74,16 +74,11 @@ export function _TagSelect({
       <ToggleButton title="Sort alphabetically" className="btn btn-outline-primary" checked={sort} onChange={setSort}>
         <SVGSortAlphaDown />
       </ToggleButton>
-      {!!setGroupBy && (
+      {!!setGroupBy && groupBy != null && (
         <ToggleButton title="Group by" className="btn btn-outline-primary" checked={groupBy} onChange={setGroupBy}>
           <SVGLayers />
         </ToggleButton>
       )}
-      {/*<div className="input-group-text bg-body">
-        <SwitchBox title="Group by" checked={groupBy} onChange={setGroupBy}>
-          <SVGLayers />
-        </SwitchBox>
-      </div>*/}
     </>
   );
 }

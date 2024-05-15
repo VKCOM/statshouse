@@ -19,26 +19,28 @@ import (
 )
 
 const (
-	RoutePrefix             = "/api/"
-	EndpointMetric          = "metric"
-	EndpointMetricList      = "metrics-list"
-	EndpointMetricTagValues = "metric-tag-values"
-	EndpointQuery           = "query"
-	EndpointTable           = "table"
-	EndpointPoint           = "point"
-	EndpointRender          = "render"
-	EndpointResetFlood      = "reset-flood"
-	EndpointLegacyRedirect  = "legacy-redirect"
-	EndpointDashboard       = "dashboard"
-	EndpointDashboardList   = "dashboards-list"
-	EndpointGroup           = "group"
-	EndpointNamespace       = "namespace"
-	EndpointNamespaceList   = "namespace-list"
-	EndpointGroupList       = "group-list"
-	EndpointPrometheus      = "prometheus"
-	EndpointStatistics      = "stat"
-	endpointChunk           = "chunk"
-	EndpointHistory         = "history"
+	RoutePrefix                 = "/api/"
+	EndpointMetric              = "metric"
+	EndpointMetricList          = "metrics-list"
+	EndpointMetricTagValues     = "metric-tag-values"
+	EndpointQuery               = "query"
+	EndpointTable               = "table"
+	EndpointPoint               = "point"
+	EndpointRender              = "render"
+	EndpointResetFlood          = "reset-flood"
+	EndpointLegacyRedirect      = "legacy-redirect"
+	EndpointDashboard           = "dashboard"
+	EndpointDashboardList       = "dashboards-list"
+	EndpointGroup               = "group"
+	EndpointNamespace           = "namespace"
+	EndpointNamespaceList       = "namespace-list"
+	EndpointGroupList           = "group-list"
+	EndpointPrometheus          = "prometheus"
+	EndpointPrometheusGenerated = "prometheus-generated"
+	EndpointKnownTags           = "known-tags"
+	EndpointStatistics          = "stat"
+	endpointChunk               = "chunk"
+	EndpointHistory             = "history"
 
 	userTokenName = "user"
 )
@@ -54,6 +56,7 @@ type endpointStat struct {
 	tokenName  string
 	user       string
 	priority   int
+	timings    ServerTimingHeader
 }
 
 func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
@@ -66,6 +69,7 @@ func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat str
 		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
 		dataFormat: dataFormat,
 		priority:   priority,
+		timings:    ServerTimingHeader{Timings: make(map[string][]time.Duration), started: time.Now()},
 	}
 }
 
@@ -129,7 +133,6 @@ func (es *endpointStat) report(code int, metric string) {
 		6:  srvfunc.HostnameForStatshouse(),
 		7:  es.tokenName,
 		8:  strconv.Itoa(code),
-		9:  es.metric,
 		10: strconv.Itoa(es.priority),
 	}
 	statshouse.Metric(metric, t).Value(v)

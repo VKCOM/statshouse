@@ -69,6 +69,9 @@ func (c *ProtocolsStats) writeProtocols(nowUnix int64, stat procfs.NetProtocolSt
 		if memory == -1 {
 			memory = 0
 		}
+		if sockets == 0 {
+			continue
+		}
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketUsedv2, float64(sockets), protocol)
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketMemory, float64(memory*mult), protocol)
 	}

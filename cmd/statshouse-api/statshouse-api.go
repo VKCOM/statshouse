@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -76,6 +79,7 @@ type args struct {
 	defaultMetricFilterNotIn []string
 	defaultMetricWhat        []string
 	defaultMetricGroupBy     []string
+	adminDash                int
 	eventPreset              []string
 	defaultNumSeries         int
 	diskCache                string
@@ -88,6 +92,7 @@ type args struct {
 	showInvisible            bool
 	slow                     time.Duration
 	staticDir                string
+	statsHouseNetwork        string
 	statsHouseAddr           string
 	statsHouseEnv            string
 	utcOffsetHours           int // we can't support offsets not divisible by hour because we aggregate the data by hour
@@ -128,6 +133,7 @@ func main() {
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", []string{}, "default metric function")
 	pflag.StringSliceVar(&argv.defaultMetricGroupBy, "default-metric-group-by", []string{"1"}, "default metric group by tags")
+	pflag.IntVar(&argv.adminDash, "admin-dash-id", 0, "hardware metric dashboard")
 	pflag.StringSliceVar(&argv.eventPreset, "event-preset", []string{}, "event preset")
 	pflag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	pflag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
@@ -141,7 +147,8 @@ func main() {
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
 	pflag.StringVar(&argv.staticDir, "static-dir", "", "directory with static assets")
-	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
+	pflag.StringVar(&argv.statsHouseNetwork, "statshouse-network", statshouse.DefaultNetwork, "udp or unixgram")
+	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultAddr, "address of udp socket or path to unix socket")
 	pflag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	pflag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
 	pflag.BoolVar(&argv.version, "version", false, "show version information and exit")
@@ -273,7 +280,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		}
 	}()
 
-	statshouse.Configure(log.Printf, argv.statsHouseAddr, argv.statsHouseEnv)
+	statshouse.ConfigureNetwork(log.Printf, argv.statsHouseNetwork, argv.statsHouseAddr, argv.statsHouseEnv)
 	defer func() { _ = statshouse.Close() }()
 	var rpcCryptoKeys []string
 	if argv.rpcCryptoKeyPath != "" {
@@ -321,6 +328,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		EventPreset:              argv.eventPreset,
 		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
+		AdminDash:                argv.adminDash,
 	}
 	if argv.LocalMode {
 		jsSettings.VkuthAppName = ""
@@ -372,6 +380,9 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointNamespaceList).Methods("GET").HandlerFunc(f.HandleGetNamespaceList)
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
+	a.Path("/" + api.EndpointPrometheusGenerated).Methods("GET").HandlerFunc(f.HandleGetPromConfigGenerated)
+	a.Path("/" + api.EndpointKnownTags).Methods("POST").HandlerFunc(f.HandlePostKnownTags)
+	a.Path("/" + api.EndpointKnownTags).Methods("GET").HandlerFunc(f.HandleGetKnownTags)
 	a.Path("/" + api.EndpointStatistics).Methods("POST").HandlerFunc(f.HandleFrontendStat)
 	a.Path("/" + api.EndpointHistory).Methods("GET").HandlerFunc(f.HandleGetHistory)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
@@ -415,10 +426,25 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
 	startTimestamp := time.Now().Unix()
-	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "1"}).Value(0)
+	heartbeatTags := statshouse.Tags{
+		1: "4",
+		2: fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		5: fmt.Sprint(format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339))),
+		6: fmt.Sprint(build.CommitTimestamp()),
+		7: srvfunc.HostnameForStatshouse(),
+	}
+	if build.Commit() != "?" {
+		commitRaw, err := hex.DecodeString(build.Commit())
+		if err == nil && len(commitRaw) >= 4 {
+			heartbeatTags[4] = fmt.Sprint(int32(binary.BigEndian.Uint32(commitRaw)))
+		}
+	}
+	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(0)
+
+	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
 		uptime := float64(time.Now().Unix() - startTimestamp)
-		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
+		c.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(uptime)
 	}))
 
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)

@@ -15,7 +15,6 @@ import {
   EventFormatterHeaderTime,
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
 import {
   encodeVariableConfig,
   encodeVariableValues,
@@ -27,6 +26,7 @@ import {
   toIndexTag,
 } from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
 
 export interface queryResult {
   readonly series: querySeries;

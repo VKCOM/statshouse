@@ -21,6 +21,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicEngineWantsRestart"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicReindex"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicRevert"
+	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicShutdown"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSkip"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotDependency"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotHeader"
@@ -41,6 +42,7 @@ type (
 	EngineWantsRestart      = tlBarsicEngineWantsRestart.BarsicEngineWantsRestart
 	Reindex                 = tlBarsicReindex.BarsicReindex
 	Revert                  = tlBarsicRevert.BarsicRevert
+	Shutdown                = tlBarsicShutdown.BarsicShutdown
 	Skip                    = tlBarsicSkip.BarsicSkip
 	SnapshotDependency      = tlBarsicSnapshotDependency.BarsicSnapshotDependency
 	SnapshotDependencyBytes = tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
@@ -345,6 +347,30 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 	return nil
 }
 
+func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "barsic.shutdown"
+	if extra != nil {
+		req.Extra = *extra
+	}
+	req.Body, err = args.WriteBoxed(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("barsic.shutdown", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("barsic.shutdown", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("barsic.shutdown", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -426,6 +452,7 @@ type Handler struct {
 	EngineWantsRestart func(ctx context.Context, args EngineWantsRestart) (tlTrue.True, error) // barsic.engineWantsRestart
 	Reindex            func(ctx context.Context, args Reindex) (tlTrue.True, error)            // barsic.reindex
 	Revert             func(ctx context.Context, args Revert) (tlTrue.True, error)             // barsic.revert
+	Shutdown           func(ctx context.Context, args Shutdown) (tlTrue.True, error)           // barsic.shutdown
 	Skip               func(ctx context.Context, args Skip) (tlTrue.True, error)               // barsic.skip
 	Start              func(ctx context.Context, args Start) (tlTrue.True, error)              // barsic.start
 
@@ -437,6 +464,7 @@ type Handler struct {
 	RawEngineWantsRestart func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.engineWantsRestart
 	RawReindex            func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.reindex
 	RawRevert             func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.revert
+	RawShutdown           func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.shutdown
 	RawSkip               func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.skip
 	RawStart              func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.start
 }
@@ -689,6 +717,37 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("barsic.revert", err)
+			}
+			return nil
+		}
+	case 0x708fd8d4: // barsic.shutdown
+		hctx.RequestFunctionName = "barsic.shutdown"
+		if h.RawShutdown != nil {
+			hctx.Request = r
+			err = h.RawShutdown(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("barsic.shutdown", err)
+			}
+			return nil
+		}
+		if h.Shutdown != nil {
+			var args Shutdown
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("barsic.shutdown", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.Shutdown(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("barsic.shutdown", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("barsic.shutdown", err)
 			}
 			return nil
 		}

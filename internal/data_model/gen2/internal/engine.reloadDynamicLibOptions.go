@@ -62,12 +62,8 @@ func (item *EngineReloadDynamicLibOptions) Read(w []byte) (_ []byte, err error) 
 
 func (item *EngineReloadDynamicLibOptions) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.LibId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.LibFileName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.LibId)
+	w = basictl.StringWrite(w, item.LibFileName)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.SlicesPart)
 	}
@@ -94,66 +90,106 @@ func (item EngineReloadDynamicLibOptions) String() string {
 	return string(w)
 }
 
-func EngineReloadDynamicLibOptions__ReadJSON(item *EngineReloadDynamicLibOptions, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReloadDynamicLibOptions) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reloadDynamicLibOptions", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jLibId := _jm["lib_id"]
-	delete(_jm, "lib_id")
-	if err := JsonReadString(_jLibId, &item.LibId); err != nil {
-		return err
-	}
-	_jLibFileName := _jm["lib_file_name"]
-	delete(_jm, "lib_file_name")
-	if err := JsonReadString(_jLibFileName, &item.LibFileName); err != nil {
-		return err
-	}
-	_jSlicesPart := _jm["slices_part"]
-	delete(_jm, "slices_part")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reloadDynamicLibOptions", k)
-	}
-	if _jSlicesPart != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jSlicesPart != nil {
-		if err := JsonReadFloat64(_jSlicesPart, &item.SlicesPart); err != nil {
-			return err
+func (item *EngineReloadDynamicLibOptions) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propLibIdPresented bool
+	var propLibFileNamePresented bool
+	var propSlicesPartPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reloadDynamicLibOptions", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "lib_id":
+				if propLibIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reloadDynamicLibOptions", "lib_id")
+				}
+				if err := Json2ReadString(in, &item.LibId); err != nil {
+					return err
+				}
+				propLibIdPresented = true
+			case "lib_file_name":
+				if propLibFileNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reloadDynamicLibOptions", "lib_file_name")
+				}
+				if err := Json2ReadString(in, &item.LibFileName); err != nil {
+					return err
+				}
+				propLibFileNamePresented = true
+			case "slices_part":
+				if propSlicesPartPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reloadDynamicLibOptions", "slices_part")
+				}
+				if err := Json2ReadFloat64(in, &item.SlicesPart); err != nil {
+					return err
+				}
+				propSlicesPartPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reloadDynamicLibOptions", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propLibIdPresented {
+		item.LibId = ""
+	}
+	if !propLibFileNamePresented {
+		item.LibFileName = ""
+	}
+	if !propSlicesPartPresented {
 		item.SlicesPart = 0
+	}
+	if propSlicesPartPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
 
 func (item *EngineReloadDynamicLibOptions) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.LibId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"lib_id":`...)
-		w = basictl.JSONWriteString(w, item.LibId)
+	backupIndexLibId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"lib_id":`...)
+	w = basictl.JSONWriteString(w, item.LibId)
+	if (len(item.LibId) != 0) == false {
+		w = w[:backupIndexLibId]
 	}
-	if len(item.LibFileName) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"lib_file_name":`...)
-		w = basictl.JSONWriteString(w, item.LibFileName)
+	backupIndexLibFileName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"lib_file_name":`...)
+	w = basictl.JSONWriteString(w, item.LibFileName)
+	if (len(item.LibFileName) != 0) == false {
+		w = w[:backupIndexLibFileName]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -168,11 +204,7 @@ func (item *EngineReloadDynamicLibOptions) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReloadDynamicLibOptions) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reloadDynamicLibOptions", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reloadDynamicLibOptions", err.Error())
 	}
 	return nil

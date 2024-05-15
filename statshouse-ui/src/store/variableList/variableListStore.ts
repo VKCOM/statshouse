@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,14 +14,30 @@ import {
   replaceVariable,
 } from '../../view/utils';
 import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
-import { GET_PARAMS, isTagKey, METRIC_VALUE_BACKEND_VERSION, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
+import {
+  GET_PARAMS,
+  isTagKey,
+  METRIC_VALUE_BACKEND_VERSION,
+  QUERY_WHAT,
+  QueryWhat,
+  TAG_KEY,
+  TagKey,
+} from '../../api/enum';
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { useErrorStore } from '../errors';
 import { deepClone, isNotNil, toNumber } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
-import { PlotKey, toIndexTag, toKeyTag, toPlotKey, VariableParams, VariableParamsLink } from '../../url/queryParams';
+import {
+  PlotKey,
+  toIndexTag,
+  toKeyTag,
+  toPlotKey,
+  VariableParams,
+  VariableParamsLink,
+  VariableParamsSource,
+} from '../../url/queryParams';
 import { createStore } from '../createStore';
 
 export function getEmptyVariable(): VariableItem {
@@ -40,6 +56,7 @@ export type VariableItem = {
 export type VariableListStore = {
   variables: Record<string, VariableItem>;
   tags: Record<PlotKey, Record<TagKey, VariableItem>>;
+  source: Record<string, Record<TagKey, VariableItem>>;
 };
 
 export const useVariableListStore = createStore<VariableListStore>((setState, getState) => {
@@ -84,6 +101,7 @@ export const useVariableListStore = createStore<VariableListStore>((setState, ge
   return {
     variables: {},
     tags: {},
+    source: {},
   };
 }, 'VariableListStore');
 export function updateTags(state: Store) {
@@ -137,6 +155,41 @@ export function setUpdatedTag(plotKey: PlotKey, tagKey: TagKey | undefined, togg
   }
 }
 
+export async function updateSource(variableParamSource: VariableParamsSource) {
+  useVariableListStore.setState((state) => {
+    state.source[variableParamSource.metric] ??= {} as Record<TagKey, VariableItem>;
+    state.source[variableParamSource.metric][variableParamSource.tag] ??= getEmptyVariable();
+    if (state.source[variableParamSource.metric]?.[variableParamSource.tag]) {
+      state.source[variableParamSource.metric][variableParamSource.tag].loaded = true;
+    }
+  });
+  const listSource = await loadSourceList(variableParamSource);
+  useVariableListStore.setState((state) => {
+    if (state.source[variableParamSource.metric]?.[variableParamSource.tag]) {
+      state.source[variableParamSource.metric][variableParamSource.tag].list = listSource?.values ?? [];
+      state.source[variableParamSource.metric][variableParamSource.tag].more = listSource?.more ?? false;
+      state.source[variableParamSource.metric][variableParamSource.tag].tagMeta = listSource?.tagMeta;
+      state.source[variableParamSource.metric][variableParamSource.tag].loaded = false;
+      state.source[variableParamSource.metric][variableParamSource.tag].keyLastRequest =
+        listSource?.keyLastRequest ?? '';
+    }
+  });
+}
+
+export function setUpdatedSource(variableParamSource: VariableParamsSource, toggle: boolean) {
+  if (variableParamSource.tag == null) {
+    return;
+  }
+  useVariableListStore.setState((state) => {
+    state.source[variableParamSource.metric] ??= {} as Record<TagKey, VariableItem>;
+    state.source[variableParamSource.metric][variableParamSource.tag] ??= getEmptyVariable();
+    state.source[variableParamSource.metric][variableParamSource.tag].updated = toggle;
+  });
+  if (toggle) {
+    updateSource(variableParamSource);
+  }
+}
+
 export function clearTags(indexPlot: number) {
   useVariableListStore.setState((state) => {
     delete state.tags[indexPlot];
@@ -170,10 +223,11 @@ export async function updateVariable(variableParam: VariableParams) {
       state.variables[variableParam.name].loaded = true;
     }
   });
-  const lists = await loadValuableList(variableParam);
-  lists.forEach((listTag) => {
-    if (listTag) {
-      useVariableListStore.setState((state) => {
+  const [sources, lists] = await Promise.all([loadValuableSourceList(variableParam), loadValuableList(variableParam)]);
+
+  useVariableListStore.setState((state) => {
+    lists.forEach((listTag) => {
+      if (listTag) {
         const { plotKey, tagKey } = listTag;
         state.tags[plotKey] ??= {} as Record<TagKey, VariableItem>;
         state.tags[plotKey][tagKey] ??= getEmptyVariable();
@@ -184,25 +238,37 @@ export async function updateVariable(variableParam: VariableParams) {
           state.tags[plotKey][tagKey].loaded = false;
           state.tags[plotKey][tagKey].keyLastRequest = listTag?.keyLastRequest ?? '';
         }
-      });
-    }
+      }
+    });
+    sources.forEach((listTag) => {
+      if (listTag) {
+        const { metricName, tagKey } = listTag;
+        state.source[metricName] ??= {} as Record<TagKey, VariableItem>;
+        state.source[metricName][tagKey] ??= getEmptyVariable();
+        if (state.source[metricName]?.[tagKey]) {
+          state.source[metricName][tagKey].list = deepClone(listTag?.values ?? []);
+          state.source[metricName][tagKey].more = listTag?.more ?? false;
+          state.source[metricName][tagKey].tagMeta = deepClone(listTag?.tagMeta);
+          state.source[metricName][tagKey].loaded = false;
+          state.source[metricName][tagKey].keyLastRequest = listTag?.keyLastRequest ?? '';
+        }
+      }
+    });
   });
   const more = lists.some((l) => l.more);
-  const tagMeta = lists[0]?.tagMeta;
+  const tagMeta = lists[0]?.tagMeta ?? sources[0]?.tagMeta;
   const list = Object.values(
-    lists
-      .flatMap((l) => l.values)
-      .reduce(
-        (res, t) => {
-          if (res[t.value]) {
-            res[t.value].count += t.count;
-          } else {
-            res[t.value] = { ...t };
-          }
-          return res;
-        },
-        {} as Record<string, MetricTagValueInfo>
-      )
+    [...sources.flatMap((l) => l.values), ...lists.flatMap((l) => l.values)].reduce(
+      (res, t) => {
+        if (res[t.value]) {
+          res[t.value].count += t.count;
+        } else {
+          res[t.value] = { ...t };
+        }
+        return res;
+      },
+      {} as Record<string, MetricTagValueInfo>
+    )
   );
   useVariableListStore.setState((state) => {
     if (state.variables[variableParam.name]) {
@@ -272,6 +338,67 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
     return {
       plotKey,
       tagKey,
+      keyLastRequest,
+      values: response.data.tag_values.slice(),
+      more: response.data.tag_values_more,
+      tagMeta,
+    };
+  }
+  if (error) {
+    useErrorStore.getState().addError(error);
+  }
+  return undefined;
+}
+
+export async function loadValuableSourceList(variableParam: VariableParams) {
+  const lists = await Promise.all(variableParam.source.map(async (source) => await loadSourceList(source)));
+  return lists.filter(isNotNil);
+}
+
+export async function loadSourceList(variableParamSource: VariableParamsSource, limit = 25000) {
+  const store = useStore.getState();
+  const useV2 = store.params.plots.every((p) => p.useV2);
+  const indexTag = toIndexTag(variableParamSource.tag);
+
+  if (!variableParamSource.metric || !variableParamSource.tag || indexTag == null) {
+    return undefined;
+  }
+
+  const requestKey = `variable_source_${variableParamSource.metric}-${variableParamSource.tag}`;
+  const otherFilterIn = { ...variableParamSource.filterIn };
+  // delete otherFilterIn[variableParamSource.tag];
+  const otherFilterNotIn = { ...variableParamSource.filterNotIn };
+  // delete otherFilterNotIn[variableParamSource.tag];
+  const params = {
+    [GET_PARAMS.metricName]: variableParamSource.metric,
+    [GET_PARAMS.metricTagID]: variableParamSource.tag,
+    [GET_PARAMS.version]:
+      globalSettings.disabled_v1 || useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
+    [GET_PARAMS.numResults]: limit.toString(),
+    [GET_PARAMS.fromTime]: store.timeRange.from.toString(),
+    [GET_PARAMS.toTime]: (store.timeRange.to + 1).toString(),
+    [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
+    [GET_PARAMS.metricWhat]: [QUERY_WHAT.count], //plot.what.slice() as QueryWhat[],
+  };
+  const keyLastRequest = JSON.stringify(params);
+  const lastTag = useVariableListStore.getState().source[variableParamSource.metric]?.[variableParamSource.tag];
+  await store.loadMetricsMeta(variableParamSource.metric);
+  const tagMeta = useStore.getState().metricsMeta[variableParamSource.metric]?.tags?.[indexTag];
+  if (lastTag && lastTag.keyLastRequest === keyLastRequest) {
+    return {
+      metricName: variableParamSource.metric,
+      tagKey: variableParamSource.tag,
+      keyLastRequest: lastTag.keyLastRequest,
+      values: lastTag.list,
+      more: lastTag.more,
+      tagMeta: lastTag.tagMeta,
+    };
+  }
+  const { response, error } = await apiMetricTagValuesFetch(params, requestKey);
+  if (response) {
+    return {
+      metricName: variableParamSource.metric,
+      tagKey: variableParamSource.tag,
       keyLastRequest,
       values: response.data.tag_values.slice(),
       more: response.data.tag_values_more,

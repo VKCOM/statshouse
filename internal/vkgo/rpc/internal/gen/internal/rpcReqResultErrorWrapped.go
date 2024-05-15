@@ -35,7 +35,7 @@ func (item *RpcReqResultErrorWrapped) Read(w []byte) (_ []byte, err error) {
 
 func (item *RpcReqResultErrorWrapped) Write(w []byte) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.Error)
+	return basictl.StringWrite(w, item.Error), nil
 }
 
 func (item *RpcReqResultErrorWrapped) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -58,44 +58,72 @@ func (item RpcReqResultErrorWrapped) String() string {
 	return string(w)
 }
 
-func RpcReqResultErrorWrapped__ReadJSON(item *RpcReqResultErrorWrapped, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcReqResultErrorWrapped) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcReqResultErrorWrapped", "expected json object")
+func (item *RpcReqResultErrorWrapped) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorCodePresented bool
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultErrorWrapped", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultErrorWrapped", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultErrorWrapped", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jErrorCode := _jm["error_code"]
-	delete(_jm, "error_code")
-	if err := JsonReadInt32(_jErrorCode, &item.ErrorCode); err != nil {
-		return err
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
 	}
-	_jError := _jm["error"]
-	delete(_jm, "error")
-	if err := JsonReadString(_jError, &item.Error); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcReqResultErrorWrapped", k)
+	if !propErrorPresented {
+		item.Error = ""
 	}
 	return nil
 }
 
 func (item *RpcReqResultErrorWrapped) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcReqResultErrorWrapped) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcReqResultErrorWrapped) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.ErrorCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	backupIndexErrorCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	if (item.ErrorCode != 0) == false {
+		w = w[:backupIndexErrorCode]
 	}
-	if len(item.Error) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error":`...)
-		w = basictl.JSONWriteString(w, item.Error)
+	backupIndexError := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error":`...)
+	w = basictl.JSONWriteString(w, item.Error)
+	if (len(item.Error) != 0) == false {
+		w = w[:backupIndexError]
 	}
 	return append(w, '}'), nil
 }
@@ -105,11 +133,7 @@ func (item *RpcReqResultErrorWrapped) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcReqResultErrorWrapped) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcReqResultErrorWrapped", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcReqResultErrorWrapped", err.Error())
 	}
 	return nil

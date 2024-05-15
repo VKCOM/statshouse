@@ -4,17 +4,38 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import uPlot from 'uplot';
-
-import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
-import { dequal } from 'dequal/lite';
 import React from 'react';
+import uPlot from 'uplot';
 import { produce, setAutoFreeze } from 'immer';
+import { dequal } from 'dequal/lite';
+
+import {
+  DashboardInfo,
+  dashboardURL,
+  metaToBaseLabel,
+  metaToLabel,
+  MetricsGroup,
+  MetricsGroupInfo,
+  MetricsGroupInfoList,
+  metricsGroupListURL,
+  MetricsGroupShort,
+  metricsGroupURL,
+  PromConfigInfo,
+  promConfigURL,
+  queryResult,
+  querySeriesMeta,
+  querySeriesMetaTag,
+  queryTable,
+  queryTableRow,
+  queryTableURL,
+  queryURL,
+  whatToWhatDesc,
+} from '../view/api';
+import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
   apiGet,
   apiPost,
   apiPut,
-  defaultBaseRange,
   Error403,
   fmtInputDateTime,
   formatLegendValue,
@@ -37,28 +58,6 @@ import {
 } from '../view/utils';
 import { globalSettings, pxPerChar } from '../common/settings';
 import { debug } from '../common/debug';
-import * as api from '../view/api';
-import {
-  DashboardInfo,
-  dashboardURL,
-  metaToBaseLabel,
-  metaToLabel,
-  MetricsGroup,
-  MetricsGroupInfo,
-  MetricsGroupInfoList,
-  metricsGroupListURL,
-  MetricsGroupShort,
-  metricsGroupURL,
-  PromConfigInfo,
-  promConfigURL,
-  queryResult,
-  querySeriesMeta,
-  querySeriesMetaTag,
-  queryTable,
-  queryTableRow,
-  queryTableURL,
-  queryURL,
-} from '../view/api';
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
@@ -67,8 +66,8 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TagKey } from '../api/enum';
-import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
+import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
 import {
@@ -106,6 +105,7 @@ export type PlotStore = {
   stacked?: uPlot.AlignedData;
   bands?: uPlot.Band[];
   series: uPlot.Series[];
+  seriesTimeShift: number[];
   seriesShow: boolean[];
   scales: Record<string, { min: number; max: number }>;
   lastPlotParams?: PlotParams;
@@ -160,6 +160,7 @@ function getEmptyPlotData(): PlotStore {
     data: [[]],
     stacked: undefined,
     series: [],
+    seriesTimeShift: [],
     seriesShow: [],
     scales: {},
     receiveErrors: 0,
@@ -623,18 +624,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   }, 0 as number) ?? 0,
               }));
             }
-            params.variables = params.variables
-              .map((variable) => ({
-                ...variable,
-                link: variable.link
-                  .filter(([keyP]) => keyP !== plotKey)
-                  .map(([keyP, keyT]) => {
-                    const indexP = toNumber(keyP, 0);
-                    return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
-                  })
-                  .filter(isNotNilVariableLink),
-              }))
-              .filter(({ link }) => link.length);
+            params.variables = params.variables.map((variable) => ({
+              ...variable,
+              link: variable.link
+                .filter(([keyP]) => keyP !== plotKey)
+                .map(([keyP, keyT]) => {
+                  const indexP = toNumber(keyP, 0);
+                  return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
+                })
+                .filter(isNotNilVariableLink),
+            }));
           }
           if (params.tabNum > index) {
             params.tabNum--;
@@ -694,7 +693,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               document.title =
                 s.plotsData[s.params.tabNum].nameMetric +
                 (s.plotsData[s.params.tabNum].whats.length
-                  ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+                  ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => whatToWhatDesc(qw)).join(',')
                   : '') +
                 ' — StatsHouse';
             } else {
@@ -705,7 +704,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               (s.params.plots[s.params.tabNum] &&
                 s.params.plots[s.params.tabNum].metricName !== '' &&
                 `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
-                  .map((qw) => api.whatToWhatDesc(qw))
+                  .map((qw) => whatToWhatDesc(qw))
                   .join(',')} — StatsHouse`) ||
               '';
           }
@@ -782,6 +781,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       );
       const prev: PlotStore = getState().plotsData[index];
 
+      if (prev.error403) {
+        return;
+      }
+
       const deltaTime = Math.floor((prevStateTo - prevStateFrom) / 5);
       if (
         !usePlotVisibilityStore.getState().visibilityList[index] &&
@@ -804,10 +807,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         { metricName: lastPlotParams.metricName },
         { metricName: prev.lastPlotParams?.metricName }
       );
+      const resetCache = !dequal(lastPlotParams, prev.lastPlotParams);
       if (
         width &&
         lastPlotParams &&
-        (!dequal(lastPlotParams, prev.lastPlotParams) ||
+        (resetCache ||
           getState().timeRange !== prev.lastTimeRange ||
           prevStateTimeShifts !== prev.lastTimeShifts ||
           (lastPlotParams.promQL && prevStateVariables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
@@ -972,9 +976,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const maxHostLists: SelectOptionProps[][] = new Array(series_meta.length).fill([]);
             const oneGraph = series_meta.filter((s) => s.time_shift === 0).length <= 1;
             const seriesShow: boolean[] = new Array(series_meta.length).fill(true);
-
+            const seriesTimeShift: number[] = [];
             const series: uPlot.Series[] = series_meta.map((meta, indexMeta): uPlot.Series => {
               const timeShift = meta.time_shift !== 0;
+              seriesTimeShift[indexMeta] = meta.time_shift;
               const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
               const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
               const isValue = baseLabel.indexOf('Value') === 0;
@@ -1201,6 +1206,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   !changeView
                     ? state.plotsData[index]?.series
                     : series,
+                seriesTimeShift: dequal(seriesTimeShift, state.plotsData[index].seriesTimeShift)
+                  ? state.plotsData[index].seriesTimeShift
+                  : seriesTimeShift,
                 seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
                   ? state.plotsData[index]?.seriesShow
                   : seriesShow,
@@ -1232,39 +1240,27 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             if (!getState().metricsMeta[lastPlotParams.metricName]) {
               getState().loadMetricsMeta(lastPlotParams.metricName);
             }
-            /*if (error instanceof ErrorSkip) {
-              setState((state) => {
-                state.plotsData[index] ??= getEmptyPlotData();
-                state.plotsData[index].errorSkipCount++;
-                if (
-                  !useLiveModeStore.getState().live ||
-                  state.plotsData[index].errorSkipCount > globalSettings.skip_error_count
-                ) {
-                  state.plotsData[index].error = error.toString();
-                  // setLiveMode(false);
-                  addStatus(index.toString(), false);
-                }
-              });
-            } else */ if (error instanceof Error403) {
+            if (error instanceof Error403) {
               setState((state) => {
                 state.plotsData[index] = {
                   ...getEmptyPlotData(),
                   error403: error.toString(),
                 };
-                // state.plotsData[index].error = error.toString();
-                // setLiveMode(false);
                 addStatus(index.toString(), false);
               });
             } else if (error.name !== 'AbortError') {
               debug.error(error);
               setState((state) => {
-                state.plotsData[index].error = error.toString();
-                // state.plotsData[index] = {
-                //   ...getEmptyPlotData(),
-                //   error: error.toString(),
-                // };
+                if (resetCache) {
+                  state.plotsData[index] = {
+                    ...getEmptyPlotData(),
+                    error: error.toString(),
+                  };
+                } else {
+                  state.plotsData[index].error = error.toString();
+                }
+
                 addStatus(index.toString(), false);
-                // setLiveMode(false);
               });
             }
             clearPlotPreview(index);
@@ -1438,15 +1434,20 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 params.plots[indexPlot].what = [QUERY_WHAT.count];
                 params.plots[indexPlot].numSeries = 0;
                 params.plots[indexPlot].customAgg = -1;
-                params.plots[indexPlot].eventsBy =
-                  (meta &&
+
+                const eventsBy = [
+                  ...((meta &&
                     meta.tags?.reduce((res, tag, index) => {
                       if (tag.description !== '-') {
                         res.push(index.toString());
                       }
                       return res;
                     }, [] as string[])) ??
-                  [];
+                    []),
+                  ...(meta?.string_top_name || meta?.string_top_description ? [TAG_KEY._s] : []),
+                ];
+                params.plots[indexPlot].eventsBy = eventsBy;
+
                 break;
             }
             if (params.plots[indexPlot].type === PLOT_TYPE.Metric) {
@@ -1887,6 +1888,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
     events: [],
     loadEvents(indexPlot, key, fromEnd = false, from) {
       return new Promise((resolve, reject) => {
+        const plotKey = toPlotKey(indexPlot);
         if (!getState().events[indexPlot]) {
           setState((state) => {
             state.events[indexPlot] = {
@@ -1900,9 +1902,13 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         const prevState = getState();
         const prevEvent = prevState.events[indexPlot];
         const prevPlot = prevState.params.plots[indexPlot];
+        const prevStateVariables = prevState.params.variables;
         const compact = prevState.compact;
         if (compact || prevPlot.type !== PLOT_TYPE.Event || prevPlot.metricName === promQLMetric) {
           resolve(null);
+          return;
+        }
+        if (plotKey == null) {
           return;
         }
         if (fromEnd) {
@@ -1923,7 +1929,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             ? `${Math.floor(width * devicePixelRatio)}`
             : `${prevPlot.customAgg}s`;
 
-        const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
+        const lastPlotParams: PlotParams | undefined = replaceVariable(plotKey, prevPlot, prevStateVariables);
+
+        const url = queryTableURL(lastPlotParams, range, agg, key, fromEnd);
         setState((state) => {
           if (fromEnd) {
             state.events[indexPlot].prevAbortController = controller;

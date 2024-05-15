@@ -58,44 +58,72 @@ func (item MetadataResetFloodResponse2) String() string {
 	return string(w)
 }
 
-func MetadataResetFloodResponse2__ReadJSON(item *MetadataResetFloodResponse2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataResetFloodResponse2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.resetFloodResponse2", "expected json object")
+func (item *MetadataResetFloodResponse2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBudgetBeforePresented bool
+	var propBudgetAfterPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "budget_before":
+				if propBudgetBeforePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFloodResponse2", "budget_before")
+				}
+				if err := Json2ReadInt32(in, &item.BudgetBefore); err != nil {
+					return err
+				}
+				propBudgetBeforePresented = true
+			case "budget_after":
+				if propBudgetAfterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFloodResponse2", "budget_after")
+				}
+				if err := Json2ReadInt32(in, &item.BudgetAfter); err != nil {
+					return err
+				}
+				propBudgetAfterPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.resetFloodResponse2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBudgetBefore := _jm["budget_before"]
-	delete(_jm, "budget_before")
-	if err := JsonReadInt32(_jBudgetBefore, &item.BudgetBefore); err != nil {
-		return err
+	if !propBudgetBeforePresented {
+		item.BudgetBefore = 0
 	}
-	_jBudgetAfter := _jm["budget_after"]
-	delete(_jm, "budget_after")
-	if err := JsonReadInt32(_jBudgetAfter, &item.BudgetAfter); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.resetFloodResponse2", k)
+	if !propBudgetAfterPresented {
+		item.BudgetAfter = 0
 	}
 	return nil
 }
 
 func (item *MetadataResetFloodResponse2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataResetFloodResponse2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataResetFloodResponse2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.BudgetBefore != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"budget_before":`...)
-		w = basictl.JSONWriteInt32(w, item.BudgetBefore)
+	backupIndexBudgetBefore := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"budget_before":`...)
+	w = basictl.JSONWriteInt32(w, item.BudgetBefore)
+	if (item.BudgetBefore != 0) == false {
+		w = w[:backupIndexBudgetBefore]
 	}
-	if item.BudgetAfter != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"budget_after":`...)
-		w = basictl.JSONWriteInt32(w, item.BudgetAfter)
+	backupIndexBudgetAfter := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"budget_after":`...)
+	w = basictl.JSONWriteInt32(w, item.BudgetAfter)
+	if (item.BudgetAfter != 0) == false {
+		w = w[:backupIndexBudgetAfter]
 	}
 	return append(w, '}'), nil
 }
@@ -105,11 +133,7 @@ func (item *MetadataResetFloodResponse2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataResetFloodResponse2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.resetFloodResponse2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.resetFloodResponse2", err.Error())
 	}
 	return nil

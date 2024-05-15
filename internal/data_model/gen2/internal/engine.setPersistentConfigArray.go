@@ -34,9 +34,7 @@ func (item *EngineSetPersistentConfigArray) Read(w []byte) (_ []byte, err error)
 }
 
 func (item *EngineSetPersistentConfigArray) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	return BuiltinVectorIntWrite(w, item.Values)
 }
 
@@ -60,19 +58,19 @@ func (item *EngineSetPersistentConfigArray) WriteResult(w []byte, ret True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSetPersistentConfigArray) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineSetPersistentConfigArray) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigArray) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSetPersistentConfigArray) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSetPersistentConfigArray) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -87,22 +85,19 @@ func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSetPersistentConfigArray) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setPersistentConfigArray", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -117,46 +112,74 @@ func (item EngineSetPersistentConfigArray) String() string {
 	return string(w)
 }
 
-func EngineSetPersistentConfigArray__ReadJSON(item *EngineSetPersistentConfigArray, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetPersistentConfigArray) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setPersistentConfigArray", "expected json object")
+func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propNamePresented bool
+	var propValuesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "name":
+				if propNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setPersistentConfigArray", "name")
+				}
+				if err := Json2ReadString(in, &item.Name); err != nil {
+					return err
+				}
+				propNamePresented = true
+			case "values":
+				if propValuesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setPersistentConfigArray", "values")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Values); err != nil {
+					return err
+				}
+				propValuesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setPersistentConfigArray", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jName := _jm["name"]
-	delete(_jm, "name")
-	if err := JsonReadString(_jName, &item.Name); err != nil {
-		return err
+	if !propNamePresented {
+		item.Name = ""
 	}
-	_jValues := _jm["values"]
-	delete(_jm, "values")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setPersistentConfigArray", k)
-	}
-	if err := BuiltinVectorIntReadJSON(_jValues, &item.Values); err != nil {
-		return err
+	if !propValuesPresented {
+		item.Values = item.Values[:0]
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetPersistentConfigArray) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Name) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"name":`...)
-		w = basictl.JSONWriteString(w, item.Name)
+	backupIndexName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"name":`...)
+	w = basictl.JSONWriteString(w, item.Name)
+	if (len(item.Name) != 0) == false {
+		w = w[:backupIndexName]
 	}
-	if len(item.Values) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"values":`...)
-		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.Values); err != nil {
-			return w, err
-		}
+	backupIndexValues := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"values":`...)
+	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values); err != nil {
+		return w, err
+	}
+	if (len(item.Values) != 0) == false {
+		w = w[:backupIndexValues]
 	}
 	return append(w, '}'), nil
 }
@@ -166,11 +189,7 @@ func (item *EngineSetPersistentConfigArray) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSetPersistentConfigArray) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setPersistentConfigArray", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setPersistentConfigArray", err.Error())
 	}
 	return nil

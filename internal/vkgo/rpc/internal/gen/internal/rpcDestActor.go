@@ -52,32 +52,53 @@ func (item RpcDestActor) String() string {
 	return string(w)
 }
 
-func RpcDestActor__ReadJSON(item *RpcDestActor, j interface{}) error { return item.readJSON(j) }
-func (item *RpcDestActor) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcDestActor", "expected json object")
+func (item *RpcDestActor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propActorIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "actor_id":
+				if propActorIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestActor", "actor_id")
+				}
+				if err := Json2ReadInt64(in, &item.ActorId); err != nil {
+					return err
+				}
+				propActorIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcDestActor", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jActorId := _jm["actor_id"]
-	delete(_jm, "actor_id")
-	if err := JsonReadInt64(_jActorId, &item.ActorId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcDestActor", k)
+	if !propActorIdPresented {
+		item.ActorId = 0
 	}
 	return nil
 }
 
 func (item *RpcDestActor) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcDestActor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcDestActor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.ActorId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"actor_id":`...)
-		w = basictl.JSONWriteInt64(w, item.ActorId)
+	backupIndexActorId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"actor_id":`...)
+	w = basictl.JSONWriteInt64(w, item.ActorId)
+	if (item.ActorId != 0) == false {
+		w = w[:backupIndexActorId]
 	}
 	return append(w, '}'), nil
 }
@@ -87,11 +108,7 @@ func (item *RpcDestActor) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcDestActor) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcDestActor", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcDestActor", err.Error())
 	}
 	return nil

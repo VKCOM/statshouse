@@ -52,32 +52,53 @@ func (item RpcPong) String() string {
 	return string(w)
 }
 
-func RpcPong__ReadJSON(item *RpcPong, j interface{}) error { return item.readJSON(j) }
-func (item *RpcPong) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcPong", "expected json object")
+func (item *RpcPong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPingIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "ping_id":
+				if propPingIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcPong", "ping_id")
+				}
+				if err := Json2ReadInt64(in, &item.PingId); err != nil {
+					return err
+				}
+				propPingIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcPong", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jPingId := _jm["ping_id"]
-	delete(_jm, "ping_id")
-	if err := JsonReadInt64(_jPingId, &item.PingId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcPong", k)
+	if !propPingIdPresented {
+		item.PingId = 0
 	}
 	return nil
 }
 
 func (item *RpcPong) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcPong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcPong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.PingId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ping_id":`...)
-		w = basictl.JSONWriteInt64(w, item.PingId)
+	backupIndexPingId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ping_id":`...)
+	w = basictl.JSONWriteInt64(w, item.PingId)
+	if (item.PingId != 0) == false {
+		w = w[:backupIndexPingId]
 	}
 	return append(w, '}'), nil
 }
@@ -87,11 +108,7 @@ func (item *RpcPong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcPong) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcPong", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcPong", err.Error())
 	}
 	return nil

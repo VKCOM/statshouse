@@ -53,6 +53,9 @@
           },
           {
             "$ref": "#/components/parameters/paramDataFormat"
+          },
+          {
+            "$ref": "#/components/parameters/paramExcessPoints"
           }
         ],
         "responses": {
@@ -706,6 +709,19 @@
           "type": "number"
         }
       },
+      "paramExcessPoints": {
+        "name": "ep",
+        "in": "query",
+        "description": "Add excess points",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number",
+          "enum": [
+            1
+          ]
+        }
+      },
       "paramID": {
         "name": "id",
         "in": "query",
@@ -788,6 +804,9 @@
           "metric_id": {
             "type": "number"
           },
+          "namespace_id": {
+            "type": "integer"
+          },
           "name": {
             "type": "string"
           },
@@ -832,11 +851,25 @@
           },
           "group_id": {
             "type": "number"
+          },
+          "pre_key_only": {
+            "type": "boolean"
+          },
+          "metric_type": {
+            "type": "string"
+          },
+          "tags_draft": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricMetaTag"
+            }
           }
         },
         "required": [
           "name",
-          "kind"
+          "kind",
+          "metric_type",
+          "namespace_id"
         ]
       },
       "MetricInfo": {
@@ -1046,6 +1079,15 @@
           },
           "mapping_errors": {
             "type": "number"
+          },
+          "excess_point_left": {
+            "type": "boolean"
+          },
+          "excess_point_right": {
+            "type": "boolean"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/MetricMetaValue"
           }
         },
         "required": [

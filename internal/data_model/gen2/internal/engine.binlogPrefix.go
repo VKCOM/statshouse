@@ -44,32 +44,42 @@ func BuiltinVectorEngineBinlogPrefixWrite(w []byte, vec []EngineBinlogPrefix) (_
 	return w, nil
 }
 
-func BuiltinVectorEngineBinlogPrefixReadJSON(j interface{}, vec *[]EngineBinlogPrefix) error {
-	l, _arr, err := JsonReadArray("[]EngineBinlogPrefix", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]EngineBinlogPrefix, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := EngineBinlogPrefix__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]EngineBinlogPrefix) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]EngineBinlogPrefix", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue EngineBinlogPrefix
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]EngineBinlogPrefix", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorEngineBinlogPrefixWriteJSON(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
-	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(false, w, vec)
+	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(short bool, w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -97,10 +107,8 @@ func (item *EngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineBinlogPrefix) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.BinlogPrefix); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.SnapshotPrefix)
+	w = basictl.StringWrite(w, item.BinlogPrefix)
+	return basictl.StringWrite(w, item.SnapshotPrefix), nil
 }
 
 func (item *EngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -123,44 +131,72 @@ func (item EngineBinlogPrefix) String() string {
 	return string(w)
 }
 
-func EngineBinlogPrefix__ReadJSON(item *EngineBinlogPrefix, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineBinlogPrefix) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.binlogPrefix", "expected json object")
+func (item *EngineBinlogPrefix) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBinlogPrefixPresented bool
+	var propSnapshotPrefixPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "binlog_prefix":
+				if propBinlogPrefixPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.binlogPrefix", "binlog_prefix")
+				}
+				if err := Json2ReadString(in, &item.BinlogPrefix); err != nil {
+					return err
+				}
+				propBinlogPrefixPresented = true
+			case "snapshot_prefix":
+				if propSnapshotPrefixPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.binlogPrefix", "snapshot_prefix")
+				}
+				if err := Json2ReadString(in, &item.SnapshotPrefix); err != nil {
+					return err
+				}
+				propSnapshotPrefixPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.binlogPrefix", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBinlogPrefix := _jm["binlog_prefix"]
-	delete(_jm, "binlog_prefix")
-	if err := JsonReadString(_jBinlogPrefix, &item.BinlogPrefix); err != nil {
-		return err
+	if !propBinlogPrefixPresented {
+		item.BinlogPrefix = ""
 	}
-	_jSnapshotPrefix := _jm["snapshot_prefix"]
-	delete(_jm, "snapshot_prefix")
-	if err := JsonReadString(_jSnapshotPrefix, &item.SnapshotPrefix); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.binlogPrefix", k)
+	if !propSnapshotPrefixPresented {
+		item.SnapshotPrefix = ""
 	}
 	return nil
 }
 
 func (item *EngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineBinlogPrefix) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineBinlogPrefix) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.BinlogPrefix) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"binlog_prefix":`...)
-		w = basictl.JSONWriteString(w, item.BinlogPrefix)
+	backupIndexBinlogPrefix := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"binlog_prefix":`...)
+	w = basictl.JSONWriteString(w, item.BinlogPrefix)
+	if (len(item.BinlogPrefix) != 0) == false {
+		w = w[:backupIndexBinlogPrefix]
 	}
-	if len(item.SnapshotPrefix) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshot_prefix":`...)
-		w = basictl.JSONWriteString(w, item.SnapshotPrefix)
+	backupIndexSnapshotPrefix := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshot_prefix":`...)
+	w = basictl.JSONWriteString(w, item.SnapshotPrefix)
+	if (len(item.SnapshotPrefix) != 0) == false {
+		w = w[:backupIndexSnapshotPrefix]
 	}
 	return append(w, '}'), nil
 }
@@ -170,11 +206,7 @@ func (item *EngineBinlogPrefix) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineBinlogPrefix) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.binlogPrefix", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.binlogPrefix", err.Error())
 	}
 	return nil

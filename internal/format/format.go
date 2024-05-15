@@ -40,12 +40,17 @@ const (
 	MaxEffectiveGroupWeight     = 10_000 * EffectiveWeightOne
 	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
-	StringTopTagID         = "_s"
-	HostTagID              = "_h"
-	ShardTagID             = "_shard_num"
-	EnvTagID               = "0"
-	LETagName              = "le"
-	ScrapeNamespaceTagName = "__scrape_namespace__"
+	StringTopTagID            = "_s"
+	HostTagID                 = "_h"
+	ShardTagID                = "_shard_num"
+	EnvTagID                  = "0"
+	LETagName                 = "le"
+	ScrapeNamespaceTagName    = "__scrape_namespace__"
+	HistogramBucketsStartMark = "Buckets$"
+	HistogramBucketsDelim     = ","
+	HistogramBucketsDelimC    = ','
+	HistogramBucketsEndMark   = "$"
+	HistogramBucketsEndMarkC  = '$'
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -131,6 +136,8 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	GetMetaMetricByName(metricName string) *MetricMetaValue
 	GetGroup(id int32) *MetricsGroup
 	GetNamespace(id int32) *NamespaceMeta
+	GetNamespaceByName(name string) *NamespaceMeta
+	GetGroupByName(name string) *MetricsGroup
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -232,6 +239,7 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
+	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
 
 	GroupID int32 `json:"-"`
 
@@ -455,7 +463,25 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
-
+	if m.Kind == MetricKindCounter {
+		if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
+			s := m.Description[i+len(HistogramBucketsStartMark):]
+			if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
+				s = s[:i]
+				m.HistorgamBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
+				for i, j := 0, 1; i < len(s); {
+					for j < len(s) && s[j] != HistogramBucketsDelimC {
+						j++
+					}
+					if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
+						m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
+					}
+					i = j + 1
+					j = i + 1
+				}
+			}
+		}
+	}
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
 	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
 		m.GroupID = BuiltinGroupIDDefault

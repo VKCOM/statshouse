@@ -13,13 +13,17 @@ export const GET_PARAMS = {
   version: 'v',
   metricName: 's',
   metricCustomName: 'cn',
-  metricMetricType: 'mt',
+  /**
+   * metric unit
+   */
+  metricMetricUnit: 'mt',
   metricCustomDescription: 'cd',
   fromTime: 'f',
   toTime: 't',
   width: 'w',
   metricWhat: 'qw',
   metricTimeShifts: 'ts',
+  metricLocalTimeShifts: 'lts',
   metricGroupBy: 'qb',
   metricFilter: 'qf',
   metricFilterSync: 'fs',
@@ -32,6 +36,9 @@ export const GET_PARAMS = {
   metricMaxHost: 'mh',
   metricAgg: 'g',
   metricPromQL: 'q',
+  /**
+   * widget type
+   */
   metricType: 'qt',
   metricEvent: 'qe',
   metricFromRow: 'fr',
@@ -45,6 +52,9 @@ export const GET_PARAMS = {
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',
+  dashboardName: 'dn',
+  dashboardDescription: 'dd',
+  dashboardVersion: 'dv',
   metricsGroupID: 'id',
   metricsNamespacesID: 'id',
   metricsListAndDisabled: 'sd',
@@ -63,12 +73,18 @@ export const GET_PARAMS = {
   variableNamePrefix: 'var',
   variableDescription: 'd',
   variableValue: 'v',
-  variableValuePrefix: 'v.',
+  variableValuePrefix: 'v',
   variableLinkPlot: 'l',
-  variableSource: 's',
+  variableSourcePrefix: 's',
+  variableSourceMetricName: 's',
+  variableSourceTag: 't',
+  variableSourceFilter: 'qf',
   variableGroupBy: 'g',
   variableNegative: 'nv',
   priority: 'priority',
+  orderPlot: 'op',
+  orderGroup: 'og',
+  orderVariable: 'ov',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 
@@ -196,6 +212,7 @@ export type ApiFetchOptMethods = Enum<typeof API_FETCH_OPT_METHODS>;
 
 export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
 export const isTagKey = isEnum<TagKey>(TAG_KEY);
+export const toTagKey = toEnum(isTagKey);
 
 /**
  * metric unit type
@@ -286,3 +303,35 @@ export const METRIC_AGGREGATION_DESCRIPTION: Record<MetricAggregation, string> =
   [METRIC_AGGREGATION.day7]: '7 days',
   [METRIC_AGGREGATION.month1]: '1 month',
 };
+
+export const TIME_RANGE_KEYS_TO = {
+  /**
+   * relative now timestamp
+   */
+  Now: '0',
+  /**
+   * relative end day timestamp
+   */
+  EndDay: 'ed',
+  /**
+   * relative end week timestamp
+   */
+  EndWeek: 'ew',
+  /**
+   * absolute now timestamp
+   */
+  default: 'd',
+} as const;
+
+export type TimeRangeKeysTo = Enum<typeof TIME_RANGE_KEYS_TO>;
+export const isTimeRangeKeysTo = isEnum<TimeRangeKeysTo>(TIME_RANGE_KEYS_TO);
+export const toTimeRangeKeysTo = toEnum(isTimeRangeKeysTo);
+
+export const PLOT_TYPE = {
+  Metric: '0',
+  Event: '1',
+} as const;
+
+export type PlotType = Enum<typeof PLOT_TYPE>;
+export const isPlotType = isEnum<PlotType>(PLOT_TYPE);
+export const toPlotType = toEnum(isPlotType);

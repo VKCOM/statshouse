@@ -263,10 +263,10 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				h.FoundDraftTagName = v.Key
 			} else {
 				h.NotFoundTagName = v.Key
-				if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
-					// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
-					_ = mp.autoCreate.autoCreateTag(metric, v.Key, h.ReceiveTime)
-				}
+			}
+			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
+				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
+				_ = mp.autoCreate.autoCreateTag(metric, v.Key, h.ReceiveTime)
 			}
 			continue
 		}

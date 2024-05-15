@@ -54,6 +54,27 @@ func (item *BarsicSnapshotHeader) Reset() {
 	item.ControlMeta = ""
 }
 
+func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	item.ClusterId = basictl.RandomString(rg)
+	item.ShardId = basictl.RandomString(rg)
+	item.SnapshotMeta = basictl.RandomString(rg)
+	tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyFillRandom(rg, &item.Dependencies)
+	item.PayloadOffset = basictl.RandomLong(rg)
+	item.EngineVersion = basictl.RandomString(rg)
+	item.CreationTimeNano = basictl.RandomLong(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.ControlMeta = basictl.RandomString(rg)
+	} else {
+		item.ControlMeta = ""
+	}
+}
+
 func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -91,27 +112,17 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicSnapshotHeader) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterId)
+	w = basictl.StringWrite(w, item.ShardId)
+	w = basictl.StringWrite(w, item.SnapshotMeta)
 	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWrite(w, item.Dependencies); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.PayloadOffset)
-	if w, err = basictl.StringWrite(w, item.EngineVersion); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWrite(w, item.ControlMeta); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.ControlMeta)
 	}
 	return w, nil
 }
@@ -136,118 +147,203 @@ func (item BarsicSnapshotHeader) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotHeader__ReadJSON(item *BarsicSnapshotHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotHeader) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.snapshotHeader", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadString(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadString(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jSnapshotMeta := _jm["snapshot_meta"]
-	delete(_jm, "snapshot_meta")
-	if err := internal.JsonReadString(_jSnapshotMeta, &item.SnapshotMeta); err != nil {
-		return err
-	}
-	_jDependencies := _jm["dependencies"]
-	delete(_jm, "dependencies")
-	_jPayloadOffset := _jm["payload_offset"]
-	delete(_jm, "payload_offset")
-	if err := internal.JsonReadInt64(_jPayloadOffset, &item.PayloadOffset); err != nil {
-		return err
-	}
-	_jEngineVersion := _jm["engine_version"]
-	delete(_jm, "engine_version")
-	if err := internal.JsonReadString(_jEngineVersion, &item.EngineVersion); err != nil {
-		return err
-	}
-	_jCreationTimeNano := _jm["creation_time_nano"]
-	delete(_jm, "creation_time_nano")
-	if err := internal.JsonReadInt64(_jCreationTimeNano, &item.CreationTimeNano); err != nil {
-		return err
-	}
-	_jControlMeta := _jm["control_meta"]
-	delete(_jm, "control_meta")
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", k)
-	}
-	if _jControlMeta != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(_jDependencies, &item.Dependencies); err != nil {
-		return err
-	}
-	if _jControlMeta != nil {
-		if err := internal.JsonReadString(_jControlMeta, &item.ControlMeta); err != nil {
-			return err
+func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propSnapshotMetaPresented bool
+	var propDependenciesPresented bool
+	var propPayloadOffsetPresented bool
+	var propEngineVersionPresented bool
+	var propCreationTimeNanoPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "cluster_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "shard_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "snapshot_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "dependencies":
+				if propDependenciesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+					return err
+				}
+				propDependenciesPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "engine_version":
+				if propEngineVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "engine_version")
+				}
+				if err := internal.Json2ReadString(in, &item.EngineVersion); err != nil {
+					return err
+				}
+				propEngineVersionPresented = true
+			case "creation_time_nano":
+				if propCreationTimeNanoPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "creation_time_nano")
+				}
+				if err := internal.Json2ReadInt64(in, &item.CreationTimeNano); err != nil {
+					return err
+				}
+				propCreationTimeNanoPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "control_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = ""
+	}
+	if !propShardIdPresented {
+		item.ShardId = ""
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = ""
+	}
+	if !propDependenciesPresented {
+		item.Dependencies = item.Dependencies[:0]
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	if !propEngineVersionPresented {
+		item.EngineVersion = ""
+	}
+	if !propCreationTimeNanoPresented {
+		item.CreationTimeNano = 0
+	}
+	if !propControlMetaPresented {
 		item.ControlMeta = ""
+	}
+	if propControlMetaPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
 
 func (item *BarsicSnapshotHeader) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteString(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteString(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteString(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteString(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if len(item.SnapshotMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshot_meta":`...)
-		w = basictl.JSONWriteString(w, item.SnapshotMeta)
+	backupIndexSnapshotMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshot_meta":`...)
+	w = basictl.JSONWriteString(w, item.SnapshotMeta)
+	if (len(item.SnapshotMeta) != 0) == false {
+		w = w[:backupIndexSnapshotMeta]
 	}
-	if len(item.Dependencies) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"dependencies":`...)
-		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(short, w, item.Dependencies); err != nil {
-			return w, err
-		}
+	backupIndexDependencies := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"dependencies":`...)
+	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
+		return w, err
 	}
-	if item.PayloadOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (len(item.Dependencies) != 0) == false {
+		w = w[:backupIndexDependencies]
 	}
-	if len(item.EngineVersion) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"engine_version":`...)
-		w = basictl.JSONWriteString(w, item.EngineVersion)
+	backupIndexPayloadOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (item.PayloadOffset != 0) == false {
+		w = w[:backupIndexPayloadOffset]
 	}
-	if item.CreationTimeNano != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"creation_time_nano":`...)
-		w = basictl.JSONWriteInt64(w, item.CreationTimeNano)
+	backupIndexEngineVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"engine_version":`...)
+	w = basictl.JSONWriteString(w, item.EngineVersion)
+	if (len(item.EngineVersion) != 0) == false {
+		w = w[:backupIndexEngineVersion]
+	}
+	backupIndexCreationTimeNano := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"creation_time_nano":`...)
+	w = basictl.JSONWriteInt64(w, item.CreationTimeNano)
+	if (item.CreationTimeNano != 0) == false {
+		w = w[:backupIndexCreationTimeNano]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -262,11 +358,7 @@ func (item *BarsicSnapshotHeader) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSnapshotHeader) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
 	return nil
@@ -309,6 +401,27 @@ func (item *BarsicSnapshotHeaderBytes) Reset() {
 	item.ControlMeta = item.ControlMeta[:0]
 }
 
+func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	item.ClusterId = basictl.RandomStringBytes(rg)
+	item.ShardId = basictl.RandomStringBytes(rg)
+	item.SnapshotMeta = basictl.RandomStringBytes(rg)
+	tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(rg, &item.Dependencies)
+	item.PayloadOffset = basictl.RandomLong(rg)
+	item.EngineVersion = basictl.RandomStringBytes(rg)
+	item.CreationTimeNano = basictl.RandomLong(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.ControlMeta = basictl.RandomStringBytes(rg)
+	} else {
+		item.ControlMeta = item.ControlMeta[:0]
+	}
+}
+
 func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -346,27 +459,17 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicSnapshotHeaderBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.ClusterId)
+	w = basictl.StringWriteBytes(w, item.ShardId)
+	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
 	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWrite(w, item.Dependencies); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.PayloadOffset)
-	if w, err = basictl.StringWriteBytes(w, item.EngineVersion); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.ControlMeta); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.ControlMeta)
 	}
 	return w, nil
 }
@@ -391,118 +494,203 @@ func (item BarsicSnapshotHeaderBytes) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotHeaderBytes__ReadJSON(item *BarsicSnapshotHeaderBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotHeaderBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.snapshotHeader", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadStringBytes(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadStringBytes(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jSnapshotMeta := _jm["snapshot_meta"]
-	delete(_jm, "snapshot_meta")
-	if err := internal.JsonReadStringBytes(_jSnapshotMeta, &item.SnapshotMeta); err != nil {
-		return err
-	}
-	_jDependencies := _jm["dependencies"]
-	delete(_jm, "dependencies")
-	_jPayloadOffset := _jm["payload_offset"]
-	delete(_jm, "payload_offset")
-	if err := internal.JsonReadInt64(_jPayloadOffset, &item.PayloadOffset); err != nil {
-		return err
-	}
-	_jEngineVersion := _jm["engine_version"]
-	delete(_jm, "engine_version")
-	if err := internal.JsonReadStringBytes(_jEngineVersion, &item.EngineVersion); err != nil {
-		return err
-	}
-	_jCreationTimeNano := _jm["creation_time_nano"]
-	delete(_jm, "creation_time_nano")
-	if err := internal.JsonReadInt64(_jCreationTimeNano, &item.CreationTimeNano); err != nil {
-		return err
-	}
-	_jControlMeta := _jm["control_meta"]
-	delete(_jm, "control_meta")
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", k)
-	}
-	if _jControlMeta != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(_jDependencies, &item.Dependencies); err != nil {
-		return err
-	}
-	if _jControlMeta != nil {
-		if err := internal.JsonReadStringBytes(_jControlMeta, &item.ControlMeta); err != nil {
-			return err
+func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propSnapshotMetaPresented bool
+	var propDependenciesPresented bool
+	var propPayloadOffsetPresented bool
+	var propEngineVersionPresented bool
+	var propCreationTimeNanoPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "cluster_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "shard_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "snapshot_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "dependencies":
+				if propDependenciesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+					return err
+				}
+				propDependenciesPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "engine_version":
+				if propEngineVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "engine_version")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.EngineVersion); err != nil {
+					return err
+				}
+				propEngineVersionPresented = true
+			case "creation_time_nano":
+				if propCreationTimeNanoPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "creation_time_nano")
+				}
+				if err := internal.Json2ReadInt64(in, &item.CreationTimeNano); err != nil {
+					return err
+				}
+				propCreationTimeNanoPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "control_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = item.ClusterId[:0]
+	}
+	if !propShardIdPresented {
+		item.ShardId = item.ShardId[:0]
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = item.SnapshotMeta[:0]
+	}
+	if !propDependenciesPresented {
+		item.Dependencies = item.Dependencies[:0]
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	if !propEngineVersionPresented {
+		item.EngineVersion = item.EngineVersion[:0]
+	}
+	if !propCreationTimeNanoPresented {
+		item.CreationTimeNano = 0
+	}
+	if !propControlMetaPresented {
 		item.ControlMeta = item.ControlMeta[:0]
+	}
+	if propControlMetaPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if len(item.SnapshotMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshot_meta":`...)
-		w = basictl.JSONWriteStringBytes(w, item.SnapshotMeta)
+	backupIndexSnapshotMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshot_meta":`...)
+	w = basictl.JSONWriteStringBytes(w, item.SnapshotMeta)
+	if (len(item.SnapshotMeta) != 0) == false {
+		w = w[:backupIndexSnapshotMeta]
 	}
-	if len(item.Dependencies) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"dependencies":`...)
-		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(short, w, item.Dependencies); err != nil {
-			return w, err
-		}
+	backupIndexDependencies := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"dependencies":`...)
+	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
+		return w, err
 	}
-	if item.PayloadOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (len(item.Dependencies) != 0) == false {
+		w = w[:backupIndexDependencies]
 	}
-	if len(item.EngineVersion) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"engine_version":`...)
-		w = basictl.JSONWriteStringBytes(w, item.EngineVersion)
+	backupIndexPayloadOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (item.PayloadOffset != 0) == false {
+		w = w[:backupIndexPayloadOffset]
 	}
-	if item.CreationTimeNano != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"creation_time_nano":`...)
-		w = basictl.JSONWriteInt64(w, item.CreationTimeNano)
+	backupIndexEngineVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"engine_version":`...)
+	w = basictl.JSONWriteStringBytes(w, item.EngineVersion)
+	if (len(item.EngineVersion) != 0) == false {
+		w = w[:backupIndexEngineVersion]
+	}
+	backupIndexCreationTimeNano := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"creation_time_nano":`...)
+	w = basictl.JSONWriteInt64(w, item.CreationTimeNano)
+	if (item.CreationTimeNano != 0) == false {
+		w = w[:backupIndexCreationTimeNano]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -517,11 +705,7 @@ func (item *BarsicSnapshotHeaderBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSnapshotHeaderBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
 	return nil
