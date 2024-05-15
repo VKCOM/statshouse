@@ -239,6 +239,9 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	parser.Inspect(ev.ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
+			if e.GroupBy != nil || e.What != "" {
+				ev.opt.Compat = false // compat mode is disabled when StateHouse extensions are in use
+			}
 			if len(e.OriginalOffsetEx) != 0 {
 				e.Offsets = normalizeOffsets(e.OriginalOffsetEx)
 			} else {
@@ -959,10 +962,10 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 							ID:    LabelOffset,
 							Value: int32(selOffset)})
 					}
-					if qry.prefixSum {
-						sr = ev.funcPrefixSum(sr)
-					}
 					sr.Data[k].Offset = offset
+				}
+				if qry.prefixSum {
+					sr = ev.funcPrefixSum(sr)
 				}
 				if len(res[j].Data) == 0 {
 					res[j].Meta = sr.Meta
