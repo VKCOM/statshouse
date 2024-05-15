@@ -9,13 +9,14 @@ import (
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 	"github.com/vkcom/statshouse/internal/sqlitev2/cache"
 	"go.uber.org/multierr"
+	"go4.org/mem"
 )
 
 type (
 	sqliteConn struct {
 		conn             *sqlite0.Conn
 		cache            *cache.QueryCache
-		queryBuffer      []byte
+		builder          *queryBuilder
 		connError        error
 		showLastInsertID bool
 		beginStmt        string
@@ -42,6 +43,7 @@ func newSqliteROConn(path string, stats StatsOptions, logger *log.Logger) (*sqli
 	}
 	return &sqliteConn{
 		conn:      conn,
+		builder:   &queryBuilder{},
 		cache:     cache.NewQueryCache(10, logger),
 		beginStmt: beginDeferredStmt,
 		stats:     stats,
@@ -55,19 +57,21 @@ func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *
 	}
 	return &sqliteConn{
 		conn:      conn,
+		builder:   &queryBuilder{},
 		connError: nil,
 		cache:     cache.NewQueryCache(cacheSize, logger),
 		beginStmt: beginDeferredStmt,
 		stats:     stats,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, disableAuthCheckpoint bool, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
-	conn, err := openRW(openWAL, path, appid, disableAuthCheckpoint)
+func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+	conn, err := openRW(openWAL, path, appid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
 	return &sqliteConn{
 		conn:             conn,
+		builder:          &queryBuilder{},
 		connError:        nil,
 		showLastInsertID: showLastInsertID,
 		cache:            cache.NewQueryCache(cacheSize, logger),
@@ -144,25 +148,31 @@ func (c *sqliteConn) rollbackLocked() error {
 // if sqlString == "", sqlBytes could be copied to store as map key
 func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
 	sqlIsRawBytes := len(sqlBytes) > 0
+	var q mem.RO
 	if sqlIsRawBytes {
-		c.queryBuffer = append(c.queryBuffer[:0], sqlBytes...)
+		q = mem.B(sqlBytes)
 	} else {
-		c.queryBuffer = append(c.queryBuffer[:0], sqlString...)
+		q = mem.S(sqlString)
 	}
+
+	query, err := c.builder.BuildQuery(q, args...)
+
 	var si *sqlite0.Stmt
-	var err error
 	var ok bool
-	key := cache.CalcHashBytes(c.queryBuffer)
+	if err != nil {
+		return nil, err
+	}
+	key := cache.CalcHashBytes(query)
 	si, ok = c.cache.Get(key, time.Now())
 	if !ok {
-		si, err = prepare(c.conn, c.queryBuffer)
+		si, err = prepare(c.conn, query)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare stmt: %w", err)
 		}
 		c.cache.Put(key, time.Now(), si)
 	}
 
-	stmt, err := bindParam(si, args...)
+	stmt, err := bindParam(si, c.builder, args...)
 	return stmt, err
 }
 

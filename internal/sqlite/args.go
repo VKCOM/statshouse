@@ -20,15 +20,15 @@ const (
 )
 
 type Arg struct {
-	name  string
-	typ   int
-	slice bool
+	name string
+	typ  int
 
 	b []byte
 	s string
 	n int64
 	f float64
 
+	slice  bool
 	bs     [][]byte
 	ss     []string
 	ns     []int64

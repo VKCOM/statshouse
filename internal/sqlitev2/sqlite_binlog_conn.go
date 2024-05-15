@@ -18,8 +18,8 @@ type (
 	}
 )
 
-func newSqliteBinlogConn(path string, appid int32, showLastInsertID bool, cacheSize int, disableAuthCheckpoint bool, stats StatsOptions, logger *log.Logger) (*sqliteBinlogConn, error) {
-	conn, err := newSqliteRWWALConn(path, appid, showLastInsertID, cacheSize, disableAuthCheckpoint, stats, logger)
+func newSqliteBinlogConn(path string, appid int32, showLastInsertID bool, cacheSize int, stats StatsOptions, logger *log.Logger) (*sqliteBinlogConn, error) {
+	conn, err := newSqliteRWWALConn(path, appid, showLastInsertID, cacheSize, stats, logger)
 	if err != nil {
 		return nil, err
 	}

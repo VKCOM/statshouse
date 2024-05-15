@@ -168,15 +168,15 @@ func Test_Engine_Race_Do(t *testing.T) {
 		t.Fatal("mustn't apply music")
 	})
 	var actualN int64
-	err := engine.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+	err := engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT v from test_db")
 		if rows.err != nil {
-			return bytes, rows.err
+			return rows.err
 		}
 		for rows.Next() {
 			actualN = rows.ColumnInt64(0)
 		}
-		return bytes, nil
+		return nil
 	})
 	require.NoError(t, err)
 	require.Equal(t, agg.n, actualN)

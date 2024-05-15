@@ -98,7 +98,7 @@ type (
 	}
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
-		Replica bool
+		// Replica bool
 		// Set true if binlog created in ReadAndExit mode
 		ReadAndExit bool
 	}
@@ -155,7 +155,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		return nil, fmt.Errorf("failed to open runRestart file: %w", err)
 	}
 	logger.Println("Running runRestart script")
-	_, err = runRestart(re, opt, logger)
+	err = runRestart(re, opt, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
 	}
@@ -165,7 +165,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		size = stat.Size()
 	}
 	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
-	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, true, opt.StatsOptions, logger)
+	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, opt.StatsOptions, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
 	}
@@ -431,7 +431,7 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	//}
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	if e.readOnly || e.opt.Replica {
+	if e.readOnly /* || e.opt.Replica */ {
 		return ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
@@ -451,9 +451,9 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 		return fmt.Errorf("user error: %w", err)
 	}
 	if len(bytes) == 0 {
-		//if e.binlog != nil {
-		//	return fmt.Errorf("do without binlog event")
-		//}
+		if e.binlog != nil {
+			return fmt.Errorf("do without binlog event")
+		}
 		return e.rw.nonBinlogCommitTxLocked()
 	}
 	if e.binlog == nil {

@@ -217,8 +217,6 @@ func (c *Conn) LastInsertRowID() int64 {
 }
 
 type Stmt struct {
-	SQLStr           string // TODO delete
-	ResetF           bool   // todo delete
 	conn             *Conn
 	stmt             *C.sqlite3_stmt
 	keepAliveStrings []string
@@ -261,8 +259,6 @@ func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 		}
 	}
 	return &Stmt{
-		ResetF: true,
-		SQLStr: string(sql),
 		conn:   c,
 		stmt:   cStmt,
 		params: params,
@@ -296,9 +292,6 @@ func (s *Stmt) ExpandedSQL() string {
 
 func (s *Stmt) Reset() error {
 	rc := C.sqlite3_reset(s.stmt)
-	if rc == ok {
-		s.ResetF = true
-	}
 	return sqliteErr(rc, s.conn.conn, "sqlite3_reset")
 }
 
@@ -399,7 +392,6 @@ func (s *Stmt) BindFloat64(param int, v float64) error {
 }
 
 func (s *Stmt) Step() (bool, error) {
-	s.ResetF = false
 	rc := C._sqlite3_blocking_step(s.conn.unlock, s.stmt)
 	switch rc {
 	case row:
@@ -411,7 +403,7 @@ func (s *Stmt) Step() (bool, error) {
 	}
 }
 
-// ColumnBlobUnsafe can return nil slice both for zero-length BLOB and SQLStr NULL.
+// ColumnBlobUnsafe can return nil slice both for zero-length BLOB and SQL NULL.
 func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {

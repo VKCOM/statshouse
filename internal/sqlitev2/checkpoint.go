@@ -61,6 +61,11 @@ func (c *checkpointer) setWaitCheckpointOffsetLocked() {
 	c.waitCheckpoint = true
 }
 
+func (c *checkpointer) close() {
+	c.doCheckpointIfCan()
+
+}
+
 func (c *checkpointer) doCheckpointIfCan() {
 	c.e.rw.mu.Lock()
 	defer c.e.rw.mu.Unlock()
@@ -70,7 +75,8 @@ func (c *checkpointer) doCheckpointIfCan() {
 	if waitCheckpoint && waitCheckpointOffset <= commitOffset {
 		err := c.e.re.SetCommitOffsetAndSync(commitOffset)
 		if err != nil {
-			panic(err)
+			_ = c.e.rw.setErrorLocked(err)
+			return
 		}
 		start := time.Now()
 		err = c.e.rw.conn.conn.Checkpoint()

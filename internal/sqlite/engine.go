@@ -33,7 +33,7 @@ import (
 // TODO: use mmap in all connections?
 // TODO: integrity check
 // TODO: built-in simple migrator
-// TODO: auto-rollback savepoint in case of any SQLStr-related errors
+// TODO: auto-rollback savepoint in case of any SQL-related errors
 // TODO: consider madvise in unixRemapfile() for mmap
 
 // how it should work:

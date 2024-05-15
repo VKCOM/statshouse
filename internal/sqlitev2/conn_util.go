@@ -2,6 +2,7 @@ package sqlitev2
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
@@ -12,8 +13,8 @@ const (
 	cacheKB     = 65536 // 64MB
 )
 
-func openRW(open func(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn, error), path string, appID int32, disableAuthCheckpoint bool) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate, disableAuthCheckpoint)
+func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -47,17 +48,15 @@ func open(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openWAL(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := open(path, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
 	}
-	if disableAuthCheckpoint {
-		err = conn.SetAutoCheckpoint(0)
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
-		}
+	err = conn.SetAutoCheckpoint(0)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
 	}
 
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
@@ -69,5 +68,9 @@ func openWAL(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn,
 }
 
 func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly, true)
+	return openWAL(path, sqlite0.OpenReadonly)
+}
+
+func checkSliceParamName(s string) bool {
+	return strings.HasPrefix(s, "$") && strings.HasSuffix(s, "$")
 }
