@@ -10,9 +10,10 @@ import (
 	"math"
 	"sort"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 type (
@@ -22,6 +23,7 @@ type (
 		WhaleWeight float64 // whale selection criteria, for now sum Counters
 		Size        int
 		MetricID    int32
+		BucketTs    uint32
 		metric      *format.MetricMetaValue
 		fairKey     int32
 	}
@@ -51,8 +53,8 @@ type (
 		Rand *rand.Rand
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(Key, *MultiItem)
-		DiscardF func(Key, *MultiItem)
+		KeepF    func(Key, *MultiItem, uint32)
+		DiscardF func(Key, *MultiItem, uint32)
 
 		// Unit tests support
 		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
@@ -261,7 +263,7 @@ func (g *SamplerGroup) statBudget(h *Sampler, stat *SamplerStatistics, budgetNum
 func (p *SamplingMultiItemPair) keep(sf float64, h *Sampler, stat *SamplerStatistics) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.config.KeepF != nil {
-		h.config.KeepF(p.Key, p.Item)
+		h.config.KeepF(p.Key, p.Item, p.BucketTs)
 	}
 	stat.add(p, true)
 }
@@ -269,7 +271,7 @@ func (p *SamplingMultiItemPair) keep(sf float64, h *Sampler, stat *SamplerStatis
 func (p *SamplingMultiItemPair) discard(sf float64, h *Sampler, stat *SamplerStatistics) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.config.DiscardF != nil {
-		h.config.DiscardF(p.Key, p.Item)
+		h.config.DiscardF(p.Key, p.Item, p.BucketTs)
 	}
 	stat.add(p, false)
 }
