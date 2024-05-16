@@ -89,7 +89,7 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getChunk", err)
 	}
@@ -113,7 +113,7 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQuery", err)
 	}
@@ -138,7 +138,7 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQueryPoint", err)
 	}
@@ -162,7 +162,7 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.releaseChunks", err)
 	}

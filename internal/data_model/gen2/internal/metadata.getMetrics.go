@@ -38,10 +38,16 @@ func (item *MetadataGetMetrics) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Limit)
 }
 
-func (item *MetadataGetMetrics) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMetrics) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetMetrics) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
-	return basictl.LongWrite(w, item.Limit), nil
+	w = basictl.LongWrite(w, item.Limit)
+	return w
 }
 
 func (item *MetadataGetMetrics) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *MetadataGetMetrics) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataGetMetrics) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMetrics) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetMetrics) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x93ba92f5)
 	return item.Write(w)
 }
@@ -61,7 +72,8 @@ func (item *MetadataGetMetrics) ReadResult(w []byte, ret *MetadataGetMetricsResp
 }
 
 func (item *MetadataGetMetrics) WriteResult(w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldMask)
+	w = ret.WriteBoxed(w, item.FieldMask)
+	return w, nil
 }
 
 func (item *MetadataGetMetrics) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetMetricsResponse) error {
@@ -76,9 +88,7 @@ func (item *MetadataGetMetrics) WriteResultJSON(w []byte, ret MetadataGetMetrics
 }
 
 func (item *MetadataGetMetrics) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask)
 	return w, nil
 }
 
@@ -111,11 +121,7 @@ func (item *MetadataGetMetrics) ReadResultJSONWriteResult(r []byte, w []byte) ([
 }
 
 func (item MetadataGetMetrics) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataGetMetrics) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -178,10 +184,15 @@ func (item *MetadataGetMetrics) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *MetadataGetMetrics) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMetrics) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetMetrics) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetMetrics) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetMetrics) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -204,11 +215,11 @@ func (item *MetadataGetMetrics) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if (item.Limit != 0) == false {
 		w = w[:backupIndexLimit]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetMetrics) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetMetrics) UnmarshalJSON(b []byte) error {

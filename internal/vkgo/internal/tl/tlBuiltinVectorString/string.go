@@ -45,12 +45,12 @@ func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.StringWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
@@ -81,16 +81,16 @@ func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 	return nil
 }
 
-func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWriteJSON(w []byte, vec []string) []byte {
 	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteString(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 func BuiltinVectorStringBytesFillRandom(rg *basictl.RandGenerator, vec *[][]byte) {
@@ -123,12 +123,12 @@ func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error)
 	return w, nil
 }
 
-func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.StringWriteBytes(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {
@@ -159,14 +159,14 @@ func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexe
 	return nil
 }
 
-func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) []byte {
 	return BuiltinVectorStringBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteStringBytes(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }

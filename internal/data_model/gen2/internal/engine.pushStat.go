@@ -50,14 +50,17 @@ func (item *EnginePushStat) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *EnginePushStat) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EnginePushStat) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EnginePushStat) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = item.Stat.Write(w); err != nil {
-			return w, err
-		}
+		w = item.Stat.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func (item *EnginePushStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -67,7 +70,12 @@ func (item *EnginePushStat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EnginePushStat) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EnginePushStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EnginePushStat) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf4b19fa2)
 	return item.Write(w)
 }
@@ -77,7 +85,8 @@ func (item *EnginePushStat) ReadResult(w []byte, ret *bool) (_ []byte, err error
 }
 
 func (item *EnginePushStat) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
 func (item *EnginePushStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
@@ -125,11 +134,7 @@ func (item *EnginePushStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byt
 }
 
 func (item EnginePushStat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EnginePushStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -183,10 +188,15 @@ func (item *EnginePushStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 	return nil
 }
 
-func (item *EnginePushStat) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EnginePushStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EnginePushStat) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EnginePushStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EnginePushStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -198,15 +208,13 @@ func (item *EnginePushStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stat":`...)
-		if w, err = item.Stat.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = item.Stat.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EnginePushStat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EnginePushStat) UnmarshalJSON(b []byte) error {

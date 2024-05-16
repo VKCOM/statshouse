@@ -38,12 +38,16 @@ func (item *MetadataEditMetricEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.OldVersion)
 }
 
-func (item *MetadataEditMetricEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataEditMetricEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataEditMetricEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Metric.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return basictl.LongWrite(w, item.OldVersion), nil
+	w = item.Metric.Write(w, item.FieldsMask)
+	w = basictl.LongWrite(w, item.OldVersion)
+	return w
 }
 
 func (item *MetadataEditMetricEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,17 +57,18 @@ func (item *MetadataEditMetricEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataEditMetricEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataEditMetricEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataEditMetricEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12345677)
 	return item.Write(w)
 }
 
 func (item MetadataEditMetricEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataEditMetricEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -132,10 +137,15 @@ func (item *MetadataEditMetricEvent) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *MetadataEditMetricEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataEditMetricEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataEditMetricEvent) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataEditMetricEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataEditMetricEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -146,9 +156,7 @@ func (item *MetadataEditMetricEvent) WriteJSONOpt(newTypeNames bool, short bool,
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Metric.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexOldVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"old_version":`...)
@@ -156,11 +164,11 @@ func (item *MetadataEditMetricEvent) WriteJSONOpt(newTypeNames bool, short bool,
 	if (item.OldVersion != 0) == false {
 		w = w[:backupIndexOldVersion]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataEditMetricEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataEditMetricEvent) UnmarshalJSON(b []byte) error {

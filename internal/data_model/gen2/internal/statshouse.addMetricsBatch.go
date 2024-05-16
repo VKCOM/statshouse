@@ -33,9 +33,15 @@ func (item *StatshouseAddMetricsBatch) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMetricRead(w, &item.Metrics)
 }
 
-func (item *StatshouseAddMetricsBatch) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseAddMetricsBatch) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseAddMetricsBatch) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return BuiltinVectorStatshouseMetricWrite(w, item.Metrics)
+	w = BuiltinVectorStatshouseMetricWrite(w, item.Metrics)
+	return w
 }
 
 func (item *StatshouseAddMetricsBatch) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *StatshouseAddMetricsBatch) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *StatshouseAddMetricsBatch) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseAddMetricsBatch) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseAddMetricsBatch) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x56580239)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *StatshouseAddMetricsBatch) ReadResult(w []byte, ret *True) (_ []byte
 }
 
 func (item *StatshouseAddMetricsBatch) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseAddMetricsBatch) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -70,9 +82,7 @@ func (item *StatshouseAddMetricsBatch) WriteResultJSON(w []byte, ret True) (_ []
 }
 
 func (item *StatshouseAddMetricsBatch) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *StatshouseAddMetricsBatch) ReadResultJSONWriteResult(r []byte, w []b
 }
 
 func (item StatshouseAddMetricsBatch) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseAddMetricsBatch) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *StatshouseAddMetricsBatch) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *StatshouseAddMetricsBatch) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseAddMetricsBatch) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseAddMetricsBatch) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseAddMetricsBatch) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseAddMetricsBatch) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,17 +186,15 @@ func (item *StatshouseAddMetricsBatch) WriteJSONOpt(newTypeNames bool, short boo
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	if w, err = BuiltinVectorStatshouseMetricWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseMetricWriteJSONOpt(newTypeNames, short, w, item.Metrics)
 	if (len(item.Metrics) != 0) == false {
 		w = w[:backupIndexMetrics]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseAddMetricsBatch) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseAddMetricsBatch) UnmarshalJSON(b []byte) error {
@@ -215,9 +224,15 @@ func (item *StatshouseAddMetricsBatchBytes) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorStatshouseMetricBytesRead(w, &item.Metrics)
 }
 
-func (item *StatshouseAddMetricsBatchBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseAddMetricsBatchBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseAddMetricsBatchBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return BuiltinVectorStatshouseMetricBytesWrite(w, item.Metrics)
+	w = BuiltinVectorStatshouseMetricBytesWrite(w, item.Metrics)
+	return w
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -227,7 +242,12 @@ func (item *StatshouseAddMetricsBatchBytes) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *StatshouseAddMetricsBatchBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseAddMetricsBatchBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseAddMetricsBatchBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x56580239)
 	return item.Write(w)
 }
@@ -237,7 +257,8 @@ func (item *StatshouseAddMetricsBatchBytes) ReadResult(w []byte, ret *True) (_ [
 }
 
 func (item *StatshouseAddMetricsBatchBytes) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -252,9 +273,7 @@ func (item *StatshouseAddMetricsBatchBytes) WriteResultJSON(w []byte, ret True) 
 }
 
 func (item *StatshouseAddMetricsBatchBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -287,11 +306,7 @@ func (item *StatshouseAddMetricsBatchBytes) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item StatshouseAddMetricsBatchBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -342,10 +357,15 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *StatshouseAddMetricsBatchBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseAddMetricsBatchBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseAddMetricsBatchBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseAddMetricsBatchBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseAddMetricsBatchBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -357,17 +377,15 @@ func (item *StatshouseAddMetricsBatchBytes) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	if w, err = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(newTypeNames, short, w, item.Metrics)
 	if (len(item.Metrics) != 0) == false {
 		w = w[:backupIndexMetrics]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseAddMetricsBatchBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseAddMetricsBatchBytes) UnmarshalJSON(b []byte) error {

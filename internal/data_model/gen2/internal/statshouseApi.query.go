@@ -188,7 +188,12 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiQuery) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiQuery) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Version)
 	w = basictl.IntWrite(w, item.TopN)
@@ -196,30 +201,20 @@ func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.TimeFrom)
 	w = basictl.LongWrite(w, item.TimeTo)
 	w = basictl.StringWrite(w, item.Interval)
-	if w, err = item.Function.WriteBoxed(w); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStringWrite(w, item.GroupBy); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseApiFilterWrite(w, item.Filter); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorLongWrite(w, item.TimeShift); err != nil {
-		return w, err
-	}
+	w = item.Function.WriteBoxed(w)
+	w = BuiltinVectorStringWrite(w, item.GroupBy)
+	w = BuiltinVectorStatshouseApiFilterWrite(w, item.Filter)
+	w = BuiltinVectorLongWrite(w, item.TimeShift)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.StringWrite(w, item.Promql)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorStatshouseApiFunctionWrite(w, item.What); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseApiFunctionWrite(w, item.What)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.StringWrite(w, item.WidthAgg)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiQuery) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -229,17 +224,18 @@ func (item *StatshouseApiQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseApiQuery) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiQuery) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc9951bb9)
 	return item.Write(w)
 }
 
 func (item StatshouseApiQuery) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -538,10 +534,15 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *StatshouseApiQuery) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiQuery) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -594,33 +595,25 @@ func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	if w, err = item.Function.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = item.Function.WriteJSONOpt(newTypeNames, short, w)
 	backupIndexGroupBy := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"group_by":`...)
-	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GroupBy); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GroupBy)
 	if (len(item.GroupBy) != 0) == false {
 		w = w[:backupIndexGroupBy]
 	}
 	backupIndexFilter := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"filter":`...)
-	if w, err = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, item.Filter); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, item.Filter)
 	if (len(item.Filter) != 0) == false {
 		w = w[:backupIndexFilter]
 	}
 	backupIndexTimeShift := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time_shift":`...)
-	if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.TimeShift); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.TimeShift)
 	if (len(item.TimeShift) != 0) == false {
 		w = w[:backupIndexTimeShift]
 	}
@@ -632,9 +625,7 @@ func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, item.What); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, item.What)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -661,11 +652,11 @@ func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_host_flag":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiQuery) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiQuery) UnmarshalJSON(b []byte) error {

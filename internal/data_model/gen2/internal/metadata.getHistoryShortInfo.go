@@ -33,9 +33,15 @@ func (item *MetadataGetHistoryShortInfo) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Id)
 }
 
-func (item *MetadataGetHistoryShortInfo) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetHistoryShortInfo) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetHistoryShortInfo) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return basictl.LongWrite(w, item.Id), nil
+	w = basictl.LongWrite(w, item.Id)
+	return w
 }
 
 func (item *MetadataGetHistoryShortInfo) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *MetadataGetHistoryShortInfo) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-func (item *MetadataGetHistoryShortInfo) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetHistoryShortInfo) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetHistoryShortInfo) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x22ff6a79)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *MetadataGetHistoryShortInfo) ReadResult(w []byte, ret *MetadataHisto
 }
 
 func (item *MetadataGetHistoryShortInfo) WriteResult(w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
 func (item *MetadataGetHistoryShortInfo) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataHistoryShortResponse) error {
@@ -70,9 +82,7 @@ func (item *MetadataGetHistoryShortInfo) WriteResultJSON(w []byte, ret MetadataH
 }
 
 func (item *MetadataGetHistoryShortInfo) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *MetadataGetHistoryShortInfo) ReadResultJSONWriteResult(r []byte, w [
 }
 
 func (item MetadataGetHistoryShortInfo) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataGetHistoryShortInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *MetadataGetHistoryShortInfo) ReadJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func (item *MetadataGetHistoryShortInfo) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetHistoryShortInfo) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetHistoryShortInfo) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetHistoryShortInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetHistoryShortInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -179,11 +190,11 @@ func (item *MetadataGetHistoryShortInfo) WriteJSONOpt(newTypeNames bool, short b
 	if (item.Id != 0) == false {
 		w = w[:backupIndexId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetHistoryShortInfo) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetHistoryShortInfo) UnmarshalJSON(b []byte) error {

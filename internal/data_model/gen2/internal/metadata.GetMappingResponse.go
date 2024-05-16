@@ -112,20 +112,24 @@ func (item *MetadataGetMappingResponse) ReadBoxed(w []byte, nat_field_mask uint3
 	}
 }
 
-func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMappingResponse) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, _MetadataGetMappingResponse[item.index].TLTag)
 	switch item.index {
 	case 0:
-		return item.valueGetMappingResponse.Write(w, nat_field_mask)
+		w = item.valueGetMappingResponse.Write(w, nat_field_mask)
 	case 1:
-		return w, nil
+		return w
 	case 2:
-		return w, nil
+		return w
 	case 3:
-		return item.valueCreated.Write(w, nat_field_mask)
-	default: // Impossible due to panic above
-		return w, nil
+		w = item.valueCreated.Write(w, nat_field_mask)
 	}
+	return w
 }
 
 func (item *MetadataGetMappingResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
@@ -176,10 +180,15 @@ func (item *MetadataGetMappingResponse) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMappingResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	switch item.index {
 	case 0:
 		if newTypeNames {
@@ -188,24 +197,22 @@ func (item *MetadataGetMappingResponse) WriteJSONOpt(newTypeNames bool, short bo
 			w = append(w, `{"type":"metadata.getMappingResponse#9286abfc"`...)
 		}
 		w = append(w, `,"value":`...)
-		if w, err = item.valueGetMappingResponse.WriteJSONOpt(newTypeNames, short, w, nat_field_mask); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
+		w = item.valueGetMappingResponse.WriteJSONOpt(newTypeNames, short, w, nat_field_mask)
+		return append(w, '}')
 	case 1:
 		if newTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseFloodLimitError"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponseFloodLimitError#9286abfd"`...)
 		}
-		return append(w, '}'), nil
+		return append(w, '}')
 	case 2:
 		if newTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseKeyNotExists"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponseKeyNotExists#9286abff"`...)
 		}
-		return append(w, '}'), nil
+		return append(w, '}')
 	case 3:
 		if newTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseCreated"`...)
@@ -213,12 +220,10 @@ func (item *MetadataGetMappingResponse) WriteJSONOpt(newTypeNames bool, short bo
 			w = append(w, `{"type":"metadata.getMappingResponseCreated#9286abbb"`...)
 		}
 		w = append(w, `,"value":`...)
-		if w, err = item.valueCreated.WriteJSONOpt(newTypeNames, short, w, nat_field_mask); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
+		w = item.valueCreated.WriteJSONOpt(newTypeNames, short, w, nat_field_mask)
+		return append(w, '}')
 	default: // Impossible due to panic above
-		return w, nil
+		return w
 	}
 }
 
@@ -243,8 +248,14 @@ func (item *MetadataGetMappingResponse0) Read(w []byte, nat_field_mask uint32) (
 	return basictl.IntRead(w, &item.Id)
 }
 
-func (item *MetadataGetMappingResponse0) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Id), nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMappingResponse0) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponse0) Write(w []byte, nat_field_mask uint32) []byte {
+	w = basictl.IntWrite(w, item.Id)
+	return w
 }
 
 func (item *MetadataGetMappingResponse0) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -254,7 +265,12 @@ func (item *MetadataGetMappingResponse0) ReadBoxed(w []byte, nat_field_mask uint
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponse0) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMappingResponse0) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponse0) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abfc)
 	return item.Write(w, nat_field_mask)
 }
@@ -295,10 +311,15 @@ func (item *MetadataGetMappingResponse0) ReadJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func (item *MetadataGetMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMappingResponse0) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponse0) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponse0) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -307,7 +328,7 @@ func (item *MetadataGetMappingResponse0) WriteJSONOpt(newTypeNames bool, short b
 	if (item.Id != 0) == false {
 		w = w[:backupIndexId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item MetadataGetMappingResponseCreated) AsUnion() MetadataGetMappingResponse {
@@ -331,8 +352,14 @@ func (item *MetadataGetMappingResponseCreated) Read(w []byte, nat_field_mask uin
 	return basictl.IntRead(w, &item.Id)
 }
 
-func (item *MetadataGetMappingResponseCreated) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Id), nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMappingResponseCreated) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseCreated) Write(w []byte, nat_field_mask uint32) []byte {
+	w = basictl.IntWrite(w, item.Id)
+	return w
 }
 
 func (item *MetadataGetMappingResponseCreated) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -342,7 +369,12 @@ func (item *MetadataGetMappingResponseCreated) ReadBoxed(w []byte, nat_field_mas
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseCreated) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMappingResponseCreated) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseCreated) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abbb)
 	return item.Write(w, nat_field_mask)
 }
@@ -383,10 +415,15 @@ func (item *MetadataGetMappingResponseCreated) ReadJSON(legacyTypeNames bool, in
 	return nil
 }
 
-func (item *MetadataGetMappingResponseCreated) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMappingResponseCreated) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseCreated) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -395,7 +432,7 @@ func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(newTypeNames bool, s
 	if (item.Id != 0) == false {
 		w = w[:backupIndexId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item MetadataGetMappingResponseFloodLimitError) AsUnion() MetadataGetMappingResponse {
@@ -418,8 +455,13 @@ func (item *MetadataGetMappingResponseFloodLimitError) Read(w []byte, nat_field_
 	return w, nil
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return w, nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMappingResponseFloodLimitError) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseFloodLimitError) Write(w []byte, nat_field_mask uint32) []byte {
+	return w
 }
 
 func (item *MetadataGetMappingResponseFloodLimitError) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -429,7 +471,12 @@ func (item *MetadataGetMappingResponseFloodLimitError) ReadBoxed(w []byte, nat_f
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMappingResponseFloodLimitError) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseFloodLimitError) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abfd)
 	return item.Write(w, nat_field_mask)
 }
@@ -451,12 +498,17 @@ func (item *MetadataGetMappingResponseFloodLimitError) ReadJSON(legacyTypeNames 
 	return nil
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item MetadataGetMappingResponseKeyNotExists) AsUnion() MetadataGetMappingResponse {
@@ -479,8 +531,13 @@ func (item *MetadataGetMappingResponseKeyNotExists) Read(w []byte, nat_field_mas
 	return w, nil
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return w, nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMappingResponseKeyNotExists) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) []byte {
+	return w
 }
 
 func (item *MetadataGetMappingResponseKeyNotExists) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -490,7 +547,12 @@ func (item *MetadataGetMappingResponseKeyNotExists) ReadBoxed(w []byte, nat_fiel
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMappingResponseKeyNotExists) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseKeyNotExists) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abff)
 	return item.Write(w, nat_field_mask)
 }
@@ -512,10 +574,15 @@ func (item *MetadataGetMappingResponseKeyNotExists) ReadJSON(legacyTypeNames boo
 	return nil
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }

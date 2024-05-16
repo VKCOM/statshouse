@@ -28,8 +28,14 @@ func (item *EngineGetReadWriteMode) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
 
-func (item *EngineGetReadWriteMode) Write(w []byte) (_ []byte, err error) {
-	return basictl.NatWrite(w, item.FieldsMask), nil
+// This method is general version of Write, use it instead!
+func (item *EngineGetReadWriteMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineGetReadWriteMode) Write(w []byte) []byte {
+	w = basictl.NatWrite(w, item.FieldsMask)
+	return w
 }
 
 func (item *EngineGetReadWriteMode) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineGetReadWriteMode) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineGetReadWriteMode) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineGetReadWriteMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineGetReadWriteMode) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x61b3f593)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineGetReadWriteMode) ReadResult(w []byte, ret *EngineReadWriteMod
 }
 
 func (item *EngineGetReadWriteMode) WriteResult(w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
 func (item *EngineGetReadWriteMode) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineReadWriteMode) error {
@@ -64,9 +76,7 @@ func (item *EngineGetReadWriteMode) WriteResultJSON(w []byte, ret EngineReadWrit
 }
 
 func (item *EngineGetReadWriteMode) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineGetReadWriteMode) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineGetReadWriteMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineGetReadWriteMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *EngineGetReadWriteMode) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *EngineGetReadWriteMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineGetReadWriteMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineGetReadWriteMode) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineGetReadWriteMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineGetReadWriteMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *EngineGetReadWriteMode) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineGetReadWriteMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineGetReadWriteMode) UnmarshalJSON(b []byte) error {

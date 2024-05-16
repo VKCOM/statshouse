@@ -240,7 +240,12 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *RpcReqResultExtra) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcReqResultExtra) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.LongWrite(w, item.BinlogPos)
@@ -249,9 +254,7 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		w = basictl.LongWrite(w, item.BinlogTime)
 	}
 	if item.Flags&(1<<2) != 0 {
-		if w, err = item.EnginePid.Write(w); err != nil {
-			return w, err
-		}
+		w = item.EnginePid.Write(w)
 	}
 	if item.Flags&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.RequestSize)
@@ -266,14 +269,10 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.CompressionVersion)
 	}
 	if item.Flags&(1<<6) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Stats); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Stats)
 	}
 	if item.Flags&(1<<8) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldLongWrite(w, item.ShardsBinlogPos); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldLongWrite(w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.LongWrite(w, item.EpochNumber)
@@ -281,7 +280,7 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.LongWrite(w, item.ViewNumber)
 	}
-	return w, nil
+	return w
 }
 
 func (item *RpcReqResultExtra) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -291,17 +290,18 @@ func (item *RpcReqResultExtra) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcReqResultExtra) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcReqResultExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcReqResultExtra) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc5011709)
 	return item.Write(w)
 }
 
 func (item RpcReqResultExtra) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -505,10 +505,15 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcReqResultExtra) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcReqResultExtra) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -530,9 +535,7 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_pid":`...)
-		if w, err = item.EnginePid.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = item.EnginePid.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if item.Flags&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -557,16 +560,12 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stats":`...)
-		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats)
 	}
 	if item.Flags&(1<<8) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"shards_binlog_pos":`...)
-		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -578,11 +577,11 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 		w = append(w, `"view_number":`...)
 		w = basictl.JSONWriteInt64(w, item.ViewNumber)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcReqResultExtra) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcReqResultExtra) UnmarshalJSON(b []byte) error {

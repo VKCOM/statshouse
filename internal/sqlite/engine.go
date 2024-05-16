@@ -181,6 +181,28 @@ const (
 )
 
 func OpenRO(opt Options) (*Engine, error) {
+	rawConn, err := sqlite0.Open(opt.Path, sqlite0.OpenReadonly)
+	if err != nil {
+		return nil, err
+	}
+	conn := newSqliteConn(rawConn, 1)
+
+	ctx, stop := context.WithCancel(context.Background())
+	e := &Engine{
+		rw:             nil,
+		ctx:            ctx,
+		stop:           stop,
+		opt:            opt,
+		roFree:         []*sqliteConn{conn},
+		roCount:        1,
+		mode:           replica,
+		readOnlyEngine: true,
+	}
+	e.roCond = sync.NewCond(&e.roMx)
+	return e, nil
+}
+
+func OpenROWal(opt Options) (*Engine, error) {
 	ro, err := openROWAL(opt.Path, opt.PageSize)
 	if err != nil {
 		return nil, err

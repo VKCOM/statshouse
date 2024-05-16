@@ -28,8 +28,14 @@ func (item *EngineSetMetafileMemory) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Megabytes)
 }
 
-func (item *EngineSetMetafileMemory) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Megabytes), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSetMetafileMemory) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetMetafileMemory) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Megabytes)
+	return w
 }
 
 func (item *EngineSetMetafileMemory) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineSetMetafileMemory) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSetMetafileMemory) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetMetafileMemory) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetMetafileMemory) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7bdcf404)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineSetMetafileMemory) ReadResult(w []byte, ret *BoolStat) (_ []by
 }
 
 func (item *EngineSetMetafileMemory) WriteResult(w []byte, ret BoolStat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetMetafileMemory) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
@@ -64,9 +76,7 @@ func (item *EngineSetMetafileMemory) WriteResultJSON(w []byte, ret BoolStat) (_ 
 }
 
 func (item *EngineSetMetafileMemory) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineSetMetafileMemory) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item EngineSetMetafileMemory) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetMetafileMemory) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *EngineSetMetafileMemory) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *EngineSetMetafileMemory) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetMetafileMemory) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetMetafileMemory) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetMetafileMemory) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetMetafileMemory) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMegabytes := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *EngineSetMetafileMemory) WriteJSONOpt(newTypeNames bool, short bool,
 	if (item.Megabytes != 0) == false {
 		w = w[:backupIndexMegabytes]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetMetafileMemory) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetMetafileMemory) UnmarshalJSON(b []byte) error {

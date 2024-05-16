@@ -28,8 +28,14 @@ func (item *EngineUnregisterDynamicLib) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.LibId)
 }
 
-func (item *EngineUnregisterDynamicLib) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.LibId), nil
+// This method is general version of Write, use it instead!
+func (item *EngineUnregisterDynamicLib) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineUnregisterDynamicLib) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.LibId)
+	return w
 }
 
 func (item *EngineUnregisterDynamicLib) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineUnregisterDynamicLib) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *EngineUnregisterDynamicLib) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineUnregisterDynamicLib) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineUnregisterDynamicLib) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x84d5fcb9)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineUnregisterDynamicLib) ReadResult(w []byte, ret *BoolStat) (_ [
 }
 
 func (item *EngineUnregisterDynamicLib) WriteResult(w []byte, ret BoolStat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineUnregisterDynamicLib) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
@@ -64,9 +76,7 @@ func (item *EngineUnregisterDynamicLib) WriteResultJSON(w []byte, ret BoolStat) 
 }
 
 func (item *EngineUnregisterDynamicLib) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineUnregisterDynamicLib) ReadResultJSONWriteResult(r []byte, w []
 }
 
 func (item EngineUnregisterDynamicLib) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineUnregisterDynamicLib) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *EngineUnregisterDynamicLib) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *EngineUnregisterDynamicLib) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineUnregisterDynamicLib) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineUnregisterDynamicLib) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineUnregisterDynamicLib) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineUnregisterDynamicLib) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexLibId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *EngineUnregisterDynamicLib) WriteJSONOpt(newTypeNames bool, short bo
 	if (len(item.LibId) != 0) == false {
 		w = w[:backupIndexLibId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineUnregisterDynamicLib) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineUnregisterDynamicLib) UnmarshalJSON(b []byte) error {

@@ -110,21 +110,24 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *BarsicSnapshotHeader) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicSnapshotHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicSnapshotHeader) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
 	w = basictl.StringWrite(w, item.SnapshotMeta)
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWrite(w, item.Dependencies); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWrite(w, item.Dependencies)
 	w = basictl.LongWrite(w, item.PayloadOffset)
 	w = basictl.StringWrite(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.StringWrite(w, item.ControlMeta)
 	}
-	return w, nil
+	return w
 }
 
 func (item *BarsicSnapshotHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -134,17 +137,18 @@ func (item *BarsicSnapshotHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicSnapshotHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicSnapshotHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicSnapshotHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1d0d1b74)
 	return item.Write(w)
 }
 
 func (item BarsicSnapshotHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -282,10 +286,15 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	return nil
 }
 
-func (item *BarsicSnapshotHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicSnapshotHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicSnapshotHeader) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -318,9 +327,7 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w 
 	backupIndexDependencies := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"dependencies":`...)
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, item.Dependencies)
 	if (len(item.Dependencies) != 0) == false {
 		w = w[:backupIndexDependencies]
 	}
@@ -350,11 +357,11 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w 
 		w = append(w, `"control_meta":`...)
 		w = basictl.JSONWriteString(w, item.ControlMeta)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicSnapshotHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicSnapshotHeader) UnmarshalJSON(b []byte) error {
@@ -457,21 +464,24 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *BarsicSnapshotHeaderBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicSnapshotHeaderBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicSnapshotHeaderBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
 	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWrite(w, item.Dependencies); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWrite(w, item.Dependencies)
 	w = basictl.LongWrite(w, item.PayloadOffset)
 	w = basictl.StringWriteBytes(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.StringWriteBytes(w, item.ControlMeta)
 	}
-	return w, nil
+	return w
 }
 
 func (item *BarsicSnapshotHeaderBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -481,17 +491,18 @@ func (item *BarsicSnapshotHeaderBytes) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *BarsicSnapshotHeaderBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicSnapshotHeaderBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicSnapshotHeaderBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1d0d1b74)
 	return item.Write(w)
 }
 
 func (item BarsicSnapshotHeaderBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -629,10 +640,15 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *BarsicSnapshotHeaderBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicSnapshotHeaderBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicSnapshotHeaderBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -665,9 +681,7 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short boo
 	backupIndexDependencies := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"dependencies":`...)
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, item.Dependencies)
 	if (len(item.Dependencies) != 0) == false {
 		w = w[:backupIndexDependencies]
 	}
@@ -697,11 +711,11 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short boo
 		w = append(w, `"control_meta":`...)
 		w = basictl.JSONWriteStringBytes(w, item.ControlMeta)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicSnapshotHeaderBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicSnapshotHeaderBytes) UnmarshalJSON(b []byte) error {

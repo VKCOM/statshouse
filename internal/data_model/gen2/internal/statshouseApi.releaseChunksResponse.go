@@ -35,9 +35,15 @@ func (item *StatshouseApiReleaseChunksResponse) Read(w []byte) (_ []byte, err er
 	return basictl.IntRead(w, &item.ReleasedChunkCount)
 }
 
-func (item *StatshouseApiReleaseChunksResponse) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiReleaseChunksResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiReleaseChunksResponse) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return basictl.IntWrite(w, item.ReleasedChunkCount), nil
+	w = basictl.IntWrite(w, item.ReleasedChunkCount)
+	return w
 }
 
 func (item *StatshouseApiReleaseChunksResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -47,17 +53,18 @@ func (item *StatshouseApiReleaseChunksResponse) ReadBoxed(w []byte) (_ []byte, e
 	return item.Read(w)
 }
 
-func (item *StatshouseApiReleaseChunksResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiReleaseChunksResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiReleaseChunksResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xd12dc2bd)
 	return item.Write(w)
 }
 
 func (item StatshouseApiReleaseChunksResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiReleaseChunksResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -108,10 +115,15 @@ func (item *StatshouseApiReleaseChunksResponse) ReadJSON(legacyTypeNames bool, i
 	return nil
 }
 
-func (item *StatshouseApiReleaseChunksResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiReleaseChunksResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiReleaseChunksResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -127,11 +139,11 @@ func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(newTypeNames bool, 
 	if (item.ReleasedChunkCount != 0) == false {
 		w = w[:backupIndexReleasedChunkCount]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiReleaseChunksResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiReleaseChunksResponse) UnmarshalJSON(b []byte) error {

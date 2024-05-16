@@ -153,8 +153,8 @@ func pidFromPortPid(portPid uint32) uint16 {
 
 func (m *handshakeMsg) writeTo(buf []byte) []byte {
 	buf = basictl.NatWrite(buf, m.Flags)
-	buf, _ = m.SenderPID.Write(buf)
-	buf, _ = m.PeerPID.Write(buf)
+	buf = m.SenderPID.Write(buf)
+	buf = m.PeerPID.Write(buf)
 	return buf
 }
 

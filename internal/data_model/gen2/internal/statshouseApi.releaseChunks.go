@@ -38,10 +38,16 @@ func (item *StatshouseApiReleaseChunks) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.ResponseId)
 }
 
-func (item *StatshouseApiReleaseChunks) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiReleaseChunks) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiReleaseChunks) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.AccessToken)
-	return basictl.LongWrite(w, item.ResponseId), nil
+	w = basictl.LongWrite(w, item.ResponseId)
+	return w
 }
 
 func (item *StatshouseApiReleaseChunks) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *StatshouseApiReleaseChunks) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *StatshouseApiReleaseChunks) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiReleaseChunks) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiReleaseChunks) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x62adc773)
 	return item.Write(w)
 }
@@ -61,7 +72,8 @@ func (item *StatshouseApiReleaseChunks) ReadResult(w []byte, ret *StatshouseApiR
 }
 
 func (item *StatshouseApiReleaseChunks) WriteResult(w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseApiReleaseChunks) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiReleaseChunksResponse) error {
@@ -76,9 +88,7 @@ func (item *StatshouseApiReleaseChunks) WriteResultJSON(w []byte, ret Statshouse
 }
 
 func (item *StatshouseApiReleaseChunks) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -111,11 +121,7 @@ func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResult(r []byte, w []
 }
 
 func (item StatshouseApiReleaseChunks) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiReleaseChunks) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -178,10 +184,15 @@ func (item *StatshouseApiReleaseChunks) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *StatshouseApiReleaseChunks) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiReleaseChunks) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiReleaseChunks) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiReleaseChunks) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -204,11 +215,11 @@ func (item *StatshouseApiReleaseChunks) WriteJSONOpt(newTypeNames bool, short bo
 	if (item.ResponseId != 0) == false {
 		w = w[:backupIndexResponseId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiReleaseChunks) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiReleaseChunks) UnmarshalJSON(b []byte) error {

@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	chunkMaxSize   = 1_000_000 // little less than 1 MiB
+	chunkMaxSize   = 10_000_000 // little less than 10 MiB
 	bigResponseTTL = time.Second * 30
 
 	rpcErrorCodeAuthFailed          = 5000

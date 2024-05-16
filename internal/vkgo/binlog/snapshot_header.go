@@ -73,7 +73,7 @@ func ReadSnapshotHeader(buffer []byte) (_ []byte, hdr SnapshotHeader, sizeHint i
 func WriteSnapshotHeader(w []byte, hdr *SnapshotHeader) []byte {
 	w = basictl.NatWrite(w, hdr.TLTag())
 	w = basictl.LongWrite(w, 0) // will write tl size here
-	w, _ = hdr.Write(w)         // this Write() never return error
+	w = hdr.Write(w)            // this Write() never return error
 	tlSize := uint64(len(w) - snapHeaderSizeSize - snapMagicSize)
 	binary.LittleEndian.PutUint64(w[snapMagicSize:], tlSize)
 

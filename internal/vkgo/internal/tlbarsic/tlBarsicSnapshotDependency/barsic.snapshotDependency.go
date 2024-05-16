@@ -51,11 +51,17 @@ func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PayloadOffset)
 }
 
-func (item *BarsicSnapshotDependency) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicSnapshotDependency) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicSnapshotDependency) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
-	return basictl.LongWrite(w, item.PayloadOffset), nil
+	w = basictl.LongWrite(w, item.PayloadOffset)
+	return w
 }
 
 func (item *BarsicSnapshotDependency) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -65,17 +71,18 @@ func (item *BarsicSnapshotDependency) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-func (item *BarsicSnapshotDependency) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicSnapshotDependency) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicSnapshotDependency) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8258fc86)
 	return item.Write(w)
 }
 
 func (item BarsicSnapshotDependency) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -150,10 +157,15 @@ func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl
 	return nil
 }
 
-func (item *BarsicSnapshotDependency) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicSnapshotDependency) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicSnapshotDependency) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -183,11 +195,11 @@ func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool
 	if (item.PayloadOffset != 0) == false {
 		w = w[:backupIndexPayloadOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicSnapshotDependency) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
@@ -233,11 +245,17 @@ func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) 
 	return basictl.LongRead(w, &item.PayloadOffset)
 }
 
-func (item *BarsicSnapshotDependencyBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicSnapshotDependencyBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicSnapshotDependencyBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
-	return basictl.LongWrite(w, item.PayloadOffset), nil
+	w = basictl.LongWrite(w, item.PayloadOffset)
+	return w
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -247,17 +265,18 @@ func (item *BarsicSnapshotDependencyBytes) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-func (item *BarsicSnapshotDependencyBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicSnapshotDependencyBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicSnapshotDependencyBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8258fc86)
 	return item.Write(w)
 }
 
 func (item BarsicSnapshotDependencyBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -332,10 +351,15 @@ func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *ba
 	return nil
 }
 
-func (item *BarsicSnapshotDependencyBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicSnapshotDependencyBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicSnapshotDependencyBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -365,11 +389,11 @@ func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short
 	if (item.PayloadOffset != 0) == false {
 		w = w[:backupIndexPayloadOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicSnapshotDependencyBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {

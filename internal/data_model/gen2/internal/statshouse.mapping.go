@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseMappingRead(w []byte, vec *[]StatshouseMapping) (_ [
 	return w, nil
 }
 
-func BuiltinVectorStatshouseMappingWrite(w []byte, vec []StatshouseMapping) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingWrite(w []byte, vec []StatshouseMapping) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMapping) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.Js
 	return nil
 }
 
-func BuiltinVectorStatshouseMappingWriteJSON(w []byte, vec []StatshouseMapping) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingWriteJSON(w []byte, vec []StatshouseMapping) []byte {
 	return BuiltinVectorStatshouseMappingWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMapping) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMapping) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 func BuiltinVectorStatshouseMappingBytesRead(w []byte, vec *[]StatshouseMappingBytes) (_ []byte, err error) {
@@ -107,14 +103,12 @@ func BuiltinVectorStatshouseMappingBytesRead(w []byte, vec *[]StatshouseMappingB
 	return w, nil
 }
 
-func BuiltinVectorStatshouseMappingBytesWrite(w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingBytesWrite(w []byte, vec []StatshouseMappingBytes) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMappingBytes) error {
@@ -145,18 +139,16 @@ func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func BuiltinVectorStatshouseMappingBytesWriteJSON(w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingBytesWriteJSON(w []byte, vec []StatshouseMappingBytes) []byte {
 	return BuiltinVectorStatshouseMappingBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
+func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMappingBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseMapping struct {
@@ -179,9 +171,15 @@ func (item *StatshouseMapping) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Value)
 }
 
-func (item *StatshouseMapping) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseMapping) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseMapping) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Str)
-	return basictl.IntWrite(w, item.Value), nil
+	w = basictl.IntWrite(w, item.Value)
+	return w
 }
 
 func (item *StatshouseMapping) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -191,17 +189,18 @@ func (item *StatshouseMapping) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseMapping) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseMapping) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseMapping) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xbf401d4b)
 	return item.Write(w)
 }
 
 func (item StatshouseMapping) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -252,10 +251,15 @@ func (item *StatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *StatshouseMapping) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseMapping) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseMapping) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStr := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -271,11 +275,11 @@ func (item *StatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if (item.Value != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseMapping) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseMapping) UnmarshalJSON(b []byte) error {
@@ -305,9 +309,15 @@ func (item *StatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Value)
 }
 
-func (item *StatshouseMappingBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseMappingBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseMappingBytes) Write(w []byte) []byte {
 	w = basictl.StringWriteBytes(w, item.Str)
-	return basictl.IntWrite(w, item.Value), nil
+	w = basictl.IntWrite(w, item.Value)
+	return w
 }
 
 func (item *StatshouseMappingBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -317,17 +327,18 @@ func (item *StatshouseMappingBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseMappingBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseMappingBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseMappingBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xbf401d4b)
 	return item.Write(w)
 }
 
 func (item StatshouseMappingBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -378,10 +389,15 @@ func (item *StatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *StatshouseMappingBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseMappingBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseMappingBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStr := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -397,11 +413,11 @@ func (item *StatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.Value != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseMappingBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseMappingBytes) UnmarshalJSON(b []byte) error {

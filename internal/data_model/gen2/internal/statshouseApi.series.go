@@ -38,12 +38,16 @@ func (item *StatshouseApiSeries) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorLongRead(w, &item.Time)
 }
 
-func (item *StatshouseApiSeries) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiSeries) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiSeries) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = BuiltinVectorVectorDoubleWrite(w, item.SeriesData); err != nil {
-		return w, err
-	}
-	return BuiltinVectorLongWrite(w, item.Time)
+	w = BuiltinVectorVectorDoubleWrite(w, item.SeriesData)
+	w = BuiltinVectorLongWrite(w, item.Time)
+	return w
 }
 
 func (item *StatshouseApiSeries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,17 +57,18 @@ func (item *StatshouseApiSeries) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseApiSeries) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiSeries) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiSeries) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7a3e919)
 	return item.Write(w)
 }
 
 func (item StatshouseApiSeries) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiSeries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -126,10 +131,15 @@ func (item *StatshouseApiSeries) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	return nil
 }
 
-func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiSeries) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiSeries) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiSeries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiSeries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,26 +151,22 @@ func (item *StatshouseApiSeries) WriteJSONOpt(newTypeNames bool, short bool, w [
 	backupIndexSeriesData := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series_data":`...)
-	if w, err = BuiltinVectorVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.SeriesData); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.SeriesData)
 	if (len(item.SeriesData) != 0) == false {
 		w = w[:backupIndexSeriesData]
 	}
 	backupIndexTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time":`...)
-	if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Time); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Time)
 	if (len(item.Time) != 0) == false {
 		w = w[:backupIndexTime]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiSeries) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiSeries) UnmarshalJSON(b []byte) error {

@@ -28,8 +28,14 @@ func (item *RpcPing) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PingId)
 }
 
-func (item *RpcPing) Write(w []byte) (_ []byte, err error) {
-	return basictl.LongWrite(w, item.PingId), nil
+// This method is general version of Write, use it instead!
+func (item *RpcPing) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcPing) Write(w []byte) []byte {
+	w = basictl.LongWrite(w, item.PingId)
+	return w
 }
 
 func (item *RpcPing) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,17 +45,18 @@ func (item *RpcPing) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcPing) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcPing) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcPing) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5730a2df)
 	return item.Write(w)
 }
 
 func (item RpcPing) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *RpcPing) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -88,10 +95,15 @@ func (item *RpcPing) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
 	return nil
 }
 
-func (item *RpcPing) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcPing) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcPing) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcPing) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *RpcPing) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPingId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -100,11 +112,11 @@ func (item *RpcPing) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []
 	if (item.PingId != 0) == false {
 		w = w[:backupIndexPingId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcPing) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcPing) UnmarshalJSON(b []byte) error {

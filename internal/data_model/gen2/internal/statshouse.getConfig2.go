@@ -38,12 +38,16 @@ func (item *StatshouseGetConfig2) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Cluster)
 }
 
-func (item *StatshouseGetConfig2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfig2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetConfig2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.Cluster), nil
+	w = item.Header.Write(w, item.FieldsMask)
+	w = basictl.StringWrite(w, item.Cluster)
+	return w
 }
 
 func (item *StatshouseGetConfig2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,7 +57,12 @@ func (item *StatshouseGetConfig2) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseGetConfig2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfig2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetConfig2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff57)
 	return item.Write(w)
 }
@@ -63,7 +72,8 @@ func (item *StatshouseGetConfig2) ReadResult(w []byte, ret *StatshouseGetConfigR
 }
 
 func (item *StatshouseGetConfig2) WriteResult(w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
 func (item *StatshouseGetConfig2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResult) error {
@@ -78,9 +88,7 @@ func (item *StatshouseGetConfig2) WriteResultJSON(w []byte, ret StatshouseGetCon
 }
 
 func (item *StatshouseGetConfig2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -113,11 +121,7 @@ func (item *StatshouseGetConfig2) ReadResultJSONWriteResult(r []byte, w []byte) 
 }
 
 func (item StatshouseGetConfig2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -186,10 +190,15 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	return nil
 }
 
-func (item *StatshouseGetConfig2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfig2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetConfig2) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -200,9 +209,7 @@ func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexCluster := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"cluster":`...)
@@ -210,11 +217,11 @@ func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if (len(item.Cluster) != 0) == false {
 		w = w[:backupIndexCluster]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetConfig2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetConfig2) UnmarshalJSON(b []byte) error {
@@ -249,12 +256,16 @@ func (item *StatshouseGetConfig2Bytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringReadBytes(w, &item.Cluster)
 }
 
-func (item *StatshouseGetConfig2Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfig2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetConfig2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return basictl.StringWriteBytes(w, item.Cluster), nil
+	w = item.Header.Write(w, item.FieldsMask)
+	w = basictl.StringWriteBytes(w, item.Cluster)
+	return w
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -264,7 +275,12 @@ func (item *StatshouseGetConfig2Bytes) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *StatshouseGetConfig2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfig2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetConfig2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff57)
 	return item.Write(w)
 }
@@ -274,7 +290,8 @@ func (item *StatshouseGetConfig2Bytes) ReadResult(w []byte, ret *StatshouseGetCo
 }
 
 func (item *StatshouseGetConfig2Bytes) WriteResult(w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResultBytes) error {
@@ -289,9 +306,7 @@ func (item *StatshouseGetConfig2Bytes) WriteResultJSON(w []byte, ret StatshouseG
 }
 
 func (item *StatshouseGetConfig2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -324,11 +339,7 @@ func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResult(r []byte, w []b
 }
 
 func (item StatshouseGetConfig2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -397,10 +408,15 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *StatshouseGetConfig2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfig2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetConfig2Bytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -411,9 +427,7 @@ func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short boo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexCluster := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"cluster":`...)
@@ -421,11 +435,11 @@ func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short boo
 	if (len(item.Cluster) != 0) == false {
 		w = w[:backupIndexCluster]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetConfig2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetConfig2Bytes) UnmarshalJSON(b []byte) error {

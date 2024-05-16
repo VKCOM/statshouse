@@ -34,12 +34,12 @@ func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorIntWrite(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWrite(w []byte, vec []int32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.IntWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int32) error {
@@ -70,14 +70,14 @@ func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *
 	return nil
 }
 
-func BuiltinVectorIntWriteJSON(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSON(w []byte, vec []int32) []byte {
 	return BuiltinVectorIntWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorIntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteInt32(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }

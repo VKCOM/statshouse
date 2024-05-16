@@ -23,7 +23,14 @@ func (item *RpcServerWantsFin) Reset() {}
 
 func (item *RpcServerWantsFin) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *RpcServerWantsFin) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *RpcServerWantsFin) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcServerWantsFin) Write(w []byte) []byte {
+	return w
+}
 
 func (item *RpcServerWantsFin) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xa8ddbc46); err != nil {
@@ -32,17 +39,18 @@ func (item *RpcServerWantsFin) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcServerWantsFin) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcServerWantsFin) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcServerWantsFin) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xa8ddbc46)
 	return item.Write(w)
 }
 
 func (item RpcServerWantsFin) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *RpcServerWantsFin) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -62,16 +70,21 @@ func (item *RpcServerWantsFin) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *RpcServerWantsFin) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcServerWantsFin) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcServerWantsFin) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcServerWantsFin) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *RpcServerWantsFin) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcServerWantsFin) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcServerWantsFin) UnmarshalJSON(b []byte) error {

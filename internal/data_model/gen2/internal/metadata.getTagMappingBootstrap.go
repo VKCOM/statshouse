@@ -28,8 +28,14 @@ func (item *MetadataGetTagMappingBootstrap) Read(w []byte) (_ []byte, err error)
 	return basictl.NatRead(w, &item.FieldsMask)
 }
 
-func (item *MetadataGetTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
-	return basictl.NatWrite(w, item.FieldsMask), nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) Write(w []byte) []byte {
+	w = basictl.NatWrite(w, item.FieldsMask)
+	return w
 }
 
 func (item *MetadataGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *MetadataGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *MetadataGetTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5fc81a9b)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *MetadataGetTagMappingBootstrap) ReadResult(w []byte, ret *Statshouse
 }
 
 func (item *MetadataGetTagMappingBootstrap) WriteResult(w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *MetadataGetTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingBootstrapResult) error {
@@ -64,9 +76,7 @@ func (item *MetadataGetTagMappingBootstrap) WriteResultJSON(w []byte, ret Statsh
 }
 
 func (item *MetadataGetTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *MetadataGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item MetadataGetTagMappingBootstrap) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataGetTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *MetadataGetTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *MetadataGetTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *MetadataGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, shor
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetTagMappingBootstrap) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetTagMappingBootstrap) UnmarshalJSON(b []byte) error {

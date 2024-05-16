@@ -88,7 +88,12 @@ func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PreparedSnapshotSize)
 }
 
-func (item *BarsicEngineStatus) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicEngineStatus) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicEngineStatus) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.Version)
 	w = basictl.StringWrite(w, item.LoadedSnapshot)
@@ -98,7 +103,8 @@ func (item *BarsicEngineStatus) Write(w []byte) (_ []byte, err error) {
 	w = basictl.StringWrite(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
-	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil
+	w = basictl.LongWrite(w, item.PreparedSnapshotSize)
+	return w
 }
 
 func (item *BarsicEngineStatus) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -108,7 +114,12 @@ func (item *BarsicEngineStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicEngineStatus) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicEngineStatus) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicEngineStatus) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xbfe7b094)
 	return item.Write(w)
 }
@@ -118,7 +129,8 @@ func (item *BarsicEngineStatus) ReadResult(w []byte, ret *tlTrue.True) (_ []byte
 }
 
 func (item *BarsicEngineStatus) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicEngineStatus) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -133,9 +145,7 @@ func (item *BarsicEngineStatus) WriteResultJSON(w []byte, ret tlTrue.True) (_ []
 }
 
 func (item *BarsicEngineStatus) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -168,11 +178,7 @@ func (item *BarsicEngineStatus) ReadResultJSONWriteResult(r []byte, w []byte) ([
 }
 
 func (item BarsicEngineStatus) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicEngineStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -319,10 +325,15 @@ func (item *BarsicEngineStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *BarsicEngineStatus) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicEngineStatus) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicEngineStatus) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -394,11 +405,11 @@ func (item *BarsicEngineStatus) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if (item.PreparedSnapshotSize != 0) == false {
 		w = w[:backupIndexPreparedSnapshotSize]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicEngineStatus) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicEngineStatus) UnmarshalJSON(b []byte) error {
@@ -480,7 +491,12 @@ func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PreparedSnapshotSize)
 }
 
-func (item *BarsicEngineStatusBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicEngineStatusBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicEngineStatusBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.Version)
 	w = basictl.StringWriteBytes(w, item.LoadedSnapshot)
@@ -490,7 +506,8 @@ func (item *BarsicEngineStatusBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.StringWriteBytes(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
-	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil
+	w = basictl.LongWrite(w, item.PreparedSnapshotSize)
+	return w
 }
 
 func (item *BarsicEngineStatusBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -500,7 +517,12 @@ func (item *BarsicEngineStatusBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicEngineStatusBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicEngineStatusBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicEngineStatusBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xbfe7b094)
 	return item.Write(w)
 }
@@ -510,7 +532,8 @@ func (item *BarsicEngineStatusBytes) ReadResult(w []byte, ret *tlTrue.True) (_ [
 }
 
 func (item *BarsicEngineStatusBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicEngineStatusBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -525,9 +548,7 @@ func (item *BarsicEngineStatusBytes) WriteResultJSON(w []byte, ret tlTrue.True) 
 }
 
 func (item *BarsicEngineStatusBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -560,11 +581,7 @@ func (item *BarsicEngineStatusBytes) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item BarsicEngineStatusBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicEngineStatusBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -711,10 +728,15 @@ func (item *BarsicEngineStatusBytes) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *BarsicEngineStatusBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicEngineStatusBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicEngineStatusBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatusBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatusBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -786,11 +808,11 @@ func (item *BarsicEngineStatusBytes) WriteJSONOpt(newTypeNames bool, short bool,
 	if (item.PreparedSnapshotSize != 0) == false {
 		w = w[:backupIndexPreparedSnapshotSize]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicEngineStatusBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicEngineStatusBytes) UnmarshalJSON(b []byte) error {

@@ -33,9 +33,15 @@ func (item *MetadataGetMetricsResponse) Read(w []byte, nat_field_mask uint32) (_
 	return BuiltinVectorMetadataMetricOldRead(w, &item.Metrics, nat_field_mask)
 }
 
-func (item *MetadataGetMetricsResponse) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMetricsResponse) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMetricsResponse) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return BuiltinVectorMetadataMetricOldWrite(w, item.Metrics, nat_field_mask)
+	w = BuiltinVectorMetadataMetricOldWrite(w, item.Metrics, nat_field_mask)
+	return w
 }
 
 func (item *MetadataGetMetricsResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *MetadataGetMetricsResponse) ReadBoxed(w []byte, nat_field_mask uint3
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetMetricsResponse) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMetricsResponse) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMetricsResponse) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abfb)
 	return item.Write(w, nat_field_mask)
 }
@@ -104,10 +115,15 @@ func (item *MetadataGetMetricsResponse) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMetricsResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetMetricsResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMetricsResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -119,11 +135,9 @@ func (item *MetadataGetMetricsResponse) WriteJSONOpt(newTypeNames bool, short bo
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	if w, err = BuiltinVectorMetadataMetricOldWriteJSONOpt(newTypeNames, short, w, item.Metrics, nat_field_mask); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(newTypeNames, short, w, item.Metrics, nat_field_mask)
 	if (len(item.Metrics) != 0) == false {
 		w = w[:backupIndexMetrics]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

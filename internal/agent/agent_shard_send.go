@@ -121,7 +121,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 		}
 		item := k.TLMultiItemFromKey(bucket.Time)
 		v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, &marshalBuf)
-		sizeBuf, _ = item.Write(sizeBuf[:0])
+		sizeBuf = item.Write(sizeBuf[:0])
 		switch { // This is only an approximation
 		case item.Tail.IsSetUniques(item.FieldsMask):
 			sizeUnique += len(sizeBuf)
@@ -139,7 +139,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 			el := tlstatshouse.TopElement{Key: skey}
 			value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, &marshalBuf)
 			top = append(top, el)
-			sizeBuf, _ = el.Write(sizeBuf[:0])
+			sizeBuf = el.Write(sizeBuf[:0])
 			sizeStringTop += len(sizeBuf)
 		}
 		if len(top) != 0 {
@@ -157,11 +157,11 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
 
 	sbSizeCalc := tlstatshouse.SourceBucket2{SampleFactors: sb.SampleFactors}
-	sizeBuf, _ = sbSizeCalc.Write(sizeBuf[:0])
+	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(sizeBuf))
 
 	sbSizeCalc = tlstatshouse.SourceBucket2{IngestionStatusOk: sb.IngestionStatusOk, IngestionStatusOk2: sb.IngestionStatusOk2}
-	sizeBuf, _ = sbSizeCalc.Write(sizeBuf[:0])
+	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(sizeBuf))
 
 	sort.Slice(sb.Metrics, func(i, j int) bool {
@@ -333,10 +333,7 @@ func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds u
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)
 	sb.MissedSeconds = missedSeconds
 
-	w, err := sb.WriteBoxed(nil)
-	if err != nil {
-		return cb, fmt.Errorf("sb.WriteBoxed failed: %w", err)
-	}
+	w := sb.WriteBoxed(nil)
 	compressed := make([]byte, 4+lz4.CompressBlockBound(len(w))) // Framing - first 4 bytes is original size
 	cs, err := lz4.CompressBlockHC(w, compressed[4:], 0)
 	if err != nil {

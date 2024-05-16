@@ -81,15 +81,19 @@ func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) 
 	return basictl.IntRead(w, &item.BuildArch)
 }
 
-func (item *StatshouseCommonProxyHeader) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseCommonProxyHeader) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeader) Write(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
-	if w, err = BuiltinTuple4IntWrite(w, &item.AgentIp); err != nil {
-		return w, err
-	}
+	w = BuiltinTuple4IntWrite(w, &item.AgentIp)
 	w = basictl.StringWrite(w, item.HostName)
 	w = basictl.IntWrite(w, item.ComponentTag)
-	return basictl.IntWrite(w, item.BuildArch), nil
+	w = basictl.IntWrite(w, item.BuildArch)
+	return w
 }
 
 func (item *StatshouseCommonProxyHeader) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -99,7 +103,12 @@ func (item *StatshouseCommonProxyHeader) ReadBoxed(w []byte, nat_fields_mask uin
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseCommonProxyHeader) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseCommonProxyHeader) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeader) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x6c803d07)
 	return item.Write(w, nat_fields_mask)
 }
@@ -204,10 +213,15 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseCommonProxyHeader) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexShardReplica := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -225,9 +239,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short b
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = BuiltinTuple4IntWriteJSONOpt(newTypeNames, short, w, &item.AgentIp); err != nil {
-		return w, err
-	}
+	w = BuiltinTuple4IntWriteJSONOpt(newTypeNames, short, w, &item.AgentIp)
 	backupIndexHostName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"host_name":`...)
@@ -249,7 +261,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short b
 	if (item.BuildArch != 0) == false {
 		w = w[:backupIndexBuildArch]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 type StatshouseCommonProxyHeaderBytes struct {
@@ -320,15 +332,19 @@ func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uin
 	return basictl.IntRead(w, &item.BuildArch)
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseCommonProxyHeaderBytes) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) Write(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
-	if w, err = BuiltinTuple4IntWrite(w, &item.AgentIp); err != nil {
-		return w, err
-	}
+	w = BuiltinTuple4IntWrite(w, &item.AgentIp)
 	w = basictl.StringWriteBytes(w, item.HostName)
 	w = basictl.IntWrite(w, item.ComponentTag)
-	return basictl.IntWrite(w, item.BuildArch), nil
+	w = basictl.IntWrite(w, item.BuildArch)
+	return w
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -338,7 +354,12 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadBoxed(w []byte, nat_fields_mas
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseCommonProxyHeaderBytes) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x6c803d07)
 	return item.Write(w, nat_fields_mask)
 }
@@ -443,10 +464,15 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexShardReplica := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -464,9 +490,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, sh
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = BuiltinTuple4IntWriteJSONOpt(newTypeNames, short, w, &item.AgentIp); err != nil {
-		return w, err
-	}
+	w = BuiltinTuple4IntWriteJSONOpt(newTypeNames, short, w, &item.AgentIp)
 	backupIndexHostName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"host_name":`...)
@@ -488,5 +512,5 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, sh
 	if (item.BuildArch != 0) == false {
 		w = w[:backupIndexBuildArch]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

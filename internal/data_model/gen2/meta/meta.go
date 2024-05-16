@@ -20,16 +20,16 @@ type Object interface {
 	TLTag() uint32  // returns type's TL tag. For union, returns constructor tag depending on actual union value
 	String() string // returns type's representation for debugging (JSON for now)
 
-	Read(w []byte) ([]byte, error)       // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
-	Write(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	ReadBoxed(w []byte) ([]byte, error)  // same as Read, but reads/checks TLTag first
-	WriteBoxed(w []byte) ([]byte, error) // same as Write, but writes TLTag first
+	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
+	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
 
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSON(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
+	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
 }
 
 type Function interface {
@@ -117,17 +117,17 @@ func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x8 != 0
 func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x10 != 0 }
 
 // TLItem serves as a single type for all enum values
-func (item *TLItem) Reset()                              {}
-func (item *TLItem) Read(w []byte) ([]byte, error)       { return w, nil }
-func (item *TLItem) Write(w []byte) ([]byte, error)      { return w, nil }
-func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)  { return basictl.NatReadExactTag(w, item.tag) }
-func (item *TLItem) WriteBoxed(w []byte) ([]byte, error) { return basictl.NatWrite(w, item.tag), nil }
+func (item *TLItem) Reset()                                {}
+func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
+func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
+func (item *TLItem) Write(w []byte) []byte                 { return w }
+func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)    { return basictl.NatReadExactTag(w, item.tag) }
+func (item *TLItem) WriteBoxedGeneral(w []byte) ([]byte, error) {
+	return basictl.NatWrite(w, item.tag), nil
+}
+func (item *TLItem) WriteBoxed(w []byte) []byte { return basictl.NatWrite(w, item.tag) }
 func (item TLItem) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	in.Delim('{')
@@ -143,13 +143,15 @@ func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
-
-func (item *TLItem) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *TLItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+func (item *TLItem) WriteJSON(w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 func (item *TLItem) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 func (item *TLItem) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {

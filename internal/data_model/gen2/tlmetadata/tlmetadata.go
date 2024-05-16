@@ -70,7 +70,7 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.editEntitynew", err)
 	}
@@ -95,7 +95,7 @@ func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.Invok
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getEntity", err)
 	}
@@ -119,7 +119,7 @@ func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortIn
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getHistoryShortInfo", err)
 	}
@@ -144,7 +144,7 @@ func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, ex
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getInvertMapping", err)
 	}
@@ -169,7 +169,7 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getJournalnew", err)
 	}
@@ -193,7 +193,7 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getMapping", err)
 	}
@@ -218,7 +218,7 @@ func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getMetrics", err)
 	}
@@ -242,7 +242,7 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getTagMappingBootstrap", err)
 	}
@@ -266,7 +266,7 @@ func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.putMapping", err)
 	}
@@ -290,7 +290,7 @@ func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingB
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.putTagMappingBootstrap", err)
 	}
@@ -314,7 +314,7 @@ func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.resetFlood", err)
 	}
@@ -338,7 +338,7 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.resetFlood2", err)
 	}

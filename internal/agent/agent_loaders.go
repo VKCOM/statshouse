@@ -67,10 +67,7 @@ func clientSaveConfigToCache(cluster string, dc *pcache.DiskCache, dst tlstatsho
 	if dc == nil {
 		return nil
 	}
-	cacheData, err := dst.WriteBoxed(nil, 0) // 0 - we do not save fields mask. If additional fields are needed, set mask here and in ReadBoxed
-	if err != nil {
-		return fmt.Errorf("failed to serialize autoconfig: %w", err)
-	}
+	cacheData := dst.WriteBoxed(nil, 0) // 0 - we do not save fields mask. If additional fields are needed, set mask here and in ReadBoxed
 	return dc.Set(data_model.AutoconfigDiskNamespace+cluster, "", cacheData, time.Now(), 0)
 }
 
