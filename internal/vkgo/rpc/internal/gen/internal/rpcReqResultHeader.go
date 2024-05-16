@@ -28,8 +28,14 @@ func (item *RpcReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.QueryId)
 }
 
-func (item *RpcReqResultHeader) Write(w []byte) (_ []byte, err error) {
-	return basictl.LongWrite(w, item.QueryId), nil
+// This method is general version of Write, use it instead!
+func (item *RpcReqResultHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcReqResultHeader) Write(w []byte) []byte {
+	w = basictl.LongWrite(w, item.QueryId)
+	return w
 }
 
 func (item *RpcReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,17 +45,18 @@ func (item *RpcReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcReqResultHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcReqResultHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcReqResultHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x63aeda4e)
 	return item.Write(w)
 }
 
 func (item RpcReqResultHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *RpcReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -88,10 +95,15 @@ func (item *RpcReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *RpcReqResultHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcReqResultHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcReqResultHeader) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *RpcReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexQueryId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -100,11 +112,11 @@ func (item *RpcReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if (item.QueryId != 0) == false {
 		w = w[:backupIndexQueryId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcReqResultHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcReqResultHeader) UnmarshalJSON(b []byte) error {

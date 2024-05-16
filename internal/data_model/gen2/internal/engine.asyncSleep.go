@@ -28,8 +28,14 @@ func (item *EngineAsyncSleep) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.TimeMs)
 }
 
-func (item *EngineAsyncSleep) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.TimeMs), nil
+// This method is general version of Write, use it instead!
+func (item *EngineAsyncSleep) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineAsyncSleep) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.TimeMs)
+	return w
 }
 
 func (item *EngineAsyncSleep) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineAsyncSleep) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineAsyncSleep) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineAsyncSleep) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineAsyncSleep) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x60e50d3d)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineAsyncSleep) ReadResult(w []byte, ret *bool) (_ []byte, err err
 }
 
 func (item *EngineAsyncSleep) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
 func (item *EngineAsyncSleep) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
@@ -97,11 +109,7 @@ func (item *EngineAsyncSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]b
 }
 
 func (item EngineAsyncSleep) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineAsyncSleep) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -140,10 +148,15 @@ func (item *EngineAsyncSleep) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	return nil
 }
 
-func (item *EngineAsyncSleep) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineAsyncSleep) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineAsyncSleep) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineAsyncSleep) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineAsyncSleep) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexTimeMs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -152,11 +165,11 @@ func (item *EngineAsyncSleep) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if (item.TimeMs != 0) == false {
 		w = w[:backupIndexTimeMs]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineAsyncSleep) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineAsyncSleep) UnmarshalJSON(b []byte) error {

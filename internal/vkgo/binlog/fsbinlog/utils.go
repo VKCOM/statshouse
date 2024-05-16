@@ -132,7 +132,7 @@ func writeEmptyBinlog(options binlog.Options, w io.Writer) error {
 		SplitMax:   int32(options.EngineIDInCluster + 1),
 	}
 
-	data, _ := levStart.WriteBoxed(nil)
+	data := levStart.WriteBoxed(nil)
 	if _, err := w.Write(data); err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func prepareSnapMeta(pos int64, crc uint32, ts uint32) []byte {
 		CommitTs:       ts,
 	}
 	buffTmp := [20]byte{}
-	buff, _ := meta.WriteBoxed(buffTmp[:0])
+	buff := meta.WriteBoxed(buffTmp[:0])
 	return buff
 }
 

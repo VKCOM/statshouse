@@ -28,11 +28,11 @@ func BuiltinTuple8Read(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinTuple8Write(w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8Write(w []byte, vec *[8]uint32) []byte {
 	for _, elem := range *vec {
 		w = basictl.NatWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]uint32) error {
@@ -62,14 +62,14 @@ func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]
 	return nil
 }
 
-func BuiltinTuple8WriteJSON(w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8WriteJSON(w []byte, vec *[8]uint32) []byte {
 	return BuiltinTuple8WriteJSONOpt(true, false, w, vec)
 }
-func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteUint32(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }

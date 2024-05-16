@@ -38,12 +38,16 @@ func (item *MetadataPutMappingEvent) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorIntRead(w, &item.Value)
 }
 
-func (item *MetadataPutMappingEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataPutMappingEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataPutMappingEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = BuiltinVectorStringWrite(w, item.Keys); err != nil {
-		return w, err
-	}
-	return BuiltinVectorIntWrite(w, item.Value)
+	w = BuiltinVectorStringWrite(w, item.Keys)
+	w = BuiltinVectorIntWrite(w, item.Value)
+	return w
 }
 
 func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,17 +57,18 @@ func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataPutMappingEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutMappingEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutMappingEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12345676)
 	return item.Write(w)
 }
 
 func (item MetadataPutMappingEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -126,10 +131,15 @@ func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *MetadataPutMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutMappingEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutMappingEvent) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,26 +151,22 @@ func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool,
 	backupIndexKeys := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"keys":`...)
-	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Keys); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Keys)
 	if (len(item.Keys) != 0) == false {
 		w = w[:backupIndexKeys]
 	}
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"value":`...)
-	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Value); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Value)
 	if (len(item.Value) != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutMappingEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutMappingEvent) UnmarshalJSON(b []byte) error {

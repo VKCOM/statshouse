@@ -28,8 +28,14 @@ func (item *EngineFilteredStat) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringRead(w, &item.StatNames)
 }
 
-func (item *EngineFilteredStat) Write(w []byte) (_ []byte, err error) {
-	return BuiltinVectorStringWrite(w, item.StatNames)
+// This method is general version of Write, use it instead!
+func (item *EngineFilteredStat) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineFilteredStat) Write(w []byte) []byte {
+	w = BuiltinVectorStringWrite(w, item.StatNames)
+	return w
 }
 
 func (item *EngineFilteredStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineFilteredStat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineFilteredStat) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineFilteredStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineFilteredStat) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x594870d6)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineFilteredStat) ReadResult(w []byte, ret *Stat) (_ []byte, err e
 }
 
 func (item *EngineFilteredStat) WriteResult(w []byte, ret Stat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineFilteredStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *Stat) error {
@@ -64,9 +76,7 @@ func (item *EngineFilteredStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, e
 }
 
 func (item *EngineFilteredStat) writeResultJSON(newTypeNames bool, short bool, w []byte, ret Stat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([
 }
 
 func (item EngineFilteredStat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,25 +148,28 @@ func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *EngineFilteredStat) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineFilteredStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineFilteredStat) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineFilteredStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineFilteredStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStatNames := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"stat_names":`...)
-	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames)
 	if (len(item.StatNames) != 0) == false {
 		w = w[:backupIndexStatNames]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineFilteredStat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineFilteredStat) UnmarshalJSON(b []byte) error {

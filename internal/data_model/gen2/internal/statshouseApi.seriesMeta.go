@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseApiSeriesMetaRead(w []byte, vec *[]StatshouseApiSeri
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiSeriesMetaWrite(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiSeriesMetaWrite(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w, nat_t); err != nil {
-			return w, err
-		}
+		w = elem.Write(w, nat_t)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func BuiltinVectorStatshouseApiSeriesMetaWriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiSeriesMetaWriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
 	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w, nat_t); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseApiSeriesMeta struct {
@@ -233,16 +229,17 @@ func (item *StatshouseApiSeriesMeta) Read(w []byte, nat_query_fields_mask uint32
 	return w, nil
 }
 
-func (item *StatshouseApiSeriesMeta) Write(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiSeriesMeta) WriteGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiSeriesMeta) Write(w []byte, nat_query_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.TimeShift)
-	if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags)
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = item.What.WriteBoxed(w); err != nil {
-			return w, err
-		}
+		w = item.What.WriteBoxed(w)
 	}
 	if nat_query_fields_mask&(1<<4) != 0 {
 		w = basictl.StringWrite(w, item.Name)
@@ -254,11 +251,9 @@ func (item *StatshouseApiSeriesMeta) Write(w []byte, nat_query_fields_mask uint3
 		w = basictl.IntWrite(w, item.Total)
 	}
 	if nat_query_fields_mask&(1<<7) != 0 {
-		if w, err = BuiltinVectorStringWrite(w, item.MaxHosts); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStringWrite(w, item.MaxHosts)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
@@ -268,7 +263,12 @@ func (item *StatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_query_fields_mask u
 	return item.Read(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_query_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiSeriesMeta) WriteBoxedGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_query_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x5c2bf286)
 	return item.Write(w, nat_query_fields_mask)
 }
@@ -408,10 +408,15 @@ func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiSeriesMeta) WriteJSONGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -430,18 +435,14 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool,
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = item.What.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = item.What.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if nat_query_fields_mask&(1<<4) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -461,9 +462,7 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool,
 	if nat_query_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_hosts":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.MaxHosts); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.MaxHosts)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

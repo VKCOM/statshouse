@@ -33,9 +33,15 @@ func (item *MetadataPutTagMappingBootstrap) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
-func (item *MetadataPutTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataPutTagMappingBootstrap) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataPutTagMappingBootstrap) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
+	return w
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *MetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutTagMappingBootstrap) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutTagMappingBootstrap) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5fc8ab9b)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *MetadataPutTagMappingBootstrap) ReadResult(w []byte, ret *Statshouse
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteResult(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshousePutTagMappingBootstrapResult) error {
@@ -70,9 +82,7 @@ func (item *MetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret Statsh
 }
 
 func (item *MetadataPutTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item MetadataPutTagMappingBootstrap) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutTagMappingBootstrap) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,17 +186,15 @@ func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings)
 	if (len(item.Mappings) != 0) == false {
 		w = w[:backupIndexMappings]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutTagMappingBootstrap) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) UnmarshalJSON(b []byte) error {

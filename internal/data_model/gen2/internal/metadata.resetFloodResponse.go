@@ -23,7 +23,14 @@ func (item *MetadataResetFloodResponse) Reset() {}
 
 func (item *MetadataResetFloodResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *MetadataResetFloodResponse) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *MetadataResetFloodResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataResetFloodResponse) Write(w []byte) []byte {
+	return w
+}
 
 func (item *MetadataResetFloodResponse) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286abee); err != nil {
@@ -32,17 +39,18 @@ func (item *MetadataResetFloodResponse) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *MetadataResetFloodResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataResetFloodResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataResetFloodResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9286abee)
 	return item.Write(w)
 }
 
 func (item MetadataResetFloodResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataResetFloodResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -62,16 +70,21 @@ func (item *MetadataResetFloodResponse) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *MetadataResetFloodResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataResetFloodResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataResetFloodResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataResetFloodResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataResetFloodResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataResetFloodResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataResetFloodResponse) UnmarshalJSON(b []byte) error {

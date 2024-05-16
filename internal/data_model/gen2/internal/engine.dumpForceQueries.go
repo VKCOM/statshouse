@@ -28,8 +28,14 @@ func (item *EngineDumpForceQueries) Read(w []byte) (_ []byte, err error) {
 	return basictl.DoubleRead(w, &item.BuffersPressureThreshold)
 }
 
-func (item *EngineDumpForceQueries) Write(w []byte) (_ []byte, err error) {
-	return basictl.DoubleWrite(w, item.BuffersPressureThreshold), nil
+// This method is general version of Write, use it instead!
+func (item *EngineDumpForceQueries) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineDumpForceQueries) Write(w []byte) []byte {
+	w = basictl.DoubleWrite(w, item.BuffersPressureThreshold)
+	return w
 }
 
 func (item *EngineDumpForceQueries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineDumpForceQueries) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineDumpForceQueries) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineDumpForceQueries) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineDumpForceQueries) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf1f90880)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineDumpForceQueries) ReadResult(w []byte, ret *True) (_ []byte, e
 }
 
 func (item *EngineDumpForceQueries) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineDumpForceQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -64,9 +76,7 @@ func (item *EngineDumpForceQueries) WriteResultJSON(w []byte, ret True) (_ []byt
 }
 
 func (item *EngineDumpForceQueries) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineDumpForceQueries) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineDumpForceQueries) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineDumpForceQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *EngineDumpForceQueries) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *EngineDumpForceQueries) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineDumpForceQueries) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineDumpForceQueries) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineDumpForceQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineDumpForceQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBuffersPressureThreshold := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *EngineDumpForceQueries) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.BuffersPressureThreshold != 0) == false {
 		w = w[:backupIndexBuffersPressureThreshold]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineDumpForceQueries) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineDumpForceQueries) UnmarshalJSON(b []byte) error {

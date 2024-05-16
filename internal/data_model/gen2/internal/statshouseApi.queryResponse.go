@@ -80,20 +80,19 @@ func (item *StatshouseApiGetQueryResponse) Read(w []byte, nat_query_fields_mask 
 	return w, nil
 }
 
-func (item *StatshouseApiGetQueryResponse) Write(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiGetQueryResponse) WriteGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiGetQueryResponse) Write(w []byte, nat_query_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Series.Write(w); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseApiSeriesMetaWrite(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorIntWrite(w, item.ChunkIds); err != nil {
-		return w, err
-	}
+	w = item.Series.Write(w)
+	w = BuiltinVectorStatshouseApiSeriesMetaWrite(w, item.SeriesMeta, nat_query_fields_mask)
+	w = BuiltinVectorIntWrite(w, item.ChunkIds)
 	w = basictl.IntWrite(w, item.TotalTimePoints)
 	w = basictl.LongWrite(w, item.ResponseId)
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
@@ -103,7 +102,12 @@ func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte, nat_query_fields_
 	return item.Read(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte, nat_query_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiGetQueryResponse) WriteBoxedGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte, nat_query_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x4487e49a)
 	return item.Write(w, nat_query_fields_mask)
 }
@@ -248,10 +252,15 @@ func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *ba
 	return nil
 }
 
-func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiGetQueryResponse) WriteJSONGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask), nil
+}
+
+func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -262,24 +271,18 @@ func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series":`...)
-	if w, err = item.Series.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = item.Series.WriteJSONOpt(newTypeNames, short, w)
 	backupIndexSeriesMeta := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series_meta":`...)
-	if w, err = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames, short, w, item.SeriesMeta, nat_query_fields_mask); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames, short, w, item.SeriesMeta, nat_query_fields_mask)
 	if (len(item.SeriesMeta) != 0) == false {
 		w = w[:backupIndexSeriesMeta]
 	}
 	backupIndexChunkIds := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"chunk_ids":`...)
-	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.ChunkIds); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.ChunkIds)
 	if (len(item.ChunkIds) != 0) == false {
 		w = w[:backupIndexChunkIds]
 	}
@@ -305,5 +308,5 @@ func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"excess_point_right":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

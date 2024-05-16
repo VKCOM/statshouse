@@ -376,7 +376,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 		for _, wr := range buf {
 			if wr.cctx == nil {
 				ret := tl.RpcCancelReq{QueryId: wr.cancelQueryID}
-				customBody, _ = ret.Write(customBody[:0])
+				customBody = ret.Write(customBody[:0])
 				err := writeCustomPacketUnlocked(conn, tl.RpcCancelReq{}.TLTag(), customBody, pc.client.opts.PacketTimeout)
 				if err != nil {
 					if !commonConnCloseError(err) {

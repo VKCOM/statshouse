@@ -81,7 +81,7 @@ func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchB
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
@@ -105,7 +105,7 @@ func (c *Client) AddMetricsBatch(ctx context.Context, args AddMetricsBatch, extr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
@@ -129,7 +129,7 @@ func (c *Client) AutoCreateBytes(ctx context.Context, args AutoCreateBytes, extr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
@@ -153,7 +153,7 @@ func (c *Client) AutoCreate(ctx context.Context, args AutoCreate, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
@@ -177,7 +177,7 @@ func (c *Client) GetConfig2Bytes(ctx context.Context, args GetConfig2Bytes, extr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
@@ -201,7 +201,7 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
@@ -225,7 +225,7 @@ func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, ex
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
@@ -249,7 +249,7 @@ func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
@@ -273,7 +273,7 @@ func (c *Client) GetTagMapping2Bytes(ctx context.Context, args GetTagMapping2Byt
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
@@ -297,7 +297,7 @@ func (c *Client) GetTagMapping2(ctx context.Context, args GetTagMapping2, extra 
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
@@ -321,7 +321,7 @@ func (c *Client) GetTagMappingBootstrapBytes(ctx context.Context, args GetTagMap
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
@@ -345,7 +345,7 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
@@ -369,7 +369,7 @@ func (c *Client) GetTargets2Bytes(ctx context.Context, args GetTargets2Bytes, ex
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
@@ -393,7 +393,7 @@ func (c *Client) GetTargets2(ctx context.Context, args GetTargets2, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
@@ -417,7 +417,7 @@ func (c *Client) SendKeepAlive2Bytes(ctx context.Context, args SendKeepAlive2Byt
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
@@ -441,7 +441,7 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
@@ -465,7 +465,7 @@ func (c *Client) SendSourceBucket2Bytes(ctx context.Context, args SendSourceBuck
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
@@ -489,7 +489,7 @@ func (c *Client) SendSourceBucket2(ctx context.Context, args SendSourceBucket2, 
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
@@ -513,7 +513,7 @@ func (c *Client) TestConnection2Bytes(ctx context.Context, args TestConnection2B
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}
@@ -537,7 +537,7 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}

@@ -53,19 +53,19 @@ func (item *StatshouseSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseIngestionStatus2Read(w, &item.IngestionStatusOk2)
 }
 
-func (item *StatshouseSourceBucket2) Write(w []byte) (_ []byte, err error) {
-	if w, err = BuiltinVectorStatshouseMultiItemWrite(w, item.Metrics); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseSourceBucket2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSourceBucket2) Write(w []byte) []byte {
+	w = BuiltinVectorStatshouseMultiItemWrite(w, item.Metrics)
+	w = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors)
+	w = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk)
 	w = basictl.NatWrite(w, item.MissedSeconds)
 	w = basictl.IntWrite(w, item.LegacyAgentEnv)
-	return BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
+	w = BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
+	return w
 }
 
 func (item *StatshouseSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -75,17 +75,18 @@ func (item *StatshouseSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseSourceBucket2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSourceBucket2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSourceBucket2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x3af6e822)
 	return item.Write(w)
 }
 
 func (item StatshouseSourceBucket2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -184,35 +185,34 @@ func (item *StatshouseSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSourceBucket2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSourceBucket2) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	if w, err = BuiltinVectorStatshouseMultiItemWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseMultiItemWriteJSONOpt(newTypeNames, short, w, item.Metrics)
 	if (len(item.Metrics) != 0) == false {
 		w = w[:backupIndexMetrics]
 	}
 	backupIndexSampleFactors := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"sample_factors":`...)
-	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors)
 	if (len(item.SampleFactors) != 0) == false {
 		w = w[:backupIndexSampleFactors]
 	}
 	backupIndexIngestionStatusOk := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ingestion_status_ok":`...)
-	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk)
 	if (len(item.IngestionStatusOk) != 0) == false {
 		w = w[:backupIndexIngestionStatusOk]
 	}
@@ -233,17 +233,15 @@ func (item *StatshouseSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool,
 	backupIndexIngestionStatusOk2 := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ingestion_status_ok2":`...)
-	if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2)
 	if (len(item.IngestionStatusOk2) != 0) == false {
 		w = w[:backupIndexIngestionStatusOk2]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSourceBucket2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSourceBucket2) UnmarshalJSON(b []byte) error {
@@ -293,19 +291,19 @@ func (item *StatshouseSourceBucket2Bytes) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseIngestionStatus2Read(w, &item.IngestionStatusOk2)
 }
 
-func (item *StatshouseSourceBucket2Bytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = BuiltinVectorStatshouseMultiItemBytesWrite(w, item.Metrics); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors); err != nil {
-		return w, err
-	}
-	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseSourceBucket2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSourceBucket2Bytes) Write(w []byte) []byte {
+	w = BuiltinVectorStatshouseMultiItemBytesWrite(w, item.Metrics)
+	w = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors)
+	w = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk)
 	w = basictl.NatWrite(w, item.MissedSeconds)
 	w = basictl.IntWrite(w, item.LegacyAgentEnv)
-	return BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
+	w = BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
+	return w
 }
 
 func (item *StatshouseSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -315,17 +313,18 @@ func (item *StatshouseSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err err
 	return item.Read(w)
 }
 
-func (item *StatshouseSourceBucket2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSourceBucket2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSourceBucket2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x3af6e822)
 	return item.Write(w)
 }
 
 func (item StatshouseSourceBucket2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -424,35 +423,34 @@ func (item *StatshouseSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *bas
 	return nil
 }
 
-func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSourceBucket2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	if w, err = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(newTypeNames, short, w, item.Metrics)
 	if (len(item.Metrics) != 0) == false {
 		w = w[:backupIndexMetrics]
 	}
 	backupIndexSampleFactors := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"sample_factors":`...)
-	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors)
 	if (len(item.SampleFactors) != 0) == false {
 		w = w[:backupIndexSampleFactors]
 	}
 	backupIndexIngestionStatusOk := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ingestion_status_ok":`...)
-	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk)
 	if (len(item.IngestionStatusOk) != 0) == false {
 		w = w[:backupIndexIngestionStatusOk]
 	}
@@ -473,17 +471,15 @@ func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short 
 	backupIndexIngestionStatusOk2 := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ingestion_status_ok2":`...)
-	if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2)
 	if (len(item.IngestionStatusOk2) != 0) == false {
 		w = w[:backupIndexIngestionStatusOk2]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSourceBucket2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSourceBucket2Bytes) UnmarshalJSON(b []byte) error {

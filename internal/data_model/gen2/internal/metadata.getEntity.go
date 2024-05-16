@@ -38,10 +38,16 @@ func (item *MetadataGetEntity) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Version)
 }
 
-func (item *MetadataGetEntity) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetEntity) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetEntity) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Id)
-	return basictl.LongWrite(w, item.Version), nil
+	w = basictl.LongWrite(w, item.Version)
+	return w
 }
 
 func (item *MetadataGetEntity) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *MetadataGetEntity) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataGetEntity) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetEntity) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetEntity) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x72b132f8)
 	return item.Write(w)
 }
@@ -61,7 +72,8 @@ func (item *MetadataGetEntity) ReadResult(w []byte, ret *MetadataEvent) (_ []byt
 }
 
 func (item *MetadataGetEntity) WriteResult(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *MetadataGetEntity) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
@@ -76,9 +88,7 @@ func (item *MetadataGetEntity) WriteResultJSON(w []byte, ret MetadataEvent) (_ [
 }
 
 func (item *MetadataGetEntity) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -111,11 +121,7 @@ func (item *MetadataGetEntity) ReadResultJSONWriteResult(r []byte, w []byte) ([]
 }
 
 func (item MetadataGetEntity) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataGetEntity) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -178,10 +184,15 @@ func (item *MetadataGetEntity) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *MetadataGetEntity) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetEntity) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetEntity) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetEntity) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetEntity) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -204,11 +215,11 @@ func (item *MetadataGetEntity) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if (item.Version != 0) == false {
 		w = w[:backupIndexVersion]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetEntity) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetEntity) UnmarshalJSON(b []byte) error {

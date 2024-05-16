@@ -28,8 +28,14 @@ func (item *GoPprof) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Params)
 }
 
-func (item *GoPprof) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Params), nil
+// This method is general version of Write, use it instead!
+func (item *GoPprof) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *GoPprof) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.Params)
+	return w
 }
 
 func (item *GoPprof) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *GoPprof) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *GoPprof) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *GoPprof) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *GoPprof) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xea2876a6)
 	return item.Write(w)
 }
@@ -53,7 +64,8 @@ func (item *GoPprof) ReadResult(w []byte, ret *string) (_ []byte, err error) {
 
 func (item *GoPprof) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret), nil
+	w = basictl.StringWrite(w, ret)
+	return w, nil
 }
 
 func (item *GoPprof) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
@@ -101,11 +113,7 @@ func (item *GoPprof) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []by
 }
 
 func (item GoPprof) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *GoPprof) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -144,10 +152,15 @@ func (item *GoPprof) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
 	return nil
 }
 
-func (item *GoPprof) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *GoPprof) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *GoPprof) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *GoPprof) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *GoPprof) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexParams := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -156,11 +169,11 @@ func (item *GoPprof) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []
 	if (len(item.Params) != 0) == false {
 		w = w[:backupIndexParams]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *GoPprof) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *GoPprof) UnmarshalJSON(b []byte) error {

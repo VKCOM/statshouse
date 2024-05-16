@@ -206,7 +206,7 @@ func TestNetPIDRoundtrip(t *testing.T) {
 			Utime:   rapid.Uint32().Draw(t, "time"),
 		}
 
-		b1, _ := pid1.Write(nil)
+		b1 := pid1.Write(nil)
 
 		var b2 bytes.Buffer
 		err := binary.Write(&b2, binary.LittleEndian, pid1)
@@ -268,7 +268,7 @@ func TestInvokeExtraRoundtrip(t *testing.T) {
 			extra1.SetNoResult(true)
 		}
 
-		b1, _ := extra1.Write(nil)
+		b1 := extra1.Write(nil)
 
 		var extra2 InvokeReqExtra
 		if _, err := extra2.Read(b1); err != nil {
@@ -323,7 +323,7 @@ func TestResultExtraRoundtrip(t *testing.T) {
 			}
 		}
 
-		b1, _ := extra1.Write(nil)
+		b1 := extra1.Write(nil)
 
 		var extra2 ReqResultExtra
 		if _, err := extra2.Read(b1); err != nil {

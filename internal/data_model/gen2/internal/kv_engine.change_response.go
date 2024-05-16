@@ -33,11 +33,15 @@ func (item *KvEngineChangeResponse) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.NewValue)
 }
 
-func (item *KvEngineChangeResponse) Write(w []byte) (_ []byte, err error) {
-	if w, err = item.Meta.Write(w); err != nil {
-		return w, err
-	}
-	return basictl.LongWrite(w, item.NewValue), nil
+// This method is general version of Write, use it instead!
+func (item *KvEngineChangeResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *KvEngineChangeResponse) Write(w []byte) []byte {
+	w = item.Meta.Write(w)
+	w = basictl.LongWrite(w, item.NewValue)
+	return w
 }
 
 func (item *KvEngineChangeResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -47,17 +51,18 @@ func (item *KvEngineChangeResponse) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *KvEngineChangeResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *KvEngineChangeResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *KvEngineChangeResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x73eaa764)
 	return item.Write(w)
 }
 
 func (item KvEngineChangeResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *KvEngineChangeResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -108,16 +113,19 @@ func (item *KvEngineChangeResponse) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *KvEngineChangeResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *KvEngineChangeResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *KvEngineChangeResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineChangeResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineChangeResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"meta":`...)
-	if w, err = item.Meta.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = item.Meta.WriteJSONOpt(newTypeNames, short, w)
 	backupIndexNewValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"new_value":`...)
@@ -125,11 +133,11 @@ func (item *KvEngineChangeResponse) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.NewValue != 0) == false {
 		w = w[:backupIndexNewValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *KvEngineChangeResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *KvEngineChangeResponse) UnmarshalJSON(b []byte) error {

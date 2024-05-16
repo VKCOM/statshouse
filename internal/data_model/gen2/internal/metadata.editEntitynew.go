@@ -56,12 +56,15 @@ func (item *MetadataEditEntitynew) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataEditEntitynew) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataEditEntitynew) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Event.Write(w); err != nil {
-		return w, err
-	}
-	return w, nil
+	w = item.Event.Write(w)
+	return w
 }
 
 func (item *MetadataEditEntitynew) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -71,7 +74,12 @@ func (item *MetadataEditEntitynew) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataEditEntitynew) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataEditEntitynew) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataEditEntitynew) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x86df475f)
 	return item.Write(w)
 }
@@ -81,7 +89,8 @@ func (item *MetadataEditEntitynew) ReadResult(w []byte, ret *MetadataEvent) (_ [
 }
 
 func (item *MetadataEditEntitynew) WriteResult(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *MetadataEditEntitynew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
@@ -96,9 +105,7 @@ func (item *MetadataEditEntitynew) WriteResultJSON(w []byte, ret MetadataEvent) 
 }
 
 func (item *MetadataEditEntitynew) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -131,11 +138,7 @@ func (item *MetadataEditEntitynew) ReadResultJSONWriteResult(r []byte, w []byte)
 }
 
 func (item MetadataEditEntitynew) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -224,10 +227,15 @@ func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	return nil
 }
 
-func (item *MetadataEditEntitynew) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataEditEntitynew) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataEditEntitynew) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -238,9 +246,7 @@ func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"event":`...)
-	if w, err = item.Event.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = item.Event.WriteJSONOpt(newTypeNames, short, w)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)
@@ -249,11 +255,11 @@ func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"delete":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataEditEntitynew) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataEditEntitynew) UnmarshalJSON(b []byte) error {

@@ -34,14 +34,12 @@ func BuiltinVectorEngineBinlogPrefixRead(w []byte, vec *[]EngineBinlogPrefix) (_
 	return w, nil
 }
 
-func BuiltinVectorEngineBinlogPrefixWrite(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+func BuiltinVectorEngineBinlogPrefixWrite(w []byte, vec []EngineBinlogPrefix) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]EngineBinlogPrefix) error {
@@ -72,18 +70,16 @@ func BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func BuiltinVectorEngineBinlogPrefixWriteJSON(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+func BuiltinVectorEngineBinlogPrefixWriteJSON(w []byte, vec []EngineBinlogPrefix) []byte {
 	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []EngineBinlogPrefix) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type EngineBinlogPrefix struct {
@@ -106,9 +102,15 @@ func (item *EngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.SnapshotPrefix)
 }
 
-func (item *EngineBinlogPrefix) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineBinlogPrefix) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineBinlogPrefix) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.BinlogPrefix)
-	return basictl.StringWrite(w, item.SnapshotPrefix), nil
+	w = basictl.StringWrite(w, item.SnapshotPrefix)
+	return w
 }
 
 func (item *EngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -118,17 +120,18 @@ func (item *EngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineBinlogPrefix) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineBinlogPrefix) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineBinlogPrefix) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4c09c894)
 	return item.Write(w)
 }
 
 func (item EngineBinlogPrefix) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineBinlogPrefix) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -179,10 +182,15 @@ func (item *EngineBinlogPrefix) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *EngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineBinlogPrefix) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineBinlogPrefix) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineBinlogPrefix) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineBinlogPrefix) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBinlogPrefix := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -198,11 +206,11 @@ func (item *EngineBinlogPrefix) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if (len(item.SnapshotPrefix) != 0) == false {
 		w = w[:backupIndexSnapshotPrefix]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineBinlogPrefix) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineBinlogPrefix) UnmarshalJSON(b []byte) error {

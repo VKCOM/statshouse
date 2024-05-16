@@ -42,7 +42,7 @@ func (c *Client) Backup(ctx context.Context, args Backup, extra *rpc.InvokeReqEx
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.backup", err)
 	}
@@ -66,7 +66,7 @@ func (c *Client) Check(ctx context.Context, args Check, extra *rpc.InvokeReqExtr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.check", err)
 	}
@@ -91,7 +91,7 @@ func (c *Client) Get(ctx context.Context, args Get, extra *rpc.InvokeReqExtra, r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.get", err)
 	}
@@ -115,7 +115,7 @@ func (c *Client) Inc(ctx context.Context, args Inc, extra *rpc.InvokeReqExtra, r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.inc", err)
 	}
@@ -139,7 +139,7 @@ func (c *Client) Put(ctx context.Context, args Put, extra *rpc.InvokeReqExtra, r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.put", err)
 	}

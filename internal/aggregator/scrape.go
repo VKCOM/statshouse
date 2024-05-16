@@ -157,11 +157,7 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 			return bytes.Compare(lhs.Url, rhs.Url) < 0
 		})
 		v.Hash = nil
-		var err error
-		buf, err = v.WriteBoxed(buf[:0], 0xffffffff)
-		if err != nil {
-			continue
-		}
+		buf = v.WriteBoxed(buf[:0], 0xffffffff)
 		sum := sha256.Sum256(buf)
 		v.Hash = sum[:]
 	}

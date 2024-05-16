@@ -48,9 +48,9 @@ func DeriveCryptoKeysUdp(key string, localPid *NetPID, remotePid *NetPID, genera
 func writeCryptoInitMsgUdp(key string, localPid *NetPID, remotePid *NetPID, generation uint32) []byte {
 	var message []byte
 
-	message, _ = localPid.Write(message)
+	message = localPid.Write(message)
 	message = append(message, key...)
-	message, _ = remotePid.Write(message)
+	message = remotePid.Write(message)
 	message = basictl.NatWrite(message, generation)
 	return message
 }

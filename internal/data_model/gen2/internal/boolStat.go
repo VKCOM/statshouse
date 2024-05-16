@@ -38,10 +38,16 @@ func (item *BoolStat) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.StatUnknown)
 }
 
-func (item *BoolStat) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BoolStat) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BoolStat) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.StatTrue)
 	w = basictl.IntWrite(w, item.StatFalse)
-	return basictl.IntWrite(w, item.StatUnknown), nil
+	w = basictl.IntWrite(w, item.StatUnknown)
+	return w
 }
 
 func (item *BoolStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,17 +57,18 @@ func (item *BoolStat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BoolStat) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BoolStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BoolStat) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x92cbcbfa)
 	return item.Write(w)
 }
 
 func (item BoolStat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BoolStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -124,10 +131,15 @@ func (item *BoolStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) erro
 	return nil
 }
 
-func (item *BoolStat) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BoolStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BoolStat) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BoolStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BoolStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStatTrue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -150,11 +162,11 @@ func (item *BoolStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ [
 	if (item.StatUnknown != 0) == false {
 		w = w[:backupIndexStatUnknown]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BoolStat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BoolStat) UnmarshalJSON(b []byte) error {

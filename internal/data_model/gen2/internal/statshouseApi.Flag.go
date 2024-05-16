@@ -59,9 +59,14 @@ func (item *StatshouseApiFlag) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func (item StatshouseApiFlag) WriteBoxed(w []byte) (_ []byte, err error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiFlag) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, _StatshouseApiFlag[item.index].TLTag)
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -93,32 +98,33 @@ func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	}
 }
 
-func (item StatshouseApiFlag) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item StatshouseApiFlag) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item StatshouseApiFlag) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item StatshouseApiFlag) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item StatshouseApiFlag) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '"')
 	if newTypeNames {
 		w = append(w, _StatshouseApiFlag[item.index].TLName...)
 	} else {
 		w = append(w, _StatshouseApiFlag[item.index].TLString...)
 	}
-	return append(w, '"'), nil
+	return append(w, '"')
 }
 
 func (item StatshouseApiFlag) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiFlag) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
-func (item *StatshouseApiFlag) tUnmarshalJSON(b []byte) error {
+func (item *StatshouseApiFlag) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
 	}

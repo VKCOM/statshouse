@@ -145,17 +145,18 @@ func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *NetUdpPacketUnencHeader) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *NetUdpPacketUnencHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *NetUdpPacketUnencHeader) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<0) != 0 {
-		if w, err = item.RemotePid.Write(w); err != nil {
-			return w, err
-		}
+		w = item.RemotePid.Write(w)
 	}
 	if item.Flags&(1<<0) != 0 {
-		if w, err = item.LocalPid.Write(w); err != nil {
-			return w, err
-		}
+		w = item.LocalPid.Write(w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.IntWrite(w, item.Generation)
@@ -167,11 +168,9 @@ func (item *NetUdpPacketUnencHeader) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.CryptoInit)
 	}
 	if item.Flags&(1<<5) != 0 {
-		if w, err = BuiltinTuple8Write(w, &item.RandomKey); err != nil {
-			return w, err
-		}
+		w = BuiltinTuple8Write(w, &item.RandomKey)
 	}
-	return w, nil
+	return w
 }
 
 func (item *NetUdpPacketUnencHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -181,17 +180,18 @@ func (item *NetUdpPacketUnencHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *NetUdpPacketUnencHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *NetUdpPacketUnencHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *NetUdpPacketUnencHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xa8e945)
 	return item.Write(w)
 }
 
 func (item NetUdpPacketUnencHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -320,10 +320,15 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *NetUdpPacketUnencHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -335,16 +340,12 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"remote_pid":`...)
-		if w, err = item.RemotePid.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = item.RemotePid.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"local_pid":`...)
-		if w, err = item.LocalPid.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = item.LocalPid.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -364,15 +365,13 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.Flags&(1<<5) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"random_key":`...)
-		if w, err = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.RandomKey); err != nil {
-			return w, err
-		}
+		w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.RandomKey)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *NetUdpPacketUnencHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *NetUdpPacketUnencHeader) UnmarshalJSON(b []byte) error {

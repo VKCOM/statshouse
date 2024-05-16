@@ -43,11 +43,17 @@ func (item *FsbinlogLevUpgradeToGms) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.Ts)
 }
 
-func (item *FsbinlogLevUpgradeToGms) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *FsbinlogLevUpgradeToGms) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *FsbinlogLevUpgradeToGms) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.PayloadOffset)
 	w = basictl.NatWrite(w, item.Crc)
-	return basictl.NatWrite(w, item.Ts), nil
+	w = basictl.NatWrite(w, item.Ts)
+	return w
 }
 
 func (item *FsbinlogLevUpgradeToGms) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -57,17 +63,18 @@ func (item *FsbinlogLevUpgradeToGms) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *FsbinlogLevUpgradeToGms) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *FsbinlogLevUpgradeToGms) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *FsbinlogLevUpgradeToGms) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xb75009a0)
 	return item.Write(w)
 }
 
 func (item FsbinlogLevUpgradeToGms) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +149,15 @@ func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *FsbinlogLevUpgradeToGms) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,11 +187,11 @@ func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool,
 	if (item.Ts != 0) == false {
 		w = w[:backupIndexTs]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *FsbinlogLevUpgradeToGms) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *FsbinlogLevUpgradeToGms) UnmarshalJSON(b []byte) error {

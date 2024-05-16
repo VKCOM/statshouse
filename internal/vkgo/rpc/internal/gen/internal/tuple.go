@@ -28,7 +28,12 @@ func (item *Tuple8) Read(w []byte) (_ []byte, err error) {
 	return BuiltinTuple8Read(w, ptr)
 }
 
-func (item *Tuple8) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *Tuple8) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *Tuple8) Write(w []byte) []byte {
 	ptr := (*[8]uint32)(item)
 	return BuiltinTuple8Write(w, ptr)
 }
@@ -40,17 +45,18 @@ func (item *Tuple8) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *Tuple8) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *Tuple8) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *Tuple8) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9770768a)
 	return item.Write(w)
 }
 
 func (item Tuple8) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -61,19 +67,22 @@ func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	return nil
 }
 
-func (item *Tuple8) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *Tuple8) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *Tuple8) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *Tuple8) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *Tuple8) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	ptr := (*[8]uint32)(item)
-	if w, err = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, ptr); err != nil {
-		return w, err
-	}
-	return w, nil
+	w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, ptr)
+	return w
 }
 func (item *Tuple8) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *Tuple8) UnmarshalJSON(b []byte) error {

@@ -33,9 +33,15 @@ func (item *EngineSetNoPersistentConfigValue) Read(w []byte) (_ []byte, err erro
 	return basictl.IntRead(w, &item.Value)
 }
 
-func (item *EngineSetNoPersistentConfigValue) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineSetNoPersistentConfigValue) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetNoPersistentConfigValue) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Name)
-	return basictl.IntWrite(w, item.Value), nil
+	w = basictl.IntWrite(w, item.Value)
+	return w
 }
 
 func (item *EngineSetNoPersistentConfigValue) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *EngineSetNoPersistentConfigValue) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-func (item *EngineSetNoPersistentConfigValue) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetNoPersistentConfigValue) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetNoPersistentConfigValue) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x92aaa5b9)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *EngineSetNoPersistentConfigValue) ReadResult(w []byte, ret *True) (_
 }
 
 func (item *EngineSetNoPersistentConfigValue) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetNoPersistentConfigValue) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -70,9 +82,7 @@ func (item *EngineSetNoPersistentConfigValue) WriteResultJSON(w []byte, ret True
 }
 
 func (item *EngineSetNoPersistentConfigValue) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *EngineSetNoPersistentConfigValue) ReadResultJSONWriteResult(r []byte
 }
 
 func (item EngineSetNoPersistentConfigValue) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetNoPersistentConfigValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *EngineSetNoPersistentConfigValue) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *EngineSetNoPersistentConfigValue) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetNoPersistentConfigValue) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetNoPersistentConfigValue) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetNoPersistentConfigValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetNoPersistentConfigValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -179,11 +190,11 @@ func (item *EngineSetNoPersistentConfigValue) WriteJSONOpt(newTypeNames bool, sh
 	if (item.Value != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetNoPersistentConfigValue) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetNoPersistentConfigValue) UnmarshalJSON(b []byte) error {

@@ -102,17 +102,21 @@ func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 	return tlBuiltinVectorString.BuiltinVectorStringRead(w, &item.Snapshots)
 }
 
-func (item *BarsicStart) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicStart) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicStart) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
 	w = basictl.StringWrite(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.EncryptionSecrets); err != nil {
-			return w, err
-		}
+		w = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.EncryptionSecrets)
 	}
-	return tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.Snapshots)
+	w = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.Snapshots)
+	return w
 }
 
 func (item *BarsicStart) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -122,7 +126,12 @@ func (item *BarsicStart) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicStart) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicStart) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicStart) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x85ca2340)
 	return item.Write(w)
 }
@@ -132,7 +141,8 @@ func (item *BarsicStart) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err e
 }
 
 func (item *BarsicStart) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicStart) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -147,9 +157,7 @@ func (item *BarsicStart) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, e
 }
 
 func (item *BarsicStart) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -182,11 +190,7 @@ func (item *BarsicStart) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, 
 }
 
 func (item BarsicStart) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -307,10 +311,15 @@ func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) e
 	return nil
 }
 
-func (item *BarsicStart) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicStart) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicStart) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -347,24 +356,20 @@ func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
-			return w, err
-		}
+		w = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets)
 	}
 	backupIndexSnapshots := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"snapshots":`...)
-	if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Snapshots)
 	if (len(item.Snapshots) != 0) == false {
 		w = w[:backupIndexSnapshots]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicStart) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicStart) UnmarshalJSON(b []byte) error {
@@ -459,17 +464,21 @@ func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
 	return tlBuiltinVectorString.BuiltinVectorStringBytesRead(w, &item.Snapshots)
 }
 
-func (item *BarsicStartBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicStartBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicStartBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
 	w = basictl.StringWriteBytes(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.EncryptionSecrets); err != nil {
-			return w, err
-		}
+		w = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.EncryptionSecrets)
 	}
-	return tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.Snapshots)
+	w = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.Snapshots)
+	return w
 }
 
 func (item *BarsicStartBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -479,7 +488,12 @@ func (item *BarsicStartBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicStartBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicStartBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicStartBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x85ca2340)
 	return item.Write(w)
 }
@@ -489,7 +503,8 @@ func (item *BarsicStartBytes) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, 
 }
 
 func (item *BarsicStartBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicStartBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -504,9 +519,7 @@ func (item *BarsicStartBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []by
 }
 
 func (item *BarsicStartBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -539,11 +552,7 @@ func (item *BarsicStartBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]b
 }
 
 func (item BarsicStartBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -664,10 +673,15 @@ func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	return nil
 }
 
-func (item *BarsicStartBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicStartBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicStartBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -704,24 +718,20 @@ func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
-			return w, err
-		}
+		w = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets)
 	}
 	backupIndexSnapshots := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"snapshots":`...)
-	if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
-		return w, err
-	}
+	w = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Snapshots)
 	if (len(item.Snapshots) != 0) == false {
 		w = w[:backupIndexSnapshots]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicStartBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicStartBytes) UnmarshalJSON(b []byte) error {

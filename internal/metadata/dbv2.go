@@ -423,13 +423,13 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
 			}
-			cache, err = metadataCreatMetricEvent.WriteBoxed(cache)
+			cache = metadataCreatMetricEvent.WriteBoxed(cache)
 		} else {
 			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
-			cache, err = metadataEditMetricEvent.WriteBoxed(cache)
+			cache = metadataEditMetricEvent.WriteBoxed(cache)
 		}
 		if err != nil {
 			return cache, fmt.Errorf("can't encode binlog event: %w", err)
@@ -724,16 +724,13 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
 			}
-			cache, err = metadataCreatMetricEvent.WriteBoxed(cache)
+			cache = metadataCreatMetricEvent.WriteBoxed(cache)
 		} else {
 			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
-			cache, err = metadataEditMetricEvent.WriteBoxed(cache)
-		}
-		if err != nil {
-			return cache, fmt.Errorf("can't encode binlog event: %w", err)
+			cache = metadataEditMetricEvent.WriteBoxed(cache)
 		}
 		return cache, nil
 	})

@@ -177,11 +177,14 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.CompressedData)
 }
 
-func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseSendSourceBucket2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
@@ -201,7 +204,8 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWrite(w, item.CompressedData), nil
+	w = basictl.StringWrite(w, item.CompressedData)
+	return w
 }
 
 func (item *StatshouseSendSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -211,7 +215,12 @@ func (item *StatshouseSendSourceBucket2) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-func (item *StatshouseSendSourceBucket2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSendSourceBucket2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSendSourceBucket2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x44575940)
 	return item.Write(w)
 }
@@ -225,7 +234,8 @@ func (item *StatshouseSendSourceBucket2) ReadResult(w []byte, ret *string) (_ []
 
 func (item *StatshouseSendSourceBucket2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret), nil
+	w = basictl.StringWrite(w, ret)
+	return w, nil
 }
 
 func (item *StatshouseSendSourceBucket2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
@@ -273,11 +283,7 @@ func (item *StatshouseSendSourceBucket2) ReadResultJSONWriteResult(r []byte, w [
 }
 
 func (item StatshouseSendSourceBucket2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -528,10 +534,15 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func (item *StatshouseSendSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSendSourceBucket2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSendSourceBucket2) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -542,9 +553,7 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time":`...)
@@ -629,11 +638,11 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSendSourceBucket2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSendSourceBucket2) UnmarshalJSON(b []byte) error {
@@ -807,11 +816,14 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	return basictl.StringReadBytes(w, &item.CompressedData)
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseSendSourceBucket2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
@@ -831,7 +843,8 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWriteBytes(w, item.CompressedData), nil
+	w = basictl.StringWriteBytes(w, item.CompressedData)
+	return w
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -841,7 +854,12 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSendSourceBucket2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSendSourceBucket2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x44575940)
 	return item.Write(w)
 }
@@ -855,7 +873,8 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadResult(w []byte, ret *[]byte) 
 
 func (item *StatshouseSendSourceBucket2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret), nil
+	w = basictl.StringWriteBytes(w, ret)
+	return w, nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
@@ -903,11 +922,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSONWriteResult(r []byte
 }
 
 func (item StatshouseSendSourceBucket2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -1158,10 +1173,15 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *StatshouseSendSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSendSourceBucket2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSendSourceBucket2Bytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1172,9 +1192,7 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time":`...)
@@ -1259,11 +1277,11 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) UnmarshalJSON(b []byte) error {

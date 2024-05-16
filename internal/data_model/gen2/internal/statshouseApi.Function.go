@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseApiFunctionRead(w []byte, vec *[]StatshouseApiFuncti
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFunction) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.WriteBoxed(w); err != nil {
-			return w, err
-		}
+		w = elem.WriteBoxed(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func BuiltinVectorStatshouseApiFunctionWriteJSON(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionWriteJSON(w []byte, vec []StatshouseApiFunction) []byte {
 	return BuiltinVectorStatshouseApiFunctionWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFunction) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 func StatshouseApiFnAvg() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(5) }
@@ -438,9 +434,14 @@ func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func (item StatshouseApiFunction) WriteBoxed(w []byte) (_ []byte, err error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiFunction) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item StatshouseApiFunction) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, _StatshouseApiFunction[item.index].TLTag)
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -664,32 +665,33 @@ func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	}
 }
 
-func (item StatshouseApiFunction) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item StatshouseApiFunction) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item StatshouseApiFunction) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item StatshouseApiFunction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item StatshouseApiFunction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '"')
 	if newTypeNames {
 		w = append(w, _StatshouseApiFunction[item.index].TLName...)
 	} else {
 		w = append(w, _StatshouseApiFunction[item.index].TLString...)
 	}
-	return append(w, '"'), nil
+	return append(w, '"')
 }
 
 func (item StatshouseApiFunction) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiFunction) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
-func (item *StatshouseApiFunction) tUnmarshalJSON(b []byte) error {
+func (item *StatshouseApiFunction) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.Function", err.Error())
 	}

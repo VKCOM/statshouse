@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseIngestionStatus2Read(w []byte, vec *[]StatshouseInge
 	return w, nil
 }
 
-func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseIngestionStatus2) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) []byte {
 	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseIngestionStatus2) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseIngestionStatus2 struct {
@@ -111,10 +107,16 @@ func (item *StatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Value)
 }
 
-func (item *StatshouseIngestionStatus2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseIngestionStatus2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseIngestionStatus2) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.Env)
 	w = basictl.IntWrite(w, item.Metric)
-	return basictl.FloatWrite(w, item.Value), nil
+	w = basictl.FloatWrite(w, item.Value)
+	return w
 }
 
 func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -124,17 +126,18 @@ func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *StatshouseIngestionStatus2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseIngestionStatus2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseIngestionStatus2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2e17a6d3)
 	return item.Write(w)
 }
 
 func (item StatshouseIngestionStatus2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -197,10 +200,15 @@ func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseIngestionStatus2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexEnv := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -223,11 +231,11 @@ func (item *StatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bo
 	if (item.Value != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {

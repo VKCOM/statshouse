@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseCentroidRead(w []byte, vec *[]StatshouseCentroid) (_
 	return w, nil
 }
 
-func BuiltinVectorStatshouseCentroidWrite(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+func BuiltinVectorStatshouseCentroidWrite(w []byte, vec []StatshouseCentroid) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseCentroid) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func BuiltinVectorStatshouseCentroidWriteJSON(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+func BuiltinVectorStatshouseCentroidWriteJSON(w []byte, vec []StatshouseCentroid) []byte {
 	return BuiltinVectorStatshouseCentroidWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+func BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseCentroid) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseCentroid struct {
@@ -106,9 +102,15 @@ func (item *StatshouseCentroid) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Weight)
 }
 
-func (item *StatshouseCentroid) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseCentroid) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseCentroid) Write(w []byte) []byte {
 	w = basictl.FloatWrite(w, item.Value)
-	return basictl.FloatWrite(w, item.Weight), nil
+	w = basictl.FloatWrite(w, item.Weight)
+	return w
 }
 
 func (item *StatshouseCentroid) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -118,17 +120,18 @@ func (item *StatshouseCentroid) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseCentroid) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseCentroid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseCentroid) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x73fd01e0)
 	return item.Write(w)
 }
 
 func (item StatshouseCentroid) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseCentroid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -179,10 +182,15 @@ func (item *StatshouseCentroid) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	return nil
 }
 
-func (item *StatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseCentroid) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseCentroid) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseCentroid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseCentroid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -198,11 +206,11 @@ func (item *StatshouseCentroid) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if (item.Weight != 0) == false {
 		w = w[:backupIndexWeight]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseCentroid) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseCentroid) UnmarshalJSON(b []byte) error {

@@ -38,10 +38,16 @@ func (item *EngineRecordNextQueries) Read(w []byte) (_ []byte, err error) {
 	return BoolReadBoxed(w, &item.Append)
 }
 
-func (item *EngineRecordNextQueries) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineRecordNextQueries) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineRecordNextQueries) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Binlogname)
 	w = basictl.IntWrite(w, item.NumQueries)
-	return BoolWriteBoxed(w, item.Append)
+	w = BoolWriteBoxed(w, item.Append)
+	return w
 }
 
 func (item *EngineRecordNextQueries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *EngineRecordNextQueries) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineRecordNextQueries) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineRecordNextQueries) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineRecordNextQueries) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1e9d6)
 	return item.Write(w)
 }
@@ -61,7 +72,8 @@ func (item *EngineRecordNextQueries) ReadResult(w []byte, ret *bool) (_ []byte, 
 }
 
 func (item *EngineRecordNextQueries) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
 func (item *EngineRecordNextQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
@@ -109,11 +121,7 @@ func (item *EngineRecordNextQueries) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item EngineRecordNextQueries) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineRecordNextQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -176,10 +184,15 @@ func (item *EngineRecordNextQueries) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *EngineRecordNextQueries) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineRecordNextQueries) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineRecordNextQueries) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineRecordNextQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineRecordNextQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBinlogname := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -202,11 +215,11 @@ func (item *EngineRecordNextQueries) WriteJSONOpt(newTypeNames bool, short bool,
 	if (item.Append) == false {
 		w = w[:backupIndexAppend]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineRecordNextQueries) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineRecordNextQueries) UnmarshalJSON(b []byte) error {

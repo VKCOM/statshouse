@@ -298,8 +298,8 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 		Budget:    countToInsert,
 	}
 	event.SetCreate(!metricLimitIsExists)
-	eventBytes, err := event.WriteBoxed(cache)
-	return tlmetadata.GetMappingResponseCreated{Id: id}.AsUnion(), eventBytes, err
+	eventBytes := event.WriteBoxed(cache)
+	return tlmetadata.GetMappingResponseCreated{Id: id}.AsUnion(), eventBytes, nil
 }
 
 func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte, error) {
@@ -314,8 +314,8 @@ func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte
 		Keys:  ks,
 		Value: vs,
 	}
-	cache, err := event.WriteBoxed(cache)
-	return cache, err
+	cache = event.WriteBoxed(cache)
+	return cache, nil
 }
 
 func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.Mapping) (int32, []byte, error) {
@@ -331,11 +331,8 @@ func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.M
 		filteredMappings = append(filteredMappings, m)
 	}
 	res := tlstatshouse.GetTagMappingBootstrapResult{Mappings: filteredMappings}
-	bytes, err := res.Write(nil)
-	if err != nil {
-		return 0, cache, err
-	}
-	_, err = conn.Exec("upsert_bootstrap", "INSERT OR REPLACE INTO property (name, data) VALUES ($name, $data)",
+	bytes := res.Write(nil)
+	_, err := conn.Exec("upsert_bootstrap", "INSERT OR REPLACE INTO property (name, data) VALUES ($name, $data)",
 		sqlite.BlobString("$name", bootstrapFieldName),
 		sqlite.Blob("$data", bytes))
 	if err != nil {
@@ -344,6 +341,6 @@ func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.M
 	event := tlmetadata.PutBootstrapEvent{
 		Mappings: filteredMappings,
 	}
-	cache, err = event.WriteBoxed(cache)
-	return int32(len(filteredMappings)), cache, err
+	cache = event.WriteBoxed(cache)
+	return int32(len(filteredMappings)), cache, nil
 }
