@@ -3297,6 +3297,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in *jlexer.Lexe
 			out.NumSeries = int(in.Int())
 		case "metricName":
 			out.MetricName = string(in.String())
+		case "customName":
+			out.CustomName = string(in.String())
 		case "customAgg":
 			out.Width = int(in.Int())
 		case "promQL":
@@ -3453,6 +3455,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out *jwriter.Wr
 		const prefix string = ",\"metricName\":"
 		out.RawString(prefix)
 		out.String(string(in.MetricName))
+	}
+	{
+		const prefix string = ",\"customName\":"
+		out.RawString(prefix)
+		out.String(string(in.CustomName))
 	}
 	{
 		const prefix string = ",\"customAgg\":"

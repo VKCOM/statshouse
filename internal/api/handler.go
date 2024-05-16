@@ -279,6 +279,7 @@ type (
 		UseV2       bool                `json:"useV2"`
 		NumSeries   int                 `json:"numSeries"`
 		MetricName  string              `json:"metricName"`
+		CustomName  string              `json:"customName"`
 		Width       int                 `json:"customAgg"`
 		PromQL      string              `json:"promQL"`
 		What        []string            `json:"what"`
@@ -336,6 +337,7 @@ type (
 		version             string
 		numResults          int
 		metricWithNamespace string
+		customMetricName    string
 		from                time.Time
 		to                  time.Time
 		step                int64
@@ -3152,6 +3154,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		}
 		tab.numResults = v.NumSeries
 		tab.metricWithNamespace = v.MetricName
+		tab.customMetricName = v.CustomName
 		if v.Width > 0 {
 			tab.strWidth = fmt.Sprintf("%ds", v.Width)
 		}
