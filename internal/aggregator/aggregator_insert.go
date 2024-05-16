@@ -510,7 +510,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	var recentBuiltinSize int = insertSizes[buckets[0].time].builtin + len(res) - resPos + estimatedSize
 	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDSizeBuiltIn}),
 		float64(recentBuiltinSize), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	resPos = len(res)
 
 	for _, b := range buckets[1:] {
 		resPos = len(res)
