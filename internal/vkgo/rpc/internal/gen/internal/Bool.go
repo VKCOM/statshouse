@@ -22,9 +22,9 @@ func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
 	return basictl.ReadBool(w, v, BoolFalse, BoolTrue)
 }
 
-func BoolWriteBoxed(w []byte, v bool) ([]byte, error) {
+func BoolWriteBoxed(w []byte, v bool) []byte {
 	if v {
-		return basictl.NatWrite(w, 0x997275b5), nil
+		return basictl.NatWrite(w, 0x997275b5)
 	}
-	return basictl.NatWrite(w, 0xbc799737), nil
+	return basictl.NatWrite(w, 0xbc799737)
 }

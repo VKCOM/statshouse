@@ -28,8 +28,14 @@ func (item *ReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return item.Extra.Read(w)
 }
 
-func (item *ReqResultHeader) Write(w []byte) (_ []byte, err error) {
-	return item.Extra.Write(w)
+// This method is general version of Write, use it instead!
+func (item *ReqResultHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *ReqResultHeader) Write(w []byte) []byte {
+	w = item.Extra.Write(w)
+	return w
 }
 
 func (item *ReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,17 +45,18 @@ func (item *ReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *ReqResultHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *ReqResultHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *ReqResultHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8cc84ce1)
 	return item.Write(w)
 }
 
 func (item ReqResultHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *ReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -88,21 +95,24 @@ func (item *ReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexe
 	return nil
 }
 
-func (item *ReqResultHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *ReqResultHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *ReqResultHeader) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *ReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *ReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	if w, err = item.Extra.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Extra.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *ReqResultHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *ReqResultHeader) UnmarshalJSON(b []byte) error {

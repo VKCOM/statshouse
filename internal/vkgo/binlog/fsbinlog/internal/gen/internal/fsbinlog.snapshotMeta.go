@@ -43,11 +43,17 @@ func (item *FsbinlogSnapshotMeta) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.CommitTs)
 }
 
-func (item *FsbinlogSnapshotMeta) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *FsbinlogSnapshotMeta) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *FsbinlogSnapshotMeta) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.CommitPosition)
 	w = basictl.NatWrite(w, item.CommitCrc)
-	return basictl.NatWrite(w, item.CommitTs), nil
+	w = basictl.NatWrite(w, item.CommitTs)
+	return w
 }
 
 func (item *FsbinlogSnapshotMeta) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -57,17 +63,18 @@ func (item *FsbinlogSnapshotMeta) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *FsbinlogSnapshotMeta) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *FsbinlogSnapshotMeta) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *FsbinlogSnapshotMeta) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x6b49d850)
 	return item.Write(w)
 }
 
 func (item FsbinlogSnapshotMeta) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +149,15 @@ func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	return nil
 }
 
-func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *FsbinlogSnapshotMeta) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,11 +187,11 @@ func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if (item.CommitTs != 0) == false {
 		w = w[:backupIndexCommitTs]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *FsbinlogSnapshotMeta) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *FsbinlogSnapshotMeta) UnmarshalJSON(b []byte) error {

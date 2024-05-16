@@ -304,7 +304,12 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 	return w, nil
 }
 
-func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseMultiValue) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) []byte {
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.Counter)
 	}
@@ -324,9 +329,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []b
 		w = basictl.StringWrite(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.IntWrite(w, item.MaxHostTag)
@@ -337,7 +340,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []b
 	if nat_fields_mask&(1<<9) != 0 {
 		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseMultiValue) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -347,7 +350,12 @@ func (item *StatshouseMultiValue) ReadBoxed(w []byte, nat_fields_mask uint32) (_
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValue) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseMultiValue) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValue) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803e06)
 	return item.Write(w, nat_fields_mask)
 }
@@ -530,10 +538,15 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	return nil
 }
 
-func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseMultiValue) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -568,9 +581,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -587,7 +598,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w 
 		w = append(w, `"max_counter_host_tag":`...)
 		w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 type StatshouseMultiValueBytes struct {
@@ -881,7 +892,12 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 	return w, nil
 }
 
-func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseMultiValueBytes) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) []byte {
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.Counter)
 	}
@@ -901,9 +917,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (
 		w = basictl.StringWriteBytes(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.IntWrite(w, item.MaxHostTag)
@@ -914,7 +928,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (
 	if nat_fields_mask&(1<<9) != 0 {
 		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseMultiValueBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -924,7 +938,12 @@ func (item *StatshouseMultiValueBytes) ReadBoxed(w []byte, nat_fields_mask uint3
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValueBytes) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseMultiValueBytes) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValueBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803e06)
 	return item.Write(w, nat_fields_mask)
 }
@@ -1107,10 +1126,15 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseMultiValueBytes) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1145,9 +1169,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1164,5 +1186,5 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short boo
 		w = append(w, `"max_counter_host_tag":`...)
 		w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

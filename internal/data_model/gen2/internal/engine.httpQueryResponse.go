@@ -107,7 +107,12 @@ func (item *EngineHttpQueryResponse) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *EngineHttpQueryResponse) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineHttpQueryResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineHttpQueryResponse) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.IntWrite(w, item.ReturnCode)
@@ -119,11 +124,9 @@ func (item *EngineHttpQueryResponse) Write(w []byte) (_ []byte, err error) {
 		w = basictl.StringWrite(w, item.ContentType)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.AdditionalHeaders); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWrite(w, item.AdditionalHeaders)
 	}
-	return w, nil
+	return w
 }
 
 func (item *EngineHttpQueryResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -133,17 +136,18 @@ func (item *EngineHttpQueryResponse) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineHttpQueryResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineHttpQueryResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineHttpQueryResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x284852fc)
 	return item.Write(w)
 }
 
 func (item EngineHttpQueryResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -242,10 +246,15 @@ func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineHttpQueryResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineHttpQueryResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -272,15 +281,13 @@ func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"additional_headers":`...)
-		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.AdditionalHeaders); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.AdditionalHeaders)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineHttpQueryResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineHttpQueryResponse) UnmarshalJSON(b []byte) error {

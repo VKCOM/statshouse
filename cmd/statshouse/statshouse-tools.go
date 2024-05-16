@@ -286,7 +286,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		args.Metrics[0].SetValue([]float64{1, 2, 3, 4, 5})
 		var w []byte
 		for len(w) < 60000 {
-			w, _ = args.WriteBoxed(w)
+			w = args.WriteBoxed(w)
 		}
 		// _ = args.WriteBoxed(&w)
 		for {
@@ -294,7 +294,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 				w = w[:0]
 				args.Metrics[0].Tags[0].Value = append(args.Metrics[0].Tags[0].Value[:0], keyPrefix...)
 				args.Metrics[0].Tags[0].Value = strconv.AppendInt(args.Metrics[0].Tags[0].Value, int64(rand.New().Int31()), 10)
-				w, _ = args.WriteBoxed(w)
+				w = args.WriteBoxed(w)
 			}
 			sentMetric.Inc()
 			if _, err := uconn.Write(w); err != nil {

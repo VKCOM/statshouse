@@ -48,12 +48,18 @@ func (item *FsbinlogLevStart) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.SplitMax)
 }
 
-func (item *FsbinlogLevStart) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *FsbinlogLevStart) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *FsbinlogLevStart) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.SchemaId)
 	w = basictl.IntWrite(w, item.ExtraBytes)
 	w = basictl.IntWrite(w, item.SplitMod)
 	w = basictl.IntWrite(w, item.SplitMin)
-	return basictl.IntWrite(w, item.SplitMax), nil
+	w = basictl.IntWrite(w, item.SplitMax)
+	return w
 }
 
 func (item *FsbinlogLevStart) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -63,17 +69,18 @@ func (item *FsbinlogLevStart) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *FsbinlogLevStart) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *FsbinlogLevStart) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *FsbinlogLevStart) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x44c644b)
 	return item.Write(w)
 }
 
 func (item FsbinlogLevStart) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *FsbinlogLevStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +167,15 @@ func (item *FsbinlogLevStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	return nil
 }
 
-func (item *FsbinlogLevStart) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *FsbinlogLevStart) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *FsbinlogLevStart) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogLevStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogLevStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexSchemaId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -200,11 +212,11 @@ func (item *FsbinlogLevStart) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if (item.SplitMax != 0) == false {
 		w = w[:backupIndexSplitMax]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *FsbinlogLevStart) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *FsbinlogLevStart) UnmarshalJSON(b []byte) error {

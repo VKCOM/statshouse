@@ -33,9 +33,15 @@ func (item *StatshouseGetTagMappingBootstrap) Read(w []byte) (_ []byte, err erro
 	return item.Header.Read(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetTagMappingBootstrap) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrap) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return item.Header.Write(w, item.FieldsMask)
+	w = item.Header.Write(w, item.FieldsMask)
+	return w
 }
 
 func (item *StatshouseGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *StatshouseGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-func (item *StatshouseGetTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetTagMappingBootstrap) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrap) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x75a7f68e)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *StatshouseGetTagMappingBootstrap) ReadResult(w []byte, ret *Statshou
 }
 
 func (item *StatshouseGetTagMappingBootstrap) WriteResult(w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseGetTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingBootstrapResult) error {
@@ -70,9 +82,7 @@ func (item *StatshouseGetTagMappingBootstrap) WriteResultJSON(w []byte, ret Stat
 }
 
 func (item *StatshouseGetTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *StatshouseGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte
 }
 
 func (item StatshouseGetTagMappingBootstrap) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseGetTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -166,10 +172,15 @@ func (item *StatshouseGetTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *StatshouseGetTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetTagMappingBootstrap) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrap) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -180,14 +191,12 @@ func (item *StatshouseGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, sh
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	return append(w, '}')
 }
 
 func (item *StatshouseGetTagMappingBootstrap) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetTagMappingBootstrap) UnmarshalJSON(b []byte) error {
@@ -219,9 +228,15 @@ func (item *StatshouseGetTagMappingBootstrapBytes) Read(w []byte) (_ []byte, err
 	return item.Header.Read(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetTagMappingBootstrapBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return item.Header.Write(w, item.FieldsMask)
+	w = item.Header.Write(w, item.FieldsMask)
+	return w
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -231,7 +246,12 @@ func (item *StatshouseGetTagMappingBootstrapBytes) ReadBoxed(w []byte) (_ []byte
 	return item.Read(w)
 }
 
-func (item *StatshouseGetTagMappingBootstrapBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x75a7f68e)
 	return item.Write(w)
 }
@@ -241,7 +261,8 @@ func (item *StatshouseGetTagMappingBootstrapBytes) ReadResult(w []byte, ret *Sta
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) WriteResult(w []byte, ret StatshouseGetTagMappingBootstrapResultBytes) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingBootstrapResultBytes) error {
@@ -256,9 +277,7 @@ func (item *StatshouseGetTagMappingBootstrapBytes) WriteResultJSON(w []byte, ret
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingBootstrapResultBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -291,11 +310,7 @@ func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultJSONWriteResult(r [
 }
 
 func (item StatshouseGetTagMappingBootstrapBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -352,10 +367,15 @@ func (item *StatshouseGetTagMappingBootstrapBytes) ReadJSON(legacyTypeNames bool
 	return nil
 }
 
-func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -366,14 +386,12 @@ func (item *StatshouseGetTagMappingBootstrapBytes) WriteJSONOpt(newTypeNames boo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	return append(w, '}')
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) UnmarshalJSON(b []byte) error {

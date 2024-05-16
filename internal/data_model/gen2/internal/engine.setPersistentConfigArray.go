@@ -33,9 +33,15 @@ func (item *EngineSetPersistentConfigArray) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorIntRead(w, &item.Values)
 }
 
-func (item *EngineSetPersistentConfigArray) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineSetPersistentConfigArray) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetPersistentConfigArray) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Name)
-	return BuiltinVectorIntWrite(w, item.Values)
+	w = BuiltinVectorIntWrite(w, item.Values)
+	return w
 }
 
 func (item *EngineSetPersistentConfigArray) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *EngineSetPersistentConfigArray) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *EngineSetPersistentConfigArray) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetPersistentConfigArray) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetPersistentConfigArray) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xfc99af0b)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *EngineSetPersistentConfigArray) ReadResult(w []byte, ret *True) (_ [
 }
 
 func (item *EngineSetPersistentConfigArray) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetPersistentConfigArray) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -70,9 +82,7 @@ func (item *EngineSetPersistentConfigArray) WriteResultJSON(w []byte, ret True) 
 }
 
 func (item *EngineSetPersistentConfigArray) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *EngineSetPersistentConfigArray) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item EngineSetPersistentConfigArray) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetPersistentConfigArray) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,17 +186,15 @@ func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexValues := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"values":`...)
-	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values)
 	if (len(item.Values) != 0) == false {
 		w = w[:backupIndexValues]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetPersistentConfigArray) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetPersistentConfigArray) UnmarshalJSON(b []byte) error {

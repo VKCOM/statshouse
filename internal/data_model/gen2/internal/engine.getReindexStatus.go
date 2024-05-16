@@ -23,7 +23,14 @@ func (item *EngineGetReindexStatus) Reset() {}
 
 func (item *EngineGetReindexStatus) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *EngineGetReindexStatus) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *EngineGetReindexStatus) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineGetReindexStatus) Write(w []byte) []byte {
+	return w
+}
 
 func (item *EngineGetReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xf492042e); err != nil {
@@ -32,7 +39,12 @@ func (item *EngineGetReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineGetReindexStatus) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineGetReindexStatus) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineGetReindexStatus) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf492042e)
 	return item.Write(w)
 }
@@ -42,7 +54,8 @@ func (item *EngineGetReindexStatus) ReadResult(w []byte, ret *EngineReindexStatu
 }
 
 func (item *EngineGetReindexStatus) WriteResult(w []byte, ret EngineReindexStatus) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineGetReindexStatus) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineReindexStatus) error {
@@ -57,9 +70,7 @@ func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexS
 }
 
 func (item *EngineGetReindexStatus) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineReindexStatus) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -92,11 +103,7 @@ func (item *EngineGetReindexStatus) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineGetReindexStatus) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineGetReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -116,16 +123,21 @@ func (item *EngineGetReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *EngineGetReindexStatus) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineGetReindexStatus) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineGetReindexStatus) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineGetReindexStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineGetReindexStatus) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineGetReindexStatus) UnmarshalJSON(b []byte) error {

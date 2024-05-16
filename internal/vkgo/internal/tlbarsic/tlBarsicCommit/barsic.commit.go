@@ -52,11 +52,17 @@ func (item *BarsicCommit) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.SafeSnapshotOffset)
 }
 
-func (item *BarsicCommit) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicCommit) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicCommit) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWrite(w, item.SnapshotMeta)
-	return basictl.LongWrite(w, item.SafeSnapshotOffset), nil
+	w = basictl.LongWrite(w, item.SafeSnapshotOffset)
+	return w
 }
 
 func (item *BarsicCommit) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -66,7 +72,12 @@ func (item *BarsicCommit) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicCommit) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicCommit) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicCommit) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12357324)
 	return item.Write(w)
 }
@@ -76,7 +87,8 @@ func (item *BarsicCommit) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err 
 }
 
 func (item *BarsicCommit) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicCommit) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -91,9 +103,7 @@ func (item *BarsicCommit) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, 
 }
 
 func (item *BarsicCommit) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -126,11 +136,7 @@ func (item *BarsicCommit) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte,
 }
 
 func (item BarsicCommit) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicCommit) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -205,10 +211,15 @@ func (item *BarsicCommit) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) 
 	return nil
 }
 
-func (item *BarsicCommit) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicCommit) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicCommit) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicCommit) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicCommit) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -238,11 +249,11 @@ func (item *BarsicCommit) WriteJSONOpt(newTypeNames bool, short bool, w []byte) 
 	if (item.SafeSnapshotOffset != 0) == false {
 		w = w[:backupIndexSafeSnapshotOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicCommit) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicCommit) UnmarshalJSON(b []byte) error {
@@ -288,11 +299,17 @@ func (item *BarsicCommitBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.SafeSnapshotOffset)
 }
 
-func (item *BarsicCommitBytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicCommitBytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicCommitBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
-	return basictl.LongWrite(w, item.SafeSnapshotOffset), nil
+	w = basictl.LongWrite(w, item.SafeSnapshotOffset)
+	return w
 }
 
 func (item *BarsicCommitBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -302,7 +319,12 @@ func (item *BarsicCommitBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicCommitBytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicCommitBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicCommitBytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12357324)
 	return item.Write(w)
 }
@@ -312,7 +334,8 @@ func (item *BarsicCommitBytes) ReadResult(w []byte, ret *tlTrue.True) (_ []byte,
 }
 
 func (item *BarsicCommitBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicCommitBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -327,9 +350,7 @@ func (item *BarsicCommitBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []b
 }
 
 func (item *BarsicCommitBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -362,11 +383,7 @@ func (item *BarsicCommitBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]
 }
 
 func (item BarsicCommitBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicCommitBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -441,10 +458,15 @@ func (item *BarsicCommitBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *BarsicCommitBytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicCommitBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicCommitBytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicCommitBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicCommitBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -474,11 +496,11 @@ func (item *BarsicCommitBytes) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if (item.SafeSnapshotOffset != 0) == false {
 		w = w[:backupIndexSafeSnapshotOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicCommitBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicCommitBytes) UnmarshalJSON(b []byte) error {

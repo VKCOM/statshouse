@@ -66,7 +66,7 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
@@ -90,7 +90,7 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
@@ -114,7 +114,7 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.changeRole", err)
 	}
@@ -138,7 +138,7 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
@@ -162,7 +162,7 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
@@ -186,7 +186,7 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
@@ -210,7 +210,7 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
@@ -234,7 +234,7 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
@@ -258,7 +258,7 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
@@ -282,7 +282,7 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineWantsRestart", err)
 	}
@@ -306,7 +306,7 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.reindex", err)
 	}
@@ -330,7 +330,7 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.revert", err)
 	}
@@ -354,7 +354,7 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.shutdown", err)
 	}
@@ -378,7 +378,7 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.skip", err)
 	}
@@ -402,7 +402,7 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
 	}
@@ -426,7 +426,7 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
 	}

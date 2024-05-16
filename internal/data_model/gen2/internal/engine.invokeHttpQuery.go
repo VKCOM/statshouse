@@ -28,8 +28,14 @@ func (item *EngineInvokeHttpQuery) Read(w []byte) (_ []byte, err error) {
 	return item.Query.Read(w)
 }
 
-func (item *EngineInvokeHttpQuery) Write(w []byte) (_ []byte, err error) {
-	return item.Query.Write(w)
+// This method is general version of Write, use it instead!
+func (item *EngineInvokeHttpQuery) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineInvokeHttpQuery) Write(w []byte) []byte {
+	w = item.Query.Write(w)
+	return w
 }
 
 func (item *EngineInvokeHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineInvokeHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineInvokeHttpQuery) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineInvokeHttpQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineInvokeHttpQuery) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf4c73c0b)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineInvokeHttpQuery) ReadResult(w []byte, ret *EngineHttpQueryResp
 }
 
 func (item *EngineInvokeHttpQuery) WriteResult(w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineInvokeHttpQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineHttpQueryResponse) error {
@@ -64,9 +76,7 @@ func (item *EngineInvokeHttpQuery) WriteResultJSON(w []byte, ret EngineHttpQuery
 }
 
 func (item *EngineInvokeHttpQuery) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineInvokeHttpQuery) ReadResultJSONWriteResult(r []byte, w []byte)
 }
 
 func (item EngineInvokeHttpQuery) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineInvokeHttpQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,21 +148,24 @@ func (item *EngineInvokeHttpQuery) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	return nil
 }
 
-func (item *EngineInvokeHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineInvokeHttpQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineInvokeHttpQuery) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineInvokeHttpQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineInvokeHttpQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Query.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *EngineInvokeHttpQuery) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineInvokeHttpQuery) UnmarshalJSON(b []byte) error {

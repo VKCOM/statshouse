@@ -28,11 +28,11 @@ func BuiltinTuple4IntRead(w []byte, vec *[4]int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinTuple4IntWrite(w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntWrite(w []byte, vec *[4]int32) []byte {
 	for _, elem := range *vec {
 		w = basictl.IntWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinTuple4IntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[4]int32) error {
@@ -62,16 +62,16 @@ func BuiltinTuple4IntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *
 	return nil
 }
 
-func BuiltinTuple4IntWriteJSON(w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntWriteJSON(w []byte, vec *[4]int32) []byte {
 	return BuiltinTuple4IntWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinTuple4IntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[4]int32) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteInt32(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
@@ -95,12 +95,12 @@ func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorIntWrite(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWrite(w []byte, vec []int32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.IntWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int32) error {
@@ -131,16 +131,16 @@ func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *
 	return nil
 }
 
-func BuiltinVectorIntWriteJSON(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSON(w []byte, vec []int32) []byte {
 	return BuiltinVectorIntWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorIntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteInt32(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type Int int32
@@ -158,9 +158,14 @@ func (item *Int) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, ptr)
 }
 
-func (item *Int) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *Int) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *Int) Write(w []byte) []byte {
 	ptr := (*int32)(item)
-	return basictl.IntWrite(w, *ptr), nil
+	return basictl.IntWrite(w, *ptr)
 }
 
 func (item *Int) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -170,17 +175,18 @@ func (item *Int) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *Int) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *Int) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *Int) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xa8509bda)
 	return item.Write(w)
 }
 
 func (item Int) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *Int) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -191,17 +197,22 @@ func (item *Int) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	return nil
 }
 
-func (item *Int) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *Int) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *Int) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *Int) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *Int) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	ptr := (*int32)(item)
 	w = basictl.JSONWriteInt32(w, *ptr)
-	return w, nil
+	return w
 }
 func (item *Int) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *Int) UnmarshalJSON(b []byte) error {

@@ -45,6 +45,6 @@ type (
 func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
 	return internal.BoolReadBoxed(w, v)
 }
-func BoolWriteBoxed(w []byte, v bool) ([]byte, error) {
+func BoolWriteBoxed(w []byte, v bool) []byte {
 	return internal.BoolWriteBoxed(w, v)
 }

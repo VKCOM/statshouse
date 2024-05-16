@@ -292,25 +292,24 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *RpcInvokeReqExtra) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *RpcInvokeReqExtra) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<15) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldLongWrite(w, item.WaitShardsBinlogPos); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldLongWrite(w, item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		w = basictl.LongWrite(w, item.WaitBinlogPos)
 	}
 	if item.Flags&(1<<18) != 0 {
-		if w, err = BuiltinVectorStringWrite(w, item.StringForwardKeys); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStringWrite(w, item.StringForwardKeys)
 	}
 	if item.Flags&(1<<19) != 0 {
-		if w, err = BuiltinVectorLongWrite(w, item.IntForwardKeys); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorLongWrite(w, item.IntForwardKeys)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.StringWrite(w, item.StringForward)
@@ -327,7 +326,7 @@ func (item *RpcInvokeReqExtra) Write(w []byte) (_ []byte, err error) {
 	if item.Flags&(1<<26) != 0 {
 		w = basictl.DoubleWrite(w, item.RandomDelay)
 	}
-	return w, nil
+	return w
 }
 
 func (item *RpcInvokeReqExtra) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -337,17 +336,18 @@ func (item *RpcInvokeReqExtra) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcInvokeReqExtra) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcInvokeReqExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcInvokeReqExtra) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf3ef81a9)
 	return item.Write(w)
 }
 
 func (item RpcInvokeReqExtra) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -692,10 +692,15 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	return nil
 }
 
-func (item *RpcInvokeReqExtra) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcInvokeReqExtra) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcInvokeReqExtra) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -739,9 +744,7 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"wait_shards_binlog_pos":`...)
-		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.WaitShardsBinlogPos); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -751,16 +754,12 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<18) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"string_forward_keys":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StringForwardKeys); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StringForwardKeys)
 	}
 	if item.Flags&(1<<19) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"int_forward_keys":`...)
-		if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.IntForwardKeys); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.IntForwardKeys)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -791,11 +790,11 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_view_number":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcInvokeReqExtra) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcInvokeReqExtra) UnmarshalJSON(b []byte) error {

@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseApiFilterRead(w []byte, vec *[]StatshouseApiFilter) 
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiFilterWrite(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFilterWrite(w []byte, vec []StatshouseApiFilter) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiFilter) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames bool, in *basictl.
 	return nil
 }
 
-func BuiltinVectorStatshouseApiFilterWriteJSON(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFilterWriteJSON(w []byte, vec []StatshouseApiFilter) []byte {
 	return BuiltinVectorStatshouseApiFilterWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFilter) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseApiFilter struct {
@@ -111,10 +107,16 @@ func (item *StatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseApiTagValueRead(w, &item.Values)
 }
 
-func (item *StatshouseApiFilter) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiFilter) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiFilter) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.Key)
-	return BuiltinVectorStatshouseApiTagValueWrite(w, item.Values)
+	w = BuiltinVectorStatshouseApiTagValueWrite(w, item.Values)
+	return w
 }
 
 func (item *StatshouseApiFilter) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -124,17 +126,18 @@ func (item *StatshouseApiFilter) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseApiFilter) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiFilter) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiFilter) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x511276a6)
 	return item.Write(w)
 }
 
 func (item StatshouseApiFilter) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiFilter) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -197,10 +200,15 @@ func (item *StatshouseApiFilter) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	return nil
 }
 
-func (item *StatshouseApiFilter) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiFilter) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiFilter) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiFilter) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiFilter) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -219,17 +227,15 @@ func (item *StatshouseApiFilter) WriteJSONOpt(newTypeNames bool, short bool, w [
 	backupIndexValues := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"values":`...)
-	if w, err = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(newTypeNames, short, w, item.Values); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(newTypeNames, short, w, item.Values)
 	if (len(item.Values) != 0) == false {
 		w = w[:backupIndexValues]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiFilter) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiFilter) UnmarshalJSON(b []byte) error {

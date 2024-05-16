@@ -28,7 +28,12 @@ func (item *DictionaryLong) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
 }
 
-func (item *DictionaryLong) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *DictionaryLong) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *DictionaryLong) Write(w []byte) []byte {
 	ptr := (*map[string]int64)(item)
 	return BuiltinVectorDictionaryFieldLongWrite(w, *ptr)
 }
@@ -40,17 +45,18 @@ func (item *DictionaryLong) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *DictionaryLong) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *DictionaryLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *DictionaryLong) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1f4c618f)
 	return item.Write(w)
 }
 
 func (item DictionaryLong) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -61,19 +67,22 @@ func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 	return nil
 }
 
-func (item *DictionaryLong) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *DictionaryLong) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *DictionaryLong) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *DictionaryLong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryLong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	ptr := (*map[string]int64)(item)
-	if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
+	w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, *ptr)
+	return w
 }
 func (item *DictionaryLong) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *DictionaryLong) UnmarshalJSON(b []byte) error {
@@ -98,7 +107,12 @@ func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
-func (item *DictionaryString) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *DictionaryString) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *DictionaryString) Write(w []byte) []byte {
 	ptr := (*map[string]string)(item)
 	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
 }
@@ -110,17 +124,18 @@ func (item *DictionaryString) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *DictionaryString) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *DictionaryString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *DictionaryString) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1f4c618f)
 	return item.Write(w)
 }
 
 func (item DictionaryString) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -131,19 +146,22 @@ func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	return nil
 }
 
-func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *DictionaryString) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *DictionaryString) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *DictionaryString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, *ptr)
+	return w
 }
 func (item *DictionaryString) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *DictionaryString) UnmarshalJSON(b []byte) error {

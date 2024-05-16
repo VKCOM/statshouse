@@ -23,7 +23,14 @@ func (item *EngineSwitchToMasterMode) Reset() {}
 
 func (item *EngineSwitchToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *EngineSwitchToMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *EngineSwitchToMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSwitchToMasterMode) Write(w []byte) []byte {
+	return w
+}
 
 func (item *EngineSwitchToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x8cdcb5f9); err != nil {
@@ -32,7 +39,12 @@ func (item *EngineSwitchToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-func (item *EngineSwitchToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSwitchToMasterMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSwitchToMasterMode) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8cdcb5f9)
 	return item.Write(w)
 }
@@ -42,7 +54,8 @@ func (item *EngineSwitchToMasterMode) ReadResult(w []byte, ret *EngineSwitchMast
 }
 
 func (item *EngineSwitchToMasterMode) WriteResult(w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSwitchToMasterMode) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineSwitchMasterReplicaModeResult) error {
@@ -57,9 +70,7 @@ func (item *EngineSwitchToMasterMode) WriteResultJSON(w []byte, ret EngineSwitch
 }
 
 func (item *EngineSwitchToMasterMode) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -92,11 +103,7 @@ func (item *EngineSwitchToMasterMode) ReadResultJSONWriteResult(r []byte, w []by
 }
 
 func (item EngineSwitchToMasterMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSwitchToMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -116,16 +123,21 @@ func (item *EngineSwitchToMasterMode) ReadJSON(legacyTypeNames bool, in *basictl
 	return nil
 }
 
-func (item *EngineSwitchToMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSwitchToMasterMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSwitchToMasterMode) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSwitchToMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchToMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSwitchToMasterMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSwitchToMasterMode) UnmarshalJSON(b []byte) error {

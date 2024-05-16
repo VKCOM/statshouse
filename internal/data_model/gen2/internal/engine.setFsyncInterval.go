@@ -28,8 +28,14 @@ func (item *EngineSetFsyncInterval) Read(w []byte) (_ []byte, err error) {
 	return basictl.DoubleRead(w, &item.Seconds)
 }
 
-func (item *EngineSetFsyncInterval) Write(w []byte) (_ []byte, err error) {
-	return basictl.DoubleWrite(w, item.Seconds), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSetFsyncInterval) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetFsyncInterval) Write(w []byte) []byte {
+	w = basictl.DoubleWrite(w, item.Seconds)
+	return w
 }
 
 func (item *EngineSetFsyncInterval) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineSetFsyncInterval) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSetFsyncInterval) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetFsyncInterval) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetFsyncInterval) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x665d2ab7)
 	return item.Write(w)
 }
@@ -49,7 +60,8 @@ func (item *EngineSetFsyncInterval) ReadResult(w []byte, ret *BoolStat) (_ []byt
 }
 
 func (item *EngineSetFsyncInterval) WriteResult(w []byte, ret BoolStat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetFsyncInterval) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
@@ -64,9 +76,7 @@ func (item *EngineSetFsyncInterval) WriteResultJSON(w []byte, ret BoolStat) (_ [
 }
 
 func (item *EngineSetFsyncInterval) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -99,11 +109,7 @@ func (item *EngineSetFsyncInterval) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineSetFsyncInterval) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetFsyncInterval) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -142,10 +148,15 @@ func (item *EngineSetFsyncInterval) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *EngineSetFsyncInterval) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetFsyncInterval) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetFsyncInterval) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetFsyncInterval) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetFsyncInterval) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexSeconds := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,11 +165,11 @@ func (item *EngineSetFsyncInterval) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.Seconds != 0) == false {
 		w = w[:backupIndexSeconds]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetFsyncInterval) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetFsyncInterval) UnmarshalJSON(b []byte) error {

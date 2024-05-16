@@ -33,9 +33,15 @@ func (item *MetadataGetJournalResponsenew) Read(w []byte, nat_field_mask uint32)
 	return BuiltinVectorMetadataEventRead(w, &item.Events)
 }
 
-func (item *MetadataGetJournalResponsenew) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetJournalResponsenew) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenew) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return BuiltinVectorMetadataEventWrite(w, item.Events)
+	w = BuiltinVectorMetadataEventWrite(w, item.Events)
+	return w
 }
 
 func (item *MetadataGetJournalResponsenew) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *MetadataGetJournalResponsenew) ReadBoxed(w []byte, nat_field_mask ui
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenew) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetJournalResponsenew) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenew) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286aaaa)
 	return item.Write(w, nat_field_mask)
 }
@@ -98,10 +109,15 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 	return nil
 }
 
-func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetJournalResponsenew) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -113,13 +129,11 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"events":`...)
-	if w, err = BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames, short, w, item.Events); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames, short, w, item.Events)
 	if (len(item.Events) != 0) == false {
 		w = w[:backupIndexEvents]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 type MetadataGetJournalResponsenewBytes struct {
@@ -142,9 +156,15 @@ func (item *MetadataGetJournalResponsenewBytes) Read(w []byte, nat_field_mask ui
 	return BuiltinVectorMetadataEventBytesRead(w, &item.Events)
 }
 
-func (item *MetadataGetJournalResponsenewBytes) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetJournalResponsenewBytes) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenewBytes) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return BuiltinVectorMetadataEventBytesWrite(w, item.Events)
+	w = BuiltinVectorMetadataEventBytesWrite(w, item.Events)
+	return w
 }
 
 func (item *MetadataGetJournalResponsenewBytes) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -154,7 +174,12 @@ func (item *MetadataGetJournalResponsenewBytes) ReadBoxed(w []byte, nat_field_ma
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenewBytes) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetJournalResponsenewBytes) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenewBytes) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286aaaa)
 	return item.Write(w, nat_field_mask)
 }
@@ -207,10 +232,15 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 	return nil
 }
 
-func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -222,11 +252,9 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, 
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"events":`...)
-	if w, err = BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames, short, w, item.Events); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames, short, w, item.Events)
 	if (len(item.Events) != 0) == false {
 		w = w[:backupIndexEvents]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

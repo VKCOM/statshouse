@@ -23,7 +23,14 @@ func (item *MetadataPutMappingResponse) Reset() {}
 
 func (item *MetadataPutMappingResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *MetadataPutMappingResponse) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *MetadataPutMappingResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataPutMappingResponse) Write(w []byte) []byte {
+	return w
+}
 
 func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286abfe); err != nil {
@@ -32,17 +39,18 @@ func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *MetadataPutMappingResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutMappingResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutMappingResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9286abfe)
 	return item.Write(w)
 }
 
 func (item MetadataPutMappingResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataPutMappingResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -62,16 +70,21 @@ func (item *MetadataPutMappingResponse) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *MetadataPutMappingResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutMappingResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutMappingResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataPutMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataPutMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutMappingResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutMappingResponse) UnmarshalJSON(b []byte) error {

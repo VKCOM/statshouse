@@ -38,12 +38,16 @@ func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_
 	return basictl.IntRead(w, &item.PreviousAddresses)
 }
 
-func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = BuiltinVectorStringWrite(w, item.Addresses); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfigResult) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) []byte {
+	w = BuiltinVectorStringWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
-	return basictl.IntWrite(w, item.PreviousAddresses), nil
+	w = basictl.IntWrite(w, item.PreviousAddresses)
+	return w
 }
 
 func (item *StatshouseGetConfigResult) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -53,7 +57,12 @@ func (item *StatshouseGetConfigResult) ReadBoxed(w []byte, nat_fields_mask uint3
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResult) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfigResult) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803d07)
 	return item.Write(w, nat_fields_mask)
 }
@@ -118,17 +127,20 @@ func (item *StatshouseGetConfigResult) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *StatshouseGetConfigResult) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfigResult) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseGetConfigResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseGetConfigResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Addresses); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Addresses)
 	if (len(item.Addresses) != 0) == false {
 		w = w[:backupIndexAddresses]
 	}
@@ -146,7 +158,7 @@ func (item *StatshouseGetConfigResult) WriteJSONOpt(newTypeNames bool, short boo
 	if (item.PreviousAddresses != 0) == false {
 		w = w[:backupIndexPreviousAddresses]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 type StatshouseGetConfigResultBytes struct {
@@ -174,12 +186,16 @@ func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint3
 	return basictl.IntRead(w, &item.PreviousAddresses)
 }
 
-func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = BuiltinVectorStringBytesWrite(w, item.Addresses); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint32) []byte {
+	w = BuiltinVectorStringBytesWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
-	return basictl.IntWrite(w, item.PreviousAddresses), nil
+	w = basictl.IntWrite(w, item.PreviousAddresses)
+	return w
 }
 
 func (item *StatshouseGetConfigResultBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -189,7 +205,12 @@ func (item *StatshouseGetConfigResultBytes) ReadBoxed(w []byte, nat_fields_mask 
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResultBytes) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803d07)
 	return item.Write(w, nat_fields_mask)
 }
@@ -254,17 +275,20 @@ func (item *StatshouseGetConfigResultBytes) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *StatshouseGetConfigResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	if w, err = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Addresses); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Addresses)
 	if (len(item.Addresses) != 0) == false {
 		w = w[:backupIndexAddresses]
 	}
@@ -282,5 +306,5 @@ func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(newTypeNames bool, shor
 	if (item.PreviousAddresses != 0) == false {
 		w = w[:backupIndexPreviousAddresses]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

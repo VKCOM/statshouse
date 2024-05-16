@@ -57,7 +57,7 @@ func preparePacket(req *Request, deadline time.Time) error {
 	req.extraStart = len(headerBuf)
 
 	reqHeader := tl.RpcInvokeReqHeader{QueryId: req.queryID}
-	headerBuf, _ = reqHeader.Write(headerBuf)
+	headerBuf = reqHeader.Write(headerBuf)
 	switch {
 	case req.ActorID != 0 && req.Extra.Flags != 0:
 		// extra := tl.RpcDestActorFlags{ActorId: req.ActorID, Extra: req.Extra.RpcInvokeReqExtra}
@@ -65,22 +65,16 @@ func preparePacket(req *Request, deadline time.Time) error {
 		// here we optimize copy of large extra
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestActorFlags{}.TLTag())
 		headerBuf = basictl.LongWrite(headerBuf, req.ActorID)
-		var err error
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
+		headerBuf = req.Extra.Write(headerBuf)
 	case req.Extra.Flags != 0:
 		// extra := tl.RpcDestFlags{Extra: req.Extra.RpcInvokeReqExtra}
 		// if headerBuf, err = extra.WriteBoxed(headerBuf); err != nil {
 		// here we optimize copy of large extra
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestFlags{}.TLTag())
-		var err error
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
+		headerBuf = req.Extra.Write(headerBuf)
 	case req.ActorID != 0:
 		extra := tl.RpcDestActor{ActorId: req.ActorID}
-		headerBuf, _ = extra.WriteBoxed(headerBuf)
+		headerBuf = extra.WriteBoxed(headerBuf)
 	}
 	if err := validBodyLen(len(headerBuf)); err != nil { // exact
 		return err

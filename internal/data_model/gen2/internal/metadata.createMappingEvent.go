@@ -63,13 +63,19 @@ func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.UpdatedAt)
 }
 
-func (item *MetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataCreateMappingEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataCreateMappingEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.IntWrite(w, item.Id)
 	w = basictl.StringWrite(w, item.Key)
 	w = basictl.StringWrite(w, item.Metric)
 	w = basictl.LongWrite(w, item.Budget)
-	return basictl.NatWrite(w, item.UpdatedAt), nil
+	w = basictl.NatWrite(w, item.UpdatedAt)
+	return w
 }
 
 func (item *MetadataCreateMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -79,17 +85,18 @@ func (item *MetadataCreateMappingEvent) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *MetadataCreateMappingEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataCreateMappingEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataCreateMappingEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12345678)
 	return item.Write(w)
 }
 
 func (item MetadataCreateMappingEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *MetadataCreateMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -207,10 +214,15 @@ func (item *MetadataCreateMappingEvent) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataCreateMappingEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataCreateMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataCreateMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -258,11 +270,11 @@ func (item *MetadataCreateMappingEvent) WriteJSONOpt(newTypeNames bool, short bo
 	if (item.UpdatedAt != 0) == false {
 		w = w[:backupIndexUpdatedAt]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataCreateMappingEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataCreateMappingEvent) UnmarshalJSON(b []byte) error {

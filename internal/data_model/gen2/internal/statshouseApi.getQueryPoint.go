@@ -38,10 +38,16 @@ func (item *StatshouseApiGetQueryPoint) Read(w []byte) (_ []byte, err error) {
 	return item.Query.Read(w)
 }
 
-func (item *StatshouseApiGetQueryPoint) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiGetQueryPoint) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiGetQueryPoint) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.AccessToken)
-	return item.Query.Write(w)
+	w = item.Query.Write(w)
+	return w
 }
 
 func (item *StatshouseApiGetQueryPoint) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *StatshouseApiGetQueryPoint) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *StatshouseApiGetQueryPoint) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiGetQueryPoint) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiGetQueryPoint) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc7348bb)
 	return item.Write(w)
 }
@@ -61,7 +72,8 @@ func (item *StatshouseApiGetQueryPoint) ReadResult(w []byte, ret *StatshouseApiG
 }
 
 func (item *StatshouseApiGetQueryPoint) WriteResult(w []byte, ret StatshouseApiGetQueryPointResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *StatshouseApiGetQueryPoint) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetQueryPointResponse) error {
@@ -76,9 +88,7 @@ func (item *StatshouseApiGetQueryPoint) WriteResultJSON(w []byte, ret Statshouse
 }
 
 func (item *StatshouseApiGetQueryPoint) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiGetQueryPointResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -111,11 +121,7 @@ func (item *StatshouseApiGetQueryPoint) ReadResultJSONWriteResult(r []byte, w []
 }
 
 func (item StatshouseApiGetQueryPoint) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiGetQueryPoint) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -178,10 +184,15 @@ func (item *StatshouseApiGetQueryPoint) ReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func (item *StatshouseApiGetQueryPoint) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiGetQueryPoint) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiGetQueryPoint) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiGetQueryPoint) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryPoint) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -199,14 +210,12 @@ func (item *StatshouseApiGetQueryPoint) WriteJSONOpt(newTypeNames bool, short bo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Query.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *StatshouseApiGetQueryPoint) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiGetQueryPoint) UnmarshalJSON(b []byte) error {

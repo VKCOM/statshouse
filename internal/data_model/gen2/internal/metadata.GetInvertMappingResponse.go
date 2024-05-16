@@ -78,16 +78,20 @@ func (item *MetadataGetInvertMappingResponse) ReadBoxed(w []byte, nat_field_mask
 	}
 }
 
-func (item *MetadataGetInvertMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetInvertMappingResponse) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, _MetadataGetInvertMappingResponse[item.index].TLTag)
 	switch item.index {
 	case 0:
-		return item.valueGetInvertMappingResponse.Write(w, nat_field_mask)
+		w = item.valueGetInvertMappingResponse.Write(w, nat_field_mask)
 	case 1:
-		return w, nil
-	default: // Impossible due to panic above
-		return w, nil
+		return w
 	}
+	return w
 }
 
 func (item *MetadataGetInvertMappingResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
@@ -120,10 +124,15 @@ func (item *MetadataGetInvertMappingResponse) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *MetadataGetInvertMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetInvertMappingResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetInvertMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetInvertMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	switch item.index {
 	case 0:
 		if newTypeNames {
@@ -132,19 +141,17 @@ func (item *MetadataGetInvertMappingResponse) WriteJSONOpt(newTypeNames bool, sh
 			w = append(w, `{"type":"metadata.getInvertMappingResponse#9286abac"`...)
 		}
 		w = append(w, `,"value":`...)
-		if w, err = item.valueGetInvertMappingResponse.WriteJSONOpt(newTypeNames, short, w, nat_field_mask); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
+		w = item.valueGetInvertMappingResponse.WriteJSONOpt(newTypeNames, short, w, nat_field_mask)
+		return append(w, '}')
 	case 1:
 		if newTypeNames {
 			w = append(w, `{"type":"metadata.getInvertMappingResponseKeyNotExists"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getInvertMappingResponseKeyNotExists#9286abab"`...)
 		}
-		return append(w, '}'), nil
+		return append(w, '}')
 	default: // Impossible due to panic above
-		return w, nil
+		return w
 	}
 }
 
@@ -169,8 +176,14 @@ func (item *MetadataGetInvertMappingResponse0) Read(w []byte, nat_field_mask uin
 	return basictl.StringRead(w, &item.Key)
 }
 
-func (item *MetadataGetInvertMappingResponse0) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Key), nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetInvertMappingResponse0) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponse0) Write(w []byte, nat_field_mask uint32) []byte {
+	w = basictl.StringWrite(w, item.Key)
+	return w
 }
 
 func (item *MetadataGetInvertMappingResponse0) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -180,7 +193,12 @@ func (item *MetadataGetInvertMappingResponse0) ReadBoxed(w []byte, nat_field_mas
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetInvertMappingResponse0) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetInvertMappingResponse0) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponse0) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abac)
 	return item.Write(w, nat_field_mask)
 }
@@ -221,10 +239,15 @@ func (item *MetadataGetInvertMappingResponse0) ReadJSON(legacyTypeNames bool, in
 	return nil
 }
 
-func (item *MetadataGetInvertMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetInvertMappingResponse0) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetInvertMappingResponse0) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetInvertMappingResponse0) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexKey := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -233,7 +256,7 @@ func (item *MetadataGetInvertMappingResponse0) WriteJSONOpt(newTypeNames bool, s
 	if (len(item.Key) != 0) == false {
 		w = w[:backupIndexKey]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item MetadataGetInvertMappingResponseKeyNotExists) AsUnion() MetadataGetInvertMappingResponse {
@@ -256,8 +279,13 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) Read(w []byte, nat_fie
 	return w, nil
 }
 
-func (item *MetadataGetInvertMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return w, nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) []byte {
+	return w
 }
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -267,7 +295,12 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) ReadBoxed(w []byte, na
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9286abab)
 	return item.Write(w, nat_field_mask)
 }
@@ -289,10 +322,15 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) ReadJSON(legacyTypeNam
 	return nil
 }
 
-func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }

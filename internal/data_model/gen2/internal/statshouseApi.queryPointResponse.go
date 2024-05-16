@@ -38,12 +38,16 @@ func (item *StatshouseApiGetQueryPointResponse) Read(w []byte) (_ []byte, err er
 	return BuiltinVectorStatshouseApiPointMetaRead(w, &item.Meta)
 }
 
-func (item *StatshouseApiGetQueryPointResponse) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiGetQueryPointResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiGetQueryPointResponse) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = BuiltinVectorDoubleWrite(w, item.Data); err != nil {
-		return w, err
-	}
-	return BuiltinVectorStatshouseApiPointMetaWrite(w, item.Meta)
+	w = BuiltinVectorDoubleWrite(w, item.Data)
+	w = BuiltinVectorStatshouseApiPointMetaWrite(w, item.Meta)
+	return w
 }
 
 func (item *StatshouseApiGetQueryPointResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,17 +57,18 @@ func (item *StatshouseApiGetQueryPointResponse) ReadBoxed(w []byte) (_ []byte, e
 	return item.Read(w)
 }
 
-func (item *StatshouseApiGetQueryPointResponse) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiGetQueryPointResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiGetQueryPointResponse) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4487e41a)
 	return item.Write(w)
 }
 
 func (item StatshouseApiGetQueryPointResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiGetQueryPointResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -126,10 +131,15 @@ func (item *StatshouseApiGetQueryPointResponse) ReadJSON(legacyTypeNames bool, i
 	return nil
 }
 
-func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiGetQueryPointResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,26 +151,22 @@ func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(newTypeNames bool, 
 	backupIndexData := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"data":`...)
-	if w, err = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.Data); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.Data)
 	if (len(item.Data) != 0) == false {
 		w = w[:backupIndexData]
 	}
 	backupIndexMeta := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"meta":`...)
-	if w, err = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames, short, w, item.Meta); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames, short, w, item.Meta)
 	if (len(item.Meta) != 0) == false {
 		w = w[:backupIndexMeta]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiGetQueryPointResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiGetQueryPointResponse) UnmarshalJSON(b []byte) error {

@@ -33,9 +33,15 @@ func (item *EngineSetVerbosityType) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Verbosity)
 }
 
-func (item *EngineSetVerbosityType) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineSetVerbosityType) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetVerbosityType) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Type)
-	return basictl.IntWrite(w, item.Verbosity), nil
+	w = basictl.IntWrite(w, item.Verbosity)
+	return w
 }
 
 func (item *EngineSetVerbosityType) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *EngineSetVerbosityType) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSetVerbosityType) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetVerbosityType) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetVerbosityType) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5388c0ae)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *EngineSetVerbosityType) ReadResult(w []byte, ret *True) (_ []byte, e
 }
 
 func (item *EngineSetVerbosityType) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetVerbosityType) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -70,9 +82,7 @@ func (item *EngineSetVerbosityType) WriteResultJSON(w []byte, ret True) (_ []byt
 }
 
 func (item *EngineSetVerbosityType) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *EngineSetVerbosityType) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineSetVerbosityType) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetVerbosityType) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *EngineSetVerbosityType) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *EngineSetVerbosityType) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetVerbosityType) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetVerbosityType) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetVerbosityType) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetVerbosityType) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexType := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -179,11 +190,11 @@ func (item *EngineSetVerbosityType) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.Verbosity != 0) == false {
 		w = w[:backupIndexVerbosity]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetVerbosityType) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetVerbosityType) UnmarshalJSON(b []byte) error {

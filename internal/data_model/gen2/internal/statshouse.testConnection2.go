@@ -48,14 +48,18 @@ func (item *StatshouseTestConnection2) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.ResponseTimeoutSec)
 }
 
-func (item *StatshouseTestConnection2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseTestConnection2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseTestConnection2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.Payload)
 	w = basictl.IntWrite(w, item.ResponseSize)
-	return basictl.IntWrite(w, item.ResponseTimeoutSec), nil
+	w = basictl.IntWrite(w, item.ResponseTimeoutSec)
+	return w
 }
 
 func (item *StatshouseTestConnection2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -65,7 +69,12 @@ func (item *StatshouseTestConnection2) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *StatshouseTestConnection2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseTestConnection2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseTestConnection2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff58)
 	return item.Write(w)
 }
@@ -79,7 +88,8 @@ func (item *StatshouseTestConnection2) ReadResult(w []byte, ret *string) (_ []by
 
 func (item *StatshouseTestConnection2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret), nil
+	w = basictl.StringWrite(w, ret)
+	return w, nil
 }
 
 func (item *StatshouseTestConnection2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
@@ -127,11 +137,7 @@ func (item *StatshouseTestConnection2) ReadResultJSONWriteResult(r []byte, w []b
 }
 
 func (item StatshouseTestConnection2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseTestConnection2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -224,10 +230,15 @@ func (item *StatshouseTestConnection2) ReadJSON(legacyTypeNames bool, in *basict
 	return nil
 }
 
-func (item *StatshouseTestConnection2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseTestConnection2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseTestConnection2) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseTestConnection2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -238,9 +249,7 @@ func (item *StatshouseTestConnection2) WriteJSONOpt(newTypeNames bool, short boo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexPayload := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"payload":`...)
@@ -262,11 +271,11 @@ func (item *StatshouseTestConnection2) WriteJSONOpt(newTypeNames bool, short boo
 	if (item.ResponseTimeoutSec != 0) == false {
 		w = w[:backupIndexResponseTimeoutSec]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseTestConnection2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseTestConnection2) UnmarshalJSON(b []byte) error {
@@ -311,14 +320,18 @@ func (item *StatshouseTestConnection2Bytes) Read(w []byte) (_ []byte, err error)
 	return basictl.IntRead(w, &item.ResponseTimeoutSec)
 }
 
-func (item *StatshouseTestConnection2Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseTestConnection2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseTestConnection2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.Payload)
 	w = basictl.IntWrite(w, item.ResponseSize)
-	return basictl.IntWrite(w, item.ResponseTimeoutSec), nil
+	w = basictl.IntWrite(w, item.ResponseTimeoutSec)
+	return w
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -328,7 +341,12 @@ func (item *StatshouseTestConnection2Bytes) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *StatshouseTestConnection2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseTestConnection2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseTestConnection2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff58)
 	return item.Write(w)
 }
@@ -342,7 +360,8 @@ func (item *StatshouseTestConnection2Bytes) ReadResult(w []byte, ret *[]byte) (_
 
 func (item *StatshouseTestConnection2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret), nil
+	w = basictl.StringWriteBytes(w, ret)
+	return w, nil
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
@@ -390,11 +409,7 @@ func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item StatshouseTestConnection2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -487,10 +502,15 @@ func (item *StatshouseTestConnection2Bytes) ReadJSON(legacyTypeNames bool, in *b
 	return nil
 }
 
-func (item *StatshouseTestConnection2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseTestConnection2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseTestConnection2Bytes) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -501,9 +521,7 @@ func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(newTypeNames bool, shor
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	backupIndexPayload := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"payload":`...)
@@ -525,11 +543,11 @@ func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(newTypeNames bool, shor
 	if (item.ResponseTimeoutSec != 0) == false {
 		w = w[:backupIndexResponseTimeoutSec]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseTestConnection2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseTestConnection2Bytes) UnmarshalJSON(b []byte) error {

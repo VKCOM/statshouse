@@ -38,10 +38,16 @@ func (item *NetPid) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Utime)
 }
 
-func (item *NetPid) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *NetPid) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *NetPid) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.Ip)
 	w = basictl.IntWrite(w, item.PortPid)
-	return basictl.IntWrite(w, item.Utime), nil
+	w = basictl.IntWrite(w, item.Utime)
+	return w
 }
 
 func (item *NetPid) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,17 +57,18 @@ func (item *NetPid) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *NetPid) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *NetPid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *NetPid) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x46409ccf)
 	return item.Write(w)
 }
 
 func (item NetPid) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *NetPid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -124,10 +131,15 @@ func (item *NetPid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	return nil
 }
 
-func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *NetPid) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *NetPid) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexIp := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -150,11 +162,11 @@ func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []b
 	if (item.Utime != 0) == false {
 		w = w[:backupIndexUtime]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *NetPid) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *NetPid) UnmarshalJSON(b []byte) error {

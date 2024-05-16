@@ -40,9 +40,15 @@ func (item *BarsicRevert) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Offset)
 }
 
-func (item *BarsicRevert) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *BarsicRevert) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *BarsicRevert) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return basictl.LongWrite(w, item.Offset), nil
+	w = basictl.LongWrite(w, item.Offset)
+	return w
 }
 
 func (item *BarsicRevert) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -52,7 +58,12 @@ func (item *BarsicRevert) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *BarsicRevert) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *BarsicRevert) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *BarsicRevert) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7e05a9de)
 	return item.Write(w)
 }
@@ -62,7 +73,8 @@ func (item *BarsicRevert) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err 
 }
 
 func (item *BarsicRevert) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *BarsicRevert) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
@@ -77,9 +89,7 @@ func (item *BarsicRevert) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, 
 }
 
 func (item *BarsicRevert) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -112,11 +122,7 @@ func (item *BarsicRevert) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte,
 }
 
 func (item BarsicRevert) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *BarsicRevert) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -167,10 +173,15 @@ func (item *BarsicRevert) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) 
 	return nil
 }
 
-func (item *BarsicRevert) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *BarsicRevert) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *BarsicRevert) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicRevert) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicRevert) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -186,11 +197,11 @@ func (item *BarsicRevert) WriteJSONOpt(newTypeNames bool, short bool, w []byte) 
 	if (item.Offset != 0) == false {
 		w = w[:backupIndexOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *BarsicRevert) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *BarsicRevert) UnmarshalJSON(b []byte) error {

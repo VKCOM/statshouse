@@ -34,14 +34,12 @@ func BuiltinVectorMetadataHistoryShortResponseEventRead(w []byte, vec *[]Metadat
 	return w, nil
 }
 
-func BuiltinVectorMetadataHistoryShortResponseEventWrite(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorMetadataHistoryShortResponseEventWrite(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w, nat_t); err != nil {
-			return w, err
-		}
+		w = elem.Write(w, nat_t)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorMetadataHistoryShortResponseEventReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
@@ -72,18 +70,16 @@ func BuiltinVectorMetadataHistoryShortResponseEventReadJSON(legacyTypeNames bool
 	return nil
 }
 
-func BuiltinVectorMetadataHistoryShortResponseEventWriteJSON(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorMetadataHistoryShortResponseEventWriteJSON(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
 	return BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w, nat_t); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type MetadataHistoryShortResponseEvent struct {
@@ -108,9 +104,15 @@ func (item *MetadataHistoryShortResponseEvent) Read(w []byte, nat_field_mask uin
 	return basictl.StringRead(w, &item.Metadata)
 }
 
-func (item *MetadataHistoryShortResponseEvent) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataHistoryShortResponseEvent) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataHistoryShortResponseEvent) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.Version)
-	return basictl.StringWrite(w, item.Metadata), nil
+	w = basictl.StringWrite(w, item.Metadata)
+	return w
 }
 
 func (item *MetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -120,7 +122,12 @@ func (item *MetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_field_mas
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataHistoryShortResponseEvent) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataHistoryShortResponseEvent) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_field_mask), nil
+}
+
+func (item *MetadataHistoryShortResponseEvent) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x1186baaf)
 	return item.Write(w, nat_field_mask)
 }
@@ -173,10 +180,15 @@ func (item *MetadataHistoryShortResponseEvent) ReadJSON(legacyTypeNames bool, in
 	return nil
 }
 
-func (item *MetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataHistoryShortResponseEvent) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+}
+
+func (item *MetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -192,5 +204,5 @@ func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(newTypeNames bool, s
 	if (len(item.Metadata) != 0) == false {
 		w = w[:backupIndexMetadata]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

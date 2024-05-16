@@ -243,7 +243,7 @@ func regenerateOldJSON(src []tlmetadata.Event) (res []*struct {
 
 func calculateStateHashLocked(events []tlmetadata.Event) string {
 	r := &tlmetadata.GetJournalResponsenew{Events: events}
-	bytes, _ := r.Write(nil, 0)
+	bytes := r.Write(nil, 0)
 	hash := sha1.Sum(bytes)
 	return hex.EncodeToString(hash[:])
 }
@@ -284,7 +284,7 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 
 	if ms.dc != nil && !stopWriteToDiscCache {
 		for _, e := range src {
-			buf, _ := e.WriteBoxed(nil)
+			buf := e.WriteBoxed(nil)
 			key := journalEventID{
 				typ: e.EventType,
 				id:  e.Id,

@@ -33,9 +33,15 @@ func (item *ReqError) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Error)
 }
 
-func (item *ReqError) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *ReqError) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *ReqError) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.Error), nil
+	w = basictl.StringWrite(w, item.Error)
+	return w
 }
 
 func (item *ReqError) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,17 +51,18 @@ func (item *ReqError) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *ReqError) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *ReqError) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *ReqError) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xb527877d)
 	return item.Write(w)
 }
 
 func (item ReqError) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *ReqError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -106,10 +113,15 @@ func (item *ReqError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) erro
 	return nil
 }
 
-func (item *ReqError) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *ReqError) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *ReqError) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *ReqError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *ReqError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexErrorCode := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -125,11 +137,11 @@ func (item *ReqError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ [
 	if (len(item.Error) != 0) == false {
 		w = w[:backupIndexError]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *ReqError) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *ReqError) UnmarshalJSON(b []byte) error {

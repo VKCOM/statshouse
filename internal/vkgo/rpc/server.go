@@ -905,7 +905,7 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 			ErrorCode: respErr.Code,
 			Error:     respErr.Description,
 		}
-		resp, _ = ret.WriteBoxed(resp)
+		resp = ret.WriteBoxed(resp)
 	}
 	if hctx.noResult { //We do not care what is in Response, might be any trash
 		return nil
@@ -916,14 +916,14 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	}
 	hctx.extraStart = len(resp)
 	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}
-	resp, _ = rest.Write(resp)
+	resp = rest.Write(resp)
 	hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
 	if hctx.ResponseExtra.Flags != 0 {
 		// extra := tl.ReqResultHeader{Extra: hctx.ResponseExtra}
 		// resp, _ = extra.WriteBoxed(resp) // should be no errors during writing
 		// we optimize copy of large extra here
 		resp = basictl.NatWrite(resp, tl.ReqResultHeader{}.TLTag())
-		resp, _ = hctx.ResponseExtra.Write(resp) // should be no errors during writing
+		resp = hctx.ResponseExtra.Write(resp) // should be no errors during writing
 	}
 	hctx.Response = resp
 	return validBodyLen(len(resp))

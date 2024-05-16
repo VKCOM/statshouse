@@ -33,9 +33,15 @@ func (item *KvEngineMetaInfo) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.CommittedOffset)
 }
 
-func (item *KvEngineMetaInfo) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *KvEngineMetaInfo) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *KvEngineMetaInfo) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.DbOffset)
-	return basictl.LongWrite(w, item.CommittedOffset), nil
+	w = basictl.LongWrite(w, item.CommittedOffset)
+	return w
 }
 
 func (item *KvEngineMetaInfo) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,17 +51,18 @@ func (item *KvEngineMetaInfo) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *KvEngineMetaInfo) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *KvEngineMetaInfo) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *KvEngineMetaInfo) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x53eeb763)
 	return item.Write(w)
 }
 
 func (item KvEngineMetaInfo) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *KvEngineMetaInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -106,10 +113,15 @@ func (item *KvEngineMetaInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	return nil
 }
 
-func (item *KvEngineMetaInfo) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *KvEngineMetaInfo) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *KvEngineMetaInfo) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineMetaInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineMetaInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexDbOffset := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -125,11 +137,11 @@ func (item *KvEngineMetaInfo) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if (item.CommittedOffset != 0) == false {
 		w = w[:backupIndexCommittedOffset]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *KvEngineMetaInfo) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *KvEngineMetaInfo) UnmarshalJSON(b []byte) error {

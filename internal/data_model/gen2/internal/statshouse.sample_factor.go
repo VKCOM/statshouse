@@ -34,14 +34,12 @@ func BuiltinVectorStatshouseSampleFactorRead(w []byte, vec *[]StatshouseSampleFa
 	return w, nil
 }
 
-func BuiltinVectorStatshouseSampleFactorWrite(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorWrite(w []byte, vec []StatshouseSampleFactor) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
 func BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor) error {
@@ -72,18 +70,16 @@ func BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames bool, in *basic
 	return nil
 }
 
-func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor) []byte {
 	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseSampleFactor) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
-			return w, err
-		}
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }
 
 type StatshouseSampleFactor struct {
@@ -106,9 +102,15 @@ func (item *StatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Value)
 }
 
-func (item *StatshouseSampleFactor) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseSampleFactor) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSampleFactor) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.Metric)
-	return basictl.FloatWrite(w, item.Value), nil
+	w = basictl.FloatWrite(w, item.Value)
+	return w
 }
 
 func (item *StatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -118,17 +120,18 @@ func (item *StatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseSampleFactor) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSampleFactor) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSampleFactor) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4f7b7822)
 	return item.Write(w)
 }
 
 func (item StatshouseSampleFactor) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -179,10 +182,15 @@ func (item *StatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.J
 	return nil
 }
 
-func (item *StatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSampleFactor) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSampleFactor) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMetric := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -198,11 +206,11 @@ func (item *StatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.Value != 0) == false {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {

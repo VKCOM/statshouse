@@ -23,7 +23,14 @@ func (item *EngineNop) Reset() {}
 
 func (item *EngineNop) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-func (item *EngineNop) Write(w []byte) (_ []byte, err error) { return w, nil }
+// This method is general version of Write, use it instead!
+func (item *EngineNop) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineNop) Write(w []byte) []byte {
+	return w
+}
 
 func (item *EngineNop) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x166bb7c6); err != nil {
@@ -32,7 +39,12 @@ func (item *EngineNop) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineNop) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineNop) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineNop) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x166bb7c6)
 	return item.Write(w)
 }
@@ -42,7 +54,8 @@ func (item *EngineNop) ReadResult(w []byte, ret *True) (_ []byte, err error) {
 }
 
 func (item *EngineNop) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineNop) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -57,9 +70,7 @@ func (item *EngineNop) WriteResultJSON(w []byte, ret True) (_ []byte, err error)
 }
 
 func (item *EngineNop) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -92,11 +103,7 @@ func (item *EngineNop) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []
 }
 
 func (item EngineNop) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineNop) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -116,16 +123,21 @@ func (item *EngineNop) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) err
 	return nil
 }
 
-func (item *EngineNop) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineNop) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineNop) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineNop) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineNop) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineNop) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineNop) UnmarshalJSON(b []byte) error {

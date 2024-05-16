@@ -33,9 +33,15 @@ func (item *EngineSetNoPersistentConfigArray) Read(w []byte) (_ []byte, err erro
 	return BuiltinVectorIntRead(w, &item.Values)
 }
 
-func (item *EngineSetNoPersistentConfigArray) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineSetNoPersistentConfigArray) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetNoPersistentConfigArray) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.Name)
-	return BuiltinVectorIntWrite(w, item.Values)
+	w = BuiltinVectorIntWrite(w, item.Values)
+	return w
 }
 
 func (item *EngineSetNoPersistentConfigArray) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *EngineSetNoPersistentConfigArray) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-func (item *EngineSetNoPersistentConfigArray) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetNoPersistentConfigArray) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetNoPersistentConfigArray) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5806a520)
 	return item.Write(w)
 }
@@ -55,7 +66,8 @@ func (item *EngineSetNoPersistentConfigArray) ReadResult(w []byte, ret *True) (_
 }
 
 func (item *EngineSetNoPersistentConfigArray) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
 func (item *EngineSetNoPersistentConfigArray) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
@@ -70,9 +82,7 @@ func (item *EngineSetNoPersistentConfigArray) WriteResultJSON(w []byte, ret True
 }
 
 func (item *EngineSetNoPersistentConfigArray) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
-		return w, err
-	}
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -105,11 +115,7 @@ func (item *EngineSetNoPersistentConfigArray) ReadResultJSONWriteResult(r []byte
 }
 
 func (item EngineSetNoPersistentConfigArray) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
 func (item *EngineSetNoPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -160,10 +166,15 @@ func (item *EngineSetNoPersistentConfigArray) ReadJSON(legacyTypeNames bool, in 
 	return nil
 }
 
-func (item *EngineSetNoPersistentConfigArray) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetNoPersistentConfigArray) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetNoPersistentConfigArray) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetNoPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetNoPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -175,17 +186,15 @@ func (item *EngineSetNoPersistentConfigArray) WriteJSONOpt(newTypeNames bool, sh
 	backupIndexValues := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"values":`...)
-	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values)
 	if (len(item.Values) != 0) == false {
 		w = w[:backupIndexValues]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetNoPersistentConfigArray) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetNoPersistentConfigArray) UnmarshalJSON(b []byte) error {
