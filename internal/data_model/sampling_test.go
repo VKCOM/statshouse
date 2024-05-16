@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
+
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 func TestSampling(t *testing.T) {
@@ -32,7 +33,7 @@ func TestSampling(t *testing.T) {
 		var keepSumSize int64
 		m := make(map[int32]*metricInfo)
 		s := NewSampler(len(b.series), SamplerConfig{
-			KeepF: func(k Key, item *MultiItem) {
+			KeepF: func(k Key, item *MultiItem, _ uint32) {
 				keepN++
 				keepSumSize += int64(samplingTestSizeOf(k, item))
 				stat := m[k.Metric]
@@ -47,7 +48,7 @@ func TestSampling(t *testing.T) {
 					}
 				}
 			},
-			DiscardF: func(k Key, item *MultiItem) {
+			DiscardF: func(k Key, item *MultiItem, _ uint32) {
 				discardN++
 				delete(b.series, k)
 				stat := m[k.Metric]
@@ -123,7 +124,7 @@ func TestSamplingWithNilKeepF(t *testing.T) {
 		})
 		s := NewSampler(len(b.series), SamplerConfig{
 			KeepF: nil, // agent doesn't set it
-			DiscardF: func(k Key, item *MultiItem) {
+			DiscardF: func(k Key, item *MultiItem, _ uint32) {
 				delete(b.series, k)
 			},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
@@ -172,10 +173,10 @@ func TestNoSamplingWhenFitBudget(t *testing.T) {
 		b.generateSeriesCount(t, samplingTestSpec{maxSeriesCount: 256, maxMetricCount: 256})
 		var (
 			s = NewSampler(len(b.series), SamplerConfig{
-				KeepF: func(k Key, v *MultiItem) {
+				KeepF: func(k Key, v *MultiItem, _ uint32) {
 					delete(b.series, k)
 				},
-				DiscardF: func(k Key, _ *MultiItem) {
+				DiscardF: func(k Key, _ *MultiItem, _ uint32) {
 					t.Fatal("budget is enough but series were discarded")
 				},
 			})
@@ -192,7 +193,7 @@ func TestNormalDistributionPreserved(t *testing.T) {
 			b     = newSamplingTestBucket()
 			r     = rand.New()
 			statM = make(map[Key]*samplingTestStat, len(b.series))
-			keepF = func(k Key, item *MultiItem) {
+			keepF = func(k Key, item *MultiItem, _ uint32) {
 				var s *samplingTestStat
 				if s = statM[k]; s == nil {
 					s = &samplingTestStat{}
@@ -240,12 +241,12 @@ func TestCompareSampleFactors(t *testing.T) {
 			sampleBudget:       rapid.IntRange(20, 20+sumSize*2).Draw(t, "max metric count"),
 		}
 		sizeSum := map[int]int{}
-		config.KeepF = func(k Key, v *MultiItem) {
+		config.KeepF = func(k Key, v *MultiItem, _ uint32) {
 			sizeSum[int(k.Metric)] += samplingTestSizeOf(k, v)
 		}
 		sf := sampleBucket(&bucket, config)
 		sizeSumLegacy := map[int]int{}
-		config.KeepF = func(k Key, v *MultiItem) {
+		config.KeepF = func(k Key, v *MultiItem, _ uint32) {
 			sizeSumLegacy[int(k.Metric)] += samplingTestSizeOf(k, v)
 		}
 		sfLegacy := sampleBucketLegacy(&bucket, config)
@@ -561,7 +562,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 		// Keep all elements in bucket
 		if config.KeepF != nil {
 			for _, v := range samplingMetric.items {
-				config.KeepF(v.Key, v.Item)
+				config.KeepF(v.Key, v.Item, bucket.Time)
 			}
 		}
 	}
@@ -570,7 +571,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 		if samplingMetric.noSampleAgent {
 			if config.KeepF != nil {
 				for _, v := range samplingMetric.items {
-					config.KeepF(v.Key, v.Item)
+					config.KeepF(v.Key, v.Item, bucket.Time)
 				}
 			}
 			continue
@@ -581,7 +582,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 			if sf <= 1 { // Many sample factors are between 1 and 2, so this is worthy optimization
 				if config.KeepF != nil {
 					for _, v := range samplingMetric.items {
-						config.KeepF(v.Key, v.Item)
+						config.KeepF(v.Key, v.Item, bucket.Time)
 					}
 				}
 				continue
@@ -606,7 +607,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 			// Keep all whale elements in bucket
 			if config.KeepF != nil {
 				for _, v := range samplingMetric.items[:whalesAllowed] {
-					config.KeepF(v.Key, v.Item)
+					config.KeepF(v.Key, v.Item, bucket.Time)
 				}
 			}
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
@@ -616,13 +617,13 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 		for _, v := range samplingMetric.items[:pos] {
 			v.Item.SF = sf // communicate selected factor to next step of processing
 			if config.KeepF != nil {
-				config.KeepF(v.Key, v.Item)
+				config.KeepF(v.Key, v.Item, bucket.Time)
 			}
 		}
 		for _, v := range samplingMetric.items[pos:] {
 			v.Item.SF = sf // communicate selected factor to next step of processing
 			if config.DiscardF != nil {
-				config.DiscardF(v.Key, v.Item)
+				config.DiscardF(v.Key, v.Item, bucket.Time)
 			}
 		}
 	}
