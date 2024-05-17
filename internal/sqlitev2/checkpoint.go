@@ -3,6 +3,7 @@ package sqlitev2
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -61,18 +62,16 @@ func (c *checkpointer) setWaitCheckpointOffsetLocked() {
 	c.waitCheckpoint = true
 }
 
-func (c *checkpointer) close() {
-	c.doCheckpointIfCan()
-
-}
-
 func (c *checkpointer) doCheckpointIfCan() {
 	c.e.rw.mu.Lock()
 	defer c.e.rw.mu.Unlock()
 	waitCheckpoint := c.waitCheckpoint
 	waitCheckpointOffset := c.waitCheckpointOffset
+	dbOffset := c.e.rw.dbOffset
 	commitOffset := c.e.re.GetCommitOffset()
-	if waitCheckpoint && waitCheckpointOffset <= commitOffset {
+	if waitCheckpoint && waitCheckpointOffset <= commitOffset &&
+		// в новом вале должен быть хотя бы один коммит
+		dbOffset > waitCheckpointOffset {
 		err := c.e.re.SetCommitOffsetAndSync(commitOffset)
 		if err != nil {
 			_ = c.e.rw.setErrorLocked(err)
@@ -82,12 +81,16 @@ func (c *checkpointer) doCheckpointIfCan() {
 		err = c.e.rw.conn.conn.Checkpoint()
 
 		if err != nil {
-			fmt.Println(fmt.Errorf("CHECKPOINT ERROR: %w", err).Error())
+			if debugFlag {
+				log.Println(fmt.Errorf("CHECKPOINT ERROR: %w", err).Error())
+			}
 			c.e.opt.StatsOptions.walCheckpointDuration("error", time.Since(start))
 			return
 		}
+		if debugFlag {
+			log.Println("CHECKPOINT OK: %w")
+		}
 		c.e.opt.StatsOptions.walCheckpointDuration("ok", time.Since(start))
-		fmt.Println("CHECKPOINT OK: %w")
 		c.waitCheckpoint = false
 	}
 }

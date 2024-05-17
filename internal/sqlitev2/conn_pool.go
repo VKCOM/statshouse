@@ -29,7 +29,7 @@ func newConnPool(maxROConn int, newConn func() (*sqliteConn, error), log *log.Lo
 	return p
 }
 
-func (p *connPool) get() (*sqliteConn, error) {
+func (p *connPool) Get() (*sqliteConn, error) {
 	var err error
 	p.roMx.Lock()
 	var conn *sqliteConn
@@ -52,14 +52,14 @@ func (p *connPool) get() (*sqliteConn, error) {
 	return conn, nil
 }
 
-func (p *connPool) put(conn *sqliteConn) {
+func (p *connPool) Put(conn *sqliteConn) {
 	p.roMx.Lock()
 	p.roFree = append(p.roFree, conn)
 	p.roMx.Unlock()
 	p.roCond.Signal()
 }
 
-func (p *connPool) close(error *error) {
+func (p *connPool) Close(error *error) {
 	p.roMx.Lock()
 	defer p.roMx.Unlock()
 	if len(p.roFree) != p.roCount {

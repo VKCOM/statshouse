@@ -13,8 +13,8 @@ const (
 	cacheKB     = 65536 // 64MB
 )
 
-func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
+func openRW(open func(path string, pageSize int32, flags int) (*sqlite0.Conn, error), path string, appID uint32, pageSize int32) (*sqlite0.Conn, error) {
+	conn, err := open(path, pageSize, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func open(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, pageSize int32, flags int) (*sqlite0.Conn, error) {
 	conn, err := open(path, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
@@ -57,6 +57,14 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
+	}
+
+	if pageSize > 0 {
+		err = conn.Exec(fmt.Sprintf("PRAGMA page_size=%d", pageSize))
+		if err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("failed to set page_size: %w", err)
+		}
 	}
 
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
@@ -68,7 +76,7 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 }
 
 func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly)
+	return openWAL(path, 0, sqlite0.OpenReadonly)
 }
 
 func checkSliceParamName(s string) bool {

@@ -117,7 +117,7 @@ func (c *Client) Healthcheck(ctx context.Context, args Healthcheck, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("kv_engine.healthcheck", err)
 	}

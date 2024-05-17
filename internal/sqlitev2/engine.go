@@ -72,12 +72,12 @@ type (
 		Path string
 
 		// Use this to specify your SQLITE db format
-		APPID int32
+		APPID uint32
 
 		// User table scheme
 		Scheme string
 
-		// OpenAndLock db in readonly mode. Don't use binlog in this mode
+		// Open db in readonly mode. Don't use binlog in this mode
 		ReadOnly bool
 		// Advanced RO mode, DONT USE
 		NotUseWALROMMode bool
@@ -87,6 +87,9 @@ type (
 
 		// Prepared statement's cache max size (soft)
 		CacheApproxMaxSizePerConnect int
+
+		// SQLite page size (fill 0 to use default)
+		PageSize int32
 
 		// avoid 1 cgo call
 		ShowLastInsertID bool
@@ -99,6 +102,7 @@ type (
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
 		// Replica bool
+
 		// Set true if binlog created in ReadAndExit mode
 		ReadAndExit bool
 	}
@@ -114,6 +118,7 @@ const (
 	snapshotMetaTable     = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
 	internalQueryPrefix   = "__"
 	logPrefix             = "[sqlite-engine]"
+	debugFlag             = false
 )
 
 func openRO(opt Options) (*Engine, error) {
@@ -165,7 +170,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		size = stat.Size()
 	}
 	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
-	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, opt.StatsOptions, logger)
+	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, opt.PageSize, opt.StatsOptions, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
 	}
@@ -386,11 +391,11 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	//if e.testOptions != nil {
 	//	e.testOptions.sleep()
 	//}
-	conn, err := e.roConnPool.get()
+	conn, err := e.roConnPool.Get()
 	if err != nil {
 		return fmt.Errorf("faield to get RO conn: %w", err)
 	}
-	defer e.roConnPool.put(conn)
+	defer e.roConnPool.Put(conn)
 
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
@@ -608,7 +613,7 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 		}
 	}
 	e.logger.Println("closing RO connection pool")
-	e.roConnPool.close(&error)
+	e.roConnPool.Close(&error)
 	if !readOnly {
 		error = multierr.Append(error, e.re.Close())
 	}

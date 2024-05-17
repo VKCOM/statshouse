@@ -19,7 +19,7 @@ type walHdr struct {
 
 type walInfo struct {
 	hdr        walHdr
-	iWal       byte // 0=wal, -1=wal2
+	iWal       bool // 0=wal, -1=wal2
 	path       string
 	restartPah string
 }
@@ -33,9 +33,18 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		log.Println("db not exists")
 		return nil
 	}
+	// чтобы не переписывать код sqlite'а вызываем его открытием
+	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
+	if err != nil {
+		return fmt.Errorf("failed to open db conn: %w", err)
+	}
+	err = conn.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close 2 wal conn: %w", err)
+	}
 	wals, err := loadWalsInfo(opt.Path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load wals: %w", err)
 	}
 	if len(wals) == 0 {
 		log.Println("0 WALS found")
@@ -44,7 +53,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	if len(wals) == 1 {
 		log.Println("one wal found")
 		w := wals[0]
-		iWal2 := ^w.iWal
+		iWal2 := !w.iWal
 		wal2Path := walPath(iWal2, opt.Path)
 		wal2, wal2IsExists, err := loadWal(iWal2, restartPath(wal2Path))
 		if err != nil {
@@ -54,7 +63,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 			log.Println("one wal found remove it")
 			err = os.Remove(w.path)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to remove wal %s: %w", w.path, err)
 			}
 			return nil
 		}
@@ -63,31 +72,30 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		wals = append(wals, wal2)
 		err = os.Rename(wal2.restartPah, wal2.path)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to raname wal %s -> %s: %w", wal2.restartPah, wal2.path, err)
 		}
 	}
 
 	var commitOffset = re.GetCommitOffset()
 	var dbOffset int64
-	log.Println("LOAD COMMIT OFFSET", commitOffset)
+	log.Println("load commit offset", commitOffset)
 
-	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.StatsOptions, log)
+	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to open db conn: %w", err)
 	}
 
 	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
-	if rows.err != nil {
-		return rows.err
+	if rows.Error() != nil {
+		return fmt.Errorf("failed to select db offset: %w", rows.Error())
 	}
 	for rows.Next() {
-		//isExists = true
 		dbOffset = rows.ColumnInt64(0)
 	}
-	if rows.err != nil {
-		return rows.err
+	if rows.Error() != nil {
+		return rows.Error()
 	}
-	log.Println("READ DB OFFSET 2 WAL", dbOffset)
+	log.Println("read db offset 2 WAL", dbOffset)
 
 	if commitOffset > 0 && dbOffset <= commitOffset {
 		log.Println("2 wal db behind binlog, start checkpoint")
@@ -109,7 +117,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		return fmt.Errorf("failed to rename second wal to restart path: %w", err)
 	}
 
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.StatsOptions, log)
+	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
 		return fmt.Errorf("failed to open 1 wal db: %w", err)
 	}
@@ -120,8 +128,8 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		isExists = true
 		withoutSecondWalOffset = rows.ColumnInt64(0)
 	}
-	if rows.err != nil {
-		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.err)
+	if rows.Error() != nil {
+		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.Error())
 	}
 	log.Println("db offset 1 wal:", withoutSecondWalOffset)
 
@@ -148,8 +156,8 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	return nil
 }
 
-func walPath(iWal byte, path string) string {
-	if iWal == 0 {
+func walPath(iWal bool, path string) string {
+	if !iWal {
 		return path + "-wal"
 	} else {
 		return path + "-wal2"
@@ -217,30 +225,30 @@ func checkWal(f *os.File) (delete bool, _ error) {
 	return false, nil
 }
 
-func loadWal(iWal byte, path string) (i walInfo, walExists bool, _ error) {
+func loadWal(iWal bool, path string) (i walInfo, walExists bool, _ error) {
 	wal, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return i, false, nil
 		} else {
-			panic(err)
+			return i, false, fmt.Errorf("failed to open wal %s: %w", path, err)
 		}
 	}
 	defer wal.Close()
 	deleteWal, err := checkWal(wal)
 	if err != nil {
-		panic(err)
+		return i, false, fmt.Errorf("failed to check wal %s: %w", path, err)
 	}
 	if deleteWal {
 		err := os.Remove(path)
 		if err != nil {
-			panic(err)
+			return i, false, fmt.Errorf("failed to delete wal %s: %w", path, err)
 		}
 		return i, false, nil
 	}
 	chkpt, err := readChkpt(wal)
 	if err != nil {
-		panic(err)
+		return i, false, fmt.Errorf("failed to read chkpot %s: %s", path, err)
 	}
 	return walInfo{
 		hdr:        walHdr{chkpt: chkpt},
@@ -252,13 +260,13 @@ func loadWal(iWal byte, path string) (i walInfo, walExists bool, _ error) {
 
 // TODO надо отсеивать фреймы которые не были закомиченны и проверять чексуммы
 func loadWalsInfo(path string) (wals []walInfo, err error) {
-	wal1, wal1Exists, err := loadWal(0, walPath(0, path))
+	wal1, wal1Exists, err := loadWal(false, walPath(false, path))
 	if err != nil {
-		panic(err)
+		return wals, fmt.Errorf("failed to load wal1: %w", err)
 	}
-	wal2, wal2Exists, err := loadWal(1, walPath(1, path))
+	wal2, wal2Exists, err := loadWal(true, walPath(true, path))
 	if err != nil {
-		panic(err)
+		return wals, fmt.Errorf("failed to load wal2: %w", err)
 	}
 	if wal1Exists {
 		wals = append(wals, wal1)
@@ -272,7 +280,7 @@ func loadWalsInfo(path string) (wals []walInfo, err error) {
 	}
 	err = checkFollowAndOrder(wals)
 	if err != nil {
-		panic(err)
+		return wals, fmt.Errorf("failed to check wals consistency: %w", err)
 	}
 	return wals, nil
 }

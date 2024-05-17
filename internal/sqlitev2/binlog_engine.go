@@ -23,6 +23,11 @@ type binlogEngine struct {
 	checkpointer *checkpointer
 }
 
+func (b *binlogEngine) Shutdown() {
+	//TODO implement me
+	panic("implement me")
+}
+
 type waitCommitInfo struct {
 	offset                 int64
 	waitSafeSnapshotOffset bool // если true ждем safeSnapshotOffset, в противном случае смотрим на commit offset

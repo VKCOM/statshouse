@@ -34,8 +34,8 @@ func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
 	}
 	err = multierr.Append(err, rows.Error())
 	event := tl.VectorLong{k, v}
-	cache, errWrite := event.WriteBoxed(cache)
-	return cache, multierr.Append(err, errWrite)
+	cache = event.WriteBoxed(cache)
+	return cache, err
 }
 
 func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
@@ -116,7 +116,6 @@ func createEngMaster(t *testing.T, opt testEngineOptions) *eng {
 			bl:     bl,
 		}
 	}
-*/
 
 func openEngReplica(t *testing.T, tempDir string) *eng {
 	engine, bl := openEngine1(t, testEngineOptions{
@@ -134,3 +133,4 @@ func openEngReplica(t *testing.T, tempDir string) *eng {
 		bl:     bl,
 	}
 }
+*/

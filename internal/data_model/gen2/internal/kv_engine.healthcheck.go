@@ -19,14 +19,34 @@ type KvEngineHealthcheck struct {
 func (KvEngineHealthcheck) TLName() string { return "kv_engine.healthcheck" }
 func (KvEngineHealthcheck) TLTag() uint32  { return 0x2c1259aa }
 
-func (item *KvEngineHealthcheck) Reset()                         {}
-func (item *KvEngineHealthcheck) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *KvEngineHealthcheck) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *KvEngineHealthcheck) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x2c1259aa)
+func (item *KvEngineHealthcheck) Reset() {}
+
+func (item *KvEngineHealthcheck) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *KvEngineHealthcheck) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *KvEngineHealthcheck) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x2c1259aa), nil
+
+func (item *KvEngineHealthcheck) Write(w []byte) []byte {
+	return w
+}
+
+func (item *KvEngineHealthcheck) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x2c1259aa); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *KvEngineHealthcheck) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *KvEngineHealthcheck) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x2c1259aa)
+	return item.Write(w)
 }
 
 func (item *KvEngineHealthcheck) ReadResult(w []byte, ret *bool) (_ []byte, err error) {
@@ -34,21 +54,22 @@ func (item *KvEngineHealthcheck) ReadResult(w []byte, ret *bool) (_ []byte, err 
 }
 
 func (item *KvEngineHealthcheck) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
-func (item *KvEngineHealthcheck) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *KvEngineHealthcheck) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *KvEngineHealthcheck) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *KvEngineHealthcheck) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
+func (item *KvEngineHealthcheck) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -62,22 +83,19 @@ func (item *KvEngineHealthcheck) ReadResultWriteResultJSON(r []byte, w []byte) (
 	return r, w, err
 }
 
-func (item *KvEngineHealthcheck) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *KvEngineHealthcheck) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *KvEngineHealthcheck) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("kv_engine.healthcheck", err.Error())
-	}
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -85,45 +103,45 @@ func (item *KvEngineHealthcheck) ReadResultJSONWriteResult(r []byte, w []byte) (
 }
 
 func (item KvEngineHealthcheck) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func KvEngineHealthcheck__ReadJSON(item *KvEngineHealthcheck, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *KvEngineHealthcheck) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.healthcheck", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.healthcheck", k)
+func (item *KvEngineHealthcheck) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("kv_engine.healthcheck", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *KvEngineHealthcheck) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+// This method is general version of WriteJSON, use it instead!
+func (item *KvEngineHealthcheck) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
 }
-func (item *KvEngineHealthcheck) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+
+func (item *KvEngineHealthcheck) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *KvEngineHealthcheck) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *KvEngineHealthcheck) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *KvEngineHealthcheck) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.healthcheck", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.healthcheck", err.Error())
 	}
 	return nil

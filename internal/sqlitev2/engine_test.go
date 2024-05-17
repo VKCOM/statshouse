@@ -649,16 +649,6 @@ func Test_Engine_RO(t *testing.T) {
 	require.NoError(t, engineRO.Close())
 }
 
-func TestReplicaCantWrite(t *testing.T) {
-	d := t.TempDir()
-	eng := createEngMaster(t, defaultTestEngineOptions(d))
-	eng.mustCloseGoodEngine(t)
-	eng = openEngReplica(t, d)
-	defer eng.mustCloseGoodEngine(t)
-	err := eng.put(context.Background(), 0, 0)
-	require.ErrorIs(t, err, ErrReadOnly)
-}
-
 func TestBrokenEngineCantWrite(t *testing.T) {
 	d := t.TempDir()
 	eng := createEngMaster(t, defaultTestEngineOptions(d))

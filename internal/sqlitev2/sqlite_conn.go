@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
@@ -22,7 +23,8 @@ type (
 		beginStmt        string
 		committed        bool
 
-		stats StatsOptions
+		stats  StatsOptions
+		logger *log.Logger
 	}
 )
 
@@ -47,6 +49,7 @@ func newSqliteROConn(path string, stats StatsOptions, logger *log.Logger) (*sqli
 		cache:     cache.NewQueryCache(10, logger),
 		beginStmt: beginDeferredStmt,
 		stats:     stats,
+		logger:    logger,
 	}, nil
 }
 
@@ -62,10 +65,11 @@ func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *
 		cache:     cache.NewQueryCache(cacheSize, logger),
 		beginStmt: beginDeferredStmt,
 		stats:     stats,
+		logger:    logger,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
-	conn, err := openRW(openWAL, path, appid)
+func newSqliteRWWALConn(path string, appid uint32, showLastInsertID bool, cacheSize int, pageSize int32, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+	conn, err := openRW(openWAL, path, appid, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
@@ -77,6 +81,7 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 		cache:            cache.NewQueryCache(cacheSize, logger),
 		beginStmt:        beginImmediateStmt,
 		stats:            stats,
+		logger:           logger,
 	}, nil
 }
 
@@ -101,6 +106,8 @@ func (c *sqliteConn) setErrorLocked(err error) error {
 	if c.connError != nil {
 		return err
 	}
+	c.logger.Println("engine is broken")
+	c.logger.Println(debug.Stack())
 	c.connError = err
 	return err
 }
