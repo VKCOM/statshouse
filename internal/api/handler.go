@@ -366,7 +366,7 @@ type (
 		metricCallback func(*format.MetricMetaValue)
 		rand           *rand.Rand
 		timeNow        time.Time
-		collapse       bool // "point" query
+		mode           data_model.QueryMode
 		trace          bool
 		strBucketLabel bool
 	}
@@ -2022,7 +2022,7 @@ func (h *Handler) HandlePointQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	s, cancel, err := h.handleSeriesRequest(
 		withEndpointStat(r.Context(), sl), req,
-		seriesRequestOptions{collapse: true, trace: true})
+		seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, req.ai.user, sl)
 		return
@@ -2387,7 +2387,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 			Expr:  req.promQL,
 			Options: promql.Options{
 				Version:          req.version,
-				Collapse:         opt.collapse,
+				Mode:             opt.mode,
 				AvoidCache:       req.avoidCache,
 				TimeNow:          opt.timeNow.Unix(),
 				Extend:           req.excessPoints,

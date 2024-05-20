@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -75,7 +76,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 	if err != nil {
 		return err
 	}
-	sr, cancel, err := h.ah.handleSeriesRequest(ctx, req, seriesRequestOptions{collapse: true, trace: true})
+	sr, cancel, err := h.ah.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return err
