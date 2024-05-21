@@ -130,6 +130,9 @@ func Test_Engine_Race_Do(t *testing.T) {
 				time.Sleep(time.Nanosecond + time.Duration(rand.Int63n(int64(time.Millisecond))))
 			}
 		}},
+		applyF: func(conn Conn, payload []byte) (int, error) {
+			return applyNumberInc(t, conn, payload)
+		},
 	})
 	agg := &testAggregation1{}
 	n := 4
@@ -164,8 +167,19 @@ func Test_Engine_Race_Do(t *testing.T) {
 	}
 	wg.Wait()
 	require.NoError(t, engine.Close())
-	engine, _ = openEngine(t, dir, "db", schemeKV, false, false, false, func(s string) {
-		t.Fatal("mustn't apply music")
+	engine, _ = openEngine1(t, testEngineOptions{
+		prefix: dir,
+		dbFile: "db",
+		scheme: schemeKV,
+		create: false,
+		testOptions: &testOptions{sleep: func() {
+			if rand.Int()%2 == 0 {
+				time.Sleep(time.Nanosecond + time.Duration(rand.Int63n(int64(time.Millisecond))))
+			}
+		}},
+		applyF: func(conn Conn, payload []byte) (int, error) {
+			return applyNumberInc(t, conn, payload)
+		},
 	})
 	var actualN int64
 	err := engine.View(context.Background(), "test", func(conn Conn) error {
@@ -205,9 +219,7 @@ func Test_Engine_Race_View(t *testing.T) {
 		agg.mx.Unlock()
 	}
 	require.NoError(t, engine.Close())
-	engine, _ = openEngine(t, dir, "db", schema, false, true, false, func(s string) {
-		t.Fatal("mustn't apply music")
-	})
+	engine, _ = openEngine(t, dir, "db", schema, false, true, false, nil)
 	expectedMap := map[string]struct{}{}
 	for _, t := range agg.writeHistory {
 		expectedMap[t] = struct{}{}

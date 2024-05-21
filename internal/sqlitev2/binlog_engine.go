@@ -63,43 +63,36 @@ func (b *binlogEngine) StopCheckpointer() {
 func (b *binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
 	b.e.rareLog("apply payload (len: %d)", len(payload))
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
-	err := b.e.internalDo("__apply_binlog", func(c internalConn) error {
+	err := b.e.internalDoBinlog("__apply_binlog", func(c internalConn) (int64, error) {
 		readLen, err := b.applyFunction(c.Conn, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
 		if opErr := b.e.rw.saveBinlogOffsetLocked(newOffset); opErr != nil {
-			return b.e.rw.setErrorLocked(opErr)
+			return b.e.rw.dbOffset, b.e.rw.setErrorLocked(opErr)
 		}
 		if err != nil && isExpectedError(err) {
 			errToReturn = err
-			return nil
+			return newOffset, nil
 		}
-		return err
+		return newOffset, err
 	})
 	if err != nil {
 		return newOffset, b.e.rw.setError(err)
 	}
-	b.e.rw.dbOffset = newOffset
 	return newOffset, errToReturn
 }
 
 func (b *binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_skip", time.Now())
-	err = b.e.internalDo("__skip_binlog", func(c internalConn) error {
+	err = b.e.internalDoBinlog("__skip_binlog", func(c internalConn) (int64, error) {
 		newOffset = b.e.rw.dbOffset + skipLen
-		return b.e.rw.saveBinlogOffsetLocked(newOffset)
+		return newOffset, b.e.rw.saveBinlogOffsetLocked(newOffset)
 	})
-	if err == nil {
-		b.e.rw.dbOffset = newOffset
-	}
 	b.e.rareLog("[sqlite] skip offset (new offset: %d)", newOffset)
 	return newOffset, b.e.rw.setError(err)
 }
 
 // База может обгонять бинлог. Никак не учитываем toOffset
 func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
-	//if b.e.testOptions != nil {
-	//	b.e.testOptions.sleep()
-	//}
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
 	b.binlogNotifyWaited(toOffset, safeSnapshotOffset)

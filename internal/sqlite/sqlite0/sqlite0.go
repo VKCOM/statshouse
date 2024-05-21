@@ -40,6 +40,7 @@ package sqlite0
 #cgo CFLAGS: -DSQLITE_OMIT_UTF16
 #cgo CFLAGS: -DSQLITE_MAX_MMAP_SIZE=35184372088832ll
 #cgo CFLAGS: -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT
+#cgo CFLAGS: -DSQLITE_DEFAULT_WAL_AUTOCHECKPOINT=0
 
 #cgo unsafe CFLAGS: -DSQLITE_MMAP_READWRITE
 
@@ -177,7 +178,8 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) EnableWALSwitchCallback() error {
-	rc := C._sqlite_set_wal_switch_callback(c.conn, C.longlong(c.id))
+	p := unsafe.Pointer(&c.id)
+	rc := C._sqlite_set_wal_switch_callback(c.conn, p)
 	return sqliteErr(rc, c.conn, "_sqlite_set_wal_switch_callback")
 }
 

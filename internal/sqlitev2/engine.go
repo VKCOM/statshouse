@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/restart"
+	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -31,16 +31,14 @@ TODO
 
 - sqlite3_db_cacheflush
 
-- https://github.com/VKCOM/statshouse/pull/1186 - сделать такой же тест
-
 - Репортить в метрику размер вала
 
 - Чекпоинт из другой транзакции
 
 NOTES:
-- Если стартуем с бэкапа у него должно быть тоже имя что у основной базы, при этом надо не забыть потереть wal и wal2 файл. Поэтому последний бэкап рекомендуется хранить рядом на том же дискею
+- Если стартуем с бэкапа у него должно быть тоже имя что у основной базы, при этом надо не забыть потереть wal и wal2 файл. Поэтому последний бэкап рекомендуется хранить рядом на том же диске
 - Гарантии на транзакции нет. Все операции могут быть откачены.
-- В некоторых крайних случаях откатываться может бесконечно, поэтому крайне не рекомендуется использовать без бинлога. Если требуется сделать изменения незатрагивая бинлог:
+- В некоторых крайних случаях откатываться может бесконечно, поэтому крайне не рекомендуется использовать без бинлога. Если требуется сделать изменения без бинлога:
  1. Сделать изменения после OpenEngine
  2. Вызвать Run
 
@@ -118,7 +116,7 @@ const (
 	snapshotMetaTable     = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
 	internalQueryPrefix   = "__"
 	logPrefix             = "[sqlite-engine]"
-	debugFlag             = false
+	debugFlag             = true
 )
 
 func openRO(opt Options) (*Engine, error) {
@@ -468,23 +466,17 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	if err != nil {
 		return fmt.Errorf("binlog Append return error: %w", err)
 	}
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	//meta := e.binlogEngine.binlogWait(offsetAfterWrite, false)
-	_, err = e.rw.binlogCommitTxLocked(offsetAfterWrite, nil)
+	err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
 	return err
 }
 
-// В случае возникновения ошибки двиожк считается сломаным
-func (e *Engine) internalDo(queryName string, do func(c internalConn) error) error {
+// В случае возникновения ошибки движок считается сломаным
+func (e *Engine) internalDoBinlog(queryName string, do func(c internalConn) (int64, error)) error {
 	if err := checkInternalQueryName(queryName); err != nil {
 		return err
 	}
 	startTimeBeforeLock := time.Now()
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	defer func() {
@@ -494,19 +486,21 @@ func (e *Engine) internalDo(queryName string, do func(c internalConn) error) err
 			panic(err)
 		}
 	}()
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
+
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	err := e.internalDoLocked(do)
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	return e.rw.setErrorLocked(err)
 }
 
-func (e *Engine) internalDoLocked(do func(c internalConn) error) (err error) {
+// В случае возникновения ошибки движок считается сломанным
+func (e *Engine) internalDo(queryName string, do func(c internalConn) error) error {
+	return e.internalDoBinlog(queryName, func(c internalConn) (int64, error) {
+		return 0, do(c)
+	})
+}
+
+func (e *Engine) internalDoLocked(do func(c internalConn) (int64, error)) (err error) {
 	err = e.rw.beginTxLocked()
 	if err != nil {
 		e.opt.StatsOptions.engineBrokenEvent()
@@ -519,9 +513,12 @@ func (e *Engine) internalDoLocked(do func(c internalConn) error) (err error) {
 		}
 	}()
 	conn := newInternalConn(e.rw.conn)
-	err = do(conn)
+	offset, err := do(conn)
 	if err != nil {
 		return fmt.Errorf("user logic error: %w", err)
+	}
+	if offset > 0 {
+		return e.rw.binlogCommitTxLocked(offset)
 	}
 	return e.rw.nonBinlogCommitTxLocked()
 }

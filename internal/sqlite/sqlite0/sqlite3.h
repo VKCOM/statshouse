@@ -9722,7 +9722,7 @@ SQLITE_API int sqlite3_wal_checkpoint_v2(
 );
 
 
-SQLITE_API int sqlite3_wal_set_switch_callback(sqlite3 *db, long long conn, void (*callback)(long long, int, unsigned int));
+SQLITE_API int sqlite3_wal_set_switch_callback(sqlite3 *db, void* callbackData, void (*callback)(void*, int, unsigned int));
 
 /*
 ** CAPI3REF: Checkpoint Mode Values

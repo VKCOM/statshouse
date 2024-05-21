@@ -53,11 +53,11 @@ func openWAL(path string, pageSize int32, flags int) (*sqlite0.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
 	}
-	err = conn.SetAutoCheckpoint(0)
-	if err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
-	}
+	//err = conn.SetAutoCheckpoint(0)
+	//if err != nil {
+	//	_ = conn.Close()
+	//	return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
+	//}
 
 	if pageSize > 0 {
 		err = conn.Exec(fmt.Sprintf("PRAGMA page_size=%d", pageSize))

@@ -57,23 +57,23 @@ func (c *sqliteBinlogConn) beginTxLocked() error {
 }
 
 // если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteBinlogConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) (int64, error) {
+func (c *sqliteBinlogConn) binlogCommitTxLocked(newOffset int64) error {
 	if c.committed {
-		return c.dbOffset, nil
+		return nil
 	}
 	c.committed = true
 	err := c.saveBinlogOffsetLocked(newOffset)
 	if err != nil {
 		c.conn.connError = err
-		return c.dbOffset, fmt.Errorf("failed to save binlog offset: %w", err)
+		return fmt.Errorf("failed to save binlog offset: %w", err)
 	}
 
 	err = c.conn.commitTxLocked()
 	if err != nil {
-		return c.dbOffset, fmt.Errorf("failed to commit TX: %w", err)
+		return fmt.Errorf("failed to commit TX: %w", err)
 	}
 	c.dbOffset = newOffset
-	return c.dbOffset, nil
+	return nil
 }
 
 func (c *sqliteBinlogConn) rollbackLocked() error {

@@ -95,6 +95,18 @@ gen:
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
 
+gen-sqlite:
+	@tlgen --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+ 		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
+ 		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
+ 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+ 		--copyrightPath=./copyright \
+		./internal/data_model/common.tl \
+		./internal/sqlitev2/checkpoint/metainfo.tl
+	@echo "Checking that generated code actually compiles..."
+	@go build ./internal/sqlitev2/checkpoint/gen2/...
+
 .PHONY: lint
 lint:
 	staticcheck -version

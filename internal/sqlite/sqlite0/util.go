@@ -43,9 +43,10 @@ func _sqliteLogFunc(_ unsafe.Pointer, cCode C.int, cMsg *C.char) {
 }
 
 //export _sqlite_wal_switch_callback
-func _sqlite_wal_switch_callback(connID C.longlong, iAPP C.int, frame C.uint) {
+func _sqlite_wal_switch_callback(connID unsafe.Pointer, iAPP C.int, frame C.uint) {
 	connMu.RLock()
-	conn, ok := connMap[int64(connID)]
+	c := (*int64)(connID)
+	conn, ok := connMap[*c]
 	connMu.RUnlock()
 	if !ok {
 		return

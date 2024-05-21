@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/sqlitev2/restart"
+	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 )
 
 // sqlite специфичные тесты
 
 func saveCommitOffset(pathDb string, offset int64) error {
-	rf, err := restart.OpenAndLock(pathDb)
+	rf, err := checkpoint.OpenAndLock(pathDb)
 	if err != nil {
 		return err
 	}

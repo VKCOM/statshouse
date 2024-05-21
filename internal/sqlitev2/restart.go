@@ -10,7 +10,7 @@ import (
 	"os"
 	"slices"
 
-	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/restart"
+	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 )
 
 type walHdr struct {
@@ -77,40 +77,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	}
 
 	var commitOffset = re.GetCommitOffset()
-	var dbOffset int64
 	log.Println("load commit offset", commitOffset)
-
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
-	if err != nil {
-		return fmt.Errorf("failed to open db conn: %w", err)
-	}
-
-	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
-	if rows.Error() != nil {
-		return fmt.Errorf("failed to select db offset: %w", rows.Error())
-	}
-	for rows.Next() {
-		dbOffset = rows.ColumnInt64(0)
-	}
-	if rows.Error() != nil {
-		return rows.Error()
-	}
-	log.Println("read db offset 2 WAL", dbOffset)
-
-	if commitOffset > 0 && dbOffset <= commitOffset {
-		log.Println("2 wal db behind binlog, start checkpoint")
-		err = conn.conn.Checkpoint() // база с 2 валами на уровне с бинлогом делаем чекпоинт
-		if err != nil {
-			log.Println("checkpoint failed:", err.Error())
-		}
-	}
-	err = conn.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close 2 wal conn: %w", err)
-	}
-	if commitOffset > 0 && dbOffset <= commitOffset {
-		return nil
-	}
 
 	err = os.Rename(wals[1].path, wals[1].restartPah)
 	if err != nil {
@@ -121,21 +88,21 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	if err != nil {
 		return fmt.Errorf("failed to open 1 wal db: %w", err)
 	}
-	var withoutSecondWalOffset int64
+	var withoutSecondWalDBOffset int64
 	isExists := false
-	rows = conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
+	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
 	for rows.Next() {
 		isExists = true
-		withoutSecondWalOffset = rows.ColumnInt64(0)
+		withoutSecondWalDBOffset = rows.ColumnInt64(0)
 	}
 	if rows.Error() != nil {
 		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.Error())
 	}
-	log.Println("db offset 1 wal:", withoutSecondWalOffset)
+	log.Println("db offset 1 wal:", withoutSecondWalDBOffset)
 
-	var skipCheckpoint = !isExists || withoutSecondWalOffset == 0
+	var skipCheckpoint = !isExists || withoutSecondWalDBOffset == 0
 
-	if !skipCheckpoint && withoutSecondWalOffset <= commitOffset {
+	if !skipCheckpoint && withoutSecondWalDBOffset <= commitOffset {
 		log.Println("do checkpoint to sync 1 wal")
 		err = conn.conn.Checkpoint()
 		if err != nil {

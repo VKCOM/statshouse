@@ -107,7 +107,7 @@ func (c *sqliteConn) setErrorLocked(err error) error {
 		return err
 	}
 	c.logger.Println("engine is broken")
-	c.logger.Println(debug.Stack())
+	c.logger.Println(string(debug.Stack()))
 	c.connError = err
 	return err
 }
