@@ -264,7 +264,6 @@ func BuiltinVectorDictionaryFieldStringBytesWrite(w []byte, vec []DictionaryFiel
 
 func BuiltinVectorDictionaryFieldStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]DictionaryFieldStringBytes) error {
 	*vec = (*vec)[:cap(*vec)]
-	arr := *vec
 	index := 0
 	if in != nil {
 		in.Delim('{')
@@ -277,9 +276,9 @@ func BuiltinVectorDictionaryFieldStringBytesReadJSON(legacyTypeNames bool, in *b
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			arr[index].Key = append(arr[index].Key[:0], in.UnsafeFieldName(true)...)
+			(*vec)[index].Key = append((*vec)[index].Key[:0], in.UnsafeFieldName(true)...)
 			in.WantColon()
-			if err := Json2ReadStringBytes(in, &arr[index].Value); err != nil {
+			if err := Json2ReadStringBytes(in, &(*vec)[index].Value); err != nil {
 				return err
 			}
 			in.WantComma()
