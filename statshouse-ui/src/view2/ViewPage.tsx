@@ -1,7 +1,8 @@
 import React from 'react';
+import { DashboardWidget } from 'widgets2';
 
 export function ViewPage() {
-  return <div></div>;
+  return <DashboardWidget></DashboardWidget>;
 }
 
 export default ViewPage;
