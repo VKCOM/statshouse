@@ -387,7 +387,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							}
 							res.Data = append(res.Data, promql.SeriesData{
 								Values: v,
-								What:   fn,
+								What:   fn.sel,
 							})
 						}
 					}
@@ -395,7 +395,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					for y, what := range args.what {
 						var v float64
 						row := &data[i]
-						switch what.Digest {
+						switch what.qry {
 						case data_model.DigestCount, data_model.DigestCountRaw, data_model.DigestCountSec:
 							v = row.countNorm
 						case data_model.DigestMin,
@@ -450,7 +450,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 								res.Data = append(res.Data, promql.SeriesData{
 									Values:     v,
 									MinMaxHost: h,
-									What:       fn,
+									What:       fn.sel,
 								})
 							}
 						}
@@ -460,7 +460,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						}
 						k += tx
 						for y, what := range args.what {
-							(*res.Data[x+y].Values)[k] = selectTSValue(what.Digest, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
+							(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
 							for z, qryHost := range qry.MinMaxHost {
 								if qryHost {
 									res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
@@ -506,7 +506,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				if tagWhat {
 					res.AddTagAt(i+j, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
-						Value: int32(what.Digest),
+						Value: int32(what.sel.Digest),
 					})
 				}
 			}
@@ -621,7 +621,12 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 type handlerArgs struct {
 	qs   string // cache key
 	pq   preparedPointsQuery
-	what []promql.SelectorWhat
+	what []handlerWhat
+}
+
+type handlerWhat struct {
+	sel promql.SelectorWhat   // what was specified in the selector is not necessarily equal to
+	qry data_model.DigestWhat // what we will request
 }
 
 func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[data_model.DigestKind]handlerArgs {
@@ -678,19 +683,20 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 	res := make(map[data_model.DigestKind]handlerArgs)
 	pointQuery := qry.Options.Mode == data_model.PointQuery
 	for _, v := range qry.Whats {
+		queryWhat := v.Digest
 		if pointQuery || step == 0 || step == _1M {
 			switch v.Digest {
 			case data_model.DigestCount:
-				v.Digest = data_model.DigestCountRaw
+				queryWhat = data_model.DigestCountRaw
 			case data_model.DigestSum:
-				v.Digest = data_model.DigestSumRaw
+				queryWhat = data_model.DigestSumRaw
 			case data_model.DigestCardinality:
-				v.Digest = data_model.DigestCardinalityRaw
+				queryWhat = data_model.DigestCardinalityRaw
 			}
 		}
-		kind := v.Digest.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
+		kind := queryWhat.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
 		args := res[kind]
-		args.what = append(args.what, v)
+		args.what = append(args.what, handlerWhat{v, queryWhat})
 		res[kind] = args
 	}
 	// all kinds contain counter value, there is
