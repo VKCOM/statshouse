@@ -404,6 +404,17 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     },
     [opts]
   );
+  useEffect(() => {
+    const redraw = () => {
+      if (window.document.visibilityState === 'visible') {
+        uRef.current?.redraw();
+      }
+    };
+    window.document.addEventListener('visibilitychange', redraw);
+    return () => {
+      window.document.removeEventListener('visibilitychange', redraw);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     uRef.current?.setSize({ width, height });
