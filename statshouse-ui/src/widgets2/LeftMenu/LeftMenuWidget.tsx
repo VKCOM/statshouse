@@ -1,6 +1,6 @@
 import React from 'react';
 import { LeftMenu } from 'components2';
-import { usePlotsStore, useUserStore } from 'store2';
+import { usePlotsInfoStore, useUserStore } from 'store2';
 import { setDevEnabled, setTheme, useStoreDev, useThemeStore } from '../../store';
 
 const toggleDevEnabled = () => {
@@ -8,13 +8,13 @@ const toggleDevEnabled = () => {
 };
 
 export function LeftMenuWidget() {
-  const { plots, viewOrderPlot, dashboardLink, tabNum, addLink } = usePlotsStore();
+  const { plotsInfo, viewOrderPlot, dashboardLink, tabNum, addLink } = usePlotsInfoStore();
   const user = useUserStore();
   const devEnabled = useStoreDev((s) => s.enabled);
   const theme = useThemeStore((s) => s.theme);
   return (
     <LeftMenu
-      plots={plots}
+      plots={plotsInfo}
       orderPlot={viewOrderPlot}
       user={user}
       devEnabled={devEnabled}

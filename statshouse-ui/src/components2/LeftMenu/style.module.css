@@ -1,4 +1,4 @@
-.leftMenu{
+.leftMenu {
   list-style: none;
   padding: 1px 0 1em 0;
   margin: 0 0 0 0;
@@ -7,12 +7,15 @@
   display: flex;
   flex-direction: column;
   background-color: var(--bs-tertiary-bg);
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
 }
 
-.leftMenu:after{
+.leftMenu:after {
   position: absolute;
   right: 0;
-  top:0;
+  top: 0;
   height: 100%;
   width: 1px;
   content: '';
@@ -20,13 +23,13 @@
   z-index: 1;
 }
 
-.leftMenuItem{
+.leftMenuItem {
   margin: -1px 0 0 0;
   border: 1px solid transparent;
   position: relative;
 }
 
-.sub{
+.sub {
   background-color: var(--bs-body-bg);
   border: 1px solid var(--bs-secondary-bg);
   padding: 0;
@@ -38,7 +41,7 @@
   overflow: hidden;
 }
 
-.link{
+.link {
   display: flex;
   padding: 10px 17px;
   text-decoration: none;
@@ -46,11 +49,12 @@
   color: var(--bs-secondary);
 }
 
-.link[href], .link[role="button"]{
+.link[href],
+.link[role='button'] {
   color: var(--bs-primary);
 }
 
-.icon{
+.icon {
   display: block;
   width: 24px;
   height: 24px;
@@ -62,18 +66,18 @@
   padding: 0;
 }
 
-.active{
+.active {
   background-color: var(--bs-body-bg);
-  border: 1px solid  var(--bs-primary);
+  border: 1px solid var(--bs-primary);
   border-right: 0 none;
   position: relative;
   z-index: 2;
 }
 
-.active:after{
+.active:after {
   border-right: 1px solid var(--bs-body-bg);
   position: absolute;
-  top:0;
+  top: 0;
   right: 0;
   height: 100%;
   width: 1px;
@@ -82,7 +86,7 @@
   z-index: 2;
 }
 
-.plotMenu{
+.plotMenu {
   margin: -1px 0 0 0;
   padding: 1px 0 0 0;
   overflow: scroll;
@@ -90,7 +94,7 @@
   flex-direction: column;
 }
 
-.plotNav{
+.plotNav {
   padding: 0 0 0 0;
   list-style: none;
   display: flex;

@@ -1,5 +1,5 @@
 import { FilterTag, GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from '../../api/enum';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl } from '../../api/enum';
 import {
   filterInSep,
   filterNotInSep,
@@ -130,7 +130,7 @@ export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNew
     paramArr.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
   }
   if (defaultPlot.metricUnit !== plot.metricUnit) {
-    paramArr.push([prefix + GET_PARAMS.metricMetricUnit, plot.metricUnit]);
+    paramArr.push([prefix + GET_PARAMS.metricMetricUnit, metricTypeToMetricTypeUrl(plot.metricUnit)]);
   }
   if (!dequal(defaultPlot.what, plot.what)) {
     plot.what.forEach((w) => {

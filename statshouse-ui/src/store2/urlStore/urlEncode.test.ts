@@ -308,7 +308,7 @@ describe('urlStore urlEncode', () => {
       ['q', 'promql'],
       ['cn', 'cn'],
       ['cd', 'cd'],
-      ['mt', 'microsecond'],
+      ['mt', 'mcs'],
       ['qw', 'count'],
       ['qw', 'max_count_host'],
       ['g', '5'],
