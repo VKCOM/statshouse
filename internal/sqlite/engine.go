@@ -7,24 +7,29 @@
 package sqlite
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
-	"go.uber.org/multierr"
-	"pgregory.net/rand"
+	"context"
+	"errors"
+	"strconv"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	"go.uber.org/atomic"
+	"go.uber.org/multierr"
+	"pgregory.net/rand"
 )
+
+/*
+#cgo CFLAGS: -DSQLITE_DEFAULT_WAL_AUTOCHECKPOINT=1000
+*/
+import "C"
 
 // TODO: explicit blocking Engine.Run to run binlog
 // TODO: use build of sqlite with custom WAL magic to prevent accidental checkpointing by command-line tools
@@ -375,13 +380,10 @@ func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 		return nil, err
 	}
 
-	// todo make checkpoint manually
-	if false {
-		err = conn.SetAutoCheckpoint(0)
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
-		}
+	err = conn.SetAutoCheckpoint(1000)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
 	}
 
 	err = conn.SetBusyTimeout(busyTimeout)
