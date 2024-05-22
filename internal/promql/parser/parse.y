@@ -132,7 +132,7 @@ END
 
 %type <strings> grouping_label_list grouping_labels maybe_grouping_labels
 %type <float> number signed_number signed_or_unsigned_number
-%type <node> step_invariant_expr aggregate_expr aggregate_modifier bin_modifier binary_expr bool_modifier expr function_call function_call_args function_call_body group_modifiers label_matchers matrix_selector number_literal offset_expr on_or_ignoring paren_expr string_literal subquery_expr unary_expr vector_selector
+%type <node> step_invariant_expr aggregate_expr aggregate_modifier bin_modifier binary_expr bool_modifier expr function_call function_call_args function_call_body group_modifiers label_matchers matrix_selector number_literal offset_expr on_or_ignoring paren_expr string_literal unary_expr vector_selector
 %type <duration> duration maybe_duration offset_value
 %type <offsets> offset_list
 
@@ -175,7 +175,6 @@ expr            :
                 | offset_expr
                 | paren_expr
                 | string_literal
-                | subquery_expr
                 | unary_expr
                 | vector_selector
                 | step_invariant_expr
@@ -422,49 +421,34 @@ at_modifier_preprocessors: START | END;
  * Subquery and range selectors.
  */
 
-matrix_selector : expr LEFT_BRACKET duration RIGHT_BRACKET
-                        {
-                        var errMsg string
-                        vs, ok := $1.(*VectorSelector)
-                        if !ok{
-                                errMsg = "ranges only allowed for vector selectors"
-                        } else if vs.OriginalOffset != 0 || len(vs.OriginalOffsetEx) != 0 {
-                                errMsg = "no offset modifiers allowed before range"
-                        } else if vs.Timestamp != nil {
-                                errMsg = "no @ modifiers allowed before range"
+matrix_selector : expr LEFT_BRACKET duration maybe_duration RIGHT_BRACKET
+                {
+                        switch vs := $1.(type) {
+                        case *VectorSelector:
+                                var errMsg string
+                                if vs.OriginalOffset != 0 || len(vs.OriginalOffsetEx) != 0 {
+                                        errMsg = "no offset modifiers allowed before range"
+                                } else if vs.Timestamp != nil {
+                                        errMsg = "no @ modifiers allowed before range"
+                                }
+                                if errMsg != "" {
+                                        errRange := mergeRanges(&$2, &$5)
+                                        yylex.(*parser).addParseErrf(errRange, errMsg)
+                                }
+                                $$ = &MatrixSelector{
+                                        VectorSelector: $1.(Expr),
+                                        Range: $3,
+                                        EndPos: yylex.(*parser).lastClosing,
+                                }
+                        default:
+                                $$ = &SubqueryExpr{
+                                        Expr:  $1.(Expr),
+                                        Range: $3,
+                                        Step:  $4,
+                                        EndPos: yylex.(*parser).lastClosing,
+                                }
                         }
-
-                        if errMsg != ""{
-                                errRange := mergeRanges(&$2, &$4)
-                                yylex.(*parser).addParseErrf(errRange, errMsg)
-                        }
-
-                        $$ = &MatrixSelector{
-                                VectorSelector: $1.(Expr),
-                                Range: $3,
-                                EndPos: yylex.(*parser).lastClosing,
-                        }
-                        }
-                ;
-
-subquery_expr   : expr LEFT_BRACKET duration COLON maybe_duration RIGHT_BRACKET
-                        {
-                        $$ = &SubqueryExpr{
-                                Expr:  $1.(Expr),
-                                Range: $3,
-                                Step:  $5,
-
-                                EndPos: $6.Pos + 1,
-                        }
-                        }
-                | expr LEFT_BRACKET duration COLON duration error
-                        { yylex.(*parser).unexpected("subquery selector", "\"]\""); $$ = $1 }
-                | expr LEFT_BRACKET duration COLON error
-                        { yylex.(*parser).unexpected("subquery selector", "duration or \"]\""); $$ = $1 }
-                | expr LEFT_BRACKET duration error
-                        { yylex.(*parser).unexpected("subquery or range", "\":\" or \"]\""); $$ = $1 }
-                | expr LEFT_BRACKET error
-                        { yylex.(*parser).unexpected("subquery selector", "duration"); $$ = $1 }
+                }
                 ;
 
 /*
@@ -634,7 +618,8 @@ string_literal  : STRING
 
 maybe_duration  : /* empty */
                         {$$ = 0}
-                | duration
+                | COLON {$$ = 0}
+                | COLON duration {$$ = 1}
                 ;
 
 maybe_grouping_labels: /* empty */ { $$ = nil }
