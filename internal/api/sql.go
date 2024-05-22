@@ -111,7 +111,7 @@ ORDER BY
   %s
 LIMIT %v
 SETTINGS
-  optimize_aggregation_in_order = 1
+  optimize_aggregation_in_order = 1, allow_experimental_analyzer = 0
 `, columnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
 
 	q, err := util.BindQuery(query, args...)
@@ -293,7 +293,7 @@ ORDER BY _time%s%s`, commaBy, desc)
 	query += fmt.Sprintf(`%s%s
 LIMIT %v
 SETTINGS
-  optimize_aggregation_in_order = 1
+  optimize_aggregation_in_order = 1, allow_experimental_analyzer = 0
 `, having, oderBy, limit)
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
@@ -369,7 +369,7 @@ GROUP BY %s
 HAVING _count > 0
 LIMIT %v
 SETTINGS
-  optimize_aggregation_in_order = 1
+  optimize_aggregation_in_order = 1, allow_experimental_analyzer = 0
 `, maxSeriesRows)
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err

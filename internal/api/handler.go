@@ -676,7 +676,7 @@ ORDER BY
 LIMIT
   ?
 SETTINGS
-  optimize_aggregation_in_order = 1
+  optimize_aggregation_in_order = 1, allow_experimental_analyzer = 0
 `, _1sTableSH2), format.BuiltinMetricIDContributorsLog, from, cacheInvalidateMaxRows)
 	if err != nil {
 		log.Printf("[error] cache invalidation log query failed: %v", err)
