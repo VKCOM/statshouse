@@ -22,6 +22,7 @@ import { globalSettings } from 'common/settings';
 import cn from 'classnames';
 import { type Theme, THEMES, toTheme } from 'store';
 import { getClipboard } from '../../common/helpers';
+import { MetricName } from '../Plot';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -240,16 +241,4 @@ export function LeftMenu({
       )}
     </ul>
   );
-}
-export type MetricNameProps = { metricName?: string; metricWhat?: string; className?: string };
-export function MetricName({ metricName = '', metricWhat = '', className }: MetricNameProps) {
-  if (metricName) {
-    return (
-      <span className={cn(className, 'font-monospace fw-bold')}>
-        <span className="text-body text-truncate">{metricName}</span>
-        {!!metricWhat && <span className="text-secondary text-truncate">:&nbsp;{metricWhat}</span>}
-      </span>
-    );
-  }
-  return <span className={className}>&nbsp;</span>;
 }

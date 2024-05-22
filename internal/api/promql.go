@@ -33,7 +33,7 @@ import (
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", data_model.MaxSlice)
 var errAccessViolation = fmt.Errorf("metric access violation")
 
-func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
+func (h *Handler) HandleInstantQuery(w http.ResponseWriter, r *http.Request) {
 	// parse access token
 	ai, err := h.parseAccessToken(r, nil)
 	if err != nil {
@@ -41,20 +41,25 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 		return
 	}
 	// parse query
-	var parse func(*http.Request) (promql.Query, error)
-	if rangeQuery {
-		parse = parsePromRangeQuery
+	q := promql.Query{
+		Expr: r.FormValue("query"),
+		Options: promql.Options{
+			Mode:      data_model.InstantQuery,
+			Compat:    true,
+			TimeNow:   time.Now().Unix(),
+			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+		},
+	}
+	if t := r.FormValue("time"); t == "" {
+		q.Start = q.Options.TimeNow
 	} else {
-		parse = parsePromInstantQuery
+		q.Start, err = parseTime(t)
+		if err != nil {
+			promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
+			return
+		}
 	}
-	q, err := parse(r)
-	if err != nil {
-		promRespondError(w, promErrorBadData, err)
-		return
-	}
-	q.End++ // handler expects half open interval [start, end)
-	q.Options.Namespace = r.Header.Get("X-StatsHouse-Namespace")
-	q.Options.Compat = true
+	q.End = q.Start + 1 // handler expects half open interval [start, end)
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
@@ -67,12 +72,47 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func (h *Handler) HandlePromInstantQuery(w http.ResponseWriter, r *http.Request) {
-	h.handlePromQuery(w, r, false)
-}
-
-func (h *Handler) HandlePromRangeQuery(w http.ResponseWriter, r *http.Request) {
-	h.handlePromQuery(w, r, true)
+func (h *Handler) HandleRangeQuery(w http.ResponseWriter, r *http.Request) {
+	// parse access token
+	ai, err := h.parseAccessToken(r, nil)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		return
+	}
+	// parse query
+	q := promql.Query{
+		Expr: r.FormValue("query"),
+		Options: promql.Options{
+			Compat:    true,
+			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+		},
+	}
+	q.Start, err = parseTime(r.FormValue("start"))
+	if err != nil {
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		return
+	}
+	q.End, err = parseTime(r.FormValue("end"))
+	if err != nil {
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		return
+	}
+	q.End++ // handler expects half open interval [start, end)
+	q.Step, err = parseDuration(r.FormValue("step"))
+	if err != nil {
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter step: %w", err))
+		return
+	}
+	// execute query
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
+	defer cancel()
+	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &ai), q)
+	if err != nil {
+		promRespondError(w, promErrorExec, err)
+		return
+	}
+	defer dispose()
+	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
 func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Request) {
@@ -103,53 +143,6 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 }
 
 // region Request
-
-func parsePromRangeQuery(r *http.Request) (q promql.Query, err error) {
-	q.Start, err = parseTime(r.FormValue("start"))
-	if err != nil {
-		return q, fmt.Errorf("invalid parameter start: %w", err)
-	}
-
-	q.End, err = parseTime(r.FormValue("end"))
-	if err != nil {
-		return q, fmt.Errorf("invalid parameter end: %w", err)
-	}
-	if q.End < q.Start {
-		return q, fmt.Errorf("invalid parameter end: end timestamp must not be before start time")
-	}
-
-	q.Step, err = parseDuration(r.FormValue("step"))
-	if err != nil {
-		return q, fmt.Errorf("invalid parameter step: %w", err)
-	}
-	if q.Step <= 0 {
-		return q, fmt.Errorf("invalid parameter step: zero or negative handleQuery resolution step widths are not accepted. Try a positive integer")
-	}
-
-	// For safety, limit the number of returned points per timeseries.
-	// This is sufficient for 60s resolution for a week or 1h resolution for a year.
-	if (q.End-q.Start)/q.Step > data_model.MaxSlice {
-		return q, fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", data_model.MaxSlice)
-	}
-
-	q.Expr = r.FormValue("query")
-	return q, nil
-}
-
-func parsePromInstantQuery(r *http.Request) (q promql.Query, err error) {
-	v := r.FormValue("time")
-	if v == "" {
-		q.Start = time.Now().Unix()
-	} else {
-		q.Start, err = parseTime(v)
-		if err != nil {
-			return q, fmt.Errorf("invalid parameter time: %w", err)
-		}
-	}
-	q.End = q.Start
-	q.Expr = r.FormValue("query")
-	return q, nil
-}
 
 func parseTime(s string) (int64, error) {
 	if v, err := strconv.ParseFloat(s, 64); err == nil {
@@ -311,7 +304,8 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
-	if qry.Options.Collapse {
+	pointQuery := qry.Options.Mode == data_model.PointQuery
+	if pointQuery {
 		for _, what := range qry.Whats {
 			switch what.Digest {
 			case data_model.DigestCount, data_model.DigestMin, data_model.DigestMax, data_model.DigestAvg,
@@ -343,8 +337,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	version := data_model.VersionOrDefault(qry.Options.Version)
 	var lods []data_model.LOD
-	if qry.Options.Collapse {
-		// "point" query
+	if pointQuery {
 		lod0 := qry.Timescale.LODs[0]
 		start := qry.Timescale.Time[0]
 		metric := qry.Metric
@@ -376,8 +369,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	for _, args := range getHandlerArgs(qry, ai, step) {
 		var tx int // time index
 		for _, lod := range lods {
-			if qry.Options.Collapse {
-				// "point" query
+			if pointQuery {
 				data, err := h.pointsCache.get(ctx, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
@@ -395,7 +387,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							}
 							res.Data = append(res.Data, promql.SeriesData{
 								Values: v,
-								What:   fn,
+								What:   fn.sel,
 							})
 						}
 					}
@@ -403,7 +395,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					for y, what := range args.what {
 						var v float64
 						row := &data[i]
-						switch what.Digest {
+						switch what.qry {
 						case data_model.DigestCount, data_model.DigestCountRaw, data_model.DigestCountSec:
 							v = row.countNorm
 						case data_model.DigestMin,
@@ -458,7 +450,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 								res.Data = append(res.Data, promql.SeriesData{
 									Values:     v,
 									MinMaxHost: h,
-									What:       fn,
+									What:       fn.sel,
 								})
 							}
 						}
@@ -468,7 +460,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						}
 						k += tx
 						for y, what := range args.what {
-							(*res.Data[x+y].Values)[k] = selectTSValue(what.Digest, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
+							(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
 							for z, qryHost := range qry.MinMaxHost {
 								if qryHost {
 									res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
@@ -514,7 +506,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				if tagWhat {
 					res.AddTagAt(i+j, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
-						Value: int32(what.Digest),
+						Value: int32(what.sel.Digest),
 					})
 				}
 			}
@@ -629,7 +621,12 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 type handlerArgs struct {
 	qs   string // cache key
 	pq   preparedPointsQuery
-	what []promql.SelectorWhat
+	what []handlerWhat
+}
+
+type handlerWhat struct {
+	sel promql.SelectorWhat   // what was specified in the selector is not necessarily equal to
+	qry data_model.DigestWhat // what we will request
 }
 
 func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[data_model.DigestKind]handlerArgs {
@@ -684,20 +681,22 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 	}
 	// get "queryFn"
 	res := make(map[data_model.DigestKind]handlerArgs)
+	pointQuery := qry.Options.Mode == data_model.PointQuery
 	for _, v := range qry.Whats {
-		if qry.Options.Collapse || step == 0 || step == _1M {
+		queryWhat := v.Digest
+		if pointQuery || step == 0 || step == _1M {
 			switch v.Digest {
 			case data_model.DigestCount:
-				v.Digest = data_model.DigestCountRaw
+				queryWhat = data_model.DigestCountRaw
 			case data_model.DigestSum:
-				v.Digest = data_model.DigestSumRaw
+				queryWhat = data_model.DigestSumRaw
 			case data_model.DigestCardinality:
-				v.Digest = data_model.DigestCardinalityRaw
+				queryWhat = data_model.DigestCardinalityRaw
 			}
 		}
-		kind := v.Digest.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
+		kind := queryWhat.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
 		args := res[kind]
-		args.what = append(args.what, v)
+		args.what = append(args.what, handlerWhat{v, queryWhat})
 		res[kind] = args
 	}
 	// all kinds contain counter value, there is

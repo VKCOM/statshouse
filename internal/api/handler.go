@@ -279,6 +279,7 @@ type (
 		UseV2       bool                `json:"useV2"`
 		NumSeries   int                 `json:"numSeries"`
 		MetricName  string              `json:"metricName"`
+		CustomName  string              `json:"customName"`
 		Width       int                 `json:"customAgg"`
 		PromQL      string              `json:"promQL"`
 		What        []string            `json:"what"`
@@ -336,6 +337,7 @@ type (
 		version             string
 		numResults          int
 		metricWithNamespace string
+		customMetricName    string
 		from                time.Time
 		to                  time.Time
 		step                int64
@@ -364,7 +366,7 @@ type (
 		metricCallback func(*format.MetricMetaValue)
 		rand           *rand.Rand
 		timeNow        time.Time
-		collapse       bool // "point" query
+		mode           data_model.QueryMode
 		trace          bool
 		strBucketLabel bool
 	}
@@ -674,7 +676,7 @@ ORDER BY
 LIMIT
   ?
 SETTINGS
-  optimize_aggregation_in_order = 1
+  optimize_aggregation_in_order = 1, allow_experimental_analyzer = 0
 `, _1sTableSH2), format.BuiltinMetricIDContributorsLog, from, cacheInvalidateMaxRows)
 	if err != nil {
 		log.Printf("[error] cache invalidation log query failed: %v", err)
@@ -2020,7 +2022,7 @@ func (h *Handler) HandlePointQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	s, cancel, err := h.handleSeriesRequest(
 		withEndpointStat(r.Context(), sl), req,
-		seriesRequestOptions{collapse: true, trace: true})
+		seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, req.ai.user, sl)
 		return
@@ -2385,7 +2387,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 			Expr:  req.promQL,
 			Options: promql.Options{
 				Version:          req.version,
-				Collapse:         opt.collapse,
+				Mode:             opt.mode,
 				AvoidCache:       req.avoidCache,
 				TimeNow:          opt.timeNow.Unix(),
 				Extend:           req.excessPoints,
@@ -3152,6 +3154,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		}
 		tab.numResults = v.NumSeries
 		tab.metricWithNamespace = v.MetricName
+		tab.customMetricName = v.CustomName
 		if v.Width > 0 {
 			tab.strWidth = fmt.Sprintf("%ds", v.Width)
 		}

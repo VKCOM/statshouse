@@ -368,10 +368,14 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 		if len(legend) > legendMaxLen {
 			legend = data[i].Series.SeriesMeta[:legendMaxLen]
 		}
+		effectiveName := metric[i].metricWithNamespace
+		if len(metric[i].customMetricName) > 0 {
+			effectiveName = metric[i].customMetricName
+		}
 		td[i] = &gnuplotTemplateData{
 			Format:           format,
 			Title:            title,
-			Metric:           metric[i].metricWithNamespace,
+			Metric:           effectiveName,
 			Width:            width,
 			Height:           height,
 			Ratio:            1 / goldenRatio,

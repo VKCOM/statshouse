@@ -28,6 +28,8 @@
   position: sticky;
   top: 0;
   background-color: var(--bs-body-bg);
+  z-index: 2;
+  box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
 }
 .bottom {
   flex-grow: 1;

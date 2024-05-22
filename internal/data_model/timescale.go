@@ -49,6 +49,12 @@ const (
 	fastQueryTimeInterval = (86400 + 3600) * 2
 )
 
+const (
+	RangeQuery QueryMode = iota
+	InstantQuery
+	PointQuery
+)
+
 type Timescale struct {
 	Version    string
 	Location   *time.Location
@@ -66,6 +72,8 @@ type TimescaleLOD struct {
 	Len  int // number of elements LOD occupies in time array
 }
 
+type QueryMode int
+
 type GetTimescaleArgs struct {
 	Version      string
 	Start        int64 // inclusive
@@ -73,7 +81,7 @@ type GetTimescaleArgs struct {
 	Step         int64
 	TimeNow      int64
 	ScreenWidth  int64
-	Collapse     bool // aka "point" query
+	Mode         QueryMode
 	Extend       bool
 	MetricOffset map[*format.MetricMetaValue]int64
 	Metric       *format.MetricMetaValue
@@ -214,7 +222,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	// gather query info
 	var (
 		maxOffset    int
-		maxMetricRes int64 // max metric resolution
+		maxMetricRes int64 = 1 // max metric resolution
 		hasStringTop bool
 		hasUnique    bool
 	)
@@ -263,7 +271,8 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	}
 	// generate LODs
 	var minStep int64
-	if args.Collapse {
+	pointQuery := args.Mode == PointQuery
+	if pointQuery {
 		minStep = maxMetricRes
 	} else {
 		if 0 < args.Step {
@@ -287,7 +296,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		if edge < start {
 			continue
 		}
-		if end < edge || args.Collapse {
+		if end < edge || pointQuery {
 			edge = end
 		}
 		lod.Len = 0      // reset LOD length, keep last step
@@ -303,7 +312,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			// calculate number of points up to the "edge"
 			var lodLen, n int
 			lodEnd, lodLen = endOfLOD(lodStart, step, edge, false, args.Location)
-			if !args.Collapse {
+			if !pointQuery {
 				// plus up to the query and to ensure current "step" does not exceed "maxPoints" limit
 				_, m := endOfLOD(lodEnd, step, end, false, args.Location)
 				n = resLen + lodLen + m
@@ -329,7 +338,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 				break
 			}
 		}
-		if lod.Step <= 0 || lod.Step > _1M || lod.Len <= 0 || !(args.Collapse || lod.Len <= maxPoints) {
+		if lod.Step <= 0 || lod.Step > _1M || lod.Len <= 0 || !(pointQuery || lod.Len <= maxPoints) {
 			// should not happen
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
@@ -353,7 +362,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	// generate time
 	p := &res.LODs[0]
 	t := startOfLOD(args.Start, p.Step, args.Location, args.UTCOffset)
-	if args.Collapse {
+	if pointQuery {
 		if t < args.Start && !args.Extend {
 			t = StepForward(t, p.Step, args.Location)
 		}

@@ -56,7 +56,7 @@ type Options struct {
 	AvoidCache       bool
 	TimeNow          int64
 	ScreenWidth      int64
-	Collapse         bool // aka "point" query
+	Mode             data_model.QueryMode
 	Extend           bool
 	TagWhat          bool
 	TagOffset        bool
@@ -248,7 +248,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 				e.Offsets = []int64{e.OriginalOffset}
 			}
 			if err = ev.bindVariables(e); err == nil {
-				err = ev.matchMetrics(e, path, metricOffset, ev.opt.Offsets[0])
+				err = ev.matchMetrics(e, path, metricOffset)
 			}
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
@@ -264,8 +264,12 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	if err != nil {
 		return evaluator{}, err
 	}
+	// widen time range to accommodate range selectors and ensure instant query won't return empty result
+	if qry.Options.Mode == data_model.InstantQuery && maxRange < 60 {
+		maxRange = 60
+	}
+	qry.Start -= maxRange
 	// init timescale
-	qry.Start -= maxRange // widen time range to accommodate range selectors
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
 		Version:      qry.Options.Version,
 		Start:        qry.Start,
@@ -273,7 +277,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 		Step:         qry.Step,
 		TimeNow:      qry.Options.TimeNow,
 		ScreenWidth:  qry.Options.ScreenWidth,
-		Collapse:     qry.Options.Collapse,
+		Mode:         qry.Options.Mode,
 		Extend:       qry.Options.Extend,
 		MetricOffset: metricOffset,
 		Location:     ng.location,
@@ -376,7 +380,7 @@ func (ev *evaluator) bindVariables(sel *parser.VectorSelector) error {
 	return nil
 }
 
-func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
+func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64) error {
 	sel.MinHost = ev.opt.MinHost
 	sel.MaxHost = ev.opt.MaxHost
 	for _, matcher := range sel.LabelMatchers {
@@ -402,10 +406,8 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 						selOffset = v
 					}
 				}
-				var (
-					curOffset, ok = metricOffset[m]
-					newOffset     = selOffset + offset
-				)
+				curOffset, ok := metricOffset[m]
+				newOffset := selOffset + ev.opt.Offsets[0]
 				if !ok || curOffset < newOffset {
 					metricOffset[m] = newOffset
 				}
@@ -473,7 +475,28 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 		return TimeSeries{}, err
 	}
 	ev.stableRemoveEmptySeries(srs)
-	res := TimeSeries{Time: ev.t.Time[ev.t.StartX:]}
+	startX := ev.t.StartX
+	endX := len(ev.t.Time)
+	if ev.opt.Mode == data_model.InstantQuery {
+	searchLastPoint:
+		for startX = endX; startX > ev.t.StartX; startX-- {
+			for j := range srs {
+				for k := range srs[j].Data {
+					for _, v := range *srs[j].Data[k].Values {
+						if math.IsNaN(v) {
+							continue searchLastPoint
+						}
+					}
+				}
+			}
+			break
+		}
+		if startX > ev.t.StartX {
+			startX -= 1
+		}
+		endX = startX + 1
+	}
+	res := TimeSeries{Time: ev.t.Time[startX:endX]}
 	limit := ev.opt.Limit
 	if limit == 0 {
 		limit = math.MaxInt
@@ -495,12 +518,12 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 			}
 		}
 		for ; i < end; i++ {
-			// trim time outside [StartX:]
-			vs := (*sr.Data[i].Values)[ev.t.StartX:]
+			// trim time outside [startX:endX]
+			vs := (*sr.Data[i].Values)[startX:endX]
 			sr.Data[i].Values = &vs
 			for j := range sr.Data[i].MinMaxHost {
 				if len(sr.Data[i].MinMaxHost[j]) != 0 {
-					sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][ev.t.StartX:]
+					sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][startX:endX]
 				}
 			}
 			res.Series.appendSome(sr, i)

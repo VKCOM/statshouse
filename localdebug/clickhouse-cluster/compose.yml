@@ -1,0 +1,190 @@
+services:
+  kh-s1r1:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s1r1
+    hostname: aggregator
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9363:9363"
+    volumes:
+      - kh-s1r1:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s1r1.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s1r2:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s1r2
+    hostname: aggregator
+    volumes:
+      - kh-s1r2:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s1r2.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s1r3:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s1r3
+    hostname: aggregator
+    volumes:
+      - kh-s1r3:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s1r3.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+
+  kh-s2r1:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s2r1
+    hostname: aggregator
+    volumes:
+      - kh-s2r1:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s2r1.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s2r2:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s2r2
+    hostname: aggregator
+    volumes:
+      - kh-s2r2:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s2r2.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s2r3:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s2r3
+    hostname: aggregator
+    volumes:
+      - kh-s2r3:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s2r3.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+
+  kh-s3r1:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s3r1
+    hostname: aggregator
+    volumes:
+      - kh-s3r1:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s3r1.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s3r2:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s3r2
+    hostname: aggregator
+    volumes:
+      - kh-s3r2:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s3r2.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+  kh-s3r3:
+    image: clickhouse/clickhouse-server:24.3.3
+    container_name: kh-s3r3
+    hostname: aggregator
+    volumes:
+      - kh-s3r3:/var/lib/clickhouse
+      - type: bind
+        source: ./config-kh-s3r3.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
+      interval: 200ms
+      timeout: 1s
+      retries: 1500
+
+  # 3.8.2 is the latest workng zookeeper version, details
+  # https://github.com/ClickHouse/ClickHouse/issues/53749
+  zoo1:
+    image: zookeeper:3.8.2
+    restart: always
+    hostname: zoo1
+    ports:
+      - 2181:2181
+    volumes:
+      - zoo1-data:/data
+      - zoo1-datalog:/datalog
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+  zoo2:
+    image: zookeeper:3.8.2
+    restart: always
+    hostname: zoo2
+    ports:
+      - 2182:2181
+    volumes:
+      - zoo2-data:/data
+      - zoo2-datalog:/datalog
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+  zoo3:
+    image: zookeeper:3.8.2
+    restart: always
+    hostname: zoo3
+    ports:
+      - 2183:2181
+    volumes:
+      - zoo3-data:/data
+      - zoo3-datalog:/datalog
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+
+volumes:
+  kh-s1r1:
+  kh-s1r2:
+  kh-s1r3:
+  kh-s2r1:
+  kh-s2r2:
+  kh-s2r3:
+  kh-s3r1:
+  kh-s3r2:
+  kh-s3r3:
+
+  zoo1-data:
+  zoo2-data:
+  zoo3-data:
+  zoo1-datalog:
+  zoo2-datalog:
+  zoo3-datalog:

@@ -21,7 +21,7 @@ export type ApiQuery = {
  * Get params endpoint api/query
  */
 export type ApiQueryGet = {
-  [GET_PARAMS.metricName]: string;
+  [GET_PARAMS.metricName]?: string;
   [GET_PARAMS.numResults]: string;
   [GET_PARAMS.metricWhat]: QueryWhat[];
   [GET_PARAMS.toTime]: string;
@@ -38,6 +38,7 @@ export type ApiQueryGet = {
   [GET_PARAMS.dataFormat]?: string;
   [GET_PARAMS.avoidCache]?: string;
   [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
+  [GET_PARAMS.priority]?: string;
   // [GetParams.metricFromEnd]?:string;
   // [GetParams.metricFromRow]?:string;
   // [GetParams.metricToRow]?:string;
