@@ -9,6 +9,7 @@ package pcache
 import (
 	"context"
 	"encoding"
+	"sort"
 	"sync"
 	"time"
 
@@ -63,6 +64,7 @@ type Cache struct {
 	DiskCache               *DiskCache // we do not cache errors on disk
 	DiskCacheNamespace      string
 	MaxMemCacheSize         int
+	MaxDiskCacheSize        int // <= 0 means no limit
 	SpreadCacheTTL          bool
 	DefaultCacheTTL         time.Duration
 	DefaultNegativeCacheTTL time.Duration
@@ -178,6 +180,7 @@ func (c *Cache) runRun() {
 		for i := 0; i < runnersCount; i++ {
 			go c.run()
 		}
+		go c.diskCleanup()
 	})
 }
 
@@ -186,6 +189,9 @@ func (c *Cache) Close() {
 	c.workMu.Lock()
 	c.stop = &sync.WaitGroup{}
 	c.stop.Add(runnersCount)
+	if c.DiskCache != nil && c.MaxDiskCacheSize > 0 {
+		c.stop.Add(1)
+	}
 	c.workMu.Unlock()
 	c.workCond.Broadcast()
 	c.stop.Wait()
@@ -208,6 +214,63 @@ func (c *Cache) run() {
 		c.workMu.Unlock()
 
 		c.updateCached(rng, e)
+	}
+}
+
+func (c *Cache) diskCleanup() {
+	if c.DiskCache == nil || c.MaxDiskCacheSize <= 0 {
+		return
+	}
+	const readLimit = 10_000
+	const eraseLimit = 100
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		c.workMu.Lock()
+		if c.stop != nil {
+			c.workMu.Unlock()
+			c.stop.Done()
+			return
+		}
+		c.workMu.Unlock()
+
+		diskCacheSize, _ := c.DiskCache.Count(c.DiskCacheNamespace)
+		if diskCacheSize <= c.MaxDiskCacheSize {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		keysToErase := diskCacheSize - c.MaxDiskCacheSize
+		for offset := 0; offset < diskCacheSize && keysToErase > 0; {
+			oldestKeys, _ := c.DiskCache.ListKeys(c.DiskCacheNamespace, readLimit, offset)
+			sort.Slice(oldestKeys, func(lhs, rhs int) bool {
+				return oldestKeys[lhs].Update.Unix() < oldestKeys[rhs].Update.Unix()
+			})
+
+			eraseCount := len(oldestKeys)
+			if eraseCount > eraseLimit {
+				eraseCount = eraseLimit
+			}
+			if eraseCount == 0 {
+				break
+			}
+
+			for _, key := range oldestKeys[:eraseCount] {
+				c.DiskCache.Erase(c.DiskCacheNamespace, key.Key)
+			}
+			keysToErase -= eraseCount
+			offset += readLimit
+
+			c.workMu.Lock()
+			if c.stop != nil {
+				c.workMu.Unlock()
+				c.stop.Done()
+				return
+			}
+			c.workMu.Unlock()
+			<-ticker.C
+		}
 	}
 }
 

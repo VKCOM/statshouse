@@ -41,6 +41,11 @@ SELECT value, update_time, ttl FROM cache_kv_v2 WHERE namespace=? AND key=?
 	listQuery = /* language=SQLite */ `
 SELECT value, update_time, ttl FROM cache_kv_v2 WHERE namespace=?
 `
+	listKeysQuery = /* language=SQLite */ `
+SELECT key FROM cache_kv_v2 WHERE namespace=?
+LIMIT ?
+OFFSET ?
+`
 	countQuery = /* language=SQLite */ `
 SELECT count(*) as value FROM cache_kv_v2 WHERE namespace=?
 `
@@ -100,6 +105,23 @@ type diskList struct {
 	ret chan listResult
 }
 
+type ListKeysResult struct {
+	Key    string    `db:"key"`
+	Update time.Time `db:"update_time"`
+}
+
+type listKeysResult struct {
+	Value []ListKeysResult
+	err   error
+}
+
+type diskListKeys struct {
+	ns     string
+	limit  int
+	offset int
+	ret    chan listKeysResult
+}
+
 type countResult struct {
 	Value int
 	err   error
@@ -116,6 +138,7 @@ type DiskCache struct {
 	r          chan diskRead
 	w          chan diskWrite
 	l          chan diskList
+	lk         chan diskListKeys
 	c          chan diskCount
 	closed     chan struct{}
 	runErr     chan error
@@ -136,6 +159,7 @@ func OpenDiskCache(cacheFilename string, txDuration time.Duration) (*DiskCache, 
 		r:          make(chan diskRead),
 		w:          make(chan diskWrite),
 		l:          make(chan diskList),
+		lk:         make(chan diskListKeys),
 		c:          make(chan diskCount),
 		closed:     make(chan struct{}),
 		runErr:     make(chan error),
@@ -180,6 +204,17 @@ func (dc *DiskCache) List(ns string) ([]ListResult, error) {
 	ch := make(chan listResult)
 	select {
 	case dc.l <- diskList{ns: ns, ret: ch}:
+		ret := <-ch
+		return ret.Value, ret.err
+	case <-dc.closed:
+		return nil, errDiskCacheClosed
+	}
+}
+
+func (dc *DiskCache) ListKeys(ns string, limit, offset int) ([]ListKeysResult, error) {
+	ch := make(chan listKeysResult)
+	select {
+	case dc.lk <- diskListKeys{ns: ns, limit: limit, offset: offset, ret: ch}:
 		ret := <-ch
 		return ret.Value, ret.err
 	case <-dc.closed:
@@ -251,6 +286,8 @@ func (dc *DiskCache) noTx(lastError error) {
 			w.ret <- lastError
 		case l := <-dc.l:
 			l.ret <- listResult{err: lastError}
+		case lk := <-dc.lk:
+			lk.ret <- listKeysResult{err: lastError}
 		case c := <-dc.c:
 			c.ret <- countResult{err: lastError}
 		}
@@ -299,6 +336,13 @@ func (dc *DiskCache) tx() error {
 					var v listResult
 					v.err = tx.Select(&v.Value, listQuery, l.ns)
 					l.ret <- v
+					if v.err != nil {
+						return v.err
+					}
+				case lk := <-dc.lk:
+					var v listKeysResult
+					v.err = tx.Select(&v.Value, listKeysQuery, lk.ns, lk.limit, lk.offset)
+					lk.ret <- v
 					if v.err != nil {
 						return v.err
 					}
