@@ -74,20 +74,28 @@ type TimescaleLOD struct {
 
 type QueryMode int
 
+type QueryStat struct {
+	MetricOffset    map[*format.MetricMetaValue]int64
+	MaxMetricOffset int64
+	MaxMetricRes    int64 // max metric resolution
+	HasStringTop    bool
+	HasUnique       bool
+}
+
 type GetTimescaleArgs struct {
-	Version      string
-	Start        int64 // inclusive
-	End          int64 // exclusive
-	Step         int64
-	TimeNow      int64
-	ScreenWidth  int64
-	Mode         QueryMode
-	Extend       bool
-	MetricOffset map[*format.MetricMetaValue]int64
-	Metric       *format.MetricMetaValue
-	Offset       int64
-	Location     *time.Location
-	UTCOffset    int64
+	QueryStat
+	Version     string
+	Start       int64 // inclusive
+	End         int64 // exclusive
+	Step        int64
+	TimeNow     int64
+	ScreenWidth int64
+	Mode        QueryMode
+	Extend      bool
+	Metric      *format.MetricMetaValue
+	Offset      int64
+	Location    *time.Location
+	UTCOffset   int64
 }
 
 type LOD struct {
@@ -412,7 +420,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 }
 
 func GetLODs(args GetTimescaleArgs) ([]LOD, error) {
-	args.MetricOffset = map[*format.MetricMetaValue]int64{args.Metric: args.Offset}
+	args.QueryStat.Add(args.Metric, args.Offset)
 	t, err := GetTimescale(args)
 	if err != nil {
 		return nil, err
@@ -470,6 +478,28 @@ func (lod LOD) IndexOf(timestamp int64) (int, error) {
 
 func (lod LOD) IsFast() bool {
 	return lod.FromSec+fastQueryTimeInterval >= lod.ToSec
+}
+
+func (s *QueryStat) Add(m *format.MetricMetaValue, offset int64) {
+	if s.MetricOffset == nil {
+		s.MetricOffset = make(map[*format.MetricMetaValue]int64)
+	}
+	curOffset, ok := s.MetricOffset[m]
+	if !ok || curOffset < offset {
+		if s.MaxMetricOffset < offset {
+			s.MaxMetricOffset = offset
+		}
+		s.MetricOffset[m] = offset
+	}
+	if s.MaxMetricRes < int64(m.Resolution) {
+		s.MaxMetricRes = int64(m.Resolution)
+	}
+	if len(m.StringTopDescription) != 0 {
+		s.HasStringTop = true
+	}
+	if m.Kind == format.MetricKindUnique {
+		s.HasUnique = true
+	}
 }
 
 func StepForward(start, step int64, loc *time.Location) int64 {

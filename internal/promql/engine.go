@@ -94,6 +94,7 @@ type Engine struct {
 
 type evaluator struct {
 	Engine
+	data_model.QueryStat
 
 	ctx context.Context
 	opt Options
@@ -232,10 +233,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}
 	ev.opt.Offsets = normalizeOffsets(append(ev.opt.Offsets, 0))
 	// match metrics
-	var (
-		maxRange     int64
-		metricOffset = make(map[*format.MetricMetaValue]int64)
-	)
+	var maxRange int64
 	parser.Inspect(ev.ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
@@ -248,7 +246,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 				e.Offsets = []int64{e.OriginalOffset}
 			}
 			if err = ev.bindVariables(e); err == nil {
-				err = ev.matchMetrics(e, path, metricOffset)
+				err = ev.matchMetrics(e, path)
 			}
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
@@ -265,23 +263,23 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 		return evaluator{}, err
 	}
 	// widen time range to accommodate range selectors and ensure instant query won't return empty result
-	if qry.Options.Mode == data_model.InstantQuery && maxRange < 60 {
-		maxRange = 60
-	}
 	qry.Start -= maxRange
+	if qry.Options.Mode == data_model.InstantQuery {
+		maxRange -= 5 * 60 // 5 times larger than maximum metric resolution (and scrape interval)
+	}
 	// init timescale
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
-		Version:      qry.Options.Version,
-		Start:        qry.Start,
-		End:          qry.End,
-		Step:         qry.Step,
-		TimeNow:      qry.Options.TimeNow,
-		ScreenWidth:  qry.Options.ScreenWidth,
-		Mode:         qry.Options.Mode,
-		Extend:       qry.Options.Extend,
-		MetricOffset: metricOffset,
-		Location:     ng.location,
-		UTCOffset:    ng.utcOffset,
+		QueryStat:   ev.QueryStat,
+		Version:     qry.Options.Version,
+		Start:       qry.Start,
+		End:         qry.End,
+		Step:        qry.Step,
+		TimeNow:     qry.Options.TimeNow,
+		ScreenWidth: qry.Options.ScreenWidth,
+		Mode:        qry.Options.Mode,
+		Extend:      qry.Options.Extend,
+		Location:    ng.location,
+		UTCOffset:   ng.utcOffset,
 	})
 
 	if err != nil || ev.t.Empty() {
@@ -315,8 +313,8 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 		return nil
 	})
 	// callback
-	if ev.opt.ExprQueriesSingleMetricCallback != nil && len(metricOffset) == 1 {
-		for metric := range metricOffset {
+	if ev.opt.ExprQueriesSingleMetricCallback != nil && len(ev.QueryStat.MetricOffset) == 1 {
+		for metric := range ev.QueryStat.MetricOffset {
 			ev.opt.ExprQueriesSingleMetricCallback(metric)
 			break
 		}
@@ -380,7 +378,7 @@ func (ev *evaluator) bindVariables(sel *parser.VectorSelector) error {
 	return nil
 }
 
-func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64) error {
+func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node) error {
 	sel.MinHost = ev.opt.MinHost
 	sel.MaxHost = ev.opt.MaxHost
 	for _, matcher := range sel.LabelMatchers {
@@ -406,11 +404,7 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 						selOffset = v
 					}
 				}
-				curOffset, ok := metricOffset[m]
-				newOffset := selOffset + ev.opt.Offsets[0]
-				if !ok || curOffset < newOffset {
-					metricOffset[m] = newOffset
-				}
+				ev.QueryStat.Add(m, selOffset+ev.opt.Offsets[0])
 				sel.MatchingMetrics = append(sel.MatchingMetrics, m)
 			}
 		case LabelWhat:
