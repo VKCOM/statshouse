@@ -95,6 +95,7 @@ const (
 
 	MappingMaxMetricsInQueue = 1000
 	MappingMaxMemCacheSize   = 2_000_000
+	MappingMaxDiskCacheSize  = 10_000_000
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
 	MappingNegativeCacheTTL  = 5 * time.Second
 	MappingMinInterval       = 1 * time.Millisecond

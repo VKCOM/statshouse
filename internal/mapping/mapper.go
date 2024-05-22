@@ -24,6 +24,7 @@ func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache)
 		DiskCache:               dc,
 		DiskCacheNamespace:      data_model.TagValueDiskNamespace + suffix,
 		MaxMemCacheSize:         data_model.MappingMaxMemCacheSize,
+		MaxDiskCacheSize:        data_model.MappingMaxDiskCacheSize,
 		SpreadCacheTTL:          true,
 		DefaultCacheTTL:         data_model.MappingCacheTTLMinimum,
 		DefaultNegativeCacheTTL: data_model.MappingNegativeCacheTTL,
