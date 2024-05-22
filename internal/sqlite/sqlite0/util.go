@@ -23,10 +23,6 @@ var (
 
 	logFunc   LogFunc = func(code int, msg string) {}
 	logFuncMu sync.Mutex
-
-	connMap   = map[int64]*Conn{}
-	connMaxID int64
-	connMu    sync.RWMutex
 )
 
 //export _sqliteLogFunc
@@ -40,20 +36,6 @@ func _sqliteLogFunc(_ unsafe.Pointer, cCode C.int, cMsg *C.char) {
 	defer logFuncMu.Unlock()
 
 	logFunc(int(cCode), msg)
-}
-
-//export _sqlite_wal_switch_callback
-func _sqlite_wal_switch_callback(connID unsafe.Pointer, iAPP C.int, frame C.uint) {
-	connMu.RLock()
-	c := (*int64)(connID)
-	conn, ok := connMap[*c]
-	connMu.RUnlock()
-	if !ok {
-		return
-	}
-	if conn.walSwitchCB != nil {
-		conn.walSwitchCB(int(iAPP), uint(frame))
-	}
 }
 
 type Error struct {
@@ -88,7 +70,7 @@ func ensureZeroTerm(s []byte) []byte {
 	}
 	return s
 }
-func EnsureZeroTermStr(s string) string {
+func ensureZeroTermStr(s string) string {
 	if len(s) == 0 || s[len(s)-1] != 0 {
 		s += "\x00"
 	}

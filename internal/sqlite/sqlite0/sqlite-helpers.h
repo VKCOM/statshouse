@@ -39,9 +39,3 @@ extern void _sqliteLogFunc(void* pArg, int code, char* msg);
 static inline int _sqlite_enable_logging() {
     return sqlite3_config(SQLITE_CONFIG_LOG, _sqliteLogFunc, NULL);
 }
-
-extern void _sqlite_wal_switch_callback(void* conn, int, unsigned int);
-static int _sqlite_set_wal_switch_callback(sqlite3* db, void* conn) {
-    return sqlite3_wal_set_switch_callback(db, conn, _sqlite_wal_switch_callback);
-}
-

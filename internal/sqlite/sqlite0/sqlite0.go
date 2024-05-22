@@ -40,7 +40,6 @@ package sqlite0
 #cgo CFLAGS: -DSQLITE_OMIT_UTF16
 #cgo CFLAGS: -DSQLITE_MAX_MMAP_SIZE=35184372088832ll
 #cgo CFLAGS: -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT
-#cgo CFLAGS: -DSQLITE_DEFAULT_WAL_AUTOCHECKPOINT=0
 
 #cgo unsafe CFLAGS: -DSQLITE_MMAP_READWRITE
 
@@ -92,10 +91,8 @@ func Version() string {
 }
 
 type Conn struct {
-	conn        *C.sqlite3
-	unlock      *C.unlock
-	id          int64
-	walSwitchCB func(int, uint)
+	conn   *C.sqlite3
+	unlock *C.unlock
 }
 
 func Open(path string, flags int) (*Conn, error) {
@@ -111,7 +108,7 @@ func Open(path string, flags int) (*Conn, error) {
 	}
 
 	var cConn *C.sqlite3
-	path = EnsureZeroTermStr(path)
+	path = ensureZeroTermStr(path)
 	rc := C.sqlite3_open_v2(unsafeStringCPtr(path), &cConn, C.int(flags), nil) //nolint:gocritic // nonsense
 	runtime.KeepAlive(path)
 	if rc != ok {
@@ -136,23 +133,10 @@ func Open(path string, flags int) (*Conn, error) {
 		return nil, err
 	}
 
-	c := &Conn{
+	return &Conn{
 		conn:   cConn,
 		unlock: C.unlock_alloc(),
-	}
-
-	connMu.Lock()
-	defer connMu.Unlock()
-	c.id = connMaxID
-	connMaxID++
-	connMap[c.id] = c
-	if rc != ok {
-		err := sqliteErr(rc, cConn, "_sqlite_set_wal_switch_callback")
-		delete(connMap, c.id)
-		C.sqlite3_close_v2(cConn)
-		return nil, err
-	}
-	return c, nil
+	}, nil
 }
 
 func (c *Conn) Close() error {
@@ -171,20 +155,7 @@ func (c *Conn) Close() error {
 		C.unlock_free(c.unlock)
 		c.unlock = nil
 	}
-	connMu.Lock()
-	defer connMu.Unlock()
-	delete(connMap, c.id)
 	return err
-}
-
-func (c *Conn) EnableWALSwitchCallback() error {
-	p := unsafe.Pointer(&c.id)
-	rc := C._sqlite_set_wal_switch_callback(c.conn, p)
-	return sqliteErr(rc, c.conn, "_sqlite_set_wal_switch_callback")
-}
-
-func (c *Conn) RegisterWALSwitchCallback(walSwitchCB func(int, uint)) {
-	c.walSwitchCB = walSwitchCB
 }
 
 func (c *Conn) AutoCommit() bool {
@@ -196,19 +167,13 @@ func (c *Conn) SetAutoCheckpoint(n int) error {
 	return sqliteErr(rc, c.conn, "sqlite3_wal_autocheckpoint")
 }
 
-// TODO падать если ошибка отличается от db is locked
-func (c *Conn) Checkpoint() error {
-	rc := C.sqlite3_wal_checkpoint_v2(c.conn, nil, C.SQLITE_CHECKPOINT_PASSIVE, nil, nil)
-	return sqliteErr(rc, c.conn, "sqlite3_wal_checkpoint_v2")
-}
-
 func (c *Conn) SetBusyTimeout(dt time.Duration) error {
 	rc := C.sqlite3_busy_timeout(c.conn, C.int(dt/time.Millisecond))
 	return sqliteErr(rc, c.conn, "sqlite3_busy_timeout")
 }
 
 func (c *Conn) Exec(sql string) error {
-	sql = EnsureZeroTermStr(sql)
+	sql = ensureZeroTermStr(sql)
 	rc := C.sqlite3_exec(c.conn, unsafeStringCPtr(sql), nil, nil, nil)
 	runtime.KeepAlive(sql)
 	return sqliteErr(rc, c.conn, "sqlite3_exec")
@@ -216,6 +181,11 @@ func (c *Conn) Exec(sql string) error {
 
 func (c *Conn) LastInsertRowID() int64 {
 	id := C.sqlite3_last_insert_rowid(c.conn)
+	return int64(id)
+}
+
+func (c *Conn) RowsAffected() int64 {
+	id := C.sqlite3_changes(c.conn)
 	return int64(id)
 }
 
@@ -251,16 +221,14 @@ func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 	}
 
 	n := int(C.sqlite3_bind_parameter_count(cStmt))
-	var params map[string]int
-	if n > 0 {
-		params = make(map[string]int, n)
-		for i := 0; i < n; i++ {
-			name := C.sqlite3_bind_parameter_name(cStmt, C.int(i+1))
-			if name != nil {
-				params[C.GoString(name)] = i + 1
-			}
+	params := make(map[string]int, n)
+	for i := 0; i < n; i++ {
+		name := C.sqlite3_bind_parameter_name(cStmt, C.int(i+1))
+		if name != nil {
+			params[C.GoString(name)] = i + 1
 		}
 	}
+
 	return &Stmt{
 		conn:   c,
 		stmt:   cStmt,
@@ -414,7 +382,7 @@ func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 		if rc != ok && rc != row {
 			return nil, sqliteErr(rc, s.conn.conn, "sqlite3_column_blob") // out-of-memory during format conversion
 		}
-		return nil, nil // zero-length BLOB or SQLStr NULL
+		return nil, nil // zero-length BLOB or SQL NULL
 	}
 	n := C.sqlite3_column_bytes(s.stmt, C.int(i))
 	if n == 0 {
@@ -438,14 +406,14 @@ func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
 	return unsafeSliceToString(b), err
 }
 
-func (s *Stmt) ColumnInt64(i int) int64 {
+func (s *Stmt) ColumnInt64(i int) (int64, error) {
 	value := C.sqlite3_column_int64(s.stmt, C.int(i))
-	return int64(value)
+	return int64(value), nil
 }
 
-func (s *Stmt) ColumnFloat64(i int) float64 {
+func (s *Stmt) ColumnFloat64(i int) (float64, error) {
 	value := C.sqlite3_column_double(s.stmt, C.int(i))
-	return float64(value)
+	return float64(value), nil
 }
 
 func (s *Stmt) ColumnNull(i int) bool {

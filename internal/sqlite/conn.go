@@ -239,11 +239,11 @@ func (r *Rows) ColumnIsNull(i int) bool {
 }
 
 func (r *Rows) ColumnInt64(i int) (int64, error) {
-	return r.s.ColumnInt64(i), nil
+	return r.s.ColumnInt64(i)
 }
 
 func (r *Rows) ColumnFloat64(i int) (float64, error) {
-	return r.s.ColumnFloat64(i), nil
+	return r.s.ColumnFloat64(i)
 }
 
 func (c Conn) LastInsertRowID() int64 {

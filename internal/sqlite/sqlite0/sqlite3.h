@@ -148,7 +148,7 @@ extern "C" {
 */
 #define SQLITE_VERSION        "3.45.3"
 #define SQLITE_VERSION_NUMBER 3045003
-#define SQLITE_SOURCE_ID      "2024-04-15 14:21:35 2ccc0185465615e4d0a270e2767a9d9eae2d9c555b73687bddca469ac4f4alt1"
+#define SQLITE_SOURCE_ID      "2024-04-15 14:21:35 2ccc0185465615e4d0a270e2767a9d9eae2d9c555b73687bddca469ac4f444ee"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -9720,9 +9720,6 @@ SQLITE_API int sqlite3_wal_checkpoint_v2(
   int *pnLog,                     /* OUT: Size of WAL log in frames */
   int *pnCkpt                     /* OUT: Total number of frames checkpointed */
 );
-
-
-SQLITE_API int sqlite3_wal_set_switch_callback(sqlite3 *db, void* callbackData, void (*callback)(void*, int, unsigned int));
 
 /*
 ** CAPI3REF: Checkpoint Mode Values
