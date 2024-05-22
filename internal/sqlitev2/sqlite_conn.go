@@ -7,8 +7,8 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 	"github.com/vkcom/statshouse/internal/sqlitev2/cache"
+	"github.com/vkcom/statshouse/internal/sqlitev2/sqlite0"
 	"go.uber.org/multierr"
 	"go4.org/mem"
 )

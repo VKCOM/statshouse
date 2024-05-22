@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"cmp"
 	"math/rand"
 	"sort"
 	"testing"
@@ -79,8 +80,8 @@ func (s *heapState) Push(r *rapid.T) {
 	s.pushed = append(s.pushed, stmt)
 	ix := s.heap.put(stmt)
 	s.vToI[stmt.key] = ix
-	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) bool {
-		return a.lastTouch < b.lastTouch
+	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) int {
+		return cmp.Compare(a.lastTouch, b.lastTouch)
 	})
 }
 

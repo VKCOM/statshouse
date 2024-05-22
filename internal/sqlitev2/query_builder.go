@@ -1,6 +1,7 @@
 package sqlitev2
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 	"strings"
@@ -57,8 +58,8 @@ func (p *queryBuilder) BuildQuery(query mem.RO, args ...Arg) ([]byte, error) {
 			i: i,
 		})
 	}
-	slices.SortFunc(p.paramsIndex, func(a, b indexedArg) bool {
-		return a.i < b.i
+	slices.SortFunc(p.paramsIndex, func(a, b indexedArg) int {
+		return cmp.Compare(a.i, b.i)
 	})
 	start := 0
 	for i, indexed := range p.paramsIndex {

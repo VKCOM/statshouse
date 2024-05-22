@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"cmp"
 	"log"
 	"os"
 	"testing"
@@ -42,8 +43,8 @@ func (s *cacheState) Put(r *rapid.T) {
 		lastTouch: t.Unix(),
 		stmt:      nil,
 	})
-	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) bool {
-		return a.lastTouch < b.lastTouch
+	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) int {
+		return cmp.Compare(a.lastTouch, b.lastTouch)
 	})
 }
 
@@ -66,8 +67,8 @@ func (s *cacheState) Get(r *rapid.T) {
 	t := time.Unix(s.now, 0)
 	actualStmt, ok := s.cache.Get(stmt.key, t)
 	stmt.lastTouch = t.Unix()
-	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) bool {
-		return a.lastTouch < b.lastTouch
+	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) int {
+		return cmp.Compare(a.lastTouch, b.lastTouch)
 	})
 	require.True(r, ok)
 	require.Equal(r, stmt.stmt, actualStmt)

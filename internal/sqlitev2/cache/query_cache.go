@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlitev2/sqlite0"
 	"github.com/zeebo/xxh3"
 	"go.uber.org/multierr"
 )
