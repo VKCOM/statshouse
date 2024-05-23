@@ -28,11 +28,7 @@
   background-color: rgba(var(--bs-body-bg-rgb), 0.9);
   box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
   backdrop-filter: blur(2px);
-}
-
-.plotLegend {
-}
-
-.plotLegendShort {
-  height: var(--bs-body-line-height);
+  padding: 8px;
+  overflow: auto;
+  position: relative;
 }

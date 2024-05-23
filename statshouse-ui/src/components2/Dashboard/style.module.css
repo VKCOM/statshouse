@@ -62,4 +62,5 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
+  text-decoration: none;
 }

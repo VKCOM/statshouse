@@ -70,11 +70,13 @@ export type QuerySeries = {
 
 export type QuerySeriesMeta = {
   time_shift: number;
-  tags: Record<TagKey, SeriesMetaTag>;
-  max_hosts: string[];
-  name: string;
+  tags: Partial<Record<TagKey, SeriesMetaTag>>;
+  max_hosts: null | string[];
+  name?: string;
   what: QueryWhat;
   total: number;
+  color: string;
+  metric_type?: string;
 };
 
 export type SeriesMetaTag = {

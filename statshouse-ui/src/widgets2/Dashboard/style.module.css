@@ -1,0 +1,35 @@
+.plotPanel {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  overflow: auto;
+}
+.plotPanelLeft {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  position: relative;
+  overflow: auto;
+}
+
+.plotPanelRight {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: auto;
+}
+
+.plotPanelTop {
+}
+
+.plotPanelMiddle {
+  overflow: auto;
+  position: relative;
+}
+
+.plotPanelBottom {
+  flex-grow: 0;
+  max-height: 30%;
+  overflow: auto;
+  position: relative;
+}
