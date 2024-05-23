@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson/jwriter"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/format"
@@ -137,7 +138,7 @@ func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *e
 
 			err := writer.Write([]string{
 				time.Unix(resp.Series.Time[di], 0).Format("2006-01-02 15:04:05"),
-				strconv.FormatFloat(p, 'f', 2, 64),
+				strconv.FormatFloat(p, 'f', -1, 64),
 				label,
 			})
 			if err != nil {
