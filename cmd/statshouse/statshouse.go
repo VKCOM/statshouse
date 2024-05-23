@@ -375,74 +375,47 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}(u)
 	}
 
-	receiver.RunScrape(sh2, w)
+	// Open port
+	listeners := make([]net.Listener, 0, 2)
+	listeners = append(listeners, listen("tcp4", argv.listenAddr))
+	if argv.listenAddrIPv6 != "" {
+		listeners = append(listeners, listen("tcp6", argv.listenAddrIPv6))
+	}
+
+	// Run pprof server
+	var hijack *rpc.HijackListener
+	if argv.pprofHTTP {
+		hijack = rpc.NewHijackListener(listeners[0].Addr())
+		defer func() { _ = hijack.Close() }()
+		go trustedNetworkServeHTTP(hijack)
+	}
+
+	// Run RPC server
 	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
-
-	var hijackListener *rpc.HijackListener
-	srv := rpc.NewServer(
-		rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-			hijackListener.AddConnection(conn)
-		}),
+	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
+	}
+	if hijack != nil {
+		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijack.AddConnection(conn)
+		}))
+	}
+	srv := rpc.NewServer(options...)
 	defer func() { _ = srv.Close() }()
-	rpcLn, err := net.Listen("tcp4", argv.listenAddr)
-	if err != nil {
-		logErr.Fatalf("RPC listen failed: %v", err)
+	for _, ln := range listeners {
+		go serveRPC(ln, srv)
 	}
 
-	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
-	defer func() { _ = hijackListener.Close() }()
-
-	var rpcLnIPv6 net.Listener
-	if argv.listenAddrIPv6 != "" {
-		rpcLnIPv6, err = net.Listen("tcp6", argv.listenAddrIPv6)
-		if err != nil {
-			logErr.Fatalf("RPC listen failed IPv6: %v", err)
-		}
-	}
-
-	go func() {
-		err := srv.Serve(rpcLn)
-		if err != nil && err != rpc.ErrServerClosed {
-			logErr.Fatalf("RPC server failed: %v", err)
-		}
-	}()
-	if rpcLnIPv6 != nil {
-		go func() {
-			err := srv.Serve(rpcLnIPv6)
-			if err != nil && err != rpc.ErrServerClosed {
-				logErr.Fatalf("RPC server failed IPv6: %v", err)
-			}
-		}()
-	}
-
-	if argv.pprofHTTP {
-		go func() { // serve pprof on RPC port
-			m := http.NewServeMux()
-			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
-				if err == nil && remoteAddr.IP.IsLoopback() {
-					http.DefaultServeMux.ServeHTTP(w, r)
-				} else {
-					w.WriteHeader(http.StatusUnauthorized)
-				}
-			})
-			logOk.Printf("Start listening pprof HTTP %q", argv.listenAddr)
-			s := http.Server{Handler: m}
-			_ = s.Serve(hijackListener)
-		}()
-	} else {
-		_ = hijackListener.Close() // will close all incoming connections
-	}
-
+	// Run scrape
+	receiver.RunScrape(sh2, w)
 	if !argv.hardwareMetricScrapeDisable {
 		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
 		if err != nil {
@@ -503,31 +476,93 @@ func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
 	return 0
 }
 
-func mainIngressProxy(aesPwd string) int {
-	if err := argv.configAgent.ValidateConfigSource(); err != nil {
-		logErr.Printf("%s", err)
-		return 1
+func mainIngressProxy(aesPwd string) {
+	// Ensure proxy configuration is valid
+	config := argv.configIngress
+	config.Network = "tcp"
+	config.Cluster = argv.cluster
+	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
+	if len(config.ExternalAddresses) != 3 {
+		logErr.Fatalf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
 	}
-	argv.configAgent.Cluster = argv.cluster
-	argv.configIngress.Cluster = argv.cluster
-	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
-	if len(argv.configIngress.ExternalAddresses) != 3 {
-		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")
-		return 1
+	if len(config.IngressKeys) == 0 {
+		logErr.Fatalf("ingress proxy must have non-empty list of ingress crypto keys")
 	}
-	argv.configIngress.Network = "tcp"
 
-	// We use agent instance for ingress proxy built-in metrics
+	// Ensure agent configuration is valid
+	if err := argv.configAgent.ValidateConfigSource(); err != nil {
+		logErr.Fatalf("%v", err)
+	}
+
+	// Open port and run pprof server
+	ln := listen(config.Network, config.ListenAddr)
+	var hijack *rpc.HijackListener
+	if argv.pprofHTTP {
+		hijack = rpc.NewHijackListener(ln.Addr())
+		defer func() { _ = hijack.Close() }()
+		go trustedNetworkServeHTTP(hijack)
+	}
+
+	// Run agent (we use agent instance for ingress proxy built-in metrics)
+	argv.configAgent.Cluster = argv.cluster
 	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
 		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
 	if err != nil {
-		logErr.Printf("error creating Agent instance: %v", err)
-		return 1
+		logErr.Fatalf("error creating Agent instance: %v", err)
 	}
 	sh2.Run(0, 0, 0)
-	if err := aggregator.RunIngressProxy(sh2, aesPwd, argv.configIngress); err != nil {
-		logErr.Printf("%v", err)
-		return 1
+
+	// Run ingress proxy
+	err = aggregator.RunIngressProxy(ln, hijack, sh2, aesPwd, argv.configIngress)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Fatalf("error running ingress proxy: %v", err)
 	}
-	return 0
+}
+
+func listen(network, address string) net.Listener {
+	ln, err := net.Listen(network, address)
+	if err != nil {
+		logErr.Fatalf("Failed to listen on %s %s: %v", network, address, err)
+	}
+	return ln
+}
+
+func serveRPC(ln net.Listener, server *rpc.Server) {
+	err := server.Serve(ln)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Fatalf("RPC server failed to serve on %s: %v", ln.Addr(), err)
+	}
+}
+
+func trustedNetworkServeHTTP(ln *rpc.HijackListener) {
+	handler := http.NewServeMux()
+	network := ln.Addr().Network()
+	trustedSubnetGroups, _ := rpc.ParseTrustedSubnets(build.TrustedSubnetGroups())
+	intranetIP := func(ip net.IP) bool {
+		if ip.IsLoopback() {
+			return true
+		}
+		for _, group := range trustedSubnetGroups {
+			for _, network := range group {
+				if network.Contains(ip) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr, err := net.ResolveTCPAddr(network, r.RemoteAddr)
+		if err == nil && intranetIP(remoteAddr.IP) {
+			http.DefaultServeMux.ServeHTTP(w, r)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	})
+	logOk.Printf("Serve HTTP on %s", ln.Addr())
+	server := http.Server{Handler: handler}
+	err := server.Serve(ln)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Printf("HTTP server failed to serve on %s: %v", ln.Addr(), err)
+	}
 }
