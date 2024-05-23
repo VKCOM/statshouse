@@ -1,0 +1,8 @@
+.plotLegend {
+  min-height: calc(var(--bs-body-line-height) + var(--bs-body-line-height));
+}
+
+.plotLegendShort {
+  min-height: auto;
+  height: var(--bs-body-line-height);
+}
