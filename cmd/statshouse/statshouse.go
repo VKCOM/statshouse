@@ -495,7 +495,10 @@ func mainIngressProxy(aesPwd string) {
 	}
 
 	// Open port and run pprof server
-	ln := listen(config.Network, config.ListenAddr)
+	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
+	if err != nil {
+		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
+	}
 	var hijack *rpc.HijackListener
 	if argv.pprofHTTP {
 		hijack = rpc.NewHijackListener(ln.Addr())
