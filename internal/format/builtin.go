@@ -115,6 +115,7 @@ const (
 	BuiltinMetricIDAggScrapeTargetDiscovery   = -93
 	BuiltinMetricIDAggScrapeConfigHash        = -94
 	BuiltinMetricIDAggSamplingTime            = -95
+	BuiltinMetricIDAgentDiskCacheSize         = -96
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -1918,6 +1919,19 @@ Value is delta between second value and time it was inserted.`,
 			}, {
 				Description:   "conveyor",
 				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDAgentDiskCacheSize: {
+			Name:        "__src_disk_cache_size",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: "Size of agent mapping cache",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
 			}},
 		},
 	}

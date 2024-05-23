@@ -284,6 +284,12 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 				v := float64(r.ReceiveBufferSize())
 				a.AddValueCounter(k, v, 1, nil)
 			}
+			if dc != nil {
+				s, err := dc.DiskSizeBytes()
+				if err == nil {
+					a.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, nil)
+				}
+			}
 		},
 		nil)
 	if err != nil {

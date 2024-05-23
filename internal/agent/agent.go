@@ -39,13 +39,13 @@ type Agent struct {
 	Shards          []*Shard
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
 
-	diskCache *DiskBucketStorage
-	hostName  []byte
-	argsHash  int32
-	argsLen   int32
-	args      string
-	config    Config
-	logF      rpc.LoggerFunc
+	diskBucketCache *DiskBucketStorage
+	hostName        []byte
+	argsHash        int32
+	argsLen         int32
+	args            string
+	config          Config
+	logF            rpc.LoggerFunc
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
@@ -130,11 +130,11 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	nowUnix := uint32(time.Now().Unix())
 	result.startTimestamp = nowUnix
 	if storageDir != "" {
-		dc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
+		dbc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
 		if err != nil {
 			return nil, err
 		}
-		result.diskCache = dc
+		result.diskBucketCache = dbc
 	}
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
@@ -604,11 +604,11 @@ func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
 }
 
 func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
-	if s.diskCache == nil {
+	if s.diskBucketCache == nil {
 		return 0, 0
 	}
 	for i := range s.ShardReplicas {
-		t, u := s.diskCache.TotalFileSize(i)
+		t, u := s.diskBucketCache.TotalFileSize(i)
 		total += t
 		unsent += u
 	}

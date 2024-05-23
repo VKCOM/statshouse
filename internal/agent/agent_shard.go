@@ -13,11 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"go.uber.org/atomic"
 )
 
 type (
@@ -122,10 +123,10 @@ func (s *Shard) putUniqueValuesCache(uniqueValues [][]int64) {
 }
 
 func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return 0, 0
 	}
-	return s.agent.diskCache.TotalFileSize(s.ShardNum)
+	return s.agent.diskBucketCache.TotalFileSize(s.ShardNum)
 }
 
 // If user did not set timestamp or set to 0 (default timestamp), metric arrived with 0 up to here.

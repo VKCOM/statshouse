@@ -9,6 +9,7 @@ package pcache
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	"go.uber.org/multierr"
@@ -134,6 +135,7 @@ type diskCount struct {
 
 type DiskCache struct {
 	db         *easydb.DB
+	filePath   string
 	txDuration time.Duration
 	r          chan diskRead
 	w          chan diskWrite
@@ -155,6 +157,7 @@ func OpenDiskCache(cacheFilename string, txDuration time.Duration) (*DiskCache, 
 
 	dc := &DiskCache{
 		db:         db,
+		filePath:   cacheFilename,
 		txDuration: txDuration,
 		r:          make(chan diskRead),
 		w:          make(chan diskWrite),
@@ -170,6 +173,14 @@ func OpenDiskCache(cacheFilename string, txDuration time.Duration) (*DiskCache, 
 	}()
 
 	return dc, nil
+}
+
+func (dc *DiskCache) DiskSizeBytes() (int64, error) {
+	fi, err := os.Stat(dc.filePath)
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
 }
 
 func (dc *DiskCache) Close() error {
