@@ -221,6 +221,8 @@ func (c *Cache) diskCleanup() {
 	if c.DiskCache == nil || c.MaxDiskCacheSize <= 0 {
 		return
 	}
+	// use FIFO eviction
+	// since we don't have Update index we use N random choises to approximate it's behaivour
 	const readLimit = 10_000
 	const eraseLimit = 100
 	ticker := time.NewTicker(time.Second)
