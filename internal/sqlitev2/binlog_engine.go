@@ -66,9 +66,9 @@ func (b *binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error
 	err := b.e.internalDoBinlog("__apply_binlog", func(c internalConn) (int64, error) {
 		readLen, err := b.applyFunction(c.Conn, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
-		if opErr := b.e.rw.saveBinlogOffsetLocked(newOffset); opErr != nil {
-			return b.e.rw.dbOffset, b.e.rw.setErrorLocked(opErr)
-		}
+		//if opErr := b.e.rw.saveBinlogOffsetLocked(newOffset); opErr != nil {
+		//	return b.e.rw.dbOffset, b.e.rw.setErrorLocked(opErr)
+		//}
 		if err != nil && isExpectedError(err) {
 			errToReturn = err
 			return newOffset, nil
@@ -85,7 +85,7 @@ func (b *binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_skip", time.Now())
 	err = b.e.internalDoBinlog("__skip_binlog", func(c internalConn) (int64, error) {
 		newOffset = b.e.rw.dbOffset + skipLen
-		return newOffset, b.e.rw.saveBinlogOffsetLocked(newOffset)
+		return newOffset, nil // b.e.rw.saveBinlogOffsetLocked(newOffset)
 	})
 	b.e.rareLog("[sqlite] skip offset (new offset: %d)", newOffset)
 	return newOffset, b.e.rw.setError(err)

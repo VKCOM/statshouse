@@ -5,28 +5,31 @@ import (
 	"log"
 	"sync"
 
+	"github.com/vkcom/statshouse/internal/sqlitev2/waitpool"
 	"go.uber.org/multierr"
 )
 
 type (
 	sqliteBinlogConn struct {
-		mu          sync.Mutex
-		conn        *sqliteConn
-		dbOffset    int64
-		binlogCache []byte
-		committed   bool
+		mu               sync.Mutex
+		conn             *sqliteConn
+		dbOffset         int64
+		binlogCache      []byte
+		committed        bool
+		waitDbOffsetPool *waitpool.WaitPool
 	}
 )
 
-func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cacheSize int, pageSize int32, stats StatsOptions, logger *log.Logger) (*sqliteBinlogConn, error) {
+func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cacheSize int, pageSize int32, stats StatsOptions, waitDbOffsetPool *waitpool.WaitPool, logger *log.Logger) (*sqliteBinlogConn, error) {
 	conn, err := newSqliteRWWALConn(path, appid, showLastInsertID, cacheSize, pageSize, stats, logger)
 	if err != nil {
 		return nil, err
 	}
 	return &sqliteBinlogConn{
-		mu:       sync.Mutex{},
-		conn:     conn,
-		dbOffset: 0,
+		mu:               sync.Mutex{},
+		conn:             conn,
+		dbOffset:         0,
+		waitDbOffsetPool: waitDbOffsetPool,
 	}, nil
 }
 
@@ -73,6 +76,7 @@ func (c *sqliteBinlogConn) binlogCommitTxLocked(newOffset int64) error {
 		return fmt.Errorf("failed to commit TX: %w", err)
 	}
 	c.dbOffset = newOffset
+	c.waitDbOffsetPool.Notify(newOffset)
 	return nil
 }
 

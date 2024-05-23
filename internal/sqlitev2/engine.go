@@ -12,6 +12,7 @@ import (
 	"time"
 
 	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
+	"github.com/vkcom/statshouse/internal/sqlitev2/waitpool"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -34,6 +35,8 @@ TODO
 - Репортить в метрику размер вала
 
 - Чекпоинт из другой транзакции
+
+- https://www.sqlite.org/lang_attach.html - использовать чтобы получить стандартные транзакционные гарантии
 
 NOTES:
 - Если стартуем с бэкапа у него должно быть тоже имя что у основной базы, при этом надо не забыть потереть wal и wal2 файл. Поэтому последний бэкап рекомендуется хранить рядом на том же диске
@@ -63,6 +66,8 @@ type (
 		logMx       sync.Mutex
 		logger      *log.Logger
 		nextLogTime time.Time
+
+		waitDbOffsetPool *waitpool.WaitPool
 	}
 
 	Options struct {
@@ -99,7 +104,7 @@ type (
 	}
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
-		// Replica bool
+		Replica bool
 
 		// Set true if binlog created in ReadAndExit mode
 		ReadAndExit bool
@@ -108,6 +113,11 @@ type (
 		sleep func()
 	}
 	ApplyEventFunction func(conn Conn, payload []byte) (int, error)
+
+	ViewTxOptions struct {
+		QueryName  string
+		WaitOffset int64
+	}
 )
 
 const (
@@ -131,7 +141,8 @@ func openRO(opt Options) (*Engine, error) {
 				return newSqliteROConn(opt.Path, opt.StatsOptions, logger)
 			}
 		}, logger),
-		logger: logger,
+		logger:           logger,
+		waitDbOffsetPool: waitpool.NewPool(),
 	}
 	return e, nil
 }
@@ -167,8 +178,9 @@ func OpenEngine(opt Options) (*Engine, error) {
 	if stat != nil {
 		size = stat.Size()
 	}
+	waitDbOffsetPool := waitpool.NewPool()
 	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
-	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, opt.PageSize, opt.StatsOptions, logger)
+	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, opt.PageSize, opt.StatsOptions, waitDbOffsetPool, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
 	}
@@ -198,26 +210,12 @@ func OpenEngine(opt Options) (*Engine, error) {
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
 			return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect, opt.StatsOptions, logger)
 		}, logger),
-		logger: logger,
+		logger:           logger,
+		waitDbOffsetPool: waitDbOffsetPool,
 	}
 
-	//committedBinlogPositionDelayed, err := e.binlogLoadOrCreateCommittedOffset()
-	//if err != nil {
-	//	err = fmt.Errorf("failed to load binlog committed position during to start run: %w", err)
-	//	return nil, multierr.Append(err, re.Close())
-	//}
-	//e.logger.Printf("load binlog committed position: %d", committedBinlogPositionDelayed)
-	//if committedBinlogPositionDelayed <= comittedBinlogPosActual {
-	//	committedBinlogPositionDelayed = comittedBinlogPosActual
-	//	err = e.internalDo("__save_commit", func(conn internalConn) error {
-	//		return e.rw.saveBinlogCommittedOffsetLocked(comittedBinlogPosActual)
-	//	})
-	//	if err != nil {
-	//		return nil, fmt.Errorf("fauled to rewrite committed offset")
-	//	}
-	//}
-
 	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
+	e.waitDbOffsetPool.Notify(e.rw.dbOffset)
 	if err != nil {
 		err = fmt.Errorf("failed to load binlog position during to start run: %w", err)
 		e.readyNotify.Do(func() {
@@ -381,14 +379,18 @@ func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
 }
 
 func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) (err error) {
-	if err = checkUserQueryName(queryName); err != nil {
+	return e.ViewOpts(ctx, ViewTxOptions{QueryName: queryName}, fn)
+}
+
+func (e *Engine) ViewOpts(ctx context.Context, opt ViewTxOptions, fn func(Conn) error) (err error) {
+	if err = checkUserQueryName(opt.QueryName); err != nil {
 		return err
 	}
-
+	err = e.waitDbOffsetPool.Wait(ctx, opt.WaitOffset)
+	if err != nil {
+		return err
+	}
 	startTimeBeforeLock := time.Now()
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	conn, err := e.roConnPool.Get()
 	if err != nil {
 		return fmt.Errorf("faield to get RO conn: %w", err)
@@ -396,7 +398,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	defer e.roConnPool.Put(conn)
 
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
-	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
+	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, opt.QueryName, time.Now())
 	err = conn.beginTxLocked()
 	if err != nil {
 		return fmt.Errorf("failed to begin RO tx: %w", err)
@@ -423,18 +425,12 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	if err := checkUserQueryName(queryName); err != nil {
 		return err
 	}
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	//if e.testOptions != nil {
-	//	e.testOptions.sleep()
-	//}
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	if e.readOnly /* || e.opt.Replica */ {
+	if e.readOnly || e.opt.Replica {
 		return ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
@@ -559,24 +555,6 @@ func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 	})
 	return offset, err
 }
-
-//func (e *Engine) binlogLoadOrCreateCommittedOffset() (int64, error) {
-//	var offset int64
-//	err := e.internalDo("__load_binlog_committed_pos", func(conn internalConn) error {
-//		var isExists bool
-//		var err error
-//		offset, isExists, err = binlogLoadCommittedPosition(conn)
-//		if err != nil {
-//			return err
-//		}
-//		if isExists {
-//			return nil
-//		}
-//		_, err = conn.Exec("__insert_binlog_committed_pos", "INSERT INTO __binlog_commit_offset(offset) VALUES(0)")
-//		return err
-//	})
-//	return offset, err
-//}
 
 func (e *Engine) Close() error {
 	return e.close(e.binlog != nil && !e.opt.ReadAndExit)
