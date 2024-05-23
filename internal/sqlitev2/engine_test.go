@@ -122,18 +122,16 @@ type testEngineOptions struct {
 	replica     bool
 	readAndExit bool
 	applyF      ApplyEventFunction
-	testOptions *testOptions
 	maxRoConn   int
 }
 
 func defaultTestEngineOptions(prefix string) testEngineOptions {
 	return testEngineOptions{
-		prefix:      prefix,
-		dbFile:      "db",
-		scheme:      "",
-		applyF:      nil,
-		testOptions: nil,
-		maxRoConn:   0,
+		prefix:    prefix,
+		dbFile:    "db",
+		scheme:    "",
+		applyF:    nil,
+		maxRoConn: 0,
 	}
 }
 
@@ -800,4 +798,78 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.Equal(t, 3*2, count)
 	require.NoError(t, err)
+}
+
+func Test_Engine_WaitCommit(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY);"
+	var engine *Engine
+	binlogData := make([]byte, 1024)
+	waitOffsetView := func(ctx context.Context, offset int64) (id int64, _ error) {
+		err := engine.ViewOpts(ctx, ViewTxOptions{
+			QueryName:  "blocked",
+			WaitOffset: offset,
+		}, func(conn Conn) error {
+			rows := conn.Query("select", "SELECT id FROM test_db")
+			if rows.Next() {
+				id = rows.ColumnInt64(0)
+			} else {
+				return fmt.Errorf("table is empty")
+			}
+			return rows.Error()
+		})
+		return id, err
+	}
+	t.Run("wait_commit_should_timeout", func(t *testing.T) {
+		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
+		ch := make(chan error)
+		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*50)
+		go func() {
+			_, err := waitOffsetView(ctx, 1024)
+			ch <- err
+			close(ch)
+		}()
+		err := <-ch
+		require.ErrorIs(t, err, ctx.Err())
+	})
+	t.Run("wait_commit_should_finish_1", func(t *testing.T) {
+		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
+		var id int64
+		ch := make(chan error)
+		go func() {
+			var err error
+			id, err = waitOffsetView(context.Background(), 1024)
+			ch <- err
+			close(ch)
+		}()
+		time.Sleep(time.Millisecond)
+		err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			_, err := conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
+			return append(cache, binlogData...), err
+		})
+		require.NoError(t, err)
+		err = <-ch
+		require.NoError(t, err)
+		require.Equal(t, int64(1), id)
+
+	})
+	t.Run("wait_commit_should_finish_2", func(t *testing.T) {
+		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
+		var id int64
+		ch := make(chan error)
+		err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			var err error
+			id, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
+			return append(cache, binlogData...), err
+		})
+		require.NoError(t, err)
+		go func() {
+			var err error
+			id, err = waitOffsetView(context.Background(), 1024)
+			ch <- err
+			close(ch)
+		}()
+		err = <-ch
+		require.NoError(t, err)
+		require.Equal(t, int64(1), id)
+	})
 }

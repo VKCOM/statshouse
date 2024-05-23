@@ -90,7 +90,6 @@ func createEngMaster(t *testing.T, opt testEngineOptions) *eng {
 		replica:     false,
 		readAndExit: false,
 		applyF:      applyKV,
-		testOptions: nil,
 		maxRoConn:   opt.maxRoConn,
 	})
 	return &eng{

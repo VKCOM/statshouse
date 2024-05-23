@@ -86,6 +86,9 @@ func (cache *QueryCache) Get(key QueryHash, t time.Time) (res *sqlite0.Stmt, ok 
 	if ok {
 		cachedStmt := cache.h.getAndUpdate(ix, t.Unix())
 		if _, ok := cache.txQueryCache[key]; ok {
+			if cachedStmt.stmt == nil && isCacheTest {
+				return nil, true
+			}
 			_ = cachedStmt.stmt.Reset()
 		} else {
 			cache.txQueryCache[key] = struct{}{}

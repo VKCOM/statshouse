@@ -33,6 +33,12 @@ func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cache
 	}, nil
 }
 
+func (c *sqliteBinlogConn) getDBOffset() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.dbOffset
+}
+
 func (c *sqliteBinlogConn) setError(err error) error {
 	if err == nil {
 		return err

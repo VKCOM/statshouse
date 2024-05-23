@@ -15,12 +15,19 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	"go.uber.org/atomic"
 	"pgregory.net/rand"
 )
 
 type testAggregation1 struct {
 	n  int64
 	mx sync.Mutex
+}
+
+type incResult struct {
+	prevOffset int64
+	newOffset  int64
+	//number     int64
 }
 
 func genBinlogNumberEvent(v int64, cache []byte) []byte {
@@ -60,14 +67,14 @@ func incNumberExec(conn Conn, cache []byte, n int64, failAfterExec bool) ([]byte
 	return genBinlogNumberEvent(n, cache), err
 }
 
-func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m map[int64]int64, mx *sync.RWMutex) (number int64, offset int64, _ error) {
-	err := e.Do(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
+func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m map[int64]int64, mx *sync.RWMutex) (result incResult, _ error) {
+	res, err := e.Dov2(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
 		cache, err := incNumberExec(conn, cache, n, failAfterExec)
 		if err != nil {
 			return cache, fmt.Errorf("failed to inc number: %w", err)
 		}
 		var isExist bool
-		offset, isExist, err = binlogLoadPosition(internalConn{conn})
+		result.prevOffset, isExist, err = binlogLoadPosition(internalConn{conn})
 		if err != nil {
 			return cache, fmt.Errorf("failed to get binlog offset: %w", err)
 		}
@@ -82,11 +89,12 @@ func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m ma
 			}
 			mx.Lock()
 			defer mx.Unlock()
-			m[offset] = newN - n
+			m[result.prevOffset] = newN - n
 		}
 		return cache, err
 	})
-	return number, offset, err
+	result.newOffset = res.DBOffset
+	return result, err
 }
 
 func applyNumberInc(t *testing.T, conn Conn, payload []byte) (int, error) {
@@ -103,7 +111,7 @@ func applyNumberInc(t *testing.T, conn Conn, payload []byte) (int, error) {
 		if mark != magic {
 			return fsbinlog.AddPadding(read), binlog2.ErrorUnknownMagic
 		}
-		if len(payload) < 8 {
+		if len(payload) < 12 {
 			return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
 		}
 		n := binary.LittleEndian.Uint64(payload[4:12])
@@ -125,11 +133,6 @@ func Test_Engine_Race_Do(t *testing.T) {
 		dbFile: "db",
 		scheme: schemeKV,
 		create: true,
-		testOptions: &testOptions{sleep: func() {
-			if rand.Int()%2 == 0 {
-				time.Sleep(time.Nanosecond + time.Duration(rand.Int63n(int64(time.Millisecond))))
-			}
-		}},
 		applyF: func(conn Conn, payload []byte) (int, error) {
 			return applyNumberInc(t, conn, payload)
 		},
@@ -151,7 +154,7 @@ func Test_Engine_Race_Do(t *testing.T) {
 					ctx, cancel = context.WithCancel(ctx)
 					cancel()
 				}
-				_, _, err := incNumber(ctx, engine, n, j%10 == 0, nil, nil)
+				_, err := incNumber(ctx, engine, n, j%10 == 0, nil, nil)
 				if errors.Is(err, errTest) {
 					continue
 				}
@@ -172,11 +175,6 @@ func Test_Engine_Race_Do(t *testing.T) {
 		dbFile: "db",
 		scheme: schemeKV,
 		create: false,
-		testOptions: &testOptions{sleep: func() {
-			if rand.Int()%2 == 0 {
-				time.Sleep(time.Nanosecond + time.Duration(rand.Int63n(int64(time.Millisecond))))
-			}
-		}},
 		applyF: func(conn Conn, payload []byte) (int, error) {
 			return applyNumberInc(t, conn, payload)
 		},
@@ -299,7 +297,7 @@ func Test_Race_Engine_Replica_View(t *testing.T) {
 	insert := func() {
 		n := rand.Int63n(99999)
 		ctx := context.Background()
-		_, _, err := incNumber(ctx, engineM, n, false, m, mx)
+		_, err := incNumber(ctx, engineM, n, false, m, mx)
 		require.NoError(t, err)
 	}
 	insert()
@@ -318,11 +316,6 @@ func Test_Race_Engine_Replica_View(t *testing.T) {
 		applyF: func(conn Conn, payload []byte) (int, error) {
 			return applyNumberInc(t, conn, payload)
 		},
-		testOptions: &testOptions{sleep: func() {
-			if rand.Int()%2 == 0 {
-				time.Sleep(time.Nanosecond + time.Duration(rand.Int63n(int64(time.Millisecond))))
-			}
-		}},
 	})
 	wg := &sync.WaitGroup{}
 	n := 4
@@ -358,5 +351,79 @@ func Test_Race_Engine_Replica_View(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
 
+func Test_Race_Engine_View_WaitOffset(t *testing.T) {
+	dir := t.TempDir()
+	engineM, _ := openEngine1(t, testEngineOptions{
+		prefix: dir,
+		dbFile: "db",
+		scheme: schemeKV,
+		create: true,
+	})
+	m := map[int64]int64{}
+	mx := &sync.RWMutex{}
+	var res atomic.Int64
+
+	insert := func() {
+		n := rand.Int63n(99999)
+		ctx := context.Background()
+		offset, err := incNumber(ctx, engineM, n, false, m, mx)
+		require.NoError(t, err)
+		res.Store(offset.newOffset)
+	}
+	insert()
+	go func() {
+		for {
+			insert()
+		}
+	}()
+	engineR, _ := openEngine1(t, testEngineOptions{
+		prefix:  dir,
+		dbFile:  "dbreplica",
+		scheme:  schemeKV,
+		create:  false,
+		replica: true,
+		applyF: func(conn Conn, payload []byte) (int, error) {
+			time.Sleep(time.Millisecond) // to force replica delay
+			return applyNumberInc(t, conn, payload)
+		},
+	})
+	wg := &sync.WaitGroup{}
+	n := 4
+	iters := 10
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iters; i++ {
+				err := engineR.ViewOpts(context.Background(), ViewTxOptions{
+					QueryName:  "test",
+					WaitOffset: res.Load(),
+				}, func(conn Conn) error {
+					n, ok, err := selectNumber(conn)
+					require.NoError(t, err)
+					if !ok {
+						return nil
+					}
+					offs, ok, err := binlogLoadPosition(internalConn{conn})
+					require.NoError(t, err)
+					if !ok {
+						t.Error("expect get binlogpos")
+						return nil
+					}
+					mx.RLock()
+					expectedN, ok := m[offs]
+					mx.RUnlock()
+					if !ok {
+						return nil
+					}
+					require.Equal(t, expectedN, n)
+					return nil
+				})
+				require.NoError(t, err)
+			}
+		}()
+	}
+	wg.Wait()
 }
