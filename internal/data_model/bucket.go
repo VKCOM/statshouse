@@ -28,7 +28,8 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Keys      [format.MaxTags]int32 // Unused keys are set to special 0-value
+		Keys      [format.MaxTags]int32  // Unused keys are set to special 0-value
+		Skeys     [format.MaxTags]string // Unused or unmapped keys are empty strings
 	}
 
 	ItemValue struct {
@@ -91,7 +92,7 @@ func (k *Key) ClearedKeys() Key {
 }
 
 func (k *Key) Hash() uint64 {
-	a := (*[unsafe.Sizeof(*k)]byte)(unsafe.Pointer(k))
+	a := (*[unsafe.Sizeof(*k) - unsafe.Sizeof(k.Skeys)]byte)(unsafe.Pointer(k))
 	return siphash.Hash(sipKeyA, sipKeyB, a[4:]) // timestamp is not part of shard
 }
 
