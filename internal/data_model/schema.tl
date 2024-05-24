@@ -43,6 +43,7 @@ statshouse.multi_item#0c803e07
     fields_mask: # // contains shard num in top 8 bits
     metric: int
     keys: (vector int)
+    skeys: fields_mask.12?(vector string)
 
     t: fields_mask.10?# // timestamp, should be rare
 

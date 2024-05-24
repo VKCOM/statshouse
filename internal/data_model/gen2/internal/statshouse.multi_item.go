@@ -155,13 +155,24 @@ type StatshouseMultiItem struct {
 	FieldsMask uint32
 	Metric     int32
 	Keys       []int32
-	T          uint32 // Conditional: item.FieldsMask.10
+	Skeys      []string // Conditional: item.FieldsMask.12
+	T          uint32   // Conditional: item.FieldsMask.10
 	Tail       StatshouseMultiValue
 	Top        []StatshouseTopElement // Conditional: item.FieldsMask.11
 }
 
 func (StatshouseMultiItem) TLName() string { return "statshouse.multi_item" }
 func (StatshouseMultiItem) TLTag() uint32  { return 0xc803e07 }
+
+func (item *StatshouseMultiItem) SetSkeys(v []string) {
+	item.Skeys = v
+	item.FieldsMask |= 1 << 12
+}
+func (item *StatshouseMultiItem) ClearSkeys() {
+	item.Skeys = item.Skeys[:0]
+	item.FieldsMask &^= 1 << 12
+}
+func (item StatshouseMultiItem) IsSetSkeys() bool { return item.FieldsMask&(1<<12) != 0 }
 
 func (item *StatshouseMultiItem) SetT(v uint32) {
 	item.T = v
@@ -187,6 +198,7 @@ func (item *StatshouseMultiItem) Reset() {
 	item.FieldsMask = 0
 	item.Metric = 0
 	item.Keys = item.Keys[:0]
+	item.Skeys = item.Skeys[:0]
 	item.T = 0
 	item.Tail.Reset()
 	item.Top = item.Top[:0]
@@ -201,6 +213,13 @@ func (item *StatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 	}
 	if w, err = BuiltinVectorIntRead(w, &item.Keys); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<12) != 0 {
+		if w, err = BuiltinVectorStringRead(w, &item.Skeys); err != nil {
+			return w, err
+		}
+	} else {
+		item.Skeys = item.Skeys[:0]
 	}
 	if item.FieldsMask&(1<<10) != 0 {
 		if w, err = basictl.NatRead(w, &item.T); err != nil {
@@ -231,6 +250,9 @@ func (item *StatshouseMultiItem) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Metric)
 	w = BuiltinVectorIntWrite(w, item.Keys)
+	if item.FieldsMask&(1<<12) != 0 {
+		w = BuiltinVectorStringWrite(w, item.Skeys)
+	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.NatWrite(w, item.T)
 	}
@@ -266,6 +288,7 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	var propFieldsMaskPresented bool
 	var propMetricPresented bool
 	var propKeysPresented bool
+	var propSkeysPresented bool
 	var propTPresented bool
 	var rawTail []byte
 	var propTopPresented bool
@@ -303,6 +326,14 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 					return err
 				}
 				propKeysPresented = true
+			case "skeys":
+				if propSkeysPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "skeys")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Skeys); err != nil {
+					return err
+				}
+				propSkeysPresented = true
 			case "t":
 				if propTPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
@@ -346,11 +377,17 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	if !propKeysPresented {
 		item.Keys = item.Keys[:0]
 	}
+	if !propSkeysPresented {
+		item.Skeys = item.Skeys[:0]
+	}
 	if !propTPresented {
 		item.T = 0
 	}
 	if !propTopPresented {
 		item.Top = item.Top[:0]
+	}
+	if propSkeysPresented {
+		item.FieldsMask |= 1 << 12
 	}
 	if propTPresented {
 		item.FieldsMask |= 1 << 10
@@ -401,6 +438,11 @@ func (item *StatshouseMultiItem) WriteJSONOpt(newTypeNames bool, short bool, w [
 	if (len(item.Keys) != 0) == false {
 		w = w[:backupIndexKeys]
 	}
+	if item.FieldsMask&(1<<12) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"skeys":`...)
+		w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Skeys)
+	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"t":`...)
@@ -432,13 +474,24 @@ type StatshouseMultiItemBytes struct {
 	FieldsMask uint32
 	Metric     int32
 	Keys       []int32
-	T          uint32 // Conditional: item.FieldsMask.10
+	Skeys      [][]byte // Conditional: item.FieldsMask.12
+	T          uint32   // Conditional: item.FieldsMask.10
 	Tail       StatshouseMultiValueBytes
 	Top        []StatshouseTopElementBytes // Conditional: item.FieldsMask.11
 }
 
 func (StatshouseMultiItemBytes) TLName() string { return "statshouse.multi_item" }
 func (StatshouseMultiItemBytes) TLTag() uint32  { return 0xc803e07 }
+
+func (item *StatshouseMultiItemBytes) SetSkeys(v [][]byte) {
+	item.Skeys = v
+	item.FieldsMask |= 1 << 12
+}
+func (item *StatshouseMultiItemBytes) ClearSkeys() {
+	item.Skeys = item.Skeys[:0]
+	item.FieldsMask &^= 1 << 12
+}
+func (item StatshouseMultiItemBytes) IsSetSkeys() bool { return item.FieldsMask&(1<<12) != 0 }
 
 func (item *StatshouseMultiItemBytes) SetT(v uint32) {
 	item.T = v
@@ -464,6 +517,7 @@ func (item *StatshouseMultiItemBytes) Reset() {
 	item.FieldsMask = 0
 	item.Metric = 0
 	item.Keys = item.Keys[:0]
+	item.Skeys = item.Skeys[:0]
 	item.T = 0
 	item.Tail.Reset()
 	item.Top = item.Top[:0]
@@ -478,6 +532,13 @@ func (item *StatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
 	}
 	if w, err = BuiltinVectorIntRead(w, &item.Keys); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<12) != 0 {
+		if w, err = BuiltinVectorStringBytesRead(w, &item.Skeys); err != nil {
+			return w, err
+		}
+	} else {
+		item.Skeys = item.Skeys[:0]
 	}
 	if item.FieldsMask&(1<<10) != 0 {
 		if w, err = basictl.NatRead(w, &item.T); err != nil {
@@ -508,6 +569,9 @@ func (item *StatshouseMultiItemBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Metric)
 	w = BuiltinVectorIntWrite(w, item.Keys)
+	if item.FieldsMask&(1<<12) != 0 {
+		w = BuiltinVectorStringBytesWrite(w, item.Skeys)
+	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.NatWrite(w, item.T)
 	}
@@ -543,6 +607,7 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	var propFieldsMaskPresented bool
 	var propMetricPresented bool
 	var propKeysPresented bool
+	var propSkeysPresented bool
 	var propTPresented bool
 	var rawTail []byte
 	var propTopPresented bool
@@ -580,6 +645,14 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 					return err
 				}
 				propKeysPresented = true
+			case "skeys":
+				if propSkeysPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "skeys")
+				}
+				if err := BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.Skeys); err != nil {
+					return err
+				}
+				propSkeysPresented = true
 			case "t":
 				if propTPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
@@ -623,11 +696,17 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	if !propKeysPresented {
 		item.Keys = item.Keys[:0]
 	}
+	if !propSkeysPresented {
+		item.Skeys = item.Skeys[:0]
+	}
 	if !propTPresented {
 		item.T = 0
 	}
 	if !propTopPresented {
 		item.Top = item.Top[:0]
+	}
+	if propSkeysPresented {
+		item.FieldsMask |= 1 << 12
 	}
 	if propTPresented {
 		item.FieldsMask |= 1 << 10
@@ -677,6 +756,11 @@ func (item *StatshouseMultiItemBytes) WriteJSONOpt(newTypeNames bool, short bool
 	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Keys)
 	if (len(item.Keys) != 0) == false {
 		w = w[:backupIndexKeys]
+	}
+	if item.FieldsMask&(1<<12) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"skeys":`...)
+		w = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Skeys)
 	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
