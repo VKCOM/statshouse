@@ -225,8 +225,6 @@ func (c *Cache) diskCleanup() {
 	// since we don't have Update index we use N random choises to approximate it's behaivour
 	const readLimit = 10_000
 	const eraseLimit = 100
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
 
 	for {
 		c.workMu.Lock()
@@ -271,7 +269,7 @@ func (c *Cache) diskCleanup() {
 				return
 			}
 			c.workMu.Unlock()
-			<-ticker.C
+			time.Sleep(time.Second)
 		}
 	}
 }
