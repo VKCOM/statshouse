@@ -516,7 +516,7 @@ func mainIngressProxy(aesPwd string) {
 	sh2.Run(0, 0, 0)
 
 	// Run ingress proxy
-	err = aggregator.RunIngressProxy(ln, hijack, sh2, aesPwd, argv.configIngress)
+	err = aggregator.RunIngressProxy(ln, hijack, sh2, aesPwd, config)
 	if err != nil && err != rpc.ErrServerClosed {
 		logErr.Fatalf("error running ingress proxy: %v", err)
 	}
