@@ -781,10 +781,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       );
       const prev: PlotStore = getState().plotsData[index];
 
-      if (prev.error403) {
-        return;
-      }
-
       const deltaTime = Math.floor((prevStateTo - prevStateFrom) / 5);
       if (
         !usePlotVisibilityStore.getState().visibilityList[index] &&
@@ -807,6 +803,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         { metricName: lastPlotParams.metricName },
         { metricName: prev.lastPlotParams?.metricName }
       );
+      if (!changeMetric && prev.error403) {
+        return;
+      }
+
       const resetCache = !dequal(lastPlotParams, prev.lastPlotParams);
       if (
         width &&
