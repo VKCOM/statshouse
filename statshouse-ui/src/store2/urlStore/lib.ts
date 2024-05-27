@@ -18,6 +18,7 @@ import {
   TAG_KEY,
   TagKey,
   TIME_RANGE_KEYS_TO,
+  TimeRangeKeysTo,
   toTagKey,
   toTimeRangeKeysTo,
 } from '../../api/enum';
@@ -118,6 +119,17 @@ export function readTimeRange(from: unknown, to: unknown): TimeRange {
     timeFrom = timeFrom - timeTo;
   }
   return { urlTo, to: timeTo, from: timeFrom, now: timeNow, absolute: timeAbsolute };
+}
+
+export function constToTime(now: number, value: number | TimeRangeKeysTo) {
+  switch (value) {
+    case TIME_RANGE_KEYS_TO.EndDay:
+      return getEndDay(now);
+    case TIME_RANGE_KEYS_TO.EndWeek:
+      return getEndWeek(now);
+    default:
+      return getNow(now);
+  }
 }
 
 export function freeKeyPrefix(str: string): string {

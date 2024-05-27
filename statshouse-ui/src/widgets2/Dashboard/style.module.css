@@ -19,7 +19,7 @@
   flex-direction: column;
   position: relative;
   overflow: auto;
-  min-width: 350px;
+  width: 380px;
   padding: 8px;
 }
 
