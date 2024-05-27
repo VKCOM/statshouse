@@ -7,7 +7,7 @@
 import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
-import { getEndDay, getEndWeek, type TimeRange } from 'store2';
+import { getEndDay, getEndWeek, getNow, readTimeRange, type TimeRange } from 'store2';
 import { timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev2 } from '../../../view/utils';
 import { Button } from 'components';
 import { produce } from 'immer';
@@ -32,9 +32,14 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
     (e: ChangeEvent<HTMLSelectElement>) => {
       const abbr = e.target.value as timeRangeAbbrev;
       setBaseRange(abbr);
-      // setTimeRange((range) => timeRangeAbbrevExpand(abbr, range.absolute ? getNow() : 0));
+      setTimeRange(
+        produce(timeRange, (t) => {
+          const next = timeRangeAbbrevExpand(abbr, t.absolute ? getNow() : 0);
+          return readTimeRange(next.from, t.absolute ? getNow() : 0);
+        })
+      );
     },
-    [setBaseRange]
+    [setBaseRange, setTimeRange, timeRange]
   );
 
   const onTodayClick = useCallback(() => {

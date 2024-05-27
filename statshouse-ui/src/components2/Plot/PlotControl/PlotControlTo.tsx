@@ -10,9 +10,10 @@ import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, pa
 import { ReactComponent as SVGLockClock } from 'assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from 'assets/svg/UnlockClock.svg';
 import cn from 'classnames';
-import { TimeRange } from 'store2';
+import { constToTime, readTimeRange, TimeRange } from 'store2';
 import { ToggleButton } from 'components';
 import { produce } from 'immer';
+import { TIME_RANGE_KEYS_TO } from '../../../common/TimeRange';
 
 export type PlotControlToProps = {
   timeRange: TimeRange;
@@ -29,13 +30,20 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
 }) => {
   const onRelativeToChange = useCallback(
     (status: boolean) => {
-      // setTimeRange((range) => {
-      //   range.absolute = !status;
-      //   return range.getRangeUrl();
-      // });
       setTimeRange(
         produce(timeRange, (t) => {
-          t.absolute = !status;
+          if (status) {
+            return readTimeRange(
+              t.from,
+              Object.values(TIME_RANGE_KEYS_TO).find((key) => Math.abs(t.to - constToTime(t.now, key)) < 60) ??
+                TIME_RANGE_KEYS_TO.Now
+            );
+          } else {
+            return {
+              ...t,
+              urlTo: t.to,
+            };
+          }
         })
       );
     },
@@ -49,21 +57,13 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
       if (v === '' || y < 1900) {
         return;
       }
-      const t = new Date(timeRange.to * 1000);
-      t.setFullYear(y, m, d);
+      const nextTime = new Date(timeRange.to * 1000);
+      nextTime.setFullYear(y, m, d);
       setTimeRange(
         produce(timeRange, (t) => {
-          t.urlTo = t.to = Math.floor(+t / 1000);
+          t.urlTo = t.to = Math.floor(+nextTime / 1000);
         })
       );
-      // setTimeRange((range) => {
-      //   const [y, m, d] = parseInputDate(v);
-      //   const t = new Date(range.to * 1000);
-      //   return {
-      //     to: Math.floor(t.setFullYear(y, m, d) / 1000),
-      //     from: range.relativeFrom,
-      //   };
-      // });
     },
     [setTimeRange, timeRange]
   );
@@ -72,21 +72,13 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
     (e: ChangeEvent<HTMLInputElement>) => {
       const v = e.target.value;
       const [h, m, sec] = v !== '' ? parseInputTime(v) : [0, 0, 0];
-      const t = new Date(timeRange.to * 1000);
-      t.setHours(h, m, sec);
+      const nextTime = new Date(timeRange.to * 1000);
+      nextTime.setHours(h, m, sec);
       setTimeRange(
         produce(timeRange, (t) => {
-          t.urlTo = t.to = Math.floor(+t / 1000);
+          t.urlTo = t.to = Math.floor(+nextTime / 1000);
         })
       );
-      // setTimeRange((range) => {
-      //   const [h, m, sec] = v !== '' ? parseInputTime(v) : [0, 0, 0];
-      //   const t = new Date(range.to * 1000);
-      //   return {
-      //     to: Math.floor(t.setHours(h, m, sec) / 1000),
-      //     from: range.relativeFrom,
-      //   };
-      // });
     },
     [setTimeRange, timeRange]
   );
@@ -97,7 +89,7 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
         type="date"
         className={`form-control form-control-safari-fix ${classNameInput}`}
         disabled={!timeRange.absolute}
-        max={formatInputDate(Math.min(timeRange.from + maxTimeRange, now()))}
+        max={formatInputDate(Math.min(timeRange.to + timeRange.from + maxTimeRange, now()))}
         value={formatInputDate(timeRange.to)}
         onChange={onToDateChange}
       />

@@ -34,7 +34,7 @@ export type ApiQueryGet = {
   [GET_PARAMS.metricPromQL]?: string;
   [GET_PARAMS.metricTimeShifts]?: string[];
   [GET_PARAMS.metricMaxHost]?: typeof GET_BOOLEAN.true;
-  [GET_PARAMS.metricVerbose]?: typeof GET_BOOLEAN.true;
+  [GET_PARAMS.metricVerbose]?: typeof GET_BOOLEAN.true | typeof GET_BOOLEAN.false;
   [GET_PARAMS.dataFormat]?: string;
   [GET_PARAMS.avoidCache]?: string;
   [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
@@ -58,7 +58,7 @@ export type SeriesResponse = {
   mapping_errors: number;
   promql: string;
   __debug_queries: string[];
-  promqltestfailed: boolean;
+  promqltestfailed?: boolean;
   metric: MetricMetaValue;
 };
 

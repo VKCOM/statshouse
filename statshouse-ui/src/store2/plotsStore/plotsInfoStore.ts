@@ -9,8 +9,9 @@ import {
   UrlStore,
   useUrlStore,
 } from '../urlStore';
-import { isNotNil, mergeLeft } from '../../common/helpers';
+import { defaultBaseRange, isNotNil, mergeLeft } from '../../common/helpers';
 import { To } from 'react-router-dom';
+import { timeRangeAbbrev } from '../../view/utils';
 
 export type PlotInfo = {
   metricName: string;
@@ -23,6 +24,7 @@ export type PlotsInfoStore = {
   dashboardSettingLink: To;
   addLink: To;
   tabNum: PlotKey;
+  baseRange: timeRangeAbbrev;
 } & GroupPlotsMap;
 
 export const usePlotsInfoStore = createStore<PlotsInfoStore>(
@@ -73,6 +75,7 @@ export function updatePlots(params: QueryParams, saveParams?: QueryParams): Plot
     dashboardSettingLink: { pathname: '/2/view', search: getPlotLink('-2', params, saveParams) },
     addLink: { pathname: '/2/view', search: getAddPlotLink(params, saveParams) },
     tabNum: params.tabNum,
+    baseRange: defaultBaseRange,
     ...getGroupPlotsMap(params),
   };
 }

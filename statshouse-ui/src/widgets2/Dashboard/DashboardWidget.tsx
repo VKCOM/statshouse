@@ -13,19 +13,24 @@ import {
   type GroupKey,
   type PlotParams,
   type QueryParams,
+  setUpdatedTag,
   setUrlStore,
+  useMetricsStore,
   usePlotsDataStore,
   usePlotsInfoStore,
   useUrlStore,
+  useVariableListStore,
 } from 'store2';
 import css from './style.module.css';
 import { deepClone } from '../../common/helpers';
 
+const emptyObj = {};
+
 export function DashboardWidget() {
   const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore();
-  const groups = useUrlStore((s) => s.params.groups);
+  const meta = useMetricsStore((s) => s.meta);
   const params = useUrlStore((s) => s.params);
-  const { tabNum, plots } = params;
+  const { tabNum, plots, groups } = params;
   const plotsData = usePlotsDataStore((s) => s.plotsData);
   const toggleGroupShow = useCallback((groupKey: GroupKey) => {
     setUrlStore((s) => {
@@ -38,6 +43,8 @@ export function DashboardWidget() {
   const activePlotInfo = useMemo(() => plotsInfo[tabNum], [plotsInfo, tabNum]);
   const activePlot = useMemo(() => plots[tabNum], [plots, tabNum]);
   const activePlotData = useMemo(() => plotsData[tabNum], [plotsData, tabNum]);
+  const activePlotMeta = useMemo(() => meta[activePlot?.metricName ?? ''], [activePlot, meta]);
+  const tagsList = useVariableListStore((s) => (activePlot && s.tags[activePlot?.id]) || emptyObj);
 
   const setPlot = useCallback((plot: PlotParams) => {
     setUrlStore((store) => {
@@ -92,6 +99,10 @@ export function DashboardWidget() {
               params={params}
               setPlot={setPlot}
               setParams={setParams}
+              meta={activePlotMeta}
+              metaLoading={!activePlotMeta}
+              setUpdatedTag={setUpdatedTag}
+              tagsList={tagsList}
             ></PlotControl>
           </div>
         </PlotPanel>
