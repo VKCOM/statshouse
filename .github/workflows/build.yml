@@ -48,24 +48,33 @@ jobs:
       - run: make build-sh-ui
       - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-${{needs.env.outputs.version}}-ui
+          name: statshouse-ui-${{needs.env.outputs.version}}
           path: |
             statshouse-ui/build
             .dummy_preserves_directory_structure
     outputs:
-      artifact: statshouse-${{needs.env.outputs.version}}-ui
-  almalinux:
+      artifact: statshouse-ui-${{needs.env.outputs.version}}
+  rpm:
+    strategy:
+      matrix:
+        image: ["centos:centos7", "almalinux:9"]
     needs: [env, frontend]
-    uses: ./.github/workflows/build_rpm.yml
-    with:
-      ref: ${{needs.env.outputs.ref}}
-      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
-      timestamp: ${{needs.env.outputs.timestamp}}
-      version: ${{needs.env.outputs.version}}
-      name: almalinux
-      release: 9.2
-      frontend-artifact: ${{needs.frontend.outputs.artifact}}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{needs.env.outputs.ref}}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{needs.frontend.outputs.artifact}}
+      - run: echo "BUILD_VERSION=`echo ${{needs.env.outputs.version}} | sed -e 's:-:.:g'`" >> $GITHUB_ENV
+      - run: build/makerpm.sh ${{matrix.image}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: statshouse-pkg-rpm-${{needs.env.outputs.version}}${{strategy.job-index}}
+          path: RPMS/*.rpm
   debian:
     if: ${{false}}
     strategy:
@@ -74,7 +83,7 @@ jobs:
     needs: [env, frontend]
     uses: ./.github/workflows/build_deb.yml
     with:
-      container_json: '{"image":"golang:1.19-${{matrix.release}}"}'
+      container_json: '{"image":"golang:1.22-${{matrix.release}}"}'
       ref: ${{needs.env.outputs.ref}}
       ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
       timestamp: ${{needs.env.outputs.timestamp}}
@@ -114,7 +123,7 @@ jobs:
     secrets: inherit
   draft_release:
     if: ${{ github.event.inputs.draft_release }}
-    needs: [env, ubuntu_focal, almalinux]
+    needs: [env, rpm, ubuntu_focal]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -124,17 +133,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
-          name: ${{needs.almalinux.outputs.artifact}}
-          path: pkg/rpm
-      - uses: actions/download-artifact@v4
-        if: ${{false}}
-        with:
-          name: ${{needs.debian.outputs.artifact}}
-          path: pkg/deb
-      - uses: actions/download-artifact@v4
-        with:
-          name: ${{needs.ubuntu_focal.outputs.artifact}}
-          path: pkg/deb
+          pattern: statshouse-pkg-*
+          path: pkg/
       - run: gh release create --draft --generate-notes --title "${{github.event.inputs.tag}}" ${{github.event.inputs.tag}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
         env:
           GITHUB_TOKEN: ${{secrets.DEVTOOLS_GITHUB_TOKEN}}

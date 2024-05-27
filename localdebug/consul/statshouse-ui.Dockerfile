@@ -1,0 +1,12 @@
+FROM node:18-bullseye
+ARG BUILD_TIME
+ARG BUILD_VERSION
+ARG REACT_APP_BUILD_VERSION
+ENV BUILD_TIME=$BUILD_TIME
+ENV BUILD_VERSION=$BUILD_VERSION
+ENV REACT_APP_BUILD_VERSION=$REACT_APP_BUILD_VERSION
+WORKDIR /src
+COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
+RUN make build-sh-ui
+RUN mv /src/statshouse-ui/build /ui

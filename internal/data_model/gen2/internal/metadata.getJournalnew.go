@@ -51,11 +51,16 @@ func (item *MetadataGetJournalnew) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataGetJournalnew) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetJournalnew) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetJournalnew) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.Limit)
-	return w, nil
+	return w
 }
 
 func (item *MetadataGetJournalnew) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -65,7 +70,12 @@ func (item *MetadataGetJournalnew) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataGetJournalnew) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetJournalnew) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetJournalnew) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x93ba92f8)
 	return item.Write(w)
 }
@@ -75,20 +85,23 @@ func (item *MetadataGetJournalnew) ReadResult(w []byte, ret *MetadataGetJournalR
 }
 
 func (item *MetadataGetJournalnew) WriteResult(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldMask)
+	w = ret.WriteBoxed(w, item.FieldMask)
+	return w, nil
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenew) error {
-	if err := MetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetJournalnew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenew) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalnew) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *MetadataGetJournalnew) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask)
 	return w, nil
 }
 
@@ -101,13 +114,19 @@ func (item *MetadataGetJournalnew) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getJournalnew", err.Error())
-	}
+func (item *MetadataGetJournalnew) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenew
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataGetJournalResponsenew
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -115,89 +134,132 @@ func (item *MetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte)
 }
 
 func (item MetadataGetJournalnew) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataGetJournalnew__ReadJSON(item *MetadataGetJournalnew, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetJournalnew) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getJournalnew", "expected json object")
-	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jFrom := _jm["from"]
-	delete(_jm, "from")
-	if err := JsonReadInt64(_jFrom, &item.From); err != nil {
-		return err
-	}
-	_jLimit := _jm["limit"]
-	delete(_jm, "limit")
-	if err := JsonReadInt64(_jLimit, &item.Limit); err != nil {
-		return err
-	}
-	_jReturnIfEmpty := _jm["return_if_empty"]
-	delete(_jm, "return_if_empty")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getJournalnew", k)
-	}
-	if _jReturnIfEmpty != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnIfEmpty, &_bit); err != nil {
-			return err
+func (item *MetadataGetJournalnew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propFromPresented bool
+	var propLimitPresented bool
+	var trueTypeReturnIfEmptyPresented bool
+	var trueTypeReturnIfEmptyValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalnew", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalnew", "from")
+				}
+				if err := Json2ReadInt64(in, &item.From); err != nil {
+					return err
+				}
+				propFromPresented = true
+			case "limit":
+				if propLimitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalnew", "limit")
+				}
+				if err := Json2ReadInt64(in, &item.Limit); err != nil {
+					return err
+				}
+				propLimitPresented = true
+			case "return_if_empty":
+				if trueTypeReturnIfEmptyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalnew", "return_if_empty")
+				}
+				if err := Json2ReadBool(in, &trueTypeReturnIfEmptyValue); err != nil {
+					return err
+				}
+				trueTypeReturnIfEmptyPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getJournalnew", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propFromPresented {
+		item.From = 0
+	}
+	if !propLimitPresented {
+		item.Limit = 0
+	}
+	if trueTypeReturnIfEmptyPresented {
+		if trueTypeReturnIfEmptyValue {
 			item.FieldMask |= 1 << 3
-		} else {
-			item.FieldMask &^= 1 << 3
 		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
+		return ErrorInvalidJSON("metadata.getJournalnew", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
-func (item *MetadataGetJournalnew) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetJournalnew) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetJournalnew) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataGetJournalnew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.From != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"from":`...)
-		w = basictl.JSONWriteInt64(w, item.From)
+	backupIndexFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt64(w, item.From)
+	if (item.From != 0) == false {
+		w = w[:backupIndexFrom]
 	}
-	if item.Limit != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"limit":`...)
-		w = basictl.JSONWriteInt64(w, item.Limit)
+	backupIndexLimit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"limit":`...)
+	w = basictl.JSONWriteInt64(w, item.Limit)
+	if (item.Limit != 0) == false {
+		w = w[:backupIndexLimit]
 	}
 	if item.FieldMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_if_empty":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetJournalnew) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetJournalnew) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getJournalnew", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getJournalnew", err.Error())
 	}
 	return nil

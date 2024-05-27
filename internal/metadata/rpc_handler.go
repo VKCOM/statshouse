@@ -23,6 +23,7 @@ import (
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
+const longPollTimeout = time.Hour
 
 type Handler struct {
 	db *DBV2
@@ -30,7 +31,6 @@ type Handler struct {
 	getJournalMx      sync.Mutex
 	getJournalClients map[*rpc.HandlerContext]tlmetadata.GetJournalnew // by getJournalMx
 	minVersion        int64                                            // by getJournalMx
-	metricChange      chan struct{}
 
 	host string
 	log  func(s string, args ...interface{})
@@ -44,17 +44,43 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		minVersion:        math.MaxInt64,
 		log:               log,
 		host:              host,
-		metricChange:      make(chan struct{}, 1),
 	}
-
+	go func() {
+		t := time.NewTimer(longPollTimeout)
+		for {
+			<-t.C
+			h.broadcastCancel()
+			t = time.NewTimer(longPollTimeout)
+		}
+	}()
 	h.initStats()
 	return h
 }
 
 func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
+	statshouse.Metric("meta_cancel_hijack", statshouse.Tags{1: h.host}).Count(1)
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, hctx)
+}
+
+func (h *Handler) broadcastCancel() {
+	h.getJournalMx.Lock()
+	defer h.getJournalMx.Unlock()
+	clientGotResponseCount := len(h.getJournalClients)
+	for hctx, args := range h.getJournalClients {
+		delete(h.getJournalClients, hctx)
+		resp := filterResponse(nil, nil, func(m tlmetadata.Event) bool {
+			return true
+		})
+		resp.CurrentVersion = args.From
+		var err error
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		hctx.SendHijackedResponse(err)
+	}
+	if clientGotResponseCount > 0 {
+		h.log("[info] client got cancel error count: %d", clientGotResponseCount)
+	}
 }
 
 func (h *Handler) broadcastJournal() {
@@ -134,13 +160,42 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	return "", hctx.HijackResponse(h)
 }
 
+func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetHistoryShortInfo
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetHistoryShortInfo request: %w", err)
+	}
+	resp, err := h.db.GetHistoryShort(ctx, args.Id)
+	if err != nil {
+		return "", err
+	}
+	hctx.Response, err = args.WriteResult(hctx.Response, resp)
+	return "", err
+}
+
+func (h *Handler) RawGetEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetEntity
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetEntity request: %w", err)
+	}
+	e, err := h.db.GetEntityVersioned(ctx, args.Id, args.Version)
+	if err != nil {
+		return "", err
+	}
+	hctx.Response, err = args.WriteResult(hctx.Response, e)
+	return "ok", err
+
+}
+
 func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.EditEntitynew
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
 	}
-	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType)
+	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType, args.Event.Metadata)
 	if err == errInvalidMetricVersion {
 		return "", fmt.Errorf("invalid version. Reload this page and try again")
 	}
@@ -159,14 +214,14 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 		return "", fmt.Errorf("failed to deserialize metadata.getMapping request: %w", err)
 	}
 
-	var mapping tlmetadata.GetMappingResponseUnion
+	var mapping tlmetadata.GetMappingResponse
 	var notExists bool
 	if args.IsSetCreateIfAbsent() {
 		mapping, err = h.db.GetOrCreateMapping(ctx, args.Metric, args.Key)
 	} else {
 		var id int32
 		id, notExists, err = h.db.GetMappingByValue(ctx, args.Key)
-		mapping = tlmetadata.GetMappingResponse{Id: id}.AsUnion()
+		mapping = tlmetadata.GetMappingResponse0{Id: id}.AsUnion()
 	}
 	if err != nil {
 		return "", err
@@ -207,13 +262,13 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 		return "", err
 	}
 
-	var resp tlmetadata.GetInvertMappingResponseUnion
+	var resp tlmetadata.GetInvertMappingResponse
 	var status string
 	if !isExists {
 		resp = tlmetadata.GetInvertMappingResponseKeyNotExists{}.AsUnion()
 		status = "key_not_exists"
 	} else {
-		resp = tlmetadata.GetInvertMappingResponse{Key: k}.AsUnion()
+		resp = tlmetadata.GetInvertMappingResponse0{Key: k}.AsUnion()
 		status = "get"
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, resp)
@@ -238,24 +293,24 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 	return "", err
 }
 
-func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, error) {
+func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, string, error) {
 	before, after, err := h.db.ResetFlood(ctx, args.Metric, int64(args.Value))
-	return tlmetadata.ResetFloodResponse2{BudgetBefore: int32(before), BudgetAfter: int32(after)}, err
+	return tlmetadata.ResetFloodResponse2{BudgetBefore: int32(before), BudgetAfter: int32(after)}, args.Metric, err
 }
 
-func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {
+func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, string, error) {
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 
 	totalSizeEstimate := 0
 	boostrapDifferences := 0
 	response, err := h.db.GetBootstrap(ctx)
 	if err != nil {
-		return tlstatshouse.GetTagMappingBootstrapResult{}, nil
+		return tlstatshouse.GetTagMappingBootstrapResult{}, "", nil
 	}
 	for _, ma := range response.Mappings {
 		k, isExists, err := h.db.GetMappingByID(ctx, ma.Value)
 		if err != nil {
-			return ret, err
+			return ret, "", err
 		}
 		if !isExists { // skip, no problem
 			continue
@@ -277,12 +332,12 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 		}
 	}
 	h.log("[info] returning boostrap of %d mappings of ~size %d, %d differences found", len(ret.Mappings), totalSizeEstimate, boostrapDifferences)
-	return ret, nil
+	return ret, "get_bootstrap", nil
 }
 
-func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, error) {
+func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, string, error) {
 	count, err := h.db.PutBootstrap(ctx, args.Mappings)
-	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, err
+	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, "put_bootstrap", err
 }
 
 func filterResponse(ms []tlmetadata.Event, buffer []tlmetadata.Event, filter func(m tlmetadata.Event) bool) tlmetadata.GetJournalResponsenew {

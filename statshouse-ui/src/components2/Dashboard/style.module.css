@@ -1,0 +1,66 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: relative;
+}
+
+.dashboardGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.dashboardGroupHeader {
+  display: flex;
+  flex-direction: row;
+}
+
+.dashboardGroupList {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.dashboardGroupList_2 .dashboardPlot {
+  width: 50%;
+}
+.dashboardGroupList_3 .dashboardPlot {
+  width: 33.3%;
+}
+.dashboardGroupList_4 .dashboardPlot {
+  width: 25%;
+}
+/* 2 auto */
+.dashboardGroupList_l .dashboardPlot {
+  width: 50%;
+}
+/* 3 auto */
+.dashboardGroupList_m .dashboardPlot {
+  width: 33.3%;
+}
+/* 4 auto */
+.dashboardGroupList_s .dashboardPlot {
+  width: 25%;
+}
+
+.dashboardPlot {
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 0;
+  width: 0;
+}
+.dashboardPlotHeader {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.dashboardPlotHeaderLink {
+  flex-grow: 1;
+  width: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  text-decoration: none;
+}

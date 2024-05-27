@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func VectorLong0Read(w []byte, vec *[]int64) (_ []byte, err error) {
+func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -34,37 +34,50 @@ func VectorLong0Read(w []byte, vec *[]int64) (_ []byte, err error) {
 	return w, nil
 }
 
-func VectorLong0Write(w []byte, vec []int64) (_ []byte, err error) {
+func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.LongWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
-func VectorLong0ReadJSON(j interface{}, vec *[]int64) error {
-	l, _arr, err := JsonReadArray("[]int64", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]int64, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadInt64(_arr[i], &(*vec)[i]); err != nil {
-			return err
+func BuiltinVectorLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int64) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]int64", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue int64
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadInt64(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]int64", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
-func VectorLong0WriteJSON(w []byte, vec []int64) (_ []byte, err error) {
+func BuiltinVectorLongWriteJSON(w []byte, vec []int64) []byte {
+	return BuiltinVectorLongWriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorLongWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int64) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteInt64(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }

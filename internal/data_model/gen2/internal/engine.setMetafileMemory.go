@@ -28,8 +28,14 @@ func (item *EngineSetMetafileMemory) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Megabytes)
 }
 
-func (item *EngineSetMetafileMemory) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Megabytes), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSetMetafileMemory) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetMetafileMemory) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Megabytes)
+	return w
 }
 
 func (item *EngineSetMetafileMemory) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineSetMetafileMemory) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSetMetafileMemory) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetMetafileMemory) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetMetafileMemory) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7bdcf404)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *EngineSetMetafileMemory) ReadResult(w []byte, ret *BoolStat) (_ []by
 }
 
 func (item *EngineSetMetafileMemory) WriteResult(w []byte, ret BoolStat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineSetMetafileMemory) ReadResultJSON(j interface{}, ret *BoolStat) error {
-	if err := BoolStat__ReadJSON(ret, j); err != nil {
+func (item *EngineSetMetafileMemory) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetMetafileMemory) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineSetMetafileMemory) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *EngineSetMetafileMemory) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *EngineSetMetafileMemory) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setMetafileMemory", err.Error())
-	}
+func (item *EngineSetMetafileMemory) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineSetMetafileMemory) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret BoolStat
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,52 +109,71 @@ func (item *EngineSetMetafileMemory) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item EngineSetMetafileMemory) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSetMetafileMemory__ReadJSON(item *EngineSetMetafileMemory, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetMetafileMemory) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setMetafileMemory", "expected json object")
+func (item *EngineSetMetafileMemory) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMegabytesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "megabytes":
+				if propMegabytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setMetafileMemory", "megabytes")
+				}
+				if err := Json2ReadInt32(in, &item.Megabytes); err != nil {
+					return err
+				}
+				propMegabytesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setMetafileMemory", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMegabytes := _jm["megabytes"]
-	delete(_jm, "megabytes")
-	if err := JsonReadInt32(_jMegabytes, &item.Megabytes); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setMetafileMemory", k)
+	if !propMegabytesPresented {
+		item.Megabytes = 0
 	}
 	return nil
 }
 
-func (item *EngineSetMetafileMemory) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetMetafileMemory) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetMetafileMemory) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSetMetafileMemory) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.Megabytes != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"megabytes":`...)
-		w = basictl.JSONWriteInt32(w, item.Megabytes)
+	backupIndexMegabytes := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"megabytes":`...)
+	w = basictl.JSONWriteInt32(w, item.Megabytes)
+	if (item.Megabytes != 0) == false {
+		w = w[:backupIndexMegabytes]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetMetafileMemory) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetMetafileMemory) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setMetafileMemory", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setMetafileMemory", err.Error())
 	}
 	return nil

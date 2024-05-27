@@ -135,7 +135,7 @@ export function _Popper({
   }, [targetRect.height, targetRect.y, verticalClass, windowRect.height]);
 
   useEffect(() => {
-    if (innerVisible >= 1 && !always) {
+    if ((innerVisible >= 1 && !always) || !show) {
       return;
     }
     const checkH = checkHorizontal.bind(undefined, targetRect, innerRect, windowRect);
@@ -208,7 +208,7 @@ export function _Popper({
         break;
     }
     setFirstInit(true);
-  }, [always, horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
+  }, [always, horizontal, innerRect, innerVisible, show, targetRect, vertical, windowRect]);
 
   useEffect(() => {
     updateTargetRect();

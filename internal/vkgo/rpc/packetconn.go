@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,6 +10,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -24,7 +25,7 @@ import (
 const (
 	packetOverhead       = 4 * 4
 	maxPacketLen         = 16*1024*1024 - 1
-	maxNonceHandshakeLen = 1024 // this limit is not exact, but it still prevents attack to force allocating lots of memory
+	maxNonceHandshakeLen = 1024 - 1 // this limit is not exact, but it still prevents attack to force allocating lots of memory
 	blockSize            = 16
 	padVal               = 4
 	startSeqNum          = -2
@@ -45,7 +46,7 @@ var (
 
 	castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
 
-	ErrInvalidPacketLength = fmt.Errorf("invalid packet length")
+	errHeaderCorrupted = fmt.Errorf("packet header corrupted")
 )
 
 // transport stream, encrypted using standard VK rpc scheme
@@ -57,7 +58,8 @@ type PacketConn struct {
 	localAddr       string
 	timeoutAccuracy time.Duration
 
-	flagCancelReq bool
+	flagCancelReq   bool
+	protocolVersion uint32 // initially 0, will be set after nonce message is received from the peer
 
 	readMu        sync.Mutex
 	r             *cryptoReader
@@ -70,12 +72,25 @@ type PacketConn struct {
 	wDeadline      time.Time
 	headerWriteBuf []byte // contains either crc from previous packet or nothing after flush
 	writeSeqNum    int64
+	writeCRC       uint32 // when writing packet in parts, collected here
+	writeAlignTo4  int    // bytes after crc/xxhash
 
 	keyID [4]byte // to identify clients for Server with more than 1 crypto key
 	table *crc32.Table
 
 	closeOnce sync.Once
 	closeErr  error
+
+	pingMu          sync.Mutex
+	pingSent        bool
+	currentPingID   int64
+	pingBodyReadBuf [8 + 4]byte // pingID + space for CRC, also used for pongs
+
+	// mini send queue for ping-pongs
+	writePing   bool
+	writePingID [8]byte
+	writePong   bool
+	writePongID [8]byte
 }
 
 func NewPacketConn(c net.Conn, readBufSize int, writeBufSize int, timeoutAccuracy time.Duration) *PacketConn {
@@ -113,6 +128,10 @@ func (pc *PacketConn) RemoteAddr() string {
 	return pc.remoteAddr
 }
 
+func (pc *PacketConn) ProtocolVersion() uint32 {
+	return pc.protocolVersion
+}
+
 func (pc *PacketConn) Close() error {
 	pc.closeOnce.Do(func() {
 		if pc.tcpconn_fd != nil {
@@ -128,7 +147,7 @@ func (pc *PacketConn) setCRC32C() {
 }
 
 func (pc *PacketConn) setReadTimeoutUnlocked(timeout time.Duration) error {
-	if timeout == 0 {
+	if timeout <= 0 {
 		if pc.rDeadline == (time.Time{}) {
 			return nil
 		}
@@ -152,7 +171,7 @@ func (pc *PacketConn) setReadTimeoutUnlocked(timeout time.Duration) error {
 }
 
 func (pc *PacketConn) setWriteTimeoutUnlocked(timeout time.Duration) error {
-	if timeout == 0 {
+	if timeout <= 0 {
 		if pc.wDeadline == (time.Time{}) {
 			return nil
 		}
@@ -177,30 +196,97 @@ func (pc *PacketConn) setWriteTimeoutUnlocked(timeout time.Duration) error {
 
 // ReadPacket will resize/reuse body to size of packet
 func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32, _ []byte, err error) {
-	tip, _, body, err = pc.readPacketWithMagic(body, timeout)
-	return tip, body, err
+	for {
+		var isBuiltin bool
+		tip, _, body, isBuiltin, _, err = pc.readPacketWithMagic(body, timeout)
+		if err != nil {
+			return tip, body, err
+		}
+		if !isBuiltin { // fast path
+			return tip, body, nil
+		}
+		if err := pc.WritePacketBuiltin(timeout); err != nil {
+			return tip, body, err
+		}
+	}
+}
+
+// ReadPacketUnlocked for high-efficiency users, which write with *Unlocked functions
+// if isBuiltin is true, caller must call WritePacketBuiltinNoFlushUnlocked(timeout)
+// TODO - builtinKind is only for temporary testing, remove later
+func (pc *PacketConn) ReadPacketUnlocked(body []byte, timeout time.Duration) (tip uint32, _ []byte, isBuiltin bool, builtinKind string, err error) {
+	tip, _, body, isBuiltin, builtinKind, err = pc.readPacketWithMagic(body, timeout)
+	return tip, body, isBuiltin, builtinKind, err
 }
 
 // supports sending ascii command via terminal instead of first TL RPC packet, returns command in
-func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (tip uint32, magic []byte, _ []byte, err error) {
+func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (tip uint32, magic []byte, _ []byte, isBuiltin bool, builtinKind string, err error) {
 	pc.readMu.Lock()
 	defer pc.readMu.Unlock()
 
 	var header packetHeader
-	magicHead, err := pc.readPacketHeaderUnlocked(&header, timeout)
+	magicHead, isBuiltin, builtinKind, err := pc.readPacketHeaderUnlocked(&header, timeout)
 	if err != nil {
-		return 0, magicHead, body, err
+		return 0, magicHead, body, isBuiltin, builtinKind, err
+	}
+	if isBuiltin {
+		return 0, nil, body, true, builtinKind, nil
 	}
 
-	body, err = pc.readPacketBodyUnlocked(&header, body, false, 0)
-	return header.tip, nil, body, err
+	body, err = pc.readPacketBodyUnlocked(&header, body)
+	return header.tip, nil, body, isBuiltin, builtinKind, err
 }
 
-func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, err error) {
-	if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
-		return nil, err
+func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, builtinKind string, err error) {
+	for {
+		if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
+			return nil, false, "", fmt.Errorf("failed to set read timeout: %w", err)
+		}
+		magicHead, err = pc.readPacketHeaderUnlockedImpl(header)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return magicHead, false, "", err
+			}
+			if pc.readSeqNum < 0 || len(magicHead) != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
+				// if performing handshake || read at least 1 byte || not a timeout error
+				return magicHead, false, "", fmt.Errorf("failed to read header for seq_num %d, magic(hex) %x: %w", pc.readSeqNum, magicHead, err)
+			}
+			if !pc.sendPing() {
+				return nil, false, "", fmt.Errorf("timeout after ping sent: %w", err)
+			}
+			return nil, true, "sendPing", nil // send builtin ping
+		}
+		if header.tip == PacketTypeRPCPing {
+			if header.length != packetOverhead+8 {
+				return nil, false, "", fmt.Errorf("ping packet has wrong length: %d", header.length)
+			}
+			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
+			if err != nil {
+				return nil, false, "", fmt.Errorf("failed to read ping body: %w", err)
+			}
+			if err := pc.onPing(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
+				return nil, false, "", err
+			}
+			return nil, true, "sendPong", nil // send builtin pong
+		}
+		if header.tip == PacketTypeRPCPong {
+			if header.length != packetOverhead+8 {
+				return nil, false, "", fmt.Errorf("pong packet has wrong length %d", header.length)
+			}
+			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
+			if err != nil {
+				return nil, false, "", fmt.Errorf("failed to read pong body: %w", err)
+			}
+			if err := pc.onPong(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
+				return nil, false, "", err
+			}
+			continue // read next header without sending anything
+		}
+		return magicHead, false, "", nil
 	}
+}
 
+func (pc *PacketConn) readPacketHeaderUnlockedImpl(header *packetHeader) (magicHead []byte, err error) {
 	// special-case first packet: it can't contain padding, but can be a memcached command
 	if pc.readSeqNum == startSeqNum {
 		n, err := readFullOrMagic(pc.r, pc.headerReadBuf[:12], memcachedCommands)
@@ -208,8 +294,6 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 			return pc.headerReadBuf[:n], err
 		}
 		header.length = binary.LittleEndian.Uint32(pc.headerReadBuf[:4])
-		header.seqNum = binary.LittleEndian.Uint32(pc.headerReadBuf[4:8])
-		header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 	} else {
 		header.length = padVal
 		// it is important to return (0, eof) when FIN is read on the message boundary
@@ -226,62 +310,76 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 
 		n, err := io.ReadFull(pc.r, pc.headerReadBuf[4:12])
 		if err != nil {
+			if err == io.EOF {
+				return pc.headerReadBuf[:4+n], io.ErrUnexpectedEOF // EOF before packet header end is not expected
+			}
 			return pc.headerReadBuf[:4+n], err
 		}
-		header.seqNum = binary.LittleEndian.Uint32(pc.headerReadBuf[4:8])
-		header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 	}
+	header.seqNum = binary.LittleEndian.Uint32(pc.headerReadBuf[4:8])
+	header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 
 	if header.length < packetOverhead || header.length > maxPacketLen {
-		return pc.headerReadBuf[:12], fmt.Errorf("packet size %v outside  [%v, %v]", header.length, packetOverhead, maxPacketLen)
+		return pc.headerReadBuf[:12], fmt.Errorf("packet size %v outside  [%v, %v]: %w", header.length, packetOverhead, maxPacketLen, errHeaderCorrupted)
 	}
-	if pc.readSeqNum < 0 && header.length > maxNonceHandshakeLen {
-		return pc.headerReadBuf[:12], fmt.Errorf("nonce/handshake packet size %v outside  [%v, %v]", header.length, packetOverhead, maxNonceHandshakeLen)
+	if pc.protocolVersion == 0 && header.length%4 != 0 {
+		return pc.headerReadBuf[:12], fmt.Errorf("packet size %v must be a multiple of 4: %w", header.length, errHeaderCorrupted)
+	}
+	if pc.readSeqNum < 0 {
+		// checks below also forbid ping-pong during handshake
+		if pc.readSeqNum == startSeqNum && header.tip != packetTypeRPCNonce { // this check is in nonceExchangeServer, but repeated here to detect non-RPC protocol earlier for connection hijack
+			return pc.headerReadBuf[:12], fmt.Errorf("nonce packet type 0x%x instead of 0x%x: %w", header.tip, packetTypeRPCNonce, errHeaderCorrupted)
+		}
+		if pc.readSeqNum == startSeqNum+1 && header.tip != packetTypeRPCHandshake { // this check is in handshakeExchangeServer, but repeated here to better detect different keys with common prefixes leading to different AES keys
+			return pc.headerReadBuf[:12], fmt.Errorf("handsheke packet type 0x%x instead of 0x%x: %w", header.tip, packetTypeRPCHandshake, errHeaderCorrupted)
+		}
+		if header.length > maxNonceHandshakeLen {
+			return pc.headerReadBuf[:12], fmt.Errorf("nonce/handshake packet size %v outside  [%v, %v]: %w", header.length, packetOverhead, maxNonceHandshakeLen, errHeaderCorrupted)
+		}
 	}
 	if header.seqNum != uint32(pc.readSeqNum) {
-		return pc.headerReadBuf[:12], fmt.Errorf("seqnum mismatch: read %v, expected %v", header.seqNum, pc.readSeqNum)
-	}
-	if pc.readSeqNum == startSeqNum && header.tip != packetTypeRPCNonce { // this check is in nonceExchangeServer, but repeated here to detect non-RPC protocol earlier for connection hijack
-		return pc.headerReadBuf[:12], fmt.Errorf("nonce packet type 0x%x instead of 0x%x", header.tip, packetTypeRPCNonce)
+		return pc.headerReadBuf[:12], fmt.Errorf("seqnum mismatch: read %v, expected %v: %w", header.seqNum, pc.readSeqNum, errHeaderCorrupted)
 	}
 	pc.readSeqNum++
 
 	return nil, nil
 }
 
-func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte, setTimeout bool, timeout time.Duration) (_ []byte, err error) {
-	if setTimeout {
-		if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
-			return body, err
-		}
-	}
+func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte) (_ []byte, err error) {
 	if header.length < packetOverhead || header.length > maxPacketLen {
 		panic(fmt.Sprintf("packet size %v outside [%v, %v], was checked in readPacketHeaderUnlocked", header.length, packetOverhead, maxPacketLen))
 	}
-	sz := int(header.length) - packetOverhead + 4
+	bodySize := int(header.length) - packetOverhead
+	alignTo4 := 0
+	if pc.w.isEncrypted() {
+		alignTo4 = int(-uint(header.length) & 3)
+	}
+
+	sz := bodySize + 4 + alignTo4 // read body, crc and alignment to 4 all at once
 	if cap(body) < sz {
 		body = make([]byte, sz)
 	} else {
 		body = body[:sz]
 	}
-	n := 0
-	for n < len(body) && err == nil {
-		var nn int
-		nn, err = pc.r.Read(body[n:])
-		n += nn
+	if n, err := io.ReadFull(pc.r, body); err != nil {
+		if err == io.EOF {
+			return body[:n], io.ErrUnexpectedEOF // EOF before packet end is not expected
+		}
+		return body[:n], err
 	}
-	if n < len(body) { // implies err != nil
-		return body, err
+	readCRC := binary.LittleEndian.Uint32(body[bodySize:])
+	for i := 0; i < alignTo4; i++ {
+		if a := body[bodySize+4+i]; a != 0 {
+			return body, fmt.Errorf("body padding to 4 byte boundary must be with zeroes, read 0x%x at position %d instead", a, i)
+		}
 	}
-	// we forget error here, if err != nil, expecting to receive it again on reading next packet
-	header.crc = binary.LittleEndian.Uint32(body[sz-4:])
-	body = body[:sz-4]
+	body = body[:bodySize]
 
-	crc := pc.updateCRC(0, pc.headerReadBuf[:12])
-	crc = pc.updateCRC(crc, body)
+	crc := crc32.Update(0, pc.table, pc.headerReadBuf[:12])
+	crc = crc32.Update(crc, pc.table, body)
 
-	if header.crc != crc {
-		return body, fmt.Errorf("CRC mismatch: read 0x%x, expected 0x%x", header.crc, crc)
+	if readCRC != crc {
+		return body, fmt.Errorf("CRC mismatch: read 0x%x, expected 0x%x", readCRC, crc)
 	}
 
 	return body, nil
@@ -291,15 +389,9 @@ func (pc *PacketConn) WritePacket(packetType uint32, body []byte, timeout time.D
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
 
-	crc, err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout)
-	if err != nil {
+	if err := pc.WritePacketNoFlushUnlocked(packetType, body, timeout); err != nil {
 		return err
 	}
-	crc, err = pc.writePacketBodyUnlocked(crc, body)
-	if err != nil {
-		return err
-	}
-	pc.writePacketTrailerUnlocked(crc)
 	return pc.FlushUnlocked()
 }
 
@@ -312,15 +404,13 @@ func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout
 
 // If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
 func (pc *PacketConn) WritePacketNoFlushUnlocked(packetType uint32, body []byte, timeout time.Duration) error {
-	crc, err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout)
-	if err != nil {
+	if err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout); err != nil {
 		return err
 	}
-	crc, err = pc.writePacketBodyUnlocked(crc, body)
-	if err != nil {
+	if err := pc.writePacketBodyUnlocked(body); err != nil {
 		return err
 	}
-	pc.writePacketTrailerUnlocked(crc)
+	pc.writePacketTrailerUnlocked()
 	return nil
 }
 
@@ -336,11 +426,11 @@ func (pc *PacketConn) FlushUnlocked() error {
 	prevBytes := len(pc.headerWriteBuf)
 	toWrite := prevBytes + pc.w.Padding(prevBytes)
 	if toWrite != 0 {
-		if toWrite&3 != 0 { // if p < 0 || p > 12, will panic in [] below
-			panic(fmt.Sprintf("invalid crypto padding toWrite=%d", toWrite))
+		// We write crc and crypto padding together in single call
+		if toWrite != prevBytes { // optimize for unencrypted messages and 1/4 of encrypted
+			const padding = "\x04\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00" // []byte{padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0}
+			pc.headerWriteBuf = append(pc.headerWriteBuf, padding...)
 		}
-		const padding = "\x04\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00" // []byte{padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0}
-		pc.headerWriteBuf = append(pc.headerWriteBuf, padding...)
 
 		if _, err := pc.w.Write(pc.headerWriteBuf[:toWrite]); err != nil {
 			return err
@@ -371,12 +461,16 @@ func (pc *PacketConn) ShutdownWrite() error {
 // first call writePacketHeaderUnlocked with sum of all body chunk lengths you are going to write on the next step
 // then call writePacketBodyUnlocked 0 or more times
 // then call writePacketTrailerUnlocked
-func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen int, timeout time.Duration) (uint32, error) {
+func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen int, timeout time.Duration) error {
 	if err := validBodyLen(packetBodyLen); err != nil {
-		return 0, err
+		return err
 	}
+	if pc.protocolVersion == 0 && packetBodyLen%4 != 0 {
+		return fmt.Errorf("packet size %v must be a multiple of 4", packetBodyLen)
+	}
+
 	if err := pc.setWriteTimeoutUnlocked(timeout); err != nil {
-		return 0, err
+		return fmt.Errorf("failed to set write timeout: %w", err)
 	}
 	prevBytes := len(pc.headerWriteBuf)
 	buf := pc.headerWriteBuf
@@ -386,26 +480,42 @@ func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen
 	buf = basictl.NatWrite(buf, packetType)
 	pc.headerWriteBuf = buf[:0] // reuse, prepare to accept crc32
 	pc.writeSeqNum++
+	if pc.w.isEncrypted() {
+		pc.writeAlignTo4 = int(-uint(packetBodyLen) & 3)
+	} else {
+		pc.writeAlignTo4 = 0
+	}
 
 	if _, err := pc.w.Write(buf); err != nil { // with prevBytes
-		return 0, err
+		return err
 	}
-	return pc.updateCRC(0, buf[prevBytes:]), nil // without prevBytes
+	pc.writeCRC = 0
+	pc.updateWriteCRC(buf[prevBytes:]) // without prevBytes
+	return nil
 }
 
-func (pc *PacketConn) writePacketBodyUnlocked(crc uint32, body []byte) (uint32, error) {
+func (pc *PacketConn) writePacketBodyUnlocked(body []byte) error {
 	if _, err := pc.w.Write(body); err != nil {
-		return 0, err
+		return err
 	}
-	return pc.updateCRC(crc, body), nil
+	pc.updateWriteCRC(body)
+	return nil
 }
 
-func (pc *PacketConn) writePacketTrailerUnlocked(crc uint32) {
-	pc.headerWriteBuf = binary.LittleEndian.AppendUint32(pc.headerWriteBuf, crc)
+func (pc *PacketConn) writePacketTrailerUnlocked() {
+	pc.headerWriteBuf = binary.LittleEndian.AppendUint32(pc.headerWriteBuf, pc.writeCRC)
+	switch pc.writeAlignTo4 {
+	case 3:
+		pc.headerWriteBuf = append(pc.headerWriteBuf, 0, 0, 0)
+	case 2:
+		pc.headerWriteBuf = append(pc.headerWriteBuf, 0, 0)
+	case 1:
+		pc.headerWriteBuf = append(pc.headerWriteBuf, 0)
+	}
 }
 
-func (pc *PacketConn) updateCRC(crc uint32, data []byte) uint32 {
-	return crc32.Update(crc, pc.table, data)
+func (pc *PacketConn) updateWriteCRC(data []byte) {
+	pc.writeCRC = crc32.Update(pc.writeCRC, pc.table, data)
 }
 
 func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, writeIV []byte) error {
@@ -449,10 +559,7 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 
 func validBodyLen(n int) error { // Motivation - high byte was used for some flags, we must not use it
 	if n > maxPacketLen-packetOverhead {
-		return fmt.Errorf("packet size (metadata+extra+request) %v exceeds maximum %v: %w", n, maxPacketLen, ErrInvalidPacketLength)
-	}
-	if n%4 != 0 {
-		return fmt.Errorf("packet size %v must be a multiple of 4: %w", n, ErrInvalidPacketLength)
+		return fmt.Errorf("packet size (metadata+extra+request) %v exceeds maximum %v", n, maxPacketLen)
 	}
 	return nil
 }

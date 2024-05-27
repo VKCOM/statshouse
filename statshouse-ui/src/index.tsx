@@ -23,4 +23,3 @@ root.render(
 );
 
 reportWebVitals(undefined);
-export { font } from './common/axisValues';

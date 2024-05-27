@@ -10,5 +10,6 @@ export function getEmptyVariableParams(): VariableParams {
       groupBy: false,
       negative: false,
     },
+    source: [],
   };
 }

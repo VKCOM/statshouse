@@ -19,53 +19,76 @@ type MetadataPutMappingResponse struct {
 func (MetadataPutMappingResponse) TLName() string { return "metadata.putMappingResponse" }
 func (MetadataPutMappingResponse) TLTag() uint32  { return 0x9286abfe }
 
-func (item *MetadataPutMappingResponse) Reset()                         {}
-func (item *MetadataPutMappingResponse) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *MetadataPutMappingResponse) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x9286abfe)
+func (item *MetadataPutMappingResponse) Reset() {}
+
+func (item *MetadataPutMappingResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *MetadataPutMappingResponse) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *MetadataPutMappingResponse) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x9286abfe), nil
+
+func (item *MetadataPutMappingResponse) Write(w []byte) []byte {
+	return w
+}
+
+func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abfe); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutMappingResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutMappingResponse) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x9286abfe)
+	return item.Write(w)
 }
 
 func (item MetadataPutMappingResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataPutMappingResponse__ReadJSON(item *MetadataPutMappingResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataPutMappingResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putMappingResponse", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putMappingResponse", k)
+func (item *MetadataPutMappingResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("metadata.putMappingResponse", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *MetadataPutMappingResponse) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutMappingResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutMappingResponse) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataPutMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutMappingResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutMappingResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.putMappingResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putMappingResponse", err.Error())
 	}
 	return nil

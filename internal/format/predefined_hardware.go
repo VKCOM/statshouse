@@ -33,6 +33,8 @@ const (
 	BuiltinMetricIDNumaEvents      = -1031
 	BuiltinMetricIDDMesgEvents     = -1032
 	BuiltinMetricIDOOMKillDetailed = -1033
+	BuiltinMetricIDMemSLAB         = -1034
+	BuiltinMetricIDBlockIOBusyTime = -1035
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -41,11 +43,13 @@ const (
 
 	BuiltinMetricNameMemUsage  = "host_mem_usage"
 	BuiltinMetricNameWriteback = "host_mem_writeback"
+	BuiltinMetricNameMemSLAB   = "host_mem_slab"
 
-	BuiltinMetricNameBlockIOTime = "host_block_io_time"
-	BuiltinMetricNameBlockIOSize = "host_block_io_size"
-	BuiltinMetricNameDiskUsage   = "host_disk_usage"
-	BuiltinMetricNameINodeUsage  = "host_inode_usage"
+	BuiltinMetricNameBlockIOTime     = "host_block_io_time"
+	BuiltinMetricNameBlockIOBusyTime = "host_block_io_busy_time"
+	BuiltinMetricNameBlockIOSize     = "host_block_io_size"
+	BuiltinMetricNameDiskUsage       = "host_disk_usage"
+	BuiltinMetricNameINodeUsage      = "host_inode_usage"
 
 	BuiltinMetricNameSystemUptime   = "host_system_uptime"
 	BuiltinMetricNameProcessCreated = "host_system_process_created"
@@ -91,6 +95,9 @@ const (
 	RawIDTagBuffers = 2
 	RawIDTagCached  = 3
 	RawIDTagFree    = 4
+	RawIDTagBadData = 5
+
+	RawIDTagReservedForRoot = 5
 
 	RawIDTagRead    = 1
 	RawIDTagWrite   = 2
@@ -154,6 +161,9 @@ const (
 
 	RawIDTagIn  = 1
 	RawIDTagOut = 2
+
+	RawIDTagReclaimable   = 1
+	RawIDTagUnreclaimable = 2
 
 	RawIDTagForeign         = 1
 	RawIDTagInterleave      = 2
@@ -240,6 +250,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				RawIDTagUsed:    "used",
 				RawIDTagBuffers: "buffers",
 				RawIDTagCached:  "cached",
+				RawIDTagBadData: "bad_data",
 			}),
 		}},
 	},
@@ -263,6 +274,16 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				}),
 			}},
 	},
+	BuiltinMetricIDBlockIOBusyTime: {
+		Name:        BuiltinMetricNameBlockIOBusyTime,
+		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
+		Description: "The amount of time disk was busy",
+		Tags: []MetricMetaTag{
+			{
+				Description: "device",
+			}},
+	},
 	BuiltinMetricIDProcessCreated: {
 		Name:        BuiltinMetricNameProcessCreated,
 		Kind:        MetricKindCounter,
@@ -278,6 +299,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagBlocked: "blocked",
 				RawIDTagRunning: "running",
+				RawIDTagBadData: "bad_data",
 			}),
 		}},
 	},
@@ -465,12 +487,16 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				Description: "state",
 				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
-					RawIDTagFree: "free",
-					RawIDTagUsed: "used",
+					RawIDTagFree:            "free",
+					RawIDTagUsed:            "used",
+					RawIDTagReservedForRoot: "reserved_for_root",
 				}),
 			},
 			{
 				Description: "device",
+			},
+			{
+				Description: "mount_point",
 			}},
 	},
 	BuiltinMetricIDINodeUsage: {
@@ -486,8 +512,12 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagUsed: "used",
 				}),
 			},
+
 			{
 				Description: "device",
+			},
+			{
+				Description: "mount_point",
 			}},
 	},
 
@@ -651,6 +681,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				}),
 			}},
 	},
+
 	BuiltinMetricIDPagedMemory: {
 		Name:        BuiltinMetricNamePagedMemory,
 		Kind:        MetricKindValue,
@@ -663,6 +694,21 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagIn:  "in",
 					RawIDTagOut: "out",
+				}),
+			}},
+	},
+	BuiltinMetricIDMemSLAB: {
+		Name:        BuiltinMetricNameMemSLAB,
+		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
+		Description: "Slab memory",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagReclaimable:   "reclaimable",
+					RawIDTagUnreclaimable: "unreclaimable",
 				}),
 			}},
 	},

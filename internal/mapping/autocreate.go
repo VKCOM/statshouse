@@ -43,9 +43,11 @@ type AutoCreate struct {
 }
 
 type autoCreateTask struct {
-	kind    string
-	tags    map[string]int
-	dueTime time.Time
+	kind        string
+	tags        map[string]int
+	dueTime     time.Time
+	resolution  int
+	description string
 }
 
 func NewAutoCreate(journal format.MetaStorageInterface, fn AutoCreateFunc) *AutoCreate {
@@ -63,7 +65,7 @@ func (ac *AutoCreate) Shutdown() {
 	ac.shutdownFn()
 }
 
-func (ac *AutoCreate) autoCreateMetric(bytes *tlstatshouse.MetricBytes, now time.Time) error {
+func (ac *AutoCreate) autoCreateMetric(bytes *tlstatshouse.MetricBytes, description string, resolution int, now time.Time) error {
 	ac.mu.RLock()
 	task := ac.work[string(bytes.Name)]
 	taskCount := len(ac.work)
@@ -84,7 +86,7 @@ func (ac *AutoCreate) autoCreateMetric(bytes *tlstatshouse.MetricBytes, now time
 	if len(ac.work) >= autoCreateTaskLimit {
 		return errAutoCreateTaskLimitExceeded
 	}
-	ac.work[string(bytes.Name)] = newAutoCreateTask(bytes, now)
+	ac.work[string(bytes.Name)] = newAutoCreateTask(bytes, description, resolution, now)
 	return nil
 }
 
@@ -105,7 +107,7 @@ func (ac *AutoCreate) autoCreateTag(bytes *tlstatshouse.MetricBytes, tagBytes []
 	if task == nil && taskCount >= autoCreateTaskLimit {
 		return errAutoCreateTaskLimitExceeded // fast path: RLock, no allocations
 	}
-	if tagCount >= format.MaxTags-1 {
+	if tagCount >= format.MaxDraftTags {
 		return errAutoCreateTagLimitExceeded // fast path: RLock, no allocations
 	}
 	// slow path: Lock, might allocate
@@ -116,13 +118,13 @@ func (ac *AutoCreate) autoCreateTag(bytes *tlstatshouse.MetricBytes, tagBytes []
 		if len(ac.work) >= autoCreateTaskLimit {
 			return errAutoCreateTaskLimitExceeded
 		}
-		task = newAutoCreateTask(bytes, now)
+		task = newAutoCreateTask(bytes, "", 0, now)
 		ac.work[string(bytes.Name)] = task
 	}
 	if _, ok := task.tags[string(tagBytes)]; ok {
 		return nil
 	}
-	if len(task.tags) >= format.MaxTags-1 {
+	if len(task.tags) >= format.MaxDraftTags {
 		return errAutoCreateTagLimitExceeded
 	}
 	// remember tag insert order
@@ -131,14 +133,20 @@ func (ac *AutoCreate) autoCreateTag(bytes *tlstatshouse.MetricBytes, tagBytes []
 	return nil
 }
 
-func newAutoCreateTask(bytes *tlstatshouse.MetricBytes, now time.Time) *autoCreateTask {
+func newAutoCreateTask(bytes *tlstatshouse.MetricBytes, description string, resolution int, now time.Time) *autoCreateTask {
 	kind := format.MetricKindCounter
 	if bytes.IsSetUnique() {
 		kind = format.MetricKindUnique
 	} else if bytes.IsSetValue() {
 		kind = format.MetricKindValue
 	}
-	return &autoCreateTask{kind: kind, tags: map[string]int{}, dueTime: now}
+	return &autoCreateTask{
+		kind:        kind,
+		tags:        map[string]int{},
+		dueTime:     now,
+		resolution:  resolution,
+		description: description,
+	}
 }
 
 func (ac *AutoCreate) goWork() {
@@ -246,6 +254,12 @@ func (ac *AutoCreate) synchronizeWithJournal(metric string, task *autoCreateTask
 	sort.Slice(args.Tags, func(i, j int) bool {
 		return task.tags[args.Tags[i]] < task.tags[args.Tags[j]]
 	})
+	if task.resolution != 0 {
+		args.SetResolution(int32(task.resolution))
+	}
+	if len(task.description) != 0 {
+		args.SetDescription(task.description)
+	}
 	return args, true
 }
 

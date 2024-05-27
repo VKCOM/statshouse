@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,7 +8,9 @@ package rpc
 
 import (
 	"bytes"
+	"log"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -28,9 +30,10 @@ type ServerOptions struct {
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
 	SocketHijackHandler    func(conn *HijackConnection)
+	TrustedSubnetGroupsSt  string // for stats
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
-	CryptoKeys             []string
+	cryptoKeys             []string
 	MaxConns               int           // defaults to DefaultMaxConns
 	MaxWorkers             int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
 	MaxInflightPackets     int           // defaults to DefaultMaxInflightPackets
@@ -45,8 +48,11 @@ type ServerOptions struct {
 	ResponseTimeoutAdjust  time.Duration
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
+	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
+}
 
-	trustedSubnetGroupsParseErrors []error
+func (opts *ServerOptions) AddCryptoKey(key string) {
+	opts.cryptoKeys = append(opts.cryptoKeys, key)
 }
 
 type ServerOptionsFunc func(*ServerOptions)
@@ -66,6 +72,12 @@ func ServerWithLogf(logf LoggerFunc) ServerOptionsFunc {
 func ServerWithHandler(handler HandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.Handler = handler
+	}
+}
+
+func ServerWithDebugRPC(debugRpc bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.DebugRPC = debugRpc
 	}
 }
 
@@ -103,11 +115,31 @@ func ServerWithTransportHijackHandler(handler func(conn *PacketConn)) ServerOpti
 	}
 }
 
+func TrustedSubnetGroupsString(groups [][]string) string {
+	b := strings.Builder{}
+	for i, g := range groups {
+		if i != 0 {
+			b.WriteString(";")
+		}
+		for j, m := range g {
+			if j != 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(m)
+		}
+	}
+	return b.String()
+}
+
 func ServerWithTrustedSubnetGroups(groups [][]string) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		gs, errs := ParseTrustedSubnets(groups)
+		for _, err := range errs {
+			// we do not return error from this function, and do not want to ignore this error
+			log.Panicf("[rpc] failed to parse server trusted subnet: %v", err)
+		}
 		opts.TrustedSubnetGroups = gs
-		opts.trustedSubnetGroupsParseErrors = errs
+		opts.TrustedSubnetGroupsSt = TrustedSubnetGroupsString(groups)
 	}
 }
 
@@ -119,7 +151,9 @@ func ServerWithForceEncryption(status bool) ServerOptionsFunc {
 
 func ServerWithCryptoKeys(keys []string) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		opts.CryptoKeys = keys
+		for _, key := range keys {
+			opts.AddCryptoKey(key)
+		}
 	}
 }
 

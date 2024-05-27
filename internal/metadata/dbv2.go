@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/sqlite"
-
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 
 	"context"
@@ -114,8 +114,26 @@ CREATE TABLE IF NOT EXISTS metrics_v5
     type    INTEGER NOT NULL,
     UNIQUE (namespace_id, type, name)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS metrics_id_v5 ON metrics_v5 (version);
-CREATE INDEX IF NOT EXISTS metrics_id_v5 ON metrics_v5 (type);
+
+CREATE INDEX IF NOT EXISTS metrics_version_v5 ON metrics_v5 (version);
+CREATE INDEX IF NOT EXISTS metrics_type_v5 ON metrics_v5 (type);
+
+
+CREATE TABLE IF NOT EXISTS entity_history
+(
+    entity_id      INTEGER NOT NULL,
+    name    TEXT NOT NULL,
+    namespace_id INTEGER NOT NULL,
+    version INTEGER UNIQUE NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER NOT NULL,
+    data    TEXT NOT NULL,
+    type    INTEGER NOT NULL,
+    metadata TEXT NOT NULL,
+    UNIQUE (entity_id, version)
+) STRICT;
+CREATE INDEX IF NOT EXISTS entity_history_version ON entity_history (version);
+CREATE INDEX IF NOT EXISTS entity_history_entity_id ON entity_history (entity_id);
 
 CREATE TABLE IF NOT EXISTS __offset_migration
 (
@@ -138,6 +156,7 @@ const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
 const maxResetLimit = 100_000
+const entityHistoryMaxResponseSize = 1024 * 1024 * 4
 
 var errInvalidMetricVersion = fmt.Errorf("invalid version")
 var errMetricIsExist = fmt.Errorf("entity is exists")
@@ -268,7 +287,41 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 	return result, err
 }
 
-func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
+func (db *DBV2) GetEntityVersioned(ctx context.Context, id, version int64) (event tlmetadata.Event, err error) {
+	err = db.eng.Do(ctx, "get_entity", func(conn sqlite.Conn, c []byte) ([]byte, error) {
+		rows := conn.Query("get_entity", "SELECT entity_id,name, data, metadata, updated_at, namespace_id, type FROM entity_history WHERE entity_id = $id AND version = $version",
+			sqlite.Int64("$id", id),
+			sqlite.Int64("$version", version))
+
+		if rows.Error() != nil {
+			return c, err
+		}
+		if !rows.Next() {
+			return c, data_model.ErrEntityNotExists
+		}
+		id, _ = rows.ColumnInt64(0)
+		name, _ := rows.ColumnBlobString(1)
+		data, _ := rows.ColumnBlobString(2)
+		metadata, _ := rows.ColumnBlobString(3)
+		updatedAt, _ := rows.ColumnInt64(4)
+		namespaceID, _ := rows.ColumnInt64(5)
+		type_, _ := rows.ColumnInt64(6)
+		event = tlmetadata.Event{
+			Id:         id,
+			Name:       name,
+			EventType:  int32(type_),
+			Version:    version,
+			UpdateTime: uint32(updatedAt),
+			Data:       data,
+		}
+		event.SetNamespaceId(namespaceID)
+		event.SetMetadata(metadata)
+		return c, rows.Error()
+	})
+	return event, err
+}
+
+func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32, metadata string) (tlmetadata.Event, error) {
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
@@ -361,17 +414,22 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			EventType:  typ,
 		}
 		result.SetNamespaceId(resolvedNamespaceID)
+		result.SetMetadata(metadata)
+		err = insertHistory(conn, result)
+		if err != nil {
+			return cache, err
+		}
 		if createMetric {
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
 			}
-			cache, err = metadataCreatMetricEvent.WriteBoxed(cache)
+			cache = metadataCreatMetricEvent.WriteBoxed(cache)
 		} else {
 			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
-			cache, err = metadataEditMetricEvent.WriteBoxed(cache)
+			cache = metadataEditMetricEvent.WriteBoxed(cache)
 		}
 		if err != nil {
 			return cache, fmt.Errorf("can't encode binlog event: %w", err)
@@ -381,114 +439,26 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 	return result, err
 }
 
-func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
-	updatedAt := db.now().Unix()
-	var result tlmetadata.Event
-	createFixed := false
-	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
-		if err != nil {
-			return cache, err
-		}
-		if id < 0 {
-			rows := conn.Query("select_entity", "SELECT id FROM metrics_v4 WHERE id = $id;",
-				sqlite.Int64("$id", id))
-			if rows.Error() != nil {
-				return cache, rows.Error()
-			}
-
-			if rows.Next() {
-				createMetric = false
-			} else {
-				createFixed = true
-				createMetric = true
-			}
-		}
-		if !createMetric {
-			rows := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where version = $oldVersion AND id = $id;",
-				sqlite.Int64("$oldVersion", oldVersion),
-				sqlite.Int64("$id", id))
-			if rows.Error() != nil {
-				return cache, fmt.Errorf("failed to fetch old metric version: %w", rows.Error())
-			}
-			if !rows.Next() {
-				return cache, errInvalidMetricVersion
-			}
-			deletedAt, _ := rows.ColumnInt64(2)
-			if deleteEntity {
-				deletedAt = time.Now().Unix()
-			}
-			_, err := conn.Exec("update_entity", "UPDATE metrics_v4 SET version = (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), data = $data, updated_at = $updatedAt, name = $name, deleted_at = $deletedAt WHERE version = $oldVersion AND id = $id;",
-				sqlite.TextString("$data", newJson),
-				sqlite.Int64("$updatedAt", updatedAt),
-				sqlite.Int64("$oldVersion", oldVersion),
-				sqlite.TextString("$name", name),
-				sqlite.Int64("$id", id),
-				sqlite.Int64("$deletedAt", deletedAt))
-
-			if err != nil {
-				return cache, fmt.Errorf("failed to update metric: %d, %w", oldVersion, err)
-			}
-		} else {
-			var err error
-			if !createFixed {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (version, data, name, updated_at, type, deleted_at) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
-					sqlite.TextString("$data", newJson),
-					sqlite.TextString("$name", name),
-					sqlite.Int64("$updatedAt", updatedAt),
-					sqlite.Int64("$type", int64(typ)))
-			} else {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
-					sqlite.Int64("$id", id),
-					sqlite.TextString("$data", newJson),
-					sqlite.TextString("$name", name),
-					sqlite.Int64("$updatedAt", updatedAt),
-					sqlite.Int64("$type", int64(typ)))
-			}
-			if err != nil {
-				return cache, fmt.Errorf("failed to put new metric %s: %w", newJson, err)
-			}
-		}
-		row := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where id = $id;",
+func (db *DBV2) GetHistoryShort(ctx context.Context, id int64) (resp tlmetadata.HistoryShortResponse, err error) {
+	err = db.eng.Do(ctx, "get_entity", func(conn sqlite.Conn, c []byte) ([]byte, error) {
+		rows := conn.Query("get_entity", "SELECT metadata, version FROM entity_history WHERE entity_id = $id ORDER BY version DESC",
 			sqlite.Int64("$id", id))
-		if !row.Next() {
-			return cache, fmt.Errorf("can't get version of new metric(name: %s)", name)
-		}
-		id, _ = row.ColumnInt64(0)
-		version, _ := row.ColumnInt64(1)
-		if version == oldVersion {
-			return cache, fmt.Errorf("can't update metric %s invalid version", name)
-		}
-		deletedAt, _ := row.ColumnInt64(2)
-
-		result = tlmetadata.Event{
-			Id:         id,
-			Version:    version,
-			Name:       name,
-			Data:       newJson,
-			UpdateTime: uint32(updatedAt),
-			Unused:     uint32(deletedAt),
-			EventType:  typ,
-		}
-		result.SetNamespaceId(0)
-		if createMetric {
-			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
-				Metric: result,
+		size := 0
+		for rows.Next() {
+			metadata, _ := rows.ColumnBlobString(0)
+			version, _ := rows.ColumnInt64(1)
+			resp.Events = append(resp.Events, tlmetadata.HistoryShortResponseEvent{
+				Version:  version,
+				Metadata: metadata,
+			})
+			size += len(metadata) + 8
+			if size > entityHistoryMaxResponseSize {
+				break
 			}
-			cache, err = metadataCreatMetricEvent.WriteBoxed(cache)
-		} else {
-			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
-				Metric:     result,
-				OldVersion: oldVersion,
-			}
-			cache, err = metadataEditMetricEvent.WriteBoxed(cache)
 		}
-		if err != nil {
-			return cache, fmt.Errorf("can't encode binlog event: %w", err)
-		}
-		return cache, nil
+		return c, rows.Error()
 	})
-	return result, err
+	return resp, err
 }
 
 func (db *DBV2) GetMappingByValue(ctx context.Context, value string) (int32, bool, error) {
@@ -580,8 +550,8 @@ func (db *DBV2) getFreeCount(conn sqlite.Conn) (actualLimit int64, _ error) {
 	return actualLimit, rows.Error()
 }
 
-func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {
-	var resp tlmetadata.GetMappingResponseUnion
+func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponse, error) {
+	var resp tlmetadata.GetMappingResponse
 	now := db.now()
 	err := db.eng.Do(ctx, "get_or_create_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error
@@ -654,4 +624,115 @@ func calcBudget(oldBudget, expense int64, lastTimeUpdate, now uint32, max, bonus
 func roundTime(now time.Time, step uint32) (pred uint32) {
 	nowUnix := uint32(now.Unix())
 	return nowUnix - (nowUnix % step)
+}
+
+func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
+	updatedAt := db.now().Unix()
+	var result tlmetadata.Event
+	createFixed := false
+	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
+		if err != nil {
+			return cache, fmt.Errorf("invalid entity: %w", err)
+		}
+		err = insertHistory(conn, result)
+		if err != nil {
+			return cache, err
+		}
+		if id < 0 {
+			rows := conn.Query("select_entity", "SELECT id FROM metrics_v4 WHERE id = $id;",
+				sqlite.Int64("$id", id))
+			if rows.Error() != nil {
+				return cache, rows.Error()
+			}
+
+			if rows.Next() {
+				createMetric = false
+			} else {
+				createFixed = true
+				createMetric = true
+			}
+		}
+		if !createMetric {
+			rows := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where version = $oldVersion AND id = $id;",
+				sqlite.Int64("$oldVersion", oldVersion),
+				sqlite.Int64("$id", id))
+			if rows.Error() != nil {
+				return cache, fmt.Errorf("failed to fetch old metric version: %w", rows.Error())
+			}
+			if !rows.Next() {
+				return cache, errInvalidMetricVersion
+			}
+			deletedAt, _ := rows.ColumnInt64(2)
+			if deleteEntity {
+				deletedAt = time.Now().Unix()
+			}
+			_, err := conn.Exec("update_entity", "UPDATE metrics_v4 SET version = (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), data = $data, updated_at = $updatedAt, name = $name, deleted_at = $deletedAt WHERE version = $oldVersion AND id = $id;",
+				sqlite.TextString("$data", newJson),
+				sqlite.Int64("$updatedAt", updatedAt),
+				sqlite.Int64("$oldVersion", oldVersion),
+				sqlite.TextString("$name", name),
+				sqlite.Int64("$id", id),
+				sqlite.Int64("$deletedAt", deletedAt))
+
+			if err != nil {
+				return cache, fmt.Errorf("failed to update metric: %d, %w", oldVersion, err)
+			}
+		} else {
+			var err error
+			if !createFixed {
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (version, data, name, updated_at, type, deleted_at) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
+					sqlite.TextString("$data", newJson),
+					sqlite.TextString("$name", name),
+					sqlite.Int64("$updatedAt", updatedAt),
+					sqlite.Int64("$type", int64(typ)))
+			} else {
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
+					sqlite.Int64("$id", id),
+					sqlite.TextString("$data", newJson),
+					sqlite.TextString("$name", name),
+					sqlite.Int64("$updatedAt", updatedAt),
+					sqlite.Int64("$type", int64(typ)))
+			}
+			if err != nil {
+				return cache, fmt.Errorf("failed to put new metric %s: %w", newJson, err)
+			}
+		}
+		row := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where id = $id;",
+			sqlite.Int64("$id", id))
+		if !row.Next() {
+			return cache, fmt.Errorf("can't get version of new metric(name: %s)", name)
+		}
+		id, _ = row.ColumnInt64(0)
+		version, _ := row.ColumnInt64(1)
+		if version == oldVersion {
+			return cache, fmt.Errorf("can't update metric %s invalid version", name)
+		}
+		deletedAt, _ := row.ColumnInt64(2)
+
+		result = tlmetadata.Event{
+			Id:         id,
+			Version:    version,
+			Name:       name,
+			Data:       newJson,
+			UpdateTime: uint32(updatedAt),
+			Unused:     uint32(deletedAt),
+			EventType:  typ,
+		}
+		result.SetNamespaceId(0)
+		if createMetric {
+			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
+				Metric: result,
+			}
+			cache = metadataCreatMetricEvent.WriteBoxed(cache)
+		} else {
+			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
+				Metric:     result,
+				OldVersion: oldVersion,
+			}
+			cache = metadataEditMetricEvent.WriteBoxed(cache)
+		}
+		return cache, nil
+	})
+	return result, err
 }

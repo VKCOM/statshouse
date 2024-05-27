@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,8 +8,6 @@
 package internal
 
 import (
-	"fmt"
-
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
@@ -19,12 +17,13 @@ type RpcReqResultExtra struct {
 	Flags              uint32
 	BinlogPos          int64             // Conditional: item.Flags.0
 	BinlogTime         int64             // Conditional: item.Flags.1
-	EnginePid          NetPID            // Conditional: item.Flags.2
+	EnginePid          NetPid            // Conditional: item.Flags.2
 	RequestSize        int32             // Conditional: item.Flags.3
 	ResponseSize       int32             // Conditional: item.Flags.3
 	FailedSubqueries   int32             // Conditional: item.Flags.4
 	CompressionVersion int32             // Conditional: item.Flags.5
 	Stats              map[string]string // Conditional: item.Flags.6
+	ShardsBinlogPos    map[string]int64  // Conditional: item.Flags.8
 	EpochNumber        int64             // Conditional: item.Flags.27
 	ViewNumber         int64             // Conditional: item.Flags.27
 }
@@ -52,7 +51,7 @@ func (item *RpcReqResultExtra) ClearBinlogTime() {
 }
 func (item RpcReqResultExtra) IsSetBinlogTime() bool { return item.Flags&(1<<1) != 0 }
 
-func (item *RpcReqResultExtra) SetEnginePid(v NetPID) {
+func (item *RpcReqResultExtra) SetEnginePid(v NetPid) {
 	item.EnginePid = v
 	item.Flags |= 1 << 2
 }
@@ -107,10 +106,30 @@ func (item *RpcReqResultExtra) SetStats(v map[string]string) {
 	item.Flags |= 1 << 6
 }
 func (item *RpcReqResultExtra) ClearStats() {
-	VectorDictionaryFieldString0Reset(item.Stats)
+	BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	item.Flags &^= 1 << 6
 }
 func (item RpcReqResultExtra) IsSetStats() bool { return item.Flags&(1<<6) != 0 }
+
+func (item *RpcReqResultExtra) SetShardsBinlogPos(v map[string]int64) {
+	item.ShardsBinlogPos = v
+	item.Flags |= 1 << 8
+}
+func (item *RpcReqResultExtra) ClearShardsBinlogPos() {
+	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	item.Flags &^= 1 << 8
+}
+func (item RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<8) != 0 }
+
+func (item *RpcReqResultExtra) SetEpochNumber(v int64) {
+	item.EpochNumber = v
+	item.Flags |= 1 << 27
+}
+func (item *RpcReqResultExtra) ClearEpochNumber() {
+	item.EpochNumber = 0
+	item.Flags &^= 1 << 27
+}
+func (item RpcReqResultExtra) IsSetEpochNumber() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *RpcReqResultExtra) SetViewNumber(v int64) {
 	item.ViewNumber = v
@@ -131,7 +150,9 @@ func (item *RpcReqResultExtra) Reset() {
 	item.ResponseSize = 0
 	item.FailedSubqueries = 0
 	item.CompressionVersion = 0
-	VectorDictionaryFieldString0Reset(item.Stats)
+	BuiltinVectorDictionaryFieldStringReset(item.Stats)
+	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	item.EpochNumber = 0
 	item.ViewNumber = 0
 }
 
@@ -189,22 +210,29 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 		item.CompressionVersion = 0
 	}
 	if item.Flags&(1<<6) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Stats); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Stats); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Stats)
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
-	item.EpochNumber = 0
+	if item.Flags&(1<<8) != 0 {
+		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.ShardsBinlogPos); err != nil {
+			return w, err
+		}
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if item.Flags&(1<<27) != 0 {
+		if w, err = basictl.LongRead(w, &item.EpochNumber); err != nil {
+			return w, err
+		}
+	} else {
+		item.EpochNumber = 0
+	}
 	if item.Flags&(1<<27) != 0 {
 		if w, err = basictl.LongRead(w, &item.ViewNumber); err != nil {
 			return w, err
-		}
-		if item.ViewNumber < 0 {
-			item.EpochNumber = int64(uint64(item.ViewNumber) & ^uint64(1<<63))
-			if w, err = basictl.LongRead(w, &item.ViewNumber); err != nil {
-				return w, err
-			}
 		}
 	} else {
 		item.ViewNumber = 0
@@ -212,7 +240,12 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *RpcReqResultExtra) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcReqResultExtra) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.LongWrite(w, item.BinlogPos)
@@ -221,9 +254,7 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		w = basictl.LongWrite(w, item.BinlogTime)
 	}
 	if item.Flags&(1<<2) != 0 {
-		if w, err = item.EnginePid.Write(w); err != nil {
-			return w, err
-		}
+		w = item.EnginePid.Write(w)
 	}
 	if item.Flags&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.RequestSize)
@@ -238,20 +269,18 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.CompressionVersion)
 	}
 	if item.Flags&(1<<6) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Stats); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Stats)
+	}
+	if item.Flags&(1<<8) != 0 {
+		w = BuiltinVectorDictionaryFieldLongWrite(w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
-		if item.EpochNumber < 0 || item.ViewNumber < 0 {
-			return w, fmt.Errorf("EpochNumber and ViewNumber must be >= 0 for last bit hack to work")
-		}
-		if item.EpochNumber != 0 {
-			w = basictl.LongWrite(w, int64(uint64(item.EpochNumber)|(1<<63)))
-		}
+		w = basictl.LongWrite(w, item.EpochNumber)
+	}
+	if item.Flags&(1<<27) != 0 {
 		w = basictl.LongWrite(w, item.ViewNumber)
 	}
-	return w, nil
+	return w
 }
 
 func (item *RpcReqResultExtra) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -261,231 +290,302 @@ func (item *RpcReqResultExtra) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcReqResultExtra) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcReqResultExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcReqResultExtra) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc5011709)
 	return item.Write(w)
 }
 
 func (item RpcReqResultExtra) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func RpcReqResultExtra__ReadJSON(item *RpcReqResultExtra, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcReqResultExtra) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcReqResultExtra", "expected json object")
-	}
-	_jFlags := _jm["flags"]
-	delete(_jm, "flags")
-	if err := JsonReadUint32(_jFlags, &item.Flags); err != nil {
-		return err
-	}
-	_jBinlogPos := _jm["binlog_pos"]
-	delete(_jm, "binlog_pos")
-	_jBinlogTime := _jm["binlog_time"]
-	delete(_jm, "binlog_time")
-	_jEnginePid := _jm["engine_pid"]
-	delete(_jm, "engine_pid")
-	_jRequestSize := _jm["request_size"]
-	delete(_jm, "request_size")
-	_jResponseSize := _jm["response_size"]
-	delete(_jm, "response_size")
-	_jFailedSubqueries := _jm["failed_subqueries"]
-	delete(_jm, "failed_subqueries")
-	_jCompressionVersion := _jm["compression_version"]
-	delete(_jm, "compression_version")
-	_jStats := _jm["stats"]
-	delete(_jm, "stats")
-	_jViewNumber := _jm["view_number"]
-	delete(_jm, "view_number")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcReqResultExtra", k)
-	}
-	if _jBinlogPos != nil {
-		item.Flags |= 1 << 0
-	}
-	if _jBinlogTime != nil {
-		item.Flags |= 1 << 1
-	}
-	if _jEnginePid != nil {
-		item.Flags |= 1 << 2
-	}
-	if _jRequestSize != nil {
-		item.Flags |= 1 << 3
-	}
-	if _jResponseSize != nil {
-		item.Flags |= 1 << 3
-	}
-	if _jFailedSubqueries != nil {
-		item.Flags |= 1 << 4
-	}
-	if _jCompressionVersion != nil {
-		item.Flags |= 1 << 5
-	}
-	if _jStats != nil {
-		item.Flags |= 1 << 6
-	}
-	if _jViewNumber != nil {
-		item.Flags |= 1 << 27
-	}
-	if _jBinlogPos != nil {
-		if err := JsonReadInt64(_jBinlogPos, &item.BinlogPos); err != nil {
-			return err
+func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFlagsPresented bool
+	var propBinlogPosPresented bool
+	var propBinlogTimePresented bool
+	var propEnginePidPresented bool
+	var propRequestSizePresented bool
+	var propResponseSizePresented bool
+	var propFailedSubqueriesPresented bool
+	var propCompressionVersionPresented bool
+	var propStatsPresented bool
+	var propShardsBinlogPosPresented bool
+	var propEpochNumberPresented bool
+	var propViewNumberPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "flags":
+				if propFlagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "flags")
+				}
+				if err := Json2ReadUint32(in, &item.Flags); err != nil {
+					return err
+				}
+				propFlagsPresented = true
+			case "binlog_pos":
+				if propBinlogPosPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "binlog_pos")
+				}
+				if err := Json2ReadInt64(in, &item.BinlogPos); err != nil {
+					return err
+				}
+				propBinlogPosPresented = true
+			case "binlog_time":
+				if propBinlogTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "binlog_time")
+				}
+				if err := Json2ReadInt64(in, &item.BinlogTime); err != nil {
+					return err
+				}
+				propBinlogTimePresented = true
+			case "engine_pid":
+				if propEnginePidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "engine_pid")
+				}
+				if err := item.EnginePid.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propEnginePidPresented = true
+			case "request_size":
+				if propRequestSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "request_size")
+				}
+				if err := Json2ReadInt32(in, &item.RequestSize); err != nil {
+					return err
+				}
+				propRequestSizePresented = true
+			case "response_size":
+				if propResponseSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "response_size")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseSize); err != nil {
+					return err
+				}
+				propResponseSizePresented = true
+			case "failed_subqueries":
+				if propFailedSubqueriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "failed_subqueries")
+				}
+				if err := Json2ReadInt32(in, &item.FailedSubqueries); err != nil {
+					return err
+				}
+				propFailedSubqueriesPresented = true
+			case "compression_version":
+				if propCompressionVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "compression_version")
+				}
+				if err := Json2ReadInt32(in, &item.CompressionVersion); err != nil {
+					return err
+				}
+				propCompressionVersionPresented = true
+			case "stats":
+				if propStatsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "stats")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Stats); err != nil {
+					return err
+				}
+				propStatsPresented = true
+			case "shards_binlog_pos":
+				if propShardsBinlogPosPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "shards_binlog_pos")
+				}
+				if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, &item.ShardsBinlogPos); err != nil {
+					return err
+				}
+				propShardsBinlogPosPresented = true
+			case "epoch_number":
+				if propEpochNumberPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "epoch_number")
+				}
+				if err := Json2ReadInt64(in, &item.EpochNumber); err != nil {
+					return err
+				}
+				propEpochNumberPresented = true
+			case "view_number":
+				if propViewNumberPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "view_number")
+				}
+				if err := Json2ReadInt64(in, &item.ViewNumber); err != nil {
+					return err
+				}
+				propViewNumberPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultExtra", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFlagsPresented {
+		item.Flags = 0
+	}
+	if !propBinlogPosPresented {
 		item.BinlogPos = 0
 	}
-	if _jBinlogTime != nil {
-		if err := JsonReadInt64(_jBinlogTime, &item.BinlogTime); err != nil {
-			return err
-		}
-	} else {
+	if !propBinlogTimePresented {
 		item.BinlogTime = 0
 	}
-	if _jEnginePid != nil {
-		if err := NetPID__ReadJSON(&item.EnginePid, _jEnginePid); err != nil {
-			return err
-		}
-	} else {
+	if !propEnginePidPresented {
 		item.EnginePid.Reset()
 	}
-	if _jRequestSize != nil {
-		if err := JsonReadInt32(_jRequestSize, &item.RequestSize); err != nil {
-			return err
-		}
-	} else {
+	if !propRequestSizePresented {
 		item.RequestSize = 0
 	}
-	if _jResponseSize != nil {
-		if err := JsonReadInt32(_jResponseSize, &item.ResponseSize); err != nil {
-			return err
-		}
-	} else {
+	if !propResponseSizePresented {
 		item.ResponseSize = 0
 	}
-	if _jFailedSubqueries != nil {
-		if err := JsonReadInt32(_jFailedSubqueries, &item.FailedSubqueries); err != nil {
-			return err
-		}
-	} else {
+	if !propFailedSubqueriesPresented {
 		item.FailedSubqueries = 0
 	}
-	if _jCompressionVersion != nil {
-		if err := JsonReadInt32(_jCompressionVersion, &item.CompressionVersion); err != nil {
-			return err
-		}
-	} else {
+	if !propCompressionVersionPresented {
 		item.CompressionVersion = 0
 	}
-	if _jStats != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jStats, &item.Stats); err != nil {
-			return err
-		}
-	} else {
-		VectorDictionaryFieldString0Reset(item.Stats)
+	if !propStatsPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
-	if _jViewNumber != nil {
-		if err := JsonReadInt64(_jViewNumber, &item.ViewNumber); err != nil {
-			return err
-		}
-	} else {
+	if !propShardsBinlogPosPresented {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if !propEpochNumberPresented {
+		item.EpochNumber = 0
+	}
+	if !propViewNumberPresented {
 		item.ViewNumber = 0
+	}
+	if propBinlogPosPresented {
+		item.Flags |= 1 << 0
+	}
+	if propBinlogTimePresented {
+		item.Flags |= 1 << 1
+	}
+	if propEnginePidPresented {
+		item.Flags |= 1 << 2
+	}
+	if propRequestSizePresented {
+		item.Flags |= 1 << 3
+	}
+	if propResponseSizePresented {
+		item.Flags |= 1 << 3
+	}
+	if propFailedSubqueriesPresented {
+		item.Flags |= 1 << 4
+	}
+	if propCompressionVersionPresented {
+		item.Flags |= 1 << 5
+	}
+	if propStatsPresented {
+		item.Flags |= 1 << 6
+	}
+	if propShardsBinlogPosPresented {
+		item.Flags |= 1 << 8
+	}
+	if propEpochNumberPresented {
+		item.Flags |= 1 << 27
+	}
+	if propViewNumberPresented {
+		item.Flags |= 1 << 27
 	}
 	return nil
 }
 
-func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcReqResultExtra) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcReqResultExtra) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.Flags != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"flags":`...)
-		w = basictl.JSONWriteUint32(w, item.Flags)
+	backupIndexFlags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"flags":`...)
+	w = basictl.JSONWriteUint32(w, item.Flags)
+	if (item.Flags != 0) == false {
+		w = w[:backupIndexFlags]
 	}
 	if item.Flags&(1<<0) != 0 {
-		if item.BinlogPos != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"binlog_pos":`...)
-			w = basictl.JSONWriteInt64(w, item.BinlogPos)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"binlog_pos":`...)
+		w = basictl.JSONWriteInt64(w, item.BinlogPos)
 	}
 	if item.Flags&(1<<1) != 0 {
-		if item.BinlogTime != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"binlog_time":`...)
-			w = basictl.JSONWriteInt64(w, item.BinlogTime)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"binlog_time":`...)
+		w = basictl.JSONWriteInt64(w, item.BinlogTime)
 	}
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_pid":`...)
-		if w, err = item.EnginePid.WriteJSON(w); err != nil {
-			return w, err
-		}
+		w = item.EnginePid.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if item.Flags&(1<<3) != 0 {
-		if item.RequestSize != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"request_size":`...)
-			w = basictl.JSONWriteInt32(w, item.RequestSize)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"request_size":`...)
+		w = basictl.JSONWriteInt32(w, item.RequestSize)
 	}
 	if item.Flags&(1<<3) != 0 {
-		if item.ResponseSize != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"response_size":`...)
-			w = basictl.JSONWriteInt32(w, item.ResponseSize)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"response_size":`...)
+		w = basictl.JSONWriteInt32(w, item.ResponseSize)
 	}
 	if item.Flags&(1<<4) != 0 {
-		if item.FailedSubqueries != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"failed_subqueries":`...)
-			w = basictl.JSONWriteInt32(w, item.FailedSubqueries)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"failed_subqueries":`...)
+		w = basictl.JSONWriteInt32(w, item.FailedSubqueries)
 	}
 	if item.Flags&(1<<5) != 0 {
-		if item.CompressionVersion != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"compression_version":`...)
-			w = basictl.JSONWriteInt32(w, item.CompressionVersion)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"compression_version":`...)
+		w = basictl.JSONWriteInt32(w, item.CompressionVersion)
 	}
 	if item.Flags&(1<<6) != 0 {
-		if len(item.Stats) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"stats":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Stats); err != nil {
-				return w, err
-			}
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"stats":`...)
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats)
+	}
+	if item.Flags&(1<<8) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"shards_binlog_pos":`...)
+		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
-		if item.ViewNumber != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"view_number":`...)
-			w = basictl.JSONWriteInt64(w, item.ViewNumber)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"epoch_number":`...)
+		w = basictl.JSONWriteInt64(w, item.EpochNumber)
 	}
-	return append(w, '}'), nil
+	if item.Flags&(1<<27) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"view_number":`...)
+		w = basictl.JSONWriteInt64(w, item.ViewNumber)
+	}
+	return append(w, '}')
 }
 
 func (item *RpcReqResultExtra) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcReqResultExtra) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
 	}
 	return nil

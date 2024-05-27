@@ -51,7 +51,7 @@ type Journal struct {
 	dc         *pcache.DiskCache
 	metaLoader MetricsStorageLoader
 	namespace  string
-	applyEvent ApplyEvent
+	applyEvent []ApplyEvent
 
 	metricsDead          bool      // together with this bool
 	lastUpdateTime       time.Time // we no more use this information for logic
@@ -83,16 +83,14 @@ type Journal struct {
 	BuiltinJournalUpdateError data_model.ItemValue
 }
 
-func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent ApplyEvent) *Journal {
-	result := &Journal{
+func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
+	return &Journal{
 		dc:                     dc,
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
 		lastUpdateTime:         time.Now(),
 	}
-	result.parseDiscCache()
-	return result
 }
 
 func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
@@ -104,6 +102,7 @@ func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
 func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
 	ms.metaLoader = metaLoader
 	ms.sh2 = sh2
+	ms.parseDiscCache()
 	go ms.goUpdateMetrics(aggLog)
 }
 
@@ -188,7 +187,9 @@ func (ms *Journal) parseDiscCache() {
 		return journal2[i].Version < journal2[j].Version
 	})
 	// TODO - check invariants here before saving
-	ms.applyEvent(journal2)
+	for _, f := range ms.applyEvent {
+		f(journal2)
+	}
 	ms.journal = journal2
 	ms.stateHash = calculateStateHashLocked(journal2)
 	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
@@ -242,7 +243,7 @@ func regenerateOldJSON(src []tlmetadata.Event) (res []*struct {
 
 func calculateStateHashLocked(events []tlmetadata.Event) string {
 	r := &tlmetadata.GetJournalResponsenew{Events: events}
-	bytes, _ := r.Write(nil, 0)
+	bytes := r.Write(nil, 0)
 	hash := sha1.Sum(bytes)
 	return hex.EncodeToString(hash[:])
 }
@@ -277,11 +278,13 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 	// TODO - check invariants here before saving
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
-	ms.applyEvent(src)
+	for _, f := range ms.applyEvent {
+		f(src)
+	}
 
 	if ms.dc != nil && !stopWriteToDiscCache {
 		for _, e := range src {
-			buf, _ := e.WriteBoxed(nil)
+			buf := e.WriteBoxed(nil)
 			key := journalEventID{
 				typ: e.EventType,
 				id:  e.Id,
@@ -448,6 +451,34 @@ func (ms *Journal) broadcastJournalVersionClient() {
 	ms.versionClients = ms.versionClients[:keepPos]
 }
 
+func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
+	// TODO skip copy
+	cpyArr := make([]tlmetadata.Event, len(resp.Events))
+	for i, e := range resp.Events {
+		eCpy := tlmetadata.Event{
+			Id:          e.Id,
+			Name:        e.Name,
+			NamespaceId: e.NamespaceId,
+			EventType:   e.EventType,
+			Version:     e.Version,
+			UpdateTime:  e.UpdateTime,
+			Data:        e.Data,
+		}
+		eCpy.SetNamespaceId(e.NamespaceId)
+		cpyArr[i] = eCpy
+
+		switch e.EventType {
+		case format.DashboardEvent:
+			fallthrough
+		case format.PromConfigEvent:
+		// resp.Events[i].Data = ""
+		default:
+
+		}
+	}
+	resp.Events = cpyArr
+}
+
 func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetMetrics3) error {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -457,6 +488,7 @@ func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext
 	}
 	result := ms.getJournalDiffLocked3(args.From)
 	if len(result.Events) != 0 {
+		prepareResponseToAgent(&result)
 		var err error
 		hctx.Response, err = args.WriteResult(hctx.Response, result)
 		if err != nil {

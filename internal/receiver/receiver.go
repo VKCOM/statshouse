@@ -14,14 +14,12 @@ import (
 	"net"
 	"syscall"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
-
-	"go.uber.org/atomic"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -38,18 +36,18 @@ var (
 )
 
 type Handler interface {
-	HandleMetrics(*tlstatshouse.MetricBytes, mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) // if cannot process immediately, and needs to own data, should swap another metric from the pool
+	HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) // if cannot process immediately, and needs to own data, should swap another metric from the pool
 	HandleParseError([]byte, error)
 }
 
 type CallbackHandler struct {
-	Metrics    func(*tlstatshouse.MetricBytes, mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool)
+	Metrics    func(*tlstatshouse.MetricBytes, data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool)
 	ParseError func([]byte, error)
 }
 
-func (c CallbackHandler) HandleMetrics(b *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (c CallbackHandler) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	if c.Metrics != nil {
-		return c.Metrics(b, cb)
+		return c.Metrics(args.MetricBytes, args.MapCallback)
 	}
 	return h, true
 }
@@ -67,7 +65,7 @@ type UDP struct {
 	statBatchesTotalOK  atomic.Uint64
 	statBatchesTotalErr atomic.Uint64
 
-	conn      *net.UDPConn
+	conn      net.Conn
 	rawConn   syscall.RawConn
 	logPacket func(format string, args ...interface{})
 
@@ -93,7 +91,7 @@ type UDP struct {
 	packetSizeEmptyErr    *agent.BuiltInItemValue
 }
 
-func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err error) {
+func listenPacket(network string, address string, fn func(int) error) (conn net.PacketConn, err error) {
 	cfg := &net.ListenConfig{Control: func(network, address string, c syscall.RawConn) error {
 		var err2 error
 		err := c.Control(func(fd uintptr) {
@@ -104,12 +102,12 @@ func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err 
 		}
 		return err2
 	}}
-	conn, err = cfg.ListenPacket(context.Background(), "udp", address)
+	conn, err = cfg.ListenPacket(context.Background(), network, address)
 	return conn, err
 }
 
-func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
-	conn, err := listenPacket(address, func(fd int) error {
+func ListenUDP(network string, address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
+	packetConn, err := listenPacket(network, address, func(fd int) error {
 		setSocketReceiveBufferSize(fd, bufferSize)
 		if reusePort {
 			return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
@@ -119,13 +117,14 @@ func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, 
 	if err != nil {
 		return nil, err
 	}
-	udpConn := conn.(*net.UDPConn)
-	rawConn, err := udpConn.SyscallConn()
+	conn := packetConn.(net.Conn)
+	scConn := packetConn.(syscall.Conn)
+	rawConn, err := scConn.SyscallConn()
 	if err != nil {
 		return nil, err
 	}
 	return &UDP{
-		conn:                  udpConn,
+		conn:                  conn,
 		rawConn:               rawConn,
 		logPacket:             logPacket,
 		ag:                    bm,
@@ -248,7 +247,7 @@ func (u *UDP) handleMetricsBatch(h Handler, b tlstatshouse.AddMetricsBatchBytes,
 	u.statBatchesTotalOK.Inc()
 
 	for i := range b.Metrics {
-		_, _ = h.HandleMetrics(&b.Metrics[i], nil) // might move out metric, if needs to
+		_, _ = h.HandleMetrics(data_model.HandlerArgs{MetricBytes: &b.Metrics[i]}) // might move out metric, if needs to
 	}
 
 	return true

@@ -13,106 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-type StatshouseSampleFactor struct {
-	Metric int32
-	Value  float32
-}
-
-func (StatshouseSampleFactor) TLName() string { return "statshouse.sample_factor" }
-func (StatshouseSampleFactor) TLTag() uint32  { return 0x4f7b7822 }
-
-func (item *StatshouseSampleFactor) Reset() {
-	item.Metric = 0
-	item.Value = 0
-}
-
-func (item *StatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.Metric); err != nil {
-		return w, err
-	}
-	return basictl.FloatRead(w, &item.Value)
-}
-
-func (item *StatshouseSampleFactor) Write(w []byte) (_ []byte, err error) {
-	w = basictl.IntWrite(w, item.Metric)
-	return basictl.FloatWrite(w, item.Value), nil
-}
-
-func (item *StatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x4f7b7822); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *StatshouseSampleFactor) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x4f7b7822)
-	return item.Write(w)
-}
-
-func (item StatshouseSampleFactor) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func StatshouseSampleFactor__ReadJSON(item *StatshouseSampleFactor, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSampleFactor) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sample_factor", "expected json object")
-	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadInt32(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadFloat32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sample_factor", k)
-	}
-	return nil
-}
-
-func (item *StatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.Metric != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteInt32(w, item.Metric)
-	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteFloat32(w, item.Value)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
-	}
-	return nil
-}
-
-func VectorStatshouseSampleFactor0Read(w []byte, vec *[]StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorRead(w []byte, vec *[]StatshouseSampleFactor) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -133,41 +34,188 @@ func VectorStatshouseSampleFactor0Read(w []byte, vec *[]StatshouseSampleFactor) 
 	return w, nil
 }
 
-func VectorStatshouseSampleFactor0Write(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorWrite(w []byte, vec []StatshouseSampleFactor) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
+		w = elem.Write(w)
 	}
-	return w, nil
+	return w
 }
 
-func VectorStatshouseSampleFactor0ReadJSON(j interface{}, vec *[]StatshouseSampleFactor) error {
-	l, _arr, err := JsonReadArray("[]StatshouseSampleFactor", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseSampleFactor, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseSampleFactor__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseSampleFactor", "expected json array")
 		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseSampleFactor
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseSampleFactor", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
+func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor) []byte {
+	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseSampleFactor) []byte {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
+	}
+	return append(w, ']')
+}
+
+type StatshouseSampleFactor struct {
+	Metric int32
+	Value  float32
+}
+
+func (StatshouseSampleFactor) TLName() string { return "statshouse.sample_factor" }
+func (StatshouseSampleFactor) TLTag() uint32  { return 0x4f7b7822 }
+
+func (item *StatshouseSampleFactor) Reset() {
+	item.Metric = 0
+	item.Value = 0
+}
+
+func (item *StatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.Metric); err != nil {
+		return w, err
+	}
+	return basictl.FloatRead(w, &item.Value)
+}
+
+// This method is general version of Write, use it instead!
+func (item *StatshouseSampleFactor) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSampleFactor) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Metric)
+	w = basictl.FloatWrite(w, item.Value)
+	return w
+}
+
+func (item *StatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x4f7b7822); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSampleFactor) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSampleFactor) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x4f7b7822)
+	return item.Write(w)
+}
+
+func (item StatshouseSampleFactor) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *StatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetricPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "metric")
+				}
+				if err := Json2ReadInt32(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "value")
+				}
+				if err := Json2ReadFloat32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sample_factor", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propMetricPresented {
+		item.Metric = 0
+	}
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
-func VectorStatshouseSampleFactor0WriteJSON(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSampleFactor) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSampleFactor) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteInt32(w, item.Metric)
+	if (item.Metric != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	return append(w, ']'), nil
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteFloat32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
+	}
+	return append(w, '}')
+}
+
+func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
+	}
+	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -48,9 +48,9 @@ func DeriveCryptoKeysUdp(key string, localPid *NetPID, remotePid *NetPID, genera
 func writeCryptoInitMsgUdp(key string, localPid *NetPID, remotePid *NetPID, generation uint32) []byte {
 	var message []byte
 
-	message, _ = localPid.Write(message)
+	message = localPid.Write(message)
 	message = append(message, key...)
-	message, _ = remotePid.Write(message)
+	message = remotePid.Write(message)
 	message = basictl.NatWrite(message, generation)
 	return message
 }

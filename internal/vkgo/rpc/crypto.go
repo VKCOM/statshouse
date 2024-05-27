@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -121,6 +121,10 @@ func (w *cryptoWriter) encrypt(enc cipher.BlockMode) {
 	if w.blockSize&(w.blockSize-1) != 0 { // Padding and roundDownPow2 functions expect this
 		panic("cryptoWriter: block size not power of 2")
 	}
+}
+
+func (w *cryptoWriter) isEncrypted() bool {
+	return w.blockSize > 1
 }
 
 func (w *cryptoWriter) Write(p []byte) (int, error) {

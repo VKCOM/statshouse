@@ -1,0 +1,96 @@
+// Copyright 2021 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// import { CompletionContext } from '@codemirror/autocomplete';
+import { LRLanguage } from '@codemirror/language';
+import { Extension } from '@codemirror/state';
+
+import { parser } from '../lezer/src/parser';
+
+// import { CompleteConfiguration, CompleteStrategy, newCompleteStrategy } from './complete';
+// import { LintStrategy, newLintStrategy, promQLLinter } from './lint';
+
+export function promQLLanguage(): LRLanguage {
+  return LRLanguage.define({
+    parser: parser.configure({
+      top: 'PromQL',
+    }),
+    languageData: {
+      closeBrackets: { brackets: ['(', '[', '{', "'", '"', '`'] },
+      commentTokens: { line: '#' },
+    },
+  });
+}
+
+/**
+ * This class holds the state of the completion extension for CodeMirror and allow hot-swapping the complete strategy.
+ */
+export class PromQLExtension {
+  // private complete: CompleteStrategy;
+  // private lint: LintStrategy;
+  // private enableCompletion: boolean;
+  // private enableLinter: boolean;
+
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor() {
+    // this.complete = newCompleteStrategy();
+    // this.lint = newLintStrategy();
+    // this.enableLinter = true;
+    // this.enableCompletion = true;
+  }
+
+  // setComplete(conf?: CompleteConfiguration): PromQLExtension {
+  //   this.complete = newCompleteStrategy(conf);
+  //   return this;
+  // }
+  //
+  // getComplete(): CompleteStrategy {
+  //   return this.complete;
+  // }
+  //
+  // activateCompletion(activate: boolean): PromQLExtension {
+  //   this.enableCompletion = activate;
+  //   return this;
+  // }
+  //
+  // setLinter(linter: LintStrategy): PromQLExtension {
+  //   this.lint = linter;
+  //   return this;
+  // }
+  //
+  // getLinter(): LintStrategy {
+  //   return this.lint;
+  // }
+  //
+  // activateLinter(activate: boolean): PromQLExtension {
+  //   this.enableLinter = activate;
+  //   return this;
+  // }
+
+  asExtension(): Extension {
+    const language = promQLLanguage();
+    let extension: Extension = [language];
+    // if (this.enableCompletion) {
+    //   const completion = language.data.of({
+    //     autocomplete: (context: CompletionContext) => {
+    //       return this.complete.promQL(context);
+    //     },
+    //   });
+    //   extension = extension.concat(completion);
+    // }
+    // if (this.enableLinter) {
+    //   extension = extension.concat(promQLLinter(this.lint.promQL, this.lint));
+    // }
+    return extension;
+  }
+}

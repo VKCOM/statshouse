@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,6 +20,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 const (
@@ -52,15 +53,17 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 		case 0:
 			return rpcErr
 		case 1:
-			hctx.Response = basictl.NatWrite(hctx.Response, reqResultErrorWrappedTag)
+			// serialize manually to check parsing correctness
+			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultErrorWrapped{}.TLTag())
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
-			hctx.Response = basictl.StringWriteTruncated(hctx.Response, rpcErr.Description)
+			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
 			return nil
 		default:
-			hctx.Response = basictl.NatWrite(hctx.Response, reqResultErrorTag)
+			// serialize manually to check parsing correctness
+			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultError{}.TLTag())
 			hctx.Response = basictl.LongWrite(hctx.Response, n) // unused
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
-			hctx.Response = basictl.StringWriteTruncated(hctx.Response, rpcErr.Description)
+			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
 			return nil
 		}
 	}
@@ -74,7 +77,7 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 func dorequest(t *rapid.T, c *Client, addr string) {
 	j := rand.Int()
 	req := c.GetRequest()
-	req.ActorID = uint64(j % 2)
+	req.ActorID = int64(j % 2)
 	if j%3 == 0 {
 		req.Extra.SetIntForward(int64(j))
 	}

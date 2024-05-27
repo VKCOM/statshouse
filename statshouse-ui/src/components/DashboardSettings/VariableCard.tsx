@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,10 +14,13 @@ import { VariablePlotLinkSelect } from './VariablePlotLinkSelect';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
+import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { Button, ToggleButton } from '../UI';
 import cn from 'classnames';
-import { PlotParams, toPlotKey, VariableParams } from '../../url/queryParams';
-import { TagKey } from '../../api/enum';
+import { PlotParams, toPlotKey, VariableParams, VariableParamsSource } from '../../url/queryParams';
+import { TAG_KEY, TagKey } from '../../api/enum';
+import { VariableSource } from './VariableSource';
+import { currentAccessInfo } from '../../common/access';
 
 export type VariableCardProps = {
   indexVariable: number;
@@ -27,7 +30,7 @@ export type VariableCardProps = {
   plotsData: PlotStore[];
   metricsMeta: Record<string, MetricMetaValue>;
 };
-
+const ai = currentAccessInfo();
 export function VariableCard({
   indexVariable,
   variable,
@@ -109,6 +112,36 @@ export function VariableCard({
     [indexVariable, setVariable]
   );
 
+  const addSource = useCallback(() => {
+    setVariable?.(
+      indexVariable,
+      produce((v) => {
+        v.source.push({ metric: '', tag: TAG_KEY._0, filterIn: {}, filterNotIn: {} });
+      })
+    );
+  }, [indexVariable, setVariable]);
+
+  const onChangeSource = useCallback(
+    (indexSource: number, value?: VariableParamsSource) => {
+      if (value) {
+        setVariable?.(
+          indexVariable,
+          produce((v) => {
+            v.source[indexSource] = { ...value };
+          })
+        );
+      } else {
+        setVariable?.(
+          indexVariable,
+          produce((v) => {
+            v.source.splice(indexSource, 1);
+          })
+        );
+      }
+    },
+    [indexVariable, setVariable]
+  );
+
   if (!variable) {
     return null;
   }
@@ -176,6 +209,19 @@ export function VariableCard({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {ai.admin && open && (
+          <div>
+            {variable.source.map((source, indexSource) => (
+              <VariableSource key={indexSource} indexValue={indexSource} value={source} onChange={onChangeSource} />
+            ))}
+            <div className="d-flex justify-content-end">
+              <Button className="btn btn-outline-primary" onClick={addSource}>
+                <SVGPlusLg /> Add Source
+              </Button>
+            </div>
           </div>
         )}
       </div>

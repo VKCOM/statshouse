@@ -11,18 +11,17 @@ import (
 	"sync"
 	"time"
 
-	"go4.org/mem"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"go4.org/mem"
 )
 
 type mapRequest struct {
 	metric tlstatshouse.MetricBytes      // in
 	result data_model.MappedMetricHeader // out, contains probable error in IngestionStatus
-	cb     MapCallbackFunc               // will be called only when processing required enqueue
+	cb     data_model.MapCallbackFunc    // will be called only when processing required enqueue
 }
 
 type metricQueue struct {
@@ -78,7 +77,7 @@ func (mq *metricQueue) stop() {
 
 // to avoid allocations in fastpath, returns ingestion statuses only. They are converted to errors before printing, if needed
 // we do not want allocation if queues overloaded
-func (mq *metricQueue) enqueue(metric *tlstatshouse.MetricBytes, result *data_model.MappedMetricHeader, cb MapCallbackFunc) (done bool) {
+func (mq *metricQueue) enqueue(metric *tlstatshouse.MetricBytes, result *data_model.MappedMetricHeader, cb data_model.MapCallbackFunc) (done bool) {
 	mq.mu.Lock()
 	defer mq.mu.Unlock()
 
@@ -170,13 +169,13 @@ func (mq *metricQueue) run() {
 }
 
 type mapPipeline struct {
-	mapCallback   MapCallbackFunc
+	mapCallback   data_model.MapCallbackFunc
 	tagValueQueue *metricQueue
 	tagValue      *pcache.Cache
 	autoCreate    *AutoCreate
 }
 
-func newMapPipeline(mapCallback MapCallbackFunc, tagValue *pcache.Cache, ac *AutoCreate, maxMetrics int, maxMetricRequests int) *mapPipeline {
+func newMapPipeline(mapCallback data_model.MapCallbackFunc, tagValue *pcache.Cache, ac *AutoCreate, maxMetrics int, maxMetricRequests int) *mapPipeline {
 	mp := &mapPipeline{
 		mapCallback: mapCallback,
 		tagValue:    tagValue,
@@ -190,28 +189,29 @@ func (mp *mapPipeline) stop() {
 	mp.tagValueQueue.stop()
 }
 
-func (mp *mapPipeline) Map(metric *tlstatshouse.MetricBytes, metricInfo *format.MetricMetaValue, cb MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (h data_model.MappedMetricHeader, done bool) {
 	h.ReceiveTime = time.Now() // mapping time is set once for all functions
 	h.MetricInfo = metricInfo
-	done = mp.doMap(metric, &h, cb)
+	done = mp.doMap(args, &h)
 	// We map environment in all 3 cases
 	// done and no errors - very fast NOP
 	// done and errors - try to find environment in tags after error tag
 	// not done - when making requests to map, we want to send our environment to server, so it can record it in builtin metric
-	mp.mapEnvironment(&h, metric)
+	mp.mapEnvironment(&h, args.MetricBytes)
 	if done {
 		return h, done
 	}
 	return h, done
 }
 
-func (mp *mapPipeline) doMap(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader, cb MapCallbackFunc) (done bool) {
+func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
+	metric := args.MetricBytes
 	if h.MetricInfo == nil {
 		h.MetricInfo = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
 		if h.MetricInfo == nil {
 			if mp.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
 				// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
-				_ = mp.autoCreate.autoCreateMetric(metric, h.ReceiveTime)
+				_ = mp.autoCreate.autoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
 			}
 			validName, err := format.AppendValidStringValue(metric.Name[:0], metric.Name)
 			if err != nil {
@@ -234,7 +234,7 @@ func (mp *mapPipeline) doMap(metric *tlstatshouse.MetricBytes, h *data_model.Map
 	if done = mp.mapTags(h, metric, true); done {
 		return done
 	}
-	if done = mp.tagValueQueue.enqueue(metric, h, cb); done {
+	if done = mp.tagValueQueue.enqueue(metric, h, args.MapCallback); done {
 		return done
 	}
 	return done
@@ -251,10 +251,6 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		v := &metric.Tags[h.CheckedTagIndex]
 		tagInfo, ok, legacyName := h.MetricInfo.APICompatGetTagFromBytes(v.Key)
 		if !ok {
-			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
-				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
-				_ = mp.autoCreate.autoCreateTag(metric, v.Key, h.ReceiveTime)
-			}
 			validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
 			if err != nil {
 				v.Key = format.AppendHexStringValue(v.Key[:0], v.Key)
@@ -263,7 +259,15 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				return true
 			}
 			v.Key = validKey
-			h.NotFoundTagName = v.Key
+			if _, ok := h.MetricInfo.GetTagDraft(v.Key); ok {
+				h.FoundDraftTagName = v.Key
+			} else {
+				h.NotFoundTagName = v.Key
+			}
+			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
+				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
+				_ = mp.autoCreate.autoCreateTag(metric, v.Key, h.ReceiveTime)
+			}
 			continue
 		}
 		tagIDKey := int32(tagInfo.Index + format.TagIDShift)

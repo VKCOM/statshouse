@@ -28,8 +28,14 @@ func (item *EngineDumpForceQueries) Read(w []byte) (_ []byte, err error) {
 	return basictl.DoubleRead(w, &item.BuffersPressureThreshold)
 }
 
-func (item *EngineDumpForceQueries) Write(w []byte) (_ []byte, err error) {
-	return basictl.DoubleWrite(w, item.BuffersPressureThreshold), nil
+// This method is general version of Write, use it instead!
+func (item *EngineDumpForceQueries) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineDumpForceQueries) Write(w []byte) []byte {
+	w = basictl.DoubleWrite(w, item.BuffersPressureThreshold)
+	return w
 }
 
 func (item *EngineDumpForceQueries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineDumpForceQueries) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineDumpForceQueries) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineDumpForceQueries) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineDumpForceQueries) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf1f90880)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *EngineDumpForceQueries) ReadResult(w []byte, ret *True) (_ []byte, e
 }
 
 func (item *EngineDumpForceQueries) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineDumpForceQueries) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineDumpForceQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineDumpForceQueries) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineDumpForceQueries) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *EngineDumpForceQueries) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *EngineDumpForceQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.dumpForceQueries", err.Error())
-	}
+func (item *EngineDumpForceQueries) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineDumpForceQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret True
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,52 +109,71 @@ func (item *EngineDumpForceQueries) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineDumpForceQueries) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineDumpForceQueries__ReadJSON(item *EngineDumpForceQueries, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineDumpForceQueries) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.dumpForceQueries", "expected json object")
+func (item *EngineDumpForceQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBuffersPressureThresholdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "buffers_pressure_threshold":
+				if propBuffersPressureThresholdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.dumpForceQueries", "buffers_pressure_threshold")
+				}
+				if err := Json2ReadFloat64(in, &item.BuffersPressureThreshold); err != nil {
+					return err
+				}
+				propBuffersPressureThresholdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.dumpForceQueries", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBuffersPressureThreshold := _jm["buffers_pressure_threshold"]
-	delete(_jm, "buffers_pressure_threshold")
-	if err := JsonReadFloat64(_jBuffersPressureThreshold, &item.BuffersPressureThreshold); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.dumpForceQueries", k)
+	if !propBuffersPressureThresholdPresented {
+		item.BuffersPressureThreshold = 0
 	}
 	return nil
 }
 
-func (item *EngineDumpForceQueries) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineDumpForceQueries) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineDumpForceQueries) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineDumpForceQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.BuffersPressureThreshold != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"buffers_pressure_threshold":`...)
-		w = basictl.JSONWriteFloat64(w, item.BuffersPressureThreshold)
+	backupIndexBuffersPressureThreshold := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"buffers_pressure_threshold":`...)
+	w = basictl.JSONWriteFloat64(w, item.BuffersPressureThreshold)
+	if (item.BuffersPressureThreshold != 0) == false {
+		w = w[:backupIndexBuffersPressureThreshold]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineDumpForceQueries) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineDumpForceQueries) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.dumpForceQueries", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.dumpForceQueries", err.Error())
 	}
 	return nil

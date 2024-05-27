@@ -35,14 +35,14 @@ import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../commo
 import cn from 'classnames';
 import { PlotEvents } from './PlotEvents';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
+import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
-import css from './style.module.css';
-import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { PlotHealsStatus } from './PlotHealsStatus';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -212,6 +212,14 @@ export function PlotViewEvent(props: {
     const sync: uPlot.Cursor.Sync | undefined = group
       ? {
           key: group,
+          filters: {
+            sub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+            pub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+          },
         }
       : undefined;
     return {
@@ -257,7 +265,7 @@ export function PlotViewEvent(props: {
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          auto: false,
+          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;

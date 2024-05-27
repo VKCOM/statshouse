@@ -25,11 +25,17 @@ func (item *EngineFilteredStat) Reset() {
 }
 
 func (item *EngineFilteredStat) Read(w []byte) (_ []byte, err error) {
-	return VectorString0Read(w, &item.StatNames)
+	return BuiltinVectorStringRead(w, &item.StatNames)
 }
 
-func (item *EngineFilteredStat) Write(w []byte) (_ []byte, err error) {
-	return VectorString0Write(w, item.StatNames)
+// This method is general version of Write, use it instead!
+func (item *EngineFilteredStat) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineFilteredStat) Write(w []byte) []byte {
+	w = BuiltinVectorStringWrite(w, item.StatNames)
+	return w
 }
 
 func (item *EngineFilteredStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineFilteredStat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineFilteredStat) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineFilteredStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineFilteredStat) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x594870d6)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *EngineFilteredStat) ReadResult(w []byte, ret *Stat) (_ []byte, err e
 }
 
 func (item *EngineFilteredStat) WriteResult(w []byte, ret Stat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineFilteredStat) ReadResultJSON(j interface{}, ret *Stat) error {
-	if err := Stat__ReadJSON(ret, j); err != nil {
+func (item *EngineFilteredStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *Stat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineFilteredStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineFilteredStat) writeResultJSON(newTypeNames bool, short bool, w []byte, ret Stat) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *EngineFilteredStat) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.filteredStat", err.Error())
-	}
+func (item *EngineFilteredStat) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret Stat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret Stat
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,54 +109,71 @@ func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([
 }
 
 func (item EngineFilteredStat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineFilteredStat__ReadJSON(item *EngineFilteredStat, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineFilteredStat) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.filteredStat", "expected json object")
+func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propStatNamesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "stat_names":
+				if propStatNamesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.filteredStat", "stat_names")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.StatNames); err != nil {
+					return err
+				}
+				propStatNamesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.filteredStat", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jStatNames := _jm["stat_names"]
-	delete(_jm, "stat_names")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.filteredStat", k)
-	}
-	if err := VectorString0ReadJSON(_jStatNames, &item.StatNames); err != nil {
-		return err
+	if !propStatNamesPresented {
+		item.StatNames = item.StatNames[:0]
 	}
 	return nil
 }
 
-func (item *EngineFilteredStat) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineFilteredStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineFilteredStat) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineFilteredStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.StatNames) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"stat_names":`...)
-		if w, err = VectorString0WriteJSON(w, item.StatNames); err != nil {
-			return w, err
-		}
+	backupIndexStatNames := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"stat_names":`...)
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames)
+	if (len(item.StatNames) != 0) == false {
+		w = w[:backupIndexStatNames]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineFilteredStat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineFilteredStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.filteredStat", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.filteredStat", err.Error())
 	}
 	return nil

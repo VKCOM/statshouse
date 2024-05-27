@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { IMetric, ITagAlias } from '../../models/metric';
+import { IMetric, ITag, ITagAlias } from '../../models/metric';
 import { maxTagsSize } from '../../../common/settings';
 
 export function getDefaultTag() {
@@ -23,6 +23,7 @@ export const initialValues: IMetric = {
   withPercentiles: false,
   visible: true,
   tags: [getDefaultTag()],
+  tags_draft: [],
   tagsSize: 1,
 };
 
@@ -32,7 +33,8 @@ export type IActions =
   | { type: 'alias'; pos: number; tag: Partial<ITagAlias> }
   | { type: 'customMapping'; tag: number; pos: number; from?: string; to?: string }
   | { type: 'preSortKey'; key: string }
-  | { type: 'group_id'; key: string };
+  | { type: 'group_id'; key: string }
+  | { type: 'move_draft'; pos: number; tag: Partial<ITag>; tag_key: string };
 
 export function reducer(state: IMetric, data: IActions): IMetric {
   if (!('type' in data)) {
@@ -103,6 +105,18 @@ export function reducer(state: IMetric, data: IActions): IMetric {
   if (data.type === 'group_id') {
     const group_id = parseInt(data.key ?? '0') ?? 0;
     return { ...state, group_id };
+  }
+
+  if (data.type === 'move_draft') {
+    let newState: IMetric = {
+      ...state,
+      tags: [...state.tags],
+      tags_draft: [...state.tags_draft.filter((t) => t.name !== data.tag.name)],
+    };
+    if (newState.tags[data.pos]) {
+      newState.tags[data.pos] = { ...newState.tags[data.pos], ...data.tag };
+      return newState;
+    }
   }
   return state;
 }

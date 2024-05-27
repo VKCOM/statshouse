@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -28,8 +28,14 @@ func (item *RpcReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.QueryId)
 }
 
-func (item *RpcReqResultHeader) Write(w []byte) (_ []byte, err error) {
-	return basictl.LongWrite(w, item.QueryId), nil
+// This method is general version of Write, use it instead!
+func (item *RpcReqResultHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcReqResultHeader) Write(w []byte) []byte {
+	w = basictl.LongWrite(w, item.QueryId)
+	return w
 }
 
 func (item *RpcReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,58 +45,82 @@ func (item *RpcReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcReqResultHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcReqResultHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcReqResultHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x63aeda4e)
 	return item.Write(w)
 }
 
 func (item RpcReqResultHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func RpcReqResultHeader__ReadJSON(item *RpcReqResultHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcReqResultHeader) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcReqResultHeader", "expected json object")
+func (item *RpcReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query_id":
+				if propQueryIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultHeader", "query_id")
+				}
+				if err := Json2ReadInt64(in, &item.QueryId); err != nil {
+					return err
+				}
+				propQueryIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jQueryId := _jm["query_id"]
-	delete(_jm, "query_id")
-	if err := JsonReadInt64(_jQueryId, &item.QueryId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcReqResultHeader", k)
+	if !propQueryIdPresented {
+		item.QueryId = 0
 	}
 	return nil
 }
 
-func (item *RpcReqResultHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcReqResultHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcReqResultHeader) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *RpcReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.QueryId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"query_id":`...)
-		w = basictl.JSONWriteInt64(w, item.QueryId)
+	backupIndexQueryId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"query_id":`...)
+	w = basictl.JSONWriteInt64(w, item.QueryId)
+	if (item.QueryId != 0) == false {
+		w = w[:backupIndexQueryId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcReqResultHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcReqResultHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcReqResultHeader", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcReqResultHeader", err.Error())
 	}
 	return nil

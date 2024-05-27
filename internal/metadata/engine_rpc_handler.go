@@ -24,7 +24,7 @@ type EngineRpcHandler struct {
 
 	backupMx      sync.Mutex
 	reindexMx     sync.Mutex
-	reindexStatus tlengine.ReindexStatusUnion
+	reindexStatus tlengine.ReindexStatus
 	binlogPrefix  string
 }
 
@@ -62,7 +62,7 @@ func (h *EngineRpcHandler) SendSignal(ctx context.Context, args tlengine.SendSig
 	return tl.True{}, nil
 }
 
-func (h *EngineRpcHandler) GetReindexStatus(ctx context.Context, args tlengine.GetReindexStatus) (tlengine.ReindexStatusUnion, error) {
+func (h *EngineRpcHandler) GetReindexStatus(ctx context.Context, args tlengine.GetReindexStatus) (tlengine.ReindexStatus, error) {
 	h.reindexMx.Lock()
 	defer h.reindexMx.Unlock()
 	return h.reindexStatus, nil

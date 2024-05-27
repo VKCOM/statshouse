@@ -33,6 +33,7 @@ export function saveMetric(metric: IMetric) {
             )
           : undefined,
     })),
+    tags_draft: Object.fromEntries(metric.tags_draft.map((t) => [t.name, t])),
     pre_key_tag_id: metric.pre_key_tag_id,
     pre_key_from: metric.pre_key_from ? metric.pre_key_from : 0,
     skip_max_host: !!metric.skip_max_host,

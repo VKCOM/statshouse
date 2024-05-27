@@ -76,18 +76,19 @@ func (item *EngineReadWriteMode) Read(w []byte, nat_fields_mask uint32) (_ []byt
 	return w, nil
 }
 
-func (item *EngineReadWriteMode) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineReadWriteMode) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *EngineReadWriteMode) Write(w []byte, nat_fields_mask uint32) []byte {
 	if nat_fields_mask&(1<<0) != 0 {
-		if w, err = BoolWriteBoxed(w, item.ReadEnabled); err != nil {
-			return w, err
-		}
+		w = BoolWriteBoxed(w, item.ReadEnabled)
 	}
 	if nat_fields_mask&(1<<1) != 0 {
-		if w, err = BoolWriteBoxed(w, item.WriteEnabled); err != nil {
-			return w, err
-		}
+		w = BoolWriteBoxed(w, item.WriteEnabled)
 	}
-	return w, nil
+	return w
 }
 
 func (item *EngineReadWriteMode) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -97,64 +98,89 @@ func (item *EngineReadWriteMode) ReadBoxed(w []byte, nat_fields_mask uint32) (_ 
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *EngineReadWriteMode) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReadWriteMode) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *EngineReadWriteMode) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xb9b7b6c9)
 	return item.Write(w, nat_fields_mask)
 }
 
-func EngineReadWriteMode__ReadJSON(item *EngineReadWriteMode, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *EngineReadWriteMode) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.mode", "expected json object")
-	}
-	_jReadEnabled := _jm["read_enabled"]
-	delete(_jm, "read_enabled")
-	_jWriteEnabled := _jm["write_enabled"]
-	delete(_jm, "write_enabled")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.mode", k)
-	}
-	if nat_fields_mask&(1<<0) == 0 && _jReadEnabled != nil {
-		return ErrorInvalidJSON("engine.mode", "field 'read_enabled' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<1) == 0 && _jWriteEnabled != nil {
-		return ErrorInvalidJSON("engine.mode", "field 'write_enabled' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<0) != 0 {
-		if err := JsonReadBool(_jReadEnabled, &item.ReadEnabled); err != nil {
-			return err
+func (item *EngineReadWriteMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propReadEnabledPresented bool
+	var propWriteEnabledPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "read_enabled":
+				if propReadEnabledPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.mode", "read_enabled")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("engine.mode", "field 'read_enabled' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadBool(in, &item.ReadEnabled); err != nil {
+					return err
+				}
+				propReadEnabledPresented = true
+			case "write_enabled":
+				if propWriteEnabledPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.mode", "write_enabled")
+				}
+				if nat_fields_mask&(1<<1) == 0 {
+					return ErrorInvalidJSON("engine.mode", "field 'write_enabled' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadBool(in, &item.WriteEnabled); err != nil {
+					return err
+				}
+				propWriteEnabledPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.mode", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propReadEnabledPresented {
 		item.ReadEnabled = false
 	}
-	if nat_fields_mask&(1<<1) != 0 {
-		if err := JsonReadBool(_jWriteEnabled, &item.WriteEnabled); err != nil {
-			return err
-		}
-	} else {
+	if !propWriteEnabledPresented {
 		item.WriteEnabled = false
 	}
 	return nil
 }
 
-func (item *EngineReadWriteMode) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReadWriteMode) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *EngineReadWriteMode) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
+}
+func (item *EngineReadWriteMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
-		if item.ReadEnabled {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"read_enabled":`...)
-			w = basictl.JSONWriteBool(w, item.ReadEnabled)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"read_enabled":`...)
+		w = basictl.JSONWriteBool(w, item.ReadEnabled)
 	}
 	if nat_fields_mask&(1<<1) != 0 {
-		if item.WriteEnabled {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"write_enabled":`...)
-			w = basictl.JSONWriteBool(w, item.WriteEnabled)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"write_enabled":`...)
+		w = basictl.JSONWriteBool(w, item.WriteEnabled)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

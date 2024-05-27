@@ -10,7 +10,7 @@ COPY Makefile ./
 COPY statshouse-ui/ ./statshouse-ui/
 RUN make build-sh-ui
 
-FROM golang:1.19-bullseye AS build-go
+FROM golang:1.21-bullseye AS build-go
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
@@ -33,6 +33,8 @@ RUN go mod download -x
 RUN make build-sh build-sh-api build-sh-metadata
 
 FROM clickhouse/clickhouse-server:22.11
+# dependencies for /api/render
+RUN apt-get update && apt-get install -y gnuplot-nox gnuplot-data libpango-1.0-0 libcairo2
 WORKDIR /var/lib/statshouse/cache/aggregator
 WORKDIR /var/lib/statshouse/cache/agent
 WORKDIR /var/lib/statshouse/cache/api

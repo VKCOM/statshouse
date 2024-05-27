@@ -99,6 +99,7 @@ function useSubmitCreate(name: string) {
         { name: '', alias: 'environment', customMapping: [] }, // env
         ...new Array(maxTagsSize - 1).fill({}).map(() => getDefaultTag()),
       ],
+      tags_draft: [],
       tagsSize: maxTagsSize,
     };
     saveMetric(values)

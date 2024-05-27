@@ -20,6 +20,7 @@ import {
   PlotControlTimeShifts,
   PlotControlTo,
   Select,
+  SelectMetric,
   SelectOptionProps,
   SwitchBox,
   Tooltip,
@@ -30,14 +31,7 @@ import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
-import {
-  setUpdatedTag,
-  Store,
-  updateMetricsList,
-  useMetricsListStore,
-  useStore,
-  useVariableListStore,
-} from '../../store';
+import { setUpdatedTag, Store, useStore, useVariableListStore } from '../../store';
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, whatToWhatDesc } from '../../view/api';
 import { produce } from 'immer';
@@ -50,7 +44,8 @@ import { shallow } from 'zustand/shallow';
 import { decodeParams, PLOT_TYPE, PlotParams, toPlotKey, toTagKey, VariableParams } from '../../url/queryParams';
 import { dequal } from 'dequal/lite';
 import { PlotControlAggregation } from './PlotControlAggregation';
-import { isNotNil, toNumber } from '../../common/helpers';
+import { isNotNil, parseURLSearchParams, toNumber } from '../../common/helpers';
+import { PlotControlView } from './PlotControlView';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -64,7 +59,7 @@ const emptyTagsList = {};
 
 const eventPreset: SelectOptionProps[] = globalSettings.event_preset
   .map((url, index) => {
-    const parseParams = decodeParams([...new URLSearchParams(url).entries()]);
+    const parseParams = decodeParams(parseURLSearchParams(url));
     if (parseParams.plots.length) {
       const p = parseParams.plots[0];
       const fullName =
@@ -87,11 +82,6 @@ export const PlotControls = memo(function PlotControls_(props: {
 }) {
   const { indexPlot, setBaseRange, meta, numQueries, clonePlot } = props;
   const tagsList = useVariableListStore((s) => s.tags[indexPlot] ?? emptyTagsList);
-  const { list: metricsList, loading: loadingMetricsList } = useMetricsListStore();
-  const metricsOptions = useMemo<SelectOptionProps[]>(
-    () => metricsList.map(({ name }) => ({ name, value: name })),
-    [metricsList]
-  );
   const [negativeTags, setNegativeTags] = useState<Partial<Record<TagKey, boolean>>>({});
   const [variableTags, setVariableTags] = useState<Partial<Record<TagKey, VariableParams>>>({});
   const { params, timeRange, plotsData } = useStore(selectorControls, shallow);
@@ -192,12 +182,6 @@ export const PlotControls = memo(function PlotControls_(props: {
     [variableTags, negativeTags, indexPlot]
   );
 
-  const onSearchMetrics = useCallback((values: SelectOptionProps[]) => {
-    if (values.length === 0 && !useMetricsListStore.getState().loading) {
-      updateMetricsList();
-    }
-  }, []);
-
   const onSetGroupBy = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
       if (tagKey == null) {
@@ -222,9 +206,9 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
     const eventPresetFilter = eventPreset.filter(({ value }) => {
-      const presetPlot = decodeParams([...new URLSearchParams(value).entries()]).plots[0];
+      const presetPlot = { ...decodeParams(parseURLSearchParams(value)).plots[0], id: '0' };
       if (presetPlot) {
-        let index = params.plots.findIndex((plot) => dequal(plot, presetPlot));
+        let index = params.plots.findIndex((plot) => dequal({ ...plot, id: '0' }, presetPlot));
         return index < 0;
       }
       return false;
@@ -328,6 +312,30 @@ export const PlotControls = memo(function PlotControls_(props: {
     [indexPlot, meta?.kind]
   );
 
+  const onTotalLineChange = useCallback(
+    (status: boolean) => {
+      setPlotParams(
+        indexPlot,
+        produce((s) => {
+          s.totalLine = status;
+        })
+      );
+    },
+    [indexPlot]
+  );
+
+  const onFilledGraphChange = useCallback(
+    (status: boolean) => {
+      setPlotParams(
+        indexPlot,
+        produce((s) => {
+          s.filledGraph = status;
+        })
+      );
+    },
+    [indexPlot]
+  );
+
   const onWhatChange = useCallback(
     (value?: string | string[]) => {
       const whatValue = Array.isArray(value) ? value : value ? [value] : [];
@@ -380,7 +388,7 @@ export const PlotControls = memo(function PlotControls_(props: {
         if (iPlot != null) {
           valuesEvent.push(iPlot);
         } else {
-          valuesEventPreset.push(decodeParams([...new URLSearchParams(v).entries()]).plots[0]);
+          valuesEventPreset.push(decodeParams(parseURLSearchParams(v)).plots[0]);
         }
       });
       setParams(
@@ -417,16 +425,7 @@ export const PlotControls = memo(function PlotControls_(props: {
       <form spellCheck="false">
         <div className="d-flex mb-2">
           <div className="col input-group">
-            <Select
-              value={plotParams.metricName}
-              options={metricsOptions}
-              onChange={onMetricChange}
-              valueToInput={true}
-              className="sh-select form-control"
-              classNameList="dropdown-menu"
-              onSearch={onSearchMetrics}
-              loading={loadingMetricsList}
-            />
+            <SelectMetric value={plotParams.metricName} onChange={onMetricChange} />
             {!!clonePlot && (
               <Button
                 type="button"
@@ -466,7 +465,18 @@ export const PlotControls = memo(function PlotControls_(props: {
             </div>
 
             <div className="row mb-2 align-items-baseline">
-              <PlotControlFrom timeRange={timeRange} setTimeRange={setTimeRange} setBaseRange={setBaseRange} />
+              <div className="d-flex align-items-baseline">
+                <PlotControlFrom timeRange={timeRange} setTimeRange={setTimeRange} setBaseRange={setBaseRange} />
+                {plotParams.type === PLOT_TYPE.Metric && (
+                  <PlotControlView
+                    className="ms-1"
+                    totalLine={plotParams.totalLine}
+                    setTotalLine={onTotalLineChange}
+                    filledGraph={plotParams.filledGraph}
+                    setFilledGraph={onFilledGraphChange}
+                  />
+                )}
+              </div>
               <div className="align-items-baseline mt-2">
                 <PlotControlTo timeRange={timeRange} setTimeRange={setTimeRange} />
               </div>

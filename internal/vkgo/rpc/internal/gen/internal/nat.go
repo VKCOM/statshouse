@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,13 +13,13 @@ import (
 
 var _ = basictl.NatWrite
 
-func Tuple80Reset(vec *[8]uint32) {
+func BuiltinTuple8Reset(vec *[8]uint32) {
 	for i := range *vec {
 		(*vec)[i] = 0
 	}
 }
 
-func Tuple80Read(w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8Read(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.NatRead(w, &(*vec)[i]); err != nil {
 			return w, err
@@ -28,31 +28,48 @@ func Tuple80Read(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	return w, nil
 }
 
-func Tuple80Write(w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8Write(w []byte, vec *[8]uint32) []byte {
 	for _, elem := range *vec {
 		w = basictl.NatWrite(w, elem)
 	}
-	return w, nil
+	return w
 }
 
-func Tuple80ReadJSON(j interface{}, vec *[8]uint32) error {
-	_, _arr, err := JsonReadArrayFixedSize("[8]uint32", j, 8)
-	if err != nil {
-		return err
-	}
-	for i := range *vec {
-		if err := JsonReadUint32(_arr[i], &(*vec)[i]); err != nil {
-			return err
+func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]uint32) error {
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[8]uint32", "expected json array")
 		}
+		for ; !in.IsDelim(']'); index++ {
+			if index == 8 {
+				return ErrorWrongSequenceLength("[8]uint32", index+1, 8)
+			}
+			if err := Json2ReadUint32(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[8]uint32", "expected json array's end")
+		}
+	}
+	if index != 8 {
+		return ErrorWrongSequenceLength("[8]uint32", index+1, 8)
 	}
 	return nil
 }
 
-func Tuple80WriteJSON(w []byte, vec *[8]uint32) (_ []byte, err error) {
+func BuiltinTuple8WriteJSON(w []byte, vec *[8]uint32) []byte {
+	return BuiltinTuple8WriteJSONOpt(true, false, w, vec)
+}
+func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteUint32(w, elem)
 	}
-	return append(w, ']'), nil
+	return append(w, ']')
 }

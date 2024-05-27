@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -33,19 +34,22 @@ var (
 	ErrClientClosed                 = errors.New("rpc: Client closed")
 	ErrClientConnClosedSideEffect   = errors.New("rpc: client connection closed after request sent")
 	ErrClientConnClosedNoSideEffect = errors.New("rpc: client connection closed (or connect failed) before request sent")
+
+	ErrClientDropRequest = errors.New("rpc hook: drop request")
 )
 
 type Request struct {
 	Body    []byte
-	ActorID uint64
+	ActorID int64
 	Extra   InvokeReqExtra
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
-	ReadOnly bool // no side effects, can be retried by client
+	FunctionName string // Experimental. Generated calls fill this during request serialization.
+	ReadOnly     bool   // no side effects, can be retried by client
 
-	queryID   int64           // unique per client, assigned by client
-	hookState ClientHookState // can be nil
+	queryID   int64       // unique per client, assigned by client
+	hookState ClientHooks // can be nil
 }
 
 // QueryID is always non-zero (guaranteed by [Client.GetRequest]).
@@ -53,7 +57,7 @@ func (req *Request) QueryID() int64 {
 	return req.queryID
 }
 
-func (req *Request) HookState() ClientHookState {
+func (req *Request) HookState() ClientHooks {
 	return req.hookState
 }
 
@@ -82,7 +86,9 @@ type Response struct {
 
 type Client struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
-	lastQueryID atomic.Int64 // use an atomic counter instead of pure random to guarantee no ID reuse
+	// use an atomic counter instead of pure random to guarantee no ID reuse
+	// queryID should be per connection, but in our API user fills Request before connection is established/known, so we use per client
+	lastQueryID atomic.Uint64
 
 	opts ClientOptions
 
@@ -102,8 +108,9 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		Logf:             log.Printf,
 		ConnReadBufSize:  DefaultClientConnReadBufSize,
 		ConnWriteBufSize: DefaultClientConnWriteBufSize,
-		PongTimeout:      DefaultClientPongTimeout,
-		Hooks:            func() ClientHookState { return nil },
+		PacketTimeout:    DefaultPacketTimeout,
+		Hooks:            func() ClientHooks { return nil },
+		ProtocolVersion:  DefaultProtocolVersion,
 	}
 	for _, opt := range options {
 		opt(&opts)
@@ -117,15 +124,16 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		opts:  opts,
 		conns: map[NetAddr]*clientConn{},
 	}
-	c.lastQueryID.Store(rand.Int63() / 2) // We like positive query IDs. Dividing by 2 makes wrapping very rare
+	c.lastQueryID.Store(rand.Uint64())
 
 	return c
 }
 
-type ClientHookState interface {
+type ClientHooks interface {
 	Reset()
 	BeforeSend(req *Request)
 	AfterReceive(resp *Response, err error)
+	NeedToDropRequest(ctx context.Context, address NetAddr, req *Request) bool
 }
 
 // Client is used by other components of your app.
@@ -153,15 +161,15 @@ func (c *Client) Logf(format string, args ...any) {
 	c.opts.Logf(format, args...)
 }
 
-// Do supports only "tcp4" and "unix" networks
+// Do supports only "tcp", "tcp4", "tcp6" and "unix" networks
 func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil)
+	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	select {
 	case <-ctx.Done():
-		pc.cancelCall(cctx, nil) // do not unblock, reuse normally
+		_ = pc.cancelCall(cctx.queryID, nil) // do not unblock, reuse normally
 		return nil, ctx.Err()
 	case r := <-cctx.result: // got ownership of cctx
 		defer c.putCallContext(cctx)
@@ -169,13 +177,48 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 	}
 }
 
+// Experimental API, can change any moment. For high-performance clients, like ingress proxy
+type ClientCallback func(client *Client, queryID int64, resp *Response, err error, userData any)
+
+type CallbackContext struct {
+	pc      *clientConn
+	queryID int64
+}
+
+func (cc CallbackContext) QueryID() int64 { return cc.queryID } // so client will not have to remember queryID separately
+
+// Either error is returned immediately, or ClientCallback will be called in the future.
+// We add explicit userData, because for many users it will avoid allocation of lambda during capture of userData in cb
+func (c *Client) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error) {
+	queryID := req.QueryID() // must not access cctx or req after setupCall, because callback can be already called and cctx reused
+	pc, _, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, cb, userData)
+	return CallbackContext{
+		pc:      pc,
+		queryID: queryID,
+	}, err
+}
+
+// Callback will never be called twice, but you should be ready for callback even after you call Cancel.
+// This is because callback could be in the process of calling.
+// The best idea is to remember queryID (which is unique per Client) of call in your per call data structure and compare in callback.
+// if cancelled == true, call was cancelled before callback scheduled for calling/called
+// if cancelled == false, call result was already being delivered/delivered
+func (c *Client) CancelDoCallback(cc CallbackContext) (cancelled bool) {
+	return cc.pc.cancelCall(cc.queryID, nil)
+}
+
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext) (*clientConn, *callContext, error) {
+func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext, cb ClientCallback, userData any) (*clientConn, *callContext, error) {
+	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
+		return nil, nil, ErrClientDropRequest
+	}
+
 	if req.Extra.IsSetNoResult() {
 		// We consider it antipattern
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
 	}
+
 	deadline, _ := ctx.Deadline()
 
 	if err := preparePacket(req, deadline); err != nil {
@@ -200,14 +243,14 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
-		cctx, err := pc.setupCallLocked(req, deadline, multiResult)
+		cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
 		pc.mu.Unlock()
 		pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 		return pc, cctx, err
 	}
 	c.mu.RUnlock()
 
-	if address.Network != "tcp4" && address.Network != "unix" { // optimization: check only if not found in c.conns
+	if address.Network != "tcp4" && address.Network != "tcp6" && address.Network != "tcp" && address.Network != "unix" { // optimization: check only if not found in c.conns
 		return nil, nil, fmt.Errorf("unsupported network type %q", address.Network)
 	}
 
@@ -221,11 +264,13 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	pc = c.conns[address]
 	if pc == nil {
 		closeCC := make(chan struct{})
+		resetReconnectDelayC := make(chan struct{}, 1)
 		pc = &clientConn{
-			client:  c,
-			address: address,
-			calls:   map[int64]*callContext{},
-			closeCC: closeCC,
+			client:               c,
+			address:              address,
+			calls:                map[int64]*callContext{},
+			closeCC:              closeCC,
+			resetReconnectDelayC: resetReconnectDelayC,
 		}
 		pc.writeQCond.L = &pc.mu
 
@@ -234,13 +279,30 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 			fmt.Printf("%v goConnect for client %p pc %p\n", time.Now(), c, pc)
 		}
 		c.wg.Add(1)
-		go pc.goConnect(closeCC)
+		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
-	cctx, err := pc.setupCallLocked(req, deadline, multiResult)
+	cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 	return pc, cctx, err
+}
+
+// ResetReconnectDelay resets timer before the next reconnect attempt.
+// If connect goroutine is already waiting - ResetReconnectDelay forces it to wait again with minimal delay
+func (c *Client) ResetReconnectDelay(address NetAddr) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	conn := c.conns[address]
+	if conn == nil {
+		return
+	}
+
+	select {
+	case conn.resetReconnectDelayC <- struct{}{}:
+	default:
+	}
 }
 
 func (c *Client) removeConnection(pc *clientConn) bool {
@@ -278,9 +340,12 @@ func (c *Client) getLoad(address NetAddr) int {
 
 func (c *Client) GetRequest() *Request {
 	req := c.getRequest()
-	req.queryID = c.lastQueryID.Inc()
-	for req.queryID == 0 { // so users can user QueryID as a flag
-		req.queryID = c.lastQueryID.Inc()
+	for {
+		req.queryID = int64(c.lastQueryID.Inc() & math.MaxInt64)
+		// We like positive query IDs, but not 0, so users can user QueryID as a flag
+		if req.queryID != 0 {
+			break
+		}
 	}
 	return req
 }
@@ -323,14 +388,14 @@ func (c *Client) PutResponse(resp *Response) {
 	c.responsePool.Put(resp)
 }
 
-func (pc *clientConn) getCallContext() *callContext {
-	v := pc.client.callCtxPool.Get()
+func (c *Client) getCallContext() *callContext {
+	v := c.callCtxPool.Get()
 	if v != nil {
 		return v.(*callContext)
 	}
 	cctx := &callContext{
 		singleResult: make(chan *callContext, 1),
-		hookState:    pc.client.opts.Hooks(),
+		hookState:    c.opts.Hooks(),
 	}
 	cctx.result = cctx.singleResult
 	return cctx

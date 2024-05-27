@@ -1,0 +1,34 @@
+.plotPanelWrap {
+  position: fixed;
+  background-color: rgba(var(--bs-body-bg-rgb), 0.9);
+
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /*box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;*/
+  z-index: 1;
+  padding: 70px 10px 10px 70px;
+}
+.plotPanelLayout {
+  margin: auto;
+  max-width: 1000px;
+  top: 0;
+  bottom: 0;
+  background-color: rgba(var(--bs-body-bg-rgb), 0.9);
+}
+.plotPanel {
+  height: 100%;
+  width: 100%;
+  /*max-width: 1000px;*/
+  background-color: rgba(var(--bs-body-bg-rgb), 0.9);
+  box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
+  backdrop-filter: blur(2px);
+  padding: 8px;
+  overflow: auto;
+  position: relative;
+}

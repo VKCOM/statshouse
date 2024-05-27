@@ -28,8 +28,14 @@ func (item *EngineReloadDynamicLib) Read(w []byte) (_ []byte, err error) {
 	return item.Options.Read(w)
 }
 
-func (item *EngineReloadDynamicLib) Write(w []byte) (_ []byte, err error) {
-	return item.Options.Write(w)
+// This method is general version of Write, use it instead!
+func (item *EngineReloadDynamicLib) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReloadDynamicLib) Write(w []byte) []byte {
+	w = item.Options.Write(w)
+	return w
 }
 
 func (item *EngineReloadDynamicLib) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineReloadDynamicLib) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineReloadDynamicLib) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReloadDynamicLib) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReloadDynamicLib) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x602d62c1)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *EngineReloadDynamicLib) ReadResult(w []byte, ret *BoolStat) (_ []byt
 }
 
 func (item *EngineReloadDynamicLib) WriteResult(w []byte, ret BoolStat) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineReloadDynamicLib) ReadResultJSON(j interface{}, ret *BoolStat) error {
-	if err := BoolStat__ReadJSON(ret, j); err != nil {
+func (item *EngineReloadDynamicLib) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineReloadDynamicLib) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineReloadDynamicLib) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *EngineReloadDynamicLib) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *EngineReloadDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.reloadDynamicLib", err.Error())
-	}
+func (item *EngineReloadDynamicLib) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineReloadDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret BoolStat
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,52 +109,67 @@ func (item *EngineReloadDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineReloadDynamicLib) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineReloadDynamicLib__ReadJSON(item *EngineReloadDynamicLib, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReloadDynamicLib) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reloadDynamicLib", "expected json object")
+func (item *EngineReloadDynamicLib) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propOptionsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "options":
+				if propOptionsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reloadDynamicLib", "options")
+				}
+				if err := item.Options.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propOptionsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reloadDynamicLib", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jOptions := _jm["options"]
-	delete(_jm, "options")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reloadDynamicLib", k)
-	}
-	if err := EngineReloadDynamicLibOptions__ReadJSON(&item.Options, _jOptions); err != nil {
-		return err
+	if !propOptionsPresented {
+		item.Options.Reset()
 	}
 	return nil
 }
 
-func (item *EngineReloadDynamicLib) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReloadDynamicLib) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReloadDynamicLib) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReloadDynamicLib) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"options":`...)
-	if w, err = item.Options.WriteJSON(w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Options.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *EngineReloadDynamicLib) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineReloadDynamicLib) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reloadDynamicLib", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reloadDynamicLib", err.Error())
 	}
 	return nil

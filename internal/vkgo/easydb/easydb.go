@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,11 +12,12 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver for database/sql
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 )
 
 type DB struct {
-	mu   sync.Mutex
+	sem  *semaphore.Weighted
 	dbx  *sqlx.DB
 	stmt map[string]*sqlx.Stmt
 }
@@ -57,14 +58,15 @@ func Open(ctx context.Context, path string, busyTimeout time.Duration, schema st
 	}
 
 	return &DB{
+		sem:  semaphore.NewWeighted(1),
 		dbx:  dbx,
 		stmt: map[string]*sqlx.Stmt{},
 	}, nil
 }
 
 func (db *DB) Close() error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	_ = db.sem.Acquire(context.Background(), 1)
+	defer db.sem.Release(1)
 
 	for _, stmt := range db.stmt {
 		_ = stmt.Close()
@@ -75,8 +77,10 @@ func (db *DB) Close() error {
 
 // Check verifies database integrity. Check runs in O(N log N) time, where N is the database size.
 func (db *DB) Check(ctx context.Context) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	if err := db.sem.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer db.sem.Release(1)
 
 	_, err := db.dbx.ExecContext(ctx, "PRAGMA integrity_check")
 	return err
@@ -84,8 +88,10 @@ func (db *DB) Check(ctx context.Context) error {
 
 // Get executes a query that is expected to return at most one row.
 func (db *DB) Get(ctx context.Context, dest interface{}, query string, args ...interface{}) (bool, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	if err := db.sem.Acquire(ctx, 1); err != nil {
+		return false, err
+	}
+	defer db.sem.Release(1)
 
 	stmt, err := prepareLocked(ctx, db.dbx, db.stmt, query)
 	if err != nil {
@@ -101,8 +107,10 @@ func (db *DB) Get(ctx context.Context, dest interface{}, query string, args ...i
 
 // Select executes a query that is expected to return any number of rows.
 func (db *DB) Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	if err := db.sem.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer db.sem.Release(1)
 
 	stmt, err := prepareLocked(ctx, db.dbx, db.stmt, query)
 	if err != nil {
@@ -114,8 +122,10 @@ func (db *DB) Select(ctx context.Context, dest interface{}, query string, args .
 
 // Exec executes a query without returning any rows.
 func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	if err := db.sem.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer db.sem.Release(1)
 
 	stmt, err := prepareLocked(ctx, db.dbx, db.stmt, query)
 	if err != nil {
@@ -128,8 +138,10 @@ func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) error
 
 // Tx executes fn in a transaction.
 func (db *DB) Tx(ctx context.Context, fn func(*Tx) error) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	if err := db.sem.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer db.sem.Release(1)
 
 	txx, err := db.dbx.BeginTxx(ctx, nil)
 	if err != nil {

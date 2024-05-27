@@ -13,6 +13,75 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiFunctionRead(w []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseApiFunction, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].ReadBoxed(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFunction) []byte {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		w = elem.WriteBoxed(w)
+	}
+	return w
+}
+
+func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiFunction", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseApiFunction
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiFunction", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
+func BuiltinVectorStatshouseApiFunctionWriteJSON(w []byte, vec []StatshouseApiFunction) []byte {
+	return BuiltinVectorStatshouseApiFunctionWriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFunction) []byte {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
+	}
+	return append(w, ']')
+}
+
 func StatshouseApiFnAvg() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(5) }
 
 func StatshouseApiFnCount() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(0) }
@@ -131,7 +200,6 @@ var _StatshouseApiFunction = [35]UnionElement{
 	{TLTag: 0x4bd4f327, TLName: "statshouseApi.fnDerivativeUniqueNorm", TLString: "statshouseApi.fnDerivativeUniqueNorm#4bd4f327"},
 }
 
-// TODO - deconflict name
 func StatshouseApiFunction__MakeEnum(i int) StatshouseApiFunction {
 	return StatshouseApiFunction{index: i}
 }
@@ -366,126 +434,230 @@ func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func (item StatshouseApiFunction) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _StatshouseApiFunction[item.index].TLTag)
-	return w, nil
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiFunction) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
 }
 
-func StatshouseApiFunction__ReadJSON(item *StatshouseApiFunction, j interface{}) error {
-	return item.readJSON(j)
+func (item StatshouseApiFunction) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, _StatshouseApiFunction[item.index].TLTag)
+	return w
 }
-func (item *StatshouseApiFunction) readJSON(j interface{}) error {
-	if j == nil {
-		return ErrorInvalidJSON("statshouseApi.Function", "expected string")
-	}
-	_jtype, _ok := j.(string)
-	if !_ok {
+
+func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_jtype := in.UnsafeString()
+	if !in.Ok() {
 		return ErrorInvalidJSON("statshouseApi.Function", "expected string")
 	}
 	switch _jtype {
 	case "statshouseApi.fnCount#89689775", "statshouseApi.fnCount", "#89689775":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnCount#89689775" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCount#89689775")
+		}
 		item.index = 0
 		return nil
 	case "statshouseApi.fnCountNorm#60e68b5c", "statshouseApi.fnCountNorm", "#60e68b5c":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnCountNorm#60e68b5c" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCountNorm#60e68b5c")
+		}
 		item.index = 1
 		return nil
 	case "statshouseApi.fnCumulCount#871201c4", "statshouseApi.fnCumulCount", "#871201c4":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulCount#871201c4" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulCount#871201c4")
+		}
 		item.index = 2
 		return nil
 	case "statshouseApi.fnMin#b4cb2644", "statshouseApi.fnMin", "#b4cb2644":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnMin#b4cb2644" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMin#b4cb2644")
+		}
 		item.index = 3
 		return nil
 	case "statshouseApi.fnMax#f90de384", "statshouseApi.fnMax", "#f90de384":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnMax#f90de384" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMax#f90de384")
+		}
 		item.index = 4
 		return nil
 	case "statshouseApi.fnAvg#6323c2f6", "statshouseApi.fnAvg", "#6323c2f6":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnAvg#6323c2f6" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnAvg#6323c2f6")
+		}
 		item.index = 5
 		return nil
 	case "statshouseApi.fnCumulAvg#f4d9ad09", "statshouseApi.fnCumulAvg", "#f4d9ad09":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulAvg#f4d9ad09" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulAvg#f4d9ad09")
+		}
 		item.index = 6
 		return nil
 	case "statshouseApi.fnSum#80ce3cf1", "statshouseApi.fnSum", "#80ce3cf1":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnSum#80ce3cf1" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnSum#80ce3cf1")
+		}
 		item.index = 7
 		return nil
 	case "statshouseApi.fnSumNorm#361963d5", "statshouseApi.fnSumNorm", "#361963d5":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnSumNorm#361963d5" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnSumNorm#361963d5")
+		}
 		item.index = 8
 		return nil
 	case "statshouseApi.fnCumulSum#42fc39b6", "statshouseApi.fnCumulSum", "#42fc39b6":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulSum#42fc39b6" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulSum#42fc39b6")
+		}
 		item.index = 9
 		return nil
 	case "statshouseApi.fnStddev#2043e480", "statshouseApi.fnStddev", "#2043e480":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnStddev#2043e480" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnStddev#2043e480")
+		}
 		item.index = 10
 		return nil
 	case "statshouseApi.fnP01#381b1cee", "statshouseApi.fnP01", "#381b1cee":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP01#381b1cee" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP01#381b1cee")
+		}
 		item.index = 11
 		return nil
 	case "statshouseApi.fnP1#bbb36a23", "statshouseApi.fnP1", "#bbb36a23":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP1#bbb36a23" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP1#bbb36a23")
+		}
 		item.index = 12
 		return nil
 	case "statshouseApi.fnP5#bcdeae3a", "statshouseApi.fnP5", "#bcdeae3a":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP5#bcdeae3a" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP5#bcdeae3a")
+		}
 		item.index = 13
 		return nil
 	case "statshouseApi.fnP10#56071d39", "statshouseApi.fnP10", "#56071d39":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP10#56071d39" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP10#56071d39")
+		}
 		item.index = 14
 		return nil
 	case "statshouseApi.fnP25#cf9ad7bf", "statshouseApi.fnP25", "#cf9ad7bf":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP25#cf9ad7bf" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP25#cf9ad7bf")
+		}
 		item.index = 15
 		return nil
 	case "statshouseApi.fnP50#77c5de5c", "statshouseApi.fnP50", "#77c5de5c":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP50#77c5de5c" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP50#77c5de5c")
+		}
 		item.index = 16
 		return nil
 	case "statshouseApi.fnP75#0e674272", "statshouseApi.fnP75", "#0e674272":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP75#0e674272" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP75#0e674272")
+		}
 		item.index = 17
 		return nil
 	case "statshouseApi.fnP90#d4c8c793", "statshouseApi.fnP90", "#d4c8c793":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP90#d4c8c793" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP90#d4c8c793")
+		}
 		item.index = 18
 		return nil
 	case "statshouseApi.fnP95#9a92b76f", "statshouseApi.fnP95", "#9a92b76f":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP95#9a92b76f" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP95#9a92b76f")
+		}
 		item.index = 19
 		return nil
 	case "statshouseApi.fnP99#71992e9a", "statshouseApi.fnP99", "#71992e9a":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP99#71992e9a" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP99#71992e9a")
+		}
 		item.index = 20
 		return nil
 	case "statshouseApi.fnP999#a3434c26", "statshouseApi.fnP999", "#a3434c26":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnP999#a3434c26" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP999#a3434c26")
+		}
 		item.index = 21
 		return nil
 	case "statshouseApi.fnUnique#f20fb854", "statshouseApi.fnUnique", "#f20fb854":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnUnique#f20fb854" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnUnique#f20fb854")
+		}
 		item.index = 22
 		return nil
 	case "statshouseApi.fnUniqueNorm#9ceb6f68", "statshouseApi.fnUniqueNorm", "#9ceb6f68":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnUniqueNorm#9ceb6f68" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnUniqueNorm#9ceb6f68")
+		}
 		item.index = 23
 		return nil
 	case "statshouseApi.fnMaxHost#b4790064", "statshouseApi.fnMaxHost", "#b4790064":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnMaxHost#b4790064" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMaxHost#b4790064")
+		}
 		item.index = 24
 		return nil
 	case "statshouseApi.fnMaxCountHost#885e665b", "statshouseApi.fnMaxCountHost", "#885e665b":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnMaxCountHost#885e665b" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMaxCountHost#885e665b")
+		}
 		item.index = 25
 		return nil
 	case "statshouseApi.fnDerivativeMin#4817df2b", "statshouseApi.fnDerivativeMin", "#4817df2b":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeMin#4817df2b" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeMin#4817df2b")
+		}
 		item.index = 26
 		return nil
 	case "statshouseApi.fnDerivativeMax#43eeb810", "statshouseApi.fnDerivativeMax", "#43eeb810":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeMax#43eeb810" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeMax#43eeb810")
+		}
 		item.index = 27
 		return nil
 	case "statshouseApi.fnDerivativeAvg#60d2b603", "statshouseApi.fnDerivativeAvg", "#60d2b603":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeAvg#60d2b603" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeAvg#60d2b603")
+		}
 		item.index = 28
 		return nil
 	case "statshouseApi.fnDerivativeCount#e617771c", "statshouseApi.fnDerivativeCount", "#e617771c":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeCount#e617771c" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeCount#e617771c")
+		}
 		item.index = 29
 		return nil
 	case "statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "statshouseApi.fnDerivativeCountNorm", "#bfb5f7fc":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeCountNorm#bfb5f7fc" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeCountNorm#bfb5f7fc")
+		}
 		item.index = 30
 		return nil
 	case "statshouseApi.fnDerivativeSum#a3a43781", "statshouseApi.fnDerivativeSum", "#a3a43781":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeSum#a3a43781" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeSum#a3a43781")
+		}
 		item.index = 31
 		return nil
 	case "statshouseApi.fnDerivativeSumNorm#96683390", "statshouseApi.fnDerivativeSumNorm", "#96683390":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeSumNorm#96683390" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeSumNorm#96683390")
+		}
 		item.index = 32
 		return nil
 	case "statshouseApi.fnDerivativeUnique#5745a0a3", "statshouseApi.fnDerivativeUnique", "#5745a0a3":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeUnique#5745a0a3" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeUnique#5745a0a3")
+		}
 		item.index = 33
 		return nil
 	case "statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "statshouseApi.fnDerivativeUniqueNorm", "#4bd4f327":
+		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeUniqueNorm#4bd4f327" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeUniqueNorm#4bd4f327")
+		}
 		item.index = 34
 		return nil
 	default:
@@ -493,77 +665,35 @@ func (item *StatshouseApiFunction) readJSON(j interface{}) error {
 	}
 }
 
-func (item StatshouseApiFunction) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '"')
-	w = append(w, _StatshouseApiFunction[item.index].TLString...)
-	return append(w, '"'), nil
+// This method is general version of WriteJSON, use it instead!
+func (item StatshouseApiFunction) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
 
+func (item StatshouseApiFunction) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item StatshouseApiFunction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '"')
+	if newTypeNames {
+		w = append(w, _StatshouseApiFunction[item.index].TLName...)
+	} else {
+		w = append(w, _StatshouseApiFunction[item.index].TLString...)
+	}
+	return append(w, '"')
 }
 
 func (item StatshouseApiFunction) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func VectorStatshouseApiFunctionBoxed0Read(w []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseApiFunction, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].ReadBoxed(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
+func (item *StatshouseApiFunction) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
 }
 
-func VectorStatshouseApiFunctionBoxed0Write(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.WriteBoxed(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseApiFunctionBoxed0ReadJSON(j interface{}, vec *[]StatshouseApiFunction) error {
-	l, _arr, err := JsonReadArray("[]StatshouseApiFunction", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseApiFunction, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseApiFunction__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
+func (item *StatshouseApiFunction) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("statshouseApi.Function", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseApiFunctionBoxed0WriteJSON(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -28,8 +28,14 @@ func (item *RpcDestActor) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.ActorId)
 }
 
-func (item *RpcDestActor) Write(w []byte) (_ []byte, err error) {
-	return basictl.LongWrite(w, item.ActorId), nil
+// This method is general version of Write, use it instead!
+func (item *RpcDestActor) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcDestActor) Write(w []byte) []byte {
+	w = basictl.LongWrite(w, item.ActorId)
+	return w
 }
 
 func (item *RpcDestActor) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,56 +45,82 @@ func (item *RpcDestActor) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcDestActor) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcDestActor) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcDestActor) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7568aabd)
 	return item.Write(w)
 }
 
 func (item RpcDestActor) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func RpcDestActor__ReadJSON(item *RpcDestActor, j interface{}) error { return item.readJSON(j) }
-func (item *RpcDestActor) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcDestActor", "expected json object")
+func (item *RpcDestActor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propActorIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "actor_id":
+				if propActorIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestActor", "actor_id")
+				}
+				if err := Json2ReadInt64(in, &item.ActorId); err != nil {
+					return err
+				}
+				propActorIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcDestActor", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jActorId := _jm["actor_id"]
-	delete(_jm, "actor_id")
-	if err := JsonReadInt64(_jActorId, &item.ActorId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcDestActor", k)
+	if !propActorIdPresented {
+		item.ActorId = 0
 	}
 	return nil
 }
 
-func (item *RpcDestActor) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcDestActor) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcDestActor) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *RpcDestActor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.ActorId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"actor_id":`...)
-		w = basictl.JSONWriteInt64(w, item.ActorId)
+	backupIndexActorId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"actor_id":`...)
+	w = basictl.JSONWriteInt64(w, item.ActorId)
+	if (item.ActorId != 0) == false {
+		w = w[:backupIndexActorId]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcDestActor) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcDestActor) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcDestActor", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcDestActor", err.Error())
 	}
 	return nil

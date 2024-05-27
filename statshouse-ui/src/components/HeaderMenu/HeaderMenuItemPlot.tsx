@@ -113,7 +113,9 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   }, []);
 
   useEffect(() => {
-    setPreviewVisibility(indexPlot, visible > 0);
+    setTimeout(() => {
+      setPreviewVisibility(indexPlot, visible > 0);
+    }, 100);
   }, [indexPlot, tabNum, visible]);
 
   useEffect(() => {
@@ -130,7 +132,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       className={cn(
         'position-relative',
         css.plotItem,
-        indexPlot === tabNum && isView && [css.activePlotItem, 'plot-active']
+        indexPlot === tabNum && isView && [css.activePlotItem, css.activeItem, 'plot-active']
       )}
       onMouseOver={onOpen}
       onMouseOut={onClose}
@@ -140,7 +142,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       <PlotLink
         className={cn(
           'nav-link',
-          !plotData.error403 && ['p-0', css.preview],
+          !plotData.error403 ? css.preview : css.preview403,
           plot.type === PLOT_TYPE.Event && css.previewEvent
         )}
         indexPlot={indexPlot}

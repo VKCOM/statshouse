@@ -149,7 +149,7 @@ func RunSimulator(simID int, metricsStorage *metajournal.MetricsStorage, storage
 		logF = log.New(f, "", log.LstdFlags|log.Lshortfile|log.Lmicroseconds).Printf
 	}
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, config, "simulator_"+strconv.Itoa(simID+1),
-		format.TagValueIDComponentAgent, metricsStorage, logF, nil, nil)
+		format.TagValueIDComponentAgent, metricsStorage, nil, logF, nil, nil)
 	if err != nil {
 		log.Panicf("Cannot create simulator, %v", err)
 	}

@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,14 +7,13 @@
 import React from 'react';
 import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
-import * as api from './api';
-import { DashboardInfo, RawValueKind, whatToWhatDesc } from './api';
-import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
+import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
+import { DashboardInfo, metricTagValueInfo, RawValueKind, whatToWhatDesc } from './api';
+import { type UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
 import { produce } from 'immer';
 import { isNotNil, toNumber, uniqueArray } from '../common/helpers';
-import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
 import {
   getDefaultParams,
@@ -192,8 +191,6 @@ export type timeRangeAbbrev =
   | 'last-180d'
   | 'last-1y'
   | 'last-2y';
-
-export const defaultBaseRange = 'last-2d';
 
 export function timeRangeAbbrevExpand(abbr: timeRangeAbbrev, to: number): timeRange {
   const t = to === -1 ? now() : to;
@@ -548,10 +545,7 @@ export function formatLegendValue(value: number | null): string {
   return formatNumberDigit(formatFixedFloor(value, maxFrac));
 }
 
-export function normalizeTagValues(
-  values: readonly api.metricTagValueInfo[],
-  sortByCount: boolean
-): api.metricTagValueInfo[] {
+export function normalizeTagValues(values: readonly metricTagValueInfo[], sortByCount: boolean): metricTagValueInfo[] {
   const copy = [...values];
   if (sortByCount) {
     copy.sort((a, b) => (a.count > b.count ? -1 : a.count < b.count ? 1 : a.value.localeCompare(b.value)));
@@ -651,9 +645,10 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
     ...params,
     live: getDefaultParams().live,
     theme: getDefaultParams().theme,
-    plots: params.plots.map((p) => {
+    plots: params.plots.map((p, index) => {
       // @ts-ignore
       delete p.timeShifts;
+      p.id ??= `${index}`;
       p.customName ??= '';
       p.customDescription ??= '';
       p.promQL ??= '';
@@ -664,6 +659,9 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.filterIn = normalizeFilterKey(p.filterIn);
       p.filterNotIn = normalizeFilterKey(p.filterNotIn);
       p.groupBy = p.groupBy.map((g) => toTagKey(g)).filter(isNotNil);
+      p.metricType ??= undefined;
+      p.filledGraph ??= true;
+      p.totalLine ??= false;
       return p;
     }),
     timeShifts,
@@ -687,6 +685,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       params.variables?.map((v) => ({
         ...v,
         link: v.link.map(([plot, tag]) => [toPlotKey(plot), toTagKey(tag)]).filter(isNotNilVariableLink),
+        source: v.source ?? [],
       })) ?? [],
   };
 }
@@ -734,7 +733,7 @@ export function getMetricFullName(plot: PlotParams, plotData: PlotStore) {
   }
   const metricName = getMetricName(plot, plotData);
   const metricWhat = getMetricWhat(plot, plotData);
-  return metricName ? `${metricName}${!!metricWhat && ': ' + metricWhat}` : '';
+  return metricName ? `${metricName}${!!metricWhat ? ': ' + metricWhat : ''}` : '';
 }
 
 export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {

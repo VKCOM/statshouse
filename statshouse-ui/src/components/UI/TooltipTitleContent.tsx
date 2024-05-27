@@ -8,7 +8,14 @@ export const TooltipTitleContent = React.memo(function TooltipTitleContent({ chi
     return null;
   }
   if (typeof children === 'string') {
-    return <pre className="m-0 small text-secondary">{children}</pre>;
+    return (
+      <div className="small text-secondary overflow-auto">
+        <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>{children}</div>
+        <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
+          {children}
+        </div>
+      </div>
+    );
   }
   return <>{children}</>;
 });

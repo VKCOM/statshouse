@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -22,7 +23,7 @@ type GroupWithMetricsList struct {
 	Metrics []string
 }
 
-type ApplyPromConfig func(configString string, version int64)
+type ApplyPromConfig func(configID int32, configString string)
 
 type MetricsStorage struct {
 	mu sync.RWMutex
@@ -40,14 +41,16 @@ type MetricsStorage struct {
 	namespaceByID    map[int32]*format.NamespaceMeta
 	namespaceByName  map[string]*format.NamespaceMeta
 
-	promConfig tlmetadata.Event
+	promConfig          tlmetadata.Event
+	promConfigGenerated tlmetadata.Event
+	knownTags           tlmetadata.Event
 
 	applyPromConfig ApplyPromConfig
 
 	journal *Journal // can be easily moved out, if desired
 }
 
-func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig) *MetricsStorage {
+func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
 	result := &MetricsStorage{
 		metricsByID:      map[int32]*format.MetricMetaValue{},
 		metricsByName:    map[string]*format.MetricMetaValue{},
@@ -65,7 +68,7 @@ func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromC
 	for id, g := range format.BuiltInNamespaceDefault {
 		result.builtInNamespace[id] = g
 	}
-	result.journal = MakeJournal(namespaceSuffix, dc, result.ApplyEvent)
+	result.journal = MakeJournal(namespaceSuffix, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
 }
 
@@ -79,6 +82,18 @@ func (ms *MetricsStorage) PromConfig() tlmetadata.Event {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.promConfig
+}
+
+func (ms *MetricsStorage) PromConfigGenerated() tlmetadata.Event {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.promConfigGenerated
+}
+
+func (ms *MetricsStorage) KnownTags() tlmetadata.Event {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.knownTags
 }
 
 func (ms *MetricsStorage) GetMetaMetric(metricID int32) *format.MetricMetaValue {
@@ -97,7 +112,16 @@ func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricM
 func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.namespaceByName[name]
+	ns, ok := ms.namespaceByName[name]
+	if ok {
+		return ns
+	}
+	for _, ns := range ms.builtInNamespace {
+		if ns.Name == name {
+			return ns
+		}
+	}
+	return nil
 }
 
 func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
@@ -137,6 +161,38 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.Met
 		li = append(li, v)
 	}
 	return li
+}
+
+func (ms *MetricsStorage) MatchMetrics(matcher *labels.Matcher, namespace string, includeInvisible bool, s []*format.MetricMetaValue) []*format.MetricMetaValue {
+	if namespace == "" || namespace == "__default" {
+		s = ms.matchMetrics(format.BuiltinMetricByName, matcher, namespace, includeInvisible, s)
+	}
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	s = ms.matchMetrics(ms.metricsByName, matcher, namespace, includeInvisible, s)
+	return s
+}
+
+func (ms *MetricsStorage) matchMetrics(mertics map[string]*format.MetricMetaValue, matcher *labels.Matcher, namespace string, includeInvisible bool, s []*format.MetricMetaValue) []*format.MetricMetaValue {
+	if matcher.Type == labels.MatchEqual {
+		name := matcher.Value
+		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
+			name = namespace + format.NamespaceSeparator + name
+		}
+		if v := mertics[name]; v != nil {
+			s = append(s, v)
+		}
+		return s
+	}
+	for name, v := range mertics {
+		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
+			name = namespace + format.NamespaceSeparator + name
+		}
+		if matcher.Matches(name) {
+			s = append(s, v)
+		}
+	}
+	return s
 }
 
 func (ms *MetricsStorage) GetGroupBy(metric *format.MetricMetaValue) *format.MetricsGroup {
@@ -262,7 +318,10 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
-	promConfigVersion := int64(0)
+	promConfigGeneratedSet := false
+	promConfigGeneratedData := ""
+	knownTagsSet := false
+	knownTagsData := ""
 	ms.mu.Lock()
 	for _, e := range newEntries {
 		switch e.EventType {
@@ -313,7 +372,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.ID = int32(e.Id)
 			value.NamespaceID = int32(e.NamespaceId)
 			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo(false)
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			var old *format.MetricsGroup
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]
@@ -327,10 +386,20 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.calcGroupForMetricsLocked(old, value)
 			ms.calcGroupNamesMapLocked()
 		case format.PromConfigEvent:
-			ms.promConfig = e
-			promConfigSet = true
-			promConfigData = e.Data
-			promConfigVersion = e.Version
+			switch e.Id {
+			case format.PrometheusConfigID:
+				ms.promConfig = e
+				promConfigSet = true
+				promConfigData = e.Data
+			case format.PrometheusGeneratedConfigID:
+				ms.promConfigGenerated = e
+				promConfigGeneratedSet = true
+				promConfigGeneratedData = e.Data
+			case format.KnownTagsConfigID:
+				ms.knownTags = e
+				knownTagsSet = true
+				knownTagsData = e.Data
+			}
 		case format.NamespaceEvent:
 			value := &format.NamespaceMeta{}
 			err := json.Unmarshal([]byte(e.Data), value)
@@ -342,6 +411,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.Name = e.Name
 			value.Version = e.Version
 			value.UpdateTime = e.UpdateTime
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			if value.ID >= 0 {
 				if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
 					delete(ms.namespaceByName, oldNamespace.Name)
@@ -357,8 +427,17 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 		}
 	}
 	ms.mu.Unlock()
-	if promConfigSet && ms.applyPromConfig != nil { // outside of lock, once
-		ms.applyPromConfig(promConfigData, promConfigVersion)
+	if ms.applyPromConfig != nil {
+		// outside of lock, once
+		if promConfigSet {
+			ms.applyPromConfig(format.PrometheusConfigID, promConfigData)
+		}
+		if promConfigGeneratedSet {
+			ms.applyPromConfig(format.PrometheusGeneratedConfigID, promConfigGeneratedData)
+		}
+		if knownTagsSet {
+			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
+		}
 	}
 }
 

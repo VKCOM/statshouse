@@ -48,6 +48,8 @@ var (
 		configAgent                  agent.Config
 		maxCores                     int
 		listenAddr                   string
+		listenAddrIPv6               string
+		listenAddrUnix               string
 		coresUDP                     int
 		bufferSizeUDP                int
 		promRemoteMod                bool
@@ -126,6 +128,8 @@ func argvAddCommonFlags() {
 func argvAddAgentFlags(legacyVerb bool) {
 	argv.configAgent.Bind(flag.CommandLine, agent.DefaultConfig(), legacyVerb)
 	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
+	flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
+	flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "", "Unix datagram listen address.")
 
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
@@ -136,7 +140,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 
 	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
 	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
-	flag.StringVar(&argv.envFilePath, "env-file-path", "", "statshouse environment file path")
+	flag.StringVar(&argv.envFilePath, "env-file-path", "/etc/statshouse_env.yml", "statshouse environment file path")
 }
 
 func argvAddAggregatorFlags(legacyVerb bool) {
@@ -162,13 +166,15 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 		flag.Uint64Var(&unused1, "pmc-mapping-actor-id", 0, "actor ID of PMC mapping cluster")
 	} else {
 		flag.BoolVar(&argv.configAggregator.AutoCreate, "auto-create", aggregator.DefaultConfigAggregator().AutoCreate, "Enable metric auto-create.")
+		flag.BoolVar(&argv.configAggregator.AutoCreateDefaultNamespace, "auto-create-default-namespace", false, "Auto-create metrics with no namespace specified.")
 		flag.BoolVar(&argv.configAggregator.DisableRemoteConfig, "disable-remote-config", aggregator.DefaultConfigAggregator().DisableRemoteConfig, "disable remote configuration")
 	}
 
 	flag.StringVar(&argv.configAggregator.ExternalPort, "agg-external-port", aggregator.DefaultConfigAggregator().ExternalPort, "external port for aggregator autoconfiguration if different from port set in agg-addr")
 	flag.IntVar(&argv.configAggregator.PreviousNumShards, "previous-shards", aggregator.DefaultConfigAggregator().PreviousNumShards, "Previous number of shard*replicas in cluster. During transition, clients with previous configuration are also allowed to send data.")
+	flag.IntVar(&argv.configAggregator.LocalReplica, "local-replica", aggregator.DefaultConfigAggregator().LocalReplica, "Replica number for local test cluster [1..3]")
 
-	flag.Uint64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
+	flag.Int64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
 	flag.StringVar(&argv.configAggregator.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
 	flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 

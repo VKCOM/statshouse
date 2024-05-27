@@ -25,11 +25,17 @@ func (item *EngineMetafilesStat) Reset() {
 }
 
 func (item *EngineMetafilesStat) Read(w []byte) (_ []byte, err error) {
-	return VectorEngineMetafilesOneMemoryStat0Read(w, &item.Data)
+	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, &item.Data)
 }
 
-func (item *EngineMetafilesStat) Write(w []byte) (_ []byte, err error) {
-	return VectorEngineMetafilesOneMemoryStat0Write(w, item.Data)
+// This method is general version of Write, use it instead!
+func (item *EngineMetafilesStat) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineMetafilesStat) Write(w []byte) []byte {
+	w = BuiltinVectorEngineMetafilesOneMemoryStatWrite(w, item.Data)
+	return w
 }
 
 func (item *EngineMetafilesStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,60 +45,82 @@ func (item *EngineMetafilesStat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineMetafilesStat) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineMetafilesStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineMetafilesStat) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xb673669b)
 	return item.Write(w)
 }
 
 func (item EngineMetafilesStat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineMetafilesStat__ReadJSON(item *EngineMetafilesStat, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineMetafilesStat) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.metafilesStatData", "expected json object")
+func (item *EngineMetafilesStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propDataPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "data":
+				if propDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.metafilesStatData", "data")
+				}
+				if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames, in, &item.Data); err != nil {
+					return err
+				}
+				propDataPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.metafilesStatData", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jData := _jm["data"]
-	delete(_jm, "data")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.metafilesStatData", k)
-	}
-	if err := VectorEngineMetafilesOneMemoryStat0ReadJSON(_jData, &item.Data); err != nil {
-		return err
+	if !propDataPresented {
+		item.Data = item.Data[:0]
 	}
 	return nil
 }
 
-func (item *EngineMetafilesStat) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineMetafilesStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineMetafilesStat) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineMetafilesStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.Data) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"data":`...)
-		if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSON(w, item.Data); err != nil {
-			return w, err
-		}
+	backupIndexData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"data":`...)
+	w = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(newTypeNames, short, w, item.Data)
+	if (len(item.Data) != 0) == false {
+		w = w[:backupIndexData]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineMetafilesStat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineMetafilesStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.metafilesStatData", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.metafilesStatData", err.Error())
 	}
 	return nil

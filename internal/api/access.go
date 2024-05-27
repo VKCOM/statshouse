@@ -7,6 +7,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -38,6 +39,7 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	insecureMode bool) (accessInfo, error) {
 	if localMode || insecureMode {
 		ai := accessInfo{
+			user:              "@local_mode",
 			protectedPrefixes: protectedPrefixes,
 			bitViewDefault:    true,
 			bitEditDefault:    true,
@@ -84,10 +86,25 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 			ai.bitViewMetric[b[len("view_metric."):]] = true
 		case strings.HasPrefix(b, "edit_metric."):
 			ai.bitEditMetric[b[len("edit_metric."):]] = true
+		// use another bit, because vkuth token can't contain ':'
+		case strings.HasPrefix(b, "view_namespace."):
+			ai.bitViewPrefix[b[len("view_namespace."):]+":"] = true
+		case strings.HasPrefix(b, "edit_namespace."):
+			ai.bitEditPrefix[b[len("edit_namespace."):]+":"] = true
 		}
 	}
 
 	return ai, nil
+}
+
+func (ai *accessInfo) toMetadata() string {
+	m := metadata{
+		UserEmail: ai.user,
+		UserName:  "",
+		UserRef:   "",
+	}
+	res, _ := json.Marshal(&m)
+	return string(res)
 }
 
 func (ai *accessInfo) protectedMetric(name string) bool {

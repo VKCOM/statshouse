@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,6 +8,7 @@ package etchosts
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -20,11 +21,9 @@ BenchmarkResolve-12      32651385         37.94 ns/op        0 B/op        0 all
 func BenchmarkReadHosts(b *testing.B) {
 	b.ReportAllocs()
 
-	hostsFile = "testdata/hosts"
-
 	var hostnameToIP map[string]string
 	for i := 0; i < b.N; i++ {
-		hostnameToIP = readHosts()
+		hostnameToIP = readHosts("testdata/hosts")
 	}
 	_ = hostnameToIP
 }
@@ -32,19 +31,17 @@ func BenchmarkReadHosts(b *testing.B) {
 func BenchmarkResolve(b *testing.B) {
 	b.ReportAllocs()
 
-	hostsFile = "testdata/hosts"
+	hc := NewHostsCache("testdata/hosts", time.Second)
 
 	var ip string
 	for i := 0; i < b.N; i++ {
-		ip = Resolve("eva612345")
+		ip = hc.Resolve("eva612345")
 	}
 	_ = ip
 }
 
 func TestReadHosts(t *testing.T) {
-	hostsFile = "testdata/hosts"
-
-	hostnameToIP := readHosts()
+	hostnameToIP := readHosts("testdata/hosts")
 	require.Equal(t, expectedHostnameToIP, hostnameToIP)
 }
 

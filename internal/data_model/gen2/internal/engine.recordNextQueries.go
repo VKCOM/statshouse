@@ -38,12 +38,16 @@ func (item *EngineRecordNextQueries) Read(w []byte) (_ []byte, err error) {
 	return BoolReadBoxed(w, &item.Append)
 }
 
-func (item *EngineRecordNextQueries) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Binlogname); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *EngineRecordNextQueries) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineRecordNextQueries) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.Binlogname)
 	w = basictl.IntWrite(w, item.NumQueries)
-	return BoolWriteBoxed(w, item.Append)
+	w = BoolWriteBoxed(w, item.Append)
+	return w
 }
 
 func (item *EngineRecordNextQueries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,7 +57,12 @@ func (item *EngineRecordNextQueries) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineRecordNextQueries) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineRecordNextQueries) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineRecordNextQueries) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1e9d6)
 	return item.Write(w)
 }
@@ -63,17 +72,22 @@ func (item *EngineRecordNextQueries) ReadResult(w []byte, ret *bool) (_ []byte, 
 }
 
 func (item *EngineRecordNextQueries) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
-func (item *EngineRecordNextQueries) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *EngineRecordNextQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineRecordNextQueries) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineRecordNextQueries) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -87,13 +101,19 @@ func (item *EngineRecordNextQueries) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *EngineRecordNextQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.recordNextQueries", err.Error())
-	}
+func (item *EngineRecordNextQueries) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineRecordNextQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret bool
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -101,72 +121,109 @@ func (item *EngineRecordNextQueries) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item EngineRecordNextQueries) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineRecordNextQueries__ReadJSON(item *EngineRecordNextQueries, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineRecordNextQueries) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.recordNextQueries", "expected json object")
+func (item *EngineRecordNextQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBinlognamePresented bool
+	var propNumQueriesPresented bool
+	var propAppendPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "binlogname":
+				if propBinlognamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.recordNextQueries", "binlogname")
+				}
+				if err := Json2ReadString(in, &item.Binlogname); err != nil {
+					return err
+				}
+				propBinlognamePresented = true
+			case "num_queries":
+				if propNumQueriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.recordNextQueries", "num_queries")
+				}
+				if err := Json2ReadInt32(in, &item.NumQueries); err != nil {
+					return err
+				}
+				propNumQueriesPresented = true
+			case "append":
+				if propAppendPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.recordNextQueries", "append")
+				}
+				if err := Json2ReadBool(in, &item.Append); err != nil {
+					return err
+				}
+				propAppendPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.recordNextQueries", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBinlogname := _jm["binlogname"]
-	delete(_jm, "binlogname")
-	if err := JsonReadString(_jBinlogname, &item.Binlogname); err != nil {
-		return err
+	if !propBinlognamePresented {
+		item.Binlogname = ""
 	}
-	_jNumQueries := _jm["num_queries"]
-	delete(_jm, "num_queries")
-	if err := JsonReadInt32(_jNumQueries, &item.NumQueries); err != nil {
-		return err
+	if !propNumQueriesPresented {
+		item.NumQueries = 0
 	}
-	_jAppend := _jm["append"]
-	delete(_jm, "append")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.recordNextQueries", k)
-	}
-	if err := JsonReadBool(_jAppend, &item.Append); err != nil {
-		return err
+	if !propAppendPresented {
+		item.Append = false
 	}
 	return nil
 }
 
-func (item *EngineRecordNextQueries) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineRecordNextQueries) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineRecordNextQueries) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineRecordNextQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.Binlogname) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"binlogname":`...)
-		w = basictl.JSONWriteString(w, item.Binlogname)
+	backupIndexBinlogname := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"binlogname":`...)
+	w = basictl.JSONWriteString(w, item.Binlogname)
+	if (len(item.Binlogname) != 0) == false {
+		w = w[:backupIndexBinlogname]
 	}
-	if item.NumQueries != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"num_queries":`...)
-		w = basictl.JSONWriteInt32(w, item.NumQueries)
+	backupIndexNumQueries := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"num_queries":`...)
+	w = basictl.JSONWriteInt32(w, item.NumQueries)
+	if (item.NumQueries != 0) == false {
+		w = w[:backupIndexNumQueries]
 	}
-	if item.Append {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"append":`...)
-		w = basictl.JSONWriteBool(w, item.Append)
+	backupIndexAppend := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"append":`...)
+	w = basictl.JSONWriteBool(w, item.Append)
+	if (item.Append) == false {
+		w = w[:backupIndexAppend]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineRecordNextQueries) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineRecordNextQueries) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.recordNextQueries", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.recordNextQueries", err.Error())
 	}
 	return nil

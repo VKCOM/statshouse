@@ -66,7 +66,7 @@ StatsHouse expects particular tables to exist in ClickHouse. To create them use 
 
 For starters, you can use the docker-compose service in this repo (it already has all necessary tables created):
 ``` shell
-docker compose --profile kh up -d
+docker compose --profile kh --file localrun.yml up -d
 ```
 Verify docker-compose instance by running the following:
 ```shell

@@ -13,143 +13,186 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item EngineAlreadyInMasterMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineAlreadyInMasterMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetAlreadyInMasterMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineAlreadyInMasterMode struct {
 }
 
 func (EngineAlreadyInMasterMode) TLName() string { return "engine.alreadyInMasterMode" }
 func (EngineAlreadyInMasterMode) TLTag() uint32  { return 0x402409cb }
 
-func (item *EngineAlreadyInMasterMode) Reset()                         {}
-func (item *EngineAlreadyInMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x402409cb)
+func (item *EngineAlreadyInMasterMode) Reset() {}
+
+func (item *EngineAlreadyInMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineAlreadyInMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *EngineAlreadyInMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x402409cb), nil
+
+func (item *EngineAlreadyInMasterMode) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x402409cb); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineAlreadyInMasterMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineAlreadyInMasterMode) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x402409cb)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInMasterMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineAlreadyInMasterMode__ReadJSON(item *EngineAlreadyInMasterMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineAlreadyInMasterMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.alreadyInMasterMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.alreadyInMasterMode", k)
+func (item *EngineAlreadyInMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.alreadyInMasterMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *EngineAlreadyInMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineAlreadyInMasterMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineAlreadyInMasterMode) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineAlreadyInMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineAlreadyInMasterMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineAlreadyInMasterMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.alreadyInMasterMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.alreadyInMasterMode", err.Error())
 	}
 	return nil
 }
 
-func (item EngineAlreadyInReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineAlreadyInReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetAlreadyInReplicaMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineAlreadyInReplicaMode struct {
 }
 
 func (EngineAlreadyInReplicaMode) TLName() string { return "engine.alreadyInReplicaMode" }
 func (EngineAlreadyInReplicaMode) TLTag() uint32  { return 0xebd80142 }
 
-func (item *EngineAlreadyInReplicaMode) Reset()                         {}
-func (item *EngineAlreadyInReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xebd80142)
+func (item *EngineAlreadyInReplicaMode) Reset() {}
+
+func (item *EngineAlreadyInReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineAlreadyInReplicaMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *EngineAlreadyInReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xebd80142), nil
+
+func (item *EngineAlreadyInReplicaMode) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xebd80142); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineAlreadyInReplicaMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineAlreadyInReplicaMode) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xebd80142)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInReplicaMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineAlreadyInReplicaMode__ReadJSON(item *EngineAlreadyInReplicaMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineAlreadyInReplicaMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.alreadyInReplicaMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.alreadyInReplicaMode", k)
+func (item *EngineAlreadyInReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.alreadyInReplicaMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *EngineAlreadyInReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineAlreadyInReplicaMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineAlreadyInReplicaMode) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineAlreadyInReplicaMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineAlreadyInReplicaMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.alreadyInReplicaMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.alreadyInReplicaMode", err.Error())
 	}
 	return nil
 }
 
-func (item EngineFailedToSwitchMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineFailedToSwitchMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetFailedToSwitchMode(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineFailedToSwitchMode struct {
 	Error string
 }
@@ -165,8 +208,14 @@ func (item *EngineFailedToSwitchMode) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Error)
 }
 
-func (item *EngineFailedToSwitchMode) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Error)
+// This method is general version of Write, use it instead!
+func (item *EngineFailedToSwitchMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineFailedToSwitchMode) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.Error)
+	return w
 }
 
 func (item *EngineFailedToSwitchMode) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -176,64 +225,88 @@ func (item *EngineFailedToSwitchMode) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-func (item *EngineFailedToSwitchMode) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineFailedToSwitchMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineFailedToSwitchMode) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x17418662)
 	return item.Write(w)
 }
 
 func (item EngineFailedToSwitchMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineFailedToSwitchMode__ReadJSON(item *EngineFailedToSwitchMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineFailedToSwitchMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.failedToSwitchMode", "expected json object")
+func (item *EngineFailedToSwitchMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.failedToSwitchMode", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.failedToSwitchMode", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jError := _jm["error"]
-	delete(_jm, "error")
-	if err := JsonReadString(_jError, &item.Error); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.failedToSwitchMode", k)
+	if !propErrorPresented {
+		item.Error = ""
 	}
 	return nil
 }
 
-func (item *EngineFailedToSwitchMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineFailedToSwitchMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineFailedToSwitchMode) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineFailedToSwitchMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.Error) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error":`...)
-		w = basictl.JSONWriteString(w, item.Error)
+	backupIndexError := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error":`...)
+	w = basictl.JSONWriteString(w, item.Error)
+	if (len(item.Error) != 0) == false {
+		w = w[:backupIndexError]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineFailedToSwitchMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineFailedToSwitchMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.failedToSwitchMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.failedToSwitchMode", err.Error())
 	}
 	return nil
 }
 
-var _EngineSwitchMasterReplicaModeResultUnion = [6]UnionElement{
+var _EngineSwitchMasterReplicaModeResult = [6]UnionElement{
 	{TLTag: 0x95b13964, TLName: "engine.switchedToMasterMode", TLString: "engine.switchedToMasterMode#95b13964"},
 	{TLTag: 0xad642a0b, TLName: "engine.switchedToReplicaMode", TLString: "engine.switchedToReplicaMode#ad642a0b"},
 	{TLTag: 0x402409cb, TLName: "engine.alreadyInMasterMode", TLString: "engine.alreadyInMasterMode#402409cb"},
@@ -242,106 +315,102 @@ var _EngineSwitchMasterReplicaModeResultUnion = [6]UnionElement{
 	{TLTag: 0x17418662, TLName: "engine.failedToSwitchMode", TLString: "engine.failedToSwitchMode#17418662"},
 }
 
-type EngineSwitchMasterReplicaModeResultUnion struct {
+type EngineSwitchMasterReplicaModeResult struct {
 	valueSwitchedToMasterModeForcefully EngineSwitchedToMasterModeForcefully
 	valueFailedToSwitchMode             EngineFailedToSwitchMode
 	index                               int
 }
 
-func (item EngineSwitchMasterReplicaModeResultUnion) TLName() string {
-	return _EngineSwitchMasterReplicaModeResultUnion[item.index].TLName
+func (item EngineSwitchMasterReplicaModeResult) TLName() string {
+	return _EngineSwitchMasterReplicaModeResult[item.index].TLName
 }
-func (item EngineSwitchMasterReplicaModeResultUnion) TLTag() uint32 {
-	return _EngineSwitchMasterReplicaModeResultUnion[item.index].TLTag
+func (item EngineSwitchMasterReplicaModeResult) TLTag() uint32 {
+	return _EngineSwitchMasterReplicaModeResult[item.index].TLTag
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) Reset() { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) Reset() { item.index = 0 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToMasterMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToMasterMode() bool {
 	return item.index == 0
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToMasterMode() (EngineSwitchedToMasterMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToMasterMode() (EngineSwitchedToMasterMode, bool) {
 	var value EngineSwitchedToMasterMode
 	return value, item.index == 0
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToMasterMode() { item.index = 0 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToMasterMode()     { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToMasterMode() { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToMasterMode()     { item.index = 0 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToReplicaMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToReplicaMode() bool {
 	return item.index == 1
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToReplicaMode() (EngineSwitchedToReplicaMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToReplicaMode() (EngineSwitchedToReplicaMode, bool) {
 	var value EngineSwitchedToReplicaMode
 	return value, item.index == 1
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToReplicaMode() { item.index = 1 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToReplicaMode()     { item.index = 1 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToReplicaMode() { item.index = 1 }
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToReplicaMode()     { item.index = 1 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsAlreadyInMasterMode() bool {
-	return item.index == 2
-}
+func (item *EngineSwitchMasterReplicaModeResult) IsAlreadyInMasterMode() bool { return item.index == 2 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsAlreadyInMasterMode() (EngineAlreadyInMasterMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsAlreadyInMasterMode() (EngineAlreadyInMasterMode, bool) {
 	var value EngineAlreadyInMasterMode
 	return value, item.index == 2
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToAlreadyInMasterMode() { item.index = 2 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetAlreadyInMasterMode()     { item.index = 2 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToAlreadyInMasterMode() { item.index = 2 }
+func (item *EngineSwitchMasterReplicaModeResult) SetAlreadyInMasterMode()     { item.index = 2 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsAlreadyInReplicaMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsAlreadyInReplicaMode() bool {
 	return item.index == 3
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsAlreadyInReplicaMode() (EngineAlreadyInReplicaMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsAlreadyInReplicaMode() (EngineAlreadyInReplicaMode, bool) {
 	var value EngineAlreadyInReplicaMode
 	return value, item.index == 3
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToAlreadyInReplicaMode() { item.index = 3 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetAlreadyInReplicaMode()     { item.index = 3 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToAlreadyInReplicaMode() { item.index = 3 }
+func (item *EngineSwitchMasterReplicaModeResult) SetAlreadyInReplicaMode()     { item.index = 3 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToMasterModeForcefully() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToMasterModeForcefully() bool {
 	return item.index == 4
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToMasterModeForcefully() (*EngineSwitchedToMasterModeForcefully, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToMasterModeForcefully() (*EngineSwitchedToMasterModeForcefully, bool) {
 	if item.index != 4 {
 		return nil, false
 	}
 	return &item.valueSwitchedToMasterModeForcefully, true
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToMasterModeForcefully() *EngineSwitchedToMasterModeForcefully {
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToMasterModeForcefully() *EngineSwitchedToMasterModeForcefully {
 	item.index = 4
 	item.valueSwitchedToMasterModeForcefully.Reset()
 	return &item.valueSwitchedToMasterModeForcefully
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToMasterModeForcefully(value EngineSwitchedToMasterModeForcefully) {
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToMasterModeForcefully(value EngineSwitchedToMasterModeForcefully) {
 	item.index = 4
 	item.valueSwitchedToMasterModeForcefully = value
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsFailedToSwitchMode() bool {
-	return item.index == 5
-}
+func (item *EngineSwitchMasterReplicaModeResult) IsFailedToSwitchMode() bool { return item.index == 5 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsFailedToSwitchMode() (*EngineFailedToSwitchMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsFailedToSwitchMode() (*EngineFailedToSwitchMode, bool) {
 	if item.index != 5 {
 		return nil, false
 	}
 	return &item.valueFailedToSwitchMode, true
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToFailedToSwitchMode() *EngineFailedToSwitchMode {
+func (item *EngineSwitchMasterReplicaModeResult) ResetToFailedToSwitchMode() *EngineFailedToSwitchMode {
 	item.index = 5
 	item.valueFailedToSwitchMode.Reset()
 	return &item.valueFailedToSwitchMode
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetFailedToSwitchMode(value EngineFailedToSwitchMode) {
+func (item *EngineSwitchMasterReplicaModeResult) SetFailedToSwitchMode(value EngineFailedToSwitchMode) {
 	item.index = 5
 	item.valueFailedToSwitchMode = value
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *EngineSwitchMasterReplicaModeResult) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
 	if w, err = basictl.NatRead(w, &tag); err != nil {
 		return w, err
@@ -370,172 +439,257 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) ReadBoxed(w []byte) (_ []b
 	}
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _EngineSwitchMasterReplicaModeResultUnion[item.index].TLTag)
-	switch item.index {
-	case 0:
-		return w, nil
-	case 1:
-		return w, nil
-	case 2:
-		return w, nil
-	case 3:
-		return w, nil
-	case 4:
-		return item.valueSwitchedToMasterModeForcefully.Write(w)
-	case 5:
-		return item.valueFailedToSwitchMode.Write(w)
-	default: // Impossible due to panic above
-		return w, nil
-	}
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSwitchMasterReplicaModeResult) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
 }
 
-func EngineSwitchMasterReplicaModeResultUnion__ReadJSON(item *EngineSwitchMasterReplicaModeResultUnion, j interface{}) error {
-	return item.readJSON(j)
+func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, _EngineSwitchMasterReplicaModeResult[item.index].TLTag)
+	switch item.index {
+	case 0:
+		return w
+	case 1:
+		return w
+	case 2:
+		return w
+	case 3:
+		return w
+	case 4:
+		w = item.valueSwitchedToMasterModeForcefully.Write(w)
+	case 5:
+		w = item.valueFailedToSwitchMode.Write(w)
+	}
+	return w
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.SwitchMasterReplicaModeResult", j)
+
+func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.SwitchMasterReplicaModeResult", in)
 	if err != nil {
 		return err
 	}
-	jvalue := _jm["value"]
 	switch _tag {
 	case "engine.switchedToMasterMode#95b13964", "engine.switchedToMasterMode", "#95b13964":
+		if !legacyTypeNames && _tag == "engine.switchedToMasterMode#95b13964" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterMode#95b13964")
+		}
 		item.index = 0
 	case "engine.switchedToReplicaMode#ad642a0b", "engine.switchedToReplicaMode", "#ad642a0b":
+		if !legacyTypeNames && _tag == "engine.switchedToReplicaMode#ad642a0b" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToReplicaMode#ad642a0b")
+		}
 		item.index = 1
 	case "engine.alreadyInMasterMode#402409cb", "engine.alreadyInMasterMode", "#402409cb":
+		if !legacyTypeNames && _tag == "engine.alreadyInMasterMode#402409cb" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInMasterMode#402409cb")
+		}
 		item.index = 2
 	case "engine.alreadyInReplicaMode#ebd80142", "engine.alreadyInReplicaMode", "#ebd80142":
+		if !legacyTypeNames && _tag == "engine.alreadyInReplicaMode#ebd80142" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInReplicaMode#ebd80142")
+		}
 		item.index = 3
 	case "engine.switchedToMasterModeForcefully#ec61b4be", "engine.switchedToMasterModeForcefully", "#ec61b4be":
+		if !legacyTypeNames && _tag == "engine.switchedToMasterModeForcefully#ec61b4be" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterModeForcefully#ec61b4be")
+		}
 		item.index = 4
-		if err := EngineSwitchedToMasterModeForcefully__ReadJSON(&item.valueSwitchedToMasterModeForcefully, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueSwitchedToMasterModeForcefully.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.failedToSwitchMode#17418662", "engine.failedToSwitchMode", "#17418662":
+		if !legacyTypeNames && _tag == "engine.failedToSwitchMode#17418662" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.failedToSwitchMode#17418662")
+		}
 		item.index = 5
-		if err := EngineFailedToSwitchMode__ReadJSON(&item.valueFailedToSwitchMode, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueFailedToSwitchMode.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	default:
 		return ErrorInvalidUnionTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.SwitchMasterReplicaModeResult", k)
 	}
 	return nil
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	switch item.index {
 	case 0:
-		return append(w, `{"type":"engine.switchedToMasterMode#95b13964"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToMasterMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToMasterMode#95b13964"`...)
+		}
+		return append(w, '}')
 	case 1:
-		return append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToReplicaMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"`...)
+		}
+		return append(w, '}')
 	case 2:
-		return append(w, `{"type":"engine.alreadyInMasterMode#402409cb"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.alreadyInMasterMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.alreadyInMasterMode#402409cb"`...)
+		}
+		return append(w, '}')
 	case 3:
-		return append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.alreadyInReplicaMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"`...)
+		}
+		return append(w, '}')
 	case 4:
-		w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be","value":`...)
-		if w, err = item.valueSwitchedToMasterModeForcefully.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.switchedToMasterModeForcefully"`...)
+		} else {
+			w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 5:
-		w = append(w, `{"type":"engine.failedToSwitchMode#17418662","value":`...)
-		if w, err = item.valueFailedToSwitchMode.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.failedToSwitchMode"`...)
+		} else {
+			w = append(w, `{"type":"engine.failedToSwitchMode#17418662"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueFailedToSwitchMode.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	default: // Impossible due to panic above
-		return w, nil
+		return w
 	}
 }
 
-func (item EngineSwitchMasterReplicaModeResultUnion) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+func (item EngineSwitchMasterReplicaModeResult) String() string {
+	return string(item.WriteJSON(nil))
 }
 
-func (item EngineSwitchedToMasterMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item *EngineSwitchMasterReplicaModeResult) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.SwitchMasterReplicaModeResult", err.Error())
+	}
+	return nil
+}
+
+func (item EngineSwitchedToMasterMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToMasterMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToMasterMode struct {
 }
 
 func (EngineSwitchedToMasterMode) TLName() string { return "engine.switchedToMasterMode" }
 func (EngineSwitchedToMasterMode) TLTag() uint32  { return 0x95b13964 }
 
-func (item *EngineSwitchedToMasterMode) Reset()                         {}
-func (item *EngineSwitchedToMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x95b13964)
+func (item *EngineSwitchedToMasterMode) Reset() {}
+
+func (item *EngineSwitchedToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineSwitchedToMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *EngineSwitchedToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x95b13964), nil
+
+func (item *EngineSwitchedToMasterMode) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x95b13964); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSwitchedToMasterMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSwitchedToMasterMode) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x95b13964)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToMasterMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSwitchedToMasterMode__ReadJSON(item *EngineSwitchedToMasterMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToMasterMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToMasterMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToMasterMode", k)
+func (item *EngineSwitchedToMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.switchedToMasterMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *EngineSwitchedToMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSwitchedToMasterMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSwitchedToMasterMode) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSwitchedToMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSwitchedToMasterMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSwitchedToMasterMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToMasterMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToMasterMode", err.Error())
 	}
 	return nil
 }
 
-func (item EngineSwitchedToMasterModeForcefully) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineSwitchedToMasterModeForcefully) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToMasterModeForcefully(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToMasterModeForcefully struct {
 	BytesTruncated int64
 }
@@ -553,8 +707,14 @@ func (item *EngineSwitchedToMasterModeForcefully) Read(w []byte) (_ []byte, err 
 	return basictl.LongRead(w, &item.BytesTruncated)
 }
 
-func (item *EngineSwitchedToMasterModeForcefully) Write(w []byte) (_ []byte, err error) {
-	return basictl.LongWrite(w, item.BytesTruncated), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSwitchedToMasterModeForcefully) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) Write(w []byte) []byte {
+	w = basictl.LongWrite(w, item.BytesTruncated)
+	return w
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -564,123 +724,169 @@ func (item *EngineSwitchedToMasterModeForcefully) ReadBoxed(w []byte) (_ []byte,
 	return item.Read(w)
 }
 
-func (item *EngineSwitchedToMasterModeForcefully) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSwitchedToMasterModeForcefully) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xec61b4be)
 	return item.Write(w)
 }
 
 func (item EngineSwitchedToMasterModeForcefully) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSwitchedToMasterModeForcefully__ReadJSON(item *EngineSwitchedToMasterModeForcefully, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToMasterModeForcefully) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", "expected json object")
+func (item *EngineSwitchedToMasterModeForcefully) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propBytesTruncatedPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "bytes_truncated":
+				if propBytesTruncatedPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.switchedToMasterModeForcefully", "bytes_truncated")
+				}
+				if err := Json2ReadInt64(in, &item.BytesTruncated); err != nil {
+					return err
+				}
+				propBytesTruncatedPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.switchedToMasterModeForcefully", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jBytesTruncated := _jm["bytes_truncated"]
-	delete(_jm, "bytes_truncated")
-	if err := JsonReadInt64(_jBytesTruncated, &item.BytesTruncated); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToMasterModeForcefully", k)
+	if !propBytesTruncatedPresented {
+		item.BytesTruncated = 0
 	}
 	return nil
 }
 
-func (item *EngineSwitchedToMasterModeForcefully) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.BytesTruncated != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"bytes_truncated":`...)
-		w = basictl.JSONWriteInt64(w, item.BytesTruncated)
+	backupIndexBytesTruncated := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"bytes_truncated":`...)
+	w = basictl.JSONWriteInt64(w, item.BytesTruncated)
+	if (item.BytesTruncated != 0) == false {
+		w = w[:backupIndexBytesTruncated]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToMasterModeForcefully", err.Error())
 	}
 	return nil
 }
 
-func (item EngineSwitchedToReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineSwitchedToReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToReplicaMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToReplicaMode struct {
 }
 
 func (EngineSwitchedToReplicaMode) TLName() string { return "engine.switchedToReplicaMode" }
 func (EngineSwitchedToReplicaMode) TLTag() uint32  { return 0xad642a0b }
 
-func (item *EngineSwitchedToReplicaMode) Reset()                         {}
-func (item *EngineSwitchedToReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xad642a0b)
+func (item *EngineSwitchedToReplicaMode) Reset() {}
+
+func (item *EngineSwitchedToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineSwitchedToReplicaMode) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *EngineSwitchedToReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xad642a0b), nil
+
+func (item *EngineSwitchedToReplicaMode) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xad642a0b); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSwitchedToReplicaMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSwitchedToReplicaMode) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xad642a0b)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToReplicaMode) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSwitchedToReplicaMode__ReadJSON(item *EngineSwitchedToReplicaMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSwitchedToReplicaMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.switchedToReplicaMode", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.switchedToReplicaMode", k)
+func (item *EngineSwitchedToReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.switchedToReplicaMode", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *EngineSwitchedToReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSwitchedToReplicaMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSwitchedToReplicaMode) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSwitchedToReplicaMode) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSwitchedToReplicaMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.switchedToReplicaMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchedToReplicaMode", err.Error())
 	}
 	return nil

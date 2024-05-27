@@ -107,7 +107,8 @@ func (e *Estimator) ReportHourCardinality(time uint32, usedMetrics map[int32]str
 		// show full cardinality estimates in metrics. We need sum of average(all inserted per aggregator) over all aggregators
 		// we cannot implement this, so we multiply by # of shards, expecting uniform load (which is wrong if skip shards option is given to agents)
 		// so avg() of this metric shows full estimate
-		MapKeyItemMultiItem(builtInStat, AggKey((time/60)*60, format.BuiltinMetricIDAggHourCardinality, [16]int32{0, 0, 0, 0, k}, aggregatorHost, shardKey, replicaKey), AggregatorStringTopCapacity, nil, nil).Tail.AddValueCounterHost(cardinality, 1, aggregatorHost)
+		key := AggKey((time/60)*60, format.BuiltinMetricIDAggHourCardinality, [16]int32{0, 0, 0, 0, k}, aggregatorHost, shardKey, replicaKey)
+		MapKeyItemMultiItem(builtInStat, key, AggregatorStringTopCapacity, nil, nil).Tail.AddValueCounterHost(cardinality, 1, aggregatorHost)
 	}
 }
 

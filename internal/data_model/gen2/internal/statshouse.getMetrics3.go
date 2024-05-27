@@ -61,15 +61,18 @@ func (item *StatshouseGetMetrics3) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *StatshouseGetMetrics3) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetMetrics3) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetMetrics3) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.Limit)
-	return w, nil
+	return w
 }
 
 func (item *StatshouseGetMetrics3) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -79,7 +82,12 @@ func (item *StatshouseGetMetrics3) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseGetMetrics3) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetMetrics3) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetMetrics3) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x42855554)
 	return item.Write(w)
 }
@@ -89,20 +97,23 @@ func (item *StatshouseGetMetrics3) ReadResult(w []byte, ret *MetadataGetJournalR
 }
 
 func (item *StatshouseGetMetrics3) WriteResult(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
-func (item *StatshouseGetMetrics3) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenew) error {
-	if err := MetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetMetrics3) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenew) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseGetMetrics3) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -115,13 +126,19 @@ func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *StatshouseGetMetrics3) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
-	}
+func (item *StatshouseGetMetrics3) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenew
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetMetrics3) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataGetJournalResponsenew
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -129,109 +146,172 @@ func (item *StatshouseGetMetrics3) ReadResultJSONWriteResult(r []byte, w []byte)
 }
 
 func (item StatshouseGetMetrics3) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseGetMetrics3__ReadJSON(item *StatshouseGetMetrics3, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetMetrics3) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jFrom := _jm["from"]
-	delete(_jm, "from")
-	if err := JsonReadInt64(_jFrom, &item.From); err != nil {
-		return err
-	}
-	_jLimit := _jm["limit"]
-	delete(_jm, "limit")
-	if err := JsonReadInt64(_jLimit, &item.Limit); err != nil {
-		return err
-	}
-	_jReturnIfEmpty := _jm["return_if_empty"]
-	delete(_jm, "return_if_empty")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getMetrics3", k)
-	}
-	if _jReturnIfEmpty != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnIfEmpty, &_bit); err != nil {
-			return err
+func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propFieldMaskPresented bool
+	var propFromPresented bool
+	var propLimitPresented bool
+	var trueTypeReturnIfEmptyPresented bool
+	var trueTypeReturnIfEmptyValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "from")
+				}
+				if err := Json2ReadInt64(in, &item.From); err != nil {
+					return err
+				}
+				propFromPresented = true
+			case "limit":
+				if propLimitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "limit")
+				}
+				if err := Json2ReadInt64(in, &item.Limit); err != nil {
+					return err
+				}
+				propLimitPresented = true
+			case "return_if_empty":
+				if trueTypeReturnIfEmptyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "return_if_empty")
+				}
+				if err := Json2ReadBool(in, &trueTypeReturnIfEmptyValue); err != nil {
+					return err
+				}
+				trueTypeReturnIfEmptyPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getMetrics3", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propFromPresented {
+		item.From = 0
+	}
+	if !propLimitPresented {
+		item.Limit = 0
+	}
+	if trueTypeReturnIfEmptyPresented {
+		if trueTypeReturnIfEmptyValue {
 			item.FieldMask |= 1 << 3
-		} else {
-			item.FieldMask &^= 1 << 3
 		}
 	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetrics3) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetMetrics3) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetMetrics3) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseGetMetrics3) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt64(w, item.From)
+	if (item.From != 0) == false {
+		w = w[:backupIndexFrom]
 	}
-	if item.From != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"from":`...)
-		w = basictl.JSONWriteInt64(w, item.From)
-	}
-	if item.Limit != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"limit":`...)
-		w = basictl.JSONWriteInt64(w, item.Limit)
+	backupIndexLimit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"limit":`...)
+	w = basictl.JSONWriteInt64(w, item.Limit)
+	if (item.Limit != 0) == false {
+		w = w[:backupIndexLimit]
 	}
 	if item.FieldMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_if_empty":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetMetrics3) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetMetrics3) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
 	}
 	return nil
@@ -285,15 +365,18 @@ func (item *StatshouseGetMetrics3Bytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *StatshouseGetMetrics3Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetMetrics3Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetMetrics3Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.Limit)
-	return w, nil
+	return w
 }
 
 func (item *StatshouseGetMetrics3Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -303,7 +386,12 @@ func (item *StatshouseGetMetrics3Bytes) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *StatshouseGetMetrics3Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetMetrics3Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetMetrics3Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x42855554)
 	return item.Write(w)
 }
@@ -313,20 +401,23 @@ func (item *StatshouseGetMetrics3Bytes) ReadResult(w []byte, ret *MetadataGetJou
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteResult(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldsMask)
+	w = ret.WriteBoxed(w, item.FieldsMask)
+	return w, nil
 }
 
-func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenewBytes) error {
-	if err := MetadataGetJournalResponsenewBytes__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenewBytes) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseGetMetrics3Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -339,13 +430,19 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(r []byte, w []
 	return r, w, err
 }
 
-func (item *StatshouseGetMetrics3Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
-	}
+func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenewBytes
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetMetrics3Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataGetJournalResponsenewBytes
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -353,109 +450,172 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultJSONWriteResult(r []byte, w []
 }
 
 func (item StatshouseGetMetrics3Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseGetMetrics3Bytes__ReadJSON(item *StatshouseGetMetrics3Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetMetrics3Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jFrom := _jm["from"]
-	delete(_jm, "from")
-	if err := JsonReadInt64(_jFrom, &item.From); err != nil {
-		return err
-	}
-	_jLimit := _jm["limit"]
-	delete(_jm, "limit")
-	if err := JsonReadInt64(_jLimit, &item.Limit); err != nil {
-		return err
-	}
-	_jReturnIfEmpty := _jm["return_if_empty"]
-	delete(_jm, "return_if_empty")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getMetrics3", k)
-	}
-	if _jReturnIfEmpty != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnIfEmpty, &_bit); err != nil {
-			return err
+func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propFieldMaskPresented bool
+	var propFromPresented bool
+	var propLimitPresented bool
+	var trueTypeReturnIfEmptyPresented bool
+	var trueTypeReturnIfEmptyValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "from")
+				}
+				if err := Json2ReadInt64(in, &item.From); err != nil {
+					return err
+				}
+				propFromPresented = true
+			case "limit":
+				if propLimitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "limit")
+				}
+				if err := Json2ReadInt64(in, &item.Limit); err != nil {
+					return err
+				}
+				propLimitPresented = true
+			case "return_if_empty":
+				if trueTypeReturnIfEmptyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "return_if_empty")
+				}
+				if err := Json2ReadBool(in, &trueTypeReturnIfEmptyValue); err != nil {
+					return err
+				}
+				trueTypeReturnIfEmptyPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getMetrics3", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propFromPresented {
+		item.From = 0
+	}
+	if !propLimitPresented {
+		item.Limit = 0
+	}
+	if trueTypeReturnIfEmptyPresented {
+		if trueTypeReturnIfEmptyValue {
 			item.FieldMask |= 1 << 3
-		} else {
-			item.FieldMask &^= 1 << 3
 		}
 	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetrics3Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetMetrics3Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetMetrics3Bytes) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt64(w, item.From)
+	if (item.From != 0) == false {
+		w = w[:backupIndexFrom]
 	}
-	if item.From != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"from":`...)
-		w = basictl.JSONWriteInt64(w, item.From)
-	}
-	if item.Limit != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"limit":`...)
-		w = basictl.JSONWriteInt64(w, item.Limit)
+	backupIndexLimit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"limit":`...)
+	w = basictl.JSONWriteInt64(w, item.Limit)
+	if (item.Limit != 0) == false {
+		w = w[:backupIndexLimit]
 	}
 	if item.FieldMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_if_empty":true`...)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetMetrics3Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetMetrics3Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
 	}
 	return nil

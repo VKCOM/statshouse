@@ -1,0 +1,15 @@
+statshouse:
+  namespace:
+    name: scrape
+    known_tags:
+      job: 1
+  groups:
+  - name: ClickHouse
+    known_tags:
+      instance: 2
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: clickhouse
+    static_configs:
+      - targets: [127.0.0.1:9363]

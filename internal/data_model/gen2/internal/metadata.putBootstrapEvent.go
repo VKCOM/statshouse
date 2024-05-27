@@ -30,12 +30,18 @@ func (item *MetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	return VectorStatshouseMapping0Read(w, &item.Mappings)
+	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
-func (item *MetadataPutBootstrapEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataPutBootstrapEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataPutBootstrapEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return VectorStatshouseMapping0Write(w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
+	return w
 }
 
 func (item *MetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,70 +51,101 @@ func (item *MetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *MetadataPutBootstrapEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutBootstrapEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutBootstrapEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5854dfaf)
 	return item.Write(w)
 }
 
 func (item MetadataPutBootstrapEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataPutBootstrapEvent__ReadJSON(item *MetadataPutBootstrapEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putBootstrapEvent", "expected json object")
+func (item *MetadataPutBootstrapEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propMappingsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putBootstrapEvent", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "mappings":
+				if propMappingsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putBootstrapEvent", "mappings")
+				}
+				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+					return err
+				}
+				propMappingsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.putBootstrapEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jMappings := _jm["mappings"]
-	delete(_jm, "mappings")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putBootstrapEvent", k)
-	}
-	if err := VectorStatshouseMapping0ReadJSON(_jMappings, &item.Mappings); err != nil {
-		return err
+	if !propMappingsPresented {
+		item.Mappings = item.Mappings[:0]
 	}
 	return nil
 }
 
-func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutBootstrapEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataPutBootstrapEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Mappings) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0WriteJSON(w, item.Mappings); err != nil {
-			return w, err
-		}
+	backupIndexMappings := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"mappings":`...)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings)
+	if (len(item.Mappings) != 0) == false {
+		w = w[:backupIndexMappings]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutBootstrapEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutBootstrapEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.putBootstrapEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putBootstrapEvent", err.Error())
 	}
 	return nil

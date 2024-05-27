@@ -13,6 +13,75 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiPointMetaRead(w []byte, vec *[]StatshouseApiPointMeta) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseApiPointMeta, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseApiPointMetaWrite(w []byte, vec []StatshouseApiPointMeta) []byte {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		w = elem.Write(w)
+	}
+	return w
+}
+
+func BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiPointMeta", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseApiPointMeta
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiPointMeta", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
+func BuiltinVectorStatshouseApiPointMetaWriteJSON(w []byte, vec []StatshouseApiPointMeta) []byte {
+	return BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiPointMeta) []byte {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
+	}
+	return append(w, ']')
+}
+
 type StatshouseApiPointMeta struct {
 	FieldsMask uint32
 	TimeShift  int64
@@ -40,7 +109,7 @@ func (item *StatshouseApiPointMeta) Reset() {
 	item.TimeShift = 0
 	item.From = 0
 	item.To = 0
-	VectorDictionaryFieldString0Reset(item.Tags)
+	BuiltinVectorDictionaryFieldStringReset(item.Tags)
 	item.What.Reset()
 }
 
@@ -57,7 +126,7 @@ func (item *StatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.To); err != nil {
 		return w, err
 	}
-	if w, err = VectorDictionaryFieldString0Read(w, &item.Tags); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Tags); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
@@ -70,20 +139,21 @@ func (item *StatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *StatshouseApiPointMeta) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiPointMeta) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiPointMeta) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.TimeShift)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.To)
-	if w, err = VectorDictionaryFieldString0Write(w, item.Tags); err != nil {
-		return w, err
-	}
+	w = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags)
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = item.What.WriteBoxed(w); err != nil {
-			return w, err
-		}
+		w = item.What.WriteBoxed(w)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -93,180 +163,179 @@ func (item *StatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseApiPointMeta) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiPointMeta) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiPointMeta) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5c2bf296)
 	return item.Write(w)
 }
 
 func (item StatshouseApiPointMeta) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseApiPointMeta__ReadJSON(item *StatshouseApiPointMeta, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiPointMeta) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.pointMeta", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jTimeShift := _jm["time_shift"]
-	delete(_jm, "time_shift")
-	if err := JsonReadInt64(_jTimeShift, &item.TimeShift); err != nil {
-		return err
-	}
-	_jFrom := _jm["from"]
-	delete(_jm, "from")
-	if err := JsonReadInt64(_jFrom, &item.From); err != nil {
-		return err
-	}
-	_jTo := _jm["to"]
-	delete(_jm, "to")
-	if err := JsonReadInt64(_jTo, &item.To); err != nil {
-		return err
-	}
-	_jTags := _jm["tags"]
-	delete(_jm, "tags")
-	_jWhat := _jm["what"]
-	delete(_jm, "what")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.pointMeta", k)
-	}
-	if _jWhat != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if err := VectorDictionaryFieldString0ReadJSON(_jTags, &item.Tags); err != nil {
-		return err
-	}
-	if _jWhat != nil {
-		if err := StatshouseApiFunction__ReadJSON(&item.What, _jWhat); err != nil {
-			return err
+func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propTimeShiftPresented bool
+	var propFromPresented bool
+	var propToPresented bool
+	var propTagsPresented bool
+	var propWhatPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "time_shift":
+				if propTimeShiftPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "time_shift")
+				}
+				if err := Json2ReadInt64(in, &item.TimeShift); err != nil {
+					return err
+				}
+				propTimeShiftPresented = true
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "from")
+				}
+				if err := Json2ReadInt64(in, &item.From); err != nil {
+					return err
+				}
+				propFromPresented = true
+			case "to":
+				if propToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "to")
+				}
+				if err := Json2ReadInt64(in, &item.To); err != nil {
+					return err
+				}
+				propToPresented = true
+			case "tags":
+				if propTagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "tags")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+					return err
+				}
+				propTagsPresented = true
+			case "what":
+				if propWhatPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "what")
+				}
+				if err := item.What.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propWhatPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.pointMeta", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propTimeShiftPresented {
+		item.TimeShift = 0
+	}
+	if !propFromPresented {
+		item.From = 0
+	}
+	if !propToPresented {
+		item.To = 0
+	}
+	if !propTagsPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Tags)
+	}
+	if !propWhatPresented {
 		item.What.Reset()
+	}
+	if propWhatPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
 
-func (item *StatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiPointMeta) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiPointMeta) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseApiPointMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.TimeShift != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_shift":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeShift)
+	backupIndexTimeShift := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_shift":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeShift)
+	if (item.TimeShift != 0) == false {
+		w = w[:backupIndexTimeShift]
 	}
-	if item.From != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"from":`...)
-		w = basictl.JSONWriteInt64(w, item.From)
+	backupIndexFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt64(w, item.From)
+	if (item.From != 0) == false {
+		w = w[:backupIndexFrom]
 	}
-	if item.To != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"to":`...)
-		w = basictl.JSONWriteInt64(w, item.To)
+	backupIndexTo := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"to":`...)
+	w = basictl.JSONWriteInt64(w, item.To)
+	if (item.To != 0) == false {
+		w = w[:backupIndexTo]
 	}
-	if len(item.Tags) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tags":`...)
-		if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Tags); err != nil {
-			return w, err
-		}
+	backupIndexTags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tags":`...)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags)
+	if (len(item.Tags) != 0) == false {
+		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = item.What.WriteJSON(w); err != nil {
-			return w, err
-		}
+		w = item.What.WriteJSONOpt(newTypeNames, short, w)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiPointMeta) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.pointMeta", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.pointMeta", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseApiPointMeta0Read(w []byte, vec *[]StatshouseApiPointMeta) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseApiPointMeta, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseApiPointMeta0Write(w []byte, vec []StatshouseApiPointMeta) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseApiPointMeta0ReadJSON(j interface{}, vec *[]StatshouseApiPointMeta) error {
-	l, _arr, err := JsonReadArray("[]StatshouseApiPointMeta", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseApiPointMeta, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseApiPointMeta__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseApiPointMeta0WriteJSON(w []byte, vec []StatshouseApiPointMeta) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

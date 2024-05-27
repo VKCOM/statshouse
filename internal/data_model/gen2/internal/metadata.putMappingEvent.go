@@ -32,18 +32,22 @@ func (item *MetadataPutMappingEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = VectorString0Read(w, &item.Keys); err != nil {
+	if w, err = BuiltinVectorStringRead(w, &item.Keys); err != nil {
 		return w, err
 	}
-	return VectorInt0Read(w, &item.Value)
+	return BuiltinVectorIntRead(w, &item.Value)
 }
 
-func (item *MetadataPutMappingEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataPutMappingEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataPutMappingEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = VectorString0Write(w, item.Keys); err != nil {
-		return w, err
-	}
-	return VectorInt0Write(w, item.Value)
+	w = BuiltinVectorStringWrite(w, item.Keys)
+	w = BuiltinVectorIntWrite(w, item.Value)
+	return w
 }
 
 func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,82 +57,120 @@ func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataPutMappingEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataPutMappingEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataPutMappingEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12345676)
 	return item.Write(w)
 }
 
 func (item MetadataPutMappingEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataPutMappingEvent__ReadJSON(item *MetadataPutMappingEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataPutMappingEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putMappingEvent", "expected json object")
+func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propKeysPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "keys":
+				if propKeysPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "keys")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Keys); err != nil {
+					return err
+				}
+				propKeysPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "value")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.putMappingEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jKeys := _jm["keys"]
-	delete(_jm, "keys")
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putMappingEvent", k)
+	if !propKeysPresented {
+		item.Keys = item.Keys[:0]
 	}
-	if err := VectorString0ReadJSON(_jKeys, &item.Keys); err != nil {
-		return err
-	}
-	if err := VectorInt0ReadJSON(_jValue, &item.Value); err != nil {
-		return err
+	if !propValuePresented {
+		item.Value = item.Value[:0]
 	}
 	return nil
 }
 
-func (item *MetadataPutMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataPutMappingEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataPutMappingEvent) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Keys) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"keys":`...)
-		if w, err = VectorString0WriteJSON(w, item.Keys); err != nil {
-			return w, err
-		}
+	backupIndexKeys := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"keys":`...)
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Keys)
+	if (len(item.Keys) != 0) == false {
+		w = w[:backupIndexKeys]
 	}
-	if len(item.Value) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Value); err != nil {
-			return w, err
-		}
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Value)
+	if (len(item.Value) != 0) == false {
+		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataPutMappingEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataPutMappingEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.putMappingEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putMappingEvent", err.Error())
 	}
 	return nil

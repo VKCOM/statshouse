@@ -72,6 +72,7 @@ const (
 	cacheKB            = 65536                         // 64MB
 	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 	commitEveryDefault = 1 * time.Second
+	defaultPageSize    = 4 * 1024 // 4KB
 
 	beginStmt  = "BEGIN IMMEDIATE" // make sure we don't get SQLITE_BUSY in the middle of transaction
 	commitStmt = "COMMIT"
@@ -129,7 +130,7 @@ type (
 
 	Options struct {
 		Path                  string
-		APPID                 int32
+		APPID                 uint32
 		StatsOptions          StatsOptions
 		Scheme                string
 		Replica               bool
@@ -141,6 +142,7 @@ type (
 
 		MaxROConn              int
 		CacheMaxSizePerConnect int
+		PageSize               int
 	}
 
 	waitCommitInfo struct {
@@ -179,7 +181,29 @@ const (
 )
 
 func OpenRO(opt Options) (*Engine, error) {
-	ro, err := openROWAL(opt.Path)
+	rawConn, err := sqlite0.Open(opt.Path, sqlite0.OpenReadonly)
+	if err != nil {
+		return nil, err
+	}
+	conn := newSqliteConn(rawConn, 1)
+
+	ctx, stop := context.WithCancel(context.Background())
+	e := &Engine{
+		rw:             nil,
+		ctx:            ctx,
+		stop:           stop,
+		opt:            opt,
+		roFree:         []*sqliteConn{conn},
+		roCount:        1,
+		mode:           replica,
+		readOnlyEngine: true,
+	}
+	e.roCond = sync.NewCond(&e.roMx)
+	return e, nil
+}
+
+func OpenROWal(opt Options) (*Engine, error) {
+	ro, err := openROWAL(opt.Path, opt.PageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +255,7 @@ func openDB(opt Options,
 	if opt.MaxROConn == 0 {
 		opt.MaxROConn = 100
 	}
-	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
+	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.PageSize, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
@@ -345,7 +369,7 @@ func (e *Engine) binlogWaitReady(impl *binlogEngineReplicaImpl) error {
 	return nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -366,6 +390,16 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 		return nil, fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
 
+	if pageSize <= 0 {
+		pageSize = defaultPageSize
+	}
+
+	err = conn.Exec(fmt.Sprintf("PRAGMA page_size=%d", pageSize))
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to set page_size: %w", err)
+	}
+
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
 	if err != nil {
 		_ = conn.Close()
@@ -375,8 +409,8 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
+func openRW(open func(path string, flags int, pageSize int) (*sqlite0.Conn, error), path string, appID uint32, pageSize int, schemas ...string) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -421,8 +455,8 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 //		return conn, nil
 //	}
 
-func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly)
+func openROWAL(path string, pageSize int) (*sqlite0.Conn, error) {
+	return openWAL(path, sqlite0.OpenReadonly, pageSize)
 }
 
 func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
@@ -680,7 +714,7 @@ func (e *Engine) do(fn func(Conn) error) error {
 func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", time.Now())
 	var path string
-	err := doSingleROToWALQuery(e.opt.Path, func(conn *sqliteConn) error {
+	err := doSingleROToWALQuery(e.opt.Path, e.opt.PageSize, func(conn *sqliteConn) error {
 		var err error
 		path, err = backupToTemp(ctx, conn, prefix, &e.opt.StatsOptions)
 		return err
@@ -714,7 +748,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 		e.roCond.Wait()
 	}
 	if len(e.roFree) == 0 {
-		ro, err := openROWAL(e.opt.Path)
+		ro, err := openROWAL(e.opt.Path, e.opt.PageSize)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)

@@ -55,15 +55,18 @@ func (item *MetadataResetFlood2) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataResetFlood2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataResetFlood2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataResetFlood2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
 	if item.FieldMask&(1<<1) != 0 {
 		w = basictl.IntWrite(w, item.Value)
 	}
-	return w, nil
+	return w
 }
 
 func (item *MetadataResetFlood2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -73,7 +76,12 @@ func (item *MetadataResetFlood2) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataResetFlood2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataResetFlood2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataResetFlood2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x88d0fd5e)
 	return item.Write(w)
 }
@@ -83,20 +91,23 @@ func (item *MetadataResetFlood2) ReadResult(w []byte, ret *MetadataResetFloodRes
 }
 
 func (item *MetadataResetFlood2) WriteResult(w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *MetadataResetFlood2) ReadResultJSON(j interface{}, ret *MetadataResetFloodResponse2) error {
-	if err := MetadataResetFloodResponse2__ReadJSON(ret, j); err != nil {
+func (item *MetadataResetFlood2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataResetFloodResponse2) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataResetFlood2) WriteResultJSON(w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *MetadataResetFlood2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -109,13 +120,19 @@ func (item *MetadataResetFlood2) ReadResultWriteResultJSON(r []byte, w []byte) (
 	return r, w, err
 }
 
-func (item *MetadataResetFlood2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.resetFlood2", err.Error())
-	}
+func (item *MetadataResetFlood2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataResetFloodResponse2
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *MetadataResetFlood2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataResetFloodResponse2
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -123,81 +140,110 @@ func (item *MetadataResetFlood2) ReadResultJSONWriteResult(r []byte, w []byte) (
 }
 
 func (item MetadataResetFlood2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataResetFlood2__ReadJSON(item *MetadataResetFlood2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataResetFlood2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.resetFlood2", "expected json object")
-	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.resetFlood2", k)
-	}
-	if _jValue != nil {
-		item.FieldMask |= 1 << 1
-	}
-	if _jValue != nil {
-		if err := JsonReadInt32(_jValue, &item.Value); err != nil {
-			return err
+func (item *MetadataResetFlood2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propMetricPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFlood2", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFlood2", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.resetFlood2", "value")
+				}
+				if err := Json2ReadInt32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.resetFlood2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = ""
+	}
+	if !propValuePresented {
 		item.Value = 0
+	}
+	if propValuePresented {
+		item.FieldMask |= 1 << 1
 	}
 	return nil
 }
 
-func (item *MetadataResetFlood2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataResetFlood2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataResetFlood2) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataResetFlood2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
 	if item.FieldMask&(1<<1) != 0 {
-		if item.Value != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value":`...)
-			w = basictl.JSONWriteInt32(w, item.Value)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value":`...)
+		w = basictl.JSONWriteInt32(w, item.Value)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataResetFlood2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataResetFlood2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.resetFlood2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.resetFlood2", err.Error())
 	}
 	return nil

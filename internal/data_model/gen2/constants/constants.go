@@ -75,6 +75,7 @@ const (
 	EngineUnregisterDynamicLib                   = 0x84d5fcb9 // engine.unregisterDynamicLib
 	EngineVersion                                = 0x1a2e06fa // engine.version
 	EngineWriteNop                               = 0x58160af4 // engine.writeNop
+	Int                                          = 0xa8509bda // int
 	KvEngineBackup                               = 0x3c7231b2 // kv_engine.backup
 	KvEngineBackupResponse                       = 0x732a1764 // kv_engine.backup_response
 	KvEngineChangeResponse                       = 0x73eaa764 // kv_engine.change_response
@@ -93,6 +94,8 @@ const (
 	MetadataEditEntitynew                        = 0x86df475f // metadata.editEntitynew
 	MetadataEditMetricEvent                      = 0x12345677 // metadata.editMetricEvent
 	MetadataEvent                                = 0x9286affa // metadata.event
+	MetadataGetEntity                            = 0x72b132f8 // metadata.getEntity
+	MetadataGetHistoryShortInfo                  = 0x22ff6a79 // metadata.getHistoryShortInfo
 	MetadataGetInvertMapping                     = 0x9faf5280 // metadata.getInvertMapping
 	MetadataGetInvertMappingResponse             = 0x9286abac // metadata.getInvertMappingResponse
 	MetadataGetInvertMappingResponseKeyNotExists = 0x9286abab // metadata.getInvertMappingResponseKeyNotExists
@@ -106,6 +109,8 @@ const (
 	MetadataGetMetrics                           = 0x93ba92f5 // metadata.getMetrics
 	MetadataGetMetricsResponse                   = 0x9286abfb // metadata.getMetricsResponse
 	MetadataGetTagMappingBootstrap               = 0x5fc81a9b // metadata.getTagMappingBootstrap
+	MetadataHistoryShortResponse                 = 0x7186baaf // metadata.history_short_response
+	MetadataHistoryShortResponseEvent            = 0x1186baaf // metadata.history_short_response_event
 	MetadataMetricOld                            = 0x9286abfa // metadata.metricOld
 	MetadataPutBootstrapEvent                    = 0x5854dfaf // metadata.putBootstrapEvent
 	MetadataPutMapping                           = 0x9faf5281 // metadata.putMapping
@@ -201,6 +206,7 @@ const (
 	StatshouseApiSeries                          = 0x07a3e919 // statshouseApi.series
 	StatshouseApiSeriesMeta                      = 0x5c2bf286 // statshouseApi.seriesMeta
 	StatshouseApiTagValue                        = 0x43eeb763 // statshouseApi.tagValue
+	String                                       = 0xb5286e24 // string
 	True                                         = 0x3fedd339 // true
 	Tuple                                        = 0x9770768a // tuple
 	Vector                                       = 0x1cb5c415 // vector

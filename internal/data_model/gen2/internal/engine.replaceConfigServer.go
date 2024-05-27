@@ -43,15 +43,17 @@ func (item *EngineReplaceConfigServer) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Port)
 }
 
-func (item *EngineReplaceConfigServer) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.ClusterName); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *EngineReplaceConfigServer) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReplaceConfigServer) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.ClusterName)
 	w = basictl.IntWrite(w, item.ServerOffset)
-	if w, err = basictl.StringWrite(w, item.Host); err != nil {
-		return w, err
-	}
-	return basictl.IntWrite(w, item.Port), nil
+	w = basictl.StringWrite(w, item.Host)
+	w = basictl.IntWrite(w, item.Port)
+	return w
 }
 
 func (item *EngineReplaceConfigServer) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -61,7 +63,12 @@ func (item *EngineReplaceConfigServer) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-func (item *EngineReplaceConfigServer) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReplaceConfigServer) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReplaceConfigServer) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5fcd8e77)
 	return item.Write(w)
 }
@@ -71,20 +78,23 @@ func (item *EngineReplaceConfigServer) ReadResult(w []byte, ret *True) (_ []byte
 }
 
 func (item *EngineReplaceConfigServer) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineReplaceConfigServer) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineReplaceConfigServer) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineReplaceConfigServer) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineReplaceConfigServer) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -97,13 +107,19 @@ func (item *EngineReplaceConfigServer) ReadResultWriteResultJSON(r []byte, w []b
 	return r, w, err
 }
 
-func (item *EngineReplaceConfigServer) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.replaceConfigServer", err.Error())
-	}
+func (item *EngineReplaceConfigServer) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineReplaceConfigServer) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret True
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -111,82 +127,128 @@ func (item *EngineReplaceConfigServer) ReadResultJSONWriteResult(r []byte, w []b
 }
 
 func (item EngineReplaceConfigServer) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineReplaceConfigServer__ReadJSON(item *EngineReplaceConfigServer, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReplaceConfigServer) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.replaceConfigServer", "expected json object")
+func (item *EngineReplaceConfigServer) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propClusterNamePresented bool
+	var propServerOffsetPresented bool
+	var propHostPresented bool
+	var propPortPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "cluster_name":
+				if propClusterNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.replaceConfigServer", "cluster_name")
+				}
+				if err := Json2ReadString(in, &item.ClusterName); err != nil {
+					return err
+				}
+				propClusterNamePresented = true
+			case "server_offset":
+				if propServerOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.replaceConfigServer", "server_offset")
+				}
+				if err := Json2ReadInt32(in, &item.ServerOffset); err != nil {
+					return err
+				}
+				propServerOffsetPresented = true
+			case "host":
+				if propHostPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.replaceConfigServer", "host")
+				}
+				if err := Json2ReadString(in, &item.Host); err != nil {
+					return err
+				}
+				propHostPresented = true
+			case "port":
+				if propPortPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.replaceConfigServer", "port")
+				}
+				if err := Json2ReadInt32(in, &item.Port); err != nil {
+					return err
+				}
+				propPortPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.replaceConfigServer", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jClusterName := _jm["cluster_name"]
-	delete(_jm, "cluster_name")
-	if err := JsonReadString(_jClusterName, &item.ClusterName); err != nil {
-		return err
+	if !propClusterNamePresented {
+		item.ClusterName = ""
 	}
-	_jServerOffset := _jm["server_offset"]
-	delete(_jm, "server_offset")
-	if err := JsonReadInt32(_jServerOffset, &item.ServerOffset); err != nil {
-		return err
+	if !propServerOffsetPresented {
+		item.ServerOffset = 0
 	}
-	_jHost := _jm["host"]
-	delete(_jm, "host")
-	if err := JsonReadString(_jHost, &item.Host); err != nil {
-		return err
+	if !propHostPresented {
+		item.Host = ""
 	}
-	_jPort := _jm["port"]
-	delete(_jm, "port")
-	if err := JsonReadInt32(_jPort, &item.Port); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.replaceConfigServer", k)
+	if !propPortPresented {
+		item.Port = 0
 	}
 	return nil
 }
 
-func (item *EngineReplaceConfigServer) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReplaceConfigServer) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReplaceConfigServer) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReplaceConfigServer) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.ClusterName) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_name":`...)
-		w = basictl.JSONWriteString(w, item.ClusterName)
+	backupIndexClusterName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_name":`...)
+	w = basictl.JSONWriteString(w, item.ClusterName)
+	if (len(item.ClusterName) != 0) == false {
+		w = w[:backupIndexClusterName]
 	}
-	if item.ServerOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"server_offset":`...)
-		w = basictl.JSONWriteInt32(w, item.ServerOffset)
+	backupIndexServerOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"server_offset":`...)
+	w = basictl.JSONWriteInt32(w, item.ServerOffset)
+	if (item.ServerOffset != 0) == false {
+		w = w[:backupIndexServerOffset]
 	}
-	if len(item.Host) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"host":`...)
-		w = basictl.JSONWriteString(w, item.Host)
+	backupIndexHost := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"host":`...)
+	w = basictl.JSONWriteString(w, item.Host)
+	if (len(item.Host) != 0) == false {
+		w = w[:backupIndexHost]
 	}
-	if item.Port != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"port":`...)
-		w = basictl.JSONWriteInt32(w, item.Port)
+	backupIndexPort := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"port":`...)
+	w = basictl.JSONWriteInt32(w, item.Port)
+	if (item.Port != 0) == false {
+		w = w[:backupIndexPort]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineReplaceConfigServer) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineReplaceConfigServer) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.replaceConfigServer", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.replaceConfigServer", err.Error())
 	}
 	return nil

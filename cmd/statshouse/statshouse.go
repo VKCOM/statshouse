@@ -38,7 +38,6 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 )
 
@@ -159,6 +158,9 @@ func runMain() int {
 		case "tag_mapping", "-tag_mapping", "--tag_mapping":
 			mainTagMapping()
 			return 0
+		case "publish_tag_drafts", "-publish_tag_drafts", "--publish_tag_drafts":
+			mainPublishTagDrafts()
+			return 0
 		default:
 			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", verb)
 			printVerbUsage()
@@ -264,13 +266,14 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
-	sh2, err := agent.MakeAgent("tcp4",
+	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
 		argv.configAgent,
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage,
+		dc,
 		log.Printf,
 		func(a *agent.Agent, t time.Time) {
 			k := data_model.Key{
@@ -300,9 +303,27 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		return 1
 	}
 	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
 		if err != nil {
 			logErr.Printf("ListenUDP: %v", err)
+			return 1
+		}
+		defer func() { _ = u.Close() }()
+		receiversUDP = append(receiversUDP, u)
+		if argv.listenAddrIPv6 != "" {
+			ipv6u, err := receiver.ListenUDP("udp", argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+			if err != nil {
+				logErr.Printf("ListenUDP IPv6: %v", err)
+				return 1
+			}
+			defer func() { _ = ipv6u.Close() }()
+			receiversUDP = append(receiversUDP, ipv6u)
+		}
+	}
+	if argv.listenAddrUnix != "" {
+		u, err := receiver.ListenUDP("unixgram", argv.listenAddrUnix, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("ListenUDP Unix: %v", err)
 			return 1
 		}
 		defer func() { _ = u.Close() }()
@@ -354,62 +375,47 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}(u)
 	}
 
-	runPromScraperAsync(!argv.promRemoteMod, w, sh2)
-	if argv.configAgent.RemoteWriteEnabled {
-		closer := prometheus.ServeRemoteWrite(argv.configAgent, w)
-		defer closer()
+	// Open port
+	listeners := make([]net.Listener, 0, 2)
+	listeners = append(listeners, listen("tcp4", argv.listenAddr))
+	if argv.listenAddrIPv6 != "" {
+		listeners = append(listeners, listen("tcp6", argv.listenAddrIPv6))
 	}
 
+	// Run pprof server
+	var hijack *rpc.HijackListener
+	if argv.pprofHTTP {
+		hijack = rpc.NewHijackListener(listeners[0].Addr())
+		defer func() { _ = hijack.Close() }()
+		go trustedNetworkServeHTTP(hijack)
+	}
+
+	// Run RPC server
 	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
-
-	var hijackListener *rpc.HijackListener
-	srv := rpc.NewServer(
-		rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-			hijackListener.AddConnection(conn)
-		}),
+	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
+	}
+	if hijack != nil {
+		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijack.AddConnection(conn)
+		}))
+	}
+	srv := rpc.NewServer(options...)
 	defer func() { _ = srv.Close() }()
-	rpcLn, err := net.Listen("tcp4", argv.listenAddr)
-	if err != nil {
-		logErr.Fatalf("RPC listen failed: %v", err)
+	for _, ln := range listeners {
+		go serveRPC(ln, srv)
 	}
 
-	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
-	defer func() { _ = hijackListener.Close() }()
-
-	go func() {
-		err := srv.Serve(rpcLn)
-		if err != nil && err != rpc.ErrServerClosed {
-			logErr.Fatalf("RPC server failed: %v", err)
-		}
-	}()
-	if argv.pprofHTTP {
-		go func() { // serve pprof on RPC port
-			m := http.NewServeMux()
-			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
-				if err == nil && remoteAddr.IP.IsLoopback() {
-					http.DefaultServeMux.ServeHTTP(w, r)
-				} else {
-					w.WriteHeader(http.StatusUnauthorized)
-				}
-			})
-			logOk.Printf("Start listening pprof HTTP %q", argv.listenAddr)
-			s := http.Server{Handler: m}
-			_ = s.Serve(hijackListener)
-		}()
-	} else {
-		_ = hijackListener.Close() // will close all incoming connections
-	}
-
+	// Run scrape
+	receiver.RunScrape(sh2, w)
 	if !argv.hardwareMetricScrapeDisable {
 		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
 		if err != nil {
@@ -470,52 +476,96 @@ func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
 	return 0
 }
 
-func mainIngressProxy(aesPwd string) int {
-	if err := argv.configAgent.ValidateConfigSource(); err != nil {
-		logErr.Printf("%s", err)
-		return 1
+func mainIngressProxy(aesPwd string) {
+	// Ensure proxy configuration is valid
+	config := argv.configIngress
+	config.Network = "tcp"
+	config.Cluster = argv.cluster
+	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
+	if len(config.ExternalAddresses) != 3 {
+		logErr.Fatalf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
 	}
-	argv.configAgent.Cluster = argv.cluster
-	argv.configIngress.Cluster = argv.cluster
-	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
-	if len(argv.configIngress.ExternalAddresses) != 3 {
-		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")
-		return 1
+	if len(config.IngressKeys) == 0 {
+		logErr.Fatalf("ingress proxy must have non-empty list of ingress crypto keys")
 	}
-	argv.configIngress.Network = "tcp4"
 
-	// We use agent instance for ingress proxy built-in metrics
-	sh2, err := agent.MakeAgent("tcp4", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-		format.TagValueIDComponentIngressProxy, nil, log.Printf, nil, nil)
+	// Ensure agent configuration is valid
+	if err := argv.configAgent.ValidateConfigSource(); err != nil {
+		logErr.Fatalf("%v", err)
+	}
+
+	// Open port and run pprof server
+	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
 	if err != nil {
-		logErr.Printf("error creating Agent instance: %v", err)
-		return 1
+		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
+	}
+	var hijack *rpc.HijackListener
+	if argv.pprofHTTP {
+		hijack = rpc.NewHijackListener(ln.Addr())
+		defer func() { _ = hijack.Close() }()
+		go trustedNetworkServeHTTP(hijack)
+	}
+
+	// Run agent (we use agent instance for ingress proxy built-in metrics)
+	argv.configAgent.Cluster = argv.cluster
+	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
+		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
+	if err != nil {
+		logErr.Fatalf("error creating Agent instance: %v", err)
 	}
 	sh2.Run(0, 0, 0)
-	if err := aggregator.RunIngressProxy(sh2, aesPwd, argv.configIngress); err != nil {
-		logErr.Printf("%v", err)
-		return 1
+
+	// Run ingress proxy
+	err = aggregator.RunIngressProxy(ln, hijack, sh2, aesPwd, config)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Fatalf("error running ingress proxy: %v", err)
 	}
-	return 0
 }
 
-func runPromScraperAsync(localMode bool, handler receiver.Handler, sh *agent.Agent) prometheus.Syncer {
-	syncer := prometheus.NewSyncer(logOk, logErr, sh.LoadPromTargets)
-	var s *prometheus.Scraper
-	if localMode {
-		s = prometheus.NewScraper(prometheus.NewLocalMetricPusher(handler), syncer, logOk, logErr)
-	} else {
-		logErr.Printf("can't run prom scraper in remote mode")
-		return nil
+func listen(network, address string) net.Listener {
+	ln, err := net.Listen(network, address)
+	if err != nil {
+		logErr.Fatalf("Failed to listen on %s %s: %v", network, address, err)
 	}
-	go func() {
-		defer func() {
-			err := recover()
-			if err != nil {
-				logErr.Printf("panic in prometheus scraper: %v", err)
+	return ln
+}
+
+func serveRPC(ln net.Listener, server *rpc.Server) {
+	err := server.Serve(ln)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Fatalf("RPC server failed to serve on %s: %v", ln.Addr(), err)
+	}
+}
+
+func trustedNetworkServeHTTP(ln *rpc.HijackListener) {
+	handler := http.NewServeMux()
+	network := ln.Addr().Network()
+	trustedSubnetGroups, _ := rpc.ParseTrustedSubnets(build.TrustedSubnetGroups())
+	intranetIP := func(ip net.IP) bool {
+		if ip.IsLoopback() {
+			return true
+		}
+		for _, group := range trustedSubnetGroups {
+			for _, network := range group {
+				if network.Contains(ip) {
+					return true
+				}
 			}
-		}()
-		s.Run()
-	}()
-	return syncer
+		}
+		return false
+	}
+	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr, err := net.ResolveTCPAddr(network, r.RemoteAddr)
+		if err == nil && intranetIP(remoteAddr.IP) {
+			http.DefaultServeMux.ServeHTTP(w, r)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	})
+	logOk.Printf("Serve HTTP on %s", ln.Addr())
+	server := http.Server{Handler: handler}
+	err := server.Serve(ln)
+	if err != nil && err != rpc.ErrServerClosed {
+		logErr.Printf("HTTP server failed to serve on %s: %v", ln.Addr(), err)
+	}
 }

@@ -78,24 +78,26 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID uint64 // should be non-zero when using rpc-proxy
+	ActorID int64 // should be non-zero when using rpc-proxy
 }
 
 func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeReqExtra, ret *GetChunkResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "statshouseApi.getChunk"
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getChunk", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
@@ -107,18 +109,19 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeReqExtra, ret *GetQueryResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "statshouseApi.getQuery"
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQuery", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
@@ -130,18 +133,20 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *rpc.InvokeReqExtra, ret *GetQueryPointResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "statshouseApi.getQueryPoint"
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQueryPoint", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
@@ -153,18 +158,19 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *rpc.InvokeReqExtra, ret *ReleaseChunksResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "statshouseApi.releaseChunks"
 	if extra != nil {
 		req.Extra = *extra
 	}
-	req.Body, err = args.WriteBoxed(req.Body)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.releaseChunks", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
@@ -189,6 +195,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x52721884: // statshouseApi.getChunk
+		hctx.RequestFunctionName = "statshouseApi.getChunk"
 		if h.RawGetChunk != nil {
 			hctx.Request = r
 			err = h.RawGetChunk(ctx, hctx)
@@ -219,6 +226,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x0c7349bb: // statshouseApi.getQuery
+		hctx.RequestFunctionName = "statshouseApi.getQuery"
 		if h.RawGetQuery != nil {
 			hctx.Request = r
 			err = h.RawGetQuery(ctx, hctx)
@@ -249,6 +257,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x0c7348bb: // statshouseApi.getQueryPoint
+		hctx.RequestFunctionName = "statshouseApi.getQueryPoint"
 		if h.RawGetQueryPoint != nil {
 			hctx.Request = r
 			err = h.RawGetQueryPoint(ctx, hctx)
@@ -279,6 +288,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x62adc773: // statshouseApi.releaseChunks
+		hctx.RequestFunctionName = "statshouseApi.releaseChunks"
 		if h.RawReleaseChunks != nil {
 			hctx.Request = r
 			err = h.RawReleaseChunks(ctx, hctx)

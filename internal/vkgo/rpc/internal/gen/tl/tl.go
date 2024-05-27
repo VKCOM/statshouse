@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,9 +12,10 @@ import (
 )
 
 type (
+	DictionaryFieldLong         = internal.DictionaryFieldLong
 	DictionaryFieldString       = internal.DictionaryFieldString
+	DictionaryLong              = internal.DictionaryLong
 	DictionaryString            = internal.DictionaryString
-	NetPID                      = internal.NetPID
 	ReqError                    = internal.ReqError
 	ReqResultHeader             = internal.ReqResultHeader
 	RpcCancelReq                = internal.RpcCancelReq
@@ -26,13 +27,24 @@ type (
 	RpcPing                     = internal.RpcPing
 	RpcPong                     = internal.RpcPong
 	RpcReqResultError           = internal.RpcReqResultError
+	RpcReqResultErrorWrapped    = internal.RpcReqResultErrorWrapped
 	RpcReqResultExtra           = internal.RpcReqResultExtra
 	RpcReqResultHeader          = internal.RpcReqResultHeader
 	RpcServerWantsFin           = internal.RpcServerWantsFin
+	Stat                        = internal.Stat
+	String                      = internal.String
 	True                        = internal.True
 	Tuple8                      = internal.Tuple8
+	VectorDictionaryFieldLong   = internal.VectorDictionaryFieldLong
 	VectorDictionaryFieldString = internal.VectorDictionaryFieldString
 	VectorInt                   = internal.VectorInt
 	VectorLong                  = internal.VectorLong
 	VectorString                = internal.VectorString
 )
+
+func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
+	return internal.BoolReadBoxed(w, v)
+}
+func BoolWriteBoxed(w []byte, v bool) []byte {
+	return internal.BoolWriteBoxed(w, v)
+}

@@ -69,7 +69,9 @@ func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
 			for _, xs := range m {
 				ds := res[i].dataAt(xs...)
 				fn(ds, expr.Param)
-				ds[0].MaxHost = ev.groupMaxHost(ds)
+				for j := range ds[0].MinMaxHost {
+					ds[0].MinMaxHost[j] = ev.groupMinMaxHost(ds, j)
+				}
 				for _, id := range tags[xs[0]].unused {
 					ds[0].Tags.remove(id)
 				}
@@ -403,6 +405,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 	if err != nil {
 		return nil, err
 	}
+	ev.removeEmptySeries(res)
 	type (
 		sortedSeriesGroup struct {
 			ds []SeriesData
@@ -569,6 +572,7 @@ func init() {
 		"label_join":         funcLabelJoin,
 		"label_replace":      funcLabelReplace,
 		"label_set":          funcLabelSet,
+		"label_minhost":      funcLabelMinHost,
 		"label_maxhost":      funcLabelMaxHost,
 		"ln":                 simpleCall(math.Log),
 		"log2":               simpleCall(math.Log2),
@@ -847,7 +851,7 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 			}
 			for _, d := range res[i].Data {
 				for i, v := range *d.Values {
-					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.loc)))
+					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.location)))
 				}
 			}
 		}
@@ -1118,39 +1122,11 @@ func funcDeriv(ev *evaluator, sr Series) Series {
 }
 
 func funcIdelta(ev *evaluator, sr Series) Series {
-	for i, d := range sr.Data {
+	for _, d := range sr.Data {
 		for j := len(*d.Values) - 1; j > 0; j-- {
 			(*d.Values)[j] = (*d.Values)[j] - (*d.Values)[j-1]
 		}
 		(*d.Values)[0] = NilValue
-		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
-			var s string
-			switch tg.Value {
-			case int32(DigestCount):
-				s = "dv_count"
-			case int32(DigestCountSec):
-				s = "dv_count_norm"
-			case int32(DigestSum):
-				s = "dv_sum"
-			case int32(DigestSumSec):
-				s = "dv_sum_norm"
-			case int32(DigestAvg):
-				s = "dv_avg"
-			case int32(DigestMin):
-				s = "dv_min"
-			case int32(DigestMax):
-				s = "dv_max"
-			case int32(DigestUnique):
-				s = "dv_unique"
-			case int32(DigestUniqueSec):
-				s = "dv_unique_norm"
-			}
-			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
-			}
-		}
 	}
 	return sr
 }
@@ -1177,45 +1153,66 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 	for i := range res {
 		hs, err := res[i].histograms(ev)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to restore histogram: %v", err)
 		}
 		sr := ev.newSeries(len(hs), res[i].Meta)
 		for _, h := range hs {
 			d := res[i].Data
 			s := *d[h.buckets[0].x].Values
-			if len(h.buckets) < 2 {
+			if len(h.buckets) == 0 {
 				for i := range s {
 					s[i] = NilValue
 				}
 			} else {
 				q := args[0].(*parser.NumberLiteral).Val // quantile
 				for j := range s {
-					total := (*d[h.buckets[len(h.buckets)-1].x].Values)[j]
+					var total float64 // total count
+					for k := 0; k < len(h.buckets); k++ {
+						v := (*d[h.buckets[k].x].Values)[j]
+						if !math.IsNaN(v) {
+							total += v
+						}
+					}
 					if total == 0 {
 						s[j] = NilValue
 						continue
 					}
-					rank := q * total
-					var k int // upper bound index
-					for k < len(h.buckets)-1 && (*d[h.buckets[k].x].Values)[j] < rank {
-						k++
+					var count float64 // bucket count
+					var lo float64    // bucket lower bound count
+					var hi float64    // bucket upper bound count
+					var x int         // bucket upper bound index
+					rank := q * total // quantile corresponding count
+					buckets := res[i].Meta.Metric.HistorgamBuckets
+					for k := 0; x < len(buckets) && k < len(h.buckets); x++ {
+						if buckets[x] == h.buckets[k].le {
+							v := (*d[h.buckets[k].x].Values)[j]
+							if !math.IsNaN(v) {
+								count = v
+								hi += count
+								if hi >= rank {
+									break
+								}
+								lo = hi
+							}
+							k++
+						}
 					}
 					var v float64
-					switch k {
-					case 0: // lower bound is -inf
-						v = float64(h.buckets[0].le)
-					case len(h.buckets) - 1: // upper bound is +inf
-						v = float64(h.buckets[len(h.buckets)-2].le)
+					switch {
+					case x == 0:
+						// lower bound is -Inf
+						v = float64(buckets[0])
+					case x == len(buckets):
+						// upper bound is +Inf
+						v = float64(buckets[len(buckets)-2])
+					case hi == rank:
+						// on bucket border
+						v = float64(buckets[x])
 					default:
-						var (
-							lo    = h.buckets[k-1].le                // lower bound
-							count = (*d[h.buckets[k-1].x].Values)[j] // lower bound count
-						)
-						if rank == count {
-							v = float64(lo)
-						} else {
-							hi := h.buckets[k].le // upper bound
-							v = float64(lo) + float64(hi-lo)/(rank-count)
+						// inside bucket
+						v = float64(buckets[x-1])
+						if count != 0 {
+							v += float64(buckets[x]-buckets[x-1]) * (rank - lo) / count
 						}
 					}
 					s[j] = v
@@ -1319,6 +1316,22 @@ func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
+func funcLabelMinHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("invalid argument count in label_minhost(): expected 1, got %d", len(args))
+	}
+	res, err := ev.eval(args[0])
+	if err != nil {
+		return nil, err
+	}
+	for i := range res {
+		if err = res[i].labelMinMaxHost(ev, 0, LabelMinHost); err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in label_maxhost(): expected 1, got %d", len(args))
@@ -1328,7 +1341,7 @@ func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) 
 		return nil, err
 	}
 	for i := range res {
-		if err = res[i].labelMaxHost(ev); err != nil {
+		if err = res[i].labelMinMaxHost(ev, 1, LabelMaxHost); err != nil {
 			return nil, err
 		}
 	}
@@ -1394,7 +1407,7 @@ func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
 }
 
 func (ev *evaluator) funcPrefixSum(sr Series) Series {
-	for i, d := range sr.Data {
+	for _, d := range sr.Data {
 		// skip values before requested interval start
 		j := ev.t.ViewStartX
 		// skip NANs
@@ -1408,32 +1421,18 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 			if !math.IsNaN(v) {
 				sum += v
 			}
-			if 0 < j && j < len(d.MaxHost) && d.MaxHost[j] == 0 && d.MaxHost[j-1] != 0 {
-				d.MaxHost[j] = d.MaxHost[j-1]
+			if j > 0 {
+				for k := range d.MinMaxHost {
+					if j < len(d.MinMaxHost[k]) && d.MinMaxHost[k][j] == 0 && d.MinMaxHost[k][j-1] != 0 {
+						d.MinMaxHost[k][j] = d.MinMaxHost[k][j-1]
+					}
+				}
 			}
 			(*d.Values)[j] = sum
 		}
 		// copy first value to the left of requested interval
 		for j = ev.t.ViewStartX; j > 0; j-- {
 			(*d.Values)[j-1] = (*d.Values)[ev.t.ViewStartX]
-		}
-		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
-			var s string
-			switch tg.Value {
-			case int32(DigestCountRaw):
-				s = "cu_count"
-			case int32(DigestCardinalityRaw):
-				s = "cu_cardinality"
-			case int32(DigestAvg):
-				s = "cu_avg"
-			case int32(DigestSumRaw):
-				s = "cu_sum"
-			}
-			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
-			}
 		}
 	}
 	return sr

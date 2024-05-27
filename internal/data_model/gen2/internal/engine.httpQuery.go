@@ -38,7 +38,7 @@ func (item *EngineHttpQuery) SetArgs(v map[string]string) {
 	item.FieldsMask |= 1 << 1
 }
 func (item *EngineHttpQuery) ClearArgs() {
-	VectorDictionaryFieldString0Reset(item.Args)
+	BuiltinVectorDictionaryFieldStringReset(item.Args)
 	item.FieldsMask &^= 1 << 1
 }
 func (item EngineHttpQuery) IsSetArgs() bool { return item.FieldsMask&(1<<1) != 0 }
@@ -48,7 +48,7 @@ func (item *EngineHttpQuery) SetHeaders(v map[string]string) {
 	item.FieldsMask |= 1 << 2
 }
 func (item *EngineHttpQuery) ClearHeaders() {
-	VectorDictionaryFieldString0Reset(item.Headers)
+	BuiltinVectorDictionaryFieldStringReset(item.Headers)
 	item.FieldsMask &^= 1 << 2
 }
 func (item EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) != 0 }
@@ -56,8 +56,8 @@ func (item EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) 
 func (item *EngineHttpQuery) Reset() {
 	item.FieldsMask = 0
 	item.Uri = ""
-	VectorDictionaryFieldString0Reset(item.Args)
-	VectorDictionaryFieldString0Reset(item.Headers)
+	BuiltinVectorDictionaryFieldStringReset(item.Args)
+	BuiltinVectorDictionaryFieldStringReset(item.Headers)
 }
 
 func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
@@ -72,40 +72,39 @@ func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
 		item.Uri = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Args); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Args); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Args)
+		BuiltinVectorDictionaryFieldStringReset(item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Headers); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Headers); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Headers)
+		BuiltinVectorDictionaryFieldStringReset(item.Headers)
 	}
 	return w, nil
 }
 
-func (item *EngineHttpQuery) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineHttpQuery) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineHttpQuery) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWrite(w, item.Uri); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Uri)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Args); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Headers); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Headers)
 	}
-	return w, nil
+	return w
 }
 
 func (item *EngineHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -115,117 +114,142 @@ func (item *EngineHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineHttpQuery) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineHttpQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineHttpQuery) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x58300321)
 	return item.Write(w)
 }
 
 func (item EngineHttpQuery) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineHttpQuery__ReadJSON(item *EngineHttpQuery, j interface{}) error { return item.readJSON(j) }
-func (item *EngineHttpQuery) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.httpQuery", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jUri := _jm["uri"]
-	delete(_jm, "uri")
-	_jArgs := _jm["args"]
-	delete(_jm, "args")
-	_jHeaders := _jm["headers"]
-	delete(_jm, "headers")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.httpQuery", k)
-	}
-	if _jUri != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jArgs != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if _jHeaders != nil {
-		item.FieldsMask |= 1 << 2
-	}
-	if _jUri != nil {
-		if err := JsonReadString(_jUri, &item.Uri); err != nil {
-			return err
+func (item *EngineHttpQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propUriPresented bool
+	var propArgsPresented bool
+	var propHeadersPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "uri":
+				if propUriPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "uri")
+				}
+				if err := Json2ReadString(in, &item.Uri); err != nil {
+					return err
+				}
+				propUriPresented = true
+			case "args":
+				if propArgsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "args")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Args); err != nil {
+					return err
+				}
+				propArgsPresented = true
+			case "headers":
+				if propHeadersPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "headers")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Headers); err != nil {
+					return err
+				}
+				propHeadersPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.httpQuery", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propUriPresented {
 		item.Uri = ""
 	}
-	if _jArgs != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jArgs, &item.Args); err != nil {
-			return err
-		}
-	} else {
-		VectorDictionaryFieldString0Reset(item.Args)
+	if !propArgsPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Args)
 	}
-	if _jHeaders != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jHeaders, &item.Headers); err != nil {
-			return err
-		}
-	} else {
-		VectorDictionaryFieldString0Reset(item.Headers)
+	if !propHeadersPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Headers)
+	}
+	if propUriPresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propArgsPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	if propHeadersPresented {
+		item.FieldsMask |= 1 << 2
 	}
 	return nil
 }
 
-func (item *EngineHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineHttpQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineHttpQuery) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineHttpQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
-		if len(item.Uri) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"uri":`...)
-			w = basictl.JSONWriteString(w, item.Uri)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"uri":`...)
+		w = basictl.JSONWriteString(w, item.Uri)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if len(item.Args) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"args":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Args); err != nil {
-				return w, err
-			}
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"args":`...)
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if len(item.Headers) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"headers":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Headers); err != nil {
-				return w, err
-			}
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"headers":`...)
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Headers)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineHttpQuery) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineHttpQuery) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.httpQuery", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.httpQuery", err.Error())
 	}
 	return nil

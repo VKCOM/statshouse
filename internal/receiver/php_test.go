@@ -17,14 +17,13 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
@@ -42,7 +41,7 @@ const (
 function tuple(...$args) { return $args; } // KPHP polyfill
 
 require 'StatsHouse.php';
-use VK\Statlogs\StatsHouse;
+use VK\StatsHouse\StatsHouse;
 $sh = new StatsHouse('udp://127.0.0.1:13337');
 `
 	phpStatsHouseAddr = "127.0.0.1:13337"
@@ -183,12 +182,6 @@ func (m floatsMap) sum() float64 {
 
 type stringsMap map[string][]string
 
-func (m stringsMap) merge(key string, values []string) {
-	v := append(m[key], values...) //nolint:gocritic // appendAssign: append result not assigned to the same slice
-	sort.Strings(v)
-	m[key] = v
-}
-
 func (m stringsMap) size() int {
 	n := 0
 	for _, v := range m {
@@ -208,7 +201,7 @@ type phpMachine struct {
 	code           []string
 }
 
-func (p *phpMachine) Init(_ *rapid.T) {
+func (p *phpMachine) init() {
 	p.numCounts = 0
 	p.sumCountsOther = floatsMap{}
 	p.sumTimestamp = intsMap{}
@@ -297,44 +290,17 @@ func (p *phpMachine) AppendWriteUnique(t *rapid.T) {
 	p.code = append(p.code, buf.String())
 }
 
-func (p *phpMachine) AppendWriteSTop(t *rapid.T) {
-	info := valuesInfo{
-		Func:      "writeSTop",
-		Name:      ident().Draw(t, "name"),
-		Tags:      tagsSlice().Draw(t, "tags"),
-		Values:    rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values"), // not arbitrary strings for easier text encoding
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
-	}
-
-	k := ts(info.Name, info.Tags)
-	if len(k) > maxTSSize {
-		return
-	}
-	p.sumCountsOther.count(k, info.Count)
-	p.sumTimestamp.count(k, info.Timestamp)
-	values := info.Values.([]string)
-	p.stopMetrics.merge(k, values)
-
-	for i := range values {
-		values[i] = "'" + values[i] + "'" // no need to quote anything
-	}
-	var buf bytes.Buffer
-	err := writeValuesTmpl.Execute(&buf, info)
-	require.NoError(t, err)
-
-	p.code = append(p.code, buf.String())
-}
-
 func (p *phpMachine) Run(t *rapid.T) {
 	total := p.numCounts + p.valueMetrics.size() + p.uniqueMetrics.size() + p.stopMetrics.size()
 	if total == 0 {
 		t.Skip("no metrics to send/receive")
+		return
 	}
 
-	recv, err := receiver.ListenUDP(phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
-	t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
+	recv, err := receiver.ListenUDP("udp", phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	if err != nil {
+		t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
+	}
 	require.NoError(t, err)
 	defer func() { _ = recv.Close() }()
 
@@ -353,7 +319,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		timer := time.AfterFunc(recvTimeout, func() { _ = recv.Close() })
 		defer timer.Stop()
 		serveErr <- recv.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
 				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:
@@ -400,7 +366,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 	require.Equal(t, p.stopMetrics, stopMetrics)
 	require.Equal(t, p.numCounts, numCounts)
 
-	p.Init(t)
+	p.init()
 }
 
 func (p *phpMachine) Check(*rapid.T) {}
@@ -433,7 +399,7 @@ func TestPHPRoundtrip(t *testing.T) {
 	}
 	rapid.Check(t, func(t *rapid.T) {
 		m := phpMachine{}
-		m.Init(t)
+		m.init()
 		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }

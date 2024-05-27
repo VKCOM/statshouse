@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,17 +13,22 @@ import (
 
 const workerGCDuration = time.Second * 60
 
+type workerWork struct {
+	sc   *serverConn
+	hctx *HandlerContext
+}
+
 type worker struct {
-	s      *Server
-	ch     chan *HandlerContext
-	gcTime time.Time
+	workerPool *workerPool
+	ch         chan workerWork
+	gcTime     time.Time
 }
 
 func (w *worker) run(wg *WaitGroup) {
 	defer wg.Done()
-	for hctx := range w.ch {
-		w.s.handle(hctx)
-		w.s.workerPool.Put(w)
+	for work := range w.ch {
+		work.sc.handle(work.hctx)
+		w.workerPool.Put(w)
 	}
 }
 

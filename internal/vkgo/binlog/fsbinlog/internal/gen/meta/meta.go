@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,14 +20,16 @@ type Object interface {
 	TLTag() uint32  // returns type's TL tag. For union, returns constructor tag depending on actual union value
 	String() string // returns type's representation for debugging (JSON for now)
 
-	Read(w []byte) ([]byte, error)       // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
-	Write(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	ReadBoxed(w []byte) ([]byte, error)  // same as Read, but reads/checks TLTag first
-	WriteBoxed(w []byte) ([]byte, error) // same as Write, but writes TLTag first
+	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
+	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
 
-	MarshalJSON() ([]byte, error)       // returns type's JSON representation, plus error
-	UnmarshalJSON([]byte) error         // reads type's JSON representation
-	WriteJSON(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
+	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
+	UnmarshalJSON([]byte) error   // reads type's JSON representation
+
+	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
+	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
 }
 
 type Function interface {
@@ -36,8 +38,18 @@ type Function interface {
 	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
 	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 
-	// For transcoding short-long version during Long ID transition
-	ReadResultWriteResultJSONShort(r []byte, w []byte) ([]byte, []byte, error)
+	// For transcoding short-long version during Long ID and newTypeNames transition
+	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+}
+
+func GetAllTLItems() []TLItem {
+	var allItems []TLItem
+	for _, item := range itemsByName {
+		if item != nil {
+			allItems = append(allItems, *item)
+		}
+	}
+	return allItems
 }
 
 // for quick one-liners
@@ -80,11 +92,11 @@ func CreateObjectFromName(name string) Object {
 
 type TLItem struct {
 	tag                uint32
+	annotations        uint32
 	tlName             string
 	createFunction     func() Function
 	createFunctionLong func() Function
 	createObject       func() Object
-	// TODO - annotations, etc
 }
 
 func (item TLItem) TLTag() uint32            { return item.tag }
@@ -97,42 +109,47 @@ func (item TLItem) CreateFunction() Function { return item.createFunction() }
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
 
+// Annotations
+
 // TLItem serves as a single type for all enum values
-func (item *TLItem) Reset()                              {}
-func (item *TLItem) Read(w []byte) ([]byte, error)       { return w, nil }
-func (item *TLItem) Write(w []byte) ([]byte, error)      { return w, nil }
-func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)  { return basictl.NatReadExactTag(w, item.tag) }
-func (item *TLItem) WriteBoxed(w []byte) ([]byte, error) { return basictl.NatWrite(w, item.tag), nil }
-func (item TLItem) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+func (item *TLItem) Reset()                                {}
+func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
+func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
+func (item *TLItem) Write(w []byte) []byte                 { return w }
+func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)    { return basictl.NatReadExactTag(w, item.tag) }
+func (item *TLItem) WriteBoxedGeneral(w []byte) ([]byte, error) {
+	return basictl.NatWrite(w, item.tag), nil
 }
-func (item *TLItem) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON(item.tlName, "expected json object")
+func (item *TLItem) WriteBoxed(w []byte) []byte { return basictl.NatWrite(w, item.tag) }
+func (item TLItem) String() string {
+	return string(item.WriteJSON(nil))
+}
+func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	in.Delim('{')
+	if !in.Ok() {
+		return in.Error()
 	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement(item.tlName, k)
+	for !in.IsDelim('}') {
+		return internal.ErrorInvalidJSONExcessElement(item.tlName, in.UnsafeFieldName(true))
+	}
+	in.Delim('}')
+	if !in.Ok() {
+		return in.Error()
 	}
 	return nil
 }
-func (item *TLItem) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *TLItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+func (item *TLItem) WriteJSON(w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 func (item *TLItem) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 func (item *TLItem) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON(item.tlName, err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON(item.tlName, err.Error())
 	}
 	return nil
@@ -201,7 +218,7 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x44c644b, tlName: "fsbinlog.levStart"})
-	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, tlName: "fsbinlog.levUpgradeToGms"})
-	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, tlName: "fsbinlog.snapshotMeta"})
+	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x44c644b, annotations: 0x0, tlName: "fsbinlog.levStart"})
+	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms"})
+	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta"})
 }

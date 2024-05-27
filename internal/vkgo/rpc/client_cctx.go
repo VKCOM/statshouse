@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 // Lifecycle of call context:
@@ -35,11 +36,14 @@ type callContext struct {
 	singleResult chan *callContext // channel for single caller is reused here
 	result       chan *callContext // can point to singleResult or multiResult if used by MultiClient
 
+	cb       ClientCallback // callback-style API, if set result channels are unused
+	userData any
+
 	// Response
 	resp *Response // if set, has priority
 	err  error     // otherwise err must be set. May point to rpcErr
 
-	hookState ClientHookState // can be nil
+	hookState ClientHooks // can be nil
 }
 
 func preparePacket(req *Request, deadline time.Time) error {
@@ -52,24 +56,25 @@ func preparePacket(req *Request, deadline time.Time) error {
 	headerBuf := req.Body // move to local var, then back for speed
 	req.extraStart = len(headerBuf)
 
-	headerBuf = basictl.LongWrite(headerBuf, req.queryID)
+	reqHeader := tl.RpcInvokeReqHeader{QueryId: req.queryID}
+	headerBuf = reqHeader.Write(headerBuf)
 	switch {
 	case req.ActorID != 0 && req.Extra.Flags != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destActorFlagsTag)
-		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
-		var err error
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
+		// extra := tl.RpcDestActorFlags{ActorId: req.ActorID, Extra: req.Extra.RpcInvokeReqExtra}
+		// if headerBuf, err = extra.WriteBoxed(headerBuf); err != nil {
+		// here we optimize copy of large extra
+		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestActorFlags{}.TLTag())
+		headerBuf = basictl.LongWrite(headerBuf, req.ActorID)
+		headerBuf = req.Extra.Write(headerBuf)
 	case req.Extra.Flags != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destFlagsTag)
-		var err error
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
+		// extra := tl.RpcDestFlags{Extra: req.Extra.RpcInvokeReqExtra}
+		// if headerBuf, err = extra.WriteBoxed(headerBuf); err != nil {
+		// here we optimize copy of large extra
+		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestFlags{}.TLTag())
+		headerBuf = req.Extra.Write(headerBuf)
 	case req.ActorID != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destActorTag)
-		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
+		extra := tl.RpcDestActor{ActorId: req.ActorID}
+		headerBuf = extra.WriteBoxed(headerBuf)
 	}
 	if err := validBodyLen(len(headerBuf)); err != nil { // exact
 		return err
@@ -78,18 +83,7 @@ func preparePacket(req *Request, deadline time.Time) error {
 	return nil
 }
 
-func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf LoggerFunc) (err error) {
-	if toplevelError {
-		var rpcErr Error
-		if resp.Body, err = basictl.IntRead(resp.Body, &rpcErr.Code); err != nil {
-			return err
-		}
-		if resp.Body, err = basictl.StringRead(resp.Body, &rpcErr.Description); err != nil {
-			return err
-		}
-		return rpcErr
-	}
-
+func parseResponseExtra(resp *Response, logf LoggerFunc) (err error) {
 	var tag uint32
 	var afterTag []byte
 	extraSet := 0
@@ -97,37 +91,54 @@ func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf 
 		if afterTag, err = basictl.NatRead(resp.Body, &tag); err != nil {
 			return err
 		}
-		if tag != reqResultHeaderTag {
+		if (tag != tl.ReqResultHeader{}.TLTag()) {
 			break
 		}
-		var extra ReqResultExtra
-		if resp.Body, err = extra.Read(afterTag); err != nil {
+		// var extra tl.ReqResultHeader
+		// if resp.Body, err = extra.Read(afterTag); err != nil {
+		// we optimize copy of large extra here
+		if resp.Body, err = resp.Extra.Read(afterTag); err != nil {
 			return err
-		}
-		if extraSet == 0 {
-			resp.Extra = extra
 		}
 		extraSet++
 	}
 	if extraSet > 1 {
-		logf("rpc: ResultExtra set more than once (%d) for result tag #%08d; please report to infrastructure team", extraSet, tag)
+		return fmt.Errorf("rpc: ResultExtra set more than once (%d) for result tag #%08d; please report to infrastructure team", extraSet, tag)
 	}
 
-	if tag == reqResultErrorTag {
-		var unused int64 // excess query_id erroneously saved by incorrect serialization of RpcReqResult object tree
-		if afterTag, err = basictl.LongRead(afterTag, &unused); err != nil {
+	switch tag {
+	case tl.ReqError{}.TLTag():
+		var rpcErr tl.ReqError
+		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
 			return err
 		}
-	}
-	if tag == reqErrorTag || tag == reqResultErrorTag || tag == reqResultErrorWrappedTag {
-		var rpcErr Error
-		if resp.Body, err = basictl.IntRead(afterTag, &rpcErr.Code); err != nil {
+		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+	case tl.RpcReqResultError{}.TLTag():
+		var rpcErr tl.RpcReqResultError // ignore query ID
+		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
 			return err
 		}
-		if resp.Body, err = basictl.StringRead(resp.Body, &rpcErr.Description); err != nil {
+		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+	case tl.RpcReqResultErrorWrapped{}.TLTag():
+		var rpcErr tl.RpcReqResultErrorWrapped
+		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
 			return err
 		}
-		return rpcErr
+		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	}
 	return nil
+}
+
+func (cctx *callContext) deliverResult(c *Client) {
+	cb := cctx.cb
+	if cb == nil {
+		cctx.result <- cctx // cctx owned by channel
+		return
+	}
+	queryID := cctx.queryID
+	resp := cctx.resp
+	err := cctx.err
+	userData := cctx.userData
+	c.putCallContext(cctx)
+	cb(c, queryID, resp, err, userData)
 }

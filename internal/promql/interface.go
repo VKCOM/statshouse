@@ -10,9 +10,9 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -44,68 +44,23 @@ const (
 	CardinalityRaw = "cardinalityraw"
 	Unique         = "unique"
 	UniqueSec      = "uniquesec"
+	MinHost        = "minhost"
 	MaxHost        = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
 )
 
-type DigestWhat int
-
-const (
-	DigestAvg DigestWhat = iota + 1
-	DigestCount
-	DigestCountSec
-	DigestCountRaw
-	DigestMax
-	DigestMin
-	DigestSum
-	DigestSumSec
-	DigestSumRaw
-	DigestP0_1
-	DigestP1
-	DigestP5
-	DigestP10
-	DigestP25
-	DigestP50
-	DigestP75
-	DigestP90
-	DigestP95
-	DigestP99
-	DigestP999
-	DigestStdDev
-	DigestStdVar
-	DigestCardinality
-	DigestCardinalitySec
-	DigestCardinalityRaw
-	DigestUnique
-	DigestUniqueSec
-)
-
 var NilValue = math.Float64frombits(NilValueBits)
-
-type Timescale struct {
-	Time       []int64
-	LODs       []LOD
-	Step       int64 // aggregation interval requested (former "desiredStepMul")
-	StartX     int   // requested time interval starts at "Time[StartX]"
-	ViewStartX int
-	ViewEndX   int
-}
-
-type LOD struct {
-	Step int64
-	Len  int // number of elements LOD occupies in time array
-}
 
 type SeriesQuery struct {
 	// What
-	Metric  *format.MetricMetaValue
-	Whats   []DigestWhat
-	GroupBy []string
-	MaxHost bool
+	Metric     *format.MetricMetaValue
+	Whats      []SelectorWhat
+	GroupBy    []string
+	MinMaxHost [2]bool // "min" at [0], "max" at [1]
 
 	// When
-	Timescale Timescale
+	Timescale data_model.Timescale
 	Offset    int64
 
 	// Filtering
@@ -115,9 +70,15 @@ type SeriesQuery struct {
 	SFilterOut []string
 
 	// Transformations
-	Range int64
+	Range     int64
+	prefixSum bool
 
 	Options Options
+}
+
+type SelectorWhat struct {
+	Digest data_model.DigestWhat
+	QueryF string
 }
 
 type TagValueQuery struct {
@@ -138,7 +99,7 @@ type TagValueIDQuery struct {
 type TagValuesQuery struct {
 	Metric    *format.MetricMetaValue
 	TagIndex  int
-	Timescale Timescale
+	Timescale data_model.Timescale
 	Offset    int64
 	Options   Options
 }
@@ -156,8 +117,7 @@ type Handler interface {
 	// # Metric Metadata
 	//
 
-	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
-	GetTimescale(qry Query, offsets map[*format.MetricMetaValue]int64) (Timescale, error)
+	MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, error)
 
 	//
 	// # Storage
@@ -173,10 +133,6 @@ type Handler interface {
 
 	Alloc(int) *[]float64
 	Free(*[]float64)
-}
-
-func (t *Timescale) empty() bool {
-	return t.StartX == len(t.Time)
 }
 
 // Used by 'Handler' implementation to signal that entity requested was just not found
@@ -203,63 +159,63 @@ func (e Error) EngineFailure() bool {
 	return e.panic
 }
 
-func (w DigestWhat) String() string {
-	switch w {
-	case DigestAvg:
-		return "avg"
-	case DigestCount:
-		return "count"
-	case DigestCountSec:
-		return "count_norm"
-	case DigestCountRaw:
-		return "count_raw"
-	case DigestMax:
-		return "max"
-	case DigestMin:
-		return "min"
-	case DigestSum:
-		return "sum"
-	case DigestSumSec:
-		return "sum_norm"
-	case DigestSumRaw:
-		return "sum_raw"
-	case DigestP0_1:
-		return "p0_1"
-	case DigestP1:
-		return "p1"
-	case DigestP5:
-		return "p5"
-	case DigestP10:
-		return "p10"
-	case DigestP25:
-		return "p25"
-	case DigestP50:
-		return "p50"
-	case DigestP75:
-		return "p75"
-	case DigestP90:
-		return "p90"
-	case DigestP95:
-		return "p95"
-	case DigestP99:
-		return "p99"
-	case DigestP999:
-		return "p999"
-	case DigestStdDev:
-		return "stddev"
-	case DigestStdVar:
-		return "stdvar"
-	case DigestCardinality:
-		return "cardinality"
-	case DigestCardinalitySec:
-		return "cardinality_norm"
-	case DigestCardinalityRaw:
-		return "cardinality_raw"
-	case DigestUnique:
-		return "unique"
-	case DigestUniqueSec:
-		return "unique_norm"
-	default:
-		return strconv.Itoa(int(w))
+func DigestWhatString(what data_model.DigestWhat) string {
+	var res string
+	switch what {
+	case data_model.DigestAvg:
+		res = Avg
+	case data_model.DigestCount:
+		res = Count
+	case data_model.DigestCountSec:
+		res = CountSec
+	case data_model.DigestCountRaw:
+		res = CountRaw
+	case data_model.DigestMax:
+		res = Max
+	case data_model.DigestMin:
+		res = Min
+	case data_model.DigestSum:
+		res = Sum
+	case data_model.DigestSumSec:
+		res = SumSec
+	case data_model.DigestSumRaw:
+		res = SumRaw
+	case data_model.DigestStdDev:
+		res = StdDev
+	case data_model.DigestStdVar:
+		res = StdVar
+	case data_model.DigestP0_1:
+		res = P0_1
+	case data_model.DigestP1:
+		res = P1
+	case data_model.DigestP5:
+		res = P5
+	case data_model.DigestP10:
+		res = P10
+	case data_model.DigestP25:
+		res = P25
+	case data_model.DigestP50:
+		res = P50
+	case data_model.DigestP75:
+		res = P75
+	case data_model.DigestP90:
+		res = P90
+	case data_model.DigestP95:
+		res = P95
+	case data_model.DigestP99:
+		res = P99
+	case data_model.DigestP999:
+		res = P999
+	case data_model.DigestCardinality:
+		res = Cardinality
+	case data_model.DigestCardinalitySec:
+		res = CardinalitySec
+	case data_model.DigestCardinalityRaw:
+		res = CardinalityRaw
+	case data_model.DigestUnique:
+		res = Unique
+	case data_model.DigestUniqueSec:
+		res = UniqueSec
 	}
+	return res
 }

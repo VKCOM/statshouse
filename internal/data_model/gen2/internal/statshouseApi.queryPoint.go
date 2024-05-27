@@ -76,17 +76,17 @@ func (item *StatshouseApiQueryPoint) Read(w []byte) (_ []byte, err error) {
 	if w, err = item.Function.ReadBoxed(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorString0Read(w, &item.GroupBy); err != nil {
+	if w, err = BuiltinVectorStringRead(w, &item.GroupBy); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiFilter0Read(w, &item.Filter); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFilterRead(w, &item.Filter); err != nil {
 		return w, err
 	}
-	if w, err = VectorLong0Read(w, &item.TimeShift); err != nil {
+	if w, err = BuiltinVectorLongRead(w, &item.TimeShift); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorStatshouseApiFunctionBoxed0Read(w, &item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionRead(w, &item.What); err != nil {
 			return w, err
 		}
 	} else {
@@ -95,33 +95,26 @@ func (item *StatshouseApiQueryPoint) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *StatshouseApiQueryPoint) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseApiQueryPoint) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseApiQueryPoint) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Version)
 	w = basictl.IntWrite(w, item.TopN)
-	if w, err = basictl.StringWrite(w, item.MetricName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.MetricName)
 	w = basictl.LongWrite(w, item.TimeFrom)
 	w = basictl.LongWrite(w, item.TimeTo)
-	if w, err = item.Function.WriteBoxed(w); err != nil {
-		return w, err
-	}
-	if w, err = VectorString0Write(w, item.GroupBy); err != nil {
-		return w, err
-	}
-	if w, err = VectorStatshouseApiFilter0Write(w, item.Filter); err != nil {
-		return w, err
-	}
-	if w, err = VectorLong0Write(w, item.TimeShift); err != nil {
-		return w, err
-	}
+	w = item.Function.WriteBoxed(w)
+	w = BuiltinVectorStringWrite(w, item.GroupBy)
+	w = BuiltinVectorStatshouseApiFilterWrite(w, item.Filter)
+	w = BuiltinVectorLongWrite(w, item.TimeShift)
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorStatshouseApiFunctionBoxed0Write(w, item.What); err != nil {
-			return w, err
-		}
+		w = BuiltinVectorStatshouseApiFunctionWrite(w, item.What)
 	}
-	return w, nil
+	return w
 }
 
 func (item *StatshouseApiQueryPoint) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -131,175 +124,269 @@ func (item *StatshouseApiQueryPoint) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *StatshouseApiQueryPoint) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiQueryPoint) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseApiQueryPoint) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc9951bbb)
 	return item.Write(w)
 }
 
 func (item StatshouseApiQueryPoint) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseApiQueryPoint__ReadJSON(item *StatshouseApiQueryPoint, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiQueryPoint) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.queryPoint", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := JsonReadInt32(_jVersion, &item.Version); err != nil {
-		return err
-	}
-	_jTopN := _jm["top_n"]
-	delete(_jm, "top_n")
-	if err := JsonReadInt32(_jTopN, &item.TopN); err != nil {
-		return err
-	}
-	_jMetricName := _jm["metric_name"]
-	delete(_jm, "metric_name")
-	if err := JsonReadString(_jMetricName, &item.MetricName); err != nil {
-		return err
-	}
-	_jTimeFrom := _jm["time_from"]
-	delete(_jm, "time_from")
-	if err := JsonReadInt64(_jTimeFrom, &item.TimeFrom); err != nil {
-		return err
-	}
-	_jTimeTo := _jm["time_to"]
-	delete(_jm, "time_to")
-	if err := JsonReadInt64(_jTimeTo, &item.TimeTo); err != nil {
-		return err
-	}
-	_jFunction := _jm["function"]
-	delete(_jm, "function")
-	_jGroupBy := _jm["group_by"]
-	delete(_jm, "group_by")
-	_jFilter := _jm["filter"]
-	delete(_jm, "filter")
-	_jTimeShift := _jm["time_shift"]
-	delete(_jm, "time_shift")
-	_jWhat := _jm["what"]
-	delete(_jm, "what")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.queryPoint", k)
-	}
-	if _jWhat != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if err := StatshouseApiFunction__ReadJSON(&item.Function, _jFunction); err != nil {
-		return err
-	}
-	if err := VectorString0ReadJSON(_jGroupBy, &item.GroupBy); err != nil {
-		return err
-	}
-	if err := VectorStatshouseApiFilter0ReadJSON(_jFilter, &item.Filter); err != nil {
-		return err
-	}
-	if err := VectorLong0ReadJSON(_jTimeShift, &item.TimeShift); err != nil {
-		return err
-	}
-	if _jWhat != nil {
-		if err := VectorStatshouseApiFunctionBoxed0ReadJSON(_jWhat, &item.What); err != nil {
-			return err
+func (item *StatshouseApiQueryPoint) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propTopNPresented bool
+	var propMetricNamePresented bool
+	var propTimeFromPresented bool
+	var propTimeToPresented bool
+	var propFunctionPresented bool
+	var propGroupByPresented bool
+	var propFilterPresented bool
+	var propTimeShiftPresented bool
+	var propWhatPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "version")
+				}
+				if err := Json2ReadInt32(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "top_n":
+				if propTopNPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "top_n")
+				}
+				if err := Json2ReadInt32(in, &item.TopN); err != nil {
+					return err
+				}
+				propTopNPresented = true
+			case "metric_name":
+				if propMetricNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "metric_name")
+				}
+				if err := Json2ReadString(in, &item.MetricName); err != nil {
+					return err
+				}
+				propMetricNamePresented = true
+			case "time_from":
+				if propTimeFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "time_from")
+				}
+				if err := Json2ReadInt64(in, &item.TimeFrom); err != nil {
+					return err
+				}
+				propTimeFromPresented = true
+			case "time_to":
+				if propTimeToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "time_to")
+				}
+				if err := Json2ReadInt64(in, &item.TimeTo); err != nil {
+					return err
+				}
+				propTimeToPresented = true
+			case "function":
+				if propFunctionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "function")
+				}
+				if err := item.Function.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propFunctionPresented = true
+			case "group_by":
+				if propGroupByPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "group_by")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.GroupBy); err != nil {
+					return err
+				}
+				propGroupByPresented = true
+			case "filter":
+				if propFilterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "filter")
+				}
+				if err := BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames, in, &item.Filter); err != nil {
+					return err
+				}
+				propFilterPresented = true
+			case "time_shift":
+				if propTimeShiftPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "time_shift")
+				}
+				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.TimeShift); err != nil {
+					return err
+				}
+				propTimeShiftPresented = true
+			case "what":
+				if propWhatPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "what")
+				}
+				if err := BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames, in, &item.What); err != nil {
+					return err
+				}
+				propWhatPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.queryPoint", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propVersionPresented {
+		item.Version = 0
+	}
+	if !propTopNPresented {
+		item.TopN = 0
+	}
+	if !propMetricNamePresented {
+		item.MetricName = ""
+	}
+	if !propTimeFromPresented {
+		item.TimeFrom = 0
+	}
+	if !propTimeToPresented {
+		item.TimeTo = 0
+	}
+	if !propFunctionPresented {
+		item.Function.Reset()
+	}
+	if !propGroupByPresented {
+		item.GroupBy = item.GroupBy[:0]
+	}
+	if !propFilterPresented {
+		item.Filter = item.Filter[:0]
+	}
+	if !propTimeShiftPresented {
+		item.TimeShift = item.TimeShift[:0]
+	}
+	if !propWhatPresented {
 		item.What = item.What[:0]
+	}
+	if propWhatPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
 
-func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseApiQueryPoint) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseApiQueryPoint) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Version != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteInt32(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteInt32(w, item.Version)
+	if (item.Version != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if item.TopN != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"top_n":`...)
-		w = basictl.JSONWriteInt32(w, item.TopN)
+	backupIndexTopN := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"top_n":`...)
+	w = basictl.JSONWriteInt32(w, item.TopN)
+	if (item.TopN != 0) == false {
+		w = w[:backupIndexTopN]
 	}
-	if len(item.MetricName) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric_name":`...)
-		w = basictl.JSONWriteString(w, item.MetricName)
+	backupIndexMetricName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric_name":`...)
+	w = basictl.JSONWriteString(w, item.MetricName)
+	if (len(item.MetricName) != 0) == false {
+		w = w[:backupIndexMetricName]
 	}
-	if item.TimeFrom != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_from":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeFrom)
+	backupIndexTimeFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_from":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeFrom)
+	if (item.TimeFrom != 0) == false {
+		w = w[:backupIndexTimeFrom]
 	}
-	if item.TimeTo != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_to":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeTo)
+	backupIndexTimeTo := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_to":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeTo)
+	if (item.TimeTo != 0) == false {
+		w = w[:backupIndexTimeTo]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	if w, err = item.Function.WriteJSON(w); err != nil {
-		return w, err
+	w = item.Function.WriteJSONOpt(newTypeNames, short, w)
+	backupIndexGroupBy := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"group_by":`...)
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GroupBy)
+	if (len(item.GroupBy) != 0) == false {
+		w = w[:backupIndexGroupBy]
 	}
-	if len(item.GroupBy) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"group_by":`...)
-		if w, err = VectorString0WriteJSON(w, item.GroupBy); err != nil {
-			return w, err
-		}
+	backupIndexFilter := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"filter":`...)
+	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, item.Filter)
+	if (len(item.Filter) != 0) == false {
+		w = w[:backupIndexFilter]
 	}
-	if len(item.Filter) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"filter":`...)
-		if w, err = VectorStatshouseApiFilter0WriteJSON(w, item.Filter); err != nil {
-			return w, err
-		}
-	}
-	if len(item.TimeShift) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_shift":`...)
-		if w, err = VectorLong0WriteJSON(w, item.TimeShift); err != nil {
-			return w, err
-		}
+	backupIndexTimeShift := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_shift":`...)
+	w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.TimeShift)
+	if (len(item.TimeShift) != 0) == false {
+		w = w[:backupIndexTimeShift]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if len(item.What) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"what":`...)
-			if w, err = VectorStatshouseApiFunctionBoxed0WriteJSON(w, item.What); err != nil {
-				return w, err
-			}
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"what":`...)
+		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, item.What)
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseApiQueryPoint) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseApiQueryPoint) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.queryPoint", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.queryPoint", err.Error())
 	}
 	return nil

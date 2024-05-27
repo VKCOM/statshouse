@@ -19,25 +19,28 @@ import (
 )
 
 const (
-	RoutePrefix             = "/api/"
-	EndpointMetric          = "metric"
-	EndpointMetricList      = "metrics-list"
-	EndpointMetricTagValues = "metric-tag-values"
-	EndpointQuery           = "query"
-	EndpointTable           = "table"
-	EndpointPoint           = "point"
-	EndpointRender          = "render"
-	EndpointResetFlood      = "reset-flood"
-	EndpointLegacyRedirect  = "legacy-redirect"
-	EndpointDashboard       = "dashboard"
-	EndpointDashboardList   = "dashboards-list"
-	EndpointGroup           = "group"
-	EndpointNamespace       = "namespace"
-	EndpointNamespaceList   = "namespace-list"
-	EndpointGroupList       = "group-list"
-	EndpointPrometheus      = "prometheus"
-	EndpointStatistics      = "stat"
-	endpointChunk           = "chunk"
+	RoutePrefix                 = "/api/"
+	EndpointMetric              = "metric"
+	EndpointMetricList          = "metrics-list"
+	EndpointMetricTagValues     = "metric-tag-values"
+	EndpointQuery               = "query"
+	EndpointTable               = "table"
+	EndpointPoint               = "point"
+	EndpointRender              = "render"
+	EndpointResetFlood          = "reset-flood"
+	EndpointLegacyRedirect      = "legacy-redirect"
+	EndpointDashboard           = "dashboard"
+	EndpointDashboardList       = "dashboards-list"
+	EndpointGroup               = "group"
+	EndpointNamespace           = "namespace"
+	EndpointNamespaceList       = "namespace-list"
+	EndpointGroupList           = "group-list"
+	EndpointPrometheus          = "prometheus"
+	EndpointPrometheusGenerated = "prometheus-generated"
+	EndpointKnownTags           = "known-tags"
+	EndpointStatistics          = "stat"
+	endpointChunk               = "chunk"
+	EndpointHistory             = "history"
 
 	userTokenName = "user"
 )
@@ -52,9 +55,12 @@ type endpointStat struct {
 	metric     string
 	tokenName  string
 	user       string
+	priority   int
+	timings    ServerTimingHeader
 }
 
-func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string) *endpointStat {
+func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
+	priority, _ := strconv.Atoi(priorityStr)
 	return &endpointStat{
 		timestamp:  time.Now(),
 		endpoint:   endpoint,
@@ -62,6 +68,8 @@ func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat str
 		method:     method,
 		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
 		dataFormat: dataFormat,
+		priority:   priority,
+		timings:    ServerTimingHeader{Timings: make(map[string][]time.Duration), started: time.Now()},
 	}
 }
 
@@ -117,15 +125,15 @@ func (es *endpointStat) reportResponseTime(code int) {
 func (es *endpointStat) report(code int, metric string) {
 	v := time.Since(es.timestamp).Seconds()
 	t := statshouse.Tags{
-		1: es.endpoint,
-		2: strconv.Itoa(es.protocol),
-		3: es.method,
-		4: es.dataFormat,
-		5: es.lane,
-		6: srvfunc.HostnameForStatshouse(),
-		7: es.tokenName,
-		8: strconv.Itoa(code),
-		9: es.metric,
+		1:  es.endpoint,
+		2:  strconv.Itoa(es.protocol),
+		3:  es.method,
+		4:  es.dataFormat,
+		5:  es.lane,
+		6:  srvfunc.HostnameForStatshouse(),
+		7:  es.tokenName,
+		8:  strconv.Itoa(code),
+		10: strconv.Itoa(es.priority),
 	}
 	statshouse.Metric(metric, t).Value(v)
 }
@@ -148,7 +156,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, token, table, kind string, isFast, isLight bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -161,8 +169,8 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, token, table
 			3: table,
 			4: kind,
 			5: ok,
-			6: getStatTokenName(token),
-			7: token,
+			6: getStatTokenName(user),
+			7: user,
 		},
 	).Value(duration.Seconds())
 }
@@ -200,7 +208,7 @@ func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err e
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	statshouse.Metric(
-		"ch_video_select_test",
+		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "cache",
 			2: strconv.Itoa(int(metricID)),
@@ -210,7 +218,7 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	).Value(float64(cachedRows))
 
 	statshouse.Metric(
-		"ch_video_select_test",
+		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "clickhouse",
 			2: strconv.Itoa(int(metricID)),

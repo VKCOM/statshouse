@@ -2,8 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import { selectorParamsPlotsByIndex, useStore } from '../../store';
 import { produce } from 'immer';
+import { useOnClickOutside } from '../../hooks';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
-import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
 import { ReactComponent as SVGEyeSlash } from 'bootstrap-icons/icons/eye-slash.svg';
 
@@ -18,26 +18,38 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
   const paramsPlot = useStore(selectorParamsPlot);
   const columns = useEventTagColumns(paramsPlot, false);
 
-  const onChange = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
-    (e) => {
+  const onChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      // @ts-ignore
+      const ctrl = e.nativeEvent.ctrlKey || e.nativeEvent.metaKey;
       const tagKey = e.currentTarget.value;
       const tagKeyChecked = e.currentTarget.checked;
       useStore.getState().setPlotParams(
         indexPlot,
         produce((p) => {
-          if (tagKeyChecked) {
-            p.eventsBy = [...p.eventsBy, tagKey];
+          if (ctrl) {
+            if (tagKeyChecked) {
+              p.eventsBy = [tagKey];
+            } else {
+              p.eventsBy = [];
+              p.eventsHide = [];
+            }
           } else {
-            p.eventsBy = p.eventsBy.filter((b) => b !== tagKey);
-            p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
+            if (tagKeyChecked) {
+              p.eventsBy = [...p.eventsBy, tagKey];
+            } else {
+              p.eventsBy = p.eventsBy.filter((b) => b !== tagKey);
+              p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
+            }
           }
         })
       );
     },
     [indexPlot]
   );
-  const onChangeHide = useCallback<React.MouseEventHandler<HTMLSpanElement>>(
-    (e) => {
+  const onChangeHide = useCallback(
+    (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+      const ctrl = e.nativeEvent.ctrlKey || e.nativeEvent.metaKey;
       const tagKey = e.currentTarget.getAttribute('data-value');
       const tagStatusHide = !!e.currentTarget.getAttribute('data-status');
       if (!tagKey) {
@@ -46,13 +58,24 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
       useStore.getState().setPlotParams(
         indexPlot,
         produce((p) => {
-          if (tagStatusHide) {
-            p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
-            if (p.eventsBy.indexOf(tagKey) < 0) {
-              p.eventsBy = [...p.eventsBy, tagKey];
+          if (ctrl) {
+            if (tagStatusHide) {
+              p.eventsHide = [];
+              if (p.eventsBy.indexOf(tagKey) < 0) {
+                p.eventsBy = [tagKey];
+              }
+            } else {
+              p.eventsHide = [tagKey];
             }
           } else {
-            p.eventsHide = [...p.eventsHide, tagKey];
+            if (tagStatusHide) {
+              p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
+              if (p.eventsBy.indexOf(tagKey) < 0) {
+                p.eventsBy = [...p.eventsBy, tagKey];
+              }
+            } else {
+              p.eventsHide = [...p.eventsHide, tagKey];
+            }
           }
         })
       );

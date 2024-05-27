@@ -21,6 +21,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
@@ -34,8 +35,8 @@ import (
 type Agent struct {
 	historicBucketsDataSize atomic.Int64 // sum of values for each shard
 
-	ShardReplicas   []*ShardReplica              // 3 * number of shards
-	NumShards       int                          // so len(ShardReplicas) / 3
+	ShardReplicas   []*ShardReplica // 3 * number of shards
+	Shards          []*Shard
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
 
 	diskCache *DiskBucketStorage
@@ -52,7 +53,6 @@ type Agent struct {
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
 	heartBeatSecondBucket int            // random [0..59] bucket for per minute heartbeat to spread load on aggregator
-	heartBeatReplicaNum   int            // random [0..2] first shard replica for per minute heartbeat to spread load on aggregator
 	startTimestamp        uint32
 
 	metricStorage format.MetaStorageInterface
@@ -81,19 +81,10 @@ type Agent struct {
 	loadPromTargetsShardReplica *ShardReplica
 }
 
-func SpareShardReplica(shardReplica int, timestamp uint32) int {
-	shard := shardReplica / 3
-	replica := shardReplica % 3
-	if timestamp%2 == 0 {
-		return shard*3 + (replica+1)%3
-	}
-	return shard*3 + (replica+2)%3
-}
-
 // All shard aggregators must be on the same network
-func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, logF func(format string, args ...interface{}),
+func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
-	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF), rpc.ClientWithPongTimeout(data_model.ClientRPCPongTimeout))
+	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
 	rnd := rand.New()
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
@@ -103,7 +94,6 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		componentTag:          componentTag,
 		heartBeatEventType:    format.TagValueIDHeartbeatEventStart,
 		heartBeatSecondBucket: rnd.Intn(60),
-		heartBeatReplicaNum:   rnd.Intn(3),
 		config:                config,
 		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
 		argsLen:               int32(len(allArgs)),
@@ -134,10 +124,9 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		if len(config.AggregatorAddresses) < 3 {
 			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
-		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, logF)
+		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
-	result.NumShards = len(config.AggregatorAddresses) / 3
 	nowUnix := uint32(time.Now().Unix())
 	result.startTimestamp = nowUnix
 	if storageDir != "" {
@@ -148,26 +137,18 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		result.diskCache = dc
 	}
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
-	for i, a := range config.AggregatorAddresses {
-		shard := &ShardReplica{
+	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
+		shard := &Shard{
 			config:                           config,
 			hardwareMetricResolutionResolved: atomic.NewInt32(int32(config.HardwareMetricResolution)),
 			agent:                            result,
-			ShardReplicaNum:                  i,
-			ShardKey:                         int32(i/3) + 1,
-			ReplicaKey:                       int32(i%3) + 1,
-			timeSpreadDelta:                  commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			ShardNum:                         i,
+			ShardKey:                         int32(i) + 1,
+			timeSpreadDelta:                  3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			CurrentTime:                      nowUnix,
 			FutureQueue:                      make([][]*data_model.MetricsBucket, 60),
 			BucketsToSend:                    make(chan compressedBucketDataOnDisk),
-			client: tlstatshouse.Client{
-				Client:  rpcClient,
-				Network: network,
-				Address: a,
-				ActorID: 0,
-			},
-			perm:  rnd.Perm(data_model.AggregationShardsPerSecond),
-			stats: &shardStat{shardReplicaNum: strconv.FormatInt(int64(i), 10)},
+			perm:                             rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
 		shard.CurrentBuckets = make([][]*data_model.MetricsBucket, 61)
 		for r := range shard.CurrentBuckets {
@@ -179,10 +160,9 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime})
 			}
 		}
-		shard.alive.Store(true)
 		shard.cond = sync.NewCond(&shard.mu)
 		shard.condPreprocess = sync.NewCond(&shard.mu)
-		result.ShardReplicas = append(result.ShardReplicas, shard)
+		result.Shards = append(result.Shards, shard)
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
@@ -190,6 +170,26 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
 	}
+	for i, a := range config.AggregatorAddresses {
+		shardReplica := &ShardReplica{
+			config:          config,
+			agent:           result,
+			ShardReplicaNum: i,
+			ShardKey:        int32(i/3) + 1,
+			ReplicaKey:      int32(i%3) + 1,
+			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			client: tlstatshouse.Client{
+				Client:  rpcClient,
+				Network: network,
+				Address: a,
+				ActorID: 0,
+			},
+			stats: &shardStat{shardReplicaNum: strconv.FormatInt(int64(i), 10)},
+		}
+		shardReplica.alive.Store(true)
+		result.ShardReplicas = append(result.ShardReplicas, shardReplica)
+	}
+
 	// TODO - remove those, simply write metrics to bucket as usual
 	result.statErrorsDiskWrite = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorWrite}})
 	result.statErrorsDiskRead = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorRead}})
@@ -208,8 +208,15 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	s.AggregatorHost = aggHost
 	s.AggregatorShardKey = aggShardKey
 	s.AggregatorReplicaKey = aggReplicaKey
-	for _, shard := range s.ShardReplicas {
-		shard.InitBuiltInMetric()
+	for _, shardReplica := range s.ShardReplicas {
+		shardReplica.InitBuiltInMetric()
+
+		if shardReplica.client.Address != "" {
+			go shardReplica.goLiveChecker()
+		}
+		go shardReplica.goTestConnectionLoop()
+	}
+	for _, shard := range s.Shards {
 
 		go shard.goPreProcess()
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
@@ -218,11 +225,7 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 		for j := 0; j < data_model.MaxHistorySendStreams; j++ {
 			go shard.goSendHistoric()
 		}
-		if shard.client.Address != "" {
-			go shard.goLiveChecker()
-		}
 		go shard.goEraseHistoric()
-		go shard.goTestConnectionLoop()
 	}
 	go s.goFlusher()
 }
@@ -233,6 +236,10 @@ func (s *Agent) Close() {
 
 func (s *Agent) NumShardReplicas() int {
 	return len(s.ShardReplicas)
+}
+
+func (s *Agent) NumShards() int {
+	return len(s.Shards)
 }
 
 // if first one is nil, second one is also nil
@@ -255,6 +262,21 @@ func (s *Agent) getRandomLiveShardReplicas() (*ShardReplica, *ShardReplica) {
 		j++
 	}
 	return liveShardReplicas[i], liveShardReplicas[j]
+}
+
+func (s *Agent) getShardReplicaForSeccnd(shardNum int, timestamp uint32) (shardReplica *ShardReplica, spare bool) {
+	replicaShift := int(timestamp % 3)
+	shardReplica = s.ShardReplicas[shardNum*3+replicaShift]
+
+	if shardReplica.alive.Load() {
+		return shardReplica, false
+	}
+	replicaShift = int((timestamp + 1 + timestamp%2) % 3)
+	shardReplica = s.ShardReplicas[shardNum*3+replicaShift]
+	if !shardReplica.alive.Load() {
+		return nil, false
+	}
+	return shardReplica, true
 }
 
 func (s *Agent) updateConfigRemotelyExperimental() {
@@ -281,12 +303,17 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		return
 	}
 	s.logF("Remote config: updated config from metric %q", data_model.StatshouseAgentRemoteConfigMetric)
-	if config.SkipShards < s.NumShards {
+	if config.SkipShards < s.NumShards() {
 		s.skipShards.Store(int32(config.SkipShards))
 	} else {
 		s.skipShards.Store(0)
 	}
-	for _, shardReplica := range s.ShardReplicas {
+	for _, shard := range s.Shards {
+		shard.mu.Lock()
+		shard.config = config
+		shard.mu.Unlock()
+	}
+	for _, shardReplica := range s.Shards {
 		shardReplica.mu.Lock()
 		shardReplica.config = config
 		shardReplica.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
@@ -302,8 +329,8 @@ func (s *Agent) goFlusher() {
 		if s.beforeFlushBucketFunc != nil {
 			s.beforeFlushBucketFunc(s, now)
 		}
-		for _, shardReplica := range s.ShardReplicas {
-			shardReplica.flushBuckets(now)
+		for _, shard := range s.Shards {
+			shard.flushBuckets(now)
 		}
 		s.updateConfigRemotelyExperimental()
 	}
@@ -330,25 +357,25 @@ func (s *BuiltInItemValue) Merge(s2 *data_model.ItemValue) {
 }
 
 func (s *Agent) shardNumFromHash(hash uint64) int {
-	numShardReplicas := s.NumShardReplicas()
-	skipShardReplicas := 3 * int(s.skipShards.Load())                  // free on x86
-	if skipShardReplicas > 0 && skipShardReplicas < numShardReplicas { // second condition checked during setting skipShards, but cheap enough
-		mul := (hash >> 32) * uint64(numShardReplicas-skipShardReplicas) >> 32 // trunc([0..0.9999999] * numShardReplicas) in fixed point 32.32
-		return skipShardReplicas + int(mul)
+	numShards := s.NumShards()
+	skipShards := int(s.skipShards.Load())        // free on x86
+	if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
+		mul := (hash >> 32) * uint64(numShards-skipShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
+		return skipShards + int(mul)
 	}
-	mul := (hash >> 32) * uint64(numShardReplicas) >> 32 // trunc([0..0.9999999] * numShardReplicas) in fixed point 32.32
+	mul := (hash >> 32) * uint64(numShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
 	return int(mul)
 }
 
-func (s *Agent) shardReplicaFromHash(hash uint64) *ShardReplica {
-	return s.ShardReplicas[s.shardNumFromHash(hash)]
+func (s *Agent) shardFromHash(hash uint64) *Shard {
+	return s.Shards[s.shardNumFromHash(hash)]
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	return shardReplica.CreateBuiltInItemValue(key)
 }
 
@@ -378,6 +405,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
 		}, h.NotFoundTagName, 1, 0, nil)
+	}
+	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
+		// FoundDraftTagName is validated when discovered
+		// This is warning, so written independent of ingestion status
+		s.AddCounterHostStringBytes(data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
+		}, h.FoundDraftTagName, 1, 0, nil)
 	}
 	if h.TagSetTwiceKey != 0 {
 		s.AddCounter(data_model.Key{
@@ -422,11 +457,11 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
 	// for the purpose of this, Uniques are treated exactly as Values
 	keyHash := h.Key.Hash()
-	shordReplicaNum := s.shardNumFromHash(keyHash)
-	shardReplica := s.ShardReplicas[shordReplicaNum]
+	shordNum := s.shardNumFromHash(keyHash)
+	shard := s.Shards[shordNum]
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	if len(m.Unique) != 0 {
-		numShards := s.NumShards
+		numShards := s.NumShards()
 		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 {
 			// we want unique value sets to have no intersections
 			// so we first shard by unique value, then shard among 3 replicas by keys
@@ -435,40 +470,37 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
 				notSkippedShards = numShards - skipShards
 			}
-			mul := int((keyHash >> 32) * 3 >> 32) // trunc([0..0.9999999] * 3) in fixed point 32.32
 
 			if len(m.Unique) == 1 { // very common case, optimize
-				uniqueShard := int(m.Unique[0] % int64(notSkippedShards))
-				shordReplicaNum2 := (skipShards+uniqueShard)*3 + mul
-				shard2 := s.ShardReplicas[shordReplicaNum2]
+				uniqueShard := int(m.Unique[0] % int64(notSkippedShards)) // TODO - optimize %
+				shard2 := s.Shards[skipShards+uniqueShard]
 				shard2.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 				return
 			}
-			uniqueValuesCache := shardReplica.getUniqueValuesCache(notSkippedShards) // TOO - better reuse without lock?
-			defer shardReplica.putUniqueValuesCache(uniqueValuesCache)
+			uniqueValuesCache := shard.getUniqueValuesCache(notSkippedShards) // TOO - better reuse without lock?
+			defer shard.putUniqueValuesCache(uniqueValuesCache)
 			for _, v := range m.Unique {
-				uniqueShard := v % int64(notSkippedShards)
+				uniqueShard := v % int64(notSkippedShards) // TODO - optimize %
 				uniqueValuesCache[uniqueShard] = append(uniqueValuesCache[uniqueShard], v)
 			}
 			for uniqueShard, vv := range uniqueValuesCache {
 				if len(vv) == 0 {
 					continue
 				}
-				shordReplicaNum2 := (skipShards+uniqueShard)*3 + mul
-				shard2 := s.ShardReplicas[shordReplicaNum2]
+				shard2 := s.Shards[skipShards+uniqueShard]
 				shard2.ApplyUnique(h.Key, keyHash, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricInfo)
 			}
 			return
 		}
-		shardReplica.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if len(m.Value) != 0 {
-		shardReplica.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if m.Counter > 0 {
-		shardReplica.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
 	}
 }
 
@@ -482,7 +514,7 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
 }
 
@@ -493,7 +525,7 @@ func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count 
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddCounterHostStringBytes(key, keyHash, str, count, hostTag, metricInfo)
 }
 
@@ -502,7 +534,7 @@ func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter f
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddValueCounterHost(key, keyHash, value, counter, hostTag, nil)
 }
 
@@ -512,7 +544,7 @@ func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddValueCounterHost(key, keyHash, value, counter, 0, metricInfo)
 }
 
@@ -522,7 +554,7 @@ func (s *Agent) AddValueCounterHostArray(key data_model.Key, values []float64, m
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardReplicaFromHash(keyHash)
+	shard := s.shardFromHash(keyHash)
 	shard.AddValueArrayCounterHost(key, keyHash, values, mult, hostTag, metricInfo)
 }
 */
@@ -532,7 +564,7 @@ func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values [
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTag, str, metricInfo)
 }
 
@@ -541,7 +573,7 @@ func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTag, str, nil)
 }
 
@@ -550,7 +582,7 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.MergeItemValue(key, keyHash, item, metricInfo)
 }
 
@@ -559,7 +591,7 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 		return
 	}
 	keyHash := key.Hash()
-	shardReplica := s.shardReplicaFromHash(keyHash)
+	shardReplica := s.shardFromHash(keyHash)
 	shardReplica.AddUniqueHostStringBytes(key, hostTag, str, keyHash, hashes, count, metricInfo)
 }
 

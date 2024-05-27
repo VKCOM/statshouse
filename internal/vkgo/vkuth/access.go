@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -53,6 +53,20 @@ func ParseVkuthKeysPemInBase64(encoded []string) (map[string][]byte, error) {
 	return m, nil
 }
 
+func ParseVkuthKeysPem(encoded []string) (map[string][]byte, error) {
+	m := map[string][]byte{}
+	for _, s := range encoded {
+		publicKey, err := jwt.ParseEdPublicKeyFromPEM([]byte(s))
+
+		if err != nil {
+			return nil, fmt.Errorf("can't decode public key: %w", err)
+		}
+		k := publicKey.(ed25519.PublicKey)
+		m[vkuthFingerprint(k)] = k
+	}
+	return m, nil
+}
+
 func parseVkuthKeyPemInBase64(encoded string) ([]byte, error) {
 	b, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
@@ -96,10 +110,13 @@ func stripFullBit(fullBit string, appName string) string {
 }
 
 type Data struct {
-	Bits      []string `json:"bits"`
-	User      string   `json:"user"`
-	VkID      *int64   `json:"vk_id"`
-	IsService bool     `json:"is_service"`
+	Bits         []string `json:"bits"`
+	User         string   `json:"user"`
+	VkID         *int64   `json:"vk_id"`
+	IsService    bool     `json:"is_service"`
+	EmployeeID   *int64   `json:"employee_id"`
+	UnitID       *int64   `json:"unit_id"`
+	UnitsIDOwner *string  `json:"units_id_owner"` // owner/team lead
 }
 type Claims struct {
 	*jwt.RegisteredClaims
@@ -115,10 +132,13 @@ type JWTHelper struct {
 }
 
 type AccessData struct {
-	Bits      map[string]struct{} // bits without namespace and only for appName service
-	User      string
-	VkID      *int64
-	IsService bool
+	Bits         map[string]struct{} // bits without namespace and only for appName service
+	User         string
+	VkID         *int64
+	IsService    bool
+	EmployeeID   *int64
+	UnitID       *int64
+	UnitsIDOwner *string
 }
 
 func NewJWTHelper(publicKeys map[string][]byte, appName string) *JWTHelper {
@@ -197,9 +217,12 @@ func (helper *JWTHelper) ParseVkuthData(accessToken string) (*AccessData, error)
 		}
 	}
 	return &AccessData{
-		Bits:      bits,
-		User:      claims.Data.User,
-		VkID:      claims.Data.VkID,
-		IsService: claims.Data.IsService,
+		Bits:         bits,
+		User:         claims.Data.User,
+		VkID:         claims.Data.VkID,
+		IsService:    claims.Data.IsService,
+		EmployeeID:   claims.Data.EmployeeID,
+		UnitID:       claims.Data.UnitID,
+		UnitsIDOwner: claims.Data.UnitsIDOwner,
 	}, nil
 }

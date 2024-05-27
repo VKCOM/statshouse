@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -68,19 +68,20 @@ func TestCircularBuffer(t *testing.T) {
 			}
 			for i, v := range normal {
 				if circular.Index(i) != v {
-					t.Fatalf("index access brokern")
+					t.Fatalf("index access broken")
 				}
 			}
 		}
 
 		iter := rapid.IntRange(0, 1000).Draw(t, "iter")
 		for i := 0; i < iter; i++ {
-			push := rapid.Bool().Draw(t, "push")
-			if push {
+			action := rapid.IntRange(0, 2).Draw(t, "action")
+			switch action {
+			case 0: // push
 				value := rapid.Int().Draw(t, "value")
 				circular.PushBack(value)
 				normal = append(normal, value)
-			} else {
+			case 1: // pop
 				if circular.Len() != 0 || len(normal) != 0 { // if empty status is different, panic
 					v1 := circular.PopFront()
 					v2 := normal[0]
@@ -89,6 +90,9 @@ func TestCircularBuffer(t *testing.T) {
 						t.Fatalf("popped different values: %d %d", v1, v2)
 					}
 				}
+			case 2: // reserve
+				value := rapid.IntRange(0, iter).Draw(t, "capacity")
+				circular.Reserve(value)
 			}
 			checkEqual()
 		}

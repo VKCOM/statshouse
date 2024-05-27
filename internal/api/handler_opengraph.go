@@ -68,16 +68,20 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 			paramWidth       = p + ParamWidth
 			paramQueryWhat   = p + ParamQueryWhat
 			paramPromQuery   = p + paramPromQuery
+			paramYL          = p + paramYL
+			paramYH          = p + paramYH
 		)
 
 		// Build query
 		v.Set(paramMetric, metric)
 		v.Set(paramVersion, value(r, paramVersion, "2"))
-		v.Set(paramNumResults, value(r, paramNumResults, "5"))
+		v[paramNumResults] = r.Form[paramNumResults]
 		v[paramQueryBy] = r.Form[paramQueryBy]
 		v[paramQueryFilter] = r.Form[paramQueryFilter]
 		v[paramTimeShift] = r.Form[paramTimeShift]
 		v[paramPromQuery] = r.Form[paramPromQuery]
+		v[paramYL] = r.Form[paramYL]
+		v[paramYH] = r.Form[paramYH]
 		//-- width
 		widthAgg := r.FormValue(paramWidthAgg)
 		if widthAgg != "" {
@@ -137,8 +141,8 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 	if 0 <= tn && tn < len(metrics) {
 		what := whats[tn]
 		for i, w := range what {
-			if l, ok := validQueryFn(w); ok {
-				what[i] = WhatToWhatDesc(l)
+			if _, ok := ParseQueryFunc(w, nil); ok {
+				what[i] = WhatToWhatDesc(w)
 			}
 		}
 		title = fmt.Sprintf("%s: %s", metrics[tn], strings.Join(what, ", "))

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -38,10 +38,16 @@ func (item *RpcReqResultError) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Error)
 }
 
-func (item *RpcReqResultError) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *RpcReqResultError) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *RpcReqResultError) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.QueryId)
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.Error)
+	w = basictl.StringWrite(w, item.Error)
+	return w
 }
 
 func (item *RpcReqResultError) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,78 +57,120 @@ func (item *RpcReqResultError) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *RpcReqResultError) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *RpcReqResultError) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *RpcReqResultError) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x7ae432f5)
 	return item.Write(w)
 }
 
 func (item RpcReqResultError) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func RpcReqResultError__ReadJSON(item *RpcReqResultError, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcReqResultError) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcReqResultError", "expected json object")
+func (item *RpcReqResultError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryIdPresented bool
+	var propErrorCodePresented bool
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query_id":
+				if propQueryIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "query_id")
+				}
+				if err := Json2ReadInt64(in, &item.QueryId); err != nil {
+					return err
+				}
+				propQueryIdPresented = true
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultError", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jQueryId := _jm["query_id"]
-	delete(_jm, "query_id")
-	if err := JsonReadInt64(_jQueryId, &item.QueryId); err != nil {
-		return err
+	if !propQueryIdPresented {
+		item.QueryId = 0
 	}
-	_jErrorCode := _jm["error_code"]
-	delete(_jm, "error_code")
-	if err := JsonReadInt32(_jErrorCode, &item.ErrorCode); err != nil {
-		return err
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
 	}
-	_jError := _jm["error"]
-	delete(_jm, "error")
-	if err := JsonReadString(_jError, &item.Error); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcReqResultError", k)
+	if !propErrorPresented {
+		item.Error = ""
 	}
 	return nil
 }
 
-func (item *RpcReqResultError) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *RpcReqResultError) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *RpcReqResultError) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *RpcReqResultError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.QueryId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"query_id":`...)
-		w = basictl.JSONWriteInt64(w, item.QueryId)
+	backupIndexQueryId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"query_id":`...)
+	w = basictl.JSONWriteInt64(w, item.QueryId)
+	if (item.QueryId != 0) == false {
+		w = w[:backupIndexQueryId]
 	}
-	if item.ErrorCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	backupIndexErrorCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	if (item.ErrorCode != 0) == false {
+		w = w[:backupIndexErrorCode]
 	}
-	if len(item.Error) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error":`...)
-		w = basictl.JSONWriteString(w, item.Error)
+	backupIndexError := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error":`...)
+	w = basictl.JSONWriteString(w, item.Error)
+	if (len(item.Error) != 0) == false {
+		w = w[:backupIndexError]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *RpcReqResultError) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *RpcReqResultError) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcReqResultError", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcReqResultError", err.Error())
 	}
 	return nil

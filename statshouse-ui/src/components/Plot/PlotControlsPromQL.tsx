@@ -4,13 +4,33 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { ChangeEvent, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { produce } from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { Button, PlotControlFrom, PlotControlTimeShifts, PlotControlTo, SwitchBox } from '../index';
-import { selectorParamsTimeShifts, selectorPlotsDataByIndex, selectorTimeRange, useStore } from '../../store';
+import {
+  Button,
+  PlotControlFrom,
+  PlotControlTimeShifts,
+  PlotControlTo,
+  SwitchBox,
+  TextArea,
+  VariableControl,
+} from '../index';
+import {
+  selectorParamsTimeShifts,
+  selectorPlotsDataByIndex,
+  selectorTimeRange,
+  setGroupByVariable,
+  setNegativeVariable,
+  setUpdatedVariable,
+  setValuesVariable,
+  Store,
+  useStore,
+  useVariableListStore,
+  VariableListStore,
+} from '../../store';
 import { metricKindToWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
@@ -23,6 +43,18 @@ import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType, QueryWhat, toMetricTy
 import { PlotParams } from '../../url/queryParams';
 import { getMetricType } from '../../common/formatByMetricType';
 
+const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
+  <div className="input-group">
+    <TextArea {...props} className="form-control-sm rounded font-monospace" autoHeight style={{ minHeight: 202 }} />
+  </div>
+);
+
+const PromQLEditor = lazy(() =>
+  import('../UI/PromQLEditor').catch(() => ({
+    default: FallbackEditor,
+  }))
+);
+
 const { setParams, setTimeRange } = useStore.getState();
 
 const METRIC_TYPE_KEYS: MetricType[] = ['null', ...Object.values(METRIC_TYPE)] as MetricType[];
@@ -30,6 +62,8 @@ const METRIC_TYPE_DESCRIPTION_SELECTOR = {
   null: 'infer unit',
   ...METRIC_TYPE_DESCRIPTION,
 };
+
+const selectorVariables = ({ params: { variables } }: Store) => variables;
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
@@ -51,6 +85,13 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const timeShifts = useStore(selectorParamsTimeShifts);
 
   const timeRange = useStore(selectorTimeRange);
+
+  const allVariables = useStore(selectorVariables);
+  const variables = useMemo(
+    () => allVariables.filter((v) => sel.promQL.indexOf(v.name) > -1),
+    [allVariables, sel.promQL]
+  );
+  const variableItems = useVariableListStore((s: VariableListStore) => s.variables);
 
   // keep meta up-to-date when sel.metricName changes (e.g. because of navigation)
   useEffect(() => {
@@ -92,9 +133,8 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     [setSel]
   );
 
-  const inputPromQL = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.currentTarget.value;
+  const inputPromQLValue = useCallback(
+    (value: string) => {
       setPromQL(value);
     },
     [setPromQL]
@@ -214,16 +254,33 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           </div>
           <PlotControlTimeShifts className="w-100 mt-2" />
         </div>
-
+        <div>
+          {variables.map((variable) => (
+            <VariableControl<string>
+              key={variable.name}
+              target={variable.name}
+              placeholder={variable.description || variable.name}
+              list={variableItems[variable.name].list}
+              loaded={variableItems[variable.name].loaded}
+              tagMeta={variableItems[variable.name].tagMeta}
+              more={variableItems[variable.name].more}
+              customValue={variableItems[variable.name].more || !variableItems[variable.name].list.length}
+              negative={variable.args.negative}
+              setNegative={setNegativeVariable}
+              groupBy={variable.args.groupBy}
+              setGroupBy={setGroupByVariable}
+              className="mb-2"
+              values={!variable.args.negative ? variable.values : undefined}
+              notValues={variable.args.negative ? variable.values : undefined}
+              onChange={setValuesVariable}
+              setOpen={setUpdatedVariable}
+            />
+          ))}
+        </div>
         <div className="row mb-3 align-items-baseline">
-          <div className="input-group">
-            <textarea
-              className="form-control font-monospace form-control-sm"
-              rows={10}
-              value={promQL}
-              onInput={inputPromQL}
-            ></textarea>
-          </div>
+          <Suspense fallback={<FallbackEditor value={promQL} onChange={inputPromQLValue} />}>
+            {!!PromQLEditor && <PromQLEditor className="input-group" value={promQL} onChange={inputPromQLValue} />}
+          </Suspense>
           <div className="d-flex flex-row justify-content-end mt-2">
             <Button
               onClick={toggleBigControl}

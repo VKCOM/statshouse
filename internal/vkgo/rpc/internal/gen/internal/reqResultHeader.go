@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -28,8 +28,14 @@ func (item *ReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return item.Extra.Read(w)
 }
 
-func (item *ReqResultHeader) Write(w []byte) (_ []byte, err error) {
-	return item.Extra.Write(w)
+// This method is general version of Write, use it instead!
+func (item *ReqResultHeader) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *ReqResultHeader) Write(w []byte) []byte {
+	w = item.Extra.Write(w)
+	return w
 }
 
 func (item *ReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,56 +45,78 @@ func (item *ReqResultHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *ReqResultHeader) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *ReqResultHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *ReqResultHeader) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8cc84ce1)
 	return item.Write(w)
 }
 
 func (item ReqResultHeader) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func ReqResultHeader__ReadJSON(item *ReqResultHeader, j interface{}) error { return item.readJSON(j) }
-func (item *ReqResultHeader) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("reqResultHeader", "expected json object")
+func (item *ReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propExtraPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "extra":
+				if propExtraPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("reqResultHeader", "extra")
+				}
+				if err := item.Extra.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propExtraPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("reqResultHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jExtra := _jm["extra"]
-	delete(_jm, "extra")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("reqResultHeader", k)
-	}
-	if err := RpcReqResultExtra__ReadJSON(&item.Extra, _jExtra); err != nil {
-		return err
+	if !propExtraPresented {
+		item.Extra.Reset()
 	}
 	return nil
 }
 
-func (item *ReqResultHeader) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *ReqResultHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *ReqResultHeader) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *ReqResultHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	if w, err = item.Extra.WriteJSON(w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Extra.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *ReqResultHeader) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *ReqResultHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("reqResultHeader", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("reqResultHeader", err.Error())
 	}
 	return nil

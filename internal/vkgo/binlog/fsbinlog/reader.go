@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -17,7 +17,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/vkcom/statshouse/internal/vkgo/algo"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
@@ -232,7 +231,7 @@ func readToAndUpdateCrc(r io.Reader, bytes int64, crc uint32) (uint32, error) {
 	const bufSize = 64 * 1024
 	buff := make([]byte, bufSize)
 	for bytes > 0 {
-		to := algo.Min(bytes, bufSize)
+		to := min(bytes, bufSize)
 		n, err := r.Read(buff[:to])
 		if err != nil {
 			// if we seek, file should already exist. EOF is an error

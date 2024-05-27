@@ -21,6 +21,8 @@ import (
 
 	"github.com/mailru/easyjson/jwriter"
 
+	"github.com/vkcom/statshouse/internal/data_model"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 )
@@ -65,6 +67,8 @@ func httpCode(err error) int {
 		var httpErr httpError
 		var promErr promql.Error
 		switch {
+		case errors.Is(err, data_model.ErrEntityNotExists):
+			code = http.StatusNotFound
 		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
 		case errors.As(err, &httpErr):
@@ -116,7 +120,7 @@ func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *e
 		return
 	}
 
-	uniqueWhat := make(map[queryFn]struct{})
+	uniqueWhat := make(map[string]struct{})
 	for _, meta := range resp.Series.SeriesMeta {
 		uniqueWhat[meta.What] = struct{}{}
 	}
@@ -134,7 +138,7 @@ func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *e
 
 			err := writer.Write([]string{
 				time.Unix(resp.Series.Time[di], 0).Format("2006-01-02 15:04:05"),
-				strconv.FormatFloat(p, 'f', 2, 64),
+				strconv.FormatFloat(p, 'f', -1, 64),
 				label,
 			})
 			if err != nil {
@@ -169,6 +173,9 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 		msg := `{"error": "failed to marshal JSON response"}`
 		w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
 		w.Header().Set("Content-Type", "application/json")
+		if es != nil {
+			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
+		}
 		code = http.StatusInternalServerError
 		w.WriteHeader(code)
 		_, err := w.Write([]byte(msg))
@@ -192,6 +199,9 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 				w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d, stale-while-revalidate=%d", cacheSeconds(cache), cacheSeconds(cacheStale)))
 			}
 		}
+		if es != nil {
+			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
+		}
 		w.WriteHeader(code)
 		start := time.Now()
 		_, err := jw.DumpTo(w)
@@ -212,6 +222,7 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 	code := http.StatusOK
 	if es != nil {
 		es.reportServiceTime(code, nil)
+		w.Header().Set(ServerTimingHeaderKey, es.timings.String())
 	}
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -265,39 +276,6 @@ func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err 
 		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
 	}
 	if to.Before(from) {
-		err = httpErr(http.StatusBadRequest, fmt.Errorf("%q %v is before %q %v", ParamToTime, to, ParamFromTime, from))
-	}
-	return
-}
-
-func parseFromToRows(fromTS string, toTS string, f, t RowMarker) (from time.Time, to time.Time, err error) {
-	count := 0
-	fromN := f.Time
-	toN := t.Time
-	if f.Time == 0 {
-		fromN, err = strconv.ParseInt(fromTS, 10, 64)
-		if err != nil {
-			return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
-		}
-		count++
-	}
-	if t.Time == 0 {
-		toN, err = strconv.ParseInt(toTS, 10, 64)
-		if err != nil {
-			return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
-		}
-		count++
-	}
-
-	to, err = parseUnixTimeTo(toN)
-	if err != nil {
-		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
-	}
-	from, err = parseUnixTimeFrom(fromN, to)
-	if err != nil {
-		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
-	}
-	if (count%2) == 0 && to.Before(from) {
 		err = httpErr(http.StatusBadRequest, fmt.Errorf("%q %v is before %q %v", ParamToTime, to, ParamFromTime, from))
 	}
 	return
@@ -374,7 +352,7 @@ func verifyTimeShifts(ts []int64) ([]time.Duration, error) {
 	return ds, nil
 }
 
-func parseNumResults(s string, def int, max int) (int, error) {
+func parseNumResults(s string, max int) (int, error) {
 	u, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse number of results: %w", err))

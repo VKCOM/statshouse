@@ -28,8 +28,14 @@ func (item *EngineInvokeHttpQuery) Read(w []byte) (_ []byte, err error) {
 	return item.Query.Read(w)
 }
 
-func (item *EngineInvokeHttpQuery) Write(w []byte) (_ []byte, err error) {
-	return item.Query.Write(w)
+// This method is general version of Write, use it instead!
+func (item *EngineInvokeHttpQuery) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineInvokeHttpQuery) Write(w []byte) []byte {
+	w = item.Query.Write(w)
+	return w
 }
 
 func (item *EngineInvokeHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineInvokeHttpQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineInvokeHttpQuery) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineInvokeHttpQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineInvokeHttpQuery) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf4c73c0b)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *EngineInvokeHttpQuery) ReadResult(w []byte, ret *EngineHttpQueryResp
 }
 
 func (item *EngineInvokeHttpQuery) WriteResult(w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineInvokeHttpQuery) ReadResultJSON(j interface{}, ret *EngineHttpQueryResponse) error {
-	if err := EngineHttpQueryResponse__ReadJSON(ret, j); err != nil {
+func (item *EngineInvokeHttpQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineHttpQueryResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineInvokeHttpQuery) WriteResultJSON(w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineInvokeHttpQuery) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *EngineInvokeHttpQuery) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *EngineInvokeHttpQuery) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.invokeHttpQuery", err.Error())
-	}
+func (item *EngineInvokeHttpQuery) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineHttpQueryResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineInvokeHttpQuery) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret EngineHttpQueryResponse
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,52 +109,67 @@ func (item *EngineInvokeHttpQuery) ReadResultJSONWriteResult(r []byte, w []byte)
 }
 
 func (item EngineInvokeHttpQuery) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineInvokeHttpQuery__ReadJSON(item *EngineInvokeHttpQuery, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineInvokeHttpQuery) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.invokeHttpQuery", "expected json object")
+func (item *EngineInvokeHttpQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query":
+				if propQueryPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.invokeHttpQuery", "query")
+				}
+				if err := item.Query.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propQueryPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.invokeHttpQuery", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jQuery := _jm["query"]
-	delete(_jm, "query")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.invokeHttpQuery", k)
-	}
-	if err := EngineHttpQuery__ReadJSON(&item.Query, _jQuery); err != nil {
-		return err
+	if !propQueryPresented {
+		item.Query.Reset()
 	}
 	return nil
 }
 
-func (item *EngineInvokeHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineInvokeHttpQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineInvokeHttpQuery) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineInvokeHttpQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSON(w); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Query.WriteJSONOpt(newTypeNames, short, w)
+	return append(w, '}')
 }
 
 func (item *EngineInvokeHttpQuery) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineInvokeHttpQuery) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.invokeHttpQuery", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.invokeHttpQuery", err.Error())
 	}
 	return nil

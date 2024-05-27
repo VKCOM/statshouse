@@ -35,9 +35,10 @@ type (
 	VectorLong                                    = internal.VectorLong
 	VectorMetadataEvent                           = internal.VectorMetadataEvent
 	VectorMetadataEventBytes                      = internal.VectorMetadataEventBytes
+	VectorMetadataHistoryShortResponseEvent       = internal.VectorMetadataHistoryShortResponseEvent
 	VectorMetadataMetricOld                       = internal.VectorMetadataMetricOld
 	VectorStatshouseApiFilter                     = internal.VectorStatshouseApiFilter
-	VectorStatshouseApiFunctionBoxed              = internal.VectorStatshouseApiFunctionBoxed
+	VectorStatshouseApiFunction                   = internal.VectorStatshouseApiFunction
 	VectorStatshouseApiPointMeta                  = internal.VectorStatshouseApiPointMeta
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue
@@ -58,3 +59,10 @@ type (
 	VectorStringBytes                             = internal.VectorStringBytes
 	VectorVectorDouble                            = internal.VectorVectorDouble
 )
+
+func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
+	return internal.BoolReadBoxed(w, v)
+}
+func BoolWriteBoxed(w []byte, v bool) []byte {
+	return internal.BoolWriteBoxed(w, v)
+}

@@ -38,10 +38,16 @@ func (item *MetadataGetMetrics) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Limit)
 }
 
-func (item *MetadataGetMetrics) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataGetMetrics) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetMetrics) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
-	return basictl.LongWrite(w, item.Limit), nil
+	w = basictl.LongWrite(w, item.Limit)
+	return w
 }
 
 func (item *MetadataGetMetrics) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,7 +57,12 @@ func (item *MetadataGetMetrics) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataGetMetrics) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetMetrics) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetMetrics) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x93ba92f5)
 	return item.Write(w)
 }
@@ -61,20 +72,23 @@ func (item *MetadataGetMetrics) ReadResult(w []byte, ret *MetadataGetMetricsResp
 }
 
 func (item *MetadataGetMetrics) WriteResult(w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w, item.FieldMask)
+	w = ret.WriteBoxed(w, item.FieldMask)
+	return w, nil
 }
 
-func (item *MetadataGetMetrics) ReadResultJSON(j interface{}, ret *MetadataGetMetricsResponse) error {
-	if err := MetadataGetMetricsResponse__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetMetrics) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetMetricsResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetMetrics) WriteResultJSON(w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *MetadataGetMetrics) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask)
 	return w, nil
 }
 
@@ -87,13 +101,19 @@ func (item *MetadataGetMetrics) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *MetadataGetMetrics) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getMetrics", err.Error())
-	}
+func (item *MetadataGetMetrics) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetMetricsResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetMetrics) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataGetMetricsResponse
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -101,72 +121,109 @@ func (item *MetadataGetMetrics) ReadResultJSONWriteResult(r []byte, w []byte) ([
 }
 
 func (item MetadataGetMetrics) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataGetMetrics__ReadJSON(item *MetadataGetMetrics, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetMetrics) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getMetrics", "expected json object")
+func (item *MetadataGetMetrics) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propFromPresented bool
+	var propLimitPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMetrics", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMetrics", "from")
+				}
+				if err := Json2ReadInt64(in, &item.From); err != nil {
+					return err
+				}
+				propFromPresented = true
+			case "limit":
+				if propLimitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMetrics", "limit")
+				}
+				if err := Json2ReadInt64(in, &item.Limit); err != nil {
+					return err
+				}
+				propLimitPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getMetrics", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
 	}
-	_jFrom := _jm["from"]
-	delete(_jm, "from")
-	if err := JsonReadInt64(_jFrom, &item.From); err != nil {
-		return err
+	if !propFromPresented {
+		item.From = 0
 	}
-	_jLimit := _jm["limit"]
-	delete(_jm, "limit")
-	if err := JsonReadInt64(_jLimit, &item.Limit); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getMetrics", k)
+	if !propLimitPresented {
+		item.Limit = 0
 	}
 	return nil
 }
 
-func (item *MetadataGetMetrics) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetMetrics) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetMetrics) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataGetMetrics) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.From != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"from":`...)
-		w = basictl.JSONWriteInt64(w, item.From)
+	backupIndexFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt64(w, item.From)
+	if (item.From != 0) == false {
+		w = w[:backupIndexFrom]
 	}
-	if item.Limit != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"limit":`...)
-		w = basictl.JSONWriteInt64(w, item.Limit)
+	backupIndexLimit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"limit":`...)
+	w = basictl.JSONWriteInt64(w, item.Limit)
+	if (item.Limit != 0) == false {
+		w = w[:backupIndexLimit]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetMetrics) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetMetrics) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getMetrics", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getMetrics", err.Error())
 	}
 	return nil

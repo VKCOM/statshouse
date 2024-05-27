@@ -1,0 +1,9 @@
+{
+  "scrape": {
+    "known_tags": {
+      "job": "1",
+      "instance": "2",
+      "le": "15"
+    }
+  }
+}

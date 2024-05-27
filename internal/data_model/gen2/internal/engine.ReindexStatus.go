@@ -13,696 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item EngineReindexStatusDone) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetDone(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusDone struct {
-	FinishTime  int32
-	NeedRestart bool
-}
-
-func (EngineReindexStatusDone) TLName() string { return "engine.reindexStatusDone" }
-func (EngineReindexStatusDone) TLTag() uint32  { return 0xf67569a }
-
-func (item *EngineReindexStatusDone) Reset() {
-	item.FinishTime = 0
-	item.NeedRestart = false
-}
-
-func (item *EngineReindexStatusDone) Read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.FinishTime); err != nil {
-		return w, err
-	}
-	return BoolReadBoxed(w, &item.NeedRestart)
-}
-
-func (item *EngineReindexStatusDone) Write(w []byte) (_ []byte, err error) {
-	w = basictl.IntWrite(w, item.FinishTime)
-	return BoolWriteBoxed(w, item.NeedRestart)
-}
-
-func (item *EngineReindexStatusDone) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xf67569a); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusDone) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0xf67569a)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusDone) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusDone__ReadJSON(item *EngineReindexStatusDone, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusDone) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusDone", "expected json object")
-	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	_jNeedRestart := _jm["need_restart"]
-	delete(_jm, "need_restart")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusDone", k)
-	}
-	if err := JsonReadBool(_jNeedRestart, &item.NeedRestart); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusDone) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
-	}
-	if item.NeedRestart {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"need_restart":`...)
-		w = basictl.JSONWriteBool(w, item.NeedRestart)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusDone) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusDoneOld) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetDoneOld(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusDoneOld struct {
-	FinishTime int32
-}
-
-func (EngineReindexStatusDoneOld) TLName() string { return "engine.reindexStatusDoneOld" }
-func (EngineReindexStatusDoneOld) TLTag() uint32  { return 0xafdbd505 }
-
-func (item *EngineReindexStatusDoneOld) Reset() {
-	item.FinishTime = 0
-}
-
-func (item *EngineReindexStatusDoneOld) Read(w []byte) (_ []byte, err error) {
-	return basictl.IntRead(w, &item.FinishTime)
-}
-
-func (item *EngineReindexStatusDoneOld) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.FinishTime), nil
-}
-
-func (item *EngineReindexStatusDoneOld) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xafdbd505); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusDoneOld) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0xafdbd505)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusDoneOld) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusDoneOld__ReadJSON(item *EngineReindexStatusDoneOld, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusDoneOld) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusDoneOld", "expected json object")
-	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusDoneOld", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusDoneOld) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusFailed) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetFailed(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusFailed struct {
-	ExitCode   int32
-	FinishTime int32
-}
-
-func (EngineReindexStatusFailed) TLName() string { return "engine.reindexStatusFailed" }
-func (EngineReindexStatusFailed) TLTag() uint32  { return 0x10533721 }
-
-func (item *EngineReindexStatusFailed) Reset() {
-	item.ExitCode = 0
-	item.FinishTime = 0
-}
-
-func (item *EngineReindexStatusFailed) Read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.ExitCode); err != nil {
-		return w, err
-	}
-	return basictl.IntRead(w, &item.FinishTime)
-}
-
-func (item *EngineReindexStatusFailed) Write(w []byte) (_ []byte, err error) {
-	w = basictl.IntWrite(w, item.ExitCode)
-	return basictl.IntWrite(w, item.FinishTime), nil
-}
-
-func (item *EngineReindexStatusFailed) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x10533721); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusFailed) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x10533721)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusFailed) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusFailed__ReadJSON(item *EngineReindexStatusFailed, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusFailed) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusFailed", "expected json object")
-	}
-	_jExitCode := _jm["exit_code"]
-	delete(_jm, "exit_code")
-	if err := JsonReadInt32(_jExitCode, &item.ExitCode); err != nil {
-		return err
-	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusFailed", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusFailed) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.ExitCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"exit_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ExitCode)
-	}
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusFailed) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusNever) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetNever()
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusNever struct {
-}
-
-func (EngineReindexStatusNever) TLName() string { return "engine.reindexStatusNever" }
-func (EngineReindexStatusNever) TLTag() uint32  { return 0x7f6a89b9 }
-
-func (item *EngineReindexStatusNever) Reset()                         {}
-func (item *EngineReindexStatusNever) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineReindexStatusNever) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineReindexStatusNever) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x7f6a89b9)
-}
-func (item *EngineReindexStatusNever) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x7f6a89b9), nil
-}
-
-func (item EngineReindexStatusNever) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusNever__ReadJSON(item *EngineReindexStatusNever, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusNever) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusNever", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusNever", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusNever) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusNever) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusRunning) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetRunning(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusRunning struct {
-	Pids      []int32
-	StartTime int32
-}
-
-func (EngineReindexStatusRunning) TLName() string { return "engine.reindexStatusRunning" }
-func (EngineReindexStatusRunning) TLTag() uint32  { return 0xfa198b59 }
-
-func (item *EngineReindexStatusRunning) Reset() {
-	item.Pids = item.Pids[:0]
-	item.StartTime = 0
-}
-
-func (item *EngineReindexStatusRunning) Read(w []byte) (_ []byte, err error) {
-	if w, err = VectorInt0Read(w, &item.Pids); err != nil {
-		return w, err
-	}
-	return basictl.IntRead(w, &item.StartTime)
-}
-
-func (item *EngineReindexStatusRunning) Write(w []byte) (_ []byte, err error) {
-	if w, err = VectorInt0Write(w, item.Pids); err != nil {
-		return w, err
-	}
-	return basictl.IntWrite(w, item.StartTime), nil
-}
-
-func (item *EngineReindexStatusRunning) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xfa198b59); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusRunning) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0xfa198b59)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusRunning) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusRunning__ReadJSON(item *EngineReindexStatusRunning, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusRunning) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusRunning", "expected json object")
-	}
-	_jPids := _jm["pids"]
-	delete(_jm, "pids")
-	_jStartTime := _jm["start_time"]
-	delete(_jm, "start_time")
-	if err := JsonReadInt32(_jStartTime, &item.StartTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusRunning", k)
-	}
-	if err := VectorInt0ReadJSON(_jPids, &item.Pids); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusRunning) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if len(item.Pids) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"pids":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Pids); err != nil {
-			return w, err
-		}
-	}
-	if item.StartTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"start_time":`...)
-		w = basictl.JSONWriteInt32(w, item.StartTime)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusRunning) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusRunningOld) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetRunningOld(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusRunningOld struct {
-	Pid       int32
-	StartTime int32
-}
-
-func (EngineReindexStatusRunningOld) TLName() string { return "engine.reindexStatusRunningOld" }
-func (EngineReindexStatusRunningOld) TLTag() uint32  { return 0xac530b46 }
-
-func (item *EngineReindexStatusRunningOld) Reset() {
-	item.Pid = 0
-	item.StartTime = 0
-}
-
-func (item *EngineReindexStatusRunningOld) Read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.Pid); err != nil {
-		return w, err
-	}
-	return basictl.IntRead(w, &item.StartTime)
-}
-
-func (item *EngineReindexStatusRunningOld) Write(w []byte) (_ []byte, err error) {
-	w = basictl.IntWrite(w, item.Pid)
-	return basictl.IntWrite(w, item.StartTime), nil
-}
-
-func (item *EngineReindexStatusRunningOld) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xac530b46); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusRunningOld) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0xac530b46)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusRunningOld) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusRunningOld__ReadJSON(item *EngineReindexStatusRunningOld, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusRunningOld) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusRunningOld", "expected json object")
-	}
-	_jPid := _jm["pid"]
-	delete(_jm, "pid")
-	if err := JsonReadInt32(_jPid, &item.Pid); err != nil {
-		return err
-	}
-	_jStartTime := _jm["start_time"]
-	delete(_jm, "start_time")
-	if err := JsonReadInt32(_jStartTime, &item.StartTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusRunningOld", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.Pid != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"pid":`...)
-		w = basictl.JSONWriteInt32(w, item.Pid)
-	}
-	if item.StartTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"start_time":`...)
-		w = basictl.JSONWriteInt32(w, item.StartTime)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusRunningOld) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
-	}
-	return nil
-}
-
-func (item EngineReindexStatusSignaled) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
-	ret.SetSignaled(item)
-	return ret
-}
-
-// AsUnion will be here
-type EngineReindexStatusSignaled struct {
-	Signal     int32
-	FinishTime int32
-}
-
-func (EngineReindexStatusSignaled) TLName() string { return "engine.reindexStatusSignaled" }
-func (EngineReindexStatusSignaled) TLTag() uint32  { return 0x756e878b }
-
-func (item *EngineReindexStatusSignaled) Reset() {
-	item.Signal = 0
-	item.FinishTime = 0
-}
-
-func (item *EngineReindexStatusSignaled) Read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.Signal); err != nil {
-		return w, err
-	}
-	return basictl.IntRead(w, &item.FinishTime)
-}
-
-func (item *EngineReindexStatusSignaled) Write(w []byte) (_ []byte, err error) {
-	w = basictl.IntWrite(w, item.Signal)
-	return basictl.IntWrite(w, item.FinishTime), nil
-}
-
-func (item *EngineReindexStatusSignaled) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x756e878b); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *EngineReindexStatusSignaled) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x756e878b)
-	return item.Write(w)
-}
-
-func (item EngineReindexStatusSignaled) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func EngineReindexStatusSignaled__ReadJSON(item *EngineReindexStatusSignaled, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusSignaled) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusSignaled", "expected json object")
-	}
-	_jSignal := _jm["signal"]
-	delete(_jm, "signal")
-	if err := JsonReadInt32(_jSignal, &item.Signal); err != nil {
-		return err
-	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusSignaled", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '{')
-	if item.Signal != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"signal":`...)
-		w = basictl.JSONWriteInt32(w, item.Signal)
-	}
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
-	}
-	return append(w, '}'), nil
-}
-
-func (item *EngineReindexStatusSignaled) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
-	}
-	return nil
-}
-
-var _EngineReindexStatusUnion = [7]UnionElement{
+var _EngineReindexStatus = [7]UnionElement{
 	{TLTag: 0x7f6a89b9, TLName: "engine.reindexStatusNever", TLString: "engine.reindexStatusNever#7f6a89b9"},
 	{TLTag: 0xac530b46, TLName: "engine.reindexStatusRunningOld", TLString: "engine.reindexStatusRunningOld#ac530b46"},
 	{TLTag: 0xfa198b59, TLName: "engine.reindexStatusRunning", TLString: "engine.reindexStatusRunning#fa198b59"},
@@ -712,7 +23,7 @@ var _EngineReindexStatusUnion = [7]UnionElement{
 	{TLTag: 0xf67569a, TLName: "engine.reindexStatusDone", TLString: "engine.reindexStatusDone#0f67569a"},
 }
 
-type EngineReindexStatusUnion struct {
+type EngineReindexStatus struct {
 	valueRunningOld EngineReindexStatusRunningOld
 	valueRunning    EngineReindexStatusRunning
 	valueFailed     EngineReindexStatusFailed
@@ -722,133 +33,129 @@ type EngineReindexStatusUnion struct {
 	index           int
 }
 
-func (item EngineReindexStatusUnion) TLName() string {
-	return _EngineReindexStatusUnion[item.index].TLName
-}
-func (item EngineReindexStatusUnion) TLTag() uint32 {
-	return _EngineReindexStatusUnion[item.index].TLTag
-}
+func (item EngineReindexStatus) TLName() string { return _EngineReindexStatus[item.index].TLName }
+func (item EngineReindexStatus) TLTag() uint32  { return _EngineReindexStatus[item.index].TLTag }
 
-func (item *EngineReindexStatusUnion) Reset() { item.index = 0 }
+func (item *EngineReindexStatus) Reset() { item.index = 0 }
 
-func (item *EngineReindexStatusUnion) IsNever() bool { return item.index == 0 }
+func (item *EngineReindexStatus) IsNever() bool { return item.index == 0 }
 
-func (item *EngineReindexStatusUnion) AsNever() (EngineReindexStatusNever, bool) {
+func (item *EngineReindexStatus) AsNever() (EngineReindexStatusNever, bool) {
 	var value EngineReindexStatusNever
 	return value, item.index == 0
 }
-func (item *EngineReindexStatusUnion) ResetToNever() { item.index = 0 }
-func (item *EngineReindexStatusUnion) SetNever()     { item.index = 0 }
+func (item *EngineReindexStatus) ResetToNever() { item.index = 0 }
+func (item *EngineReindexStatus) SetNever()     { item.index = 0 }
 
-func (item *EngineReindexStatusUnion) IsRunningOld() bool { return item.index == 1 }
+func (item *EngineReindexStatus) IsRunningOld() bool { return item.index == 1 }
 
-func (item *EngineReindexStatusUnion) AsRunningOld() (*EngineReindexStatusRunningOld, bool) {
+func (item *EngineReindexStatus) AsRunningOld() (*EngineReindexStatusRunningOld, bool) {
 	if item.index != 1 {
 		return nil, false
 	}
 	return &item.valueRunningOld, true
 }
-func (item *EngineReindexStatusUnion) ResetToRunningOld() *EngineReindexStatusRunningOld {
+func (item *EngineReindexStatus) ResetToRunningOld() *EngineReindexStatusRunningOld {
 	item.index = 1
 	item.valueRunningOld.Reset()
 	return &item.valueRunningOld
 }
-func (item *EngineReindexStatusUnion) SetRunningOld(value EngineReindexStatusRunningOld) {
+func (item *EngineReindexStatus) SetRunningOld(value EngineReindexStatusRunningOld) {
 	item.index = 1
 	item.valueRunningOld = value
 }
 
-func (item *EngineReindexStatusUnion) IsRunning() bool { return item.index == 2 }
+func (item *EngineReindexStatus) IsRunning() bool { return item.index == 2 }
 
-func (item *EngineReindexStatusUnion) AsRunning() (*EngineReindexStatusRunning, bool) {
+func (item *EngineReindexStatus) AsRunning() (*EngineReindexStatusRunning, bool) {
 	if item.index != 2 {
 		return nil, false
 	}
 	return &item.valueRunning, true
 }
-func (item *EngineReindexStatusUnion) ResetToRunning() *EngineReindexStatusRunning {
+func (item *EngineReindexStatus) ResetToRunning() *EngineReindexStatusRunning {
 	item.index = 2
 	item.valueRunning.Reset()
 	return &item.valueRunning
 }
-func (item *EngineReindexStatusUnion) SetRunning(value EngineReindexStatusRunning) {
+func (item *EngineReindexStatus) SetRunning(value EngineReindexStatusRunning) {
 	item.index = 2
 	item.valueRunning = value
 }
 
-func (item *EngineReindexStatusUnion) IsFailed() bool { return item.index == 3 }
+func (item *EngineReindexStatus) IsFailed() bool { return item.index == 3 }
 
-func (item *EngineReindexStatusUnion) AsFailed() (*EngineReindexStatusFailed, bool) {
+func (item *EngineReindexStatus) AsFailed() (*EngineReindexStatusFailed, bool) {
 	if item.index != 3 {
 		return nil, false
 	}
 	return &item.valueFailed, true
 }
-func (item *EngineReindexStatusUnion) ResetToFailed() *EngineReindexStatusFailed {
+func (item *EngineReindexStatus) ResetToFailed() *EngineReindexStatusFailed {
 	item.index = 3
 	item.valueFailed.Reset()
 	return &item.valueFailed
 }
-func (item *EngineReindexStatusUnion) SetFailed(value EngineReindexStatusFailed) {
+func (item *EngineReindexStatus) SetFailed(value EngineReindexStatusFailed) {
 	item.index = 3
 	item.valueFailed = value
 }
 
-func (item *EngineReindexStatusUnion) IsSignaled() bool { return item.index == 4 }
+func (item *EngineReindexStatus) IsSignaled() bool { return item.index == 4 }
 
-func (item *EngineReindexStatusUnion) AsSignaled() (*EngineReindexStatusSignaled, bool) {
+func (item *EngineReindexStatus) AsSignaled() (*EngineReindexStatusSignaled, bool) {
 	if item.index != 4 {
 		return nil, false
 	}
 	return &item.valueSignaled, true
 }
-func (item *EngineReindexStatusUnion) ResetToSignaled() *EngineReindexStatusSignaled {
+func (item *EngineReindexStatus) ResetToSignaled() *EngineReindexStatusSignaled {
 	item.index = 4
 	item.valueSignaled.Reset()
 	return &item.valueSignaled
 }
-func (item *EngineReindexStatusUnion) SetSignaled(value EngineReindexStatusSignaled) {
+func (item *EngineReindexStatus) SetSignaled(value EngineReindexStatusSignaled) {
 	item.index = 4
 	item.valueSignaled = value
 }
 
-func (item *EngineReindexStatusUnion) IsDoneOld() bool { return item.index == 5 }
+func (item *EngineReindexStatus) IsDoneOld() bool { return item.index == 5 }
 
-func (item *EngineReindexStatusUnion) AsDoneOld() (*EngineReindexStatusDoneOld, bool) {
+func (item *EngineReindexStatus) AsDoneOld() (*EngineReindexStatusDoneOld, bool) {
 	if item.index != 5 {
 		return nil, false
 	}
 	return &item.valueDoneOld, true
 }
-func (item *EngineReindexStatusUnion) ResetToDoneOld() *EngineReindexStatusDoneOld {
+func (item *EngineReindexStatus) ResetToDoneOld() *EngineReindexStatusDoneOld {
 	item.index = 5
 	item.valueDoneOld.Reset()
 	return &item.valueDoneOld
 }
-func (item *EngineReindexStatusUnion) SetDoneOld(value EngineReindexStatusDoneOld) {
+func (item *EngineReindexStatus) SetDoneOld(value EngineReindexStatusDoneOld) {
 	item.index = 5
 	item.valueDoneOld = value
 }
 
-func (item *EngineReindexStatusUnion) IsDone() bool { return item.index == 6 }
+func (item *EngineReindexStatus) IsDone() bool { return item.index == 6 }
 
-func (item *EngineReindexStatusUnion) AsDone() (*EngineReindexStatusDone, bool) {
+func (item *EngineReindexStatus) AsDone() (*EngineReindexStatusDone, bool) {
 	if item.index != 6 {
 		return nil, false
 	}
 	return &item.valueDone, true
 }
-func (item *EngineReindexStatusUnion) ResetToDone() *EngineReindexStatusDone {
+func (item *EngineReindexStatus) ResetToDone() *EngineReindexStatusDone {
 	item.index = 6
 	item.valueDone.Reset()
 	return &item.valueDone
 }
-func (item *EngineReindexStatusUnion) SetDone(value EngineReindexStatusDone) {
+func (item *EngineReindexStatus) SetDone(value EngineReindexStatusDone) {
 	item.index = 6
 	item.valueDone = value
 }
 
-func (item *EngineReindexStatusUnion) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
 	if w, err = basictl.NatRead(w, &tag); err != nil {
 		return w, err
@@ -880,134 +187,1140 @@ func (item *EngineReindexStatusUnion) ReadBoxed(w []byte) (_ []byte, err error) 
 	}
 }
 
-func (item *EngineReindexStatusUnion) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _EngineReindexStatusUnion[item.index].TLTag)
-	switch item.index {
-	case 0:
-		return w, nil
-	case 1:
-		return item.valueRunningOld.Write(w)
-	case 2:
-		return item.valueRunning.Write(w)
-	case 3:
-		return item.valueFailed.Write(w)
-	case 4:
-		return item.valueSignaled.Write(w)
-	case 5:
-		return item.valueDoneOld.Write(w)
-	case 6:
-		return item.valueDone.Write(w)
-	default: // Impossible due to panic above
-		return w, nil
-	}
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatus) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
 }
 
-func EngineReindexStatusUnion__ReadJSON(item *EngineReindexStatusUnion, j interface{}) error {
-	return item.readJSON(j)
+func (item *EngineReindexStatus) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, _EngineReindexStatus[item.index].TLTag)
+	switch item.index {
+	case 0:
+		return w
+	case 1:
+		w = item.valueRunningOld.Write(w)
+	case 2:
+		w = item.valueRunning.Write(w)
+	case 3:
+		w = item.valueFailed.Write(w)
+	case 4:
+		w = item.valueSignaled.Write(w)
+	case 5:
+		w = item.valueDoneOld.Write(w)
+	case 6:
+		w = item.valueDone.Write(w)
+	}
+	return w
 }
-func (item *EngineReindexStatusUnion) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.ReindexStatus", j)
+
+func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.ReindexStatus", in)
 	if err != nil {
 		return err
 	}
-	jvalue := _jm["value"]
 	switch _tag {
 	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
+		if !legacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusNever#7f6a89b9")
+		}
 		item.index = 0
 	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
+		if !legacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunningOld#ac530b46")
+		}
 		item.index = 1
-		if err := EngineReindexStatusRunningOld__ReadJSON(&item.valueRunningOld, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueRunningOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
+		if !legacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunning#fa198b59")
+		}
 		item.index = 2
-		if err := EngineReindexStatusRunning__ReadJSON(&item.valueRunning, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueRunning.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
+		if !legacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusFailed#10533721")
+		}
 		item.index = 3
-		if err := EngineReindexStatusFailed__ReadJSON(&item.valueFailed, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueFailed.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
+		if !legacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusSignaled#756e878b")
+		}
 		item.index = 4
-		if err := EngineReindexStatusSignaled__ReadJSON(&item.valueSignaled, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueSignaled.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
+		if !legacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDoneOld#afdbd505")
+		}
 		item.index = 5
-		if err := EngineReindexStatusDoneOld__ReadJSON(&item.valueDoneOld, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueDoneOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
+		if !legacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDone#0f67569a")
+		}
 		item.index = 6
-		if err := EngineReindexStatusDone__ReadJSON(&item.valueDone, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueDone.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	default:
 		return ErrorInvalidUnionTagJSON("engine.ReindexStatus", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.ReindexStatus", k)
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusUnion) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatus) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatus) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	switch item.index {
 	case 0:
-		return append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusNever"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"`...)
+		}
+		return append(w, '}')
 	case 1:
-		w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46","value":`...)
-		if w, err = item.valueRunningOld.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusRunningOld"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueRunningOld.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 2:
-		w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59","value":`...)
-		if w, err = item.valueRunning.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusRunning"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueRunning.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 3:
-		w = append(w, `{"type":"engine.reindexStatusFailed#10533721","value":`...)
-		if w, err = item.valueFailed.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusFailed"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusFailed#10533721"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueFailed.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 4:
-		w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b","value":`...)
-		if w, err = item.valueSignaled.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusSignaled"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueSignaled.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 5:
-		w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505","value":`...)
-		if w, err = item.valueDoneOld.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusDoneOld"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueDoneOld.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	case 6:
-		w = append(w, `{"type":"engine.reindexStatusDone#0f67569a","value":`...)
-		if w, err = item.valueDone.WriteJSON(w); err != nil {
-			return w, err
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusDone"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusDone#0f67569a"`...)
 		}
-		return append(w, '}'), nil
+		w = append(w, `,"value":`...)
+		w = item.valueDone.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
 	default: // Impossible due to panic above
-		return w, nil
+		return w
 	}
 }
 
-func (item EngineReindexStatusUnion) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
+func (item EngineReindexStatus) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatus) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatus) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
 	}
-	return string(w)
+	return nil
+}
+
+func (item EngineReindexStatusDone) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetDone(item)
+	return ret
+}
+
+type EngineReindexStatusDone struct {
+	FinishTime  int32
+	NeedRestart bool
+}
+
+func (EngineReindexStatusDone) TLName() string { return "engine.reindexStatusDone" }
+func (EngineReindexStatusDone) TLTag() uint32  { return 0xf67569a }
+
+func (item *EngineReindexStatusDone) Reset() {
+	item.FinishTime = 0
+	item.NeedRestart = false
+}
+
+func (item *EngineReindexStatusDone) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.FinishTime); err != nil {
+		return w, err
+	}
+	return BoolReadBoxed(w, &item.NeedRestart)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusDone) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusDone) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.FinishTime)
+	w = BoolWriteBoxed(w, item.NeedRestart)
+	return w
+}
+
+func (item *EngineReindexStatusDone) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xf67569a); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusDone) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusDone) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xf67569a)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusDone) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusDone) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFinishTimePresented bool
+	var propNeedRestartPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDone", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			case "need_restart":
+				if propNeedRestartPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDone", "need_restart")
+				}
+				if err := Json2ReadBool(in, &item.NeedRestart); err != nil {
+					return err
+				}
+				propNeedRestartPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusDone", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFinishTimePresented {
+		item.FinishTime = 0
+	}
+	if !propNeedRestartPresented {
+		item.NeedRestart = false
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusDone) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusDone) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusDone) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
+	}
+	backupIndexNeedRestart := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"need_restart":`...)
+	w = basictl.JSONWriteBool(w, item.NeedRestart)
+	if (item.NeedRestart) == false {
+		w = w[:backupIndexNeedRestart]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusDone) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusDoneOld) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetDoneOld(item)
+	return ret
+}
+
+type EngineReindexStatusDoneOld struct {
+	FinishTime int32
+}
+
+func (EngineReindexStatusDoneOld) TLName() string { return "engine.reindexStatusDoneOld" }
+func (EngineReindexStatusDoneOld) TLTag() uint32  { return 0xafdbd505 }
+
+func (item *EngineReindexStatusDoneOld) Reset() {
+	item.FinishTime = 0
+}
+
+func (item *EngineReindexStatusDoneOld) Read(w []byte) (_ []byte, err error) {
+	return basictl.IntRead(w, &item.FinishTime)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusDoneOld) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusDoneOld) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.FinishTime)
+	return w
+}
+
+func (item *EngineReindexStatusDoneOld) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xafdbd505); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusDoneOld) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusDoneOld) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xafdbd505)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusDoneOld) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusDoneOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDoneOld", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusDoneOld", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFinishTimePresented {
+		item.FinishTime = 0
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusDoneOld) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusDoneOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusDoneOld) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusFailed) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetFailed(item)
+	return ret
+}
+
+type EngineReindexStatusFailed struct {
+	ExitCode   int32
+	FinishTime int32
+}
+
+func (EngineReindexStatusFailed) TLName() string { return "engine.reindexStatusFailed" }
+func (EngineReindexStatusFailed) TLTag() uint32  { return 0x10533721 }
+
+func (item *EngineReindexStatusFailed) Reset() {
+	item.ExitCode = 0
+	item.FinishTime = 0
+}
+
+func (item *EngineReindexStatusFailed) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.ExitCode); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.FinishTime)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusFailed) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusFailed) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.ExitCode)
+	w = basictl.IntWrite(w, item.FinishTime)
+	return w
+}
+
+func (item *EngineReindexStatusFailed) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x10533721); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusFailed) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusFailed) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x10533721)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusFailed) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusFailed) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propExitCodePresented bool
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "exit_code":
+				if propExitCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusFailed", "exit_code")
+				}
+				if err := Json2ReadInt32(in, &item.ExitCode); err != nil {
+					return err
+				}
+				propExitCodePresented = true
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusFailed", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusFailed", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propExitCodePresented {
+		item.ExitCode = 0
+	}
+	if !propFinishTimePresented {
+		item.FinishTime = 0
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusFailed) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusFailed) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusFailed) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexExitCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"exit_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ExitCode)
+	if (item.ExitCode != 0) == false {
+		w = w[:backupIndexExitCode]
+	}
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusFailed) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusNever) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetNever()
+	return ret
+}
+
+type EngineReindexStatusNever struct {
+}
+
+func (EngineReindexStatusNever) TLName() string { return "engine.reindexStatusNever" }
+func (EngineReindexStatusNever) TLTag() uint32  { return 0x7f6a89b9 }
+
+func (item *EngineReindexStatusNever) Reset() {}
+
+func (item *EngineReindexStatusNever) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusNever) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusNever) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineReindexStatusNever) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x7f6a89b9); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusNever) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusNever) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x7f6a89b9)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusNever) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusNever) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.reindexStatusNever", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusNever) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusNever) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusNever) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusNever) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusRunning) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetRunning(item)
+	return ret
+}
+
+type EngineReindexStatusRunning struct {
+	Pids      []int32
+	StartTime int32
+}
+
+func (EngineReindexStatusRunning) TLName() string { return "engine.reindexStatusRunning" }
+func (EngineReindexStatusRunning) TLTag() uint32  { return 0xfa198b59 }
+
+func (item *EngineReindexStatusRunning) Reset() {
+	item.Pids = item.Pids[:0]
+	item.StartTime = 0
+}
+
+func (item *EngineReindexStatusRunning) Read(w []byte) (_ []byte, err error) {
+	if w, err = BuiltinVectorIntRead(w, &item.Pids); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.StartTime)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusRunning) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusRunning) Write(w []byte) []byte {
+	w = BuiltinVectorIntWrite(w, item.Pids)
+	w = basictl.IntWrite(w, item.StartTime)
+	return w
+}
+
+func (item *EngineReindexStatusRunning) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xfa198b59); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusRunning) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusRunning) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xfa198b59)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusRunning) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPidsPresented bool
+	var propStartTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "pids":
+				if propPidsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "pids")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Pids); err != nil {
+					return err
+				}
+				propPidsPresented = true
+			case "start_time":
+				if propStartTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "start_time")
+				}
+				if err := Json2ReadInt32(in, &item.StartTime); err != nil {
+					return err
+				}
+				propStartTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusRunning", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propPidsPresented {
+		item.Pids = item.Pids[:0]
+	}
+	if !propStartTimePresented {
+		item.StartTime = 0
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusRunning) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusRunning) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusRunning) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexPids := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"pids":`...)
+	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Pids)
+	if (len(item.Pids) != 0) == false {
+		w = w[:backupIndexPids]
+	}
+	backupIndexStartTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"start_time":`...)
+	w = basictl.JSONWriteInt32(w, item.StartTime)
+	if (item.StartTime != 0) == false {
+		w = w[:backupIndexStartTime]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusRunning) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusRunningOld) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetRunningOld(item)
+	return ret
+}
+
+type EngineReindexStatusRunningOld struct {
+	Pid       int32
+	StartTime int32
+}
+
+func (EngineReindexStatusRunningOld) TLName() string { return "engine.reindexStatusRunningOld" }
+func (EngineReindexStatusRunningOld) TLTag() uint32  { return 0xac530b46 }
+
+func (item *EngineReindexStatusRunningOld) Reset() {
+	item.Pid = 0
+	item.StartTime = 0
+}
+
+func (item *EngineReindexStatusRunningOld) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.Pid); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.StartTime)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusRunningOld) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusRunningOld) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Pid)
+	w = basictl.IntWrite(w, item.StartTime)
+	return w
+}
+
+func (item *EngineReindexStatusRunningOld) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xac530b46); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusRunningOld) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusRunningOld) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xac530b46)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusRunningOld) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusRunningOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPidPresented bool
+	var propStartTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "pid":
+				if propPidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunningOld", "pid")
+				}
+				if err := Json2ReadInt32(in, &item.Pid); err != nil {
+					return err
+				}
+				propPidPresented = true
+			case "start_time":
+				if propStartTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunningOld", "start_time")
+				}
+				if err := Json2ReadInt32(in, &item.StartTime); err != nil {
+					return err
+				}
+				propStartTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusRunningOld", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propPidPresented {
+		item.Pid = 0
+	}
+	if !propStartTimePresented {
+		item.StartTime = 0
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusRunningOld) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusRunningOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexPid := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"pid":`...)
+	w = basictl.JSONWriteInt32(w, item.Pid)
+	if (item.Pid != 0) == false {
+		w = w[:backupIndexPid]
+	}
+	backupIndexStartTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"start_time":`...)
+	w = basictl.JSONWriteInt32(w, item.StartTime)
+	if (item.StartTime != 0) == false {
+		w = w[:backupIndexStartTime]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusRunningOld) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusSignaled) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
+	ret.SetSignaled(item)
+	return ret
+}
+
+type EngineReindexStatusSignaled struct {
+	Signal     int32
+	FinishTime int32
+}
+
+func (EngineReindexStatusSignaled) TLName() string { return "engine.reindexStatusSignaled" }
+func (EngineReindexStatusSignaled) TLTag() uint32  { return 0x756e878b }
+
+func (item *EngineReindexStatusSignaled) Reset() {
+	item.Signal = 0
+	item.FinishTime = 0
+}
+
+func (item *EngineReindexStatusSignaled) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.Signal); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.FinishTime)
+}
+
+// This method is general version of Write, use it instead!
+func (item *EngineReindexStatusSignaled) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineReindexStatusSignaled) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Signal)
+	w = basictl.IntWrite(w, item.FinishTime)
+	return w
+}
+
+func (item *EngineReindexStatusSignaled) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x756e878b); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineReindexStatusSignaled) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineReindexStatusSignaled) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x756e878b)
+	return item.Write(w)
+}
+
+func (item EngineReindexStatusSignaled) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineReindexStatusSignaled) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSignalPresented bool
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "signal":
+				if propSignalPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusSignaled", "signal")
+				}
+				if err := Json2ReadInt32(in, &item.Signal); err != nil {
+					return err
+				}
+				propSignalPresented = true
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusSignaled", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusSignaled", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propSignalPresented {
+		item.Signal = 0
+	}
+	if !propFinishTimePresented {
+		item.FinishTime = 0
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineReindexStatusSignaled) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineReindexStatusSignaled) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '{')
+	backupIndexSignal := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"signal":`...)
+	w = basictl.JSONWriteInt32(w, item.Signal)
+	if (item.Signal != 0) == false {
+		w = w[:backupIndexSignal]
+	}
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
+	}
+	return append(w, '}')
+}
+
+func (item *EngineReindexStatusSignaled) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
+	}
+	return nil
 }

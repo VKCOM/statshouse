@@ -73,11 +73,14 @@ func initD1b(t *testing.T, dir string, dbFile string, createBl bool, options *Op
 	return db, bl
 }
 
+const metadata = "meta"
+
 func Test_SaveMetric(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, metadata)
 	require.NoError(t, err)
+	require.Equal(t, metadata, e.Metadata)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
@@ -86,10 +89,44 @@ func Test_SaveMetric(t *testing.T) {
 	require.Equal(t, "{}", m.Data)
 }
 
+func Test_GetOldVersion(t *testing.T) {
+	path := t.TempDir()
+	db, _ := initD1b(t, path, "db", true, nil)
+	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, metadata)
+	require.NoError(t, err)
+	require.Equal(t, metadata, e.Metadata)
+	_, err = db.SaveEntity(context.Background(), "b", e.Id, e.Version, "{}", false, false, format.MetricEvent, metadata)
+	require.NoError(t, err)
+	eActual, err := db.GetEntityVersioned(context.Background(), e.Id, e.Version)
+	require.NoError(t, err)
+	require.Equal(t, e, eActual)
+}
+
+func Test_GetShortInfo(t *testing.T) {
+	path := t.TempDir()
+	db, _ := initD1b(t, path, "db", true, nil)
+	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, metadata)
+	require.NoError(t, err)
+	require.Equal(t, metadata, e.Metadata)
+	e1, err := db.SaveEntity(context.Background(), "b", e.Id, e.Version, "{}", false, false, format.MetricEvent, "b")
+	require.NoError(t, err)
+	history, err := db.GetHistoryShort(context.Background(), e.Id)
+	require.NoError(t, err)
+	require.Len(t, history.Events, 2)
+	require.Equal(t, tlmetadata.HistoryShortResponseEvent{
+		Version:  e1.Version,
+		Metadata: e1.Metadata,
+	}, history.Events[0])
+	require.Equal(t, tlmetadata.HistoryShortResponseEvent{
+		Version:  e.Version,
+		Metadata: e.Metadata,
+	}, history.Events[1])
+}
+
 func Test_RenameMetric(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
@@ -97,7 +134,7 @@ func Test_RenameMetric(t *testing.T) {
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	e1, err := db.SaveEntity(context.Background(), "b", e.Id, e.Version, "{}", false, false, format.MetricEvent)
+	e1, err := db.SaveEntity(context.Background(), "b", e.Id, e.Version, "{}", false, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	require.Equal(t, e.Id, e1.Id)
 	updates, err = db.JournalEvents(context.Background(), e.Version, 100)
@@ -112,7 +149,7 @@ func Test_RenameMetric(t *testing.T) {
 func Test_SaveMetric_WithInvalidVersion(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
@@ -120,14 +157,14 @@ func Test_SaveMetric_WithInvalidVersion(t *testing.T) {
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version+1, m.Data, false, false, format.MetricEvent)
+	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version+1, m.Data, false, false, format.MetricEvent, "")
 	require.Equal(t, errInvalidMetricVersion, err)
 }
 
 func Test_SaveMetric_WithBadName(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
@@ -135,23 +172,23 @@ func Test_SaveMetric_WithBadName(t *testing.T) {
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	_, err = db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err = db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.ErrorIs(t, err, errMetricIsExist)
 }
 
 func Test_SaveMetric_WithBadNamespace(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a"+format.NamespaceSeparator+"a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a"+format.NamespaceSeparator+"a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.ErrorIs(t, err, errNamespaceNotExists)
 }
 
 func Test_CreateMetricInNamespaceWithGoodName(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	namespace, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.NamespaceEvent)
+	namespace, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.NamespaceEvent, "")
 	require.NoError(t, err)
-	e, err := db.SaveEntity(context.Background(), "a"+format.NamespaceSeparator+"a", 0, 0, "{}", true, false, format.MetricEvent)
+	e, err := db.SaveEntity(context.Background(), "a"+format.NamespaceSeparator+"a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	require.Equal(t, namespace.Id, e.NamespaceId)
 }
@@ -159,16 +196,16 @@ func Test_CreateMetricInNamespaceWithGoodName(t *testing.T) {
 func Test_RenameNamespace(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	namespace, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.NamespaceEvent)
+	namespace, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.NamespaceEvent, "")
 	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "b", namespace.Id, namespace.Version, "{}", false, false, format.NamespaceEvent)
+	_, err = db.SaveEntity(context.Background(), "b", namespace.Id, namespace.Version, "{}", false, false, format.NamespaceEvent, "")
 	require.Error(t, err)
 }
 
 func Test_SaveMetric_Delete(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
@@ -176,7 +213,7 @@ func Test_SaveMetric_Delete(t *testing.T) {
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	r, err := db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, m.Data, false, true, format.MetricEvent)
+	r, err := db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, m.Data, false, true, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err = db.JournalEvents(context.Background(), m.Version, 100)
 	require.NoError(t, err)
@@ -191,7 +228,7 @@ func Test_SaveMetric_Delete(t *testing.T) {
 func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "a", -1, 0, "{}", false, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", -1, 0, "{}", false, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
@@ -201,7 +238,7 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	require.Equal(t, "{}", m.Data)
 	require.Equal(t, int64(-1), m.Id)
 
-	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, `{"a": 1}`, false, false, format.MetricEvent)
+	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, `{"a": 1}`, false, false, format.MetricEvent, "")
 	require.NoError(t, err)
 	updates, err = db.JournalEvents(context.Background(), m.Version, 100)
 	require.NoError(t, err)
@@ -215,32 +252,32 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 func Test_RenameGroup(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	group, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	group, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
 	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "abca_", group.Id, group.Version, "{}", false, false, format.MetricsGroupEvent)
+	_, err = db.SaveEntity(context.Background(), "abca_", group.Id, group.Version, "{}", false, false, format.MetricsGroupEvent, "")
 	require.NoError(t, err)
 }
 
 func Test_SaveGroup_With_Bad_Name(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
 	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
 	require.Error(t, err)
 }
 
 func Test_SaveGroup_With_Bad_Name1(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
 	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "abc_d", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	_, err = db.SaveEntity(context.Background(), "abc_d", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
 	require.Error(t, err)
 
 }
 
-func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int32, error) {
+func unpackGetMappingUnion(u tlmetadata.GetMappingResponse, err error) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
@@ -255,7 +292,7 @@ func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int
 	return resp.Id, nil
 }
 
-func unpackInvertMappingUnion(u tlmetadata.GetInvertMappingResponseUnion, err error) (string, error) {
+func unpackInvertMappingUnion(u tlmetadata.GetInvertMappingResponse, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}
@@ -650,7 +687,7 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 		path := t.TempDir()
 		const task = 3
 		mx := sync.Mutex{}
-		metrics := map[string]tlmetadata.Event{}
+		metrics := map[string][]tlmetadata.Event{}
 		metricsNames := []string{"a", "b", "c", "d"}
 		opt := defaultOptions()
 		dbFile2 := "db"
@@ -663,16 +700,18 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 				name := metricsNames[rand.Int()%len(metricsNames)] + suffix
 				for i := 0; i < task; i++ {
 					mx.Lock()
-					metric, notCreate := metrics[name]
-					delete := false
+					metricL, notCreate := metrics[name]
+					var id int64
+					var version int64
 					if notCreate {
-						delete = rand.Int()%2 == 0
+						id = metricL[0].Id
+						version = metricL[0].Version
 					}
 					mx.Unlock()
-					metric, err := db.SaveEntity(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
+					metric, err := db.SaveEntity(context.Background(), name, id, version, "{}", !notCreate, false, format.MetricEvent, "")
 					require.NoError(t, err)
 					mx.Lock()
-					metrics[name] = metric
+					metrics[name] = append([]tlmetadata.Event{metric}, metricL...)
 					mx.Unlock()
 				}
 			}, func(t *testing.T, db *DBV2) {
@@ -680,9 +719,21 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, len(metrics), len(metric1))
 				for _, metric := range metric1 {
-					m, ok := metrics[metric.Name]
-					require.True(t, ok)
+					metric.SetMetadata("")
+					m := metrics[metric.Name][0]
 					require.Equal(t, m, metric)
+				}
+				for _, ms := range metrics {
+					e := ms[0]
+					history, err := db.GetHistoryShort(context.Background(), e.Id)
+					require.NoError(t, err)
+					require.Len(t, history.Events, len(ms))
+					for i := range ms {
+						require.Equal(t, tlmetadata.HistoryShortResponseEvent{
+							Version:  ms[i].Version,
+							Metadata: ms[i].Metadata,
+						}, history.Events[i])
+					}
 				}
 			}, nil)
 	}
@@ -696,7 +747,6 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 
 func Test_Migration(t *testing.T) {
 	t.SkipNow()
-	return
 	path := t.TempDir()
 	const task = 3
 	mx := sync.Mutex{}
@@ -711,11 +761,8 @@ func Test_Migration(t *testing.T) {
 			name := metricsNames[rand.Int()%len(metricsNames)] + suffix
 			for i := 0; i < task; i++ {
 				mx.Lock()
-				metric, notCreate := metrics[name]
 				delete := false
-				if notCreate {
-					delete = rand.Int()%2 == 0
-				}
+				metric, notCreate := metrics[name]
 				mx.Unlock()
 				metric, err := db.SaveEntityold(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
 				require.NoError(t, err)
@@ -724,6 +771,7 @@ func Test_Migration(t *testing.T) {
 				mx.Unlock()
 			}
 		}, func(t *testing.T, db *DBV2) {
+			require.Greater(t, len(metrics), 0)
 			metric1, err := db.JournalEvents(context.Background(), 0, 100000)
 			require.NoError(t, err)
 			require.Equal(t, len(metrics), len(metric1))

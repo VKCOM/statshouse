@@ -30,8 +30,14 @@ func (item *StatshousePutTagMappingBootstrapResult) Read(w []byte) (_ []byte, er
 	return basictl.IntRead(w, &item.CountInserted)
 }
 
-func (item *StatshousePutTagMappingBootstrapResult) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.CountInserted), nil
+// This method is general version of Write, use it instead!
+func (item *StatshousePutTagMappingBootstrapResult) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshousePutTagMappingBootstrapResult) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.CountInserted)
+	return w
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -41,58 +47,82 @@ func (item *StatshousePutTagMappingBootstrapResult) ReadBoxed(w []byte) (_ []byt
 	return item.Read(w)
 }
 
-func (item *StatshousePutTagMappingBootstrapResult) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshousePutTagMappingBootstrapResult) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshousePutTagMappingBootstrapResult) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x486affde)
 	return item.Write(w)
 }
 
 func (item StatshousePutTagMappingBootstrapResult) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshousePutTagMappingBootstrapResult__ReadJSON(item *StatshousePutTagMappingBootstrapResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshousePutTagMappingBootstrapResult) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.putTagMappingBootstrapResult", "expected json object")
+func (item *StatshousePutTagMappingBootstrapResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propCountInsertedPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "count_inserted":
+				if propCountInsertedPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.putTagMappingBootstrapResult", "count_inserted")
+				}
+				if err := Json2ReadInt32(in, &item.CountInserted); err != nil {
+					return err
+				}
+				propCountInsertedPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.putTagMappingBootstrapResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jCountInserted := _jm["count_inserted"]
-	delete(_jm, "count_inserted")
-	if err := JsonReadInt32(_jCountInserted, &item.CountInserted); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.putTagMappingBootstrapResult", k)
+	if !propCountInsertedPresented {
+		item.CountInserted = 0
 	}
 	return nil
 }
 
-func (item *StatshousePutTagMappingBootstrapResult) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshousePutTagMappingBootstrapResult) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshousePutTagMappingBootstrapResult) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshousePutTagMappingBootstrapResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.CountInserted != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"count_inserted":`...)
-		w = basictl.JSONWriteInt32(w, item.CountInserted)
+	backupIndexCountInserted := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"count_inserted":`...)
+	w = basictl.JSONWriteInt32(w, item.CountInserted)
+	if (item.CountInserted != 0) == false {
+		w = w[:backupIndexCountInserted]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.putTagMappingBootstrapResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.putTagMappingBootstrapResult", err.Error())
 	}
 	return nil

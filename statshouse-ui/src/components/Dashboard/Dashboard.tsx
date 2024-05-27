@@ -16,6 +16,7 @@ import {
   selectorSaveServerParams,
   selectorSetDashboardLayoutEdit,
   useStore,
+  useTVModeStore,
 } from '../../store';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardLayout } from './DashboardLayout';
@@ -25,6 +26,7 @@ import { PlotLink } from '../Plot/PlotLink';
 import { ErrorMessages } from '../ErrorMessages';
 import { DashboardVariablesControl } from './DashboardVariablesControl';
 import { Button, Tooltip } from '../UI';
+import { DashboardName } from './DashboardName';
 
 export type DashboardProps = {
   yAxisSize?: number;
@@ -34,6 +36,8 @@ export type DashboardProps = {
 export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize = 54 }) => {
   const params = useStore(selectorParams);
   const numQueries = useStore(selectorGlobalNumQueriesPlot);
+
+  const tvMode = useTVModeStore((state) => state.enable);
 
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setDashboardLayoutEdit = useStore(selectorSetDashboardLayoutEdit);
@@ -50,7 +54,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
 
   return (
     <div>
-      {params.plots.length > 0 && !embed && <DashboardHeader />}
+      {!!params.dashboard?.name && !embed && !tvMode && <DashboardName />}
+      {params.plots.length > 0 && !embed && !tvMode && <DashboardHeader />}
       <ErrorMessages />
       {dashboardLayoutEdit && (
         <ul className="nav nav-tabs mb-4 container-xl">
@@ -90,13 +95,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
           </Tooltip>
         </ul>
       )}
-      {params.variables.length > 0 && tabNum === -1 && (
-        <DashboardVariablesControl
-          className={cn(
-            'd-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-start container-xl mb-3 z-100 position-relative'
-          )}
-          embed={embed}
-        />
+      {params.variables.length > 0 && tabNum === -1 && !tvMode && (
+        <DashboardVariablesControl className={cn('col-12 container-xl mb-3 z-100 position-relative')} embed={embed} />
       )}
       <DashboardLayout
         yAxisSize={yAxisSize}

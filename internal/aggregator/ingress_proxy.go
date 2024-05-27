@@ -12,11 +12,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
@@ -36,11 +38,28 @@ type clientPool struct {
 	clients map[string]*rpc.Client
 }
 
+type longpollClient struct {
+	queryID    int64
+	requestLen int
+}
+
+type longpollShard struct {
+	proxy      *IngressProxy
+	mu         sync.Mutex
+	clientList map[*rpc.HandlerContext]longpollClient
+}
+
+const longPollShardsCount = 256 // we want to shard lock to reduce contention
+
 type IngressProxy struct {
+	nextShardLock atomic.Uint64 // round-robin for lock shards must be good
+
 	sh2    *agent.Agent
 	pool   *clientPool
 	server *rpc.Server
 	config ConfigIngressProxy
+
+	longpollShards [longPollShardsCount]*longpollShard
 }
 
 type ConfigIngressProxy struct {
@@ -81,100 +100,173 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
-	if len(config.IngressKeys) == 0 {
-		return fmt.Errorf("ingress proxy must have non-empty list of ingress crypto keys")
-	}
-	if len(config.ExternalAddresses)%3 != 0 || len(config.ExternalAddresses) == 0 {
-		return fmt.Errorf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
-	}
+func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
 	// Now we configure our clients using repetition of 3 ingress proxy addresses per shard
 	extAddr := config.ExternalAddresses
 	for i := 1; i < len(sh2.GetConfigResult.Addresses)/3; i++ { // GetConfig returns only non-empty list divisible by 3
 		config.ExternalAddresses = append(config.ExternalAddresses, extAddr...)
 	}
-
 	proxy := &IngressProxy{
 		sh2:  sh2,
 		pool: newClientPool(aesPwd),
 		// TODO - server settings must be tuned
 		config: config,
 	}
-	proxy.server = rpc.NewServer(rpc.ServerWithCryptoKeys(config.IngressKeys),
+	for i := 0; i < longPollShardsCount; i++ {
+		proxy.longpollShards[i] = &longpollShard{
+			proxy:      proxy,
+			clientList: map[*rpc.HandlerContext]longpollClient{},
+		}
+	}
+	options := []rpc.ServerOptionsFunc{
+		rpc.ServerWithCryptoKeys(config.IngressKeys),
 		rpc.ServerWithHandler(proxy.handler),
+		rpc.ServerWithSyncHandler(proxy.syncHandler),
 		rpc.ServerWithForceEncryption(true),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithDisableContextTimeout(true),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
-		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*100000), // see server settings in aggregator
-		rpc.ServerWithMaxWorkers(128<<13),
+		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay * time.Second),
+		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets * 100), // enough for up to 100 shards
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
-		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
-
-	log.Printf("Running ingress proxy listening %s with %d crypto keys", config.ListenAddr, len(config.IngressKeys))
-	return proxy.server.ListenAndServe("tcp4", config.ListenAddr)
+		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
+	}
+	if hijack != nil {
+		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijack.AddConnection(conn)
+		}))
+	}
+	proxy.server = rpc.NewServer(options...)
+	log.Printf("Running ingress proxy listening %s with %d crypto keys", ln.Addr(), len(config.IngressKeys))
+	return proxy.server.Serve(ln)
 }
 
-func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
-	tag, _ := basictl.NatPeekTag(hctx.Request)
+func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
-	key := data_model.Key{
+	protocol := int32(hctx.ProtocolVersion())
+	return data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag},
+		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(hctx.RequestTag()), resultTag, 0, 0, keyIDTag, 0, protocol},
 	}
-	isLocal, err := proxy.handlerImpl(ctx, hctx)
-	if err != nil && isLocal {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
+}
+
+func (ls *longpollShard) callback(client *rpc.Client, queryID int64, resp *rpc.Response, err error, userData any) {
+	hctx := userData.(*rpc.HandlerContext)
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	lpc, ok := ls.clientList[hctx]
+	if !ok || lpc.queryID != queryID {
+		// server already cancelled longpoll call
+		// or hctx was cancelled and reused by server before client response arrived
+		// since we have no client cancellation, we rely on fact that client queryId does not repeat often
+		return
 	}
-	if err != nil && !isLocal {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrUpstream
+	delete(ls.clientList, hctx)
+	var key data_model.Key
+	if err != nil {
+		key = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrUpstream)
+	} else {
+		key = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusOK)
 	}
-	proxy.sh2.AddValueCounter(key, float64(len(hctx.Request)), 1, nil)
+	ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, nil)
+	if resp != nil {
+		hctx.Response = append(hctx.Response, resp.Body...)
+	}
+	hctx.SendHijackedResponse(err)
+}
+
+func (ls *longpollShard) CancelHijack(hctx *rpc.HandlerContext) {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	if lpc, ok := ls.clientList[hctx]; ok {
+		key := keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrCancel)
+		ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, nil)
+	}
+	delete(ls.clientList, hctx)
+}
+
+func (proxy *IngressProxy) syncHandler(ctx context.Context, hctx *rpc.HandlerContext) error {
+	requestLen := len(hctx.Request)
+	resultTag, err := proxy.syncHandlerImpl(ctx, hctx)
+	if resultTag != 0 {
+		key := keyFromHctx(hctx, resultTag)
+		proxy.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
+	}
 	return err
 }
 
-func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
-	tag, _ := basictl.NatPeekTag(hctx.Request)
-	switch tag {
-	case constants.StatshouseGetConfig2:
-		// Record metrics on aggregator with correct host, IP, etc.
-		// We do not care if it succeeded or not, we make our own response anyway
-		_, _ = proxy.proxyRequest(tag, ctx, hctx)
-
-		var args tlstatshouse.GetConfig2
-		var ret tlstatshouse.GetConfigResult
-		_, err := args.ReadBoxed(hctx.Request)
-		if err != nil {
-			return true, fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
-		}
-		if args.Cluster != proxy.config.Cluster {
-			return true, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, proxy.config.Cluster)
-		}
-		ret.Addresses = proxy.config.ExternalAddresses
-		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount
-		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
-		hctx.Response, err = args.WriteResult(hctx.Response[:0], ret)
-		return true, err
+func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
+	requestLen := len(hctx.Request)
+	switch hctx.RequestTag() {
 	case constants.StatshouseGetTagMapping2,
 		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
 		constants.StatshouseTestConnection2, constants.StatshouseGetTargets2,
 		constants.StatshouseGetTagMappingBootstrap, constants.StatshouseGetMetrics3,
 		constants.StatshouseAutoCreate:
-		return proxy.proxyRequest(tag, ctx, hctx)
+	case constants.StatshouseGetConfig2:
+		return 0, rpc.ErrNoHandler // call SyncHandler in worker
 	default:
-		return true, fmt.Errorf("ingress proxy does not support tag 0x%x", tag)
+		// we want fast reject of unknown requests in sync handler
+		return format.TagValueIDRPCRequestsStatusNoHandler, fmt.Errorf("ingress proxy does not support tag 0x%x", hctx.RequestTag())
+	}
+	req, client, address, err := proxy.fillProxyRequest(hctx)
+	if err != nil {
+		return format.TagValueIDRPCRequestsStatusErrLocal, err
+	}
+
+	lockShardID := int(proxy.nextShardLock.Inc() % longPollShardsCount)
+	ls := proxy.longpollShards[lockShardID]
+	ls.mu.Lock() // to avoid race with longpoll cancellation, all code below must run under lock
+	defer ls.mu.Unlock()
+	if _, err := client.DoCallback(ctx, proxy.config.Network, address, req, ls.callback, hctx); err != nil {
+		return format.TagValueIDRPCRequestsStatusErrLocal, err
+	}
+	ls.clientList[hctx] = longpollClient{queryID: req.QueryID(), requestLen: requestLen}
+	return 0, hctx.HijackResponse(ls)
+}
+
+func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
+	requestLen := len(hctx.Request)
+	resultTag, err := proxy.handlerImpl(ctx, hctx)
+	key := keyFromHctx(hctx, resultTag)
+	proxy.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
+	return err
+}
+
+func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
+	switch hctx.RequestTag() {
+	case constants.StatshouseGetConfig2:
+		// Record metrics on aggregator with correct host, IP, etc.
+		// We do not care if it succeeded or not, we make our own response anyway
+		_, _ = proxy.syncProxyRequest(ctx, hctx)
+
+		var args tlstatshouse.GetConfig2
+		var ret tlstatshouse.GetConfigResult
+		_, err = args.ReadBoxed(hctx.Request)
+		if err != nil {
+			return format.TagValueIDRPCRequestsStatusErrLocal, fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
+		}
+		if args.Cluster != proxy.config.Cluster {
+			return format.TagValueIDRPCRequestsStatusErrLocal, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, proxy.config.Cluster)
+		}
+		ret.Addresses = proxy.config.ExternalAddresses
+		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount
+		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
+		hctx.Response, _ = args.WriteResult(hctx.Response[:0], ret)
+		return format.TagValueIDRPCRequestsStatusOK, nil
+	default:
+		return format.TagValueIDRPCRequestsStatusNoHandler, fmt.Errorf("ingress proxy does not support tag 0x%x", hctx.RequestTag())
 	}
 }
 
-func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
+func (proxy *IngressProxy) fillProxyRequest(hctx *rpc.HandlerContext) (request *rpc.Request, client *rpc.Client, address string, err error) {
 	if len(hctx.Request) < 32 {
-		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
+		return nil, nil, "", fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", hctx.RequestTag(), len(hctx.Request))
 	}
-	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr())
+	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -184,27 +276,34 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
 	hostName, err := parseHostname(hctx.Request)
 	if err != nil {
-		return true, err
+		return nil, nil, "", err
 	}
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
-	// TODO - collect metric, send to aggregator, reply with error to clients
 	shardReplicaIx := shardReplica % uint32(len(proxy.sh2.GetConfigResult.Addresses))
-	address := proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
+	address = proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
 
-	client := proxy.pool.getClient(hostName, remoteAddress)
+	client = proxy.pool.getClient(hostName, hctx.RemoteAddr().String())
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
 	req.Extra.FailIfNoConnection = true
+	return req, client, address, nil
+}
+
+func (proxy *IngressProxy) syncProxyRequest(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
+	req, client, address, err := proxy.fillProxyRequest(hctx)
+	if err != nil {
+		return format.TagValueIDRPCRequestsStatusErrLocal, err
+	}
 
 	resp, err := client.Do(ctx, proxy.config.Network, address, req)
-	if err != nil {
-		return false, err
-	}
 	defer client.PutResponse(resp)
+	if err != nil {
+		return format.TagValueIDRPCRequestsStatusErrUpstream, err
+	}
 
 	hctx.Response = append(hctx.Response, resp.Body...)
 
-	return false, nil
+	return format.TagValueIDRPCRequestsStatusOK, nil
 }
 
 func parseHostname(req []byte) (clientHost string, _ error) {
@@ -213,15 +312,21 @@ func parseHostname(req []byte) (clientHost string, _ error) {
 }
 
 func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client {
+	var client *rpc.Client
+	pool.mu.RLock()
+	client = pool.clients[clientHost]
+	pool.mu.RUnlock()
+	if client != nil {
+		return client
+	}
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	client := pool.clients[clientHost]
-	if client == nil {
-		log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
-
-		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
-		pool.clients[clientHost] = client
+	client = pool.clients[clientHost]
+	if client != nil {
+		return client
 	}
+	log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
+	client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+	pool.clients[clientHost] = client
 	return client
-
 }

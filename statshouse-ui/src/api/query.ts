@@ -21,7 +21,7 @@ export type ApiQuery = {
  * Get params endpoint api/query
  */
 export type ApiQueryGet = {
-  [GET_PARAMS.metricName]: string;
+  [GET_PARAMS.metricName]?: string;
   [GET_PARAMS.numResults]: string;
   [GET_PARAMS.metricWhat]: QueryWhat[];
   [GET_PARAMS.toTime]: string;
@@ -38,6 +38,7 @@ export type ApiQueryGet = {
   [GET_PARAMS.dataFormat]?: string;
   [GET_PARAMS.avoidCache]?: string;
   [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
+  [GET_PARAMS.priority]?: string;
   // [GetParams.metricFromEnd]?:string;
   // [GetParams.metricFromRow]?:string;
   // [GetParams.metricToRow]?:string;
@@ -69,11 +70,13 @@ export type QuerySeries = {
 
 export type QuerySeriesMeta = {
   time_shift: number;
-  tags: Record<TagKey, SeriesMetaTag>;
-  max_hosts: string[];
-  name: string;
+  tags: Partial<Record<TagKey, SeriesMetaTag>>;
+  max_hosts: null | string[];
+  name?: string;
   what: QueryWhat;
   total: number;
+  color: string;
+  metric_type?: string;
 };
 
 export type SeriesMetaTag = {

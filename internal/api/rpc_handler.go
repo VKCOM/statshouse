@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	chunkMaxSize   = 1_000_000 // little less than 1 MiB
+	chunkMaxSize   = 10_000_000 // little less than 10 MiB
 	bigResponseTTL = time.Second * 30
 
 	rpcErrorCodeAuthFailed          = 5000
@@ -33,83 +34,6 @@ const (
 	rpcErrorCodeQueryParsingFailed  = 5005
 	rpcErrorCodeQueryHandlingFailed = 5006
 	rpcErrorCodeChunkStorageFailed  = 5007
-)
-
-var (
-	fnToString = map[tlstatshouseApi.Function]string{
-		tlstatshouseApi.FnCount():                ParamQueryFnCount,
-		tlstatshouseApi.FnCountNorm():            ParamQueryFnCountNorm,
-		tlstatshouseApi.FnCumulCount():           ParamQueryFnCumulCount,
-		tlstatshouseApi.FnMin():                  ParamQueryFnMin,
-		tlstatshouseApi.FnMax():                  ParamQueryFnMax,
-		tlstatshouseApi.FnAvg():                  ParamQueryFnAvg,
-		tlstatshouseApi.FnCumulAvg():             ParamQueryFnCumulAvg,
-		tlstatshouseApi.FnSum():                  ParamQueryFnSum,
-		tlstatshouseApi.FnSumNorm():              ParamQueryFnSumNorm,
-		tlstatshouseApi.FnCumulSum():             ParamQueryFnCumulSum,
-		tlstatshouseApi.FnStddev():               ParamQueryFnStddev,
-		tlstatshouseApi.FnP01():                  ParamQueryFnP0_1,
-		tlstatshouseApi.FnP1():                   ParamQueryFnP1,
-		tlstatshouseApi.FnP5():                   ParamQueryFnP5,
-		tlstatshouseApi.FnP10():                  ParamQueryFnP10,
-		tlstatshouseApi.FnP25():                  ParamQueryFnP25,
-		tlstatshouseApi.FnP50():                  ParamQueryFnP50,
-		tlstatshouseApi.FnP75():                  ParamQueryFnP75,
-		tlstatshouseApi.FnP90():                  ParamQueryFnP90,
-		tlstatshouseApi.FnP95():                  ParamQueryFnP95,
-		tlstatshouseApi.FnP99():                  ParamQueryFnP99,
-		tlstatshouseApi.FnP999():                 ParamQueryFnP999,
-		tlstatshouseApi.FnUnique():               ParamQueryFnUnique,
-		tlstatshouseApi.FnUniqueNorm():           ParamQueryFnUniqueNorm,
-		tlstatshouseApi.FnMaxHost():              ParamQueryFnMaxHost,
-		tlstatshouseApi.FnMaxCountHost():         ParamQueryFnMaxCountHost,
-		tlstatshouseApi.FnDerivativeCount():      ParamQueryFnDerivativeCount,
-		tlstatshouseApi.FnDerivativeCountNorm():  ParamQueryFnDerivativeCountNorm,
-		tlstatshouseApi.FnDerivativeSum():        ParamQueryFnDerivativeSum,
-		tlstatshouseApi.FnDerivativeSumNorm():    ParamQueryFnDerivativeSumNorm,
-		tlstatshouseApi.FnDerivativeMin():        ParamQueryFnDerivativeMin,
-		tlstatshouseApi.FnDerivativeMax():        ParamQueryFnDerivativeMax,
-		tlstatshouseApi.FnDerivativeAvg():        ParamQueryFnDerivativeAvg,
-		tlstatshouseApi.FnDerivativeUnique():     ParamQueryFnDerivativeUnique,
-		tlstatshouseApi.FnDerivativeUniqueNorm(): ParamQueryFnDerivativeUniqueNorm,
-	}
-	whatToFn = map[queryFn]tlstatshouseApi.Function{
-		queryFnCount:                tlstatshouseApi.FnCount(),
-		queryFnCountNorm:            tlstatshouseApi.FnCountNorm(),
-		queryFnCumulCount:           tlstatshouseApi.FnCumulCount(),
-		queryFnMin:                  tlstatshouseApi.FnMin(),
-		queryFnMax:                  tlstatshouseApi.FnMax(),
-		queryFnAvg:                  tlstatshouseApi.FnAvg(),
-		queryFnCumulAvg:             tlstatshouseApi.FnCumulAvg(),
-		queryFnSum:                  tlstatshouseApi.FnSum(),
-		queryFnSumNorm:              tlstatshouseApi.FnSumNorm(),
-		queryFnStddev:               tlstatshouseApi.FnStddev(),
-		queryFnP0_1:                 tlstatshouseApi.FnP01(),
-		queryFnP1:                   tlstatshouseApi.FnP1(),
-		queryFnP5:                   tlstatshouseApi.FnP5(),
-		queryFnP10:                  tlstatshouseApi.FnP10(),
-		queryFnP25:                  tlstatshouseApi.FnP25(),
-		queryFnP50:                  tlstatshouseApi.FnP50(),
-		queryFnP75:                  tlstatshouseApi.FnP75(),
-		queryFnP90:                  tlstatshouseApi.FnP90(),
-		queryFnP95:                  tlstatshouseApi.FnP95(),
-		queryFnP99:                  tlstatshouseApi.FnP99(),
-		queryFnP999:                 tlstatshouseApi.FnP999(),
-		queryFnUnique:               tlstatshouseApi.FnUnique(),
-		queryFnUniqueNorm:           tlstatshouseApi.FnUniqueNorm(),
-		queryFnMaxHost:              tlstatshouseApi.FnMaxHost(),
-		queryFnMaxCountHost:         tlstatshouseApi.FnMaxCountHost(),
-		queryFnCumulSum:             tlstatshouseApi.FnCumulSum(),
-		queryFnDerivativeCount:      tlstatshouseApi.FnDerivativeCount(),
-		queryFnDerivativeCountNorm:  tlstatshouseApi.FnDerivativeCountNorm(),
-		queryFnDerivativeSum:        tlstatshouseApi.FnDerivativeSum(),
-		queryFnDerivativeSumNorm:    tlstatshouseApi.FnDerivativeSumNorm(),
-		queryFnDerivativeMin:        tlstatshouseApi.FnDerivativeMin(),
-		queryFnDerivativeMax:        tlstatshouseApi.FnDerivativeMax(),
-		queryFnDerivativeAvg:        tlstatshouseApi.FnDerivativeAvg(),
-		queryFnDerivativeUnique:     tlstatshouseApi.FnDerivativeUnique(),
-		queryFnDerivativeUniqueNorm: tlstatshouseApi.FnDerivativeUniqueNorm(),
-	}
 )
 
 type RPCHandler struct {
@@ -125,17 +49,15 @@ func NewRpcHandler(
 	ah *Handler,
 	brs *BigResponseStorage,
 	jwtHelper *vkuth.JWTHelper,
-	protectedPrefixes []string,
-	localMode bool,
-	insecureMode bool,
+	opt HandlerOptions,
 ) *RPCHandler {
 	return &RPCHandler{
 		ah:                ah,
 		brs:               brs,
 		jwtHelper:         jwtHelper,
-		protectedPrefixes: protectedPrefixes,
-		localMode:         localMode,
-		insecureMode:      insecureMode,
+		protectedPrefixes: opt.protectedMetricPrefixes,
+		localMode:         opt.LocalMode,
+		insecureMode:      opt.insecureMode,
 	}
 }
 
@@ -154,7 +76,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 	if err != nil {
 		return err
 	}
-	sr, cancel, err := h.ah.handleSeriesRequest(ctx, req, seriesRequestOptions{collapse: true, trace: true})
+	sr, cancel, err := h.ah.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return err
@@ -169,10 +91,12 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 			From: sr.Time[0],
 			To:   sr.Time[1],
 		}
-		var what queryFn
+		var what string
 		var tags map[string]SeriesMetaTag
-		what, meta.TimeShift, tags = sr.queryFnShiftAndTagsAt(i)
-		meta.SetWhat(whatToFn[what])
+		what, meta.TimeShift, tags = sr.queryFuncShiftAndTagsAt(i)
+		if v, ok := ParseTLFunc(what); ok {
+			meta.SetWhat(v)
+		}
 		meta.Tags = make(map[string]string, len(tags))
 		for k, v := range tags {
 			meta.Tags[k] = v.Value
@@ -220,7 +144,9 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		for k, v := range meta.Tags {
 			m.Tags[k] = v.Value
 		}
-		m.SetWhat(whatToFn[meta.What])
+		if v, ok := ParseTLFunc(meta.What); ok {
+			m.SetWhat(v)
+		}
 		res.SeriesMeta = append(res.SeriesMeta, m)
 	}
 	if arg.Query.IsSetExcessPointsFlag() {
@@ -233,6 +159,11 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		res.Series.SeriesData = make([][]float64, 0, len(sr.Series.SeriesData))
 		for _, data := range sr.Series.SeriesData {
 			res.Series.SeriesData = append(res.Series.SeriesData, *data)
+		}
+	} else if chunkMaxSize < metaSize {
+		return rpc.Error{
+			Code:        rpcErrorCodeChunkStorageFailed,
+			Description: fmt.Sprintf("response metadata size %d out of range", metaSize),
 		}
 	} else {
 		chunks := chunkResponse(sr, columnSize, totalSize, metaSize)
@@ -407,14 +338,15 @@ func (q *seriesRequestRPC) toSeriesRequest(h *RPCHandler) (seriesRequest, error)
 		return seriesRequest{}, err
 	}
 	q.stat.setAccessInfo(req.ai)
-	req.metric, err = h.ah.getMetricMeta(req.ai, q.metricName)
+	var metric *format.MetricMetaValue
+	metric, err = h.ah.getMetricMeta(req.ai, q.metricName)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
 		return seriesRequest{}, err
 	}
-	q.stat.setMetricMeta(req.metric)
-	if req.metric != nil {
-		req.filterIn, req.filterNotIn, err = parseFilterValues(q.filter, req.metric)
+	q.stat.setMetricMeta(metric)
+	if metric != nil {
+		req.filterIn, req.filterNotIn, err = parseFilterValues(q.filter, metric)
 		if err != nil {
 			err = fmt.Errorf("can't parse filter: %v", err)
 			return seriesRequest{}, err
@@ -424,27 +356,32 @@ func (q *seriesRequestRPC) toSeriesRequest(h *RPCHandler) (seriesRequest, error)
 		return seriesRequest{}, err
 	}
 	if len(q.interval) != 0 || len(q.widthAgg) != 0 {
-		req.width, req.widthKind, err = parseWidth(q.interval, q.widthAgg)
+		width, widthKind, err := parseWidth(q.interval, q.widthAgg)
 		if err != nil {
 			err = fmt.Errorf("can't parse interval: %v", err)
 			return seriesRequest{}, err
 		}
+		if widthKind == widthAutoRes {
+			req.screenWidth = int64(width)
+		} else {
+			req.step = int64(width)
+		}
 	}
 	req.shifts = make([]time.Duration, 0, len(q.timeShift))
 	for _, ts := range q.timeShift {
-		if req.width == _1M && ts%_1M != 0 {
+		if req.step == _1M && ts%_1M != 0 {
 			err = fmt.Errorf("time shift %d can't be used with month interval", ts)
 			return seriesRequest{}, err
 		}
 		req.shifts = append(req.shifts, time.Duration(ts)*time.Second)
 	}
 	if q.whatFlagSet {
-		req.what = make([]string, 0, len(q.what))
+		req.what = make([]QueryFunc, 0, len(q.what))
 		for _, fn := range q.what {
-			req.what = append(req.what, fnToString[fn])
+			req.what = append(req.what, QueryFuncFromTLFunc(fn, &req.maxHost))
 		}
 	} else {
-		req.what = []string{fnToString[q.function]}
+		req.what = []QueryFunc{QueryFuncFromTLFunc(q.function, &req.maxHost)}
 	}
 	return req, nil
 }

@@ -196,15 +196,16 @@ type VectorSelector struct {
 	PosRange PositionRange
 
 	MatchingMetrics []*format.MetricMetaValue
-	MatchingNames   []string
-	MetricKindHint  string
 	Range           int64
 	What            string
 	Whats           []string
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
+	MinHost         bool
 	MaxHost         bool
+	MinHostMatchers []*labels.Matcher
+	MaxHostMatchers []*labels.Matcher
 	OmitNameTag     bool
 	Offsets         []int64
 }

@@ -13,168 +13,416 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item EngineQueryResult) AsUnion() EngineQueryResultUnion {
-	var ret EngineQueryResultUnion
+var _EngineQueryResult = [3]UnionElement{
+	{TLTag: 0xac4d6fe9, TLName: "engine.queryResult", TLString: "engine.queryResult#ac4d6fe9"},
+	{TLTag: 0x2b4dd0ba, TLName: "engine.queryResultError", TLString: "engine.queryResultError#2b4dd0ba"},
+	{TLTag: 0xee2879b0, TLName: "engine.queryResultAio", TLString: "engine.queryResultAio#ee2879b0"},
+}
+
+type EngineQueryResult struct {
+	valueQueryResult EngineQueryResult0
+	valueError       EngineQueryResultError
+	index            int
+}
+
+func (item EngineQueryResult) TLName() string { return _EngineQueryResult[item.index].TLName }
+func (item EngineQueryResult) TLTag() uint32  { return _EngineQueryResult[item.index].TLTag }
+
+func (item *EngineQueryResult) Reset() { item.ResetToQueryResult() }
+
+func (item *EngineQueryResult) IsQueryResult() bool { return item.index == 0 }
+
+func (item *EngineQueryResult) AsQueryResult() (*EngineQueryResult0, bool) {
+	if item.index != 0 {
+		return nil, false
+	}
+	return &item.valueQueryResult, true
+}
+func (item *EngineQueryResult) ResetToQueryResult() *EngineQueryResult0 {
+	item.index = 0
+	item.valueQueryResult.Reset()
+	return &item.valueQueryResult
+}
+func (item *EngineQueryResult) SetQueryResult(value EngineQueryResult0) {
+	item.index = 0
+	item.valueQueryResult = value
+}
+
+func (item *EngineQueryResult) IsError() bool { return item.index == 1 }
+
+func (item *EngineQueryResult) AsError() (*EngineQueryResultError, bool) {
+	if item.index != 1 {
+		return nil, false
+	}
+	return &item.valueError, true
+}
+func (item *EngineQueryResult) ResetToError() *EngineQueryResultError {
+	item.index = 1
+	item.valueError.Reset()
+	return &item.valueError
+}
+func (item *EngineQueryResult) SetError(value EngineQueryResultError) {
+	item.index = 1
+	item.valueError = value
+}
+
+func (item *EngineQueryResult) IsAio() bool { return item.index == 2 }
+
+func (item *EngineQueryResult) AsAio() (EngineQueryResultAio, bool) {
+	var value EngineQueryResultAio
+	return value, item.index == 2
+}
+func (item *EngineQueryResult) ResetToAio() { item.index = 2 }
+func (item *EngineQueryResult) SetAio()     { item.index = 2 }
+
+func (item *EngineQueryResult) ReadBoxed(w []byte) (_ []byte, err error) {
+	var tag uint32
+	if w, err = basictl.NatRead(w, &tag); err != nil {
+		return w, err
+	}
+	switch tag {
+	case 0xac4d6fe9:
+		item.index = 0
+		return item.valueQueryResult.Read(w)
+	case 0x2b4dd0ba:
+		item.index = 1
+		return item.valueError.Read(w)
+	case 0xee2879b0:
+		item.index = 2
+		return w, nil
+	default:
+		return w, ErrorInvalidUnionTag("engine.QueryResult", tag)
+	}
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineQueryResult) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineQueryResult) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, _EngineQueryResult[item.index].TLTag)
+	switch item.index {
+	case 0:
+		w = item.valueQueryResult.Write(w)
+	case 1:
+		w = item.valueError.Write(w)
+	case 2:
+		return w
+	}
+	return w
+}
+
+func (item *EngineQueryResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.QueryResult", in)
+	if err != nil {
+		return err
+	}
+	switch _tag {
+	case "engine.queryResult#ac4d6fe9", "engine.queryResult", "#ac4d6fe9":
+		if !legacyTypeNames && _tag == "engine.queryResult#ac4d6fe9" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResult#ac4d6fe9")
+		}
+		item.index = 0
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueQueryResult.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+			return err
+		}
+	case "engine.queryResultError#2b4dd0ba", "engine.queryResultError", "#2b4dd0ba":
+		if !legacyTypeNames && _tag == "engine.queryResultError#2b4dd0ba" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResultError#2b4dd0ba")
+		}
+		item.index = 1
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueError.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+			return err
+		}
+	case "engine.queryResultAio#ee2879b0", "engine.queryResultAio", "#ee2879b0":
+		if !legacyTypeNames && _tag == "engine.queryResultAio#ee2879b0" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResultAio#ee2879b0")
+		}
+		item.index = 2
+	default:
+		return ErrorInvalidUnionTagJSON("engine.QueryResult", _tag)
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineQueryResult) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineQueryResult) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineQueryResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	switch item.index {
+	case 0:
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResult"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResult#ac4d6fe9"`...)
+		}
+		w = append(w, `,"value":`...)
+		w = item.valueQueryResult.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
+	case 1:
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResultError"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResultError#2b4dd0ba"`...)
+		}
+		w = append(w, `,"value":`...)
+		w = item.valueError.WriteJSONOpt(newTypeNames, short, w)
+		return append(w, '}')
+	case 2:
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResultAio"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResultAio#ee2879b0"`...)
+		}
+		return append(w, '}')
+	default: // Impossible due to panic above
+		return w
+	}
+}
+
+func (item EngineQueryResult) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *EngineQueryResult) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *EngineQueryResult) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("engine.QueryResult", err.Error())
+	}
+	return nil
+}
+
+func (item EngineQueryResult0) AsUnion() EngineQueryResult {
+	var ret EngineQueryResult
 	ret.SetQueryResult(item)
 	return ret
 }
 
-// AsUnion will be here
-type EngineQueryResult struct {
+type EngineQueryResult0 struct {
 	Size int32
 }
 
-func (EngineQueryResult) TLName() string { return "engine.queryResult" }
-func (EngineQueryResult) TLTag() uint32  { return 0xac4d6fe9 }
+func (EngineQueryResult0) TLName() string { return "engine.queryResult" }
+func (EngineQueryResult0) TLTag() uint32  { return 0xac4d6fe9 }
 
-func (item *EngineQueryResult) Reset() {
+func (item *EngineQueryResult0) Reset() {
 	item.Size = 0
 }
 
-func (item *EngineQueryResult) Read(w []byte) (_ []byte, err error) {
+func (item *EngineQueryResult0) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Size)
 }
 
-func (item *EngineQueryResult) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Size), nil
+// This method is general version of Write, use it instead!
+func (item *EngineQueryResult0) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
 
-func (item *EngineQueryResult) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *EngineQueryResult0) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.Size)
+	return w
+}
+
+func (item *EngineQueryResult0) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xac4d6fe9); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *EngineQueryResult) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineQueryResult0) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineQueryResult0) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xac4d6fe9)
 	return item.Write(w)
 }
 
-func (item EngineQueryResult) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+func (item EngineQueryResult0) String() string {
+	return string(item.WriteJSON(nil))
 }
 
-func EngineQueryResult__ReadJSON(item *EngineQueryResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResult) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResult", "expected json object")
+func (item *EngineQueryResult0) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "size":
+				if propSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResult", "size")
+				}
+				if err := Json2ReadInt32(in, &item.Size); err != nil {
+					return err
+				}
+				propSizePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.queryResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jSize := _jm["size"]
-	delete(_jm, "size")
-	if err := JsonReadInt32(_jSize, &item.Size); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResult", k)
+	if !propSizePresented {
+		item.Size = 0
 	}
 	return nil
 }
 
-func (item *EngineQueryResult) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineQueryResult0) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineQueryResult0) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineQueryResult0) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.Size != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"size":`...)
-		w = basictl.JSONWriteInt32(w, item.Size)
+	backupIndexSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"size":`...)
+	w = basictl.JSONWriteInt32(w, item.Size)
+	if (item.Size != 0) == false {
+		w = w[:backupIndexSize]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
-func (item *EngineQueryResult) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+func (item *EngineQueryResult0) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
 }
 
-func (item *EngineQueryResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+func (item *EngineQueryResult0) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResult", err.Error())
 	}
 	return nil
 }
 
-func (item EngineQueryResultAio) AsUnion() EngineQueryResultUnion {
-	var ret EngineQueryResultUnion
+func (item EngineQueryResultAio) AsUnion() EngineQueryResult {
+	var ret EngineQueryResult
 	ret.SetAio()
 	return ret
 }
 
-// AsUnion will be here
 type EngineQueryResultAio struct {
 }
 
 func (EngineQueryResultAio) TLName() string { return "engine.queryResultAio" }
 func (EngineQueryResultAio) TLTag() uint32  { return 0xee2879b0 }
 
-func (item *EngineQueryResultAio) Reset()                         {}
-func (item *EngineQueryResultAio) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineQueryResultAio) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineQueryResultAio) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xee2879b0)
+func (item *EngineQueryResultAio) Reset() {}
+
+func (item *EngineQueryResultAio) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+// This method is general version of Write, use it instead!
+func (item *EngineQueryResultAio) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
 }
-func (item *EngineQueryResultAio) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xee2879b0), nil
+
+func (item *EngineQueryResultAio) Write(w []byte) []byte {
+	return w
+}
+
+func (item *EngineQueryResultAio) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xee2879b0); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineQueryResultAio) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineQueryResultAio) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0xee2879b0)
+	return item.Write(w)
 }
 
 func (item EngineQueryResultAio) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineQueryResultAio__ReadJSON(item *EngineQueryResultAio, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResultAio) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResultAio", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResultAio", k)
+func (item *EngineQueryResultAio) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.queryResultAio", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
-func (item *EngineQueryResultAio) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineQueryResultAio) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineQueryResultAio) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineQueryResultAio) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineQueryResultAio) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineQueryResultAio) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResultAio", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResultAio", err.Error())
 	}
 	return nil
 }
 
-func (item EngineQueryResultError) AsUnion() EngineQueryResultUnion {
-	var ret EngineQueryResultUnion
+func (item EngineQueryResultError) AsUnion() EngineQueryResult {
+	var ret EngineQueryResult
 	ret.SetError(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineQueryResultError struct {
 	ErrorCode   int32
 	ErrorString string
@@ -195,9 +443,15 @@ func (item *EngineQueryResultError) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.ErrorString)
 }
 
-func (item *EngineQueryResultError) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *EngineQueryResultError) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineQueryResultError) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.ErrorString)
+	w = basictl.StringWrite(w, item.ErrorString)
+	return w
 }
 
 func (item *EngineQueryResultError) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -207,227 +461,102 @@ func (item *EngineQueryResultError) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineQueryResultError) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineQueryResultError) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineQueryResultError) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2b4dd0ba)
 	return item.Write(w)
 }
 
 func (item EngineQueryResultError) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineQueryResultError__ReadJSON(item *EngineQueryResultError, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResultError) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResultError", "expected json object")
+func (item *EngineQueryResultError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorCodePresented bool
+	var propErrorStringPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResultError", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error_string":
+				if propErrorStringPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResultError", "error_string")
+				}
+				if err := Json2ReadString(in, &item.ErrorString); err != nil {
+					return err
+				}
+				propErrorStringPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.queryResultError", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jErrorCode := _jm["error_code"]
-	delete(_jm, "error_code")
-	if err := JsonReadInt32(_jErrorCode, &item.ErrorCode); err != nil {
-		return err
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
 	}
-	_jErrorString := _jm["error_string"]
-	delete(_jm, "error_string")
-	if err := JsonReadString(_jErrorString, &item.ErrorString); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResultError", k)
+	if !propErrorStringPresented {
+		item.ErrorString = ""
 	}
 	return nil
 }
 
-func (item *EngineQueryResultError) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineQueryResultError) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineQueryResultError) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineQueryResultError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.ErrorCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	backupIndexErrorCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	if (item.ErrorCode != 0) == false {
+		w = w[:backupIndexErrorCode]
 	}
-	if len(item.ErrorString) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_string":`...)
-		w = basictl.JSONWriteString(w, item.ErrorString)
+	backupIndexErrorString := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_string":`...)
+	w = basictl.JSONWriteString(w, item.ErrorString)
+	if (len(item.ErrorString) != 0) == false {
+		w = w[:backupIndexErrorString]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineQueryResultError) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineQueryResultError) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResultError", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResultError", err.Error())
 	}
 	return nil
-}
-
-var _EngineQueryResultUnion = [3]UnionElement{
-	{TLTag: 0xac4d6fe9, TLName: "engine.queryResult", TLString: "engine.queryResult#ac4d6fe9"},
-	{TLTag: 0x2b4dd0ba, TLName: "engine.queryResultError", TLString: "engine.queryResultError#2b4dd0ba"},
-	{TLTag: 0xee2879b0, TLName: "engine.queryResultAio", TLString: "engine.queryResultAio#ee2879b0"},
-}
-
-type EngineQueryResultUnion struct {
-	valueQueryResult EngineQueryResult
-	valueError       EngineQueryResultError
-	index            int
-}
-
-func (item EngineQueryResultUnion) TLName() string { return _EngineQueryResultUnion[item.index].TLName }
-func (item EngineQueryResultUnion) TLTag() uint32  { return _EngineQueryResultUnion[item.index].TLTag }
-
-func (item *EngineQueryResultUnion) Reset() { item.ResetToQueryResult() }
-
-func (item *EngineQueryResultUnion) IsQueryResult() bool { return item.index == 0 }
-
-func (item *EngineQueryResultUnion) AsQueryResult() (*EngineQueryResult, bool) {
-	if item.index != 0 {
-		return nil, false
-	}
-	return &item.valueQueryResult, true
-}
-func (item *EngineQueryResultUnion) ResetToQueryResult() *EngineQueryResult {
-	item.index = 0
-	item.valueQueryResult.Reset()
-	return &item.valueQueryResult
-}
-func (item *EngineQueryResultUnion) SetQueryResult(value EngineQueryResult) {
-	item.index = 0
-	item.valueQueryResult = value
-}
-
-func (item *EngineQueryResultUnion) IsError() bool { return item.index == 1 }
-
-func (item *EngineQueryResultUnion) AsError() (*EngineQueryResultError, bool) {
-	if item.index != 1 {
-		return nil, false
-	}
-	return &item.valueError, true
-}
-func (item *EngineQueryResultUnion) ResetToError() *EngineQueryResultError {
-	item.index = 1
-	item.valueError.Reset()
-	return &item.valueError
-}
-func (item *EngineQueryResultUnion) SetError(value EngineQueryResultError) {
-	item.index = 1
-	item.valueError = value
-}
-
-func (item *EngineQueryResultUnion) IsAio() bool { return item.index == 2 }
-
-func (item *EngineQueryResultUnion) AsAio() (EngineQueryResultAio, bool) {
-	var value EngineQueryResultAio
-	return value, item.index == 2
-}
-func (item *EngineQueryResultUnion) ResetToAio() { item.index = 2 }
-func (item *EngineQueryResultUnion) SetAio()     { item.index = 2 }
-
-func (item *EngineQueryResultUnion) ReadBoxed(w []byte) (_ []byte, err error) {
-	var tag uint32
-	if w, err = basictl.NatRead(w, &tag); err != nil {
-		return w, err
-	}
-	switch tag {
-	case 0xac4d6fe9:
-		item.index = 0
-		return item.valueQueryResult.Read(w)
-	case 0x2b4dd0ba:
-		item.index = 1
-		return item.valueError.Read(w)
-	case 0xee2879b0:
-		item.index = 2
-		return w, nil
-	default:
-		return w, ErrorInvalidUnionTag("engine.QueryResult", tag)
-	}
-}
-
-func (item *EngineQueryResultUnion) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _EngineQueryResultUnion[item.index].TLTag)
-	switch item.index {
-	case 0:
-		return item.valueQueryResult.Write(w)
-	case 1:
-		return item.valueError.Write(w)
-	case 2:
-		return w, nil
-	default: // Impossible due to panic above
-		return w, nil
-	}
-}
-
-func EngineQueryResultUnion__ReadJSON(item *EngineQueryResultUnion, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResultUnion) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.QueryResult", j)
-	if err != nil {
-		return err
-	}
-	jvalue := _jm["value"]
-	switch _tag {
-	case "engine.queryResult#ac4d6fe9", "engine.queryResult", "#ac4d6fe9":
-		item.index = 0
-		if err := EngineQueryResult__ReadJSON(&item.valueQueryResult, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.queryResultError#2b4dd0ba", "engine.queryResultError", "#2b4dd0ba":
-		item.index = 1
-		if err := EngineQueryResultError__ReadJSON(&item.valueError, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.queryResultAio#ee2879b0", "engine.queryResultAio", "#ee2879b0":
-		item.index = 2
-	default:
-		return ErrorInvalidUnionTagJSON("engine.QueryResult", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.QueryResult", k)
-	}
-	return nil
-}
-
-func (item *EngineQueryResultUnion) WriteJSON(w []byte) (_ []byte, err error) {
-	switch item.index {
-	case 0:
-		w = append(w, `{"type":"engine.queryResult#ac4d6fe9","value":`...)
-		if w, err = item.valueQueryResult.WriteJSON(w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 1:
-		w = append(w, `{"type":"engine.queryResultError#2b4dd0ba","value":`...)
-		if w, err = item.valueError.WriteJSON(w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 2:
-		return append(w, `{"type":"engine.queryResultAio#ee2879b0"}`...), nil
-	default: // Impossible due to panic above
-		return w, nil
-	}
-}
-
-func (item EngineQueryResultUnion) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
 }

@@ -38,12 +38,16 @@ func (item *MetadataEditEntityEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.OldVersion)
 }
 
-func (item *MetadataEditEntityEvent) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *MetadataEditEntityEvent) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataEditEntityEvent) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Metric.Write(w); err != nil {
-		return w, err
-	}
-	return basictl.LongWrite(w, item.OldVersion), nil
+	w = item.Metric.Write(w)
+	w = basictl.LongWrite(w, item.OldVersion)
+	return w
 }
 
 func (item *MetadataEditEntityEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,78 +57,116 @@ func (item *MetadataEditEntityEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *MetadataEditEntityEvent) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataEditEntityEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataEditEntityEvent) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1234b677)
 	return item.Write(w)
 }
 
 func (item MetadataEditEntityEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataEditEntityEvent__ReadJSON(item *MetadataEditEntityEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataEditEntityEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.editEntityEvent", "expected json object")
+func (item *MetadataEditEntityEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propMetricPresented bool
+	var propOldVersionPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntityEvent", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntityEvent", "metric")
+				}
+				if err := item.Metric.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "old_version":
+				if propOldVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntityEvent", "old_version")
+				}
+				if err := Json2ReadInt64(in, &item.OldVersion); err != nil {
+					return err
+				}
+				propOldVersionPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.editEntityEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	_jOldVersion := _jm["old_version"]
-	delete(_jm, "old_version")
-	if err := JsonReadInt64(_jOldVersion, &item.OldVersion); err != nil {
-		return err
+	if !propMetricPresented {
+		item.Metric.Reset()
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.editEntityEvent", k)
-	}
-	if err := MetadataEvent__ReadJSON(&item.Metric, _jMetric); err != nil {
-		return err
+	if !propOldVersionPresented {
+		item.OldVersion = 0
 	}
 	return nil
 }
 
-func (item *MetadataEditEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataEditEntityEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataEditEntityEvent) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataEditEntityEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSON(w); err != nil {
-		return w, err
+	w = item.Metric.WriteJSONOpt(newTypeNames, short, w)
+	backupIndexOldVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"old_version":`...)
+	w = basictl.JSONWriteInt64(w, item.OldVersion)
+	if (item.OldVersion != 0) == false {
+		w = w[:backupIndexOldVersion]
 	}
-	if item.OldVersion != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"old_version":`...)
-		w = basictl.JSONWriteInt64(w, item.OldVersion)
-	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataEditEntityEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataEditEntityEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.editEntityEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.editEntityEvent", err.Error())
 	}
 	return nil

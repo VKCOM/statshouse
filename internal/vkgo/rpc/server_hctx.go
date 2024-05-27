@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,17 +13,29 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
-// HandlerContext must not be used outside the handler
+// commonality between UDP and TCP servers requried for HandlerContext
+type HandlerContextConnection interface {
+	HijackResponse(hctx *HandlerContext, canceller HijackResponseCanceller) error
+	SendHijackedResponse(hctx *HandlerContext, err error)
+	AccountResponseMem(hctx *HandlerContext, respBodySizeEstimate int) error
+	RareLog(format string, args ...any)
+}
+
+// HandlerContext must not be used outside the handler, except in HijackResponse (longpoll) protocol
 type HandlerContext struct {
-	ActorID     uint64
+	ActorID     int64
 	QueryID     int64
 	RequestTime time.Time
 	listenAddr  net.Addr
 	localAddr   net.Addr
 	remoteAddr  net.Addr
-	keyID       [4]byte
+
+	keyID             [4]byte // encryption key prefix
+	protocolTransport string
+	protocolVersion   uint32
 
 	request  *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
 	Request  []byte
@@ -39,16 +51,16 @@ type HandlerContext struct {
 	// UserData allows caching common state between different requests.
 	UserData any
 
+	RequestFunctionName string // Experimental. Generated handlers fill this during request processing.
+
 	hooksState ServerHookState // can be nil
 
-	serverConn     *serverConn
-	reqHeader      packetHeader
-	reqType        uint32 // actual request can be wrapped 0 or more times within reqHeader
-	reqTaken       int
-	respTaken      int
-	respPacketType uint32
-	noResult       bool  // defensive copy
-	queryID        int64 // defensive copy
+	commonConn HandlerContextConnection
+	reqTag     uint32 // actual request can be wrapped 0 or more times within reqHeader
+	reqTaken   int
+	respTaken  int
+	noResult   bool  // defensive copy
+	queryID    int64 // defensive copy
 
 	timeout time.Duration // 0 means infinite, for this, both client and server must have infinite timeout
 }
@@ -65,30 +77,29 @@ func (hctx *HandlerContext) WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, handlerContextKey{}, hctx)
 }
 
-func (hctx *HandlerContext) KeyID() [4]byte       { return hctx.keyID }
-func (hctx *HandlerContext) ListenAddr() net.Addr { return hctx.remoteAddr }
-func (hctx *HandlerContext) LocalAddr() net.Addr  { return hctx.localAddr }
-func (hctx *HandlerContext) RemoteAddr() net.Addr { return hctx.remoteAddr }
+func (hctx *HandlerContext) RequestTag() uint32        { return hctx.reqTag } // First 4 bytes of request available even after request is freed
+func (hctx *HandlerContext) KeyID() [4]byte            { return hctx.keyID }
+func (hctx *HandlerContext) ProtocolVersion() uint32   { return hctx.protocolVersion }
+func (hctx *HandlerContext) ProtocolTransport() string { return hctx.protocolTransport }
+func (hctx *HandlerContext) ListenAddr() net.Addr      { return hctx.listenAddr }
+func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.localAddr }
+func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.remoteAddr }
 
-func (hctx *HandlerContext) releaseRequest() {
-	hctx.serverConn.server.releaseRequestBuf(hctx.reqTaken, hctx.request)
-	hctx.reqTaken = 0
-	hctx.request = nil
-	hctx.Request = nil
-}
-
-func (hctx *HandlerContext) releaseResponse() {
-	if hctx.response != nil {
-		// if Response was reallocated and became too big, we will reuse original slice we got from pool
-		// otherwise, we will move reallocated slice into slice in heap
-		if cap(hctx.Response) <= hctx.serverConn.server.opts.ResponseBufSize {
-			*hctx.response = hctx.Response[:0]
-		}
+// this is for testing UDP transport, will be removed soon
+func (hctx *HandlerContext) FillHandlerContextDoNotUse(
+	commonConn HandlerContextConnection, listenAddr net.Addr, localAddr net.Addr, remoteAddr net.Addr,
+	keyID [4]byte, protocolVersion uint32, protocolTransport string,
+	options *ServerOptions) {
+	hctx.commonConn = commonConn
+	hctx.listenAddr = listenAddr
+	hctx.localAddr = localAddr
+	hctx.remoteAddr = remoteAddr
+	hctx.keyID = keyID
+	hctx.protocolVersion = protocolVersion
+	hctx.protocolTransport = protocolTransport
+	if options.Hooks != nil {
+		hctx.hooksState = options.Hooks()
 	}
-	hctx.serverConn.server.releaseResponseBuf(hctx.respTaken, hctx.response)
-	hctx.respTaken = 0
-	hctx.response = nil
-	hctx.Response = nil
 }
 
 func (hctx *HandlerContext) reset() {
@@ -97,23 +108,24 @@ func (hctx *HandlerContext) reset() {
 	}
 
 	// We do not preserve map in ResponseExtra because strings will not be reused anyway
+	// Also we do not reuse because client could possibly save slice/pointer
 	*hctx = HandlerContext{
 		UserData: hctx.UserData,
 
 		// HandlerContext is bound to the connection, so these are always valid
-		serverConn: hctx.serverConn,
-		listenAddr: hctx.listenAddr,
-		localAddr:  hctx.localAddr,
-		remoteAddr: hctx.remoteAddr,
-		keyID:      hctx.keyID,
-		hooksState: hctx.hooksState,
+		commonConn:        hctx.commonConn,
+		listenAddr:        hctx.listenAddr,
+		localAddr:         hctx.localAddr,
+		remoteAddr:        hctx.remoteAddr,
+		keyID:             hctx.keyID,
+		protocolTransport: hctx.protocolTransport,
+		protocolVersion:   hctx.protocolVersion,
+		hooksState:        hctx.hooksState,
 	}
 }
 
 func (hctx *HandlerContext) AccountResponseMem(respBodySizeEstimate int) error {
-	var err error
-	hctx.respTaken, err = hctx.serverConn.server.accountResponseMem(hctx.serverConn.closeCtx, hctx.respTaken, respBodySizeEstimate, false)
-	return err
+	return hctx.commonConn.AccountResponseMem(hctx, respBodySizeEstimate)
 }
 
 // HijackResponse releases Request bytes (and UserData) for reuse, so must be called only after Request processing is complete
@@ -122,67 +134,67 @@ func (hctx *HandlerContext) AccountResponseMem(respBodySizeEstimate int) error {
 // 1) forget about hctx if canceller method is called (so you must update your data structures strictly after call HijackResponse finished)
 // 2) if 1) did not yet happen, can at any moment in the future call SendHijackedResponse
 func (hctx *HandlerContext) HijackResponse(canceller HijackResponseCanceller) error {
-	// if hctx.noResult - we cannot return any other error from here because caller already updated its state. TODO - cancel immediately
-	sc := hctx.serverConn
-	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	hctx.releaseRequest()
-	hctx.serverConn.makeLongpollResponse(hctx, canceller)
-	return errHijackResponse
+	return hctx.commonConn.HijackResponse(hctx, canceller)
 }
 
 func (hctx *HandlerContext) SendHijackedResponse(err error) {
-	if debugPrint {
-		fmt.Printf("longpollResponses send %d\n", hctx.queryID)
-	}
-	hctx.prepareResponse(err)
-	hctx.serverConn.server.pushResponse(hctx, true)
+	hctx.commonConn.SendHijackedResponse(hctx, err)
 }
 
-func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
-	if hctx.Request, err = basictl.LongRead(hctx.Request, &hctx.queryID); err != nil {
+// This method is temporarily public, do not use directly
+func (hctx *HandlerContext) ParseInvokeReq(opts *ServerOptions) (err error) {
+	var reqHeader tl.RpcInvokeReqHeader
+	if hctx.Request, err = reqHeader.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to read request query ID: %w", err)
 	}
-	hctx.QueryID = hctx.queryID
+	hctx.queryID = reqHeader.QueryId
+	hctx.QueryID = reqHeader.QueryId
 
-	var tag uint32
 	var afterTag []byte
 	actorIDSet := 0
 	extraSet := 0
+loop:
 	for {
+		var tag uint32
 		if afterTag, err = basictl.NatRead(hctx.Request, &tag); err != nil {
 			return fmt.Errorf("failed to read tag: %w", err)
 		}
-		if tag != destActorFlagsTag && tag != destFlagsTag && tag != destActorTag {
-			break
-		}
-		hctx.Request = afterTag
-		if tag == destActorFlagsTag || tag == destActorTag {
-			var actorID int64
-			if hctx.Request, err = basictl.LongRead(hctx.Request, &actorID); err != nil {
-				return fmt.Errorf("failed to read actor ID: %w", err)
+		switch tag {
+		case tl.RpcDestActor{}.TLTag():
+			var extra tl.RpcDestActor
+			if hctx.Request, err = extra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read rpcDestActor: %w", err)
 			}
-			if actorIDSet == 0 {
-				hctx.ActorID = uint64(actorID)
-			}
+			hctx.ActorID = extra.ActorId
 			actorIDSet++
-		}
-		if tag == destActorFlagsTag || tag == destFlagsTag {
-			var extra InvokeReqExtra // do not reuse because client could possibly save slice/pointer
-			if hctx.Request, err = extra.Read(hctx.Request); err != nil {
-				return fmt.Errorf("failed to read request extra: %w", err)
-			}
-			if extraSet == 0 {
-				hctx.RequestExtra = extra
+		case tl.RpcDestFlags{}.TLTag():
+			// var extra tl.RpcDestFlags
+			// if hctx.Request, err = extra.Read(afterTag); err != nil {
+			// here we optimize copy of large extra
+			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read request rpcDestFlags: %w", err)
 			}
 			extraSet++
+		case tl.RpcDestActorFlags{}.TLTag():
+			// var extra tl.RpcDestActorFlags
+			// if hctx.Request, err = extra.Read(afterTag); err != nil {
+			// here we optimize copy of large extra
+			if afterTag, err = basictl.LongRead(afterTag, &hctx.ActorID); err != nil {
+				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
+			}
+			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
+			}
+			actorIDSet++
+			extraSet++
+		default:
+			hctx.reqTag = tag
+			break loop
 		}
 	}
 	if actorIDSet > 1 || extraSet > 1 {
-		s.rareLog(&s.lastDuplicateExtraLog, "rpc: ActorID or RequestExtra set more than once (%d and %d) for request tag #%08d; please report to infrastructure team", actorIDSet, extraSet, tag)
+		return fmt.Errorf("rpc: ActorID or RequestExtra set more than once (%d and %d) for request tag #%08d; please report to infrastructure team", actorIDSet, extraSet, hctx.reqTag)
 	}
-
-	hctx.reqType = tag
-	hctx.respPacketType = packetTypeRPCReqResult
 
 	hctx.noResult = hctx.RequestExtra.IsSetNoResult()
 	hctx.requestExtraFieldsmask = hctx.RequestExtra.Flags
@@ -190,13 +202,13 @@ func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
 	// We calculate timeout before handler can change hctx.RequestExtra
 	if hctx.RequestExtra.CustomTimeoutMs > 0 { // implies hctx.RequestExtra.IsSetCustomTimeoutMs()
 		// CustomTimeoutMs <= 0 means forever/maximum. TODO - harmonize condition with C engines
-		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - s.opts.ResponseTimeoutAdjust
+		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - opts.ResponseTimeoutAdjust
 		if customTimeout < time.Millisecond { // TODO - adjustable minimum timeout
 			customTimeout = time.Millisecond
 		}
 		hctx.timeout = customTimeout
 	} else {
-		hctx.timeout = s.opts.DefaultResponseTimeout
+		hctx.timeout = opts.DefaultResponseTimeout
 	}
 	return nil
 }

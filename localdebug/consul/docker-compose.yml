@@ -1,0 +1,92 @@
+version: "3.9"
+services:
+  aggregator:
+    image: localrun-statshouse-aggregator
+    container_name: aggregator
+    hostname: aggregator
+    user: root:root
+    # environment:
+    #   - STATSHOUSE_DEBUG_TARGET=agent
+    # environment:
+    #   - STATSHOUSE_DEBUG_TARGET=aggregator
+    # environment:
+    #   - STATSHOUSE_DEBUG_TARGET=api
+    ports:
+      # - 2442:2442
+      - 8000:8000
+      # - 8123:8123
+      # - 9000:9000
+      # - 9363:9363
+      - 10888:10888
+      # - 13336:13336
+      # - 13337:13337/udp
+      # - 13337:13337/tcp
+    volumes:
+      - metadata:/var/lib/statshouse/metadata
+      - kh:/var/lib/clickhouse
+    networks:
+      localrun-statshouse:
+        aliases:
+        - aggregator
+  consul:
+    image: hashicorp/consul:1.10.0
+    container_name: consul
+    restart: always
+    volumes:
+     - ./consul-server.json:/consul/config/server.json:ro
+    ports:
+      - 8500:8500
+      - 8600/tcp
+      - 8600/udp
+    command: "agent"
+    networks:
+      localrun-statshouse:
+        aliases:
+        - consul
+  agent:
+    image: localrun-agent:latest
+    container_name: agent
+    restart: always
+    volumes:
+     - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
+    networks:
+      localrun-statshouse:
+        aliases:
+        - agent
+  agent_debug:
+    profiles:
+     - agent_debug
+    image: localrun-agent:latest
+    container_name: agent_debug
+    restart: always
+    environment:
+      - STATSHOUSE_DEBUG=1
+    ports:
+      - 8001:8000
+    volumes:
+     - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
+    networks:
+      localrun-statshouse:
+        aliases:
+        - agent2
+  agent3:
+    profiles:
+     - agent3
+    image: localrun-agent:latest
+    container_name: agent3
+    restart: always
+    volumes:
+     - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
+    networks:
+      localrun-statshouse:
+        aliases:
+        - agent3
+volumes:
+  kh:
+  metadata:
+networks:
+  localrun-statshouse:
+    driver: bridge

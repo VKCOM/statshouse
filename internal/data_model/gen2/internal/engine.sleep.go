@@ -28,8 +28,14 @@ func (item *EngineSleep) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.TimeMs)
 }
 
-func (item *EngineSleep) Write(w []byte) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.TimeMs), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSleep) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSleep) Write(w []byte) []byte {
+	w = basictl.IntWrite(w, item.TimeMs)
+	return w
 }
 
 func (item *EngineSleep) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *EngineSleep) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSleep) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSleep) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSleep) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x3d3bcd48)
 	return item.Write(w)
 }
@@ -49,17 +60,22 @@ func (item *EngineSleep) ReadResult(w []byte, ret *bool) (_ []byte, err error) {
 }
 
 func (item *EngineSleep) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
-func (item *EngineSleep) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *EngineSleep) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSleep) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineSleep) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -73,13 +89,19 @@ func (item *EngineSleep) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 	return r, w, err
 }
 
-func (item *EngineSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.sleep", err.Error())
-	}
+func (item *EngineSleep) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret bool
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -87,50 +109,71 @@ func (item *EngineSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, 
 }
 
 func (item EngineSleep) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSleep__ReadJSON(item *EngineSleep, j interface{}) error { return item.readJSON(j) }
-func (item *EngineSleep) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.sleep", "expected json object")
+func (item *EngineSleep) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propTimeMsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "time_ms":
+				if propTimeMsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.sleep", "time_ms")
+				}
+				if err := Json2ReadInt32(in, &item.TimeMs); err != nil {
+					return err
+				}
+				propTimeMsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.sleep", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jTimeMs := _jm["time_ms"]
-	delete(_jm, "time_ms")
-	if err := JsonReadInt32(_jTimeMs, &item.TimeMs); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.sleep", k)
+	if !propTimeMsPresented {
+		item.TimeMs = 0
 	}
 	return nil
 }
 
-func (item *EngineSleep) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSleep) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSleep) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSleep) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.TimeMs != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_ms":`...)
-		w = basictl.JSONWriteInt32(w, item.TimeMs)
+	backupIndexTimeMs := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_ms":`...)
+	w = basictl.JSONWriteInt32(w, item.TimeMs)
+	if (item.TimeMs != 0) == false {
+		w = w[:backupIndexTimeMs]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSleep) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSleep) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.sleep", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.sleep", err.Error())
 	}
 	return nil

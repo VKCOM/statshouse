@@ -327,7 +327,11 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         ref={zone}
       >
         {itemsGroup.map(({ group, indexGroup, plots }) => (
-          <div key={indexGroup} className={cn(!embed ? 'pb-3' : 'pb-2')} data-group={indexGroup}>
+          <div
+            key={indexGroup}
+            className={cn(!!group.show && 'groupShow', !embed ? 'pb-3' : 'pb-2')}
+            data-group={indexGroup}
+          >
             <h6
               hidden={itemsGroup.length <= 1 && group.show !== false && !dashboardLayoutEdit && !group.name}
               className="border-bottom pb-1"

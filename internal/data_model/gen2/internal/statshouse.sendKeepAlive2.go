@@ -33,9 +33,15 @@ func (item *StatshouseSendKeepAlive2) Read(w []byte) (_ []byte, err error) {
 	return item.Header.Read(w, item.FieldsMask)
 }
 
-func (item *StatshouseSendKeepAlive2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseSendKeepAlive2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSendKeepAlive2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return item.Header.Write(w, item.FieldsMask)
+	w = item.Header.Write(w, item.FieldsMask)
+	return w
 }
 
 func (item *StatshouseSendKeepAlive2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -45,7 +51,12 @@ func (item *StatshouseSendKeepAlive2) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-func (item *StatshouseSendKeepAlive2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSendKeepAlive2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSendKeepAlive2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff53)
 	return item.Write(w)
 }
@@ -59,17 +70,22 @@ func (item *StatshouseSendKeepAlive2) ReadResult(w []byte, ret *string) (_ []byt
 
 func (item *StatshouseSendKeepAlive2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	w = basictl.StringWrite(w, ret)
+	return w, nil
 }
 
-func (item *StatshouseSendKeepAlive2) ReadResultJSON(j interface{}, ret *string) error {
-	if err := JsonReadString(j, ret); err != nil {
+func (item *StatshouseSendKeepAlive2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSendKeepAlive2) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseSendKeepAlive2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -83,13 +99,19 @@ func (item *StatshouseSendKeepAlive2) ReadResultWriteResultJSON(r []byte, w []by
 	return r, w, err
 }
 
-func (item *StatshouseSendKeepAlive2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
-	}
+func (item *StatshouseSendKeepAlive2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseSendKeepAlive2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret string
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -97,62 +119,92 @@ func (item *StatshouseSendKeepAlive2) ReadResultJSONWriteResult(r []byte, w []by
 }
 
 func (item StatshouseSendKeepAlive2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseSendKeepAlive2__ReadJSON(item *StatshouseSendKeepAlive2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSendKeepAlive2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sendKeepAlive2", "expected json object")
+func (item *StatshouseSendKeepAlive2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendKeepAlive2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendKeepAlive2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sendKeepAlive2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sendKeepAlive2", k)
-	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
-func (item *StatshouseSendKeepAlive2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSendKeepAlive2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSendKeepAlive2) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseSendKeepAlive2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	return append(w, '}')
 }
 
 func (item *StatshouseSendKeepAlive2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSendKeepAlive2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
 	}
 	return nil
@@ -178,9 +230,15 @@ func (item *StatshouseSendKeepAlive2Bytes) Read(w []byte) (_ []byte, err error) 
 	return item.Header.Read(w, item.FieldsMask)
 }
 
-func (item *StatshouseSendKeepAlive2Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseSendKeepAlive2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return item.Header.Write(w, item.FieldsMask)
+	w = item.Header.Write(w, item.FieldsMask)
+	return w
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -190,7 +248,12 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-func (item *StatshouseSendKeepAlive2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseSendKeepAlive2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff53)
 	return item.Write(w)
 }
@@ -204,17 +267,22 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResult(w []byte, ret *[]byte) (_ 
 
 func (item *StatshouseSendKeepAlive2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret)
+	w = basictl.StringWriteBytes(w, ret)
+	return w, nil
 }
 
-func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {
-	if err := JsonReadStringBytes(j, ret); err != nil {
+func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
+	if err := Json2ReadStringBytes(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) WriteResultJSON(w []byte, ret []byte) (_ []byte, err error) {
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
 }
@@ -228,13 +296,19 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultJSON(r []byte, w
 	return r, w, err
 }
 
-func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
-	}
+func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret []byte
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -242,62 +316,92 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSONWriteResult(r []byte, w
 }
 
 func (item StatshouseSendKeepAlive2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseSendKeepAlive2Bytes__ReadJSON(item *StatshouseSendKeepAlive2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSendKeepAlive2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sendKeepAlive2", "expected json object")
+func (item *StatshouseSendKeepAlive2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendKeepAlive2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendKeepAlive2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sendKeepAlive2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sendKeepAlive2", k)
-	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
-func (item *StatshouseSendKeepAlive2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseSendKeepAlive2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseSendKeepAlive2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	return append(w, '}'), nil
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	return append(w, '}')
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
 	}
 	return nil

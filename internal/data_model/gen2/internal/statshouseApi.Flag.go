@@ -19,7 +19,6 @@ var _StatshouseApiFlag = [3]UnionElement{
 	{TLTag: 0x2a6e4c14, TLName: "statshouseApi.flagAuto", TLString: "statshouseApi.flagAuto#2a6e4c14"},
 }
 
-// TODO - deconflict name
 func StatshouseApiFlag__MakeEnum(i int) StatshouseApiFlag { return StatshouseApiFlag{index: i} }
 
 type StatshouseApiFlag struct {
@@ -60,30 +59,38 @@ func (item *StatshouseApiFlag) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func (item StatshouseApiFlag) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _StatshouseApiFlag[item.index].TLTag)
-	return w, nil
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseApiFlag) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
 }
 
-func StatshouseApiFlag__ReadJSON(item *StatshouseApiFlag, j interface{}) error {
-	return item.readJSON(j)
+func (item StatshouseApiFlag) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, _StatshouseApiFlag[item.index].TLTag)
+	return w
 }
-func (item *StatshouseApiFlag) readJSON(j interface{}) error {
-	if j == nil {
-		return ErrorInvalidJSON("statshouseApi.Flag", "expected string")
-	}
-	_jtype, _ok := j.(string)
-	if !_ok {
+
+func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_jtype := in.UnsafeString()
+	if !in.Ok() {
 		return ErrorInvalidJSON("statshouseApi.Flag", "expected string")
 	}
 	switch _jtype {
 	case "statshouseApi.flagMapped#670ab89c", "statshouseApi.flagMapped", "#670ab89c":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagMapped#670ab89c" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagMapped#670ab89c")
+		}
 		item.index = 0
 		return nil
 	case "statshouseApi.flagRaw#4ca979c0", "statshouseApi.flagRaw", "#4ca979c0":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagRaw#4ca979c0" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagRaw#4ca979c0")
+		}
 		item.index = 1
 		return nil
 	case "statshouseApi.flagAuto#2a6e4c14", "statshouseApi.flagAuto", "#2a6e4c14":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagAuto#2a6e4c14" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagAuto#2a6e4c14")
+		}
 		item.index = 2
 		return nil
 	default:
@@ -91,19 +98,37 @@ func (item *StatshouseApiFlag) readJSON(j interface{}) error {
 	}
 }
 
-func (item StatshouseApiFlag) WriteJSON(w []byte) (_ []byte, err error) {
-	w = append(w, '"')
-	w = append(w, _StatshouseApiFlag[item.index].TLString...)
-	return append(w, '"'), nil
+// This method is general version of WriteJSON, use it instead!
+func (item StatshouseApiFlag) WriteJSONGeneral(w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
 
+func (item StatshouseApiFlag) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item StatshouseApiFlag) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	w = append(w, '"')
+	if newTypeNames {
+		w = append(w, _StatshouseApiFlag[item.index].TLName...)
+	} else {
+		w = append(w, _StatshouseApiFlag[item.index].TLString...)
+	}
+	return append(w, '"')
 }
 
 func (item StatshouseApiFlag) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
+	return string(item.WriteJSON(nil))
+}
+
+func (item *StatshouseApiFlag) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *StatshouseApiFlag) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
 	}
-	return string(w)
+	return nil
 }
 
 func StatshouseApiFlagAuto() StatshouseApiFlag { return StatshouseApiFlag__MakeEnum(2) }

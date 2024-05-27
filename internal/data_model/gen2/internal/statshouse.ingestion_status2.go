@@ -13,6 +13,75 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseIngestionStatus2Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseIngestionStatus2, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseIngestionStatus2) []byte {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		w = elem.Write(w)
+	}
+	return w
+}
+
+func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseIngestionStatus2", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseIngestionStatus2
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseIngestionStatus2", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
+func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) []byte {
+	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseIngestionStatus2) []byte {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w)
+	}
+	return append(w, ']')
+}
+
 type StatshouseIngestionStatus2 struct {
 	Env    int32
 	Metric int32
@@ -38,10 +107,16 @@ func (item *StatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Value)
 }
 
-func (item *StatshouseIngestionStatus2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseIngestionStatus2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseIngestionStatus2) Write(w []byte) []byte {
 	w = basictl.IntWrite(w, item.Env)
 	w = basictl.IntWrite(w, item.Metric)
-	return basictl.FloatWrite(w, item.Value), nil
+	w = basictl.FloatWrite(w, item.Value)
+	return w
 }
 
 func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -51,139 +126,121 @@ func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-func (item *StatshouseIngestionStatus2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseIngestionStatus2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseIngestionStatus2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2e17a6d3)
 	return item.Write(w)
 }
 
 func (item StatshouseIngestionStatus2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseIngestionStatus2__ReadJSON(item *StatshouseIngestionStatus2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseIngestionStatus2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.ingestion_status2", "expected json object")
+func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propEnvPresented bool
+	var propMetricPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "env":
+				if propEnvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "env")
+				}
+				if err := Json2ReadInt32(in, &item.Env); err != nil {
+					return err
+				}
+				propEnvPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "metric")
+				}
+				if err := Json2ReadInt32(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "value")
+				}
+				if err := Json2ReadFloat32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.ingestion_status2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jEnv := _jm["env"]
-	delete(_jm, "env")
-	if err := JsonReadInt32(_jEnv, &item.Env); err != nil {
-		return err
+	if !propEnvPresented {
+		item.Env = 0
 	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadInt32(_jMetric, &item.Metric); err != nil {
-		return err
+	if !propMetricPresented {
+		item.Metric = 0
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadFloat32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.ingestion_status2", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
-func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseIngestionStatus2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.Env != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"env":`...)
-		w = basictl.JSONWriteInt32(w, item.Env)
+	backupIndexEnv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"env":`...)
+	w = basictl.JSONWriteInt32(w, item.Env)
+	if (item.Env != 0) == false {
+		w = w[:backupIndexEnv]
 	}
-	if item.Metric != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteInt32(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteInt32(w, item.Metric)
+	if (item.Metric != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteFloat32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteFloat32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.ingestion_status2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.ingestion_status2", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseIngestionStatus20Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseIngestionStatus2, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseIngestionStatus20Write(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseIngestionStatus20ReadJSON(j interface{}, vec *[]StatshouseIngestionStatus2) error {
-	l, _arr, err := JsonReadArray("[]StatshouseIngestionStatus2", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseIngestionStatus2, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseIngestionStatus2__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseIngestionStatus20WriteJSON(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

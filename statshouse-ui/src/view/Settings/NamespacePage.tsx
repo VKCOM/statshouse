@@ -47,7 +47,7 @@ export function NamespacePage() {
         return { ...g, weight: 0, percent: 0 };
       }
       const weight = selectId === g.id ? selectWeight : g.weight;
-      const percent = Math.round((weight / sumWeight) * 1000) / 10 ?? 0;
+      const percent = Math.round((weight / sumWeight) * 1000) / 10;
       return { ...g, weight, percent };
     });
     return { sumWeight, list };

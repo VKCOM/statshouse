@@ -19,20 +19,37 @@ import {
 } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
-import { deepClone, isNotNil, sortEntity, toNumber, toString, uniqueArray } from '../common/helpers';
+import {
+  deepClone,
+  isNotNil,
+  numberAsStr,
+  searchParamsObjectValueSymbol,
+  searchParamsToObject,
+  sortEntity,
+  toNumber,
+  toString,
+  uniqueArray,
+} from '../common/helpers';
 import { globalSettings } from '../common/settings';
 
 export const filterInSep = '-';
 export const filterNotInSep = '~';
 
+export const variableSourceSplitter = '-';
+
 export const maxPrefixArray = 1000;
 export const removeValueChar = String.fromCharCode(7);
 
-export const toGroupInfoPrefix = (i: number) => `${GET_PARAMS.dashboardGroupInfoPrefix}${i}.`;
-export const toPlotPrefix = (i: number) => (i ? `${GET_PARAMS.plotPrefix}${i}.` : '');
-export const toVariablePrefix = (i: number) => `${GET_PARAMS.variablePrefix}${i}.`;
+export const toGroupInfoPrefix = (i: number) => `${GET_PARAMS.dashboardGroupInfoPrefix}${i}`;
+export const toPlotPrefix = (i: number | string) => (i ? `${GET_PARAMS.plotPrefix}${i}` : '');
+export const toVariablePrefix = (i: number) => `${GET_PARAMS.variablePrefix}${i}`;
 
-export const toVariableConfig = ({ name, description, link }: VariableParams) => ({ name, description, link });
+export const toVariableConfig = ({ name, description, link, source }: VariableParams) => ({
+  name,
+  description,
+  link,
+  source,
+});
 export const toVariableValue = ({ values, args }: VariableParams) => ({ values, args });
 
 export const toGroupInfoConfig = ({ name, count, size }: GroupInfo) => ({ name, count, size });
@@ -68,7 +85,7 @@ export function toTagKey(s: unknown, defaultTagKey?: TagKey): TagKey | null {
   return defaultTagKey ?? null;
 }
 
-export function normalizeFilterKey(filter: Record<string, string[]>): Partial<Record<TagKey, string[]>> {
+export function normalizeFilterKey(filter: Record<string, string[]>): FilterTag {
   return Object.fromEntries(
     Object.entries(filter)
       .map(([key, values]) => {
@@ -109,7 +126,10 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
   return defaultPlotKey ?? null;
 }
 
+export type FilterTag = Partial<Record<TagKey, string[]>>;
+
 export type PlotParams = {
+  id: PlotKey;
   metricName: string;
   customName: string;
   metricType?: MetricType;
@@ -117,8 +137,8 @@ export type PlotParams = {
   what: QueryWhat[];
   customAgg: number;
   groupBy: TagKey[];
-  filterIn: Partial<Record<TagKey, string[]>>;
-  filterNotIn: Partial<Record<TagKey, string[]>>;
+  filterIn: FilterTag;
+  filterNotIn: FilterTag;
   numSeries: number;
   useV2: boolean;
   yLock: {
@@ -131,6 +151,8 @@ export type PlotParams = {
   events: number[];
   eventsBy: string[];
   eventsHide: string[];
+  totalLine: boolean;
+  filledGraph: boolean;
 };
 
 export type GroupInfo = {
@@ -154,7 +176,12 @@ export type DashboardParams = {
 };
 
 export type VariableParamsLink = [PlotKey, TagKey];
-
+export type VariableParamsSource = {
+  metric: string;
+  tag: TagKey;
+  filterIn: FilterTag;
+  filterNotIn: FilterTag;
+};
 export type VariableParams = {
   name: string;
   description: string;
@@ -164,7 +191,7 @@ export type VariableParams = {
     groupBy?: boolean;
     negative?: boolean;
   };
-  // source: string;
+  source: VariableParamsSource[];
 };
 
 export type QueryParams = {
@@ -227,6 +254,7 @@ export function toKeyTag(indexTag: number, full?: boolean): TagKey | string | nu
 
 export function getNewPlot(): PlotParams {
   return {
+    id: '',
     metricName: globalSettings.default_metric,
     customName: '',
     customDescription: '',
@@ -248,6 +276,8 @@ export function getNewPlot(): PlotParams {
     events: [],
     eventsBy: [],
     eventsHide: [],
+    totalLine: false,
+    filledGraph: true,
   };
 }
 
@@ -266,6 +296,10 @@ export function fixMessageTrouble(search: string): string {
   return search.replace(/\+/gi, '%20').replace(/\.$/gi, '%2E');
 }
 
+export function isGetParam(key: string, getPrefix: string) {
+  return key.indexOf(getPrefix) === 0 && numberAsStr(key.slice(getPrefix.length));
+}
+
 export function encodeVariableConfig(value: QueryParams, defaultParams?: QueryParams): [string, string][] {
   const search: [string, string][] = [];
 
@@ -275,7 +309,7 @@ export function encodeVariableConfig(value: QueryParams, defaultParams?: QueryPa
     !dequal(value.variables.map(toVariableConfig), defaultParams?.variables.map(toVariableConfig))
   ) {
     value.variables.forEach((variable, indexVariable) => {
-      const prefix = toVariablePrefix(indexVariable);
+      const prefix = toVariablePrefix(indexVariable) + '.';
       search.push([prefix + GET_PARAMS.variableName, variable.name]);
 
       if (variable.description) {
@@ -291,9 +325,40 @@ export function encodeVariableConfig(value: QueryParams, defaultParams?: QueryPa
             .join('-'),
         ]);
       }
+      if (variable.source.length) {
+        variable.source.forEach((source, indexSource) => {
+          const sourcePrefix = prefix + GET_PARAMS.variableSourcePrefix + indexSource.toString() + '.';
+          search.push([sourcePrefix + GET_PARAMS.variableSourceMetricName, source.metric]);
+          search.push([sourcePrefix + GET_PARAMS.variableSourceTag, source.tag]);
+
+          const entriesFilterIn = Object.entries(source.filterIn);
+          if (entriesFilterIn.length) {
+            entriesFilterIn.forEach(([keyTag, valuesTag]) => {
+              valuesTag.forEach((valueTag) => {
+                search.push([
+                  sourcePrefix + GET_PARAMS.variableSourceFilter,
+                  freeKeyPrefix(keyTag) + filterInSep + valueTag,
+                ]);
+              });
+            });
+          }
+
+          const entriesFilterNotIn = Object.entries(source.filterNotIn);
+          if (entriesFilterNotIn.length) {
+            entriesFilterNotIn.forEach(([keyTag, valuesTag]) => {
+              valuesTag.forEach((valueTag) => {
+                search.push([
+                  sourcePrefix + GET_PARAMS.metricFilter,
+                  freeKeyPrefix(keyTag) + filterNotInSep + valueTag,
+                ]);
+              });
+            });
+          }
+        });
+      }
     });
   } else if (!value.variables.length && defaultParams?.variables.length) {
-    search.push([toVariablePrefix(0) + GET_PARAMS.variableName, removeValueChar]);
+    search.push([toVariablePrefix(0) + '.' + GET_PARAMS.variableName, removeValueChar]);
   }
 
   return search;
@@ -308,7 +373,7 @@ export function encodeVariableValues(value: QueryParams, defaultParams?: QueryPa
     !dequal(value.variables.map(toVariableValue), defaultParams?.variables.map(toVariableValue))
   ) {
     value.variables.forEach((variable, indexVariable) => {
-      const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+      const variableName = `${GET_PARAMS.variableValuePrefix}.${variable.name}`;
 
       if (variable.values.length && !dequal(variable.values, defaultParams?.variables[indexVariable]?.values ?? [])) {
         variable.values.forEach((value) => {
@@ -372,7 +437,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       )
     ) {
       value.dashboard.groupInfo.forEach(({ name, show, count, size, description }, indexGroup) => {
-        const prefix = toGroupInfoPrefix(indexGroup);
+        const prefix = toGroupInfoPrefix(indexGroup) + '.';
         search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
         if (count) {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
@@ -386,7 +451,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       });
     }
   } else if (!value.dashboard?.groupInfo?.length && defaultParams?.dashboard?.groupInfo?.length) {
-    search.push([toGroupInfoPrefix(0) + GET_PARAMS.dashboardGroupInfoName, removeValueChar]);
+    search.push([toGroupInfoPrefix(0) + '.' + GET_PARAMS.dashboardGroupInfoName, removeValueChar]);
   }
 
   // groupInfo show value
@@ -398,7 +463,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
     )
   ) {
     value.dashboard.groupInfo.forEach(({ show }, indexGroup) => {
-      const prefix = toGroupInfoPrefix(indexGroup);
+      const prefix = toGroupInfoPrefix(indexGroup) + '.';
       if (show !== (defaultParams?.dashboard?.groupInfo?.[indexGroup]?.show ?? true)) {
         search.push([prefix + GET_PARAMS.dashboardGroupInfoShow, show ? '1' : '0']);
       }
@@ -424,7 +489,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 
   if (value.plots.length && !dequal(value.plots, defaultParams?.plots)) {
     value.plots.forEach((plot, indexPlot) => {
-      const prefix = toPlotPrefix(indexPlot);
+      const prefix = toPlotPrefix(indexPlot) + (indexPlot > 0 ? '.' : '');
 
       search.push([prefix + GET_PARAMS.metricName, plot.metricName]);
 
@@ -433,7 +498,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       }
 
       if (plot.metricType != null && plot.metricType !== defaultPlot.metricType) {
-        search.push([prefix + GET_PARAMS.metricMetricType, metricTypeToMetricTypeUrl(plot.metricType)]);
+        search.push([prefix + GET_PARAMS.metricMetricUnit, metricTypeToMetricTypeUrl(plot.metricType)]);
       }
 
       if (plot.customDescription !== defaultPlot.customDescription) {
@@ -527,6 +592,16 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
           search.push([prefix + GET_PARAMS.metricEventHide, eventHide]);
         });
       }
+
+      // totalLine
+      if (plot.totalLine) {
+        search.push([prefix + GET_PARAMS.viewTotalLine, '1']);
+      }
+
+      // filledGraph
+      if (!plot.filledGraph) {
+        search.push([prefix + GET_PARAMS.viewFilledGraph, '0']);
+      }
     });
   } else if (!value.plots.length && defaultParams?.plots.length) {
     search.push([toPlotPrefix(0) + GET_PARAMS.metricName, removeValueChar]);
@@ -562,26 +637,22 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 }
 
 export function decodeParams(searchParams: [string, string][], defaultParams?: QueryParams): QueryParams {
-  const urlParams = searchParams.reduce(
-    (res, [key, value]) => {
-      res[key] ??= [];
-      res[key]?.push(value);
-      return res;
-    },
-    {} as Partial<Record<string, string[]>>
-  );
+  const urlParams = searchParamsToObject(searchParams);
 
-  const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
+  const live = urlParams[GET_PARAMS.metricLive]?.[searchParamsObjectValueSymbol]?.[0] === '1';
 
-  const theme = urlParams[GET_PARAMS.theme]?.[0];
+  const theme = urlParams[GET_PARAMS.theme]?.[searchParamsObjectValueSymbol]?.[0];
 
-  const tabNum = toNumber(urlParams[GET_PARAMS.metricTabNum]?.[0]) ?? defaultParams?.tabNum ?? 0;
+  const tabNum =
+    toNumber(urlParams[GET_PARAMS.metricTabNum]?.[searchParamsObjectValueSymbol]?.[0]) ?? defaultParams?.tabNum ?? 0;
 
   const groupInfo: GroupInfo[] = [];
 
   let dashboard: DashboardParams = {
     dashboard_id:
-      toNumber(urlParams[GET_PARAMS.dashboardID]?.[0]) ?? defaultParams?.dashboard?.dashboard_id ?? undefined,
+      toNumber(urlParams[GET_PARAMS.dashboardID]?.[searchParamsObjectValueSymbol]?.[0]) ??
+      defaultParams?.dashboard?.dashboard_id ??
+      undefined,
     name: defaultParams?.dashboard?.name ?? '',
     description: defaultParams?.dashboard?.description ?? '',
     groupInfo,
@@ -591,7 +662,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
   for (let i = 0; i < maxPrefixArray; i++) {
     const prefix = toGroupInfoPrefix(i);
 
-    const name = urlParams[prefix + GET_PARAMS.dashboardGroupInfoName]?.[0];
+    const name = urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoName]?.[searchParamsObjectValueSymbol]?.[0];
 
     if (name == null) {
       if (defaultParams?.dashboard?.groupInfo?.length && i === 0) {
@@ -602,31 +673,45 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     if (name === removeValueChar) {
       break;
     }
-    const description = urlParams[prefix + GET_PARAMS.dashboardGroupInfoDescription]?.[0] ?? '';
-    const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
-    const size = urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0] ?? '2';
+    const description =
+      urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoDescription]?.[searchParamsObjectValueSymbol]?.[0] ?? '';
+    const count =
+      toNumber(urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoCount]?.[searchParamsObjectValueSymbol]?.[0]) ?? 0;
+    const size = urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoSize]?.[searchParamsObjectValueSymbol]?.[0] ?? '2';
     groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size, description });
   }
   groupInfo.forEach((group, indexGroup) => {
     const prefix = toGroupInfoPrefix(indexGroup);
-    if (urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.length) {
-      group.show = urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.[0] !== '0';
+    if (urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoShow]?.[searchParamsObjectValueSymbol]?.length) {
+      group.show = urlParams[prefix]?.[GET_PARAMS.dashboardGroupInfoShow]?.[searchParamsObjectValueSymbol]?.[0] !== '0';
     }
   });
 
   const timeRangeTo =
-    stringToTime(urlParams[GET_PARAMS.toTime]?.[0] ?? '') ?? defaultParams?.timeRange.to ?? TIME_RANGE_KEYS_TO.default;
+    stringToTime(urlParams[GET_PARAMS.toTime]?.[searchParamsObjectValueSymbol]?.[0] ?? '') ??
+    defaultParams?.timeRange.to ??
+    TIME_RANGE_KEYS_TO.default;
 
-  const timeRangeFrom = toNumber(urlParams[GET_PARAMS.fromTime]?.[0]) ?? defaultParams?.timeRange.from ?? 0;
+  const timeRangeFrom =
+    toNumber(urlParams[GET_PARAMS.fromTime]?.[searchParamsObjectValueSymbol]?.[0]) ??
+    defaultParams?.timeRange.from ??
+    0;
 
-  const eventFrom = toNumber(urlParams[GET_PARAMS.metricEventFrom]?.[0]) ?? defaultParams?.eventFrom ?? 0;
+  const eventFrom =
+    toNumber(urlParams[GET_PARAMS.metricEventFrom]?.[searchParamsObjectValueSymbol]?.[0]) ??
+    defaultParams?.eventFrom ??
+    0;
 
   const plots: PlotParams[] = [];
   const defaultPlot = getNewPlot();
-  for (let i = 0; i < maxPrefixArray; i++) {
-    const prefix = toPlotPrefix(i);
-
-    const metricName = urlParams[prefix + GET_PARAMS.metricName]?.[0];
+  const plotIdList = Object.keys(urlParams)
+    .filter((key) => key === 's' || isGetParam(key, GET_PARAMS.plotPrefix))
+    .map((key) => (key === 's' ? '' : key.slice(1)));
+  for (let i = 0; i < plotIdList.length; i++) {
+    const prefix = toPlotPrefix(plotIdList[i]);
+    const id = toPlotKey(plotIdList[i], '0');
+    const plotParams = urlParams[prefix] ?? urlParams;
+    const metricName = plotParams[GET_PARAMS.metricName]?.[searchParamsObjectValueSymbol]?.[0];
     if (metricName == null) {
       if (defaultParams?.plots.length && i === 0) {
         plots.push(...deepClone(defaultParams.plots));
@@ -636,20 +721,26 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     if (metricName === removeValueChar) {
       break;
     }
-    const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? defaultPlot.customName;
+    const customName =
+      plotParams[GET_PARAMS.metricCustomName]?.[searchParamsObjectValueSymbol]?.[0] ?? defaultPlot.customName;
     const customDescription =
-      urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? defaultPlot.customDescription;
+      plotParams[GET_PARAMS.metricCustomDescription]?.[searchParamsObjectValueSymbol]?.[0] ??
+      defaultPlot.customDescription;
     const metricType: MetricType | undefined =
-      metricTypeUrlToMetricType(urlParams[prefix + GET_PARAMS.metricMetricType]?.[0]) ?? defaultPlot.metricType;
+      metricTypeUrlToMetricType(plotParams[GET_PARAMS.metricMetricUnit]?.[searchParamsObjectValueSymbol]?.[0]) ??
+      defaultPlot.metricType;
     const what: QueryWhat[] =
-      urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? defaultPlot.what.slice();
-    const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? defaultPlot.customAgg;
+      plotParams[GET_PARAMS.metricWhat]?.[searchParamsObjectValueSymbol]?.filter(isQueryWhat) ??
+      defaultPlot.what.slice();
+    const customAgg =
+      toNumber(plotParams[GET_PARAMS.metricAgg]?.[searchParamsObjectValueSymbol]?.[0]) ?? defaultPlot.customAgg;
     const groupBy: TagKey[] =
-      urlParams[prefix + GET_PARAMS.metricGroupBy]?.map((s) => toTagKey(s)).filter(isNotNil) ?? [];
+      plotParams[GET_PARAMS.metricGroupBy]?.[searchParamsObjectValueSymbol]?.map((s) => toTagKey(s)).filter(isNotNil) ??
+      [];
 
-    const filterIn: Partial<Record<TagKey, string[]>> = {};
-    const filterNotIn: Partial<Record<TagKey, string[]>> = {};
-    urlParams[prefix + GET_PARAMS.metricFilter]?.forEach((s) => {
+    const filterIn: FilterTag = {};
+    const filterNotIn: FilterTag = {};
+    plotParams[GET_PARAMS.metricFilter]?.[searchParamsObjectValueSymbol]?.forEach((s) => {
       const pos = s.indexOf(filterInSep);
       const pos2 = s.indexOf(filterNotInSep);
       if (pos2 === -1 || (pos2 > pos && pos > -1)) {
@@ -667,28 +758,37 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       }
     });
 
-    const useV2 = urlParams[prefix + GET_PARAMS.version]?.[0] !== METRIC_VALUE_BACKEND_VERSION.v1;
+    const useV2 =
+      plotParams[GET_PARAMS.version]?.[searchParamsObjectValueSymbol]?.[0] !== METRIC_VALUE_BACKEND_VERSION.v1;
 
-    const yLockMin = toNumber(urlParams[prefix + GET_PARAMS.metricLockMin]?.[0]) ?? defaultPlot.yLock.min;
-    const yLockMax = toNumber(urlParams[prefix + GET_PARAMS.metricLockMax]?.[0]) ?? defaultPlot.yLock.max;
+    const yLockMin =
+      toNumber(plotParams[GET_PARAMS.metricLockMin]?.[searchParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.min;
+    const yLockMax =
+      toNumber(plotParams[GET_PARAMS.metricLockMax]?.[searchParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.max;
 
-    const maxHost = urlParams[prefix + GET_PARAMS.metricMaxHost]?.[0] === '1';
+    const maxHost = plotParams[GET_PARAMS.metricMaxHost]?.[searchParamsObjectValueSymbol]?.[0] === '1';
 
-    const promQL = urlParams[prefix + GET_PARAMS.metricPromQL]?.[0] ?? '';
+    const promQL = plotParams[GET_PARAMS.metricPromQL]?.[searchParamsObjectValueSymbol]?.[0] ?? '';
 
-    const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? defaultPlot.type;
+    const type =
+      toPlotType(plotParams[GET_PARAMS.metricType]?.[searchParamsObjectValueSymbol]?.[0]) ?? defaultPlot.type;
 
     const numSeries =
-      toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ??
+      toNumber(plotParams[GET_PARAMS.numResults]?.[searchParamsObjectValueSymbol]?.[0]) ??
       (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries);
 
-    const events = urlParams[prefix + GET_PARAMS.metricEvent]?.map(toNumber).filter(isNotNil) ?? [];
+    const events =
+      plotParams[GET_PARAMS.metricEvent]?.[searchParamsObjectValueSymbol]?.map(toNumber).filter(isNotNil) ?? [];
 
-    const eventsBy = urlParams[prefix + GET_PARAMS.metricEventBy] ?? [];
+    const eventsBy = plotParams[GET_PARAMS.metricEventBy]?.[searchParamsObjectValueSymbol] ?? [];
 
-    const eventsHide = urlParams[prefix + GET_PARAMS.metricEventHide] ?? [];
+    const eventsHide = plotParams[GET_PARAMS.metricEventHide]?.[searchParamsObjectValueSymbol] ?? [];
+
+    const totalLine = plotParams[GET_PARAMS.viewTotalLine]?.[searchParamsObjectValueSymbol]?.[0] === '1';
+    const filledGraph = plotParams[GET_PARAMS.viewFilledGraph]?.[searchParamsObjectValueSymbol]?.[0] !== '0';
 
     plots.push({
+      id,
       metricName,
       customName,
       customDescription,
@@ -710,20 +810,26 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       events,
       eventsBy,
       eventsHide,
+      totalLine,
+      filledGraph,
     });
   }
 
+  if (!plotIdList.length && defaultParams?.plots.length) {
+    plots.push(...deepClone(defaultParams.plots));
+  }
+
   const timeShifts =
-    (urlParams[GET_PARAMS.metricTimeShifts]?.[0] === removeValueChar
+    (urlParams[GET_PARAMS.metricTimeShifts]?.[searchParamsObjectValueSymbol]?.[0] === removeValueChar
       ? []
-      : urlParams[GET_PARAMS.metricTimeShifts]?.map(toNumber).filter(isNotNil)) ??
+      : urlParams[GET_PARAMS.metricTimeShifts]?.[searchParamsObjectValueSymbol]?.map(toNumber).filter(isNotNil)) ??
     defaultParams?.timeShifts ??
     [];
 
   const tagSync: (number | null)[][] =
-    (urlParams[GET_PARAMS.metricFilterSync]?.[0] === removeValueChar
+    (urlParams[GET_PARAMS.metricFilterSync]?.[searchParamsObjectValueSymbol]?.[0] === removeValueChar
       ? []
-      : urlParams[GET_PARAMS.metricFilterSync]?.map(parseTagSync).filter(isNotNil)) ??
+      : urlParams[GET_PARAMS.metricFilterSync]?.[searchParamsObjectValueSymbol]?.map(parseTagSync).filter(isNotNil)) ??
     defaultParams?.tagSync ??
     [];
 
@@ -731,7 +837,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
   for (let i = 0; i < maxPrefixArray; i++) {
     const prefix = toVariablePrefix(i);
 
-    const name = urlParams[prefix + GET_PARAMS.variableName]?.[0];
+    const name = urlParams[prefix]?.[GET_PARAMS.variableName]?.[searchParamsObjectValueSymbol]?.[0];
     if (name == null) {
       if (defaultParams?.variables.length && i === 0) {
         variables.push(...deepClone(defaultParams.variables));
@@ -743,7 +849,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     }
 
     const link =
-      urlParams[prefix + GET_PARAMS.variableLinkPlot]?.[0]
+      urlParams[prefix]?.[GET_PARAMS.variableLinkPlot]?.[searchParamsObjectValueSymbol]?.[0]
         ?.split('-')
         .map((s) => {
           const [p, t] = s.split('.', 2);
@@ -751,7 +857,39 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
         })
         .filter(isNotNilVariableLink) ?? [];
 
-    const description = urlParams[prefix + GET_PARAMS.variableDescription]?.[0] ?? '';
+    const description = urlParams[prefix]?.[GET_PARAMS.variableDescription]?.[searchParamsObjectValueSymbol]?.[0] ?? '';
+
+    const source: VariableParamsSource[] = Object.entries(urlParams[prefix] ?? {}).reduce((res, [key, value]) => {
+      if (isGetParam(key, GET_PARAMS.variableSourcePrefix)) {
+        const filterIn: FilterTag = {};
+        const filterNotIn: FilterTag = {};
+        value?.[GET_PARAMS.variableSourceFilter]?.[searchParamsObjectValueSymbol]?.forEach((s) => {
+          const pos = s.indexOf(filterInSep);
+          const pos2 = s.indexOf(filterNotInSep);
+          if (pos2 === -1 || (pos2 > pos && pos > -1)) {
+            const tagKey = toTagKey(s.substring(0, pos));
+            const tagValue = s.substring(pos + 1);
+            if (tagKey && tagValue) {
+              filterIn[tagKey] = sortEntity(uniqueArray([...(filterIn[tagKey] ?? []), tagValue]));
+            }
+          } else if (pos === -1 || (pos > pos2 && pos2 > -1)) {
+            const tagKey = toTagKey(s.substring(0, pos2));
+            const tagValue = s.substring(pos2 + 1);
+            if (tagKey && tagValue) {
+              filterNotIn[tagKey] = sortEntity(uniqueArray([...(filterNotIn[tagKey] ?? []), tagValue]));
+            }
+          }
+        });
+
+        res.push({
+          metric: value?.[GET_PARAMS.variableSourceMetricName]?.[searchParamsObjectValueSymbol]?.[0] ?? '',
+          tag: toTagKey(value?.[GET_PARAMS.variableSourceTag]?.[searchParamsObjectValueSymbol]?.[0]) ?? TAG_KEY._0,
+          filterIn,
+          filterNotIn,
+        });
+      }
+      return res;
+    }, [] as VariableParamsSource[]);
 
     variables.push({
       name,
@@ -762,19 +900,26 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
         groupBy: defaultParams?.variables[i]?.args.groupBy ?? false,
         negative: defaultParams?.variables[i]?.args.negative ?? false,
       },
+      source,
     });
   }
 
   variables.forEach((variable) => {
-    const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
-    if (urlParams[variableName]?.length) {
-      variable.values = (urlParams[variableName]?.[0] === removeValueChar ? [] : urlParams[variableName]) ?? [];
+    const variableParamsValue = urlParams[GET_PARAMS.variableValuePrefix] ?? {};
+    const variableName = variable.name;
+    if (variableParamsValue[variableName]?.[searchParamsObjectValueSymbol]?.length) {
+      variable.values =
+        (variableParamsValue[variableName]?.[searchParamsObjectValueSymbol]?.[0] === removeValueChar
+          ? []
+          : variableParamsValue[variableName]?.[searchParamsObjectValueSymbol]) ?? [];
     }
-    if (urlParams[`${variableName}.${GET_PARAMS.variableGroupBy}`]?.length) {
-      variable.args.groupBy = urlParams[`${variableName}.${GET_PARAMS.variableGroupBy}`]?.[0] === '1';
+    if (variableParamsValue[variableName]?.[GET_PARAMS.variableGroupBy]?.[searchParamsObjectValueSymbol]?.length) {
+      variable.args.groupBy =
+        variableParamsValue[variableName]?.[GET_PARAMS.variableGroupBy]?.[searchParamsObjectValueSymbol]?.[0] === '1';
     }
-    if (urlParams[`${variableName}.${GET_PARAMS.variableNegative}`]?.length) {
-      variable.args.negative = urlParams[`${variableName}.${GET_PARAMS.variableNegative}`]?.[0] === '1';
+    if (variableParamsValue[variableName]?.[GET_PARAMS.variableNegative]?.[searchParamsObjectValueSymbol]?.length) {
+      variable.args.negative =
+        variableParamsValue[variableName]?.[GET_PARAMS.variableNegative]?.[searchParamsObjectValueSymbol]?.[0] === '1';
     }
   });
 

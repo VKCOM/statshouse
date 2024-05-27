@@ -29,7 +29,7 @@ func (item *StatshouseGetConfigResult) Reset() {
 }
 
 func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorString0Read(w, &item.Addresses); err != nil {
+	if w, err = BuiltinVectorStringRead(w, &item.Addresses); err != nil {
 		return w, err
 	}
 	if w, err = basictl.IntRead(w, &item.MaxAddressesCount); err != nil {
@@ -38,12 +38,16 @@ func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_
 	return basictl.IntRead(w, &item.PreviousAddresses)
 }
 
-func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorString0Write(w, item.Addresses); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfigResult) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) []byte {
+	w = BuiltinVectorStringWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
-	return basictl.IntWrite(w, item.PreviousAddresses), nil
+	w = basictl.IntWrite(w, item.PreviousAddresses)
+	return w
 }
 
 func (item *StatshouseGetConfigResult) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -53,60 +57,108 @@ func (item *StatshouseGetConfigResult) ReadBoxed(w []byte, nat_fields_mask uint3
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResult) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfigResult) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803d07)
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseGetConfigResult__ReadJSON(item *StatshouseGetConfigResult, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseGetConfigResult) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getConfigResult", "expected json object")
+func (item *StatshouseGetConfigResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propAddressesPresented bool
+	var propMaxAddressesCountPresented bool
+	var propPreviousAddressesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "addresses":
+				if propAddressesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "addresses")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Addresses); err != nil {
+					return err
+				}
+				propAddressesPresented = true
+			case "max_addresses_count":
+				if propMaxAddressesCountPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "max_addresses_count")
+				}
+				if err := Json2ReadInt32(in, &item.MaxAddressesCount); err != nil {
+					return err
+				}
+				propMaxAddressesCountPresented = true
+			case "previous_addresses":
+				if propPreviousAddressesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "previous_addresses")
+				}
+				if err := Json2ReadInt32(in, &item.PreviousAddresses); err != nil {
+					return err
+				}
+				propPreviousAddressesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jAddresses := _jm["addresses"]
-	delete(_jm, "addresses")
-	_jMaxAddressesCount := _jm["max_addresses_count"]
-	delete(_jm, "max_addresses_count")
-	if err := JsonReadInt32(_jMaxAddressesCount, &item.MaxAddressesCount); err != nil {
-		return err
+	if !propAddressesPresented {
+		item.Addresses = item.Addresses[:0]
 	}
-	_jPreviousAddresses := _jm["previous_addresses"]
-	delete(_jm, "previous_addresses")
-	if err := JsonReadInt32(_jPreviousAddresses, &item.PreviousAddresses); err != nil {
-		return err
+	if !propMaxAddressesCountPresented {
+		item.MaxAddressesCount = 0
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", k)
-	}
-	if err := VectorString0ReadJSON(_jAddresses, &item.Addresses); err != nil {
-		return err
+	if !propPreviousAddressesPresented {
+		item.PreviousAddresses = 0
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfigResult) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfigResult) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResult) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
+}
+func (item *StatshouseGetConfigResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
-	if len(item.Addresses) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"addresses":`...)
-		if w, err = VectorString0WriteJSON(w, item.Addresses); err != nil {
-			return w, err
-		}
+	backupIndexAddresses := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"addresses":`...)
+	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Addresses)
+	if (len(item.Addresses) != 0) == false {
+		w = w[:backupIndexAddresses]
 	}
-	if item.MaxAddressesCount != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"max_addresses_count":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxAddressesCount)
+	backupIndexMaxAddressesCount := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"max_addresses_count":`...)
+	w = basictl.JSONWriteInt32(w, item.MaxAddressesCount)
+	if (item.MaxAddressesCount != 0) == false {
+		w = w[:backupIndexMaxAddressesCount]
 	}
-	if item.PreviousAddresses != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"previous_addresses":`...)
-		w = basictl.JSONWriteInt32(w, item.PreviousAddresses)
+	backupIndexPreviousAddresses := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"previous_addresses":`...)
+	w = basictl.JSONWriteInt32(w, item.PreviousAddresses)
+	if (item.PreviousAddresses != 0) == false {
+		w = w[:backupIndexPreviousAddresses]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 type StatshouseGetConfigResultBytes struct {
@@ -125,7 +177,7 @@ func (item *StatshouseGetConfigResultBytes) Reset() {
 }
 
 func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorString0BytesRead(w, &item.Addresses); err != nil {
+	if w, err = BuiltinVectorStringBytesRead(w, &item.Addresses); err != nil {
 		return w, err
 	}
 	if w, err = basictl.IntRead(w, &item.MaxAddressesCount); err != nil {
@@ -134,12 +186,16 @@ func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint3
 	return basictl.IntRead(w, &item.PreviousAddresses)
 }
 
-func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorString0BytesWrite(w, item.Addresses); err != nil {
-		return w, err
-	}
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint32) []byte {
+	w = BuiltinVectorStringBytesWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
-	return basictl.IntWrite(w, item.PreviousAddresses), nil
+	w = basictl.IntWrite(w, item.PreviousAddresses)
+	return w
 }
 
 func (item *StatshouseGetConfigResultBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -149,58 +205,106 @@ func (item *StatshouseGetConfigResultBytes) ReadBoxed(w []byte, nat_fields_mask 
 	return item.Read(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResultBytes) WriteBoxed(w []byte, nat_fields_mask uint32) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0xc803d07)
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseGetConfigResultBytes__ReadJSON(item *StatshouseGetConfigResultBytes, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseGetConfigResultBytes) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getConfigResult", "expected json object")
+func (item *StatshouseGetConfigResultBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propAddressesPresented bool
+	var propMaxAddressesCountPresented bool
+	var propPreviousAddressesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "addresses":
+				if propAddressesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "addresses")
+				}
+				if err := BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.Addresses); err != nil {
+					return err
+				}
+				propAddressesPresented = true
+			case "max_addresses_count":
+				if propMaxAddressesCountPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "max_addresses_count")
+				}
+				if err := Json2ReadInt32(in, &item.MaxAddressesCount); err != nil {
+					return err
+				}
+				propMaxAddressesCountPresented = true
+			case "previous_addresses":
+				if propPreviousAddressesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "previous_addresses")
+				}
+				if err := Json2ReadInt32(in, &item.PreviousAddresses); err != nil {
+					return err
+				}
+				propPreviousAddressesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jAddresses := _jm["addresses"]
-	delete(_jm, "addresses")
-	_jMaxAddressesCount := _jm["max_addresses_count"]
-	delete(_jm, "max_addresses_count")
-	if err := JsonReadInt32(_jMaxAddressesCount, &item.MaxAddressesCount); err != nil {
-		return err
+	if !propAddressesPresented {
+		item.Addresses = item.Addresses[:0]
 	}
-	_jPreviousAddresses := _jm["previous_addresses"]
-	delete(_jm, "previous_addresses")
-	if err := JsonReadInt32(_jPreviousAddresses, &item.PreviousAddresses); err != nil {
-		return err
+	if !propMaxAddressesCountPresented {
+		item.MaxAddressesCount = 0
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", k)
-	}
-	if err := VectorString0BytesReadJSON(_jAddresses, &item.Addresses); err != nil {
-		return err
+	if !propPreviousAddressesPresented {
+		item.PreviousAddresses = 0
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfigResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetConfigResultBytes) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+}
+
+func (item *StatshouseGetConfigResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
+}
+func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
-	if len(item.Addresses) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"addresses":`...)
-		if w, err = VectorString0BytesWriteJSON(w, item.Addresses); err != nil {
-			return w, err
-		}
+	backupIndexAddresses := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"addresses":`...)
+	w = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Addresses)
+	if (len(item.Addresses) != 0) == false {
+		w = w[:backupIndexAddresses]
 	}
-	if item.MaxAddressesCount != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"max_addresses_count":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxAddressesCount)
+	backupIndexMaxAddressesCount := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"max_addresses_count":`...)
+	w = basictl.JSONWriteInt32(w, item.MaxAddressesCount)
+	if (item.MaxAddressesCount != 0) == false {
+		w = w[:backupIndexMaxAddressesCount]
 	}
-	if item.PreviousAddresses != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"previous_addresses":`...)
-		w = basictl.JSONWriteInt32(w, item.PreviousAddresses)
+	backupIndexPreviousAddresses := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"previous_addresses":`...)
+	w = basictl.JSONWriteInt32(w, item.PreviousAddresses)
+	if (item.PreviousAddresses != 0) == false {
+		w = w[:backupIndexPreviousAddresses]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }

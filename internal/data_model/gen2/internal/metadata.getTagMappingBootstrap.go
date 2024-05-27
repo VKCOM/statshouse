@@ -28,8 +28,14 @@ func (item *MetadataGetTagMappingBootstrap) Read(w []byte) (_ []byte, err error)
 	return basictl.NatRead(w, &item.FieldsMask)
 }
 
-func (item *MetadataGetTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
-	return basictl.NatWrite(w, item.FieldsMask), nil
+// This method is general version of Write, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) Write(w []byte) []byte {
+	w = basictl.NatWrite(w, item.FieldsMask)
+	return w
 }
 
 func (item *MetadataGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *MetadataGetTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-func (item *MetadataGetTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5fc81a9b)
 	return item.Write(w)
 }
@@ -49,20 +60,23 @@ func (item *MetadataGetTagMappingBootstrap) ReadResult(w []byte, ret *Statshouse
 }
 
 func (item *MetadataGetTagMappingBootstrap) WriteResult(w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *MetadataGetTagMappingBootstrap) ReadResultJSON(j interface{}, ret *StatshouseGetTagMappingBootstrapResult) error {
-	if err := StatshouseGetTagMappingBootstrapResult__ReadJSON(ret, j); err != nil {
+func (item *MetadataGetTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingBootstrapResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *MetadataGetTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -75,13 +89,19 @@ func (item *MetadataGetTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *MetadataGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getTagMappingBootstrap", err.Error())
-	}
+func (item *MetadataGetTagMappingBootstrap) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetTagMappingBootstrapResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret StatshouseGetTagMappingBootstrapResult
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -89,52 +109,71 @@ func (item *MetadataGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, 
 }
 
 func (item MetadataGetTagMappingBootstrap) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func MetadataGetTagMappingBootstrap__ReadJSON(item *MetadataGetTagMappingBootstrap, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetTagMappingBootstrap) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getTagMappingBootstrap", "expected json object")
+func (item *MetadataGetTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getTagMappingBootstrap", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getTagMappingBootstrap", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getTagMappingBootstrap", k)
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
 	return nil
 }
 
-func (item *MetadataGetTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *MetadataGetTagMappingBootstrap) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *MetadataGetTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *MetadataGetTagMappingBootstrap) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *MetadataGetTagMappingBootstrap) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getTagMappingBootstrap", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getTagMappingBootstrap", err.Error())
 	}
 	return nil

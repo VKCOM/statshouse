@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,7 +22,7 @@ func TestBuf_String(t *testing.T) {
 		var errW, errR error
 
 		in := rapid.String().Draw(t, "in")
-		rw, errW = StringWrite(rw, in)
+		rw, errW = StringWrite(rw, in), nil
 		if errW != nil {
 			t.Fatalf("failed to write %#v: %v", in, errW)
 		}
@@ -56,7 +56,7 @@ func TestBuf_ByteSlice(t *testing.T) {
 		var errW, errR error
 
 		in := rapid.SliceOf(rapid.Byte()).Draw(t, "in")
-		rw, errW = StringWriteBytes(rw, in)
+		rw, errW = StringWriteBytes(rw, in), nil
 		if errW != nil {
 			t.Fatalf("failed to write %#v: %v", in, errW)
 		}
@@ -96,7 +96,7 @@ func TestBuf_ByteSliceHuge(t *testing.T) {
 		var errW, errR error
 
 		in = append(in[:prefixLen], rapid.SliceOf(rapid.Byte()).Draw(t, "in")...)
-		rw, errW = StringWriteBytes(rw[:0], in)
+		rw, errW = StringWriteBytes(rw[:0], in), nil
 		if errW != nil {
 			t.Fatalf("failed to write %#v: %v", in, errW)
 		}

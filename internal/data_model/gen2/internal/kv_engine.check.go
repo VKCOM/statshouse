@@ -25,11 +25,17 @@ func (item *KvEngineCheck) Reset() {
 }
 
 func (item *KvEngineCheck) Read(w []byte) (_ []byte, err error) {
-	return VectorKvEngineKvBoxed0Read(w, &item.Kv)
+	return BuiltinVectorKvEngineKvBoxedRead(w, &item.Kv)
 }
 
-func (item *KvEngineCheck) Write(w []byte) (_ []byte, err error) {
-	return VectorKvEngineKvBoxed0Write(w, item.Kv)
+// This method is general version of Write, use it instead!
+func (item *KvEngineCheck) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *KvEngineCheck) Write(w []byte) []byte {
+	w = BuiltinVectorKvEngineKvBoxedWrite(w, item.Kv)
+	return w
 }
 
 func (item *KvEngineCheck) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -39,7 +45,12 @@ func (item *KvEngineCheck) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *KvEngineCheck) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *KvEngineCheck) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *KvEngineCheck) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2c3239ba)
 	return item.Write(w)
 }
@@ -49,17 +60,22 @@ func (item *KvEngineCheck) ReadResult(w []byte, ret *bool) (_ []byte, err error)
 }
 
 func (item *KvEngineCheck) WriteResult(w []byte, ret bool) (_ []byte, err error) {
-	return BoolWriteBoxed(w, ret)
+	w = BoolWriteBoxed(w, ret)
+	return w, nil
 }
 
-func (item *KvEngineCheck) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *KvEngineCheck) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *KvEngineCheck) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *KvEngineCheck) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -73,13 +89,19 @@ func (item *KvEngineCheck) ReadResultWriteResultJSON(r []byte, w []byte) (_ []by
 	return r, w, err
 }
 
-func (item *KvEngineCheck) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("kv_engine.check", err.Error())
-	}
+func (item *KvEngineCheck) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *KvEngineCheck) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret bool
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -87,52 +109,71 @@ func (item *KvEngineCheck) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte
 }
 
 func (item KvEngineCheck) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func KvEngineCheck__ReadJSON(item *KvEngineCheck, j interface{}) error { return item.readJSON(j) }
-func (item *KvEngineCheck) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.check", "expected json object")
+func (item *KvEngineCheck) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propKvPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "kv":
+				if propKvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.check", "kv")
+				}
+				if err := BuiltinVectorKvEngineKvBoxedReadJSON(legacyTypeNames, in, &item.Kv); err != nil {
+					return err
+				}
+				propKvPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("kv_engine.check", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jKv := _jm["kv"]
-	delete(_jm, "kv")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.check", k)
-	}
-	if err := VectorKvEngineKvBoxed0ReadJSON(_jKv, &item.Kv); err != nil {
-		return err
+	if !propKvPresented {
+		item.Kv = item.Kv[:0]
 	}
 	return nil
 }
 
-func (item *KvEngineCheck) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *KvEngineCheck) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *KvEngineCheck) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *KvEngineCheck) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.Kv) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"kv":`...)
-		if w, err = VectorKvEngineKvBoxed0WriteJSON(w, item.Kv); err != nil {
-			return w, err
-		}
+	backupIndexKv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"kv":`...)
+	w = BuiltinVectorKvEngineKvBoxedWriteJSONOpt(newTypeNames, short, w, item.Kv)
+	if (len(item.Kv) != 0) == false {
+		w = w[:backupIndexKv]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *KvEngineCheck) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *KvEngineCheck) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.check", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.check", err.Error())
 	}
 	return nil

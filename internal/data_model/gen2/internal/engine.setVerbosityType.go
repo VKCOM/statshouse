@@ -33,11 +33,15 @@ func (item *EngineSetVerbosityType) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Verbosity)
 }
 
-func (item *EngineSetVerbosityType) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Type); err != nil {
-		return w, err
-	}
-	return basictl.IntWrite(w, item.Verbosity), nil
+// This method is general version of Write, use it instead!
+func (item *EngineSetVerbosityType) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *EngineSetVerbosityType) Write(w []byte) []byte {
+	w = basictl.StringWrite(w, item.Type)
+	w = basictl.IntWrite(w, item.Verbosity)
+	return w
 }
 
 func (item *EngineSetVerbosityType) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -47,7 +51,12 @@ func (item *EngineSetVerbosityType) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-func (item *EngineSetVerbosityType) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *EngineSetVerbosityType) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *EngineSetVerbosityType) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5388c0ae)
 	return item.Write(w)
 }
@@ -57,20 +66,23 @@ func (item *EngineSetVerbosityType) ReadResult(w []byte, ret *True) (_ []byte, e
 }
 
 func (item *EngineSetVerbosityType) WriteResult(w []byte, ret True) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *EngineSetVerbosityType) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineSetVerbosityType) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetVerbosityType) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *EngineSetVerbosityType) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -83,13 +95,19 @@ func (item *EngineSetVerbosityType) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *EngineSetVerbosityType) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setVerbosityType", err.Error())
-	}
+func (item *EngineSetVerbosityType) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *EngineSetVerbosityType) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret True
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -97,62 +115,90 @@ func (item *EngineSetVerbosityType) ReadResultJSONWriteResult(r []byte, w []byte
 }
 
 func (item EngineSetVerbosityType) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func EngineSetVerbosityType__ReadJSON(item *EngineSetVerbosityType, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetVerbosityType) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setVerbosityType", "expected json object")
+func (item *EngineSetVerbosityType) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propTypePresented bool
+	var propVerbosityPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "type":
+				if propTypePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setVerbosityType", "type")
+				}
+				if err := Json2ReadString(in, &item.Type); err != nil {
+					return err
+				}
+				propTypePresented = true
+			case "verbosity":
+				if propVerbosityPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setVerbosityType", "verbosity")
+				}
+				if err := Json2ReadInt32(in, &item.Verbosity); err != nil {
+					return err
+				}
+				propVerbosityPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setVerbosityType", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jType := _jm["type"]
-	delete(_jm, "type")
-	if err := JsonReadString(_jType, &item.Type); err != nil {
-		return err
+	if !propTypePresented {
+		item.Type = ""
 	}
-	_jVerbosity := _jm["verbosity"]
-	delete(_jm, "verbosity")
-	if err := JsonReadInt32(_jVerbosity, &item.Verbosity); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setVerbosityType", k)
+	if !propVerbosityPresented {
+		item.Verbosity = 0
 	}
 	return nil
 }
 
-func (item *EngineSetVerbosityType) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *EngineSetVerbosityType) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *EngineSetVerbosityType) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *EngineSetVerbosityType) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if len(item.Type) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"type":`...)
-		w = basictl.JSONWriteString(w, item.Type)
+	backupIndexType := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"type":`...)
+	w = basictl.JSONWriteString(w, item.Type)
+	if (len(item.Type) != 0) == false {
+		w = w[:backupIndexType]
 	}
-	if item.Verbosity != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"verbosity":`...)
-		w = basictl.JSONWriteInt32(w, item.Verbosity)
+	backupIndexVerbosity := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"verbosity":`...)
+	w = basictl.JSONWriteInt32(w, item.Verbosity)
+	if (item.Verbosity != 0) == false {
+		w = w[:backupIndexVerbosity]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *EngineSetVerbosityType) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *EngineSetVerbosityType) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setVerbosityType", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setVerbosityType", err.Error())
 	}
 	return nil

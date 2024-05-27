@@ -63,19 +63,19 @@ func (item *StatshouseGetTagMapping2) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.ClientEnv)
 }
 
-func (item *StatshouseGetTagMapping2) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetTagMapping2) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetTagMapping2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Key)
 	w = basictl.IntWrite(w, item.TagIdKey)
-	return basictl.IntWrite(w, item.ClientEnv), nil
+	w = basictl.IntWrite(w, item.ClientEnv)
+	return w
 }
 
 func (item *StatshouseGetTagMapping2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -85,7 +85,12 @@ func (item *StatshouseGetTagMapping2) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-func (item *StatshouseGetTagMapping2) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetTagMapping2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetTagMapping2) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff56)
 	return item.Write(w)
 }
@@ -95,20 +100,23 @@ func (item *StatshouseGetTagMapping2) ReadResult(w []byte, ret *StatshouseGetTag
 }
 
 func (item *StatshouseGetTagMapping2) WriteResult(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *StatshouseGetTagMapping2) ReadResultJSON(j interface{}, ret *StatshouseGetTagMappingResult) error {
-	if err := StatshouseGetTagMappingResult__ReadJSON(ret, j); err != nil {
+func (item *StatshouseGetTagMapping2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMapping2) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseGetTagMapping2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -121,13 +129,19 @@ func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSON(r []byte, w []by
 	return r, w, err
 }
 
-func (item *StatshouseGetTagMapping2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
-	}
+func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetTagMappingResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetTagMapping2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret StatshouseGetTagMappingResult
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -135,119 +149,191 @@ func (item *StatshouseGetTagMapping2) ReadResultJSONWriteResult(r []byte, w []by
 }
 
 func (item StatshouseGetTagMapping2) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseGetTagMapping2__ReadJSON(item *StatshouseGetTagMapping2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetTagMapping2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadString(_jKey, &item.Key); err != nil {
-		return err
-	}
-	_jCreate := _jm["create"]
-	delete(_jm, "create")
-	_jTagIdKey := _jm["tag_id_key"]
-	delete(_jm, "tag_id_key")
-	if err := JsonReadInt32(_jTagIdKey, &item.TagIdKey); err != nil {
-		return err
-	}
-	_jClientEnv := _jm["client_env"]
-	delete(_jm, "client_env")
-	if err := JsonReadInt32(_jClientEnv, &item.ClientEnv); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTagMapping2", k)
-	}
-	if _jCreate != nil {
-		_bit := false
-		if err := JsonReadBool(_jCreate, &_bit); err != nil {
-			return err
+func (item *StatshouseGetTagMapping2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propMetricPresented bool
+	var propKeyPresented bool
+	var trueTypeCreatePresented bool
+	var trueTypeCreateValue bool
+	var propTagIdKeyPresented bool
+	var propClientEnvPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "create":
+				if trueTypeCreatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "create")
+				}
+				if err := Json2ReadBool(in, &trueTypeCreateValue); err != nil {
+					return err
+				}
+				trueTypeCreatePresented = true
+			case "tag_id_key":
+				if propTagIdKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "tag_id_key")
+				}
+				if err := Json2ReadInt32(in, &item.TagIdKey); err != nil {
+					return err
+				}
+				propTagIdKeyPresented = true
+			case "client_env":
+				if propClientEnvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "client_env")
+				}
+				if err := Json2ReadInt32(in, &item.ClientEnv); err != nil {
+					return err
+				}
+				propClientEnvPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTagMapping2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = ""
+	}
+	if !propKeyPresented {
+		item.Key = ""
+	}
+	if !propTagIdKeyPresented {
+		item.TagIdKey = 0
+	}
+	if !propClientEnvPresented {
+		item.ClientEnv = 0
+	}
+	if trueTypeCreatePresented {
+		if trueTypeCreateValue {
 			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
 		}
 	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
-func (item *StatshouseGetTagMapping2) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetTagMapping2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetTagMapping2) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseGetTagMapping2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
-	}
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteString(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteString(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)
 	}
-	if item.TagIdKey != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tag_id_key":`...)
-		w = basictl.JSONWriteInt32(w, item.TagIdKey)
+	backupIndexTagIdKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tag_id_key":`...)
+	w = basictl.JSONWriteInt32(w, item.TagIdKey)
+	if (item.TagIdKey != 0) == false {
+		w = w[:backupIndexTagIdKey]
 	}
-	if item.ClientEnv != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"client_env":`...)
-		w = basictl.JSONWriteInt32(w, item.ClientEnv)
+	backupIndexClientEnv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"client_env":`...)
+	w = basictl.JSONWriteInt32(w, item.ClientEnv)
+	if (item.ClientEnv != 0) == false {
+		w = w[:backupIndexClientEnv]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetTagMapping2) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetTagMapping2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
 	}
 	return nil
@@ -303,19 +389,19 @@ func (item *StatshouseGetTagMapping2Bytes) Read(w []byte) (_ []byte, err error) 
 	return basictl.IntRead(w, &item.ClientEnv)
 }
 
-func (item *StatshouseGetTagMapping2Bytes) Write(w []byte) (_ []byte, err error) {
+// This method is general version of Write, use it instead!
+func (item *StatshouseGetTagMapping2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *StatshouseGetTagMapping2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Key); err != nil {
-		return w, err
-	}
+	w = item.Header.Write(w, item.FieldsMask)
+	w = basictl.StringWriteBytes(w, item.Metric)
+	w = basictl.StringWriteBytes(w, item.Key)
 	w = basictl.IntWrite(w, item.TagIdKey)
-	return basictl.IntWrite(w, item.ClientEnv), nil
+	w = basictl.IntWrite(w, item.ClientEnv)
+	return w
 }
 
 func (item *StatshouseGetTagMapping2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -325,7 +411,12 @@ func (item *StatshouseGetTagMapping2Bytes) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-func (item *StatshouseGetTagMapping2Bytes) WriteBoxed(w []byte) ([]byte, error) {
+// This method is general version of WriteBoxed, use it instead!
+func (item *StatshouseGetTagMapping2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *StatshouseGetTagMapping2Bytes) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x4285ff56)
 	return item.Write(w)
 }
@@ -335,20 +426,23 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResult(w []byte, ret *StatshouseG
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteResult(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	w = ret.WriteBoxed(w)
+	return w, nil
 }
 
-func (item *StatshouseGetTagMapping2Bytes) ReadResultJSON(j interface{}, ret *StatshouseGetTagMappingResult) error {
-	if err := StatshouseGetTagMappingResult__ReadJSON(ret, j); err != nil {
+func (item *StatshouseGetTagMapping2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
-		return w, err
-	}
+	return item.writeResultJSON(true, false, w, ret)
+}
+
+func (item *StatshouseGetTagMapping2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(newTypeNames, short, w)
 	return w, nil
 }
 
@@ -361,13 +455,19 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSON(r []byte, w
 	return r, w, err
 }
 
-func (item *StatshouseGetTagMapping2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
-	}
+func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetTagMappingResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetTagMapping2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret StatshouseGetTagMappingResult
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -375,119 +475,191 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResultJSONWriteResult(r []byte, w
 }
 
 func (item StatshouseGetTagMapping2Bytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+	return string(item.WriteJSON(nil))
 }
 
-func StatshouseGetTagMapping2Bytes__ReadJSON(item *StatshouseGetTagMapping2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetTagMapping2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadStringBytes(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadStringBytes(_jKey, &item.Key); err != nil {
-		return err
-	}
-	_jCreate := _jm["create"]
-	delete(_jm, "create")
-	_jTagIdKey := _jm["tag_id_key"]
-	delete(_jm, "tag_id_key")
-	if err := JsonReadInt32(_jTagIdKey, &item.TagIdKey); err != nil {
-		return err
-	}
-	_jClientEnv := _jm["client_env"]
-	delete(_jm, "client_env")
-	if err := JsonReadInt32(_jClientEnv, &item.ClientEnv); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTagMapping2", k)
-	}
-	if _jCreate != nil {
-		_bit := false
-		if err := JsonReadBool(_jCreate, &_bit); err != nil {
-			return err
+func (item *StatshouseGetTagMapping2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propMetricPresented bool
+	var propKeyPresented bool
+	var trueTypeCreatePresented bool
+	var trueTypeCreateValue bool
+	var propTagIdKeyPresented bool
+	var propClientEnvPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "metric")
+				}
+				if err := Json2ReadStringBytes(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "key")
+				}
+				if err := Json2ReadStringBytes(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "create":
+				if trueTypeCreatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "create")
+				}
+				if err := Json2ReadBool(in, &trueTypeCreateValue); err != nil {
+					return err
+				}
+				trueTypeCreatePresented = true
+			case "tag_id_key":
+				if propTagIdKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "tag_id_key")
+				}
+				if err := Json2ReadInt32(in, &item.TagIdKey); err != nil {
+					return err
+				}
+				propTagIdKeyPresented = true
+			case "client_env":
+				if propClientEnvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMapping2", "client_env")
+				}
+				if err := Json2ReadInt32(in, &item.ClientEnv); err != nil {
+					return err
+				}
+				propClientEnvPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTagMapping2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propMetricPresented {
+		item.Metric = item.Metric[:0]
+	}
+	if !propKeyPresented {
+		item.Key = item.Key[:0]
+	}
+	if !propTagIdKeyPresented {
+		item.TagIdKey = 0
+	}
+	if !propClientEnvPresented {
+		item.ClientEnv = 0
+	}
+	if trueTypeCreatePresented {
+		if trueTypeCreateValue {
 			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
 		}
 	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
+	}
+
+	// tries to set bit to zero if it is 1
+	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
-func (item *StatshouseGetTagMapping2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+// This method is general version of WriteJSON, use it instead!
+func (item *StatshouseGetTagMapping2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w), nil
+}
+
+func (item *StatshouseGetTagMapping2Bytes) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
-		return w, err
+	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Metric)
-	}
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)
 	}
-	if item.TagIdKey != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"tag_id_key":`...)
-		w = basictl.JSONWriteInt32(w, item.TagIdKey)
+	backupIndexTagIdKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"tag_id_key":`...)
+	w = basictl.JSONWriteInt32(w, item.TagIdKey)
+	if (item.TagIdKey != 0) == false {
+		w = w[:backupIndexTagIdKey]
 	}
-	if item.ClientEnv != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"client_env":`...)
-		w = basictl.JSONWriteInt32(w, item.ClientEnv)
+	backupIndexClientEnv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"client_env":`...)
+	w = basictl.JSONWriteInt32(w, item.ClientEnv)
+	if (item.ClientEnv != 0) == false {
+		w = w[:backupIndexClientEnv]
 	}
-	return append(w, '}'), nil
+	return append(w, '}')
 }
 
 func (item *StatshouseGetTagMapping2Bytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
+	return item.WriteJSON(nil), nil
 }
 
 func (item *StatshouseGetTagMapping2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
 	}
 	return nil
