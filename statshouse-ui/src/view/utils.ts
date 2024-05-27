@@ -263,6 +263,36 @@ export function timeRangeToAbbrev(r: TimeRange): timeRangeAbbrev | '' {
   return '';
 }
 
+export function timeRangeToAbbrev2(r: timeRange): timeRangeAbbrev | '' {
+  const tolerance = 60;
+  const candidates: timeRangeAbbrev[] = [
+    'last-5m',
+    'last-15m',
+    'last-1h',
+    'last-2h',
+    'last-6h',
+    'last-12h',
+    'last-1d',
+    'last-2d',
+    'last-3d',
+    'last-7d',
+    'last-14d',
+    'last-30d',
+    'last-90d',
+    'last-180d',
+    'last-1y',
+    'last-2y',
+  ];
+
+  for (const abbr of candidates) {
+    const rr = timeRangeAbbrevExpand(abbr, now());
+    if (Math.abs(rr.from - r.from) <= tolerance && Math.abs(rr.to - r.to) <= tolerance) {
+      return abbr;
+    }
+  }
+  return '';
+}
+
 export type timeShiftAbbrev =
   | '-24h'
   | '-48h'

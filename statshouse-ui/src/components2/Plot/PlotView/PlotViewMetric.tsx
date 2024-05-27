@@ -12,6 +12,7 @@ import { calcYRange } from '../../../common/calcYRange';
 import { xRangeStatic } from './xRangeStatic';
 import { dateRangeFormat } from './dateRangeFormat';
 import { useStateToRef } from '../../../hooks';
+import cn from 'classnames';
 
 const themeDark = false;
 const xAxisSize = 16;
@@ -19,7 +20,7 @@ const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const compact = false;
 
-export function PlotViewMetric({ plot, plotInfo, plotData }: PlotViewProps) {
+export function PlotViewMetric({ className, plot, plotInfo, plotData }: PlotViewProps) {
   const yLockRef = useStateToRef(plot?.yLock ?? yLockDefault);
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), []);
   // const metricType = useMemo(() => {
@@ -117,7 +118,7 @@ export function PlotViewMetric({ plot, plotInfo, plotData }: PlotViewProps) {
     return opt;
   }, [getAxisStroke, plot?.metricUnit, yLockRef]);
   return (
-    <div className={css.plotViewMetric}>
+    <div className={cn(css.plotViewMetric, className)}>
       {!!plotInfo && !!plotData && (
         <UPlotWrapper
           opts={opts}

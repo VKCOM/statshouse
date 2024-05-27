@@ -16,6 +16,7 @@ import {
   PLOT_TYPE,
   QUERY_WHAT,
   TAG_KEY,
+  TagKey,
   TIME_RANGE_KEYS_TO,
   toTagKey,
   toTimeRangeKeysTo,
@@ -378,4 +379,12 @@ export function getPlotByUrl(url: string): PlotParams[] {
   } catch (e) {
     return [];
   }
+}
+
+export function filterHasTagID(params: PlotParams, tagKey: TagKey): boolean {
+  return (
+    (params.filterIn[tagKey] !== undefined && params.filterIn[tagKey]?.length !== 0) ||
+    (params.filterNotIn[tagKey] !== undefined && params.filterNotIn[tagKey]?.length !== 0) ||
+    params.groupBy.indexOf(tagKey) >= 0
+  );
 }

@@ -52,6 +52,7 @@ export const GET_PARAMS = {
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',
+  dashboardApiVersion: 'ver',
   dashboardName: 'dn',
   dashboardDescription: 'dd',
   dashboardVersion: 'dv',

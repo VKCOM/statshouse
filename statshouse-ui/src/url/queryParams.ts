@@ -943,3 +943,6 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 export function decodeDashboardIdParam(urlSearchParams: URLSearchParams) {
   return toNumber(urlSearchParams.get(GET_PARAMS.dashboardID));
 }
+export function decodeDashboardVersionParam(urlSearchParams: URLSearchParams) {
+  return toNumber(urlSearchParams.get(GET_PARAMS.dashboardVersion));
+}
