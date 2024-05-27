@@ -58,7 +58,7 @@ func (c *checkpointer) notifyCommit(commitOffset int64) {
 }
 
 func (c *checkpointer) setWaitCheckpointOffsetLocked() {
-	c.waitCheckpointOffset = c.e.rw.dbOffset
+	c.waitCheckpointOffset = c.e.rw.getDBOffsetLocked()
 	c.waitCheckpoint = true
 }
 
@@ -67,7 +67,7 @@ func (c *checkpointer) doCheckpointIfCan() {
 	defer c.e.rw.mu.Unlock()
 	waitCheckpoint := c.waitCheckpoint
 	waitCheckpointOffset := c.waitCheckpointOffset
-	dbOffset := c.e.rw.dbOffset
+	dbOffset := c.e.rw.getDBOffsetLocked()
 	commitOffset := c.e.re.GetCommitOffset()
 	if waitCheckpoint && waitCheckpointOffset <= commitOffset &&
 		// в новом вале должен быть хотя бы один коммит

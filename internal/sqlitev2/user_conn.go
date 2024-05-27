@@ -94,6 +94,10 @@ func newUserConn(sqliteConn *sqliteConn, ctx context.Context) Conn {
 	}
 }
 
+func internalFromUser(c Conn) internalConn {
+	return newInternalConn(c.conn)
+}
+
 func newInternalConn(sqliteConn *sqliteConn) internalConn {
 	return internalConn{
 		Conn{

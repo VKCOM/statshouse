@@ -262,7 +262,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, engine.Close())
 	binlogHistory := []string{}
 	engine, bl := openEngine(t, dir, "db2", schema, false, false, false, nil)
-	binlogOffset := engine.rw.dbOffset
+	binlogOffset := engine.rw.getDBOffsetLocked()
 	textInDb := map[string]struct{}{}
 	for _, s := range agg.writeHistory {
 		textInDb[s] = struct{}{}
@@ -331,7 +331,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT data FROM test_db WHERE id=$id", Int64("$id", rowID))
 
 		for rows.Next() {
@@ -360,7 +360,7 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 		return append(cache, 1), err
 	})
 	require.NoError(t, err)
-	err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT data from test_db")
 		c := 0
 		for rows.Next() {
@@ -483,7 +483,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	var read func(int) []string
 	read = func(rec int) []string {
 		var s []string
-		err = engine.View(context.Background(), "test", func(conn Conn) error {
+		_, err = engine.View(context.Background(), "test", func(conn Conn) error {
 			if rec > 0 {
 				s = append(s, read(rec-1)...)
 			}
@@ -559,7 +559,7 @@ func Test_Engine_Float64(t *testing.T) {
 	count := 0
 	result := make([]float64, 0, len(testValues))
 	value := 0.0
-	err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT val FROM test_db WHERE val > $num", Float64("$num", 0.0))
 
 		for rows.Next() {
@@ -634,7 +634,7 @@ func Test_Engine_RO(t *testing.T) {
 		ReadOnly:                     true,
 	})
 	require.NoError(t, err)
-	err = engineRO.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engineRO.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT id FROM test_db")
 		for rows.Next() {
 			id = rows.ColumnInt64(0)
@@ -708,7 +708,7 @@ func TestCanReadAfterPanic(t *testing.T) {
 		defer func() {
 			require.NotNil(t, recover())
 		}()
-		_ = eng.engine.View(context.Background(), "panic", func(c Conn) error {
+		_, _ = eng.engine.View(context.Background(), "panic", func(c Conn) error {
 			panic("oops")
 		})
 	}()
@@ -779,7 +779,7 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.NoError(t, err)
 	count := 0
-	err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
 			Int64Slice("$ids$", []int64{1, 2}),
 			Int64Slice("$ids1$", []int64{3}))
@@ -804,8 +804,8 @@ func Test_Engine_WaitCommit(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY);"
 	var engine *Engine
 	binlogData := make([]byte, 1024)
-	waitOffsetView := func(ctx context.Context, offset int64) (id int64, _ error) {
-		err := engine.ViewOpts(ctx, ViewTxOptions{
+	waitOffsetView := func(ctx context.Context, offset int64) (id int64, offsetView int64, _ error) {
+		res, err := engine.ViewOpts(ctx, ViewTxOptions{
 			QueryName:  "blocked",
 			WaitOffset: offset,
 		}, func(conn Conn) error {
@@ -817,14 +817,14 @@ func Test_Engine_WaitCommit(t *testing.T) {
 			}
 			return rows.Error()
 		})
-		return id, err
+		return id, res.DBOffset, err
 	}
 	t.Run("wait_commit_should_timeout", func(t *testing.T) {
 		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
 		ch := make(chan error)
 		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*50)
 		go func() {
-			_, err := waitOffsetView(ctx, 1024)
+			_, _, err := waitOffsetView(ctx, 1024)
 			ch <- err
 			close(ch)
 		}()
@@ -834,42 +834,48 @@ func Test_Engine_WaitCommit(t *testing.T) {
 	t.Run("wait_commit_should_finish_1", func(t *testing.T) {
 		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
 		var id int64
+		var offsetView int64
 		ch := make(chan error)
 		go func() {
 			var err error
-			id, err = waitOffsetView(context.Background(), 1024)
+			id, offsetView, err = waitOffsetView(context.Background(), 1024)
 			ch <- err
 			close(ch)
 		}()
 		time.Sleep(time.Millisecond)
-		err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		res, err := engine.Dov2(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			_, err := conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
 			return append(cache, binlogData...), err
 		})
+		offsetAfterWrite := res.DBOffset
 		require.NoError(t, err)
 		err = <-ch
 		require.NoError(t, err)
+		require.Equal(t, offsetAfterWrite, offsetView)
 		require.Equal(t, int64(1), id)
 
 	})
 	t.Run("wait_commit_should_finish_2", func(t *testing.T) {
 		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
 		var id int64
+		var offsetView int64
 		ch := make(chan error)
-		err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		res, err := engine.Dov2(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			var err error
 			id, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
 			return append(cache, binlogData...), err
 		})
+		offsetAfterWrite := res.DBOffset
 		require.NoError(t, err)
 		go func() {
 			var err error
-			id, err = waitOffsetView(context.Background(), 1024)
+			id, offsetView, err = waitOffsetView(context.Background(), 1024)
 			ch <- err
 			close(ch)
 		}()
 		err = <-ch
 		require.NoError(t, err)
+		require.Equal(t, offsetAfterWrite, offsetView)
 		require.Equal(t, int64(1), id)
 	})
 }

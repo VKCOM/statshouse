@@ -74,7 +74,7 @@ func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m ma
 			return cache, fmt.Errorf("failed to inc number: %w", err)
 		}
 		var isExist bool
-		result.prevOffset, isExist, err = binlogLoadPosition(internalConn{conn})
+		result.prevOffset, isExist, err = binlogLoadPosition(internalFromUser(conn))
 		if err != nil {
 			return cache, fmt.Errorf("failed to get binlog offset: %w", err)
 		}
@@ -180,7 +180,7 @@ func Test_Engine_Race_Do(t *testing.T) {
 		},
 	})
 	var actualN int64
-	err := engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err := engine.View(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT v from test_db")
 		if rows.err != nil {
 			return rows.err
@@ -230,7 +230,7 @@ func Test_Engine_Race_View(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iters; j++ {
-				err := engine.View(context.Background(), "test", func(conn Conn) error {
+				_, err := engine.View(context.Background(), "test", func(conn Conn) error {
 					actualDb := map[string]struct{}{}
 					rows := conn.Query("test", "SELECT t from test_db")
 					if rows.err != nil {
@@ -325,13 +325,13 @@ func Test_Race_Engine_Replica_View(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iters; i++ {
-				err := engineR.View(context.Background(), "test", func(conn Conn) error {
+				_, err := engineR.View(context.Background(), "test", func(conn Conn) error {
 					n, ok, err := selectNumber(conn)
 					require.NoError(t, err)
 					if !ok {
 						return nil
 					}
-					offs, ok, err := binlogLoadPosition(internalConn{conn})
+					offs, ok, err := binlogLoadPosition(internalFromUser(conn))
 					require.NoError(t, err)
 					if !ok {
 						t.Error("expect get binlogpos")
@@ -397,7 +397,7 @@ func Test_Race_Engine_View_WaitOffset(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iters; i++ {
-				err := engineR.ViewOpts(context.Background(), ViewTxOptions{
+				_, err := engineR.ViewOpts(context.Background(), ViewTxOptions{
 					QueryName:  "test",
 					WaitOffset: res.Load(),
 				}, func(conn Conn) error {
@@ -406,7 +406,7 @@ func Test_Race_Engine_View_WaitOffset(t *testing.T) {
 					if !ok {
 						return nil
 					}
-					offs, ok, err := binlogLoadPosition(internalConn{conn})
+					offs, ok, err := binlogLoadPosition(internalFromUser(conn))
 					require.NoError(t, err)
 					if !ok {
 						t.Error("expect get binlogpos")

@@ -60,7 +60,7 @@ func apply(conn sqlitev2.Conn, payload []byte) (int, error) {
 
 func (h *rpc_handler) get(ctx context.Context, get tlkv_engine.Get) (tlkv_engine.GetResponse, error) {
 	var v int64
-	err := h.engine.View(ctx, "get", func(conn sqlitev2.Conn) error {
+	_, err := h.engine.View(ctx, "get", func(conn sqlitev2.Conn) error {
 		rows := conn.Query("select", "SELECT v FROM kv WHERE k = $key", sqlitev2.Int64("$key", get.Key))
 		for rows.Next() {
 			v = rows.ColumnInt64(0)
@@ -150,7 +150,7 @@ func (h *rpc_handler) Check(ctx context.Context, args tlkv_engine.Check) (bool, 
 		expectedMap[kv.Key] = kv.Value
 	}
 	actualMap := map[int64]int64{}
-	err := h.engine.View(ctx, "check", func(c sqlitev2.Conn) error {
+	_, err := h.engine.View(ctx, "check", func(c sqlitev2.Conn) error {
 		rows := c.Query("select", "SELECT k, v FROM kv")
 		for rows.Next() {
 			actualMap[rows.ColumnInt64(0)] = rows.ColumnInt64(1)

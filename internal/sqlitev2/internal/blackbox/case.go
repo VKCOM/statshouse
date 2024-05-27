@@ -174,7 +174,7 @@ func (c *Case) Check(r *rapid.T) error {
 		}
 		defer ro.Close()
 		var backupOffset int64
-		err = ro.View(context.Background(), "check_binlog", func(conn sqlitev2.Conn) error {
+		_, err = ro.View(context.Background(), "check_binlog", func(conn sqlitev2.Conn) error {
 			rows := conn.Query("__select_binlog_pos", "SELECT offset from __binlog_offset")
 			if rows.Error() != nil {
 				return rows.Error()

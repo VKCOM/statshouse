@@ -33,10 +33,12 @@ func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cache
 	}, nil
 }
 
-func (c *sqliteBinlogConn) getDBOffset() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *sqliteBinlogConn) getDBOffsetLocked() int64 {
 	return c.dbOffset
+}
+
+func (c *sqliteBinlogConn) setDBOffsetLocked(offset int64) {
+	c.dbOffset = offset
 }
 
 func (c *sqliteBinlogConn) setError(err error) error {
@@ -81,7 +83,7 @@ func (c *sqliteBinlogConn) binlogCommitTxLocked(newOffset int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to commit TX: %w", err)
 	}
-	c.dbOffset = newOffset
+	c.setDBOffsetLocked(newOffset)
 	c.waitDbOffsetPool.Notify(newOffset)
 	return nil
 }
