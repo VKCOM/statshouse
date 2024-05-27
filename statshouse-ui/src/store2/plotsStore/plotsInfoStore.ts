@@ -17,7 +17,7 @@ export type PlotInfo = {
   metricWhat: string;
   link: string;
 };
-export type PlotsStore = {
+export type PlotsInfoStore = {
   plotsInfo: Partial<Record<PlotKey, PlotInfo>>;
   dashboardLink: To;
   dashboardSettingLink: To;
@@ -25,7 +25,7 @@ export type PlotsStore = {
   tabNum: PlotKey;
 } & GroupPlotsMap;
 
-export const usePlotsInfoStore = createStore<PlotsStore>(
+export const usePlotsInfoStore = createStore<PlotsInfoStore>(
   () => ({
     ...updatePlots(useUrlStore.getState().params),
   }),
@@ -34,7 +34,7 @@ export const usePlotsInfoStore = createStore<PlotsStore>(
 
 export function plotsStoreSubscribe(state: UrlStore, prevState: UrlStore) {
   usePlotsInfoStore.setState(() => {
-    const nextState: Partial<PlotsStore> = {};
+    const nextState: Partial<PlotsInfoStore> = {};
     if (state.params.plots !== prevState.params.plots) {
       Object.assign(nextState, updatePlots(state.params, state.saveParams));
     } else {
@@ -50,7 +50,7 @@ export function plotsStoreSubscribe(state: UrlStore, prevState: UrlStore) {
   });
 }
 
-export function updatePlots(params: QueryParams, saveParams?: QueryParams): PlotsStore {
+export function updatePlots(params: QueryParams, saveParams?: QueryParams): PlotsInfoStore {
   return {
     plotsInfo: mergeLeft(
       params.plots,

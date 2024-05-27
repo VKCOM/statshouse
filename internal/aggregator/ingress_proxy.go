@@ -12,9 +12,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -100,19 +100,12 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
-	if len(config.IngressKeys) == 0 {
-		return fmt.Errorf("ingress proxy must have non-empty list of ingress crypto keys")
-	}
-	if len(config.ExternalAddresses)%3 != 0 || len(config.ExternalAddresses) == 0 {
-		return fmt.Errorf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
-	}
+func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
 	// Now we configure our clients using repetition of 3 ingress proxy addresses per shard
 	extAddr := config.ExternalAddresses
 	for i := 1; i < len(sh2.GetConfigResult.Addresses)/3; i++ { // GetConfig returns only non-empty list divisible by 3
 		config.ExternalAddresses = append(config.ExternalAddresses, extAddr...)
 	}
-
 	proxy := &IngressProxy{
 		sh2:  sh2,
 		pool: newClientPool(aesPwd),
@@ -125,7 +118,8 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 			clientList: map[*rpc.HandlerContext]longpollClient{},
 		}
 	}
-	proxy.server = rpc.NewServer(rpc.ServerWithCryptoKeys(config.IngressKeys),
+	options := []rpc.ServerOptionsFunc{
+		rpc.ServerWithCryptoKeys(config.IngressKeys),
 		rpc.ServerWithHandler(proxy.handler),
 		rpc.ServerWithSyncHandler(proxy.syncHandler),
 		rpc.ServerWithForceEncryption(true),
@@ -133,14 +127,20 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithDisableContextTimeout(true),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
-		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets*100), // enough for up to 100 shards
+		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay * time.Second),
+		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets * 100), // enough for up to 100 shards
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
-		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
-
-	log.Printf("Running ingress proxy listening %s with %d crypto keys", config.ListenAddr, len(config.IngressKeys))
-	return proxy.server.ListenAndServe("tcp", config.ListenAddr)
+		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
+	}
+	if hijack != nil {
+		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijack.AddConnection(conn)
+		}))
+	}
+	proxy.server = rpc.NewServer(options...)
+	log.Printf("Running ingress proxy listening %s with %d crypto keys", ln.Addr(), len(config.IngressKeys))
+	return proxy.server.Serve(ln)
 }
 
 func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {

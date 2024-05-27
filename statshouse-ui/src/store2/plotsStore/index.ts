@@ -1,2 +1,2 @@
-export * from './plotsStore';
-export * from './plotsData';
+export * from './plotsInfoStore';
+export * from './plotsDataStore';

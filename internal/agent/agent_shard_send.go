@@ -227,7 +227,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		SampleKeys:       config.SampleKeys,
 		Meta:             s.agent.metricStorage,
 		Rand:             rnd,
-		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
+		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem, _ uint32) { delete(bucket.MultiItems, key) }, // remove from map
 	})
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
@@ -411,11 +411,11 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
-			if s.agent.diskCache == nil {
+			if s.agent.diskBucketCache == nil {
 				s.agent.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
 				return // No data and no disk storage configured, alas
 			}
-			if cbd.data, err = s.agent.diskCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
+			if cbd.data, err = s.agent.diskBucketCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
 				s.agent.logF("Disk Error: diskCache.GetBucket returned error %v for shard %d bucket %d",
 					err, s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
@@ -456,7 +456,7 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 }
 
 func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
 	// Motivation - we want to set limit dynamically.
@@ -468,7 +468,7 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 	if maxHistoricDiskSize <= 0 {
 		return
 	}
-	if err := s.agent.diskCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
+	if err := s.agent.diskBucketCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
 		s.agent.logF("Disk Error: diskCache.PutBucket returned error %v for shard %d bucket %d",
 			err, s.ShardKey, cbd.time)
 		s.agent.statErrorsDiskWrite.AddValueCounter(0, 1)
@@ -476,10 +476,10 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 }
 
 func (s *Shard) diskCacheEraseWithLog(time uint32, place string) {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
-	if err := s.agent.diskCache.EraseBucket(s.ShardNum, time); err != nil {
+	if err := s.agent.diskBucketCache.EraseBucket(s.ShardNum, time); err != nil {
 		s.agent.logF("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s bucket %d",
 			err, s.ShardKey, place, time)
 		s.agent.statErrorsDiskErase.AddValueCounter(0, 1)
@@ -500,10 +500,10 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 }
 
 func (s *Shard) readHistoricSecondLocked() {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
-	sec, ok := s.agent.diskCache.ReadNextTailSecond(s.ShardNum)
+	sec, ok := s.agent.diskBucketCache.ReadNextTailSecond(s.ShardNum)
 	if !ok {
 		return
 	}

@@ -500,7 +500,6 @@ func (a *Aggregator) goSend(senderID int) {
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
 		a.estimator.ReportHourCardinality(aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBucket, rnd, bodyStorage[:0], false)
 
 		recentContributors := aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter
 		historicContributors := 0.0
@@ -541,7 +540,6 @@ func (a *Aggregator) goSend(senderID int) {
 
 			aggBuckets = append(aggBuckets, historicBucket)
 			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
-			bodyStorage = a.RowDataMarshalAppendPositions(historicBucket, rnd, bodyStorage, true)
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -551,6 +549,7 @@ func (a *Aggregator) goSend(senderID int) {
 				break
 			}
 		}
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0])
 
 		// Never empty, because adds value stats
 		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)

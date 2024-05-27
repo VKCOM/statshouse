@@ -54,7 +54,7 @@ const (
 	MinCardinalityWindow = 300 // Our estimators GC depends on this not being too small
 	MinMaxCardinality    = 100
 
-	InsertBudgetFixed = 50000
+	InsertBudgetFixed = 300000
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors
 	// Also helps when # of contributors is very small
 
@@ -95,6 +95,7 @@ const (
 
 	MappingMaxMetricsInQueue = 1000
 	MappingMaxMemCacheSize   = 2_000_000
+	MappingMaxDiskCacheSize  = 10_000_000
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
 	MappingNegativeCacheTTL  = 5 * time.Second
 	MappingMinInterval       = 1 * time.Millisecond

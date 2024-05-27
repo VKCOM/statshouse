@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   z-index: 1;
-  padding-top: calc(100% / var(--golden-ratio));
+  padding-top: min(100%, calc(100% / var(--golden-ratio)));
   /*--plot-padding-top: 8px;*/
 }
 
