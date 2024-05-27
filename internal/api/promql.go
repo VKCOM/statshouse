@@ -788,6 +788,24 @@ func getPromQuery(req seriesRequest) (string, error) {
 			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v)))
 		}
 	}
+	for t, in := range req.regexpIn {
+		for _, v := range in {
+			tid, err := format.APICompatNormalizeTagID(t)
+			if err != nil {
+				return "", err
+			}
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=~%q", tid, promqlGetFilterValue(tid, v)))
+		}
+	}
+	for t, out := range req.regexpNotIn {
+		for _, v := range out {
+			tid, err := format.APICompatNormalizeTagID(t)
+			if err != nil {
+				return "", err
+			}
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!~%q", tid, promqlGetFilterValue(tid, v)))
+		}
+	}
 	// generate resulting string
 	q := make([]string, 0, 3)
 	for i, qws := range whats {

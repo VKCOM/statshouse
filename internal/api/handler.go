@@ -92,6 +92,7 @@ const (
 	ParamQueryWhat    = "qw"
 	ParamQueryBy      = "qb"
 	ParamQueryFilter  = "qf"
+	paramQueryRegexp  = "qr"
 	ParamQueryVerbose = "qv"
 	ParamAvoidCache   = "ac"
 	paramRenderWidth  = "rw"
@@ -300,6 +301,7 @@ type (
 	DashboardVarArgs struct {
 		Group  bool `json:"groupBy"`
 		Negate bool `json:"negative"`
+		Regexp bool `json:"regexp"`
 	}
 
 	DashboardTimeRange struct {
@@ -348,6 +350,8 @@ type (
 		by                  []string
 		filterIn            map[string][]string
 		filterNotIn         map[string][]string
+		regexpIn            map[string][]string
+		regexpNotIn         map[string][]string
 		vars                map[string]promql.Variable
 		maxHost             bool
 		avoidCache          bool
@@ -3230,17 +3234,37 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if tab.filterNotIn != nil {
 				delete(tab.filterNotIn, tagID)
 			}
+			if tab.regexpIn != nil {
+				delete(tab.regexpIn, tagID)
+			}
+			if tab.regexpNotIn != nil {
+				delete(tab.regexpNotIn, tagID)
+			}
 			if len(v.Vals) != 0 {
-				if v.Args.Negate {
-					if tab.filterNotIn == nil {
-						tab.filterNotIn = make(map[string][]string)
+				if v.Args.Regexp {
+					if v.Args.Negate {
+						if tab.regexpNotIn == nil {
+							tab.regexpNotIn = make(map[string][]string)
+						}
+						tab.regexpNotIn[tagID] = v.Vals
+					} else {
+						if tab.regexpIn == nil {
+							tab.regexpIn = make(map[string][]string)
+						}
+						tab.regexpIn[tagID] = v.Vals
 					}
-					tab.filterNotIn[tagID] = v.Vals
 				} else {
-					if tab.filterIn == nil {
-						tab.filterIn = make(map[string][]string)
+					if v.Args.Negate {
+						if tab.filterNotIn == nil {
+							tab.filterNotIn = make(map[string][]string)
+						}
+						tab.filterNotIn[tagID] = v.Vals
+					} else {
+						if tab.filterIn == nil {
+							tab.filterIn = make(map[string][]string)
+						}
+						tab.filterIn[tagID] = v.Vals
 					}
-					tab.filterIn[tagID] = v.Vals
 				}
 			}
 		}
@@ -3405,6 +3429,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			}
 		case ParamQueryFilter:
 			t.filterIn, t.filterNotIn, err = parseQueryFilter(v)
+		case paramQueryRegexp:
+			t.regexpIn, t.regexpNotIn, err = parseQueryFilter(v)
 		case ParamQueryVerbose:
 			t.verbose = first(v) == "1"
 		case ParamQueryWhat:
