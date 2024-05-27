@@ -1,13 +1,23 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'
 
 # Create a metric
 
-[Create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui). If you have questions, please [check the 
-typical ones](#frequent-questions).
+In this section, you will find:
+<!-- TOC -->
+* [How to create a metric in the UI](#how-to-create-a-metric-in-the-ui)
+* [FAQs about creating metrics](#faqs-about-creating-metrics)
+    * ["Can I skip creating a metric and start sending data to it right away?"](#can-i-skip-creating-a-metric-and-start-sending-data-to-it-right-away)
+    * ["Can I automate creating metrics?"](#can-i-automate-creating-metrics)
+    * ["How many metrics can I create?"](#how-many-metrics-can-i-create)
+    * ["What if I send too much data? Can I overload StatsHouse or spoil other metrics?"](#what-if-i-send-too-much-data-can-i-overload-statshouse-or-spoil-other-metrics)
+    * ["Can I rename a metric?"](#can-i-rename-a-metric)
+    * ["I want to re-design my metric. Should I refactor it or create a new one?"](#i-want-to-re-design-my-metric-should-i-refactor-it-or-create-a-new-one)
+    * ["Can I delete a metric?"](#can-i-delete-a-metric)
+<!-- TOC -->
 
 ## How to create a metric in the UI
 
@@ -17,7 +27,7 @@ In the StatsHouse UI, go to the main **⚡** menu in the upper-left corner and s
 
 <img src={CreateMetric} width="300"/>
 
-Please [avoid creating "one big metric"](send-data.md#can-i-change-or-combine-metric-types) for the whole system. 
+Please avoid creating "one big metric" for the whole system. 
 Instead, create several metrics, named consistently. For such a group of metrics, related to a particular system (a 
 product or a service), use prefixes or other specifications:
 
@@ -32,7 +42,7 @@ Please use these characters:
 Do not start metric names with underscores. They are for StatsHouse internal use only.
 :::
 
-As soon as your metric has a name, choose the [metric type](edit-metrics.md#metric-type) and start [sending data](send-data.md).
+As soon as your metric has a name, you can start [sending data](send-data.md).
 
 ## FAQs about creating metrics
 
@@ -56,18 +66,19 @@ You can create as many metrics as you wish as soon as you do it manually via the
 #### "What if I send too much data? Can I overload StatsHouse or spoil other metrics?"
 
 Most likely, you cannot do anything wrong to StatsHouse or other users with your metrics. It is almost
-impossible to overload StatsHouse due to [aggregation](../conceptual-overview.md#aggregation)
-and [sampling](../conceptual-overview.md#sampling).
-StatsHouse provides users with [fair resource sharing](../conceptual-overview.md#fair-resource-sharing),
+impossible to overload StatsHouse due to [aggregation](../conceptual%20overview/concepts.md#aggregation)
+and [sampling](../conceptual%20overview/concepts.md#sampling).
+StatsHouse provides users with [fair resource sharing](../conceptual%20overview/concepts.md#fair-resource-sharing),
 so no metric can steal budget from the other one.
 
 :::info
 To learn more about mechanisms that make StatsHouse highly available and scalable, and how they may affect the
-resulting data, refer to the [conceptual overview](../conceptual-overview.md).
+resulting data, refer to the [conceptual overview](../conceptual%20overview/concepts.md).
 :::
 
 The rare case of losing or spoiling metric data is related to 
-[UDP socket buffer overflow](../conceptual-overview.md#protocols). Most likely, you should not worry about it.
+[UDP socket buffer overflow](send-data.md#how-to-send-data-without-client-libraries). 
+Most likely, you should not worry about it.
 
 #### "Can I rename a metric?"
 
