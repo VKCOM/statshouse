@@ -68,7 +68,7 @@ func buildTags[A Tag | int32](useHost bool, tags ...A) statshouse.Tags {
 
 const (
 	reservedKeys = 2
-	usedCommon   = 5 // envLoader, hostname, dc, group, region
+	usedCommon   = 6 // envLoader, hostname, dc, group, region, owner
 )
 
 func fillTags[A Tag | int32](metric *tlstatshouse.MetricBytes, reservedKeysPrefix int, startFillFrom int, tags ...A) {
@@ -99,6 +99,7 @@ func (p *MetricWriterRemoteImpl) fillCommonTags(tags *statshouse.Tags) {
 	tags[11] = env.DC
 	tags[12] = env.Group
 	tags[13] = env.Region
+	tags[14] = env.Owner
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
@@ -166,6 +167,7 @@ func fillCommonMetric[A Tag | int32](p *MetricWriterSHImpl, m *tlstatshouse.Metr
 		fillTag(m, 2, "11", env.DC)
 		fillTag(m, 3, "12", env.Group)
 		fillTag(m, 4, "13", env.Region)
+		fillTag(m, 5, "14", env.Owner)
 	}
 	fillTags(m, reserved, used, tagsList...)
 }
