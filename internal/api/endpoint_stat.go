@@ -9,9 +9,11 @@ package api
 import (
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -52,6 +54,7 @@ type endpointStat struct {
 	method     string
 	dataFormat string
 	lane       string
+	laneMutex  sync.Mutex // we access lane from main and badges query
 	metric     string
 	tokenName  string
 	user       string
