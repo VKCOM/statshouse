@@ -55,7 +55,11 @@ func withEndpointStat(ctx context.Context, es *endpointStat) context.Context {
 
 func reportQueryKind(ctx context.Context, isFast, isLight bool) {
 	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok {
-		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
+		s.laneMutex.Lock()
+		defer s.laneMutex.Unlock()
+		if len(s.lane) == 0 {
+			s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
+		}
 	}
 }
 
