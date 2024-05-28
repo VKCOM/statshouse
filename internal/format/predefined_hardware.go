@@ -202,6 +202,7 @@ const (
 	HostDCTag     = 11
 	HostGroupTag  = 12
 	HostRegionTag = 13
+	HostOwnerTag  = 14
 )
 
 func HardwareMetric(metricID int32) bool {

@@ -2238,6 +2238,7 @@ func init() {
 			m.Tags[HostDCTag] = MetricMetaTag{Description: "dc"}
 			m.Tags[HostGroupTag] = MetricMetaTag{Description: "group"}
 			m.Tags[HostRegionTag] = MetricMetaTag{Description: "region"}
+			m.Tags[HostOwnerTag] = MetricMetaTag{Description: "owner"}
 
 		}
 		if MetricsWithAgentEnvRouteArch[id] {

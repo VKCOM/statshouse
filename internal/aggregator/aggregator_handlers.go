@@ -390,7 +390,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 
 	for _, item := range bucket.Metrics {
 		k, sID := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
-		if k.Metric < 0 {
+		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
 			k = k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			if k.Metric == format.BuiltinMetricIDAgentHeartbeatVersion {
 				// Remap legacy metric to a new one

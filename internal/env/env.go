@@ -26,6 +26,7 @@ type Env struct {
 	DC      string `yaml:"dc"`
 	Region  string `yaml:"region"`
 	Cluster string `yaml:"cluster"`
+	Owner   string `yaml:"owner"`
 }
 
 type Environment struct {
