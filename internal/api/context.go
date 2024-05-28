@@ -10,6 +10,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/util"
@@ -23,15 +24,22 @@ const (
 	endpointStatContextKey
 )
 
+type debugQueries struct {
+	queries *[]string
+	mutex   sync.Mutex
+}
+
 func debugQueriesContext(ctx context.Context, queries *[]string) context.Context {
-	return context.WithValue(ctx, debugQueriesContextKey, queries)
+	return context.WithValue(ctx, debugQueriesContextKey, &debugQueries{queries, sync.Mutex{}})
 }
 
 func saveDebugQuery(ctx context.Context, query string) {
-	p, ok := ctx.Value(debugQueriesContextKey).(*[]string)
+	p, ok := ctx.Value(debugQueriesContextKey).(*debugQueries)
 	if ok {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
 		query = strings.TrimSpace(strings.ReplaceAll(query, "\n", " "))
-		*p = append(*p, query)
+		*p.queries = append(*p.queries, query)
 	}
 }
 
