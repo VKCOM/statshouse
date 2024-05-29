@@ -1479,7 +1479,7 @@ func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*Ge
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
+func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
 		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
@@ -1499,7 +1499,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash Da
 		UpdateTime:  dash.UpdateTime,
 		DeleteTime:  dash.DeletedTime,
 		JSONData:    dash.JSONData,
-	}, create, delete)
+	}, create, delete, ai.toMetadata())
 	if err != nil {
 		s := "edit"
 		if create {
