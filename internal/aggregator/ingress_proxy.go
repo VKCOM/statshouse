@@ -44,11 +44,13 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster           string
-	Network           string
-	ListenAddr        string
-	ExternalAddresses []string // exactly 3 comma-separated external ingress points
-	IngressKeys       []string
+	Cluster            string
+	Network            string
+	ListenAddr         string
+	ExternalAddresses  []string // exactly 3 comma-separated external ingress points
+	IngressKeys        []string
+	MaxInflightPackets int
+	MaxWorkers         int
 }
 
 func newClientPool(aesPwd string) *clientPool {
@@ -102,8 +104,8 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay * time.Second),
-		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets * 100), // enough for up to 100 shards
-		rpc.ServerWithMaxWorkers(2 << 20),                                    // almost infinite
+		rpc.ServerWithMaxInflightPackets(config.MaxInflightPackets),
+		rpc.ServerWithMaxWorkers(config.MaxWorkers),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
