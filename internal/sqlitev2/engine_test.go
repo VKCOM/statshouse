@@ -135,6 +135,17 @@ func defaultTestEngineOptions(prefix string) testEngineOptions {
 	}
 }
 
+type userEngine struct {
+}
+
+func (u userEngine) Shutdown() {
+
+}
+
+func (u userEngine) ChangeRole(info binlog2.ChangeRoleInfo) {
+
+}
+
 func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath:  opt.prefix + "/test",
@@ -163,7 +174,7 @@ func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) 
 	//engine.testOptions = opt.testOptions
 	require.NoError(t, err)
 	go func() {
-		require.NoError(t, engine.Run(bl, opt.applyF))
+		require.NoError(t, engine.Run(bl, &userEngine{}, opt.applyF))
 	}()
 	require.NoError(t, engine.WaitReady())
 	return engine, bl
@@ -195,7 +206,7 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 	})
 	require.NoError(t, err)
 	go func() {
-		require.NoError(t, engine.Run(bl, apply(t, applyF)))
+		require.NoError(t, engine.Run(bl, &userEngine{}, apply(t, applyF)))
 	}()
 	require.NoError(t, engine.WaitReady())
 	return engine, bl

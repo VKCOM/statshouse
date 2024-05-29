@@ -19,6 +19,18 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
+type userEngine struct {
+	finishCh chan struct{}
+}
+
+func (u *userEngine) Shutdown() {
+	close(u.finishCh)
+}
+
+func (u *userEngine) ChangeRole(info binlog.ChangeRoleInfo) {
+
+}
+
 var argv struct {
 	dbPath  string
 	rpcPort int
@@ -111,8 +123,9 @@ func main() {
 		},
 	}
 	rpcServer := rpc.NewServer(rpc.ServerWithHandler(eh.Handle))
+	eng := &userEngine{finishCh: make(chan struct{})}
 	go func() {
-		err := db.Run(bl, apply)
+		err := db.Run(bl, eng, apply)
 		if err != nil {
 			panic(err)
 		}
@@ -134,8 +147,11 @@ func main() {
 		_ = rpcServer.Close()
 
 	}()
-	err = rpcServer.Serve(ln)
-	if err != nil && !errors.Is(err, rpc.ErrServerClosed) {
-		panic(err)
-	}
+	go func() {
+		err = rpcServer.Serve(ln)
+		if err != nil && !errors.Is(err, rpc.ErrServerClosed) {
+			panic(err)
+		}
+	}()
+	<-eng.finishCh
 }

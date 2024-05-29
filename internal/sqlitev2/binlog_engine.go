@@ -24,8 +24,7 @@ type binlogEngine struct {
 }
 
 func (b *binlogEngine) Shutdown() {
-	//TODO implement me
-	panic("implement me")
+	b.e.userEngine.Shutdown()
 }
 
 type waitCommitInfo struct {
@@ -116,6 +115,13 @@ func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 			close(b.e.readyCh)
 		})
 	}
+	// TODO add notify user
+	if info.IsReadyMaster() {
+		b.e.rw.setReplica(false)
+	} else {
+		b.e.rw.setReplica(true)
+	}
+	b.e.userEngine.ChangeRole(info)
 	return nil
 }
 

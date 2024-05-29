@@ -40,7 +40,7 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 	if useBinlog {
 		fmt.Println("Start run")
 		go func() {
-			err = engine.Run(bl, nil)
+			err = engine.Run(bl, userEngine{}, nil)
 			if err != nil {
 				panic(err)
 			}

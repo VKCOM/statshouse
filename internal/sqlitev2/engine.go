@@ -52,6 +52,7 @@ type (
 		opt               Options
 		rw                *sqliteBinlogConn
 		binlog            binlog.Binlog
+		userEngine        UserEngine
 		binlogEngine      *binlogEngine
 		finishBinlogRunCh chan struct{}
 		readyCh           chan error
@@ -104,7 +105,7 @@ type (
 	}
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
-		Replica bool
+		//Replica bool
 
 		// Set true if binlog created in ReadAndExit mode
 		ReadAndExit bool
@@ -248,14 +249,15 @@ func OpenEngine(opt Options) (*Engine, error) {
 }
 
 /*
-binlog - will be closed during to Engine.Close
+binlog - will be closed during to Engin	e.Close
 */
-func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction) (err error) {
+func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunction ApplyEventFunction) (err error) {
 	if e.readOnly {
 		return fmt.Errorf("can't use binlog in readonly mode")
 	}
 	e.rw.registerWALSwitchCallbackLocked(e.switchCallBack)
 	e.binlog = binlog
+	e.userEngine = userEngine
 	defer func() { close(e.finishBinlogRunCh) }()
 
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
@@ -273,7 +275,7 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
 
 	e.logger.Printf("running binlog")
-	err = e.rw.setError(e.binlog.Run(e.rw.getDBOffsetLocked(), meta, e.binlogEngine))
+	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), meta, meta, false, e.binlogEngine))
 	// TODO race?
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
@@ -346,6 +348,8 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, erro
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to get backup path: %w", err)
 	}
+	e.logger.Printf("backup is loaded to temp file. Starting wait binlog commit")
+	// TODO при реверте без рестарта требуется таймаут
 	e.binlogEngine.binlogWait(binlogPos, true)
 	stat, _ := os.Stat(path)
 	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
@@ -446,7 +450,7 @@ func (e *Engine) Dov2(ctx context.Context, queryName string, do func(c Conn, cac
 	defer e.rw.mu.Unlock()
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	if e.readOnly || e.opt.Replica {
+	if e.readOnly || e.rw.isReplica {
 		return res, ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()

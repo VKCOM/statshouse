@@ -13,6 +13,7 @@ type (
 	sqliteBinlogConn struct {
 		mu               sync.Mutex
 		conn             *sqliteConn
+		isReplica        bool
 		dbOffset         int64
 		binlogCache      []byte
 		committed        bool
@@ -31,6 +32,12 @@ func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cache
 		dbOffset:         0,
 		waitDbOffsetPool: waitDbOffsetPool,
 	}, nil
+}
+
+func (c *sqliteBinlogConn) setReplica(isReplica bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.isReplica = isReplica
 }
 
 func (c *sqliteBinlogConn) getDBOffsetLocked() int64 {
