@@ -185,6 +185,8 @@ func argvAddIngressProxyFlags() {
 	flag.StringVar(&argv.configIngress.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
+	flag.IntVar(&argv.configIngress.MaxInflightPackets, "max-inflight-packets", 600_000, "Maximum number of requests to serve simultaneously.")
+	flag.IntVar(&argv.configIngress.MaxWorkers, "max-workers", 2<<20, "Maximum number of workers to serve requests.") // almost infinite default
 }
 
 func printVerbUsage() {
