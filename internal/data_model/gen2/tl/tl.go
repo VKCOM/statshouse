@@ -31,7 +31,6 @@ type (
 	VectorEngineBinlogPrefix                      = internal.VectorEngineBinlogPrefix
 	VectorEngineMetafilesOneMemoryStat            = internal.VectorEngineMetafilesOneMemoryStat
 	VectorInt                                     = internal.VectorInt
-	VectorKvEngineKvBoxed                         = internal.VectorKvEngineKvBoxed
 	VectorLong                                    = internal.VectorLong
 	VectorMetadataEvent                           = internal.VectorMetadataEvent
 	VectorMetadataEventBytes                      = internal.VectorMetadataEventBytes

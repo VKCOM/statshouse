@@ -433,6 +433,11 @@ func (s *Stmt) ColumnBlobString(i int) (string, error) {
 	return string(b), err
 }
 
+func (s *Stmt) ColumnTextString(i int) (string, error) {
+	b, err := s.ColumnBlobUnsafe(i)
+	return string(b), err
+}
+
 func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
 	b, err := s.ColumnBlobUnsafe(i)
 	return unsafeSliceToString(b), err

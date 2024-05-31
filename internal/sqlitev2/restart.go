@@ -34,7 +34,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		return nil
 	}
 	// чтобы не переписывать код sqlite'а вызываем его открытием
-	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
+	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
 		return fmt.Errorf("failed to open db conn: %w", err)
 	}
@@ -84,7 +84,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		return fmt.Errorf("failed to rename second wal to restart path: %w", err)
 	}
 
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, opt.PageSize, opt.StatsOptions, log)
+	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
 		return fmt.Errorf("failed to open 1 wal db: %w", err)
 	}
@@ -93,7 +93,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
 	for rows.Next() {
 		isExists = true
-		withoutSecondWalDBOffset = rows.ColumnInt64(0)
+		withoutSecondWalDBOffset = rows.ColumnInteger(0)
 	}
 	if rows.Error() != nil {
 		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.Error())

@@ -15,13 +15,12 @@ import (
 
 type (
 	sqliteConn struct {
-		conn             *sqlite0.Conn
-		cache            *cache.QueryCache
-		builder          *queryBuilder
-		connError        error
-		showLastInsertID bool
-		beginStmt        string
-		committed        bool
+		conn      *sqlite0.Conn
+		cache     *cache.QueryCache
+		builder   *queryBuilder
+		connError error
+		beginStmt string
+		committed bool
 
 		stats  StatsOptions
 		logger *log.Logger
@@ -68,20 +67,19 @@ func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *
 		logger:    logger,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid uint32, showLastInsertID bool, cacheSize int, pageSize int32, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteRWWALConn(path string, appid uint32, cacheSize int, pageSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := openRW(openWAL, path, appid, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
 	return &sqliteConn{
-		conn:             conn,
-		builder:          &queryBuilder{},
-		connError:        nil,
-		showLastInsertID: showLastInsertID,
-		cache:            cache.NewQueryCache(cacheSize, logger),
-		beginStmt:        beginImmediateStmt,
-		stats:            stats,
-		logger:           logger,
+		conn:      conn,
+		builder:   &queryBuilder{},
+		connError: nil,
+		cache:     cache.NewQueryCache(cacheSize, logger),
+		beginStmt: beginImmediateStmt,
+		stats:     stats,
+		logger:    logger,
 	}, nil
 }
 
@@ -183,15 +181,11 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 	return stmt, err
 }
 
-func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
+func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) error {
 	rows := c.queryLocked(ctx, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
-	var id int64
-	if c.showLastInsertID {
-		id = c.LastInsertRowID()
-	}
-	return id, rows.Error()
+	return rows.Error()
 }
 
 func (c *sqliteConn) queryLocked(ctx context.Context, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {

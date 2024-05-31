@@ -13,7 +13,7 @@ const (
 	cacheKB     = 65536 // 64MB
 )
 
-func openRW(open func(path string, pageSize int32, flags int) (*sqlite0.Conn, error), path string, appID uint32, pageSize int32) (*sqlite0.Conn, error) {
+func openRW(open func(path string, pageSize int, flags int) (*sqlite0.Conn, error), path string, appID uint32, pageSize int) (*sqlite0.Conn, error) {
 	conn, err := open(path, pageSize, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func open(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openWAL(path string, pageSize int32, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, pageSize int, flags int) (*sqlite0.Conn, error) {
 	conn, err := open(path, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)

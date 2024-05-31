@@ -116,11 +116,7 @@ func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 		})
 	}
 	// TODO add notify user
-	if info.IsReadyMaster() {
-		b.e.rw.setReplica(false)
-	} else {
-		b.e.rw.setReplica(true)
-	}
+	b.e.rw.setReplica(!info.IsMaster)
 	b.e.userEngine.ChangeRole(info)
 	return nil
 }

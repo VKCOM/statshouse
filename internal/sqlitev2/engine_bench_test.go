@@ -32,7 +32,6 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 		APPID:                        32,
 		Scheme:                       scheme,
 		CacheApproxMaxSizePerConnect: 100,
-		ShowLastInsertID:             false,
 	})
 	if err != nil {
 		b.Fatal(err)
@@ -47,7 +46,7 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 		}()
 
 		fmt.Println("START WaitReady")
-		err = engine.WaitReady()
+		err = <-engine.ReadyCh()
 		if err != nil {
 			panic(err)
 		}
@@ -60,11 +59,11 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j int) Arg) []Arg {
 	res := make([]Arg, 0, n*m)
 	for i := 0; i < n; i++ {
-		err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
+		_, err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
 			for j := 0; j < m; j++ {
 				k := gen(i, j)
 				q := fmt.Sprintf("INSERT INTO %s (n) VALUES ($n)", table)
-				_, err := c.Exec("insert", q, k)
+				err := c.Exec("insert", q, k)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -101,7 +100,7 @@ func BenchmarkReadNumbers(b *testing.B) {
 	const m = 1000
 	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", false)
 	r := fillDB(b, eng, "numbers", 1000, m, func(i, j int) Arg {
-		return Int64("$n", int64(i*m+j))
+		return Integer("$n", int64(i*m+j))
 	})
 	b.ResetTimer()
 	queryLoop(b, eng, func(c Conn, i int) Rows {
@@ -113,8 +112,8 @@ func BenchmarkWrite(b *testing.B) {
 	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", true)
 	var bytes [32]byte
 	for i := 0; i < b.N; i++ {
-		err := eng.Do(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
-			_, err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES($i)", Int64("$i", int64(i)))
+		_, err := eng.Do(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
+			err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES($i)", Integer("$i", int64(i)))
 			return append(cache, bytes[:]...), err
 		})
 		if err != nil {

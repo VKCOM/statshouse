@@ -21,8 +21,8 @@ type (
 	}
 )
 
-func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cacheSize int, pageSize int32, stats StatsOptions, waitDbOffsetPool *waitpool.WaitPool, logger *log.Logger) (*sqliteBinlogConn, error) {
-	conn, err := newSqliteRWWALConn(path, appid, showLastInsertID, cacheSize, pageSize, stats, logger)
+func newSqliteBinlogConn(path string, appid uint32, cacheSize int, pageSize int, isReplica bool, stats StatsOptions, waitDbOffsetPool *waitpool.WaitPool, logger *log.Logger) (*sqliteBinlogConn, error) {
+	conn, err := newSqliteRWWALConn(path, appid, cacheSize, pageSize, stats, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +31,7 @@ func newSqliteBinlogConn(path string, appid uint32, showLastInsertID bool, cache
 		conn:             conn,
 		dbOffset:         0,
 		waitDbOffsetPool: waitDbOffsetPool,
+		isReplica:        isReplica,
 	}, nil
 }
 
@@ -131,17 +132,17 @@ func (c *sqliteBinlogConn) saveCommitInfo(snapshotMeta []byte, offset int64) (er
 }
 
 func (c *sqliteBinlogConn) saveBinlogOffsetLocked(newOffset int64) error {
-	_, err := c.conn.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
+	err := c.conn.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Integer("$offset", newOffset))
 	return err
 }
 
 func (c *sqliteBinlogConn) saveBinlogCommittedOffsetLocked(newOffset int64) error {
-	_, err := c.conn.execLockedArgs(innerCtx, "__update_binlog_commited_pos", nil, "UPDATE __binlog_commit_offset set offset = $offset;", Int64("$offset", newOffset))
+	err := c.conn.execLockedArgs(innerCtx, "__update_binlog_commited_pos", nil, "UPDATE __binlog_commit_offset set offset = $offset;", Integer("$offset", newOffset))
 	return err
 }
 
 func (c *sqliteBinlogConn) saveBinlogMetaLocked(meta []byte) error {
-	_, err := c.conn.execLockedArgs(innerCtx, "__update_meta", nil, "UPDATE __snapshot_meta SET meta = $meta;", Blob("$meta", meta))
+	err := c.conn.execLockedArgs(innerCtx, "__update_meta", nil, "UPDATE __snapshot_meta SET meta = $meta;", Blob("$meta", meta))
 	return err
 }
 

@@ -54,6 +54,10 @@ func Blob(name string, b []byte) Arg {
 	return Arg{name: name, typ: argBlob, b: b}
 }
 
+func Text(name string, s string) Arg {
+	return Arg{name: name, typ: argText, s: s}
+}
+
 func BlobUnsafe(name string, b []byte) Arg {
 	return Arg{name: name, typ: argBlobUnsafe, b: b}
 }
@@ -62,28 +66,21 @@ func BlobString(name string, s string) Arg {
 	return Arg{name: name, typ: argBlobString, s: s}
 }
 
-func Text(name string, b []byte) Arg {
-	return Arg{name: name, typ: argText, b: b}
-}
-
-func TextUnsafe(name string, b []byte) Arg {
-	return Arg{name: name, typ: argTextUnsafe, b: b}
-}
-
+// TODO test
 func TextString(name string, s string) Arg {
 	return Arg{name: name, typ: argTextString, s: s}
 }
 
-func Int64(name string, n int64) Arg {
+func Integer(name string, n int64) Arg {
 	return Arg{name: name, typ: argInt64, n: n}
 }
 
-func Float64(name string, f float64) Arg {
+func Real(name string, f float64) Arg {
 	return Arg{name: name, typ: argFloat64, f: f}
 }
 
 // Deprecated: DO NOT USE
-func Int64Slice(name string, ns []int64) Arg {
+func IntegerSlice(name string, ns []int64) Arg {
 	return Arg{name: name, typ: argInt64, slice: true, ns: ns, length: len(ns)}
 }
 

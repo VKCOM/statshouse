@@ -26,31 +26,34 @@ type Rows struct {
 	type_ string
 }
 
+func (r *Rows) ColumnIsNull(i int) bool {
+	return r.s.ColumnNull(i)
+}
+
 func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
 	return r.s.ColumnBlob(i, buf)
 }
 
 func (r *Rows) ColumnBlobUnsafe(i int) ([]byte, error) {
+	if AvoidUnsafe {
+		return r.s.ColumnBlob(i, nil)
+	}
 	return r.s.ColumnBlobUnsafe(i)
-}
-
-func (r *Rows) ColumnBlobUnsafeString(i int) (string, error) {
-	return r.s.ColumnBlobUnsafeString(i)
 }
 
 func (r *Rows) ColumnBlobString(i int) (string, error) {
 	return r.s.ColumnBlobString(i)
 }
 
-func (r *Rows) ColumnIsNull(i int) bool {
-	return r.s.ColumnNull(i)
+func (r *Rows) ColumnTextString(i int) (string, error) {
+	return r.s.ColumnTextString(i)
 }
 
-func (r *Rows) ColumnInt64(i int) int64 {
+func (r *Rows) ColumnInteger(i int) int64 {
 	return r.s.ColumnInt64(i)
 }
 
-func (r *Rows) ColumnFloat64(i int) float64 {
+func (r *Rows) ColumnReal(i int) float64 {
 	return r.s.ColumnFloat64(i)
 }
 
@@ -115,10 +118,10 @@ func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
 	return c.conn.queryLocked(c.ctx, query, name, sql, "", args...)
 }
 
-func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
+func (c Conn) Exec(name, sql string, args ...Arg) error {
 	return c.conn.execLockedArgs(c.ctx, name, nil, sql, args...)
 }
 
-func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) (int64, error) {
+func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) error {
 	return c.conn.execLockedArgs(c.ctx, name, sql, "", args...)
 }

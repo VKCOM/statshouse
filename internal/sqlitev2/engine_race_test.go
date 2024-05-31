@@ -43,7 +43,7 @@ func selectNumber(conn Conn) (int64, bool, error) {
 	if !rows.Next() {
 		return 0, false, nil
 	}
-	number := rows.ColumnInt64(0)
+	number := rows.ColumnInteger(0)
 	return number, true, nil
 }
 
@@ -54,9 +54,9 @@ func incNumberExec(conn Conn, cache []byte, n int64, failAfterExec bool) ([]byte
 	}
 	var err error
 	if !rows.Next() {
-		_, err = conn.Exec("test", "INSERT INTO test_db(k, v) VALUES (0, $v)", Int64("$v", n))
+		err = conn.Exec("test", "INSERT INTO test_db(k, v) VALUES (0, $v)", Integer("$v", n))
 	} else {
-		_, err = conn.Exec("update", "UPDATE test_db SET v = v + $v", Int64("$v", n))
+		err = conn.Exec("update", "UPDATE test_db SET v = v + $v", Integer("$v", n))
 	}
 	if err != nil {
 		return cache, err
@@ -68,7 +68,7 @@ func incNumberExec(conn Conn, cache []byte, n int64, failAfterExec bool) ([]byte
 }
 
 func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m map[int64]int64, mx *sync.RWMutex) (result incResult, _ error) {
-	res, err := e.Dov2(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
+	res, err := e.Do(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
 		cache, err := incNumberExec(conn, cache, n, failAfterExec)
 		if err != nil {
 			return cache, fmt.Errorf("failed to inc number: %w", err)
@@ -186,7 +186,7 @@ func Test_Engine_Race_Do(t *testing.T) {
 			return rows.err
 		}
 		for rows.Next() {
-			actualN = rows.ColumnInt64(0)
+			actualN = rows.ColumnInteger(0)
 		}
 		return nil
 	})
@@ -271,7 +271,7 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, engineMaster.Close())
 	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, nil)
 	c := 0
-	err := engineMaster.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err := engineMaster.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++

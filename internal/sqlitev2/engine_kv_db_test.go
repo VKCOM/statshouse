@@ -19,18 +19,19 @@ type eng struct {
 const schemeKV = "CREATE TABLE IF NOT EXISTS test_db (k INTEGER PRIMARY KEY, v INTEGER);"
 
 func (e *eng) put(ctx context.Context, k, v int64) error {
-	return e.engine.Do(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
+	_, err := e.engine.Do(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
 		return putConn(c, cache, k, v)
 	})
+	return err
 }
 
 func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
-	rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Int64("$k", k))
+	rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Integer("$k", k))
 	var err = rows.Error()
 	if rows.Next() {
-		_, err = c.Exec("update", "UPDATE test_db SET v = $v WHERE k = $k", Int64("$k", k), Int64("$v", v))
+		err = c.Exec("update", "UPDATE test_db SET v = $v WHERE k = $k", Integer("$k", k), Integer("$v", v))
 	} else {
-		_, err = c.Exec("update", "INSERT INTO test_db (k, v) VALUES ($k, $v)", Int64("$k", k), Int64("$v", v))
+		err = c.Exec("update", "INSERT INTO test_db (k, v) VALUES ($k, $v)", Integer("$k", k), Integer("$v", v))
 	}
 	err = multierr.Append(err, rows.Error())
 	event := tl.VectorLong{k, v}
@@ -40,9 +41,9 @@ func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
 
 func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
 	_, err = e.engine.View(ctx, "Put", func(c Conn) error {
-		rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Int64("$k", k))
+		rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Integer("$k", k))
 		if ok = rows.Next(); ok {
-			v = rows.ColumnInt64(0)
+			v = rows.ColumnInteger(0)
 		}
 		return rows.Error()
 	})
