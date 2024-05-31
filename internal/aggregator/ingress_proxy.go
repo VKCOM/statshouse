@@ -216,7 +216,7 @@ func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.Handle
 	if err != nil {
 		return format.TagValueIDRPCRequestsStatusErrLocal, err
 	}
-
+	queryID := req.QueryID()
 	lockShardID := int(proxy.nextShardLock.Inc() % longPollShardsCount)
 	ls := proxy.longpollShards[lockShardID]
 	ls.mu.Lock() // to avoid race with longpoll cancellation, all code below must run under lock
@@ -224,7 +224,7 @@ func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.Handle
 	if _, err := client.DoCallback(ctx, proxy.config.Network, address, req, ls.callback, hctx); err != nil {
 		return format.TagValueIDRPCRequestsStatusErrLocal, err
 	}
-	ls.clientList[hctx] = longpollClient{queryID: req.QueryID(), requestLen: requestLen}
+	ls.clientList[hctx] = longpollClient{queryID: queryID, requestLen: requestLen}
 	return 0, hctx.HijackResponse(ls)
 }
 
