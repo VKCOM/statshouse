@@ -59,7 +59,7 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j int) Arg) []Arg {
 	res := make([]Arg, 0, n*m)
 	for i := 0; i < n; i++ {
-		_, err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
+		_, err := engine.DoTx(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
 			for j := 0; j < m; j++ {
 				k := gen(i, j)
 				q := fmt.Sprintf("INSERT INTO %s (n) VALUES ($n)", table)
@@ -112,7 +112,7 @@ func BenchmarkWrite(b *testing.B) {
 	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", true)
 	var bytes [32]byte
 	for i := 0; i < b.N; i++ {
-		_, err := eng.Do(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
+		_, err := eng.DoTx(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
 			err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES($i)", Integer("$i", int64(i)))
 			return append(cache, bytes[:]...), err
 		})

@@ -19,7 +19,7 @@ type eng struct {
 const schemeKV = "CREATE TABLE IF NOT EXISTS test_db (k INTEGER PRIMARY KEY, v INTEGER);"
 
 func (e *eng) put(ctx context.Context, k, v int64) error {
-	_, err := e.engine.Do(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
+	_, err := e.engine.DoTx(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
 		return putConn(c, cache, k, v)
 	})
 	return err

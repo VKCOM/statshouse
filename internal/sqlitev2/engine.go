@@ -160,7 +160,7 @@ OpenEngine open or create SQLite db file.
 
 	go engine.Run(...)
 	can use View, can't use Do
-	// TODO не должно ломать базу
+
 	err := <-engine.ReadyCh()
 	can use engine as sqlite + binlog wrapper
 */
@@ -277,7 +277,6 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 
 	e.logger.Printf("running binlog")
 	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), meta, meta, false, e.binlogEngine))
-	// TODO race?
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	e.binlog = nil
@@ -434,7 +433,7 @@ func (e *Engine) ViewOpts(ctx context.Context, opt ViewTxOptions, fn func(Conn) 
 	return res, err
 }
 
-func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (res DoTxResult, err error) {
+func (e *Engine) DoTx(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (res DoTxResult, err error) {
 	if err := checkUserQueryName(queryName); err != nil {
 		return res, err
 	}

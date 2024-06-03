@@ -67,7 +67,7 @@ func genBinlogEvent(s string, cache []byte) []byte {
 var errTest = fmt.Errorf("test error")
 
 func insertText(e *Engine, s string, failAfterExec bool) error {
-	_, err := e.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err := e.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		err := conn.Exec("test", "INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", s))
 		if failAfterExec {
 			return genBinlogEvent(s, cache), errTest
@@ -301,7 +301,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	actualDb := map[string]struct{}{}
-	_, err := engine.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+	_, err := engine.DoTx(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			t, err := rows.ColumnBlobString(0)
@@ -330,7 +330,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	var err error
 	var isNull bool
 
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		buf := make([]byte, 12)
 		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 1))
 		rowID = conn.LastInsertRowID()
@@ -364,7 +364,7 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	var err error
 	var data = "abc"
 
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", ""))
 		return append(cache, 1), err
 	})
@@ -396,12 +396,12 @@ func Test_Engine_NoBinlog(t *testing.T) {
 	require.NoError(t, err)
 	var data = ""
 
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
 	})
 	require.NoError(t, err)
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT data from test_db")
 		for rows.Next() {
 			data, err = rows.ColumnBlobString(0)
@@ -428,7 +428,7 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	require.NoError(t, err)
 	var data = ""
 
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
 	})
@@ -441,7 +441,7 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 		CacheApproxMaxSizePerConnect: 1,
 	})
 	require.NoError(t, err)
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		for rows.Next() {
@@ -466,7 +466,7 @@ func Test_ReplicaMode(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 	c := 0
-	_, err := engineRepl.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err := engineRepl.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++
@@ -506,7 +506,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	}
 
 	t.Run("RO unshared can see committed data", func(t *testing.T) {
-		_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 			return append(cache, 1), err
 		})
@@ -518,7 +518,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 
 	t.Run("RO unshared can't see uncommitted data", func(t *testing.T) {
 		data = ""
-		_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			s := read(0)
 			require.Len(t, s, 1)
 			require.Contains(t, s, "abc")
@@ -553,7 +553,7 @@ func Test_Engine_Float64(t *testing.T) {
 	var err error
 	testValues := []float64{1.0, 6.0, math.MaxFloat64}
 
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		for i := 0; i < len(testValues); i++ {
 			err = conn.Exec("test", "INSERT INTO test_db(val) VALUES ($value)", Real("$value", testValues[i]))
 			require.NoError(t, err)
@@ -589,7 +589,7 @@ func Test_Engine_Backup(t *testing.T) {
 	dbPath := path.Join(dir, "db")
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		buf := make([]byte, 12)
 		err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Integer("$id", 1))
 		binary.LittleEndian.PutUint32(buf, magic)
@@ -604,7 +604,7 @@ func Test_Engine_Backup(t *testing.T) {
 
 	dir, db := path.Split(backupPath)
 	engine, _ = openEngine(t, dir, db, schema, false, false, false, nil)
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT id FROM test_db")
 		for rows.Next() {
 			id = rows.ColumnInteger(0)
@@ -624,7 +624,7 @@ func Test_Engine_RO(t *testing.T) {
 	dbfile := "db"
 	engine, _ := openEngine(t, dir, dbfile, schema, true, false, false, nil)
 	var err error
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		buf := make([]byte, 12)
 		err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Integer("$id", 1))
 		binary.LittleEndian.PutUint32(buf, magic)
@@ -685,7 +685,7 @@ func TestCanWriteAfterPanic(t *testing.T) {
 		defer func() {
 			require.NotNil(t, recover())
 		}()
-		_, _ = eng.engine.Do(context.Background(), "panic", func(c Conn, cache []byte) ([]byte, error) {
+		_, _ = eng.engine.DoTx(context.Background(), "panic", func(c Conn, cache []byte) ([]byte, error) {
 			_, _ = putConn(c, cache, k, 1)
 			panic("oops")
 		})
@@ -763,7 +763,7 @@ func TestDoMustErrorWithBadName(t *testing.T) {
 	d := t.TempDir()
 	eng := createEngMaster(t, defaultTestEngineOptions(d))
 	defer eng.mustCloseGoodEngine(t)
-	_, err := eng.engine.Do(context.Background(), "__a", func(c Conn, cache []byte) ([]byte, error) {
+	_, err := eng.engine.DoTx(context.Background(), "__a", func(c Conn, cache []byte) ([]byte, error) {
 		return cache, nil
 	})
 	require.Error(t, err)
@@ -774,7 +774,7 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
-	_, err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 1))
 		require.NoError(t, err)
 		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 2))
@@ -849,7 +849,7 @@ func Test_Engine_WaitCommit(t *testing.T) {
 			close(ch)
 		}()
 		time.Sleep(time.Millisecond)
-		res, err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		res, err := engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			err := conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 1))
 			return append(cache, binlogData...), err
 		})
@@ -866,7 +866,7 @@ func Test_Engine_WaitCommit(t *testing.T) {
 		var id int64
 		var offsetView int64
 		ch := make(chan error)
-		res, err := engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		res, err := engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			err := conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 1))
 			id = conn.LastInsertRowID()
 			return append(cache, binlogData...), err

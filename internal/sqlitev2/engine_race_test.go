@@ -68,7 +68,7 @@ func incNumberExec(conn Conn, cache []byte, n int64, failAfterExec bool) ([]byte
 }
 
 func incNumber(ctx context.Context, e *Engine, n int64, failAfterExec bool, m map[int64]int64, mx *sync.RWMutex) (result incResult, _ error) {
-	res, err := e.Do(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
+	res, err := e.DoTx(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
 		cache, err := incNumberExec(conn, cache, n, failAfterExec)
 		if err != nil {
 			return cache, fmt.Errorf("failed to inc number: %w", err)
@@ -271,7 +271,7 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, engineMaster.Close())
 	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, nil)
 	c := 0
-	_, err := engineMaster.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err := engineMaster.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++
