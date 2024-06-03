@@ -355,7 +355,14 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	)
 	tagsCacheSize := w.mapper.TagValueDiskCacheSize()
 	if tagsCacheSize != 0 {
-		logOk.Printf("Tag Value cache size %d", tagsCacheSize)
+		logOk.Printf("Tag Value cache size %d, loading cache from disk...", tagsCacheSize)
+		now := time.Now()
+		ls, err := w.mapper.LoadFromDisk(now)
+		if err != nil {
+			logErr.Printf("failed loading Tag Value cache from disk")
+		} else {
+			logOk.Printf("loading Tag Value cache from disk finished in %v, stats: %v", time.Since(now), ls)
+		}
 	} else {
 		logOk.Printf("Tag Value cache empty, loading boostrap...")
 		mappings, ttl, err := sh2.GetTagMappingBootstrap(context.Background())
