@@ -1,8 +1,9 @@
 .plotLegend {
   min-height: calc(var(--bs-body-line-height) + var(--bs-body-line-height));
+  overflow: auto;
 }
 
 .plotLegendShort {
-  min-height: auto;
+  min-height: var(--bs-body-line-height);
   height: var(--bs-body-line-height);
 }

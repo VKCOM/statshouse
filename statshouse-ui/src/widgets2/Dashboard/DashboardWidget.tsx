@@ -9,14 +9,23 @@ import {
   PlotPanel,
   PlotView,
 } from 'components2';
-import { GroupKey, setUrlStore, usePlotsDataStore, usePlotsInfoStore, useUrlStore } from 'store2';
+import {
+  type GroupKey,
+  type PlotParams,
+  type QueryParams,
+  setUrlStore,
+  usePlotsDataStore,
+  usePlotsInfoStore,
+  useUrlStore,
+} from 'store2';
 import css from './style.module.css';
+import { deepClone } from '../../common/helpers';
 
 export function DashboardWidget() {
   const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore();
   const groups = useUrlStore((s) => s.params.groups);
-  const tabNum = useUrlStore((s) => s.params.tabNum);
-  const plots = useUrlStore((s) => s.params.plots);
+  const params = useUrlStore((s) => s.params);
+  const { tabNum, plots } = params;
   const plotsData = usePlotsDataStore((s) => s.plotsData);
   const toggleGroupShow = useCallback((groupKey: GroupKey) => {
     setUrlStore((s) => {
@@ -30,13 +39,29 @@ export function DashboardWidget() {
   const activePlot = useMemo(() => plots[tabNum], [plots, tabNum]);
   const activePlotData = useMemo(() => plotsData[tabNum], [plotsData, tabNum]);
 
+  const setPlot = useCallback((plot: PlotParams) => {
+    setUrlStore((store) => {
+      store.params.plots[plot.id] = deepClone(plot);
+    });
+  }, []);
+  const setParams = useCallback((params: QueryParams) => {
+    setUrlStore((store) => {
+      store.params = deepClone(params);
+    });
+  }, []);
+
   return (
     <Dashboard>
       {orderGroup.map((groupKey) => (
         <DashboardGroup key={groupKey} groupInfo={groups[groupKey]} toggleShow={toggleGroupShow}>
           {groupPlots[groupKey]?.map((plotKey) => (
             <DashboardPlot key={plotKey} plotInfo={plotsInfo[plotKey]}>
-              <PlotView plot={plots[plotKey]} plotInfo={plotsInfo[plotKey]} plotData={plotsData[plotKey]}></PlotView>
+              <PlotView
+                className={css[`plotView_${plots[plotKey]?.type ?? '0'}`]}
+                plot={plots[plotKey]}
+                plotInfo={plotsInfo[plotKey]}
+                plotData={plotsData[plotKey]}
+              ></PlotView>
               <PlotLegend></PlotLegend>
             </DashboardPlot>
           ))}
@@ -49,14 +74,25 @@ export function DashboardWidget() {
               <MetricName metricName={activePlotInfo?.metricName} metricWhat={activePlotInfo?.metricWhat} />
             </div>
             <div className={css.plotPanelMiddle}>
-              <PlotView plot={activePlot} plotInfo={activePlotInfo} plotData={activePlotData}></PlotView>
+              <PlotView
+                className={css.plotViewFull}
+                plot={activePlot}
+                plotInfo={activePlotInfo}
+                plotData={activePlotData}
+              ></PlotView>
             </div>
             <div className={css.plotPanelBottom}>
               <PlotLegend></PlotLegend>
             </div>
           </div>
           <div className={css.plotPanelRight}>
-            <PlotControl plot={activePlot}></PlotControl>
+            <PlotControl
+              className={css.plotControl}
+              plot={activePlot}
+              params={params}
+              setPlot={setPlot}
+              setParams={setParams}
+            ></PlotControl>
           </div>
         </PlotPanel>
       )}

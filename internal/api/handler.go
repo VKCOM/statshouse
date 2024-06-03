@@ -1479,7 +1479,7 @@ func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*Ge
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
+func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
 		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
@@ -1499,7 +1499,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash Da
 		UpdateTime:  dash.UpdateTime,
 		DeleteTime:  dash.DeletedTime,
 		JSONData:    dash.JSONData,
-	}, create, delete)
+	}, create, delete, ai.toMetadata())
 	if err != nil {
 		s := "edit"
 		if create {
@@ -2322,13 +2322,13 @@ func (h *Handler) handleSeriesRequestS(ctx context.Context, req seriesRequest, e
 	if req.verbose && len(s) > 1 {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
-		g.Go(func() error {
+		g.Go(func() (err error) {
 			s[0], freeRes, err = h.handleSeriesRequest(withEndpointStat(ctx, es), req, seriesRequestOptions{
 				trace: true,
 				metricCallback: func(meta *format.MetricMetaValue) {
 					req.metricWithNamespace = meta.Name
 					if meta.MetricID != format.BuiltinMetricIDBadges {
-						g.Go(func() error {
+						g.Go(func() (err error) {
 							s[1], freeBadges, err = h.queryBadges(ctx, req, meta)
 							return err
 						})

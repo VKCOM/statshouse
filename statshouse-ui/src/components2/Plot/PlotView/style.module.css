@@ -1,8 +1,10 @@
 .plotViewMetric {
   position: relative;
-  width: 100%;
-  z-index: 1;
-  padding-top: min(100%, calc(100% / var(--golden-ratio)));
+  /*width: 100%;*/
+  /*z-index: 1;*/
+  /*height: 100%;*/
+  /*padding-top: calc(100% / var(--golden-ratio));*/
+  /*max-height: 100%;*/
   /*--plot-padding-top: 8px;*/
 }
 

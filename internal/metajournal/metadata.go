@@ -26,7 +26,6 @@ import (
 const (
 	pmcBigNegativeCacheTTL = 1 * time.Hour
 	DefaultMetaTimeout     = 2 * time.Second
-	saveMeta               = true
 )
 
 var errorInvalidUserRequest = errors.New("")
@@ -47,7 +46,7 @@ func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *
 	}
 }
 
-func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool) (format.DashboardMeta, error) {
+func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool, metadata string) (format.DashboardMeta, error) {
 	if !format.ValidDashboardName(value.Name) {
 		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name %w: %q", errorInvalidUserRequest, value.Name)
 	}
@@ -66,6 +65,7 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	}
 	editMetricReq.SetCreate(create)
 	editMetricReq.SetDelete(remove)
+	editMetricReq.Event.SetMetadata(metadata)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}
@@ -115,9 +115,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	}
 	// todo add namespace after meta release
 	editMetricReq.SetCreate(create)
-	if saveMeta {
-		editMetricReq.Event.SetMetadata(metadata)
-	}
+	editMetricReq.Event.SetMetadata(metadata)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}
@@ -163,9 +161,7 @@ func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.Names
 	}
 	// todo add namespace after meta release
 	editMetricReq.SetCreate(create)
-	if saveMeta {
-		editMetricReq.Event.SetMetadata(metadata)
-	}
+	editMetricReq.Event.SetMetadata(metadata)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}
@@ -258,9 +254,7 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	}
 	// todo add namespace after meta release
 	editMetricReq.SetCreate(create)
-	if saveMeta {
-		editMetricReq.Event.SetMetadata(metadata)
-	}
+	editMetricReq.Event.SetMetadata(metadata)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}
@@ -370,9 +364,7 @@ func (l *MetricMetaLoader) SaveScrapeConfig(ctx context.Context, version int64, 
 			Data:      config,
 		},
 	}
-	if saveMeta {
-		editMetricReq.Event.SetMetadata(metadata)
-	}
+	editMetricReq.Event.SetMetadata(metadata)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	var event tlmetadata.Event
