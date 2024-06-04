@@ -27,7 +27,7 @@ build-ui: build-sh-ui build-grafana-ui
 build-main-daemons: build-sh build-sh-api build-sh-metadata
 
 build-sh:
-	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
+	go build -race -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 
 build-sh-api:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
