@@ -9,6 +9,8 @@ package data_model
 import (
 	"time"
 
+	"go4.org/mem"
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -52,7 +54,7 @@ type MappedMetricHeader struct {
 
 // TODO - implement InvalidRawValue and InvalidRawTagKey
 
-func (h *MappedMetricHeader) SetKey(index int, id int32, tagIDKey int32) {
+func (h *MappedMetricHeader) SetKey(index int, id int32, tagIDKey int32, rawTag mem.RO) {
 	if index == format.HostTagIndex {
 		h.HostTag = id
 		if h.IsHKeySet {
@@ -61,6 +63,10 @@ func (h *MappedMetricHeader) SetKey(index int, id int32, tagIDKey int32) {
 		h.IsHKeySet = true
 	} else {
 		h.Key.Keys[index] = id
+		// in case of mapping flood
+		if id == -1 {
+			h.Key.Skeys[index] = rawTag.StringCopy()
+		}
 		if h.IsKeySet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}
