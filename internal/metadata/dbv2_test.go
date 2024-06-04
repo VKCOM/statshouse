@@ -446,7 +446,7 @@ func TestDB_ResetFlood(t *testing.T) {
 
 func TestDB_ResetFlood_With_Limit(t *testing.T) {
 	path := t.TempDir()
-	const limit = 12345
+	const limit = 9900
 	db, _ := initD1b(t, path, "db", true, nil)
 	checkLimit := func(limit int64) {
 		var actualLimit int64
@@ -464,7 +464,7 @@ func TestDB_ResetFlood_With_Limit(t *testing.T) {
 		before, after, err := db.ResetFlood(context.Background(), "abc2", limit)
 		require.NoError(t, err)
 		require.Equal(t, db.maxBudget, before)
-		require.Equal(t, int64(12345), after)
+		require.Equal(t, int64(limit), after)
 		checkLimit(limit)
 	})
 	t.Run("create mapping when limit greater than max", func(t *testing.T) {

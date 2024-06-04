@@ -155,7 +155,7 @@ const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
-const maxResetLimit = 100_000
+const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
 
 var errInvalidMetricVersion = fmt.Errorf("invalid version")

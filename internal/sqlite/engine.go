@@ -7,23 +7,23 @@
 package sqlite
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"context"
+	"errors"
+	"strconv"
+
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
-
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 )
 
 // TODO: explicit blocking Engine.Run to run binlog
@@ -375,15 +375,6 @@ func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 		return nil, err
 	}
 
-	// todo make checkpoint manually
-	if false {
-		err = conn.SetAutoCheckpoint(0)
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
-		}
-	}
-
 	err = conn.SetBusyTimeout(busyTimeout)
 	if err != nil {
 		_ = conn.Close()
@@ -405,7 +396,6 @@ func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to enable DB WAL mode: %w", err)
 	}
-
 	return conn, nil
 }
 
@@ -769,7 +759,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	c, err := conn.startNewROConn(ctx, &e.opt.StatsOptions)
 	if err != nil {
-		return multierr.Append(ErrEngineBroken, err)
+		return multierr.Append(errEngineBroken, err)
 	}
 	defer func() {
 		err = multierr.Append(err, c.closeRO())
@@ -802,7 +792,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var commit func(c Conn) error = nil
 	c, err := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
 	if err != nil {
-		return nil, 0, 0, multierr.Append(ErrEngineBroken, err)
+		return nil, 0, 0, multierr.Append(errEngineBroken, err)
 	}
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
@@ -898,7 +888,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 
 func (e *Engine) DoWithOffset(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (dbOffset int64, commitOffset int64, err error) {
 	if e.readOnlyEngine {
-		return 0, 0, ErrReadOnly
+		return 0, 0, errReadOnly
 	}
 	ch, dbOffset, commitedOffset, err := e.doWithoutWait(ctx, queryName, fn)
 	if err != nil {
@@ -910,7 +900,7 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, fn func(Con
 	return dbOffset, commitedOffset, nil
 }
 
-// Do require handle of ErrEngineBroken
+// Do require handle of errEngineBroken
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
 	_, _, err := e.DoWithOffset(ctx, queryName, fn)
 	return err

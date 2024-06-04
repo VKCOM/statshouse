@@ -211,7 +211,7 @@ func (p *Profile) remapMappingIDs() {
 		}
 	}
 
-	// Reset all mapping IDs.
+	// ResetF all mapping IDs.
 	for i, m := range p.Mapping {
 		m.ID = uint64(i + 1)
 	}
