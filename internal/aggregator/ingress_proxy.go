@@ -20,8 +20,10 @@ import (
 
 	"go.uber.org/atomic"
 
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
 	"github.com/vkcom/statshouse/internal/agent"
@@ -132,6 +134,8 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
+		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-proxy")),
+		rpc.ServerWithHooks(metricshandler.RpcHooks()),
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {

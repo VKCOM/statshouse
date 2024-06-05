@@ -1,6 +1,7 @@
 package env
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"gopkg.in/yaml.v2"
 )
 
@@ -20,10 +22,11 @@ type Loader struct {
 type Env struct {
 	Hostname string `yaml:"hostname"`
 
-	EnvT   string `yaml:"env"`
-	Group  string `yaml:"group"`
-	DC     string `yaml:"dc"`
-	Region string `yaml:"region"`
+	EnvT    string `yaml:"env"`
+	Group   string `yaml:"group"`
+	DC      string `yaml:"dc"`
+	Region  string `yaml:"region"`
+	Cluster string `yaml:"cluster"`
 }
 
 const maxEnvFileSize = 1024 * 1024 * 16
@@ -41,25 +44,7 @@ func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
 	if filePath == "" {
 		return l, emptyFunc, nil
 	}
-	readEnv := func() (Env, error) {
-		f, err := os.Open(filePath)
-		if err != nil {
-			return Env{}, fmt.Errorf("failed to open file: %w", err)
-		}
-		defer f.Close()
-		limitReader := io.LimitReader(f, maxEnvFileSize)
-		data, err := io.ReadAll(limitReader)
-		if err != nil {
-			return Env{}, fmt.Errorf("failed to read env file: %w", err)
-		}
-		env := Env{}
-		err = yaml.Unmarshal(data, &env)
-		if err != nil {
-			return Env{}, fmt.Errorf("failed to unmarshal env: %w", err)
-		}
-		return env, nil
-	}
-	l.env, _ = readEnv()
+	l.env, _ = ReadEnvFile(filePath)
 	log.Printf("read env file: %+v", l.env)
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -85,7 +70,7 @@ func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
 			if !ok {
 				break
 			}
-			envYaml, err := readEnv()
+			envYaml, err := ReadEnvFile(filePath)
 			if err != nil {
 				log.Println("env reading error:", err.Error())
 				time.Sleep(10 * time.Second)
@@ -99,4 +84,47 @@ func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
 	return l, func() {
 		_ = w.Close()
 	}, nil
+}
+
+func ReadEnvFile(filePath string) (Env, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return Env{}, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+	limitReader := io.LimitReader(f, maxEnvFileSize)
+	data, err := io.ReadAll(limitReader)
+	if err != nil {
+		return Env{}, fmt.Errorf("failed to read env file: %w", err)
+	}
+	env := Env{}
+	err = yaml.Unmarshal(data, &env)
+	if err != nil {
+		return Env{}, fmt.Errorf("failed to unmarshal env: %w", err)
+	}
+	return env, nil
+}
+
+func RPCEnvironment(service string) rpc.Environment {
+	res := rpc.Environment{
+		Service: service,
+	}
+	envFilePath := "/etc/statshouse_env.yml"
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "env-file-path":
+			envFilePath = f.Value.String()
+		case "statshouse-env":
+			res.Name = f.Value.String()
+		}
+	})
+	// environment file is optional, command line takes precedence over it
+	if v, err := ReadEnvFile(envFilePath); err == nil {
+		if res.Name == "" {
+			res.Name = v.EnvT
+		}
+		res.Cluster = v.Cluster
+		res.DataCenter = v.DC
+	}
+	return res
 }
