@@ -80,7 +80,7 @@ func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j 
 
 func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 	for i := 0; i < b.N; i++ {
-		_, err := eng.View(context.Background(), "test", func(c Conn) error {
+		_, err := eng.ViewTx(context.Background(), "test", func(c Conn) error {
 			rows := query(c, i)
 			if rows.err != nil {
 				b.Fatal(rows.err)

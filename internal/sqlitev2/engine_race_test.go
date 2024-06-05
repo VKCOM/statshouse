@@ -180,7 +180,7 @@ func Test_Engine_Race_Do(t *testing.T) {
 		},
 	})
 	var actualN int64
-	_, err := engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err := engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT v from test_db")
 		if rows.err != nil {
 			return rows.err
@@ -230,7 +230,7 @@ func Test_Engine_Race_View(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iters; j++ {
-				_, err := engine.View(context.Background(), "test", func(conn Conn) error {
+				_, err := engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 					actualDb := map[string]struct{}{}
 					rows := conn.Query("test", "SELECT t from test_db")
 					if rows.err != nil {
@@ -325,7 +325,7 @@ func Test_Race_Engine_Replica_View(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iters; i++ {
-				_, err := engineR.View(context.Background(), "test", func(conn Conn) error {
+				_, err := engineR.ViewTx(context.Background(), "test", func(conn Conn) error {
 					n, ok, err := selectNumber(conn)
 					require.NoError(t, err)
 					if !ok {
@@ -397,7 +397,7 @@ func Test_Race_Engine_View_WaitOffset(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iters; i++ {
-				_, err := engineR.ViewOpts(context.Background(), ViewTxOptions{
+				_, err := engineR.ViewTxOpts(context.Background(), ViewTxOptions{
 					QueryName:  "test",
 					WaitOffset: res.Load(),
 				}, func(conn Conn) error {

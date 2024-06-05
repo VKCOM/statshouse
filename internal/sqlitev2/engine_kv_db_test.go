@@ -40,7 +40,7 @@ func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
 }
 
 func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
-	_, err = e.engine.View(ctx, "Put", func(c Conn) error {
+	_, err = e.engine.ViewTx(ctx, "Put", func(c Conn) error {
 		rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Integer("$k", k))
 		if ok = rows.Next(); ok {
 			v = rows.ColumnInteger(0)

@@ -340,7 +340,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT data FROM test_db WHERE id=$id", Integer("$id", rowID))
 
 		for rows.Next() {
@@ -369,7 +369,7 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 		return append(cache, 1), err
 	})
 	require.NoError(t, err)
-	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT data from test_db")
 		c := 0
 		for rows.Next() {
@@ -489,7 +489,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	var read func(int) []string
 	read = func(rec int) []string {
 		var s []string
-		_, err = engine.View(context.Background(), "test", func(conn Conn) error {
+		_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 			if rec > 0 {
 				s = append(s, read(rec-1)...)
 			}
@@ -565,7 +565,7 @@ func Test_Engine_Float64(t *testing.T) {
 	count := 0
 	result := make([]float64, 0, len(testValues))
 	value := 0.0
-	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT val FROM test_db WHERE val > $num", Real("$num", 0.0))
 
 		for rows.Next() {
@@ -640,7 +640,7 @@ func Test_Engine_RO(t *testing.T) {
 		ReadOnly:                     true,
 	})
 	require.NoError(t, err)
-	_, err = engineRO.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engineRO.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT id FROM test_db")
 		for rows.Next() {
 			id = rows.ColumnInteger(0)
@@ -714,7 +714,7 @@ func TestCanReadAfterPanic(t *testing.T) {
 		defer func() {
 			require.NotNil(t, recover())
 		}()
-		_, _ = eng.engine.View(context.Background(), "panic", func(c Conn) error {
+		_, _ = eng.engine.ViewTx(context.Background(), "panic", func(c Conn) error {
 			panic("oops")
 		})
 	}()
@@ -785,7 +785,7 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.NoError(t, err)
 	count := 0
-	_, err = engine.View(context.Background(), "test", func(conn Conn) error {
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
 			IntegerSlice("$ids$", []int64{1, 2}),
 			IntegerSlice("$ids1$", []int64{3}))
@@ -811,7 +811,7 @@ func Test_Engine_WaitCommit(t *testing.T) {
 	var engine *Engine
 	binlogData := make([]byte, 1024)
 	waitOffsetView := func(ctx context.Context, offset int64) (id int64, offsetView int64, _ error) {
-		res, err := engine.ViewOpts(ctx, ViewTxOptions{
+		res, err := engine.ViewTxOpts(ctx, ViewTxOptions{
 			QueryName:  "blocked",
 			WaitOffset: offset,
 		}, func(conn Conn) error {

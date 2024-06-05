@@ -555,6 +555,7 @@ func Test_Engine_Float64(t *testing.T) {
 	})
 	require.Equal(t, len(testValues), len(result))
 	require.Equal(t, testValues, result)
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_Backup(t *testing.T) {

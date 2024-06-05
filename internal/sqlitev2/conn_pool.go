@@ -63,7 +63,7 @@ func (p *connPool) Close(error *error) {
 	p.roMx.Lock()
 	defer p.roMx.Unlock()
 	if len(p.roFree) != p.roCount {
-		p.log.Println("[warn] should finish all View queries before close")
+		p.log.Println("[warn] should finish all ViewTx queries before close")
 	}
 	for _, conn := range p.roFree {
 		err := conn.Close()
