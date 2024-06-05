@@ -12,6 +12,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 type ServerHookState interface {
@@ -49,6 +51,7 @@ type ServerOptions struct {
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
 	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
+	CommonTags             statshouse.Tags
 }
 
 func (opts *ServerOptions) AddCryptoKey(key string) {
@@ -275,6 +278,17 @@ func ServerWithDisableTCPReuseAddr() ServerOptionsFunc {
 func ServerWithSocketHijackHandler(handler func(conn *HijackConnection)) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.SocketHijackHandler = handler
+	}
+}
+
+func ServerWithEnvironment(env Environment) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.CommonTags = statshouse.Tags{
+			env.Name,
+			env.Service,
+			env.Cluster,
+			env.DataCenter,
+		}
 	}
 }
 

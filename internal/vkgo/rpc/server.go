@@ -22,6 +22,8 @@ import (
 
 	"go.uber.org/atomic"
 
+	"github.com/vkcom/statshouse-go"
+
 	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
 
@@ -140,8 +142,13 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 		respMemSem:   semaphore.NewWeighted(int64(opts.ResponseMemoryLimit)),
 		startTime:    uniqueStartTime(),
 		statHostname: host,
+
+		metricAcceptError: statshouse.Metric("common_rpc_server_accept_error", opts.CommonTags),
+		metricConnCount:   statshouse.Metric("common_rpc_server_conn", opts.CommonTags),
+		metricConnError:   statshouse.Metric("common_rpc_server_conn_error", opts.CommonTags),
 	}
 
+	s.regularMeasurementID = statshouse.StartRegularMeasurement(s.sendMetrics)
 	s.workerPool = workerPoolNew(s.opts.MaxWorkers, func() {
 		if s.opts.MaxWorkers == DefaultMaxWorkers { // print only if user did not change default value
 			s.rareLog(&s.lastWorkerWaitLog, "rpc: waiting to acquire worker; consider increasing Server.MaxWorkers")
@@ -205,6 +212,11 @@ type Server struct {
 
 	tracingMu  sync.Mutex
 	tracingLog []string
+
+	metricAcceptError    *statshouse.MetricRef
+	metricConnCount      *statshouse.MetricRef
+	metricConnError      *statshouse.MetricRef
+	regularMeasurementID int
 }
 
 func (s *Server) addTrace(str string) {
@@ -214,6 +226,10 @@ func (s *Server) addTrace(str string) {
 	s.tracingMu.Lock()
 	defer s.tracingMu.Unlock()
 	s.tracingLog = append(s.tracingLog, str)
+}
+
+func (s *Server) sendMetrics(client *statshouse.Client) {
+	s.metricConnCount.Count(float64(s.statConnectionsCurrent.Load()))
 }
 
 func (s *Server) RegisterHandlerFunc(h HandlerFunc) {
@@ -251,6 +267,7 @@ func (s *Server) Shutdown() {
 	if s.serverStatus >= serverStatusShutdown {
 		return
 	}
+	statshouse.StopRegularMeasurement(s.regularMeasurementID)
 	s.serverStatus = serverStatusShutdown
 	for sc := range s.conns {
 		sc.sendLetsFin()
@@ -460,6 +477,7 @@ func (s *Server) Serve(ln net.Listener) error {
 	for {
 		nc, err := ln.Accept()
 		if err != nil {
+			s.metricAcceptError.StringTop(err.Error())
 			s.mu.Lock()
 			if s.serverStatus >= serverStatusShutdown {
 				s.mu.Unlock()
@@ -522,6 +540,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 			}
 			// } else { s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v", conn.remoteAddr, err) }
 		}
+		s.metricConnError.StringTop(err.Error()) // handshake error
 		_ = conn.Close()
 		return
 	}
@@ -545,6 +564,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		conn:              conn,
 		writeQ:            make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc()),
 		longpollResponses: map[int64]hijackedResponse{},
+		metricError:       s.metricConnError,
 	}
 	sc.cond.L = &sc.mu
 	sc.writeQCond.L = &sc.mu
@@ -552,6 +572,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 
 	if !s.trackConn(sc) {
 		_ = conn.Close()
+		s.metricConnError.StringTop("server is shutting down")
 		return
 	}
 	if s.opts.DebugRPC {

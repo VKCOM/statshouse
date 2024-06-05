@@ -12,6 +12,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
@@ -43,6 +44,8 @@ type serverConn struct {
 	writeQCond   sync.Cond
 	writeBuiltin bool
 	writeLetsFin bool
+
+	metricError *statshouse.MetricRef
 }
 
 var _ HandlerContextConnection = &serverConn{}
@@ -153,6 +156,9 @@ func (sc *serverConn) close(cause error) {
 	if sc.closedFlag {
 		sc.mu.Unlock()
 		return
+	}
+	if cause != nil {
+		sc.metricError.StringTop(cause.Error())
 	}
 	sc.closedFlag = true
 	writeQ := sc.writeQ
