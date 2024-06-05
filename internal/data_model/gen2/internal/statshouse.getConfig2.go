@@ -17,10 +17,20 @@ type StatshouseGetConfig2 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
 	Cluster    string
+	// Ts (TrueType) // Conditional: item.FieldsMask.0
 }
 
 func (StatshouseGetConfig2) TLName() string { return "statshouse.getConfig2" }
 func (StatshouseGetConfig2) TLTag() uint32  { return 0x4285ff57 }
+
+func (item *StatshouseGetConfig2) SetTs(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 0
+	} else {
+		item.FieldsMask &^= 1 << 0
+	}
+}
+func (item StatshouseGetConfig2) IsSetTs() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetConfig2) Reset() {
 	item.FieldsMask = 0
@@ -35,7 +45,10 @@ func (item *StatshouseGetConfig2) Read(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Read(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Cluster)
+	if w, err = basictl.StringRead(w, &item.Cluster); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -128,6 +141,8 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propClusterPresented bool
+	var trueTypeTsPresented bool
+	var trueTypeTsValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -162,6 +177,14 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				propClusterPresented = true
+			case "ts":
+				if trueTypeTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "ts")
+				}
+				if err := Json2ReadBool(in, &trueTypeTsValue); err != nil {
+					return err
+				}
+				trueTypeTsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
 			}
@@ -178,6 +201,11 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	if !propClusterPresented {
 		item.Cluster = ""
 	}
+	if trueTypeTsPresented {
+		if trueTypeTsValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -187,6 +215,10 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeTsPresented && !trueTypeTsValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -217,6 +249,10 @@ func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if (len(item.Cluster) != 0) == false {
 		w = w[:backupIndexCluster]
 	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"ts":true`...)
+	}
 	return append(w, '}')
 }
 
@@ -235,10 +271,20 @@ type StatshouseGetConfig2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
 	Cluster    []byte
+	// Ts (TrueType) // Conditional: item.FieldsMask.0
 }
 
 func (StatshouseGetConfig2Bytes) TLName() string { return "statshouse.getConfig2" }
 func (StatshouseGetConfig2Bytes) TLTag() uint32  { return 0x4285ff57 }
+
+func (item *StatshouseGetConfig2Bytes) SetTs(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 0
+	} else {
+		item.FieldsMask &^= 1 << 0
+	}
+}
+func (item StatshouseGetConfig2Bytes) IsSetTs() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetConfig2Bytes) Reset() {
 	item.FieldsMask = 0
@@ -253,7 +299,10 @@ func (item *StatshouseGetConfig2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Read(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.Cluster)
+	if w, err = basictl.StringReadBytes(w, &item.Cluster); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -346,6 +395,8 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propClusterPresented bool
+	var trueTypeTsPresented bool
+	var trueTypeTsValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -380,6 +431,14 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propClusterPresented = true
+			case "ts":
+				if trueTypeTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "ts")
+				}
+				if err := Json2ReadBool(in, &trueTypeTsValue); err != nil {
+					return err
+				}
+				trueTypeTsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
 			}
@@ -396,6 +455,11 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	if !propClusterPresented {
 		item.Cluster = item.Cluster[:0]
 	}
+	if trueTypeTsPresented {
+		if trueTypeTsValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -405,6 +469,10 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeTsPresented && !trueTypeTsValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -434,6 +502,10 @@ func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short boo
 	w = basictl.JSONWriteStringBytes(w, item.Cluster)
 	if (len(item.Cluster) != 0) == false {
 		w = w[:backupIndexCluster]
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"ts":true`...)
 	}
 	return append(w, '}')
 }
