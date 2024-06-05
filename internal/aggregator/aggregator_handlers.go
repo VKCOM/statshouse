@@ -197,6 +197,7 @@ func (a *Aggregator) getConfigResult() tlstatshouse.GetConfigResult {
 		Addresses:         a.addresses,
 		MaxAddressesCount: int32(len(a.addresses)), // TODO - support reducing list,
 		PreviousAddresses: int32(a.config.PreviousNumShards),
+		Ts:                time.Now().UnixMilli(),
 	}
 }
 
