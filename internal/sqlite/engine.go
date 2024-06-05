@@ -224,12 +224,48 @@ func OpenROWal(opt Options) (*Engine, error) {
 	return e, nil
 }
 
+func checkWals(dbPath string) (wal1NotExists bool, wal2NotExists bool, err error) {
+	wal1Path := dbPath + "-wal"
+	wal2Path := dbPath + "-wal2"
+	_, err = os.Stat(wal1Path)
+	if os.IsNotExist(err) {
+		wal1NotExists = true
+		err = nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	_, err = os.Stat(wal2Path)
+	if os.IsNotExist(err) {
+		wal2NotExists = true
+		err = nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return
+}
+
 func OpenEngine(
 	opt Options,
 	binlog binlog2.Binlog, // binlog - will be closed during Close execution
 	apply ApplyEventFunction,
 	scan ApplyEventFunction, // this helps to work in replica mode with old binlog
 ) (*Engine, error) {
+	wal1NotExists, wal2NotExists, err := checkWals(opt.Path)
+	if err != nil {
+		return nil, fmt.Errorf("faield to check wal existence: %w", err)
+	}
+	if wal1NotExists {
+		log.Println("wal1 is not exist")
+	} else {
+		log.Println("wal1 is exist")
+	}
+	if wal2NotExists {
+		log.Println("wal2 is not exist")
+	} else {
+		log.Println("wal2 is exist")
+	}
 	e, err := openDB(opt, binlog, apply, scan)
 	if err != nil {
 		return nil, err
@@ -527,6 +563,26 @@ func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, err)
 		}
 	}
+	for {
+		/*
+			активное ожидаение чтобы не усложнять код либы, требуется для более безопасного переезда на вторую версию
+		*/
+		e.roMx.Lock()
+		if len(e.roFree) != e.roCount {
+			log.Println("[sqlite] don't use RO connections when close engine")
+			e.roMx.Unlock()
+			time.Sleep(time.Millisecond * 10)
+		} else {
+			break
+		}
+	}
+	defer e.roMx.Unlock()
+	for _, conn := range e.roFree {
+		err := conn.Close()
+		if err != nil {
+			multierr.AppendInto(&error, fmt.Errorf("failed to close RO connection: %w", err))
+		}
+	}
 	if !e.readOnlyEngine {
 		if shouldCommit && error == nil {
 			err := e.commitTXAndStartNew(true, waitCommitBinlog)
@@ -539,17 +595,7 @@ func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
 	}
-	e.roMx.Lock()
-	defer e.roMx.Unlock()
-	if len(e.roFree) != e.roCount {
-		log.Println("[sqlite] don't use RO connections when close engine")
-	}
-	for _, conn := range e.roFree {
-		err := conn.Close()
-		if err != nil {
-			multierr.AppendInto(&error, fmt.Errorf("failed to close RO connection: %w", err))
-		}
-	}
+
 	// multierr.AppendInto(&err, e.chk.Close())
 	// multierr.AppendInto(&err, e.ro.Close()) // close RO one last to prevent checkpoint-on-close logic in other connections
 	return error

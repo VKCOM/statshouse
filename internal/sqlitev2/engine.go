@@ -115,7 +115,7 @@ type (
 		DBOffset int64 // sqlite snapshot offset, after applying current Do
 	}
 	ViewTxResult struct {
-		DBOffset int64 // sqlite snapshot offset for current View transaction
+		DBOffset int64 // sqlite snapshot offset for current ViewTx transaction
 	}
 )
 
@@ -159,7 +159,7 @@ OpenEngine open or create SQLite db file.
 	can use engine as sqlite wrapper
 
 	go engine.Run(...)
-	can use View, can't use Do
+	can use ViewTx, can't use DoTx
 
 	err := <-engine.ReadyCh()
 	can use engine as sqlite + binlog wrapper
@@ -385,11 +385,11 @@ func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
 	return "", pos, fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
 }
 
-func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) (res ViewTxResult, err error) {
-	return e.ViewOpts(ctx, ViewTxOptions{QueryName: queryName}, fn)
+func (e *Engine) ViewTx(ctx context.Context, queryName string, fn func(Conn) error) (res ViewTxResult, err error) {
+	return e.ViewTxOpts(ctx, ViewTxOptions{QueryName: queryName}, fn)
 }
 
-func (e *Engine) ViewOpts(ctx context.Context, opt ViewTxOptions, fn func(Conn) error) (res ViewTxResult, err error) {
+func (e *Engine) ViewTxOpts(ctx context.Context, opt ViewTxOptions, fn func(Conn) error) (res ViewTxResult, err error) {
 	if err = checkUserQueryName(opt.QueryName); err != nil {
 		return res, err
 	}
