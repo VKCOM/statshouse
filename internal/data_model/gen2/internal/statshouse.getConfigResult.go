@@ -17,15 +17,33 @@ type StatshouseGetConfigResult struct {
 	Addresses         []string
 	MaxAddressesCount int32
 	PreviousAddresses int32
+	Ts                int64 // Conditional: nat_fields_mask.0
 }
 
 func (StatshouseGetConfigResult) TLName() string { return "statshouse.getConfigResult" }
 func (StatshouseGetConfigResult) TLTag() uint32  { return 0xc803d07 }
 
+func (item *StatshouseGetConfigResult) SetTs(v int64, nat_fields_mask *uint32) {
+	item.Ts = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 0
+	}
+}
+func (item *StatshouseGetConfigResult) ClearTs(nat_fields_mask *uint32) {
+	item.Ts = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 0
+	}
+}
+func (item StatshouseGetConfigResult) IsSetTs(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<0) != 0
+}
+
 func (item *StatshouseGetConfigResult) Reset() {
 	item.Addresses = item.Addresses[:0]
 	item.MaxAddressesCount = 0
 	item.PreviousAddresses = 0
+	item.Ts = 0
 }
 
 func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -35,7 +53,17 @@ func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_
 	if w, err = basictl.IntRead(w, &item.MaxAddressesCount); err != nil {
 		return w, err
 	}
-	return basictl.IntRead(w, &item.PreviousAddresses)
+	if w, err = basictl.IntRead(w, &item.PreviousAddresses); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = basictl.LongRead(w, &item.Ts); err != nil {
+			return w, err
+		}
+	} else {
+		item.Ts = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -47,6 +75,9 @@ func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) [
 	w = BuiltinVectorStringWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
 	w = basictl.IntWrite(w, item.PreviousAddresses)
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.LongWrite(w, item.Ts)
+	}
 	return w
 }
 
@@ -71,6 +102,7 @@ func (item *StatshouseGetConfigResult) ReadJSON(legacyTypeNames bool, in *basict
 	var propAddressesPresented bool
 	var propMaxAddressesCountPresented bool
 	var propPreviousAddressesPresented bool
+	var propTsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -105,6 +137,17 @@ func (item *StatshouseGetConfigResult) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propPreviousAddressesPresented = true
+			case "ts":
+				if propTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "ts")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.getConfigResult", "field 'ts' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt64(in, &item.Ts); err != nil {
+					return err
+				}
+				propTsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", key)
 			}
@@ -123,6 +166,9 @@ func (item *StatshouseGetConfigResult) ReadJSON(legacyTypeNames bool, in *basict
 	}
 	if !propPreviousAddressesPresented {
 		item.PreviousAddresses = 0
+	}
+	if !propTsPresented {
+		item.Ts = 0
 	}
 	return nil
 }
@@ -158,6 +204,11 @@ func (item *StatshouseGetConfigResult) WriteJSONOpt(newTypeNames bool, short boo
 	if (item.PreviousAddresses != 0) == false {
 		w = w[:backupIndexPreviousAddresses]
 	}
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"ts":`...)
+		w = basictl.JSONWriteInt64(w, item.Ts)
+	}
 	return append(w, '}')
 }
 
@@ -165,15 +216,33 @@ type StatshouseGetConfigResultBytes struct {
 	Addresses         [][]byte
 	MaxAddressesCount int32
 	PreviousAddresses int32
+	Ts                int64 // Conditional: nat_fields_mask.0
 }
 
 func (StatshouseGetConfigResultBytes) TLName() string { return "statshouse.getConfigResult" }
 func (StatshouseGetConfigResultBytes) TLTag() uint32  { return 0xc803d07 }
 
+func (item *StatshouseGetConfigResultBytes) SetTs(v int64, nat_fields_mask *uint32) {
+	item.Ts = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 0
+	}
+}
+func (item *StatshouseGetConfigResultBytes) ClearTs(nat_fields_mask *uint32) {
+	item.Ts = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 0
+	}
+}
+func (item StatshouseGetConfigResultBytes) IsSetTs(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<0) != 0
+}
+
 func (item *StatshouseGetConfigResultBytes) Reset() {
 	item.Addresses = item.Addresses[:0]
 	item.MaxAddressesCount = 0
 	item.PreviousAddresses = 0
+	item.Ts = 0
 }
 
 func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -183,7 +252,17 @@ func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint3
 	if w, err = basictl.IntRead(w, &item.MaxAddressesCount); err != nil {
 		return w, err
 	}
-	return basictl.IntRead(w, &item.PreviousAddresses)
+	if w, err = basictl.IntRead(w, &item.PreviousAddresses); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = basictl.LongRead(w, &item.Ts); err != nil {
+			return w, err
+		}
+	} else {
+		item.Ts = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -195,6 +274,9 @@ func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint
 	w = BuiltinVectorStringBytesWrite(w, item.Addresses)
 	w = basictl.IntWrite(w, item.MaxAddressesCount)
 	w = basictl.IntWrite(w, item.PreviousAddresses)
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.LongWrite(w, item.Ts)
+	}
 	return w
 }
 
@@ -219,6 +301,7 @@ func (item *StatshouseGetConfigResultBytes) ReadJSON(legacyTypeNames bool, in *b
 	var propAddressesPresented bool
 	var propMaxAddressesCountPresented bool
 	var propPreviousAddressesPresented bool
+	var propTsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -253,6 +336,17 @@ func (item *StatshouseGetConfigResultBytes) ReadJSON(legacyTypeNames bool, in *b
 					return err
 				}
 				propPreviousAddressesPresented = true
+			case "ts":
+				if propTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "ts")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.getConfigResult", "field 'ts' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt64(in, &item.Ts); err != nil {
+					return err
+				}
+				propTsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfigResult", key)
 			}
@@ -271,6 +365,9 @@ func (item *StatshouseGetConfigResultBytes) ReadJSON(legacyTypeNames bool, in *b
 	}
 	if !propPreviousAddressesPresented {
 		item.PreviousAddresses = 0
+	}
+	if !propTsPresented {
+		item.Ts = 0
 	}
 	return nil
 }
@@ -305,6 +402,11 @@ func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(newTypeNames bool, shor
 	w = basictl.JSONWriteInt32(w, item.PreviousAddresses)
 	if (item.PreviousAddresses != 0) == false {
 		w = w[:backupIndexPreviousAddresses]
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"ts":`...)
+		w = basictl.JSONWriteInt64(w, item.Ts)
 	}
 	return append(w, '}')
 }

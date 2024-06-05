@@ -80,6 +80,7 @@ statshouse.getConfigResult#0c803d07 {fields_mask:#}
     addresses: (vector string)
     max_addresses_count: int // when reducing # of shards, will return full list of addresses, limit by this number. Important for proxy
     previous_addresses: int // currently unused, but can be helpful for proxy in the future
+    ts: fields_mask.0?long // aggregator timestamp, for detecting clock discrepancy
 = statshouse.GetConfigResult fields_mask;
 
 // proxy uses and fills data in this header for all requests
@@ -124,6 +125,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
+    ts: fields_mask.0?true
      = statshouse.GetConfigResult fields_mask;
 
 // For ingress proxy, we pass shard_replica/shard_total immediately after fields mask
