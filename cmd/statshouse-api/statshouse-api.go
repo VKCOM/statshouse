@@ -26,19 +26,18 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
-
 	"github.com/vkcom/statshouse-go"
-
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
@@ -462,7 +461,10 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
+		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
+		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-api")),
+		rpc.ServerWithHooks(metricshandler.RpcHooks()),
+	)
 	defer func() { _ = srv.Close() }()
 
 	rpcLn, err := tf.Listen("tcp4", argv.listenRPCAddr)

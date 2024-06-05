@@ -23,22 +23,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	env2 "github.com/vkcom/statshouse/internal/env"
-	"github.com/vkcom/statshouse/internal/stats"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/vkcom/statshouse/internal/stats"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 var (
@@ -408,6 +408,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
+		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-agent")),
+		rpc.ServerWithHooks(metricshandler.RpcHooks()),
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
@@ -423,7 +425,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	// Run scrape
 	receiver.RunScrape(sh2, w)
 	if !argv.hardwareMetricScrapeDisable {
-		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
+		envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
 		if err != nil {
 			logErr.Printf("failed to start listen env file: %s", err.Error())
 		}

@@ -21,19 +21,18 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
-	"github.com/vkcom/statshouse/internal/format"
-
 	"github.com/vkcom/statshouse-go"
-
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/env"
+	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/metadata"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/metadata"
 )
 
 var argv struct {
@@ -329,7 +328,10 @@ func run() error {
 		rpc.ServerWithSyncHandler(sh.Handle),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
-		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
+		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
+		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-metadata")),
+		rpc.ServerWithHooks(metricshandler.RpcHooks()),
+	)
 	go func() {
 		err = server.Serve(rpcLn)
 		if err != rpc.ErrServerClosed {
