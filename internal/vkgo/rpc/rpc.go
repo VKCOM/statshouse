@@ -81,6 +81,13 @@ type packetHeader struct {
 	tip    uint32
 }
 
+type Environment struct {
+	Name       string
+	Service    string
+	Cluster    string
+	DataCenter string
+}
+
 // after header, there is body, then
 // crc32 of (header | body)
 // then (only if encrypted) must contain 0 to 3 zero bytes aligning packet to multiple of 4
