@@ -11,7 +11,6 @@ import (
 	"math"
 	"math/bits"
 	"sort"
-	"unsafe"
 
 	"pgregory.net/rand"
 
@@ -93,11 +92,6 @@ func (k *Key) ClearedKeys() Key {
 }
 
 func (k *Key) Hash() uint64 {
-	a := (*[unsafe.Sizeof(*k) - unsafe.Sizeof(k.Skeys)]byte)(unsafe.Pointer(k))
-	return siphash.Hash(sipKeyA, sipKeyB, a[4:]) // timestamp is not part of shard
-}
-
-func (k *Key) HashSafe() uint64 {
 	var b [4 + 4*format.MaxTags]byte
 	// timestamp is not part of shard
 	binary.LittleEndian.PutUint32(b[:], uint32(k.Metric))
