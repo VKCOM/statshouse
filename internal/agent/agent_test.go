@@ -28,28 +28,6 @@ func Benchmark_Hash(b *testing.B) {
 	}
 }
 
-func Benchmark_HashSafe(b *testing.B) {
-	var k data_model.Key
-	var result uint64
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
-		result += k.HashSafe()
-	}
-}
-
-func Test_HashSafeUnsafe(t *testing.T) {
-	var k data_model.Key
-	for i := 0; i < 1000; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
-		if k.Hash() != k.HashSafe() {
-			t.Fail()
-		}
-	}
-}
-
 func Benchmark_SampleFactor(b *testing.B) {
 	sampleFactors := map[int32]float64{}
 	for i := 0; i < 1000; i++ {
