@@ -28,12 +28,11 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
@@ -203,6 +202,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if len(a.hostName) == 0 {
 		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
 	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithMaxWorkers(-1),
@@ -215,10 +215,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<33),
-		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-aggregator")),
-		rpc.ServerWithHooks(metricshandler.RpcHooks()),
+		metrics.ServerWithMetrics,
 	)
-
+	defer metrics.Run(a.server)()
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	a.scrape = newScrapeServer(shardKey, replicaKey)
 	if config.AutoCreate {

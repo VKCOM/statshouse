@@ -22,8 +22,6 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse-go"
-
 	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
 
@@ -84,6 +82,9 @@ type (
 	StatsHandlerFunc     func(map[string]string)
 	VerbosityHandlerFunc func(int) error
 	LoggerFunc           func(format string, args ...any)
+	ErrHandlerFunc       func(err error)
+	RequestHandlerFunc   func(hctx *HandlerContext)
+	ResponseHandlerFunc  func(hctx *HandlerContext, err error)
 )
 
 func ChainHandler(ff ...HandlerFunc) HandlerFunc {
@@ -142,13 +143,8 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 		respMemSem:   semaphore.NewWeighted(int64(opts.ResponseMemoryLimit)),
 		startTime:    uniqueStartTime(),
 		statHostname: host,
-
-		metricAcceptError: statshouse.Metric("common_rpc_server_accept_error", opts.CommonTags),
-		metricConnCount:   statshouse.Metric("common_rpc_server_conn", opts.CommonTags),
-		metricConnError:   statshouse.Metric("common_rpc_server_conn_error", opts.CommonTags),
 	}
 
-	s.regularMeasurementID = statshouse.StartRegularMeasurement(s.sendMetrics)
 	s.workerPool = workerPoolNew(s.opts.MaxWorkers, func() {
 		if s.opts.MaxWorkers == DefaultMaxWorkers { // print only if user did not change default value
 			s.rareLog(&s.lastWorkerWaitLog, "rpc: waiting to acquire worker; consider increasing Server.MaxWorkers")
@@ -212,11 +208,6 @@ type Server struct {
 
 	tracingMu  sync.Mutex
 	tracingLog []string
-
-	metricAcceptError    *statshouse.MetricRef
-	metricConnCount      *statshouse.MetricRef
-	metricConnError      *statshouse.MetricRef
-	regularMeasurementID int
 }
 
 func (s *Server) addTrace(str string) {
@@ -226,10 +217,6 @@ func (s *Server) addTrace(str string) {
 	s.tracingMu.Lock()
 	defer s.tracingMu.Unlock()
 	s.tracingLog = append(s.tracingLog, str)
-}
-
-func (s *Server) sendMetrics(client *statshouse.Client) {
-	s.metricConnCount.Count(float64(s.statConnectionsCurrent.Load()))
 }
 
 func (s *Server) RegisterHandlerFunc(h HandlerFunc) {
@@ -267,7 +254,6 @@ func (s *Server) Shutdown() {
 	if s.serverStatus >= serverStatusShutdown {
 		return
 	}
-	statshouse.StopRegularMeasurement(s.regularMeasurementID)
 	s.serverStatus = serverStatusShutdown
 	for sc := range s.conns {
 		sc.sendLetsFin()
@@ -477,7 +463,9 @@ func (s *Server) Serve(ln net.Listener) error {
 	for {
 		nc, err := ln.Accept()
 		if err != nil {
-			s.metricAcceptError.StringTop(err.Error())
+			if s.opts.AcceptErrHandler != nil {
+				s.opts.AcceptErrHandler(err)
+			}
 			s.mu.Lock()
 			if s.serverStatus >= serverStatusShutdown {
 				s.mu.Unlock()
@@ -540,7 +528,9 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 			}
 			// } else { s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v", conn.remoteAddr, err) }
 		}
-		s.metricConnError.StringTop(err.Error()) // handshake error
+		if s.opts.ConnErrHandler != nil {
+			s.opts.ConnErrHandler(err)
+		}
 		_ = conn.Close()
 		return
 	}
@@ -564,15 +554,15 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		conn:              conn,
 		writeQ:            make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc()),
 		longpollResponses: map[int64]hijackedResponse{},
-		metricError:       s.metricConnError,
+		errHandler:        s.opts.ConnErrHandler,
 	}
 	sc.cond.L = &sc.mu
 	sc.writeQCond.L = &sc.mu
 	sc.closeWaitCond.L = &sc.mu
 
 	if !s.trackConn(sc) {
+		// server is shutting down
 		_ = conn.Close()
-		s.metricConnError.StringTop("server is shutting down")
 		return
 	}
 	if s.opts.DebugRPC {
@@ -706,6 +696,9 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		hctx.respTaken = respTaken
 
 		s.statRequestsTotal.Inc()
+		if s.opts.RequestHandler != nil {
+			s.opts.RequestHandler(hctx)
+		}
 
 		if !s.syncHandler(header.tip, sc, hctx) {
 			if s.opts.MaxWorkers <= 0 {
@@ -782,6 +775,9 @@ func (s *Server) sendLoopImpl(sc *serverConn) ([]*HandlerContext, error) { // re
 				s.opts.Logf("rpc: %s->%s Response packet queryID=%d extra=%s body=%x\n", sc.conn.remoteAddr, sc.conn.localAddr, hctx.queryID, hctx.ResponseExtra.String(), hctx.Response[:hctx.extraStart])
 			}
 			err := writeResponseUnlocked(sc.conn, hctx)
+			if s.opts.ResponseHandler != nil {
+				s.opts.ResponseHandler(hctx, err)
+			}
 			if err != nil {
 				s.rareLog(&s.lastOtherLog, "rpc: error writing packet reqTag #%08x to %v, disconnecting: %v", hctx.reqTag, sc.conn.remoteAddr, err)
 				return writeQ[i:], err // release remaining contexts
@@ -958,9 +954,6 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			s.opts.Logf("rpc: panic serving %v: %v\n%s", hctx.remoteAddr.String(), r, buf)
 			err = &Error{Code: TlErrorInternal, Description: fmt.Sprintf("rpc: HandlerFunc panic: %v serving %v", r, hctx.remoteAddr.String())}
 		}
-		if hctx.hooksState != nil {
-			hctx.hooksState.AfterCall(hctx, err)
-		}
 	}()
 
 	switch hctx.reqTag {
@@ -998,9 +991,6 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			}
 		}
 
-		if hctx.hooksState != nil {
-			hctx.hooksState.BeforeCall(hctx)
-		}
 		err = s.opts.Handler(ctx, hctx)
 		if err == errHijackResponse {
 			panic("you must hijack responses from SyncHandler, not from normal handler")
@@ -1092,4 +1082,24 @@ func (s *Server) rpsCalcLoop(wg *WaitGroup) {
 			return
 		}
 	}
+}
+
+func (s *Server) ConnectionsTotal() int64 {
+	return s.statConnectionsTotal.Load()
+}
+
+func (s *Server) ConnectionsCurrent() int64 {
+	return s.statConnectionsCurrent.Load()
+}
+
+func (s *Server) RequestsTotal() int64 {
+	return s.statRequestsTotal.Load()
+}
+
+func (s *Server) RequestsCurrent() int64 {
+	return s.statRequestsCurrent.Load()
+}
+
+func (s *Server) RPS() int64 {
+	return s.statRPS.Load()
 }

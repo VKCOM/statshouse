@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse-go"
-
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal/env"
 )
 
@@ -28,7 +27,8 @@ type uptime struct {
 }
 
 func (u uptime) toRawTags() statshouse.Tags {
-	tags := AttachBase(statshouse.Tags{})
+	var tags statshouse.Tags
+	AttachBaseS(tags[:])
 	tags[4] = u.heartbeat
 	tags[5] = u.commit
 	tags[6] = u.commitTime

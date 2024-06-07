@@ -9,36 +9,28 @@ package metricshandler
 import (
 	"time"
 
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
-type rpcState struct {
+func CommonRPC(hctx *rpc.HandlerContext, err error) {
+	var tags statshouse.Tags
+	commonmetrics.AttachBaseS(tags[:])
+	AttachRPC(tags[:], hctx, err)
+	ResponseTimeRaw(tags, time.Since(hctx.RequestTime))
+	ResponseSizeRaw(tags, len(hctx.Response))
+	RequestSizeRaw(tags, len(hctx.Request))
 }
 
-func (s *rpcState) Reset() {
-}
-
-func (s *rpcState) BeforeCall(hctx *rpc.HandlerContext) {
-}
-
-func (s *rpcState) AfterCall(hctx *rpc.HandlerContext, err error) {
+func AttachRPC(tags []string, hctx *rpc.HandlerContext, err error) []string {
 	status := commonmetrics.StatusFromError(err)
-
-	r := InputRequest{
-		Method:     internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName),
-		Protocol:   commonmetrics.ProtocolRPC,
-		Status:     status.Description,
-		StatusCode: status.Code,
-	}
-	ResponseTime(r, time.Since(hctx.RequestTime))
-	ResponseSize(r, len(hctx.Response))
-	RequestSize(r, len(hctx.Request))
-}
-
-func RpcHooks() func() rpc.ServerHookState {
-	return func() rpc.ServerHookState {
-		return &rpcState{}
-	}
+	method := internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName)
+	tags[4] = commonmetrics.ProtocolRPC
+	tags[5] = method.Group
+	tags[6] = method.Name
+	tags[7] = status.Description
+	tags[8] = status.Code
+	return tags
 }

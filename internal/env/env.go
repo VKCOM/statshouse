@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,6 +26,13 @@ type Env struct {
 	DC      string `yaml:"dc"`
 	Region  string `yaml:"region"`
 	Cluster string `yaml:"cluster"`
+}
+
+type Environment struct {
+	Name       string
+	Service    string
+	Cluster    string
+	DataCenter string
 }
 
 const maxEnvFileSize = 1024 * 1024 * 16
@@ -105,8 +111,8 @@ func ReadEnvFile(filePath string) (Env, error) {
 	return env, nil
 }
 
-func RPCEnvironment(service string) rpc.Environment {
-	res := rpc.Environment{
+func ReadEnvironment(service string) Environment {
+	res := Environment{
 		Service: service,
 	}
 	envFilePath := "/etc/statshouse_env.yml"

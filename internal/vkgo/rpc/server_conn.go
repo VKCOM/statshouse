@@ -12,7 +12,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
@@ -45,7 +44,7 @@ type serverConn struct {
 	writeBuiltin bool
 	writeLetsFin bool
 
-	metricError *statshouse.MetricRef
+	errHandler ErrHandlerFunc
 }
 
 var _ HandlerContextConnection = &serverConn{}
@@ -157,8 +156,8 @@ func (sc *serverConn) close(cause error) {
 		sc.mu.Unlock()
 		return
 	}
-	if cause != nil {
-		sc.metricError.StringTop(cause.Error())
+	if cause != nil && sc.errHandler != nil {
+		sc.errHandler(cause)
 	}
 	sc.closedFlag = true
 	writeQ := sc.writeQ
@@ -249,9 +248,6 @@ func (sc *serverConn) acquireHandlerCtx(tip uint32, options *ServerOptions) (*Ha
 	hctx.keyID = sc.conn.keyID
 	hctx.protocolVersion = sc.conn.ProtocolVersion()
 	hctx.protocolTransport = "TCP"
-	if options.Hooks != nil {
-		hctx.hooksState = options.Hooks()
-	}
 	return hctx, true
 }
 
