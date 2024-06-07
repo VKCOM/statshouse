@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal"
 )
@@ -67,29 +68,13 @@ func WrapHttpHandlerFunc(h http.HandlerFunc, method commonmetrics.Method) http.H
 		}
 		start := time.Now()
 		defer func() {
-			httpStatusCode := wi.statusCode
 			r := recover()
-			if r != nil {
-				httpStatusCode = http.StatusInternalServerError
-			}
-
-			var status, statusCode string
-			if wi.errorOnWrite {
-				status = commonmetrics.StatusError
-			} else {
-				status, statusCode = internal.ParseHTTPStatusCode(httpStatusCode)
-			}
-
-			inReq := InputRequest{
-				Method:     method,
-				Protocol:   commonmetrics.ProtocolHTTP,
-				Status:     status,
-				StatusCode: statusCode,
-			}
-			ResponseTime(inReq, time.Since(start))
-			ResponseSize(inReq, wi.bytesWritten)
-			RequestSize(inReq, int(req.ContentLength))
-
+			var tags statshouse.Tags
+			commonmetrics.AttachBaseS(tags[:])
+			attachHTTP(tags[:], wi, method, r)
+			ResponseTimeRaw(tags, time.Since(start))
+			ResponseSizeRaw(tags, wi.bytesWritten)
+			RequestSizeRaw(tags, int(req.ContentLength))
 			if r != nil {
 				panic(r)
 			}
@@ -100,4 +85,23 @@ func WrapHttpHandlerFunc(h http.HandlerFunc, method commonmetrics.Method) http.H
 
 func WrapHttpHandler(h http.Handler, method commonmetrics.Method) http.Handler {
 	return WrapHttpHandlerFunc(h.ServeHTTP, method)
+}
+
+func attachHTTP(tags []string, wi *responseWriterWrapper, method commonmetrics.Method, err any) []string {
+	httpStatusCode := wi.statusCode
+	if err != nil {
+		httpStatusCode = http.StatusInternalServerError
+	}
+	var status, statusCode string
+	if wi.errorOnWrite {
+		status = commonmetrics.StatusError
+	} else {
+		status, statusCode = internal.ParseHTTPStatusCode(httpStatusCode)
+	}
+	tags[4] = commonmetrics.ProtocolHTTP
+	tags[5] = method.Group
+	tags[6] = method.Name
+	tags[7] = status
+	tags[8] = statusCode
+	return tags
 }

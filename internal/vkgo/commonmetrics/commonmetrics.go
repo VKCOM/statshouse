@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/vkcom/statshouse-go"
-
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 )
 
@@ -60,11 +59,15 @@ var (
 )
 
 func AttachBase(tags statshouse.Tags) statshouse.Tags {
+	AttachBaseS(tags[:])
+	return tags
+}
+
+func AttachBaseS(tags []string) []string {
 	tags[0] = base.Environment
 	tags[1] = base.Service
 	tags[2] = base.Cluster
 	tags[3] = base.DataCenter
-
 	return tags
 }
 

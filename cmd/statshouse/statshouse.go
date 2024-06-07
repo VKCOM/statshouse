@@ -34,8 +34,8 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
 	"github.com/vkcom/statshouse/internal/stats"
+	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -401,6 +401,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_agent")
 	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
@@ -408,8 +409,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
-		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-agent")),
-		rpc.ServerWithHooks(metricshandler.RpcHooks()),
+		metrics.ServerWithMetrics,
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
@@ -417,6 +417,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}))
 	}
 	srv := rpc.NewServer(options...)
+	defer metrics.Run(srv)()
 	defer func() { _ = srv.Close() }()
 	for _, ln := range listeners {
 		go serveRPC(ln, srv)

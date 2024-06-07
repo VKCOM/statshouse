@@ -39,13 +39,25 @@ func (r InputRequest) toRawTags() statshouse.Tags {
 }
 
 func ResponseSize(r InputRequest, value int) {
-	statshouse.Metric(responseSizeMetricName, r.toRawTags()).Value(float64(value))
+	ResponseSizeRaw(r.toRawTags(), value)
 }
 
 func RequestSize(r InputRequest, value int) {
-	statshouse.Metric(requestSizeMetricName, r.toRawTags()).Value(float64(value))
+	RequestSizeRaw(r.toRawTags(), value)
 }
 
 func ResponseTime(r InputRequest, value time.Duration) {
-	statshouse.Metric(responseTimeMetricName, r.toRawTags()).Value(value.Seconds())
+	ResponseTimeRaw(r.toRawTags(), value)
+}
+
+func ResponseSizeRaw(tags statshouse.Tags, value int) {
+	statshouse.Metric(responseSizeMetricName, tags).Value(float64(value))
+}
+
+func RequestSizeRaw(tags statshouse.Tags, value int) {
+	statshouse.Metric(requestSizeMetricName, tags).Value(float64(value))
+}
+
+func ResponseTimeRaw(tags statshouse.Tags, value time.Duration) {
+	statshouse.Metric(responseTimeMetricName, tags).Value(value.Seconds())
 }

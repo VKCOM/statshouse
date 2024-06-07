@@ -18,19 +18,16 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
-
-	"github.com/vkcom/statshouse/internal/env"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"go.uber.org/atomic"
 )
 
 type clientPool struct {
@@ -120,6 +117,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 			clientList: map[*rpc.HandlerContext]longpollClient{},
 		}
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_proxy")
 	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithCryptoKeys(config.IngressKeys),
 		rpc.ServerWithHandler(proxy.handler),
@@ -134,8 +132,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
-		rpc.ServerWithEnvironment(env.RPCEnvironment("statshouse-proxy")),
-		rpc.ServerWithHooks(metricshandler.RpcHooks()),
+		metrics.ServerWithMetrics,
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
@@ -143,6 +140,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		}))
 	}
 	proxy.server = rpc.NewServer(options...)
+	defer metrics.Run(proxy.server)()
 	log.Printf("Running ingress proxy listening %s with %d crypto keys", ln.Addr(), len(config.IngressKeys))
 	return proxy.server.Serve(ln)
 }
@@ -205,12 +203,24 @@ func (proxy *IngressProxy) syncHandler(ctx context.Context, hctx *rpc.HandlerCon
 func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
 	requestLen := len(hctx.Request)
 	switch hctx.RequestTag() {
-	case constants.StatshouseGetTagMapping2,
-		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
-		constants.StatshouseTestConnection2, constants.StatshouseGetTargets2,
-		constants.StatshouseGetTagMappingBootstrap, constants.StatshouseGetMetrics3,
-		constants.StatshouseAutoCreate:
+	case constants.StatshouseGetTagMapping2:
+		hctx.RequestFunctionName = "statshouse.getTagMapping2"
+	case constants.StatshouseSendKeepAlive2:
+		hctx.RequestFunctionName = "statshouse.sendKeepAlive2"
+	case constants.StatshouseSendSourceBucket2:
+		hctx.RequestFunctionName = "statshouse.sendSourceBucket2"
+	case constants.StatshouseTestConnection2:
+		hctx.RequestFunctionName = "statshouse.testConnection2"
+	case constants.StatshouseGetTargets2:
+		hctx.RequestFunctionName = "statshouse.getTargets2"
+	case constants.StatshouseGetTagMappingBootstrap:
+		hctx.RequestFunctionName = "statshouse.getTagMappingBootstrap"
+	case constants.StatshouseGetMetrics3:
+		hctx.RequestFunctionName = "statshouse.getMetrics3"
+	case constants.StatshouseAutoCreate:
+		hctx.RequestFunctionName = "statshouse.autoCreate"
 	case constants.StatshouseGetConfig2:
+		hctx.RequestFunctionName = "statshouse.getConfig2"
 		return 0, rpc.ErrNoHandler // call SyncHandler in worker
 	default:
 		// we want fast reject of unknown requests in sync handler

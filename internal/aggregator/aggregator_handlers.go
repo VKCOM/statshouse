@@ -74,6 +74,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 	tag, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
 	switch tag {
 	case constants.StatshouseGetConfig2:
+		hctx.RequestFunctionName = "statshouse.getConfig2"
 		ud := getUserData(hctx)
 		_, err := ud.getConfig2.Read(hctx.Request)
 		if err != nil {
@@ -81,6 +82,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 		return a.handleGetConfig2(ctx, hctx, ud.getConfig2)
 	case constants.StatshouseGetMetrics3:
+		hctx.RequestFunctionName = "statshouse.getMetrics3"
 		ud := getUserData(hctx)
 		_, err := ud.getMetrics3.Read(hctx.Request)
 		if err != nil {
@@ -88,6 +90,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 		return a.metricStorage.Journal().HandleGetMetrics3(ctx, hctx, ud.getMetrics3)
 	case constants.StatshouseGetTagMapping2:
+		hctx.RequestFunctionName = "statshouse.getTagMapping2"
 		ud := getUserData(hctx)
 		_, err := ud.getTagMapping2.Read(hctx.Request)
 		if err != nil {
@@ -95,6 +98,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 		return a.tagsMapper.handleCreateTagMapping(ctx, hctx, ud.getTagMapping2)
 	case constants.StatshouseGetTagMappingBootstrap:
+		hctx.RequestFunctionName = "statshouse.getTagMappingBootstrap"
 		ud := getUserData(hctx)
 		_, err := ud.getTagBoostrap.Read(hctx.Request)
 		if err != nil {
@@ -103,6 +107,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
 		return nil
 	case constants.StatshouseSendKeepAlive2:
+		hctx.RequestFunctionName = "statshouse.sendKeepAlive2"
 		{
 			ud := getUserData(hctx)
 			_, err := ud.sendKeepAlive2.Read(hctx.Request)
@@ -112,6 +117,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return a.handleKeepAlive2(ctx, hctx, ud.sendKeepAlive2)
 		}
 	case constants.StatshouseSendSourceBucket2:
+		hctx.RequestFunctionName = "statshouse.sendSourceBucket2"
 		{
 			ud := getUserData(hctx)
 			rawSize := len(hctx.Request)
@@ -156,6 +162,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket2, true, ud.sourceBucket2, rawSize)
 		}
 	case constants.StatshouseTestConnection2:
+		hctx.RequestFunctionName = "statshouse.testConnection2"
 		{
 			ud := getUserData(hctx)
 			_, err := ud.testConneection2.Read(hctx.Request)
@@ -165,6 +172,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return a.testConnection.handleTestConnection(ctx, hctx, ud.testConneection2)
 		}
 	case constants.StatshouseGetTargets2:
+		hctx.RequestFunctionName = "statshouse.getTargets2"
 		{
 			ud := getUserData(hctx)
 			_, err := ud.getTargets2.Read(hctx.Request)
@@ -174,6 +182,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return a.scrape.handleGetTargets(ctx, hctx, ud.getTargets2)
 		}
 	case constants.StatshouseAutoCreate:
+		hctx.RequestFunctionName = "statshouse.autoCreate"
 		{
 			if a.autoCreate == nil {
 				return rpc.Error{

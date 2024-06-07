@@ -12,19 +12,10 @@ import (
 	"net"
 	"strings"
 	"time"
-
-	"github.com/vkcom/statshouse-go"
 )
-
-type ServerHookState interface {
-	Reset()
-	BeforeCall(hctx *HandlerContext)
-	AfterCall(hctx *HandlerContext, err error)
-}
 
 type ServerOptions struct {
 	Logf                   LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	Hooks                  func() ServerHookState
 	SyncHandler            HandlerFunc
 	Handler                HandlerFunc
 	StatsHandler           StatsHandlerFunc
@@ -32,6 +23,10 @@ type ServerOptions struct {
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
 	SocketHijackHandler    func(conn *HijackConnection)
+	AcceptErrHandler       ErrHandlerFunc
+	ConnErrHandler         ErrHandlerFunc
+	RequestHandler         RequestHandlerFunc
+	ResponseHandler        ResponseHandlerFunc
 	TrustedSubnetGroupsSt  string // for stats
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
@@ -51,7 +46,6 @@ type ServerOptions struct {
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
 	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
-	CommonTags             statshouse.Tags
 }
 
 func (opts *ServerOptions) AddCryptoKey(key string) {
@@ -59,12 +53,6 @@ func (opts *ServerOptions) AddCryptoKey(key string) {
 }
 
 type ServerOptionsFunc func(*ServerOptions)
-
-func ServerWithHooks(hooks func() ServerHookState) ServerOptionsFunc {
-	return func(opts *ServerOptions) {
-		opts.Hooks = hooks
-	}
-}
 
 func ServerWithLogf(logf LoggerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
@@ -281,14 +269,28 @@ func ServerWithSocketHijackHandler(handler func(conn *HijackConnection)) ServerO
 	}
 }
 
-func ServerWithEnvironment(env Environment) ServerOptionsFunc {
+func ServerWithAcceptErrorHandler(fn ErrHandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		opts.CommonTags = statshouse.Tags{
-			env.Name,
-			env.Service,
-			env.Cluster,
-			env.DataCenter,
-		}
+		opts.AcceptErrHandler = fn
+	}
+}
+
+func ServerWithConnErrorHandler(fn ErrHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.ConnErrHandler = fn
+	}
+}
+
+func ServerWithRequestHandler(fn RequestHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.RequestHandler = fn
+	}
+}
+
+// TODO: rename ServerWithResponseHandler
+func ServerWithRequestEndHandler(fn ResponseHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.ResponseHandler = fn
 	}
 }
 
