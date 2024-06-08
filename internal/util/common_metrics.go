@@ -1,8 +1,7 @@
 package util
 
 import (
-	"errors"
-	"net"
+	"strings"
 	"time"
 
 	"github.com/vkcom/statshouse-go"
@@ -66,12 +65,18 @@ func (s *RPCServerMetrics) handleResponse(hctx *rpc.HandlerContext, err error) {
 }
 
 func errTagValue(err error) string {
-	// tag value should not include connection specific information
-	var oe *net.OpError
-	if errors.As(err, &oe) && oe.Err != nil {
-		// drop IP address
-		return oe.Err.Error()
-
+	// Tag value should not include connection specific information,
+	// try to drop it by taking first and last errors.
+	// TODO: return structured messages from RPC with connection
+	// specific information seprated from error category.
+	s := err.Error()
+	i := strings.Index(s, ":")
+	if i == -1 {
+		return s
 	}
-	return err.Error()
+	j := strings.LastIndex(s, ":")
+	if i == j {
+		return s
+	}
+	return s[:i] + s[j:]
 }
