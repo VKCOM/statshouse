@@ -12,6 +12,9 @@ import (
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 const (
@@ -42,7 +45,8 @@ const dashboardTempl = `
         
       ],
       "plots":[
-	  {{range .}}
+	  {{range $index, $element := . }}
+	  {{if $index}},{{end}}
         {
           "id":"{{.Id}}",
           "metricName":"{{.Name}}",
@@ -75,7 +79,7 @@ const dashboardTempl = `
           "eventsHide":[ ],
           "totalLine":false,
           "filledGraph":true
-        },
+        }
 	  {{end}}
       ],
       "timeShifts":[ ],
@@ -115,7 +119,7 @@ func main() {
 	// defer printCounter()
 
 	plots := make([]plot, totalMetrics)
-	for i, _ := range plots {
+	for i := range plots {
 		plots[i].Id = i
 		plots[i].Name = fmt.Sprint(randomWalkPrefix, i)
 	}
@@ -127,24 +131,34 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	http.NewRequest(http.MethodPut, "http://localhost:10888/api/dashboard", buf)
+	req, err := http.NewRequest(http.MethodPut, "http://localhost:10888/api/dashboard", buf)
+	if err != nil {
+		panic(err)
+	}
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	// resp will be 500 if dashboard already existis but it's fine
+	_ = resp
 
 	ticker := time.NewTicker(time.Second)
-	// values := make([]float64, totalMetrics)
-	// rng := rand.New()
+	values := make([]float64, totalMetrics)
+	rng := rand.New()
 	for {
 		select {
 		case <-done:
 			return
 		case <-ticker.C:
-			// 		for m := 0; m < totalMetrics; m++ {
-			// 			statshouse.MetricNamed(fmt.Sprint(randomWalkPrefix, m), statshouse.NamedTags{}).Value(values[m])
-			// 			sign := float64(1)
-			// 			if rng.Int31n(2) == 1 {
-			// 				sign = float64(-1)
-			// 			}
-			// 			values[m] += rng.Float64() * sign
-			// 		}
+			for m := 0; m < totalMetrics; m++ {
+				statshouse.MetricNamed(fmt.Sprint(randomWalkPrefix, m), statshouse.NamedTags{}).Value(values[m])
+				sign := float64(1)
+				if rng.Int31n(2) == 1 {
+					sign = float64(-1)
+				}
+				values[m] += rng.Float64() * sign
+			}
 		}
 		n++
 	}
