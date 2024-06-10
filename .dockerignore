@@ -6,6 +6,7 @@
 !/build/*.xml
 !/build/*.sql
 !/build/*.sh
+!/build/debian
 !/cmd
 !/internal
 !/go.mod
