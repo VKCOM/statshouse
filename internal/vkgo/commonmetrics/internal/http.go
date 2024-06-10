@@ -51,7 +51,7 @@ func ParseHTTPStatusCode(code int) (status, statusCode string) {
 	case code == http.StatusTooManyRequests:
 		status = commonmetrics.StatusErrorLimit
 
-	case code >= 499:
+	case code >= 500:
 		status = commonmetrics.StatusErrorInternal
 
 	default:
