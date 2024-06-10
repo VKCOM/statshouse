@@ -7,7 +7,9 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
@@ -62,8 +64,45 @@ type Error struct {
 	Description string
 }
 
+type tagError struct {
+	tag string
+	msg string
+	err error
+}
+
 func (err Error) Error() string {
 	return fmt.Sprintf("RPC error %v: %v", err.Code, err.Description)
+}
+
+func ErrorTag(err error) string {
+	if err == nil {
+		return ""
+	}
+	if e, ok := err.(tagError); ok {
+		s := ErrorTag(e.err)
+		if e.tag == "" {
+			return s
+		}
+		if s == "" {
+			return e.tag
+		}
+		return e.tag + ":" + s
+	}
+	if e, ok := err.(net.Error); ok && e.Timeout() {
+		return "timeout" // enough for tag value
+	}
+	if e := errors.Unwrap(err); e != nil {
+		return ErrorTag(e)
+	}
+	return err.Error()
+}
+
+func (err tagError) Error() string {
+	return err.msg
+}
+
+func (err tagError) Unwrap() error {
+	return err.err
 }
 
 type NetAddr struct {
