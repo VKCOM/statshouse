@@ -18,11 +18,11 @@ import (
 func TestErrorTag(t *testing.T) {
 	foo := fmt.Errorf("foo")
 	bar := fmt.Errorf("foo: %w", foo)
-	baz := tagError{tag: "baz", err: bar}
+	baz := &tagError{tag: "baz", err: bar}
 	bzz := fmt.Errorf("bzz: %w", baz)
 	tag := ErrorTag(bzz)
 	assert.Equal(t, tag, "baz:foo")
 	assert.Empty(t, ErrorTag(nil))
-	assert.Empty(t, ErrorTag(tagError{tag: ""}))
-	assert.Equal(t, ErrorTag(tagError{tag: "", err: &net.OpError{Err: context.DeadlineExceeded}}), "timeout")
+	assert.Empty(t, ErrorTag(&tagError{tag: ""}))
+	assert.Equal(t, ErrorTag(&tagError{tag: "", err: &net.OpError{Err: context.DeadlineExceeded}}), "timeout")
 }

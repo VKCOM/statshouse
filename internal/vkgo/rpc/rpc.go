@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
@@ -78,17 +79,17 @@ func ErrorTag(err error) string {
 	if err == nil {
 		return ""
 	}
-	if e, ok := err.(tagError); ok {
-		s := ErrorTag(e.err)
-		if e.tag == "" {
-			return s
+	if e, _ := err.(*tagError); e != nil {
+		s := [2]string{e.tag, ErrorTag(e.err)}
+		if s[1] == "" {
+			return s[0]
 		}
-		if s == "" {
-			return e.tag
+		if s[0] == "" {
+			return s[1]
 		}
-		return e.tag + ":" + s
+		return strings.Join(s[:], ":")
 	}
-	if e, ok := err.(net.Error); ok && e.Timeout() {
+	if e, _ := err.(net.Error); e != nil && e.Timeout() {
 		return "timeout" // enough for tag value
 	}
 	if e := errors.Unwrap(err); e != nil {
@@ -97,11 +98,17 @@ func ErrorTag(err error) string {
 	return err.Error()
 }
 
-func (err tagError) Error() string {
+func (err *tagError) Error() string {
+	if err == nil {
+		return "<nil>"
+	}
 	return err.msg
 }
 
-func (err tagError) Unwrap() error {
+func (err *tagError) Unwrap() error {
+	if err == nil {
+		return nil
+	}
 	return err.err
 }
 
