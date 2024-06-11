@@ -249,7 +249,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 			}
 			if pc.readSeqNum < 0 || len(magicHead) != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
 				// if performing handshake || read at least 1 byte || not a timeout error
-				return magicHead, false, "", tagError{
+				return magicHead, false, "", &tagError{
 					tag: "bad_header", err: err,
 					msg: fmt.Sprintf("failed to read header for seq_num %d, magic(hex) %x: %v", pc.readSeqNum, magicHead, err),
 				}
@@ -261,7 +261,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 		}
 		if header.tip == PacketTypeRPCPing {
 			if header.length != packetOverhead+8 {
-				return nil, false, "", tagError{
+				return nil, false, "", &tagError{
 					tag: "out_of_range_packet_size",
 					msg: fmt.Sprintf("ping packet has wrong length: %d", header.length),
 				}
@@ -305,7 +305,7 @@ func (pc *PacketConn) readPacketHeaderUnlockedImpl(header *packetHeader) (magicH
 		// it is important to return (0, eof) when FIN is read on the message boundary
 		for i := 0; header.length == padVal; i++ {
 			if i >= blockSize/4 {
-				return nil, tagError{
+				return nil, &tagError{
 					tag: "excessive_padding",
 					msg: fmt.Sprintf("excessive (%d) padding", i),
 				}
@@ -329,13 +329,13 @@ func (pc *PacketConn) readPacketHeaderUnlockedImpl(header *packetHeader) (magicH
 	header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 
 	if header.length < packetOverhead || header.length > maxPacketLen {
-		return pc.headerReadBuf[:12], tagError{
+		return pc.headerReadBuf[:12], &tagError{
 			tag: "out_of_range_packet_size",
 			msg: fmt.Sprintf("packet size %v outside [%v, %v]: %v", header.length, packetOverhead, maxPacketLen, errHeaderCorrupted),
 		}
 	}
 	if pc.protocolVersion == 0 && header.length%4 != 0 {
-		return pc.headerReadBuf[:12], tagError{
+		return pc.headerReadBuf[:12], &tagError{
 			tag: "bad_packet_size",
 			msg: fmt.Sprintf("packet size %v must be a multiple of 4: %v", header.length, errHeaderCorrupted),
 		}
@@ -343,20 +343,20 @@ func (pc *PacketConn) readPacketHeaderUnlockedImpl(header *packetHeader) (magicH
 	if pc.readSeqNum < 0 {
 		// checks below also forbid ping-pong during handshake
 		if pc.readSeqNum == startSeqNum && header.tip != packetTypeRPCNonce { // this check is in nonceExchangeServer, but repeated here to detect non-RPC protocol earlier for connection hijack
-			return pc.headerReadBuf[:12], tagError{
+			return pc.headerReadBuf[:12], &tagError{
 				tag: "bad_nonce_packet_type",
 				msg: fmt.Sprintf("nonce packet type 0x%x instead of 0x%x: %v", header.tip, packetTypeRPCNonce, errHeaderCorrupted),
 			}
 
 		}
 		if pc.readSeqNum == startSeqNum+1 && header.tip != packetTypeRPCHandshake { // this check is in handshakeExchangeServer, but repeated here to better detect different keys with common prefixes leading to different AES keys
-			return pc.headerReadBuf[:12], tagError{
+			return pc.headerReadBuf[:12], &tagError{
 				tag: "bad_handshake_packet_type",
 				msg: fmt.Sprintf("handshake packet type 0x%x instead of 0x%x: %v", header.tip, packetTypeRPCHandshake, errHeaderCorrupted),
 			}
 		}
 		if header.length > maxNonceHandshakeLen {
-			return pc.headerReadBuf[:12], tagError{
+			return pc.headerReadBuf[:12], &tagError{
 				tag: "out_of_range_packet_size",
 				msg: fmt.Sprintf("nonce/handshake packet size %v outside  [%v, %v]: %v", header.length, packetOverhead, maxNonceHandshakeLen, errHeaderCorrupted),
 			}
@@ -395,7 +395,7 @@ func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte) 
 	readCRC := binary.LittleEndian.Uint32(body[bodySize:])
 	for i := 0; i < alignTo4; i++ {
 		if a := body[bodySize+4+i]; a != 0 {
-			return body, tagError{
+			return body, &tagError{
 				tag: "bad_body_padding_contents",
 				msg: fmt.Sprintf("body padding to 4 byte boundary must be with zeroes, read 0x%x at position %d instead", a, i),
 			}
@@ -407,7 +407,7 @@ func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte) 
 	crc = crc32.Update(crc, pc.table, body)
 
 	if readCRC != crc {
-		return body, tagError{
+		return body, &tagError{
 			tag: "crc_mismatch",
 			msg: fmt.Sprintf("CRC mismatch: read 0x%x, expected 0x%x", readCRC, crc),
 		}
@@ -497,7 +497,7 @@ func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen
 		return err
 	}
 	if pc.protocolVersion == 0 && packetBodyLen%4 != 0 {
-		return tagError{
+		return &tagError{
 			tag: "bad_packet_size",
 			msg: fmt.Sprintf("packet size %v must be a multiple of 4", packetBodyLen),
 		}
@@ -561,7 +561,7 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 
 	rc, err := aes.NewCipher(readKey)
 	if err != nil {
-		return tagError{
+		return &tagError{
 			tag: "nil_aes_reader",
 			msg: fmt.Sprintf("read AES init failed: %v", err),
 		}
@@ -569,20 +569,20 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 
 	wc, err := aes.NewCipher(writeKey)
 	if err != nil {
-		return tagError{
+		return &tagError{
 			tag: "nil_aes_writer",
 			msg: fmt.Sprintf("write AES init failed: %v", err),
 		}
 	}
 
 	if len(readIV) != blockSize {
-		return tagError{
+		return &tagError{
 			tag: "bad_read_iv_size",
 			msg: fmt.Sprintf("read IV size must be %v, not %v", blockSize, len(readIV)),
 		}
 	}
 	if len(writeIV) != blockSize {
-		return tagError{
+		return &tagError{
 			tag: "bad_write_iv_size",
 			msg: fmt.Sprintf("write IV size must be %v, not %v", blockSize, len(writeIV)),
 		}
@@ -591,13 +591,13 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 	rcbc := cipher.NewCBCDecrypter(rc, readIV)
 	wcbc := cipher.NewCBCEncrypter(wc, writeIV)
 	if rcbc.BlockSize() != blockSize {
-		return tagError{
+		return &tagError{
 			tag: "bad_read_cbc_block_size",
 			msg: fmt.Sprintf("CBC read decrypter BlockSize must be %v, not %v", blockSize, rcbc.BlockSize()),
 		}
 	}
 	if wcbc.BlockSize() != blockSize {
-		return tagError{
+		return &tagError{
 			tag: "bad_write_cbc_block_size",
 			msg: fmt.Sprintf("CBC write decrypter BlockSize must be %v, not %v", blockSize, wcbc.BlockSize()),
 		}
@@ -611,7 +611,7 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 
 func validBodyLen(n int) error { // Motivation - high byte was used for some flags, we must not use it
 	if n > maxPacketLen-packetOverhead {
-		return tagError{
+		return &tagError{
 			tag: "out_of_range_packet_size",
 			msg: fmt.Sprintf("packet size (metadata+extra+request) %v exceeds maximum %v", n, maxPacketLen),
 		}
