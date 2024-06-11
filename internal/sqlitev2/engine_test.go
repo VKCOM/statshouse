@@ -139,6 +139,9 @@ func defaultTestEngineOptions(prefix string) testEngineOptions {
 type userEngine struct {
 }
 
+func (u userEngine) Revert(toOffset int64) {
+}
+
 func (u userEngine) Shutdown() {
 
 }

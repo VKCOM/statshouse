@@ -127,8 +127,8 @@ func Test_Engine_View(t *testing.T) {
 			}
 		}()
 	}
+	require.NoError(t, engine.Close(context.Background())) // close should wait all RO txs
 	wg.Wait()
-	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_ReadAndExit(t *testing.T) {

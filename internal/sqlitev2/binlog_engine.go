@@ -102,6 +102,7 @@ func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotO
 }
 
 func (b *binlogEngine) Revert(toOffset int64) (bool, error) {
+	b.e.userEngine.Revert(toOffset)
 	return false, nil
 }
 
