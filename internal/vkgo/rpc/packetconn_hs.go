@@ -249,7 +249,10 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		return nonceMsg{Schema: (protocol << 8) | cryptoSchemaNone}, "", nil
 	}
 	if !clientRequiresEncryption && requireEncryption && !clientSupportsEncryption {
-		return nonceMsg{}, "", fmt.Errorf("refusing to setup unencrypted connection between %v (local) and %v, client protocol %d schema %s", localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+		return nonceMsg{}, "", &tagError{
+			tag: "encryption_schema_mismatch",
+			msg: fmt.Sprintf("refusing to setup unencrypted connection between %v (local) and %v, client protocol %d schema %s", localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+		}
 	}
 	server := nonceMsg{
 		KeyID:  client.KeyID, // just report back. Client should ignore this field.
@@ -258,7 +261,10 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	}
 	dt := (time.Duration(client.Time) - time.Duration(server.Time)) * time.Second
 	if dt < -cryptoMaxTimeDelta || dt > cryptoMaxTimeDelta { // check as early as possible
-		return nonceMsg{}, "", fmt.Errorf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta)
+		return nonceMsg{}, "", &tagError{
+			tag: "out_of_range_time_delta",
+			msg: fmt.Sprintf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta),
+		}
 	}
 
 	cryptoKey := "" // We disallow empty crypto keys as protection against misconfigurations, when key is empty because error reading key file is ignored
@@ -268,10 +274,16 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		keyID := KeyIDFromCryptoKey(key)
 		if key != "" && key != cryptoKey && keyID == client.KeyID { // skip empty, allow duplicate keys, disallow different keys with the same KeyID
 			if keyID == emptyKeyID {
-				return nonceMsg{}, "", fmt.Errorf("client key with prefix 0x%s must not be 4 zero bytes between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+				return nonceMsg{}, "", &tagError{
+					tag: "zero_key_id",
+					msg: fmt.Sprintf("client key with prefix 0x%s must not be 4 zero bytes between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+				}
 			}
 			if cryptoKey != "" {
-				return nonceMsg{}, "", fmt.Errorf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+				return nonceMsg{}, "", &tagError{
+					tag: "key_id_collision",
+					msg: fmt.Sprintf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+				}
 			}
 			cryptoKey = key
 		}
