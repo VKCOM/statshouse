@@ -73,13 +73,13 @@ jobs:
       - run: build/makerpm.sh ${{matrix.image}}
       - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-pkg-rpm-${{needs.env.outputs.version}}${{strategy.job-index}}
+          name: statshouse-pkg-rpm-${{needs.env.outputs.version}}-${{strategy.job-index}}
           path: RPMS/*.rpm
-  debian:
+  deb:
     strategy:
       matrix:
-        release: [bullseye, bookworm]
-    needs: [env, frontend]
+        release: [debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy]
+    needs: [env]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,33 +87,14 @@ jobs:
           repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
-      - run: echo "BUILD_VERSION=`echo ${{needs.env.outputs.version}} | sed -e 's:-:.:g'`" >> $GITHUB_ENV
-      - run: build/make-pkg.sh debian-${{matrix.release}}
+      - run: build/make-pkg.sh ${{matrix.release}}
       - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-pkg-debian-${{inputs.version}}${{github.run_number}}${{strategy.job-index}}
-          path: target/debian-${{matrix.release}}/*.deb
-  ubuntu:
-    strategy:
-      matrix:
-        release: [focal, jammy]
-    needs: [env, frontend]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: VKCOM/statshouse
-          ref: ${{needs.env.outputs.ref}}
-          fetch-depth: 0
-      - run: echo "BUILD_VERSION=`echo ${{needs.env.outputs.version}} | sed -e 's:-:.:g'`" >> $GITHUB_ENV
-      - run: build/make-pkg.sh ubuntu-${{matrix.release}}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: statshouse-pkg-ubuntu-${{inputs.version}}${{github.run_number}}${{strategy.job-index}}
-          path: target/ubuntu-${{matrix.release}}/*.deb
+          name: statshouse-pkg-${{needs.env.outputs.version}}-${{github.run_number}}-${{matrix.release}}
+          path: target/${{matrix.release}}/*.deb
   draft_release:
     if: ${{ github.event.inputs.draft_release }}
-    needs: [env, rpm, ubuntu, debian]
+    needs: [env, rpm, deb]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
