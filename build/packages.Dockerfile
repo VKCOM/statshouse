@@ -73,8 +73,8 @@ COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
-ARG BUILD_VERSION
-RUN dch --create --distribution stable --package statshouse --newversion "$BUILD_VERSION" "up to version $BUILD_VERSION"
+ARG DEBIAN_VERSION
+RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
 RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
 
 FROM debian:bookworm AS debuild-bookworm
@@ -87,8 +87,8 @@ COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
-ARG BUILD_VERSION
-RUN dch --create --distribution stable --package statshouse --newversion "$BUILD_VERSION" "up to version $BUILD_VERSION"
+ARG DEBIAN_VERSION
+RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
 RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
 
 FROM ubuntu:focal AS debuild-focal
@@ -101,8 +101,8 @@ COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
-ARG BUILD_VERSION
-RUN dch --create --distribution stable --package statshouse --newversion "$BUILD_VERSION" "up to version $BUILD_VERSION"
+ARG DEBIAN_VERSION
+RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
 RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
 
 FROM ubuntu:jammy AS debuild-jammy 
@@ -115,8 +115,8 @@ COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
-ARG BUILD_VERSION
-RUN dch --create --distribution stable --package statshouse --newversion "$BUILD_VERSION" "up to version $BUILD_VERSION"
+ARG DEBIAN_VERSION
+RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
 RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
 
 FROM scratch AS debian-bullseye
