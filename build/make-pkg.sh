@@ -30,6 +30,11 @@ BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)"
 GOCACHE=$PWD/build/go-cache
 mkdir -p "$GOCACHE"
 
+if [[ $TAG == ubuntu* ]]; then
+  docker build --file build/golang-ubuntu/golang-1.21-focal.Dockerfile --tag golang:1.21-focal build/golang-ubuntu
+  docker build --file build/golang-ubuntu/golang-1.21-jammy.Dockerfile --tag golang:1.21-jammy build/golang-ubuntu
+fi
+
 docker build --file build/packages.Dockerfile \
     --build-arg BUILD_TIME \
     --build-arg BUILD_MACHINE \
