@@ -174,6 +174,7 @@ type Server struct {
 	statRequestsCurrent    atomic.Int64
 	statRPS                atomic.Int64
 	statHostname           string
+	statLongPollsWaiting   atomic.Int64
 
 	opts ServerOptions
 
@@ -1098,6 +1099,22 @@ func (s *Server) RequestsTotal() int64 {
 
 func (s *Server) RequestsCurrent() int64 {
 	return s.statRequestsCurrent.Load()
+}
+
+func (s *Server) WorkersPoolSize() (current int, total int) {
+	return s.workerPool.Created()
+}
+
+func (s *Server) LongPollsWaiting() int64 {
+	return s.statLongPollsWaiting.Load()
+}
+
+func (s *Server) RequestsMemory() (current int64, total int64) {
+	return s.reqMemSem.Observe()
+}
+
+func (s *Server) ResponsesMemory() (current int64, total int64) {
+	return s.respMemSem.Observe()
 }
 
 func (s *Server) RPS() int64 {

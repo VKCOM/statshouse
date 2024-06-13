@@ -102,7 +102,13 @@ func (err *tagError) Error() string {
 	if err == nil {
 		return "<nil>"
 	}
-	return err.msg
+	if len(err.msg) != 0 {
+		return err.msg
+	}
+	if err.err != nil {
+		return err.err.Error()
+	}
+	return ""
 }
 
 func (err *tagError) Unwrap() error {

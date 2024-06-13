@@ -95,6 +95,7 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 			sc.mu.Unlock()
 			return // already released
 		}
+		sc.server.statLongPollsWaiting.Dec()
 		delete(sc.longpollResponses, resp.hctx.queryID)
 	}
 	if sc.closedFlag || hctx.noResult {
@@ -309,6 +310,7 @@ func (sc *serverConn) makeLongpollResponse(hctx *HandlerContext, canceller Hijac
 		sc.server.rareLog(&sc.server.lastHijackWarningLog, "[rpc.Server] - invariant violation, hijack response queryID collision")
 		return
 	}
+	sc.server.statLongPollsWaiting.Inc()
 	sc.longpollResponses[queryID] = hijackedResponse{canceller: canceller, hctx: hctx}
 	if debugTrace {
 		sc.server.addTrace(fmt.Sprintf("makeLongpollResponse %p %d", hctx, hctx.queryID))
@@ -331,6 +333,7 @@ func (sc *serverConn) cancelLongpollResponse(queryID int64) {
 	if debugPrint {
 		fmt.Printf("longpollResponses cancel %d\n", queryID)
 	}
+	sc.server.statLongPollsWaiting.Dec()
 	delete(sc.longpollResponses, queryID)
 	if debugTrace {
 		sc.server.addTrace(fmt.Sprintf("cancelLongpollResponse %p %d", resp.hctx, queryID))
@@ -344,6 +347,7 @@ func (sc *serverConn) cancelAllLongpollResponses() {
 	sc.mu.Lock()
 	longpollResponses := sc.longpollResponses
 	sc.longpollResponses = nil // If makeLongpollResponse is called, we'll panic. But this must be impossible if SyncHandler follows protocol
+	sc.server.statLongPollsWaiting.Sub(int64(len(longpollResponses)))
 	if debugTrace {
 		sc.server.addTrace("cancelAllLongpollResponses")
 	}

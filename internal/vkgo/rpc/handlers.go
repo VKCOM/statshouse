@@ -43,7 +43,7 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	requestMem, _ := s.reqMemSem.Observe()
 	responseMem, _ := s.respMemSem.Observe()
 
-	workersTotal := s.workerPool.Created()
+	workersTotal, _ := s.workerPool.Created()
 
 	gc := srvfunc.GetGCStats()
 	gcPausesMs, _ := json.Marshal(gc.LastPausesMs)
