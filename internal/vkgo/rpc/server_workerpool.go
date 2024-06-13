@@ -70,10 +70,10 @@ func (t *workerPool) Close() {
 	t.cond.Broadcast()
 }
 
-func (t *workerPool) Created() int {
+func (t *workerPool) Created() (current int, total int) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.created
+	return t.created, t.create
 }
 
 func (t *workerPool) Get(wg *WaitGroup) (*worker, bool) {

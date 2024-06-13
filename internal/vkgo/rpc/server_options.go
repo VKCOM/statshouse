@@ -287,8 +287,7 @@ func ServerWithRequestHandler(fn RequestHandlerFunc) ServerOptionsFunc {
 	}
 }
 
-// TODO: rename ServerWithResponseHandler
-func ServerWithRequestEndHandler(fn ResponseHandlerFunc) ServerOptionsFunc {
+func ServerWithResponseHandler(fn ResponseHandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.ResponseHandler = fn
 	}
