@@ -62,11 +62,12 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster           string
-	Network           string
-	ListenAddr        string
-	ExternalAddresses []string // exactly 3 comma-separated external ingress points
-	IngressKeys       []string
+	Cluster             string
+	Network             string
+	ListenAddr          string
+	ExternalAddresses   []string // exactly 3 comma-separated external ingress points
+	IngressKeys         []string
+	ResponseMemoryLimit int
 }
 
 func newClientPool(aesPwd string) *clientPool {
@@ -132,6 +133,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
+		rpc.ServerWithResponseMemoryLimit(config.ResponseMemoryLimit),
 		metrics.ServerWithMetrics,
 	}
 	if hijack != nil {
