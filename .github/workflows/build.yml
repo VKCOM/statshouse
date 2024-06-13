@@ -78,7 +78,8 @@ jobs:
   deb:
     strategy:
       matrix:
-        release: [debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy]
+        # release: [debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy]
+        release: [ubuntu-focal]
     needs: [env]
     runs-on: ubuntu-latest
     steps:
