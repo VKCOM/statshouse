@@ -38,6 +38,7 @@ docker build --file build/packages.Dockerfile \
     --build-arg BUILD_ID \
     --build-arg BUILD_VERSION=$UPSTREAM \
     --build-arg BUILD_TRUSTED_SUBNET_GROUPS \
+    --build-arg DEBIAN_VERSION=$BUILD_VERSION \
     --build-arg GOCACHE \
     --output target/$TAG --target $TAG .
 
