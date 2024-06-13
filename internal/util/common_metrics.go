@@ -10,8 +10,12 @@ import (
 )
 
 type RPCServerMetrics struct {
-	сonnCount  *statshouse.MetricRef
-	commonTags statshouse.Tags
+	сonnCount       *statshouse.MetricRef
+	workerPoolSize  *statshouse.MetricRef
+	longPollWaiting *statshouse.MetricRef
+	requestMemory   *statshouse.MetricRef
+	responseMemory  *statshouse.MetricRef
+	commonTags      statshouse.Tags
 }
 
 func NewRPCServerMetrics(service string) *RPCServerMetrics {
@@ -23,8 +27,12 @@ func NewRPCServerMetrics(service string) *RPCServerMetrics {
 		env.DataCenter,
 	}
 	return &RPCServerMetrics{
-		сonnCount:  statshouse.Metric("common_rpc_server_conn", tag),
-		commonTags: tag,
+		сonnCount:       statshouse.Metric("common_rpc_server_conn", tag),
+		workerPoolSize:  statshouse.Metric("common_rpc_server_worker_pool_size", tag),
+		longPollWaiting: statshouse.Metric("common_rpc_server_longpoll_waiting", tag),
+		requestMemory:   statshouse.Metric("common_rpc_server_request_mem", tag),
+		responseMemory:  statshouse.Metric("common_rpc_server_response_mem", tag),
+		commonTags:      tag,
 	}
 }
 
@@ -37,6 +45,13 @@ func (s *RPCServerMetrics) ServerWithMetrics(so *rpc.ServerOptions) {
 func (s *RPCServerMetrics) Run(server *rpc.Server) func() {
 	id := statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 		s.сonnCount.Value(float64(server.ConnectionsCurrent()))
+		workerPoolSize, _ := server.WorkersPoolSize()
+		s.workerPoolSize.Value(float64(workerPoolSize))
+		s.longPollWaiting.Value(float64(server.LongPollsWaiting()))
+		requestMemory, _ := server.RequestsMemory()
+		s.requestMemory.Value(float64(requestMemory))
+		responseMemory, _ := server.ResponsesMemory()
+		s.responseMemory.Value(float64(responseMemory))
 	})
 	return func() {
 		statshouse.StopRegularMeasurement(id)
