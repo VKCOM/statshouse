@@ -36,7 +36,7 @@ func (s *RPCServerMetrics) ServerWithMetrics(so *rpc.ServerOptions) {
 
 func (s *RPCServerMetrics) Run(server *rpc.Server) func() {
 	id := statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
-		s.сonnCount.Count(float64(server.ConnectionsCurrent()))
+		s.сonnCount.Value(float64(server.ConnectionsCurrent()))
 	})
 	return func() {
 		statshouse.StopRegularMeasurement(id)
