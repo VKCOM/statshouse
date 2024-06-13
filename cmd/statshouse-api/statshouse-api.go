@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"net"
 	"net/http"
 	_ "net/http/pprof" // pprof HTTP handlers
 	"os"
@@ -483,12 +482,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		go func() { // serve pprof on RPC port
 			m := http.NewServeMux()
 			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
-				if err == nil && remoteAddr.IP.IsLoopback() {
-					http.DefaultServeMux.ServeHTTP(w, r)
-				} else {
-					w.WriteHeader(http.StatusUnauthorized)
-				}
+				http.DefaultServeMux.ServeHTTP(w, r)
 			})
 			log.Printf("serving Go pprof at %q", argv.listenRPCAddr)
 			s := http.Server{Handler: m}
