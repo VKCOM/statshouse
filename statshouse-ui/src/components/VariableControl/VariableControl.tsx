@@ -22,13 +22,13 @@ export type VariableControlProps<T> = {
   target?: T;
   placeholder?: string;
   negative?: boolean;
-  setNegative: (name: T | undefined, value: boolean) => void;
+  setNegative?: (name: T | undefined, value: boolean) => void;
   groupBy?: boolean;
   setGroupBy?: (name: T | undefined, value: boolean) => void;
   className?: string;
   values?: string[];
   notValues?: string[];
-  onChange: (name: T | undefined, value: string[]) => void;
+  onChange?: (name: T | undefined, value: string[]) => void;
   tagMeta?: MetricMetaTag;
   more?: boolean;
   customValue?: boolean;
@@ -94,13 +94,13 @@ export function VariableControl<T>({
   const onChangeFilter = useCallback(
     (value?: string | string[] | undefined) => {
       const v = value == null ? [] : Array.isArray(value) ? value : [value];
-      onChange(target, v);
+      onChange?.(target, v);
     },
     [target, onChange]
   );
   const onSetNegative = useCallback(
     (value: boolean) => {
-      setNegative(target, value);
+      setNegative?.(target, value);
     },
     [target, setNegative]
   );
@@ -113,7 +113,7 @@ export function VariableControl<T>({
   const onRemoveFilter = useCallback<React.MouseEventHandler<HTMLButtonElement>>(
     (event) => {
       const value = event.currentTarget.getAttribute('data-value');
-      onChange(
+      onChange?.(
         target,
         allValues.filter((v) => v !== value)
       );

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,111 +7,75 @@
 import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
-import { getEndDay, getEndWeek, getNow, readTimeRange, type TimeRange } from 'store2';
-import { timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev2 } from '../../../view/utils';
+import {
+  defaultBaseRange,
+  getAbbrev,
+  getEndDay,
+  getEndWeek,
+  getNow,
+  readTimeRange,
+  setBaseRange,
+  setTimeRange,
+  timeRangeAbbrevExpand,
+  updateTimeRangeToEndDay,
+  updateTimeRangeToEndWeek,
+  useUrlStore,
+} from 'store2';
+import { secondsRangeToString } from 'view/utils';
 import { Button } from 'components';
 import { produce } from 'immer';
-import { TIME_RANGE_KEYS_TO } from '../../../api/enum';
+import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from 'api/enum';
 
 export type PlotControlFromProps = {
-  timeRange: TimeRange;
-  setTimeRange: (timeRange: TimeRange) => void;
-  setBaseRange: (r: timeRangeAbbrev) => void;
   className?: string;
   classNameSelect?: string;
 };
 
-export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
-  timeRange,
-  setTimeRange,
-  setBaseRange,
-  className,
-  classNameSelect,
-}) => {
-  const onTimeRangeChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>) => {
-      const abbr = e.target.value as timeRangeAbbrev;
-      setBaseRange(abbr);
-      setTimeRange(
-        produce(timeRange, (t) => {
-          const next = timeRangeAbbrevExpand(abbr, t.absolute ? getNow() : 0);
-          return readTimeRange(next.from, t.absolute ? getNow() : 0);
-        })
-      );
-    },
-    [setBaseRange, setTimeRange, timeRange]
-  );
+export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, classNameSelect }) => {
+  const timeRange = useUrlStore((s) => s.params.timeRange);
+
+  const onTimeRangeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
+    const abbr = toTimeRangeAbbrev(e.target.value, defaultBaseRange);
+    setBaseRange(abbr);
+    setTimeRange(
+      produce((t) => {
+        const nextFrom = timeRangeAbbrevExpand(abbr);
+        return readTimeRange(nextFrom, t.absolute ? getNow() : TIME_RANGE_KEYS_TO.Now);
+      })
+    );
+  }, []);
 
   const onTodayClick = useCallback(() => {
-    setBaseRange('last-1d');
-    const endDay = getEndDay();
-    setTimeRange(
-      produce(timeRange, (t) => {
-        t.to = endDay;
-        if (t.absolute) {
-          t.urlTo = endDay;
-        } else {
-          t.urlTo = TIME_RANGE_KEYS_TO.EndDay;
-        }
-        t.from = timeRangeAbbrevExpand('last-1d', endDay).from;
-      })
-    );
-    // setTimeRange((range) => ({
-    //   to: range.absolute ? endDay : TIME_RANGE_KEYS_TO.EndDay,
-    //   from: timeRangeAbbrevExpand('last-1d', endDay).from,
-    // }));
-  }, [setBaseRange, setTimeRange, timeRange]);
+    setBaseRange(TIME_RANGE_ABBREV.last1d);
+    setTimeRange(updateTimeRangeToEndDay());
+  }, []);
 
-  const disableTodayClick = useMemo(() => timeRange.from === -86400 && timeRange.to === getEndDay(), [timeRange]);
+  const disableTodayClick = useMemo(
+    () => timeRange.from === -86400 && Math.abs(timeRange.to - getEndDay()) < 60,
+    [timeRange.from, timeRange.to]
+  );
 
   const onWeekClick = useCallback(() => {
-    setBaseRange('last-1d');
-    const endWeek = getEndWeek();
-    // setTimeRange((range) => ({
-    //   to: range.absolute ? endWeek : TIME_RANGE_KEYS_TO.EndWeek,
-    //   from: timeRangeAbbrevExpand('last-7d', endWeek).from,
-    // }));
-    setTimeRange(
-      produce(timeRange, (t) => {
-        t.to = endWeek;
-        if (t.absolute) {
-          t.urlTo = endWeek;
-        } else {
-          t.urlTo = TIME_RANGE_KEYS_TO.EndWeek;
-        }
-        t.from = timeRangeAbbrevExpand('last-1d', endWeek).from;
-      })
-    );
-  }, [setBaseRange, setTimeRange, timeRange]);
+    setBaseRange(TIME_RANGE_ABBREV.last7d);
+    setTimeRange(updateTimeRangeToEndWeek());
+  }, []);
 
-  const disableWeekClick = useMemo(() => timeRange.from === -604800 && timeRange.to === getEndWeek(), [timeRange]);
+  const disableWeekClick = useMemo(
+    () => timeRange.from === -604800 && Math.abs(timeRange.to - getEndWeek()) < 60,
+    [timeRange.from, timeRange.to]
+  );
 
   return (
     <div className={cn('input-group flex-nowrap', className)}>
-      <select
-        className={`form-select ${classNameSelect}`}
-        value={timeRangeToAbbrev2(timeRange)}
-        onChange={onTimeRangeChange}
-      >
+      <select className={`form-select ${classNameSelect}`} value={getAbbrev(timeRange)} onChange={onTimeRangeChange}>
         <option value="" disabled>
-          {timeRangeString(timeRange)}
+          {secondsRangeToString(-timeRange.from)}
         </option>
-        <option value="last-5m">Last 5 minutes</option>
-        <option value="last-15m">Last 15 minutes</option>
-        <option value="last-1h">Last hour</option>
-        <option value="last-2h">Last 2 hours</option>
-        <option value="last-6h">Last 6 hours</option>
-        <option value="last-12h">Last 12 hours</option>
-        <option value="last-1d">Last 24 hours</option>
-        <option value="last-2d">Last 48 hours</option>
-        <option value="last-3d">Last 72 hours</option>
-        <option value="last-7d">Last 7 days</option>
-        <option value="last-14d">Last 14 days</option>
-        <option value="last-30d">Last 30 days</option>
-        <option value="last-90d">Last 90 days</option>
-        <option value="last-180d">Last 180 days</option>
-        <option value="last-1y">Last year</option>
-        <option value="last-2y">Last 2 years</option>
+        {Object.entries(TIME_RANGE_ABBREV_DESCRIPTION).map(([traKey, traDesc]) => (
+          <option key={traKey} value={traKey}>
+            {traDesc}
+          </option>
+        ))}
       </select>
 
       <Button className="btn btn-outline-primary" type="button" onClick={onTodayClick} disabled={disableTodayClick}>

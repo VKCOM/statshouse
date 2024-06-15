@@ -68,6 +68,7 @@ export function getEmptyPlotData(): PlotData {
     // topInfo?: TopInfo;
     maxHostLists: [],
     promqltestfailed: false,
+    promqlExpand: false,
   };
 }
 
@@ -119,6 +120,7 @@ export type PlotData = {
   topInfo?: TopInfo;
   maxHostLists: SelectOptionProps[][];
   promqltestfailed?: boolean;
+  promqlExpand: boolean;
 };
 
 export type PlotsDataStore = {
@@ -133,7 +135,7 @@ export async function loadPlotData(plotKey: PlotKey, params: QueryParams, priori
     return;
   }
   const fetchBadges = true;
-  const width = plot.customAgg === -1 ? `1000` : plot.customAgg === 0 ? `2000` : `${plot.customAgg}s`;
+  const width = plot.customAgg === -1 ? `500` : plot.customAgg === 0 ? `2000` : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
     [GET_PARAMS.numResults]: plot.numSeries.toString(),
     [GET_PARAMS.metricWhat]: plot.what.slice(),
@@ -183,7 +185,7 @@ export async function loadPlotData(plotKey: PlotKey, params: QueryParams, priori
 export function normalizePlotData(response: SeriesResponse, plot: PlotParams, params: QueryParams): PlotData {
   const width = 2000;
   const { timeRange, timeShifts } = params;
-  return produce(usePlotsDataStore.getState().plotsData[plot.id] ?? getEmptyPlotData(), (plotData) => {
+  return produce<PlotData>(usePlotsDataStore.getState().plotsData[plot.id] ?? getEmptyPlotData(), (plotData) => {
     const {
       lastPlotParams: currentPrevLastPlotParams,
       seriesShow: currentPrevSeriesShow,
@@ -458,7 +460,7 @@ export function normalizePlotData(response: SeriesResponse, plot: PlotParams, pa
     const maxLengthValue = plotData.series.reduce(
       (res, s, indexSeries) => {
         if (s.show) {
-          const v =
+          const v: null | number =
             (plotData.data[indexSeries + 1] as (number | null)[] | undefined)?.reduce(
               (res2, d) => {
                 if (d && (res2?.toString().length ?? 0) < d.toString().length) {
@@ -547,3 +549,14 @@ export function plotsDataStoreSubscribe(state: PlotsInfoStore, prevState: PlotsI
 }
 
 usePlotsInfoStore.subscribe(plotsDataStoreSubscribe);
+
+export function togglePromqlExpand(plotKey: PlotKey, status?: boolean) {
+  usePlotsDataStore.setState(
+    produce<PlotsDataStore>((s) => {
+      const pd = s.plotsData[plotKey];
+      if (pd) {
+        pd.promqlExpand = status ?? !pd.promqlExpand;
+      }
+    })
+  );
+}

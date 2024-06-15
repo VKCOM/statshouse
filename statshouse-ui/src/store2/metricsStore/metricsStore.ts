@@ -1,14 +1,19 @@
 import { produce } from 'immer';
 import { createStore } from '../createStore';
-import { apiMetricFetch, MetricMetaValue } from 'api/metric';
+import { apiMetricFetch, MetricMetaTag, MetricMetaValue } from 'api/metric';
 import { promiseRun } from 'common/promiseRun';
-import { GET_PARAMS } from 'api/enum';
+import { GET_PARAMS, TAG_KEY, TagKey, toTagKey } from 'api/enum';
 import { debug } from 'common/debug';
 import { useErrorStore } from 'store';
 import { promQLMetric } from '../urlStore';
 
+export type MetricsMeta = MetricMetaValue & {
+  tagsObject: Partial<Record<TagKey, MetricMetaTag>>;
+  tagsOrder: TagKey[];
+};
+
 export type MetricsStore = {
-  meta: Partial<Record<string, MetricMetaValue>>;
+  meta: Partial<Record<string, MetricsMeta>>;
 };
 
 export const useMetricsStore = createStore<MetricsStore>(() => ({
@@ -33,7 +38,12 @@ export async function loadMetricMeta(metricName: string) {
       debug.log('loading meta for', response.data.metric.name);
       useMetricsStore.setState(
         produce((state) => {
-          state.meta[response.data.metric.name] = response.data.metric;
+          const tagsObject = tagsArrToObject(response.data.metric.tags);
+          state.meta[response.data.metric.name] = {
+            ...response.data.metric,
+            tagsObject,
+            tagsOrder: Object.keys(tagsObject),
+          };
         })
       );
     }
@@ -55,4 +65,14 @@ export function clearMetricsMeta(metricName: string) {
       })
     );
   }
+}
+
+export function tagsArrToObject(tags: MetricMetaTag[] = []): Partial<Record<TagKey, MetricMetaTag>> {
+  return tags.reduce(
+    (res, t, indexTag) => {
+      res[toTagKey(indexTag, TAG_KEY._0)] = t;
+      return res;
+    },
+    {} as Partial<Record<TagKey, MetricMetaTag>>
+  );
 }

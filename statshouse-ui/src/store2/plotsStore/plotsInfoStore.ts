@@ -1,17 +1,19 @@
 import { createStore } from '../createStore';
 import {
+  defaultBaseRange,
   getAddPlotLink,
   getGroupPlotsMap,
   getPlotLink,
   GroupPlotsMap,
+  isPromQL,
   PlotKey,
   QueryParams,
   UrlStore,
   useUrlStore,
 } from '../urlStore';
-import { defaultBaseRange, isNotNil, mergeLeft } from '../../common/helpers';
+import { isNotNil } from '../../common/helpers';
 import { To } from 'react-router-dom';
-import { timeRangeAbbrev } from '../../view/utils';
+import { TimeRangeAbbrev } from '../../api/enum';
 
 export type PlotInfo = {
   metricName: string;
@@ -24,14 +26,14 @@ export type PlotsInfoStore = {
   dashboardSettingLink: To;
   addLink: To;
   tabNum: PlotKey;
-  baseRange: timeRangeAbbrev;
+  baseRange: TimeRangeAbbrev;
 } & GroupPlotsMap;
 
 export const usePlotsInfoStore = createStore<PlotsInfoStore>(
   () => ({
     ...updatePlots(useUrlStore.getState().params),
   }),
-  'usePlotsStore'
+  'usePlotsInfoStore'
 );
 
 export function plotsStoreSubscribe(state: UrlStore, prevState: UrlStore) {
@@ -54,21 +56,19 @@ export function plotsStoreSubscribe(state: UrlStore, prevState: UrlStore) {
 
 export function updatePlots(params: QueryParams, saveParams?: QueryParams): PlotsInfoStore {
   return {
-    plotsInfo: mergeLeft(
-      params.plots,
-      Object.fromEntries(
-        Object.entries(params.plots)
-          .map(([plotKey, plot]) => {
-            if (!plot) {
-              return undefined;
-            }
-            const metricWhat = plot.customName ? '' : plot.what.join(', ');
-            const metricName = plot.customName || plot.metricName || '';
-            const link = getPlotLink(plot.id, params, saveParams);
-            return [plotKey, { metricName, metricWhat, link }];
-          })
-          .filter(isNotNil)
-      )
+    plotsInfo: Object.fromEntries(
+      Object.entries(params.plots)
+        .map(([plotKey, plot]) => {
+          if (!plot) {
+            return undefined;
+          }
+          const isPlotPromQL = isPromQL(plot);
+          const metricWhat = isPlotPromQL || plot.customName ? '' : plot.what.join(', ');
+          const metricName = plot.customName || (!isPlotPromQL && plot.metricName) || `plot#${plotKey}`;
+          const link = getPlotLink(plot.id, params, saveParams);
+          return [plotKey, { metricName, metricWhat, link }];
+        })
+        .filter(isNotNil)
     ),
     // orderPlot: [...params.orderPlot],
     dashboardLink: { pathname: '/2/view', search: getPlotLink('-1', params, saveParams) },
@@ -81,3 +81,7 @@ export function updatePlots(params: QueryParams, saveParams?: QueryParams): Plot
 }
 
 useUrlStore.subscribe(plotsStoreSubscribe);
+
+export function setBaseRange(r: TimeRangeAbbrev) {
+  usePlotsInfoStore.setState({ baseRange: r });
+}
