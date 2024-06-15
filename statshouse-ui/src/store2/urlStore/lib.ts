@@ -5,6 +5,7 @@ import {
   PlotParams,
   QueryParams,
   TimeRange,
+  VariableKey,
   VariableParams,
   VariableParamsLink,
   VariableParamsSource,
@@ -17,13 +18,18 @@ import {
   QUERY_WHAT,
   TAG_KEY,
   TagKey,
+  TIME_RANGE_ABBREV,
   TIME_RANGE_KEYS_TO,
+  TimeRangeAbbrev,
   TimeRangeKeysTo,
   toTagKey,
   toTimeRangeKeysTo,
 } from '../../api/enum';
-import { urlEncode, urlDecode } from '../urlStore';
+import { urlDecode, urlEncode, UrlStore } from '../urlStore';
 import { produce } from 'immer';
+import { globalSettings } from '../../common/settings';
+import { whatToWhatDesc } from '../../view/api';
+import { PlotData } from '../plotsStore';
 
 export const filterInSep = '-';
 export const filterNotInSep = '~';
@@ -44,10 +50,12 @@ export function arrToObj(arr: [string, string][]) {
 }
 
 export const treeParamsObjectValueSymbol = Symbol('value');
+
 export type TreeParamsObject = Partial<{
   [key: string]: TreeParamsObject;
   [treeParamsObjectValueSymbol]: string[];
 }>;
+
 export function toTreeObj(obj: Partial<Record<string, string[]>>): TreeParamsObject {
   const res = {};
   for (let key in obj) {
@@ -226,6 +234,20 @@ export function getNewPlot(): PlotParams {
   };
 }
 
+export function getHomePlot(): PlotParams {
+  const plot = getNewPlot();
+  plot.metricName = globalSettings.default_metric;
+  plot.what = globalSettings.default_metric_what.slice();
+  plot.groupBy = globalSettings.default_metric_group_by.slice();
+  plot.filterIn = deepClone(globalSettings.default_metric_filter_in);
+  plot.filterNotIn = deepClone(globalSettings.default_metric_filter_not_in);
+  plot.numSeries = globalSettings.default_num_series;
+  return plot;
+}
+export function isPromQL(plot?: PlotParams): boolean {
+  return plot?.metricName === promQLMetric || !!plot?.promQL;
+}
+
 export function getNewGroup(): GroupInfo {
   return {
     id: '',
@@ -295,16 +317,28 @@ export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): s
   return '?' + new URLSearchParams(urlEncode(nextParams, saveParams)).toString();
 }
 
+export type PlotVariablesLink = Partial<
+  Record<
+    TagKey,
+    {
+      variableKey: VariableKey;
+      variableName: string;
+    }
+  >
+>;
+
 export type GroupPlotsMap = {
   groupPlots: Partial<Record<GroupKey, PlotKey[]>>;
   orderGroup: GroupKey[];
   viewOrderPlot: PlotKey[];
   plotToGroupMap: Partial<Record<PlotKey, GroupKey>>;
+  plotVariablesLink: Partial<Record<PlotKey, PlotVariablesLink>>;
 };
 
 export function getGroupPlotsMap(params: QueryParams): GroupPlotsMap {
   const orderPlots = [...params.orderPlot];
   const plotToGroupMap: Partial<Record<PlotKey, GroupKey>> = {};
+  const plotVariablesLink: Partial<Record<PlotKey, PlotVariablesLink>> = {};
   const groupPlots = params.orderGroup.reduce(
     (res, groupKey) => {
       const group = params.groups[groupKey];
@@ -317,6 +351,13 @@ export function getGroupPlotsMap(params: QueryParams): GroupPlotsMap {
     },
     {} as Partial<Record<GroupKey, PlotKey[]>>
   );
+  Object.values(params.variables).forEach((variable) => {
+    variable?.link.forEach(([plotKey, tagKey]) => {
+      const p = (plotVariablesLink[plotKey] ??= {});
+      p[tagKey] = { variableKey: variable.id, variableName: variable.name };
+    });
+  });
+
   //add no group plots
   if (orderPlots.length) {
     const groupKey = params.orderGroup.slice(-1)[0] ?? '0';
@@ -330,6 +371,7 @@ export function getGroupPlotsMap(params: QueryParams): GroupPlotsMap {
       .flatMap((g) => groupPlots[g])
       .filter(isNotNil),
     plotToGroupMap,
+    plotVariablesLink,
   };
 }
 
@@ -399,4 +441,114 @@ export function filterHasTagID(params: PlotParams, tagKey: TagKey): boolean {
     (params.filterNotIn[tagKey] !== undefined && params.filterNotIn[tagKey]?.length !== 0) ||
     params.groupBy.indexOf(tagKey) >= 0
   );
+}
+
+export const defaultBaseRange = TIME_RANGE_ABBREV.last2d;
+
+export function timeRangeAbbrevExpand(abbr: TimeRangeAbbrev): number {
+  switch (abbr) {
+    case TIME_RANGE_ABBREV.last5m:
+      return -60 * 5;
+    case TIME_RANGE_ABBREV.last15m:
+      return -60 * 15;
+    case TIME_RANGE_ABBREV.last1h:
+      return -3600;
+    case TIME_RANGE_ABBREV.last2h:
+      return -3600 * 2;
+    case TIME_RANGE_ABBREV.last6h:
+      return -3600 * 6;
+    case TIME_RANGE_ABBREV.last12h:
+      return -3600 * 12;
+    case TIME_RANGE_ABBREV.last1d:
+      return -3600 * 24;
+    case TIME_RANGE_ABBREV.last2d:
+      return -3600 * 24 * 2;
+    case TIME_RANGE_ABBREV.last3d:
+      return -3600 * 24 * 3;
+    case TIME_RANGE_ABBREV.last7d:
+      return -3600 * 24 * 7;
+    case TIME_RANGE_ABBREV.last14d:
+      return -3600 * 24 * 14;
+    case TIME_RANGE_ABBREV.last30d:
+      return -3600 * 24 * 30;
+    case TIME_RANGE_ABBREV.last90d:
+      return -3600 * 24 * 90;
+    case TIME_RANGE_ABBREV.last180d:
+      return -3600 * 24 * 180;
+    case TIME_RANGE_ABBREV.last1y:
+      return -3600 * 24 * 365;
+    case TIME_RANGE_ABBREV.last2y:
+      return -3600 * 24 * 365 * 2;
+    default:
+      return -3600 * 2;
+  }
+}
+
+export function getAbbrev(timeRange: TimeRange): TimeRangeAbbrev | '' {
+  const tolerance = 60;
+  for (const abbrKey in TIME_RANGE_ABBREV) {
+    const rr = timeRangeAbbrevExpand(abbrKey);
+    if (Math.abs(rr - timeRange.from) <= tolerance && Math.abs(timeRange.to - timeRange.now) <= tolerance) {
+      return abbrKey;
+    }
+  }
+  return '';
+}
+
+export type ProduceUpdate<T> = (draft: T) => T | void;
+
+export function updateParams(next: ProduceUpdate<QueryParams>): ProduceUpdate<UrlStore> {
+  return produce<UrlStore>((s) => {
+    s.params = produce(s.params, next);
+  });
+}
+
+export function updatePlot(plotKey: PlotKey, next: ProduceUpdate<PlotParams>): ProduceUpdate<UrlStore> {
+  return updateParams((p) => {
+    const pl = p.plots[plotKey];
+    if (pl) {
+      p.plots[plotKey] = produce<PlotParams>(pl, next);
+    }
+  });
+}
+
+export function updateTimeRange(next: ProduceUpdate<TimeRange>): ProduceUpdate<UrlStore> {
+  return updateParams((p) => {
+    p.timeRange = produce(p.timeRange, next);
+  });
+}
+
+export function updateTimeRangeToEndDay(): ProduceUpdate<TimeRange> {
+  const endDay = getEndDay();
+  return produce<TimeRange>((t) =>
+    readTimeRange(timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last1d), t.absolute ? endDay : TIME_RANGE_KEYS_TO.EndDay)
+  );
+}
+
+export function updateTimeRangeToEndWeek(): ProduceUpdate<TimeRange> {
+  const endWeek = getEndWeek();
+  return produce<TimeRange>((t) =>
+    readTimeRange(timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last7d), t.absolute ? endWeek : TIME_RANGE_KEYS_TO.EndWeek)
+  );
+}
+
+export function getMetricName(plot: PlotParams, plotData?: PlotData) {
+  return (plot.metricName !== promQLMetric ? plot.metricName : plotData?.nameMetric) || `plot#${plot.id}`;
+}
+
+export function getMetricWhat(plot: PlotParams, plotData?: PlotData) {
+  return (
+    (plot.metricName === promQLMetric
+      ? plotData?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+      : plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')) || ''
+  );
+}
+
+export function getMetricFullName(plot: PlotParams, plotData?: PlotData) {
+  if (plot.customName) {
+    return plot.customName;
+  }
+  const metricName = getMetricName(plot, plotData);
+  const metricWhat = getMetricWhat(plot, plotData);
+  return metricName ? `${metricName}${!!metricWhat ? ': ' + metricWhat : ''}` : '';
 }

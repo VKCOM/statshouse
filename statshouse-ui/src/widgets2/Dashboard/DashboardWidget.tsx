@@ -9,26 +9,15 @@ import {
   PlotPanel,
   PlotView,
 } from 'components2';
-import {
-  type GroupKey,
-  type PlotParams,
-  type QueryParams,
-  setUpdatedTag,
-  setUrlStore,
-  useMetricsStore,
-  usePlotsDataStore,
-  usePlotsInfoStore,
-  useUrlStore,
-  useVariableListStore,
-} from 'store2';
+import { type GroupKey, setUrlStore, usePlotsDataStore, usePlotsInfoStore, useUrlStore } from 'store2';
 import css from './style.module.css';
-import { deepClone } from '../../common/helpers';
-
-const emptyObj = {};
+import { PLOT_TYPE } from 'api/enum';
+import { useShallow } from 'zustand/react/shallow';
 
 export function DashboardWidget() {
-  const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore();
-  const meta = useMetricsStore((s) => s.meta);
+  const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore(
+    useShallow((s) => ({ groupPlots: s.groupPlots, orderGroup: s.orderGroup, plotsInfo: s.plotsInfo }))
+  );
   const params = useUrlStore((s) => s.params);
   const { tabNum, plots, groups } = params;
   const plotsData = usePlotsDataStore((s) => s.plotsData);
@@ -43,19 +32,6 @@ export function DashboardWidget() {
   const activePlotInfo = useMemo(() => plotsInfo[tabNum], [plotsInfo, tabNum]);
   const activePlot = useMemo(() => plots[tabNum], [plots, tabNum]);
   const activePlotData = useMemo(() => plotsData[tabNum], [plotsData, tabNum]);
-  const activePlotMeta = useMemo(() => meta[activePlot?.metricName ?? ''], [activePlot, meta]);
-  const tagsList = useVariableListStore((s) => (activePlot && s.tags[activePlot?.id]) || emptyObj);
-
-  const setPlot = useCallback((plot: PlotParams) => {
-    setUrlStore((store) => {
-      store.params.plots[plot.id] = deepClone(plot);
-    });
-  }, []);
-  const setParams = useCallback((params: QueryParams) => {
-    setUrlStore((store) => {
-      store.params = deepClone(params);
-    });
-  }, []);
 
   return (
     <Dashboard>
@@ -89,21 +65,11 @@ export function DashboardWidget() {
               ></PlotView>
             </div>
             <div className={css.plotPanelBottom}>
-              <PlotLegend></PlotLegend>
+              {activePlot?.type === PLOT_TYPE.Metric && <PlotLegend></PlotLegend>}
             </div>
           </div>
           <div className={css.plotPanelRight}>
-            <PlotControl
-              className={css.plotControl}
-              plot={activePlot}
-              params={params}
-              setPlot={setPlot}
-              setParams={setParams}
-              meta={activePlotMeta}
-              metaLoading={!activePlotMeta}
-              setUpdatedTag={setUpdatedTag}
-              tagsList={tagsList}
-            ></PlotControl>
+            <PlotControl className={css.plotControl} plot={activePlot}></PlotControl>
           </div>
         </PlotPanel>
       )}

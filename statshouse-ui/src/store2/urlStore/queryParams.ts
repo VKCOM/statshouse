@@ -40,7 +40,7 @@ export type PlotParams = {
   id: PlotKey;
   metricName: string;
   promQL: string;
-  metricUnit: MetricType;
+  metricUnit?: MetricType;
   type: PlotType;
   what: QueryWhat[];
   customAgg: number;

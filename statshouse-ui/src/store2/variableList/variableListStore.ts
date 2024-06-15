@@ -56,7 +56,7 @@ export type VariableListStore = {
 };
 
 export const useVariableListStore = createStore<VariableListStore>(
-  (setState, getState) => ({
+  () => ({
     variables: {},
     tags: {},
     source: {},
@@ -65,16 +65,17 @@ export const useVariableListStore = createStore<VariableListStore>(
 );
 
 export function variableListStoreSubscribe(state: UrlStore, prevState: UrlStore) {
-  if (prevState.params.dashboardId !== state.params.dashboardId || prevState.params.plots !== state.params.plots) {
-    if (
-      prevState.params.orderPlot.some(
-        (plotKey) =>
-          !state.params.plots[plotKey] ||
-          state.params.plots[plotKey]?.metricName !== prevState.params.plots[plotKey]?.metricName
-      )
-    ) {
-      clearTagsAll();
-    }
+  if (prevState.params.dashboardId !== state.params.dashboardId) {
+    clearTagsAll();
+  } else if (prevState.params.plots !== state.params.plots) {
+    prevState.params.orderPlot.forEach((plotKey) => {
+      if (
+        !state.params.plots[plotKey] ||
+        state.params.plots[plotKey]?.metricName !== prevState.params.plots[plotKey]?.metricName
+      ) {
+        clearTags(plotKey);
+      }
+    });
   }
   if (prevState.params !== state.params) {
     updateVariables(state);
@@ -229,10 +230,10 @@ export function setUpdatedSource(variableParamSource: VariableParamsSource, togg
   }
 }
 
-export function clearTags(indexPlot: number) {
+export function clearTags(plotKey: PlotKey) {
   useVariableListStore.setState(
-    produce((state) => {
-      delete state.tags[indexPlot];
+    produce<VariableListStore>((state) => {
+      delete state.tags[plotKey];
     })
   );
 }
