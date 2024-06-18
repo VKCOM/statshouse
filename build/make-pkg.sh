@@ -36,6 +36,9 @@ fi
 if [[ $TAG == "ubuntu-jammy" ]]; then
   docker build --file build/golang-ubuntu/golang-1.21-jammy.Dockerfile --tag golang:1.21-jammy build/golang-ubuntu
 fi
+if [[ $TAG == "debian-buster" ]]; then
+  docker build --file build/golang-debian/golang-1.21-buster.Dockerfile --tag golang:1.21-buster build/golang-debian
+fi
 
 docker build --file build/packages.Dockerfile \
     --build-arg BUILD_TIME \
