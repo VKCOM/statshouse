@@ -42,6 +42,14 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hos
 			if err = clientSaveConfigToCache(cluster, dc, dst); err != nil {
 				logF("Configuration: failed to save autoconfig to disk cache: %v", err)
 			}
+
+			aggregatorTime := time.UnixMilli(dst.Ts)
+			timeDiff := time.Since(aggregatorTime)
+			if timeDiff.Abs() > time.Second {
+				logF("Configuration: WARNING time difference with aggregator is %v more then a second", timeDiff)
+			} else {
+				logF("Configuration: time difference with aggregator is %v", timeDiff)
+			}
 			return dst
 		}
 		logF("Configuration: failed autoconfiguration from address (%q) - %v", addr, err)
@@ -106,6 +114,7 @@ func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int,
 			BuildArch:    archTag,
 		},
 	}
+	args.SetTs(true)
 	args.Header.SetAgentEnvStaging(isEnvStaging, &args.FieldsMask)
 	var ret tlstatshouse.GetConfigResult
 	ctx, cancel := context.WithTimeout(context.Background(), data_model.AutoConfigTimeout)
