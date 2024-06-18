@@ -2196,7 +2196,6 @@ func init() {
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only
 	}
-	apiCompatTagID[legacyEnvTagName] = "0"
 	apiCompatTagID[StringTopTagID] = StringTopTagID
 	apiCompatTagID[LegacyStringTopTagID] = StringTopTagID
 	tagIDTag2TagID[TagIDShiftLegacy-1] = StringTopTagID
