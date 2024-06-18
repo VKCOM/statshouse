@@ -6,7 +6,7 @@ if [[ $1 ]]; then
 fi
 
 if [[ -z $TAG ]]; then
-  echo "Distribution code name isn't specified! Expected one of: debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy"
+  echo "Distribution code name isn't specified! Expected one of: debian-bullseye, debian-bookworm, debian-buster, ubuntu-focal, ubuntu-jammy"
   exit 1
 fi
 
