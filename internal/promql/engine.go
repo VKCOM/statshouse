@@ -1164,7 +1164,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
-					if errors.Is(err, ErrNotFound) {
+					if errors.Is(err, ErrNotFound) || errors.Is(err, errNotFoundRawTagStr) {
 						continue // ignore values with no mapping
 					}
 					return SeriesQuery{}, err
@@ -1272,6 +1272,9 @@ func (ev *evaluator) newVector(v float64) Series {
 }
 
 func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, offset int64) (map[int32]string, error) {
+	if metric == nil || tagX < 0 || len(metric.Tags) <= tagX {
+		return nil, nil
+	}
 	m, ok := ev.tags[metric]
 	if !ok {
 		// tag index -> offset -> tag value ID -> tag value
@@ -1301,19 +1304,36 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	// tag value ID -> tag value
 	res = make(map[int32]string, len(ids))
 	for _, id := range ids {
-		s := ev.GetTagValue(TagValueQuery{
-			Version:    ev.opt.Version,
-			Metric:     metric,
-			TagIndex:   tagX,
-			TagValueID: id,
-		})
-		if s == " 0" {
-			s = ""
+		if s, err := ev.getTagValue(metric, tagX, id); err == nil {
+			res[id] = s
 		}
-		res[id] = s
 	}
 	m2[offset] = res
 	return res, nil
+}
+
+var errNotFoundRawTagStr = fmt.Errorf("not found")
+
+func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagValueID int32) (string, error) {
+	if t := metric.Tags[tagX]; t.Raw && t.ValueComments != nil {
+		if ev.opt.Version == "1" {
+			tagValueID -= format.TagValueIDRawDeltaLegacy
+		}
+		if s, ok := t.ValueComments[format.CodeTagValue(tagValueID)]; ok {
+			return s, nil
+		}
+		return "", errNotFoundRawTagStr
+	}
+	s := ev.GetTagValue(TagValueQuery{
+		Version:    ev.opt.Version,
+		Metric:     metric,
+		TagIndex:   tagX,
+		TagValueID: tagValueID,
+	})
+	if s == format.TagValueCodeZero {
+		s = ""
+	}
+	return s, nil
 }
 
 func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tagV string) (int32, error) {
@@ -1344,9 +1364,10 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 				s = k
 			}
 		}
-		if s != "" {
-			return format.ParseCodeTagValue(s)
+		if s == "" {
+			return 0, errNotFoundRawTagStr
 		}
+		return format.ParseCodeTagValue(s)
 	}
 	return ev.GetTagValueID(TagValueIDQuery{
 		Version:  ev.opt.Version,
