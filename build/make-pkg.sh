@@ -6,7 +6,7 @@ if [[ $1 ]]; then
 fi
 
 if [[ -z $TAG ]]; then
-  echo "Distribution code name isn't specified! Expected one of: debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy"
+  echo "Distribution code name isn't specified! Expected one of: debian-bullseye, debian-bookworm, debian-buster, ubuntu-focal, ubuntu-jammy"
   exit 1
 fi
 
@@ -35,6 +35,9 @@ if [[ $TAG == "ubuntu-focal" ]]; then
 fi
 if [[ $TAG == "ubuntu-jammy" ]]; then
   docker build --file build/golang-ubuntu/golang-1.21-jammy.Dockerfile --tag golang:1.21-jammy build/golang-ubuntu
+fi
+if [[ $TAG == "debian-buster" ]]; then
+  docker build --file build/golang-debian/golang-1.21-buster.Dockerfile --tag golang:1.21-buster build/golang-debian
 fi
 
 docker build --file build/packages.Dockerfile \
