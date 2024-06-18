@@ -48,8 +48,9 @@ type scrapeServer struct {
 	running bool         // guard against double "run"
 
 	// current targets, updated on discovery events
-	targets   map[netip.Addr]tlstatshouse.GetTargetsResultBytes
-	targetsMu sync.RWMutex
+	targetsByName map[string]tlstatshouse.GetTargetsResultBytes
+	targetsByAddr map[netip.Addr]tlstatshouse.GetTargetsResultBytes
+	targetsMu     sync.RWMutex
 
 	// long poll requests
 	requests   map[*rpc.HandlerContext]scrapeRequest
@@ -58,6 +59,7 @@ type scrapeServer struct {
 
 type scrapeRequest struct {
 	hctx *rpc.HandlerContext
+	name []byte
 	addr netip.Addr
 	args tlstatshouse.GetTargets2Bytes
 }
@@ -68,9 +70,10 @@ func newScrapeServer(shard, replica int32) scrapeServer {
 		config = newScrapeConfigService()
 	}
 	return scrapeServer{
-		config:   config,
-		targets:  make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
-		requests: make(map[*rpc.HandlerContext]scrapeRequest),
+		config:        config,
+		targetsByName: make(map[string]tlstatshouse.GetTargetsResultBytes),
+		targetsByAddr: make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
+		requests:      make(map[*rpc.HandlerContext]scrapeRequest),
 	}
 }
 
@@ -102,7 +105,11 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 	if err != nil {
 		return
 	}
-	targets := make(map[netip.Addr]*tlstatshouse.GetTargetsResultBytes)
+	type nameAddr struct {
+		name string
+		addr netip.Addr
+	}
+	targets := make(map[nameAddr]*tlstatshouse.GetTargetsResultBytes)
 	for _, c := range cs {
 		var gaugeMetrics [][]byte
 		if len(c.Options.GaugeMetrics) != 0 {
@@ -125,21 +132,16 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 			}
 			for _, g := range j.Groups {
 				for _, t := range g.Targets {
-					ipp, err := netip.ParseAddrPort(t)
-					if err != nil {
-						if s.sh2 != nil {
-							// failure, targets_ready
-							s.sh2.AddCounterHostStringBytes(
-								s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 1}),
-								[]byte(t), 1, 0, nil)
-						}
-						log.Printf("scrape target must have an IP address: %v\n", err)
-						continue
+					var k nameAddr
+					if ipp, err := netip.ParseAddrPort(t); err != nil {
+						k.name = t
+					} else {
+						k.addr = ipp.Addr()
 					}
-					v := targets[ipp.Addr()]
+					v := targets[k]
 					if v == nil {
 						v = &tlstatshouse.GetTargetsResultBytes{GaugeMetrics: gaugeMetrics}
-						targets[ipp.Addr()] = v
+						targets[k] = v
 					}
 					v.Targets = append(v.Targets, newPromTargetBytes(&c2, t, tags))
 				}
@@ -163,16 +165,26 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 	}
 	// publish targets
 	s.targetsMu.Lock()
-	for k := range s.targets {
-		s.targets[k] = tlstatshouse.GetTargetsResultBytes{}
+	for k := range s.targetsByName {
+		s.targetsByName[k] = tlstatshouse.GetTargetsResultBytes{}
+	}
+	for k := range s.targetsByAddr {
+		s.targetsByAddr[k] = tlstatshouse.GetTargetsResultBytes{}
 	}
 	for k, v := range targets {
-		s.targets[k] = *v
+		var host string
+		if k.name != "" {
+			s.targetsByName[k.name] = *v
+			host = k.name
+		} else {
+			s.targetsByAddr[k.addr] = *v
+			host = k.addr.String()
+		}
 		if s.sh2 != nil {
 			// success, targets_ready
 			s.sh2.AddCounterHostStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 1}),
-				[]byte(k.String()), 1, 0, nil)
+				[]byte(host), 1, 0, nil)
 		}
 	}
 	s.targetsMu.Unlock()
@@ -216,6 +228,7 @@ func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 	// fast path, try respond without taking "requestsMu"
 	req := scrapeRequest{
 		hctx: hctx,
+		name: args.PromHostName,
 		addr: ipp.Addr(),
 		args: args,
 	}
@@ -242,8 +255,11 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 	var ok bool
 	var res tlstatshouse.GetTargetsResultBytes
 	s.targetsMu.RLock()
-	if s.targets != nil {
-		res, ok = s.targets[req.addr]
+	if len(req.name) != 0 && s.targetsByName != nil {
+		res, ok = s.targetsByName[string(req.name)]
+	}
+	if !ok && s.targetsByAddr != nil {
+		res, ok = s.targetsByAddr[req.addr]
 	}
 	s.targetsMu.RUnlock()
 	if !ok || bytes.Equal(req.args.OldHash, res.Hash) {
