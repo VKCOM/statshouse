@@ -13,7 +13,6 @@ import (
 	"hash"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1146,7 +1145,12 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			i := tag.Index
 			switch matcher.Type {
 			case labels.MatchEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
+				id, err := ev.GetTagValueID(TagValueIDQuery{
+					Version:  ev.opt.Version,
+					Metric:   metric,
+					TagIndex: i,
+					TagValue: matcher.Value,
+				})
 				if err != nil {
 					if errors.Is(err, ErrNotFound) {
 						// string is not mapped, result is guaranteed to be empty
@@ -1162,9 +1166,14 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					filterIn[i] = map[int32]string{id: matcher.Value}
 				}
 			case labels.MatchNotEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
+				id, err := ev.GetTagValueID(TagValueIDQuery{
+					Version:  ev.opt.Version,
+					Metric:   metric,
+					TagIndex: i,
+					TagValue: matcher.Value,
+				})
 				if err != nil {
-					if errors.Is(err, ErrNotFound) || errors.Is(err, errNotFoundRawTagStr) {
+					if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundRawTagStr) {
 						continue // ignore values with no mapping
 					}
 					return SeriesQuery{}, err
@@ -1304,77 +1313,18 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	// tag value ID -> tag value
 	res = make(map[int32]string, len(ids))
 	for _, id := range ids {
-		if s, err := ev.getTagValue(metric, tagX, id); err == nil {
+		s, err := ev.GetTagValue(TagValueQuery{
+			Version:    ev.opt.Version,
+			Metric:     metric,
+			TagIndex:   tagX,
+			TagValueID: id,
+		})
+		if err == nil {
 			res[id] = s
 		}
 	}
 	m2[offset] = res
 	return res, nil
-}
-
-var errNotFoundRawTagStr = fmt.Errorf("not found")
-
-func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagValueID int32) (string, error) {
-	if t := metric.Tags[tagX]; t.Raw && !t.IsMetric && t.ValueComments != nil {
-		if ev.opt.Version == "1" {
-			tagValueID -= format.TagValueIDRawDeltaLegacy
-		}
-		if s, ok := t.ValueComments[format.CodeTagValue(tagValueID)]; ok {
-			return s, nil
-		}
-		return "", errNotFoundRawTagStr
-	}
-	s := ev.GetTagValue(TagValueQuery{
-		Version:    ev.opt.Version,
-		Metric:     metric,
-		TagIndex:   tagX,
-		TagValueID: tagValueID,
-	})
-	if s == format.TagValueCodeZero {
-		s = ""
-	}
-	return s, nil
-}
-
-func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tagV string) (int32, error) {
-	if tagV == "" {
-		return 0, nil
-	}
-	if format.HasRawValuePrefix(tagV) {
-		return format.ParseCodeTagValue(tagV)
-	}
-	if tagX < 0 || len(metric.Tags) <= tagX {
-		return 0, ErrNotFound
-	}
-	t := metric.Tags[tagX]
-	if t.Raw && !t.IsMetric {
-		// histogram bucket label
-		if t.Name == labels.BucketLabel {
-			if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-				return statshouse.LexEncode(float32(v)), nil
-			}
-		}
-		// mapping from raw value comments
-		var s string
-		for k, v := range t.ValueComments {
-			if v == tagV {
-				if s != "" {
-					return 0, fmt.Errorf("ambiguous comment to value mapping")
-				}
-				s = k
-			}
-		}
-		if s == "" {
-			return 0, errNotFoundRawTagStr
-		}
-		return format.ParseCodeTagValue(s)
-	}
-	return ev.GetTagValueID(TagValueIDQuery{
-		Version:  ev.opt.Version,
-		Metric:   metric,
-		TagIndex: tagX,
-		TagValue: tagV,
-	})
 }
 
 func (ev *evaluator) getStringTop(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {
