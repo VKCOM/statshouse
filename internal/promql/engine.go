@@ -1315,7 +1315,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 var errNotFoundRawTagStr = fmt.Errorf("not found")
 
 func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagValueID int32) (string, error) {
-	if t := metric.Tags[tagX]; t.Raw && t.ValueComments != nil {
+	if t := metric.Tags[tagX]; t.Raw && !t.IsMetric && t.ValueComments != nil {
 		if ev.opt.Version == "1" {
 			tagValueID -= format.TagValueIDRawDeltaLegacy
 		}
@@ -1347,7 +1347,7 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 		return 0, ErrNotFound
 	}
 	t := metric.Tags[tagX]
-	if t.Raw {
+	if t.Raw && !t.IsMetric {
 		// histogram bucket label
 		if t.Name == labels.BucketLabel {
 			if v, err := strconv.ParseFloat(tagV, 32); err == nil {
