@@ -43,8 +43,10 @@ fi
 BUILD_IMAGE=statshouse_builder_$NAME_RELEASE
 docker image build -t $BUILD_IMAGE - <<EOF
 FROM $IMAGE
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
 RUN $DNF update -y
-RUN $DNF group install -y "Development Tools"
+RUN $DNF groupinstall -y "Development Tools"
 RUN  curl -L https://go.dev/dl/go$GOLANG_VERSION.linux-amd64.tar.gz | tar -C /usr/local -xzf -
 ENV PATH=\$PATH:/usr/local/go/bin
 RUN groupadd -g $GID builder
