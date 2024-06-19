@@ -5,10 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
-import { getNewPlot, type PlotKey, setPlot, useUrlStore } from 'store2';
 import React, { memo, useCallback } from 'react';
 import { SwitchBox } from 'components';
 import { globalSettings } from 'common/settings';
+import { getNewPlot, type PlotKey } from 'url2';
+import { useStatsHouseShallow } from '../../../store2';
 
 export type PlotControlVersionProps = {
   plotKey: PlotKey;
@@ -17,14 +18,17 @@ export type PlotControlVersionProps = {
 const defaultUseV2 = getNewPlot().useV2;
 
 export function _PlotControlVersion({ plotKey }: PlotControlVersionProps) {
-  const value = useUrlStore((s) => s.params.plots[plotKey]?.useV2 ?? defaultUseV2);
+  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
+    value: plots[plotKey]?.useV2 ?? defaultUseV2,
+    setPlot,
+  }));
   const onChange = useCallback(
     (status: boolean) => {
       setPlot(plotKey, (s) => {
         s.useV2 = status;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   return (
     <SwitchBox checked={value} disabled={globalSettings.disabled_v1} onChange={onChange}>

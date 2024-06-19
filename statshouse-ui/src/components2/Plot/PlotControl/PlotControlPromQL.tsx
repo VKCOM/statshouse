@@ -6,7 +6,6 @@
 
 import React from 'react';
 import { type PlotControlProps } from './PlotControl';
-import { getNewPlot, useUrlStore } from 'store2';
 import { isNotNil } from '../../../common/helpers';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
@@ -17,12 +16,15 @@ import { PlotControlMaxHost } from './PlotControlMaxHost';
 import { PlotControlUnit } from './PlotControlUnit';
 import { PlotControlPromQLEditor } from './PlotControlPromQLEditor';
 import { PlotControlFilterVariable } from './PlotControlFilterVariable';
+import { getNewPlot } from '../../../url2';
+import { useStatsHouse } from '../../../store2';
 
 const emptyPlot = getNewPlot();
 
 export function PlotControlPromQL({ plot = emptyPlot }: PlotControlProps) {
   const plotKey = plot.id;
-  const plotVariables = useUrlStore((s) =>
+
+  const plotVariables = useStatsHouse((s) =>
     Object.values(s.params.variables)
       .filter(isNotNil)
       .filter((v) => plot.promQL.indexOf(v.name) > -1)
@@ -48,7 +50,7 @@ export function PlotControlPromQL({ plot = emptyPlot }: PlotControlProps) {
           </div>
           <PlotControlGlobalTimeShifts className="w-100 mt-2" />
         </div>
-        <div>
+        <div className="d-flex flex-column gap-2 mb-2">
           {plotVariables.map((variable) => (
             <PlotControlFilterVariable key={variable.id} variableKey={variable.id} />
           ))}

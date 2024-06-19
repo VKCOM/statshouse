@@ -1,25 +1,22 @@
 import React from 'react';
-import { PlotData, PlotInfo, PlotParams } from 'store2';
-import { PLOT_TYPE } from '../../../api/enum';
+import { PLOT_TYPE } from 'api/enum';
 import { PlotViewMetric } from './PlotViewMetric';
 import { PlotViewEvent } from './PlotViewEvent';
+import { PlotKey } from 'url2';
+
 export type PlotViewProps = {
   className?: string;
-  plot?: PlotParams;
-  plotInfo?: PlotInfo;
-  plotData?: PlotData;
+  plotKey: PlotKey;
 };
-export function PlotView({ className, plot, plotInfo, plotData }: PlotViewProps) {
+export function PlotView({ className, plotKey }: PlotViewProps) {
   // if (!plot || !plotInfo || !plotData) {
   //   return null;
   // }
-  switch (plot?.type) {
+  switch (plotKey) {
     case PLOT_TYPE.Metric:
-      return (
-        <PlotViewMetric className={className} plot={plot} plotInfo={plotInfo} plotData={plotData}></PlotViewMetric>
-      );
+      return <PlotViewMetric className={className} plotKey={plotKey}></PlotViewMetric>;
     case PLOT_TYPE.Event:
-      return <PlotViewEvent className={className} plot={plot} plotInfo={plotInfo} plotData={plotData}></PlotViewEvent>;
+      return <PlotViewEvent className={className} plotKey={plotKey}></PlotViewEvent>;
     default:
       return null;
   }

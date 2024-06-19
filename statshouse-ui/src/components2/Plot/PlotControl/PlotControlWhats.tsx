@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewPlot, type PlotKey, setPlot, useMetricsStore, useUrlStore } from 'store2';
 import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { Select, type SelectOptionProps } from 'components';
 import cn from 'classnames';
-import { QueryWhat } from 'api/enum';
+import { type QueryWhat } from 'api/enum';
 import { metricKindToWhat, whatToWhatDesc } from 'view/api';
+import { getNewPlot, type PlotKey } from 'url2';
+import { useStatsHouseShallow } from 'store2';
 
 export type PlotControlWhatsProps = {
   plotKey: PlotKey;
@@ -19,14 +19,12 @@ export type PlotControlWhatsProps = {
 const defaultWhats = getNewPlot().what;
 
 export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
-  const { what, metricName } = useUrlStore(
-    useShallow((s) => ({
-      what: s.params.plots[plotKey]?.what ?? defaultWhats,
-      metricName: s.params.plots[plotKey]?.metricName ?? '',
-    }))
-  );
+  const { what, meta, setPlot } = useStatsHouseShallow((s) => ({
+    what: s.params.plots[plotKey]?.what ?? defaultWhats,
+    meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
+    setPlot: s.setPlot,
+  }));
 
-  const meta = useMetricsStore((s) => s.meta[metricName]);
   const options = useMemo(() => {
     const whats: SelectOptionProps[] = metricKindToWhat(meta?.kind).map((w) => ({
       value: w,
@@ -47,7 +45,7 @@ export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
         s.what = whatValue as QueryWhat[];
       });
     },
-    [meta?.kind, plotKey]
+    [meta?.kind, plotKey, setPlot]
   );
 
   useEffect(() => {
@@ -57,7 +55,7 @@ export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
         p.what = [whats[0] as QueryWhat];
       });
     }
-  }, [meta?.kind, plotKey, what]);
+  }, [meta?.kind, plotKey, setPlot, what]);
   return (
     <Select
       value={what}

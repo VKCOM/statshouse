@@ -1,14 +1,32 @@
-import { createStore } from '../createStore';
-import { globalSettings } from '../../common/settings';
-import { appHistory } from '../../common/appHistory';
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { globalSettings } from 'common/settings';
+import { appHistory } from 'common/appHistory';
 import { dequal } from 'dequal/lite';
+import { type StoreSlice } from '../createStore';
+import { type StatsHouseStore } from '../statsHouseStore';
 
 export const logoutURL = '/vkuth/logout';
 export const cookieName = 'vkuth_data';
 
-export type UserStore = { login: string; admin: boolean; developer: boolean; logoutURL: string };
+export type UserInfo = { login: string; admin: boolean; developer: boolean; logoutURL: string };
+export type UserStore = { user: UserInfo };
 
-export const useUserStore = createStore<UserStore>(() => updateUser(), 'useUserStore');
+export const userStore: StoreSlice<StatsHouseStore, UserStore> = (setState, getState, store) => {
+  appHistory.listen(() => {
+    const next = updateUser();
+    if (!dequal(next, getState().user)) {
+      setState((s) => {
+        s.user = next;
+      });
+    }
+  });
+  return { user: updateUser() };
+};
 
 function getCookie(name: string): string | undefined {
   const prefix = `${name}=`;
@@ -19,7 +37,7 @@ function getCookie(name: string): string | undefined {
   return cookie.substring(prefix.length);
 }
 
-export function updateUser(): UserStore {
+export function updateUser(): UserInfo {
   if (!globalSettings.vkuth_app_name) {
     return {
       login: '',
@@ -37,10 +55,3 @@ export function updateUser(): UserStore {
     logoutURL,
   };
 }
-
-appHistory.listen(() => {
-  const next = updateUser();
-  if (!dequal(next, useUserStore.getState())) {
-    useUserStore.setState(next);
-  }
-});

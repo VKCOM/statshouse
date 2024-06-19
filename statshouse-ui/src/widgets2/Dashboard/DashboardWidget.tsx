@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Dashboard,
   DashboardGroup,
@@ -9,42 +9,45 @@ import {
   PlotPanel,
   PlotView,
 } from 'components2';
-import { type GroupKey, setUrlStore, usePlotsDataStore, usePlotsInfoStore, useUrlStore } from 'store2';
 import css from './style.module.css';
 import { PLOT_TYPE } from 'api/enum';
-import { useShallow } from 'zustand/react/shallow';
+import { Link } from 'react-router-dom';
+import { useStatsHouseShallow } from 'store2';
 
 export function DashboardWidget() {
-  const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore(
-    useShallow((s) => ({ groupPlots: s.groupPlots, orderGroup: s.orderGroup, plotsInfo: s.plotsInfo }))
+  const { groupPlots, params, plotsData, toggleGroupShow, plotsLink } = useStatsHouseShallow(
+    ({ groupPlots, params, plotsData, toggleGroupShow, links: { plotsLink } }) => ({
+      groupPlots,
+      params,
+      plotsData,
+      toggleGroupShow,
+      plotsLink,
+    })
   );
-  const params = useUrlStore((s) => s.params);
-  const { tabNum, plots, groups } = params;
-  const plotsData = usePlotsDataStore((s) => s.plotsData);
-  const toggleGroupShow = useCallback((groupKey: GroupKey) => {
-    setUrlStore((s) => {
-      const group = s.params.groups[groupKey];
-      if (group) {
-        group.show = !group.show;
-      }
-    });
-  }, []);
-  const activePlotInfo = useMemo(() => plotsInfo[tabNum], [plotsInfo, tabNum]);
+
+  const { tabNum, plots, groups, orderGroup } = params;
+
   const activePlot = useMemo(() => plots[tabNum], [plots, tabNum]);
   const activePlotData = useMemo(() => plotsData[tabNum], [plotsData, tabNum]);
+  // const activePlotsLink = useMemo(() => plotsLink[tabNum], [plotsLink, tabNum]);
 
   return (
     <Dashboard>
       {orderGroup.map((groupKey) => (
         <DashboardGroup key={groupKey} groupInfo={groups[groupKey]} toggleShow={toggleGroupShow}>
           {groupPlots[groupKey]?.map((plotKey) => (
-            <DashboardPlot key={plotKey} plotInfo={plotsInfo[plotKey]}>
-              <PlotView
-                className={css[`plotView_${plots[plotKey]?.type ?? '0'}`]}
-                plot={plots[plotKey]}
-                plotInfo={plotsInfo[plotKey]}
-                plotData={plotsData[plotKey]}
-              ></PlotView>
+            <DashboardPlot key={plotKey}>
+              <div className={css.dashboardPlotHeader}>
+                <Link to={plotsLink[plotKey]?.link ?? ''} className={css.dashboardPlotHeaderLink}>
+                  <MetricName
+                    metricName={plotsData[plotKey]?.metricName}
+                    metricWhat={plotsData[plotKey]?.metricWhat}
+                    className={'flex-grow-1 w-0'}
+                  ></MetricName>
+                </Link>
+              </div>
+
+              <PlotView className={css[`plotView_${plots[plotKey]?.type ?? '0'}`]} plotKey={plotKey}></PlotView>
               <PlotLegend></PlotLegend>
             </DashboardPlot>
           ))}
@@ -54,15 +57,10 @@ export function DashboardWidget() {
         <PlotPanel className={css.plotPanel}>
           <div className={css.plotPanelLeft}>
             <div className={css.plotPanelTop}>
-              <MetricName metricName={activePlotInfo?.metricName} metricWhat={activePlotInfo?.metricWhat} />
+              <MetricName metricName={activePlotData?.metricName} metricWhat={activePlotData?.metricWhat} />
             </div>
             <div className={css.plotPanelMiddle}>
-              <PlotView
-                className={css.plotViewFull}
-                plot={activePlot}
-                plotInfo={activePlotInfo}
-                plotData={activePlotData}
-              ></PlotView>
+              <PlotView className={css.plotViewFull} plotKey={tabNum}></PlotView>
             </div>
             <div className={css.plotPanelBottom}>
               {activePlot?.type === PLOT_TYPE.Metric && <PlotLegend></PlotLegend>}

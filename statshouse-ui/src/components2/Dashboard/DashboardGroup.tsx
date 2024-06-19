@@ -3,9 +3,9 @@ import React, { useCallback } from 'react';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
 
-import { type GroupInfo, GroupKey } from 'store2';
 import css from './style.module.css';
 import cn from 'classnames';
+import { GroupInfo, GroupKey } from 'url2';
 
 export type DashboardGroupProps = {
   children?: React.ReactNode;

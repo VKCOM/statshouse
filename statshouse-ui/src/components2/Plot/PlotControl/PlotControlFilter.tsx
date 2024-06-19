@@ -11,7 +11,6 @@ import { isTagEnabled } from '../../../view/utils';
 import { PLOT_TYPE, TAG_KEY } from '../../../api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
-import { filterHasTagID, getNewPlot, useMetricsStore } from 'store2';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
 import { PlotControlAggregation } from './PlotControlAggregation';
 import { PlotControlNumSeries } from './PlotControlNumSeries';
@@ -23,12 +22,16 @@ import { PlotControlPromQLSwitch } from './PlotControlPromQLSwitch';
 import { PlotControlFilterTag } from './PlotControlFilterTag';
 import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
+import { getNewPlot } from 'url2';
+import { useStatsHouse } from 'store2';
+import { filterHasTagID } from 'store2/helpers';
 
 const emptyPlot = getNewPlot();
 
 export function PlotControlFilter({ className, plot = emptyPlot }: PlotControlProps) {
   const plotKey = plot?.id;
-  const meta = useMetricsStore((s) => s.meta[plot?.metricName ?? '']);
+  const meta = useStatsHouse((s) => s.metricMeta[plot?.metricName]);
+  // const meta = useMetricsStore((s) => s.meta[plot?.metricName ?? '']);
   const metaLoading = !meta;
 
   if (!plotKey) {

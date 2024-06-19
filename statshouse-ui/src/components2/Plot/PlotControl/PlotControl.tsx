@@ -1,7 +1,8 @@
 import React from 'react';
-import { isPromQL, type PlotParams } from 'store2';
 import { PlotControlFilter } from './PlotControlFilter';
 import { PlotControlPromQL } from './PlotControlPromQL';
+import { PlotParams } from 'url2';
+import { isPromQL } from 'store2/helpers';
 
 export type PlotControlProps = {
   className?: string;

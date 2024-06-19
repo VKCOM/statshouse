@@ -9,8 +9,8 @@ import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from 'componen
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import { useOnClickOutside } from 'hooks';
 import cn from 'classnames';
-import { getNewPlot, type PlotKey, setPlot, useUrlStore } from 'store2';
-import { useShallow } from 'zustand/react/shallow';
+import { useStatsHouseShallow } from 'store2';
+import { getNewPlot, PlotKey } from 'url2';
 
 export type PlotControlViewProps = {
   plotKey: PlotKey;
@@ -20,12 +20,11 @@ export type PlotControlViewProps = {
 const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine } = getNewPlot();
 
 export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
-  const { filledGraph, totalLine } = useUrlStore(
-    useShallow((s) => ({
-      filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
-      totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
-    }))
-  );
+  const { filledGraph, totalLine, setPlot } = useStatsHouseShallow((s) => ({
+    filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
+    totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
+    setPlot: s.setPlot,
+  }));
   const [dropdown, setDropdown] = useState(false);
   const refDropButton = useRef<HTMLButtonElement>(null);
   useOnClickOutside(refDropButton, () => {
@@ -41,7 +40,7 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
         p.filledGraph = status;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   const setTotalLine = useCallback(
     (status: boolean) => {
@@ -49,7 +48,7 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
         p.totalLine = status;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   return (
     <Tooltip
