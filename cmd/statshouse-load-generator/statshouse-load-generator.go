@@ -81,8 +81,18 @@ func main() {
 	for i := range metricNames {
 		metricNames[i] = fmt.Sprint(metricPrefix, i)
 	}
-	ensureMetrics(client, metricNames)
-	ensureDashboardExists(client, metricsN)
+	ensureMetrics(ctx, client, metricNames)
+	dashboardMetricN := metricsN
+	if dashboardMetricN > 8 {
+		log.Println("dashboard will contain only first 8 metircs")
+		dashboardMetricN = 8
+	}
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+	ensureDashboardExists(client, dashboardMetricN)
 
 	var wg sync.WaitGroup
 	for c := 0; c < clientsN; c++ {

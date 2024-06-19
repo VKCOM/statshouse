@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"html/template"
 	"log"
@@ -139,7 +140,7 @@ type MetricInfoResp struct {
 	Data MetricInfoBox `json:"data"`
 }
 
-func ensureMetrics(client http.Client, names []string) {
+func ensureMetrics(ctx context.Context, client http.Client, names []string) {
 	resp, err := client.Get("http://localhost:10888/api/metrics-list")
 	if err != nil {
 		panic(err)
@@ -169,6 +170,11 @@ func ensureMetrics(client http.Client, names []string) {
 	}
 
 	for _, name := range newMetrics {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		log.Println("creating metric:", name)
 		metric := template.New("metric template")
 		metric.Parse(metricTempl)
@@ -193,6 +199,11 @@ func ensureMetrics(client http.Client, names []string) {
 	}
 
 	for _, name := range existingMetrics {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		log.Println("updating metric:", name)
 		resp, err = client.Get("http://localhost:10888/api/metric?s=" + name)
 		if err != nil {
@@ -230,8 +241,4 @@ func ensureMetrics(client http.Client, names []string) {
 			log.Fatalln("got", resp.Status, "in request", resp.Request.Method, resp.Request.URL)
 		}
 	}
-}
-
-func ensureMetric(client http.Client, name string) {
-	ensureMetrics(client, []string{name})
 }
