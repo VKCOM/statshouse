@@ -41,7 +41,7 @@ func randomWalk(ctx context.Context, client *statshouse.Client, tags statshouse.
 				if randomTag {
 					metricTags = append(metricTags, [2]string{"random", randomString(rng)})
 				}
-				client.MetricNamed(fmt.Sprint(randomWalkPrefix, m), metricTags).Value(values[m])
+				client.MetricNamed(fmt.Sprint(metricPrefix, m), metricTags).Value(values[m])
 				sign := float64(1)
 				if rng.Int31n(2) == 1 {
 					sign = float64(-1)
@@ -63,6 +63,11 @@ func main() {
 	flag.IntVar(&clientsN, "c", 2, "number of clients")
 	flag.BoolVar(&randomTag, "r", false, "add random tag")
 	flag.Parse()
+	randomTagLog := ""
+	if randomTag {
+		randomTagLog = "with random tag"
+	}
+	log.Println("creating", clientsN, "clients that write", metricsN, "metrics", randomTagLog)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
@@ -72,6 +77,11 @@ func main() {
 	}()
 
 	client := http.Client{}
+	metricNames := make([]string, metricsN)
+	for i := range metricNames {
+		metricNames[i] = fmt.Sprint(metricPrefix, i)
+	}
+	ensureMetrics(client, metricNames)
 	ensureDashboardExists(client, metricsN)
 
 	var wg sync.WaitGroup
@@ -81,7 +91,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 			shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
-			randomWalk(ctx, shClient, statshouse.NamedTags{{"client", fmt.Sprint("client-", ci)}}, metricsN, randomTag)
+			randomWalk(ctx, shClient, statshouse.NamedTags{{"client", fmt.Sprint(ci)}}, metricsN, randomTag)
 		}()
 	}
 
