@@ -7,7 +7,8 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
 import { isMetricAggregation, METRIC_AGGREGATION, METRIC_AGGREGATION_DESCRIPTION } from 'api/enum';
-import { getNewPlot, type PlotKey, setPlot, useUrlStore } from '../../../store2';
+import { getNewPlot, PlotKey } from '../../../url2';
+import { useStatsHouseShallow } from '../../../store2';
 
 export type PlotControlAggregationProps = {
   plotKey: PlotKey;
@@ -22,7 +23,10 @@ const aggregationList = Object.values(METRIC_AGGREGATION).map((value) => ({
 const defaultCustomAgg = getNewPlot().customAgg;
 
 export function _PlotControlAggregation({ className, plotKey }: PlotControlAggregationProps) {
-  const value = useUrlStore((s) => s.params.plots[plotKey]?.customAgg ?? defaultCustomAgg);
+  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
+    value: plots[plotKey]?.customAgg ?? defaultCustomAgg,
+    setPlot,
+  }));
   const onChangeAgg = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const customAgg = parseInt(e.currentTarget.value);
@@ -30,7 +34,7 @@ export function _PlotControlAggregation({ className, plotKey }: PlotControlAggre
         p.customAgg = customAgg;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   const otherAgg = useMemo(() => !isMetricAggregation(value), [value]);
   return (

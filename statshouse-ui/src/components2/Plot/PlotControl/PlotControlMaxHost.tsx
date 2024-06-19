@@ -5,9 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
-import { getNewPlot, type PlotKey, setPlot, useUrlStore } from 'store2';
 import React, { memo, useCallback } from 'react';
 import { SwitchBox } from 'components';
+import { useStatsHouseShallow } from 'store2';
+import { getNewPlot, type PlotKey } from 'url2';
 
 export type PlotControlMaxHostProps = {
   plotKey: PlotKey;
@@ -16,14 +17,17 @@ export type PlotControlMaxHostProps = {
 const defaultMaxHost = getNewPlot().maxHost;
 
 export function _PlotControlMaxHost({ plotKey }: PlotControlMaxHostProps) {
-  const value = useUrlStore((s) => s.params.plots[plotKey]?.maxHost ?? defaultMaxHost);
+  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
+    value: plots[plotKey]?.maxHost ?? defaultMaxHost,
+    setPlot,
+  }));
   const onChange = useCallback(
     (status: boolean) => {
       setPlot(plotKey, (s) => {
         s.maxHost = status;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   return (
     <SwitchBox title="Host" checked={value} onChange={onChange}>

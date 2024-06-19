@@ -5,14 +5,18 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback } from 'react';
-import { type PlotKey, setPlot, useUrlStore } from 'store2';
 import { SelectMetric } from 'components';
+import { useStatsHouseShallow } from '../../../store2';
+import { PlotKey } from '../../../url2';
 
 export type PlotControlMetricNameProps = {
   plotKey: PlotKey;
 };
 export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) {
-  const metricName = useUrlStore((s) => s.params.plots[plotKey]?.metricName);
+  const { metricName, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
+    metricName: plots[plotKey]?.metricName,
+    setPlot,
+  }));
   const onChange = useCallback(
     (value?: string | string[]) => {
       if (typeof value !== 'string') {
@@ -27,7 +31,7 @@ export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) 
         p.customDescription = '';
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   return <SelectMetric value={metricName} onChange={onChange} />;
 }

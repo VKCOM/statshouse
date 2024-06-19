@@ -4,8 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewPlot, type PlotKey, setPlot, useUrlStore } from 'store2';
 import React, { memo, useCallback } from 'react';
+import { useStatsHouseShallow } from '../../../store2';
+import { getNewPlot, PlotKey } from '../../../url2';
 
 export type PlotControlNumSeriesProps = {
   plotKey: PlotKey;
@@ -14,7 +15,10 @@ export type PlotControlNumSeriesProps = {
 const defaultNumSeries = getNewPlot().numSeries;
 
 export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
-  const value = useUrlStore((s) => s.params.plots[plotKey]?.numSeries ?? defaultNumSeries);
+  const { numSeries, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
+    numSeries: plots[plotKey]?.numSeries ?? defaultNumSeries,
+    setPlot,
+  }));
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const num = parseInt(e.target.value);
@@ -22,10 +26,10 @@ export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
         s.numSeries = num;
       });
     },
-    [plotKey]
+    [plotKey, setPlot]
   );
   return (
-    <select className="form-select" value={value} onChange={onChange}>
+    <select className="form-select" value={numSeries} onChange={onChange}>
       <option value="1">Top 1</option>
       <option value="2">Top 2</option>
       <option value="3">Top 3</option>

@@ -6,35 +6,36 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
-import { setParams, useUrlStore } from 'store2';
 import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from 'view/utils';
 import { ToggleButton } from 'components';
-import { useShallow } from 'zustand/react/shallow';
+import { useStatsHouseShallow } from '../../../store2';
 
 export type PlotControlGlobalTimeShiftsProps = {
   className?: string;
 };
 
 export function _PlotControlGlobalTimeShifts({ className }: PlotControlGlobalTimeShiftsProps) {
-  const { timeShifts, maxCustomAgg } = useUrlStore(
-    useShallow((s) => ({
-      timeShifts: s.params.timeShifts,
-      maxCustomAgg: Math.max(0, ...s.params.orderPlot.map((pK) => s.params.plots[pK]?.customAgg ?? 0)),
-    }))
-  );
+  const { timeShifts, maxCustomAgg, setParams } = useStatsHouseShallow((s) => ({
+    timeShifts: s.params.timeShifts,
+    maxCustomAgg: Math.max(0, ...s.params.orderPlot.map((pK) => s.params.plots[pK]?.customAgg ?? 0)),
+    setParams: s.setParams,
+  }));
 
-  const onChange = useCallback((status: boolean, value?: number) => {
-    if (value == null) {
-      return;
-    }
-    setParams((p) => {
-      if (status) {
-        p.timeShifts.push(value);
-      } else {
-        p.timeShifts = p.timeShifts.filter((t) => t !== value);
+  const onChange = useCallback(
+    (status: boolean, value?: number) => {
+      if (value == null) {
+        return;
       }
-    });
-  }, []);
+      setParams((p) => {
+        if (status) {
+          p.timeShifts.push(value);
+        } else {
+          p.timeShifts = p.timeShifts.filter((t) => t !== value);
+        }
+      });
+    },
+    [setParams]
+  );
 
   const list = useMemo(() => {
     const shifts = getTimeShifts(maxCustomAgg).map(timeShiftAbbrevExpand);

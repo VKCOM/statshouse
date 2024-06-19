@@ -9,20 +9,12 @@ import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { Button } from 'components';
 import cn from 'classnames';
-import {
-  getEmptyPlotData,
-  getHomePlot,
-  isPromQL,
-  type PlotKey,
-  promQLMetric,
-  setPlot,
-  useMetricsStore,
-  usePlotsDataStore,
-  useUrlStore,
-} from 'store2';
 import { metricKindToWhat } from 'view/api';
 import { type QueryWhat } from 'api/enum';
-import { useShallow } from 'zustand/react/shallow';
+import { useStatsHouseShallow } from 'store2';
+import { isPromQL } from 'store2/helpers';
+import { getEmptyPlotData } from 'store2/plotDataStore/getEmptyPlotData';
+import { getHomePlot, type PlotKey, promQLMetric } from 'url2';
 
 export type PlotControlPromQLSwitchProps = {
   plotKey: PlotKey;
@@ -30,20 +22,26 @@ export type PlotControlPromQLSwitchProps = {
 };
 
 export function _PlotControlPromQLSwitch({ plotKey, className }: PlotControlPromQLSwitchProps) {
-  const { isPlotPromQL, metricName } = useUrlStore(
-    useShallow((s) => ({
-      isPlotPromQL: isPromQL(s.params.plots[plotKey]),
-      metricName: s.params.plots[plotKey]?.metricName ?? '',
-    }))
+  const { isPlotPromQL, meta, setPlot, plotData } = useStatsHouseShallow(
+    ({ params: { plots }, metricMeta, setPlot, plotsData }) => ({
+      isPlotPromQL: isPromQL(plots[plotKey]),
+      metricName: plots[plotKey]?.metricName ?? '',
+      meta: metricMeta[plots[plotKey]?.metricName ?? ''],
+      plotData: {
+        metricName: plotsData[plotKey]?.metricName,
+        promQL: plotsData[plotKey]?.promQL ?? '',
+        whats: plotsData[plotKey]?.whats ?? [],
+      },
+      setPlot,
+    })
   );
-  const meta = useMetricsStore((s) => s.meta[metricName]);
   const onChange = useCallback(() => {
-    const { nameMetric, promQL, whats } = usePlotsDataStore.getState().plotsData[plotKey] ?? getEmptyPlotData();
+    const { metricName, promQL, whats } = plotData ?? getEmptyPlotData();
     setPlot(plotKey, (p) => {
       if (isPromQL(p)) {
         const homePlot = getHomePlot();
-        if (nameMetric) {
-          p.metricName = nameMetric;
+        if (metricName) {
+          p.metricName = metricName;
           p.what = whats?.length ? whats.slice() : homePlot.what;
           p.groupBy = [];
           p.filterIn = {};
@@ -64,7 +62,7 @@ export function _PlotControlPromQLSwitch({ plotKey, className }: PlotControlProm
         p.promQL = promQL;
       }
     });
-  }, [meta?.kind, plotKey]);
+  }, [meta?.kind, plotData, plotKey, setPlot]);
 
   return (
     <Button

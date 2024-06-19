@@ -1,26 +1,15 @@
 import React, { memo, useCallback, useMemo } from 'react';
-import {
-  addPlot,
-  arrToObj,
-  getMetricFullName,
-  PlotKey,
-  PlotParams,
-  setParams,
-  toPlotKey,
-  toTreeObj,
-  urlDecode,
-  usePlotsDataStore,
-  useUrlStore,
-} from 'store2';
-import { Select, type SelectOptionProps } from '../../../components';
+import { Select, type SelectOptionProps } from 'components';
 import cn from 'classnames';
-import { isNotNil, parseURLSearchParams } from '../../../common/helpers';
+import { isNotNil, parseURLSearchParams } from 'common/helpers';
 import { produce } from 'immer';
 import { dequal } from 'dequal/lite';
-import { PLOT_TYPE } from '../../../api/enum';
+import { PLOT_TYPE } from 'api/enum';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
-import { globalSettings } from '../../../common/settings';
-import { useShallow } from 'zustand/react/shallow';
+import { globalSettings } from 'common/settings';
+import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from 'url2';
+import { addPlot, getMetricFullName } from 'store2/helpers';
+import { useStatsHouseShallow } from 'store2';
 
 const eventPreset: (SelectOptionProps & { plot: PlotParams })[] = globalSettings.event_preset
   .map((url) => {
@@ -40,10 +29,18 @@ export type PlotControlEventOverlayProps = {
   className?: string;
 };
 export function _PlotControlEventOverlay({ className, plotKey }: PlotControlEventOverlayProps) {
-  const { events, plots } = useUrlStore(
-    useShallow((s) => ({ events: s.params.plots[plotKey]?.events, plots: s.params.plots }))
+  const { events, plots, plotData, setParams } = useStatsHouseShallow(
+    ({ params: { plots }, plotsData, setParams }) => ({
+      events: plots[plotKey]?.events,
+      plotData: plotsData[plotKey],
+      plots,
+      setParams,
+    })
   );
-  const plotData = usePlotsDataStore((s) => s.plotsData[plotKey]);
+  // const { events, plots } = useUrlStore(
+  //   useShallow((s) => ({ events: s.params.plots[plotKey]?.events, plots: s.params.plots }))
+  // );
+  // const plotData = usePlotsDataStore((s) => s.plotsData[plotKey]);
   const onChange = useCallback(
     (value: string | string[] = []) => {
       const valuesEvent: PlotKey[] = [];
@@ -76,7 +73,7 @@ export function _PlotControlEventOverlay({ className, plotKey }: PlotControlEven
         return param;
       });
     },
-    [plotKey]
+    [plotKey, setParams]
   );
 
   const list = useMemo<SelectOptionProps[]>(() => {

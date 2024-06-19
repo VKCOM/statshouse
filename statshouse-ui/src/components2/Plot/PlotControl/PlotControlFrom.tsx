@@ -7,24 +7,12 @@
 import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
-import {
-  defaultBaseRange,
-  getAbbrev,
-  getEndDay,
-  getEndWeek,
-  getNow,
-  readTimeRange,
-  setBaseRange,
-  setTimeRange,
-  timeRangeAbbrevExpand,
-  updateTimeRangeToEndDay,
-  updateTimeRangeToEndWeek,
-  useUrlStore,
-} from 'store2';
 import { secondsRangeToString } from 'view/utils';
 import { Button } from 'components';
-import { produce } from 'immer';
 import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from 'api/enum';
+import { defaultBaseRange, useStatsHouseShallow } from 'store2';
+import { getEndDay, getEndWeek, getNow } from 'url2';
+import { getAbbrev, timeRangeAbbrevExpand } from 'store2/helpers';
 
 export type PlotControlFromProps = {
   className?: string;
@@ -32,23 +20,26 @@ export type PlotControlFromProps = {
 };
 
 export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, classNameSelect }) => {
-  const timeRange = useUrlStore((s) => s.params.timeRange);
+  const { timeRange, setBaseRange, setTimeRange } = useStatsHouseShallow(
+    ({ params: { timeRange }, setBaseRange, setTimeRange }) => ({ timeRange, setBaseRange, setTimeRange })
+  );
 
-  const onTimeRangeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
-    const abbr = toTimeRangeAbbrev(e.target.value, defaultBaseRange);
-    setBaseRange(abbr);
-    setTimeRange(
-      produce((t) => {
-        const nextFrom = timeRangeAbbrevExpand(abbr);
-        return readTimeRange(nextFrom, t.absolute ? getNow() : TIME_RANGE_KEYS_TO.Now);
-      })
-    );
-  }, []);
+  const onTimeRangeChange = useCallback(
+    (e: ChangeEvent<HTMLSelectElement>) => {
+      const abbr = toTimeRangeAbbrev(e.target.value, defaultBaseRange);
+      setBaseRange(abbr);
+      setTimeRange({ from: timeRangeAbbrevExpand(abbr), to: timeRange.absolute ? getNow() : TIME_RANGE_KEYS_TO.Now });
+    },
+    [setBaseRange, setTimeRange, timeRange.absolute]
+  );
 
   const onTodayClick = useCallback(() => {
     setBaseRange(TIME_RANGE_ABBREV.last1d);
-    setTimeRange(updateTimeRangeToEndDay());
-  }, []);
+    setTimeRange({
+      from: timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last1d),
+      to: timeRange.absolute ? getEndDay() : TIME_RANGE_KEYS_TO.EndDay,
+    });
+  }, [setBaseRange, setTimeRange, timeRange.absolute]);
 
   const disableTodayClick = useMemo(
     () => timeRange.from === -86400 && Math.abs(timeRange.to - getEndDay()) < 60,
@@ -57,8 +48,11 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, cl
 
   const onWeekClick = useCallback(() => {
     setBaseRange(TIME_RANGE_ABBREV.last7d);
-    setTimeRange(updateTimeRangeToEndWeek());
-  }, []);
+    setTimeRange({
+      from: timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last7d),
+      to: timeRange.absolute ? getEndWeek() : TIME_RANGE_KEYS_TO.EndWeek,
+    });
+  }, [setBaseRange, setTimeRange, timeRange.absolute]);
 
   const disableWeekClick = useMemo(
     () => timeRange.from === -604800 && Math.abs(timeRange.to - getEndWeek()) < 60,
@@ -77,7 +71,6 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, cl
           </option>
         ))}
       </select>
-
       <Button className="btn btn-outline-primary" type="button" onClick={onTodayClick} disabled={disableTodayClick}>
         Today
       </Button>

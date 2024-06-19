@@ -19,6 +19,7 @@ export function PlotHealsStatus({ numQueries, lastError, reload, clearLastError,
       horizontal="left"
       vertical="out-bottom"
       hover
+      style={{ width: 24, height: 24 }}
       open={lastError ? undefined : false}
       title={
         !!lastError && (

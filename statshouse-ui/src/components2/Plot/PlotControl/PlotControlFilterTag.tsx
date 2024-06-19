@@ -5,23 +5,16 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import {
-  type PlotKey,
-  QueryParams,
-  setParams,
-  setUpdatedTag,
-  useMetricsStore,
-  usePlotsInfoStore,
-  useUrlStore,
-  useVariableListStore,
-} from 'store2';
-import { TagKey } from 'api/enum';
+import { type TagKey } from 'api/enum';
 import { getTagDescription } from 'view/utils';
 import { Tooltip, VariableControl } from 'components';
 import { produce } from 'immer';
 import { sortEntity } from 'common/helpers';
 import cn from 'classnames';
+
+import { setUpdatedTag, useVariableListStore } from 'store2/variableList';
+import { type PlotKey, QueryParams } from 'url2';
+import { useStatsHouseShallow } from 'store2';
 
 export type PlotControlFilterTagProps = {
   plotKey: PlotKey;
@@ -30,18 +23,18 @@ export type PlotControlFilterTagProps = {
 };
 
 export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotControlFilterTagProps) {
-  const { metricName, filterIn, filterNotIn, groupBy, variables } = useUrlStore(
-    useShallow((s) => ({
-      metricName: s.params.plots[plotKey]?.metricName ?? '',
-      filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
-      filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
-      groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
-      variables: s.params.variables,
-    }))
-  );
-  const variableInfo = usePlotsInfoStore((s) => s.plotVariablesLink[plotKey]?.[tagKey]);
+  const { filterIn, filterNotIn, groupBy, variables, variableInfo, meta, setParams } = useStatsHouseShallow((s) => ({
+    // metricName: s.params.plots[plotKey]?.metricName ?? '',
+    filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
+    filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
+    groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
+    variables: s.params.variables,
+    variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
+    meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
+    setParams: s.setParams,
+  }));
   const variable = (variableInfo?.variableKey && variables[variableInfo.variableKey]) || undefined;
-  const meta = useMetricsStore((s) => s.meta[metricName]);
+  // const meta = useMetricsStore((s) => s.meta[metricName]);
   const tagList = useVariableListStore((s) => s.tags[plotKey]?.[tagKey]);
 
   const [negativeTag, setNegativeTag] = useState<boolean>(false);
@@ -79,7 +72,7 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
         );
       }
     },
-    [plotKey, variableInfo]
+    [plotKey, setParams, variableInfo]
   );
 
   const onSetGroupBy = useCallback(
@@ -111,7 +104,7 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
         );
       }
     },
-    [plotKey, variableInfo]
+    [plotKey, setParams, variableInfo]
   );
 
   const onFilterChange = useCallback(
@@ -143,7 +136,7 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
         );
       }
     },
-    [negativeTag, plotKey, variableInfo]
+    [negativeTag, plotKey, setParams, variableInfo]
   );
   const onSetUpdateTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {

@@ -10,10 +10,10 @@ import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, pa
 import { ReactComponent as SVGLockClock } from 'assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from 'assets/svg/UnlockClock.svg';
 import cn from 'classnames';
-import { constToTime, readTimeRange, setTimeRange, useUrlStore } from 'store2';
 import { ToggleButton } from 'components';
-import { produce } from 'immer';
 import { TIME_RANGE_KEYS_TO } from 'api/enum';
+import { useStatsHouseShallow } from 'store2';
+import { constToTime } from 'url2';
 
 export type PlotControlToProps = {
   className?: string;
@@ -21,26 +21,27 @@ export type PlotControlToProps = {
 };
 
 export const _PlotControlTo: React.FC<PlotControlToProps> = ({ className, classNameInput }) => {
-  const timeRange = useUrlStore((s) => s.params.timeRange);
+  const { timeRange, setTimeRange } = useStatsHouseShallow(({ params: { timeRange }, setTimeRange }) => ({
+    timeRange,
+    setTimeRange,
+  }));
 
-  const onRelativeToChange = useCallback((status: boolean) => {
-    setTimeRange(
-      produce((t) => {
-        if (status) {
-          return readTimeRange(
-            t.from,
-            Object.values(TIME_RANGE_KEYS_TO).find((key) => Math.abs(t.to - constToTime(t.now, key)) < 60) ??
-              TIME_RANGE_KEYS_TO.Now
-          );
-        } else {
-          return {
-            ...t,
-            urlTo: t.to,
-          };
-        }
-      })
-    );
-  }, []);
+  const onRelativeToChange = useCallback(
+    (status: boolean) => {
+      if (status) {
+        setTimeRange({
+          from: timeRange.from,
+          to:
+            Object.values(TIME_RANGE_KEYS_TO).find(
+              (key) => Math.abs(timeRange.to - constToTime(timeRange.now, key)) < 60
+            ) ?? TIME_RANGE_KEYS_TO.Now,
+        });
+      } else {
+        setTimeRange({ from: timeRange.from, to: timeRange.to });
+      }
+    },
+    [setTimeRange, timeRange.from, timeRange.now, timeRange.to]
+  );
 
   const onToDateChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -51,13 +52,9 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({ className, classN
       }
       const nextTime = new Date(timeRange.to * 1000);
       nextTime.setFullYear(y, m, d);
-      setTimeRange(
-        produce((t) => {
-          t.urlTo = t.to = Math.floor(+nextTime / 1000);
-        })
-      );
+      setTimeRange({ from: timeRange.from, to: Math.floor(+nextTime / 1000) });
     },
-    [timeRange]
+    [setTimeRange, timeRange.from, timeRange.to]
   );
 
   const onToTimeChange = useCallback(
@@ -66,13 +63,9 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({ className, classN
       const [h, m, sec] = v !== '' ? parseInputTime(v) : [0, 0, 0];
       const nextTime = new Date(timeRange.to * 1000);
       nextTime.setHours(h, m, sec);
-      setTimeRange(
-        produce((t) => {
-          t.urlTo = t.to = Math.floor(+nextTime / 1000);
-        })
-      );
+      setTimeRange({ from: timeRange.from, to: Math.floor(+nextTime / 1000) });
     },
-    [timeRange]
+    [setTimeRange, timeRange.from, timeRange.to]
   );
 
   return (

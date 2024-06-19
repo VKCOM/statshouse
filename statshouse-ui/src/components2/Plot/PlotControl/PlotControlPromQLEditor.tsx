@@ -5,13 +5,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
-import { type PlotKey, setPlot, togglePromqlExpand, usePlotsDataStore, useUrlStore } from 'store2';
 import { Button, TextArea } from 'components';
 import { useStateToRef } from 'hooks';
 import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
+import { type PlotKey } from 'url2';
+import { useStatsHouseShallow } from 'store2';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
   <div className="input-group">
@@ -30,8 +31,14 @@ export type PlotControlPromQLEditorProps = {
   plotKey: PlotKey;
 };
 export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlPromQLEditorProps) {
-  const promQLParam = useUrlStore((s) => s.params.plots[plotKey]?.promQL ?? '');
-  const promqlExpand = usePlotsDataStore((s) => s.plotsData[plotKey]?.promqlExpand ?? false);
+  const { promQLParam, promqlExpand, togglePromqlExpand, setPlot } = useStatsHouseShallow(
+    ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
+      promQLParam: plots[plotKey]?.promQL ?? '',
+      promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
+      togglePromqlExpand,
+      setPlot,
+    })
+  );
   const [promQL, setPromQL] = useState(promQLParam);
   const promQlRef = useStateToRef(promQL);
   const resetPromQL = useCallback(() => {
@@ -39,12 +46,12 @@ export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlProm
   }, [promQLParam]);
   const onTogglePromqlExpand = useCallback(() => {
     togglePromqlExpand(plotKey);
-  }, [plotKey]);
+  }, [plotKey, togglePromqlExpand]);
   const sendPromQL = useCallback(() => {
     setPlot(plotKey, (p) => {
       p.promQL = promQlRef.current;
     });
-  }, [plotKey, promQlRef]);
+  }, [plotKey, promQlRef, setPlot]);
 
   useEffect(() => {
     setPromQL(promQLParam);

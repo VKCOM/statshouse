@@ -5,36 +5,35 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { getTagDescription, isTagEnabled, isValidVariableName } from '../../view/utils';
-import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
+import { apiMetricTagValuesFetch, type MetricTagValueInfo } from '../../api/metricTagValues';
 import {
   GET_PARAMS,
   isTagKey,
   METRIC_VALUE_BACKEND_VERSION,
   QUERY_WHAT,
-  QueryWhat,
+  type QueryWhat,
   TAG_KEY,
-  TagKey,
+  type TagKey,
   toTagKey,
 } from '../../api/enum';
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { deepClone, isNotNil, toNumber } from '../../common/helpers';
-import { MetricMetaTag } from '../../api/metric';
+import { type MetricMetaTag } from '../../api/metric';
 import { createStore } from '../createStore';
-import {
-  getNewVariable,
-  PlotKey,
-  promQLMetric,
-  UrlStore,
-  useUrlStore,
-  VariableParams,
-  VariableParamsLink,
-  VariableParamsSource,
-} from '../urlStore';
+
 import { produce } from 'immer';
-import { loadMetricMeta, MetricsStore, useMetricsStore } from '../metricsStore';
 import { useErrorStore } from '../../store';
 import { replaceVariable } from './replaceVariable';
+import {
+  getNewVariable,
+  type PlotKey,
+  promQLMetric,
+  type VariableParams,
+  type VariableParamsLink,
+  type VariableParamsSource,
+} from '../../url2';
+import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
 
 // export function getEmptyVariable(): VariableItem {
 //   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
@@ -64,7 +63,7 @@ export const useVariableListStore = createStore<VariableListStore>(
   'VariableListStore'
 );
 
-export function variableListStoreSubscribe(state: UrlStore, prevState: UrlStore) {
+useStatsHouse.subscribe((state, prevState) => {
   if (prevState.params.dashboardId !== state.params.dashboardId) {
     clearTagsAll();
   } else if (prevState.params.plots !== state.params.plots) {
@@ -81,30 +80,9 @@ export function variableListStoreSubscribe(state: UrlStore, prevState: UrlStore)
     updateVariables(state);
     updateTags(state);
   }
-  // if (prevState.metricsMeta !== state.metricsMeta) {
-  //   const variableItems = getState().variables;
-  //   state.params.variables.forEach((variable) => {
-  //     if (!variableItems[variable.name].tagMeta) {
-  //       variable.link.forEach(([plotKey, tagKey]) => {
-  //         const indexPlot = toNumber(plotKey);
-  //         const indexTag = toIndexTag(tagKey);
-  //         if (indexPlot != null && indexTag != null) {
-  //           const meta = state.metricsMeta[state.params.plots[indexPlot].metricName];
-  //           setState((variableState) => {
-  //             if (variableState.variables[variable.name]) {
-  //               variableState.variables[variable.name].tagMeta = meta?.tags?.[indexTag];
-  //             }
-  //           });
-  //         }
-  //       });
-  //     }
-  //   });
-  // }
-}
-export function variableListStoreMetaSubscribe(state: MetricsStore, prevState: MetricsStore) {
-  if (prevState.meta !== state.meta) {
+  if (prevState.metricMeta !== state.metricMeta) {
     const variableItems = useVariableListStore.getState().variables;
-    const { orderVariables, variables, plots } = useUrlStore.getState().params;
+    const { orderVariables, variables, plots } = state.params;
     orderVariables.forEach((variableKey) => {
       const variable = variables[variableKey];
       if (variable && !variableItems[variable.name]?.tagMeta) {
@@ -114,7 +92,7 @@ export function variableListStoreMetaSubscribe(state: MetricsStore, prevState: M
           // if (indexPlot != null && indexTag != null) {
           const plot = plots[plotKey];
           if (plot) {
-            const meta = state.meta[plot.metricName];
+            const meta = state.metricMeta[plot.metricName];
             useVariableListStore.setState(
               produce((variableState) => {
                 if (variableState.variables[variable.name]) {
@@ -128,11 +106,9 @@ export function variableListStoreMetaSubscribe(state: MetricsStore, prevState: M
       }
     });
   }
-}
-useUrlStore.subscribe(variableListStoreSubscribe);
-useMetricsStore.subscribe(variableListStoreMetaSubscribe);
+});
 
-export function updateTags(state: UrlStore) {
+export function updateTags(state: StatsHouseStore) {
   const plotKey = state.params.tabNum;
   const updated: TagKey[] = [];
   if (plotKey != null) {
@@ -246,7 +222,7 @@ export function clearTagsAll() {
   );
 }
 
-export function updateVariables(store: UrlStore) {
+export function updateVariables(store: StatsHouseStore) {
   const update: VariableParams[] = [];
   useVariableListStore.setState(
     produce((state) => {
@@ -345,7 +321,7 @@ export async function loadValuableList(variableParam: VariableParams) {
 export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 25000) {
   // const indexPlot = toNumber(plotKey);
   // const indexTag = toIndexTag(tagKey);
-  const store = useUrlStore.getState();
+  const store = useStatsHouse.getState();
   if (!store.params.plots[plotKey] || store.params.plots[plotKey]?.metricName === promQLMetric) {
     return undefined;
   }
@@ -362,7 +338,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
   const otherFilterNotIn = { ...plot.filterNotIn };
   delete otherFilterNotIn[tagKey];
   const requestKey = `variable_${plotKey}-${plot.metricName}`;
-  const meta = await loadMetricMeta(plot.metricName);
+  const meta = await store.loadMetricMeta(plot.metricName);
   const tagMeta = meta?.tags?.[toNumber(tagKey, -1)];
   const params = {
     [GET_PARAMS.metricName]: plot.metricName,
@@ -414,7 +390,7 @@ export async function loadValuableSourceList(variableParam: VariableParams) {
 }
 
 export async function loadSourceList(variableParamSource: VariableParamsSource, limit = 25000) {
-  const store = useUrlStore.getState();
+  const store = useStatsHouse.getState();
   const useV2 = store.params.orderPlot.every((pK) => store.params.plots[pK]?.useV2);
   // const tagKey = variableParamSource.tag;
   // const indexTag = toIndexTag(variableParamSource.tag);
@@ -441,7 +417,7 @@ export async function loadSourceList(variableParamSource: VariableParamsSource, 
   };
   const keyLastRequest = JSON.stringify(params);
   const lastTag = useVariableListStore.getState().source[variableParamSource.metric]?.[variableParamSource.tag];
-  const tagMeta = await loadMetricMeta(variableParamSource.metric);
+  const tagMeta = await store.loadMetricMeta(variableParamSource.metric);
   if (lastTag && lastTag.keyLastRequest === keyLastRequest) {
     return {
       metricName: variableParamSource.metric,
@@ -479,11 +455,11 @@ export function setUpdatedVariable(nameVariable: string | undefined, toggle: boo
       state.variables[nameVariable].updated = toggle;
     })
   );
-  updateVariables(useUrlStore.getState());
+  updateVariables(useStatsHouse.getState());
 }
 
 export async function getAutoSearchSyncFilter(startIndex: number = 0) {
-  const { params } = useUrlStore.getState();
+  const { params, loadMetricMeta } = useStatsHouse.getState();
   // await loadAllMeta(params, loadMetricsMeta);
   await Promise.all(
     params.orderPlot.map((plotKey) => {
@@ -494,14 +470,14 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
       return Promise.resolve();
     })
   );
-  const { meta: metricsMeta } = useMetricsStore.getState();
+  const { metricMeta } = useStatsHouse.getState();
   const variablesLink: Record<string, VariableParamsLink[]> = {};
   params.orderPlot.forEach((plotKey) => {
     const plot = params.plots[plotKey];
     if (!plot || plot.metricName === promQLMetric) {
       return;
     }
-    const meta = metricsMeta[plot.metricName];
+    const meta = metricMeta[plot.metricName];
     if (!meta) {
       return;
     }
@@ -535,5 +511,5 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
   return addVariables;
 }
 
-updateVariables(useUrlStore.getState());
-updateTags(useUrlStore.getState());
+updateVariables(useStatsHouse.getState());
+updateTags(useStatsHouse.getState());

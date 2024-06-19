@@ -13,6 +13,7 @@ import { xRangeStatic } from './xRangeStatic';
 import { dateRangeFormat } from './dateRangeFormat';
 import { useStateToRef } from '../../../hooks';
 import cn from 'classnames';
+import { useStatsHouseShallow } from '../../../store2';
 
 const themeDark = false;
 const xAxisSize = 16;
@@ -20,8 +21,12 @@ const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const compact = false;
 
-export function PlotViewMetric({ className, plot, plotInfo, plotData }: PlotViewProps) {
-  const yLockRef = useStateToRef(plot?.yLock ?? yLockDefault);
+export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
+  const { yLock, plotData } = useStatsHouseShallow(({ plotsData, params: { plots } }) => ({
+    plotData: plotsData[plotKey],
+    yLock: plots[plotKey]?.yLock,
+  }));
+  const yLockRef = useStateToRef(yLock ?? yLockDefault);
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), []);
   // const metricType = useMemo(() => {
   //   if (plot.metricUnit != null) {
@@ -79,12 +84,14 @@ export function PlotViewMetric({ className, plot, plotInfo, plotData }: PlotView
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatByMetricType(plot?.metricUnit ?? METRIC_TYPE.none)),
+          values: (_, splits) => splits.map(formatByMetricType(plotData?.metricUnit ?? METRIC_TYPE.none)),
           size: getYAxisSize(16),
           font: font,
           stroke: getAxisStroke,
           splits:
-            plot?.metricUnit === METRIC_TYPE.none ? undefined : splitByMetricType(plot?.metricUnit ?? METRIC_TYPE.none),
+            plotData?.metricUnit === METRIC_TYPE.none
+              ? undefined
+              : splitByMetricType(plotData?.metricUnit ?? METRIC_TYPE.none),
           incrs,
         },
       ],
@@ -116,10 +123,10 @@ export function PlotViewMetric({ className, plot, plotInfo, plotData }: PlotView
       },
     };
     return opt;
-  }, [getAxisStroke, plot?.metricUnit, yLockRef]);
+  }, [getAxisStroke, plotData?.metricUnit, yLockRef]);
   return (
     <div className={cn(css.plotViewMetric, className)}>
-      {!!plotInfo && !!plotData && (
+      {!!plotData && (
         <UPlotWrapper
           opts={opts}
           className={css.plotViewMetricInner}
