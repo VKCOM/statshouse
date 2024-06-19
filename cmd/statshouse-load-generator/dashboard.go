@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	randomWalkPrefix    = "random_walk"
+	metricPrefix        = "random_walk"
 	randomWalkDashboard = "Random walk"
 	randomWalkTotal     = 6
 )
@@ -165,7 +165,7 @@ func ensureDashboardExists(client http.Client, numberOfMetrics int) {
 	}
 	dashboardVersion := -1
 	if dashboardId != -1 {
-		log.Printf("found dashboard %s with id %d, gettig it's version\n", randomWalkDashboard, dashboardId)
+		log.Printf("found dashboard %s", randomWalkDashboard)
 		resp, err = client.Get(fmt.Sprintf("http://localhost:10888/api/dashboard?id=%d", dashboardId))
 		checkResponse(resp, err)
 		_, err = buffer.ReadFrom(resp.Body)
@@ -178,20 +178,21 @@ func ensureDashboardExists(client http.Client, numberOfMetrics int) {
 			panic(err)
 		}
 		dashboardVersion = metaResponse.Data.Meta.Version
-		log.Printf("latest dashboard %s version %d\n", randomWalkDashboard, dashboardVersion)
 		buffer.Reset()
 	}
 
 	plots := make([]plot, numberOfMetrics)
 	for i := range plots {
 		plots[i].Id = i
-		plots[i].Name = fmt.Sprint(randomWalkPrefix, i)
+		plots[i].Name = fmt.Sprint(metricPrefix, i)
 	}
 	buffer = renderDashboardCreatePayload(dashboardId, dashboardVersion, plots)
 	var req *http.Request
 	if dashboardVersion < 0 {
+		log.Println("creating dashboard:", randomWalkDashboard)
 		req, err = http.NewRequest(http.MethodPut, "http://localhost:10888/api/dashboard", buffer)
 	} else {
+		log.Println("updating dashboard:", randomWalkDashboard)
 		req, err = http.NewRequest(http.MethodPost, "http://localhost:10888/api/dashboard", buffer)
 	}
 	if err != nil {
