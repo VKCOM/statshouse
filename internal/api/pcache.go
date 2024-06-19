@@ -23,7 +23,7 @@ type pSelectRow struct {
 
 type pointsCache struct {
 	loader            pointsLoadFunc
-	size              int
+	size              int // len(cacheEntry.rows) + cacheEntry.rowsSize
 	approxMaxSize     int
 	cacheMu           sync.RWMutex
 	cache             map[string]*cacheEntry
@@ -43,7 +43,7 @@ type cacheEntry struct {
 	lru          atomic.Int64
 	loadedAtNano int64
 	rows         map[timeRange][]pSelectRow
-	size         int
+	rowsSize     int
 }
 
 func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, now func() time.Time) *pointsCache {
@@ -74,7 +74,7 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 
-	for c.size >= c.approxMaxSize {
+	for c.size+len(c.cache) >= c.approxMaxSize {
 		c.size -= c.evictLocked()
 	}
 
@@ -92,9 +92,11 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 	e.loadedAtNano = loadedAtNano
 	tr := timeRange{from: lod.FromSec, to: lod.ToSec}
 	if _, ok := e.rows[tr]; !ok {
-		c.size++
+		c.size += 1 + len(rows)
+	} else {
+		c.size += len(rows)
 	}
-	e.size += len(rows)
+	e.rowsSize += len(rows)
 	e.rows[tr] = rows
 	return rows, nil
 }
@@ -151,9 +153,9 @@ func (c *pointsCache) evictLocked() int {
 		return 0
 	}
 	e := c.cache[k]
-	n := e.size
+	n := e.rowsSize
 	delete(c.cache, k)
-	return n
+	return n + len(e.rows)
 }
 
 type invalidatedSecondsCache struct {
