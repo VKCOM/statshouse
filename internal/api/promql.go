@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -276,125 +275,25 @@ func (h *Handler) GetHostName(hostID int32) string {
 	return v
 }
 
-func (h *Handler) GetTagValue(qry promql.TagValueQuery) (string, error) {
-	tagID := qry.TagID
-	toStr := func(v int32) string {
-		if v == format.TagValueIDUnspecified {
-			return ""
-		}
-		return format.CodeTagValue(qry.TagValueID)
-	}
-	if tagID == "" {
+func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
+	var tagID string
+	if len(qry.TagID) == 0 {
 		tagID = format.TagID(qry.TagIndex)
+	} else {
+		tagID = qry.TagID
 	}
-	t, ok := qry.Metric.Name2Tag[tagID]
-	if !ok {
-		return toStr(qry.TagValueID), promql.ErrNotFound
-	}
-	if t.IsMetric {
-		if s, err := h.getMetricNameWithNamespace(qry.TagValueID); err == nil {
-			return s, nil
-		}
-		return toStr(qry.TagValueID), promql.ErrNotFound
-	}
-	if t.IsNamespace {
-		if n := h.metricsStorage.GetNamespace(qry.TagValueID); n != nil {
-			return n.Name, nil
-		}
-		return toStr(qry.TagValueID), promql.ErrNotFound
-	}
-	if t.IsGroup {
-		if meta := h.metricsStorage.GetGroup(qry.TagValueID); meta != nil {
-			return meta.Name, nil
-		}
-		return toStr(qry.TagValueID), nil
-	}
-	ver := data_model.VersionOrDefault(qry.Version)
-	if t.Raw {
-		if ver == Version1 {
-			qry.TagValueID -= format.TagValueIDRawDeltaLegacy
-		}
-		if len(t.ValueComments) != 0 {
-			if s, ok := t.ValueComments[format.CodeTagValue(qry.TagValueID)]; ok {
-				return s, nil
-			}
-		}
-		return toStr(qry.TagValueID), nil
-	}
-	if ver == Version1 && qry.TagValueID == format.TagValueIDMappingFloodLegacy {
-		return format.CodeTagValue(format.TagValueIDMappingFlood), nil
-	}
-	switch qry.TagValueID {
-	case format.TagValueIDUnspecified:
-		return "", nil
-	case format.TagValueIDMappingFlood:
-		return format.CodeTagValue(qry.TagValueID), nil
-	default:
-		if v, err := h.getTagValue(qry.TagValueID); err == nil {
-			return v, nil
-		}
-		return format.CodeTagValue(qry.TagValueID), promql.ErrNotFound
-	}
+	return h.getRichTagValue(qry.Metric, data_model.VersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
-func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (_ int32, err error) {
-	defer func() {
-		if err != nil {
-			var httpErr httpError
-			if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
-				err = promql.ErrNotFound
-			}
+func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
+	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
+	if err != nil {
+		var httpErr httpError
+		if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
+			err = promql.ErrNotFound
 		}
-	}()
-	if qry.TagValue == "" {
-		return 0, nil
 	}
-	if qry.TagIndex < 0 || len(qry.Metric.Tags) <= qry.TagIndex {
-		return 0, promql.ErrNotFound
-	}
-	t := qry.Metric.Tags[qry.TagIndex]
-	if v, err := format.ParseCodeTagValue(qry.TagValue); err == nil {
-		ver := data_model.VersionOrDefault(qry.Version)
-		if ver == Version1 && t.Raw {
-			v += format.TagValueIDRawDeltaLegacy
-		}
-		return v, nil
-	}
-	if t.IsMetric {
-		// we don't consider metric ID to be private
-		if id, err := h.getMetricID(accessInfo{insecureMode: true}, qry.TagValue); err == nil {
-			return id, nil
-		}
-		return 0, promql.ErrNotFoundRawTagStr
-	}
-	if t.IsNamespace {
-		if n := h.metricsStorage.GetNamespaceByName(qry.TagValue); n != nil {
-			return n.ID, nil
-		}
-		return 0, promql.ErrNotFoundRawTagStr
-	}
-	if t.IsGroup {
-		if g := h.metricsStorage.GetGroupByName(qry.TagValue); g != nil {
-			return g.ID, nil
-		}
-		return 0, promql.ErrNotFoundRawTagStr
-	}
-	if t.Raw {
-		if t.Name == labels.BucketLabel {
-			// histogram bucket label
-			if v, err := strconv.ParseFloat(qry.TagValue, 32); err == nil {
-				return statshouse.LexEncode(float32(v)), nil
-			}
-		}
-		if t.Comment2Value == nil {
-			return 0, promql.ErrNotFound
-		}
-		if v, ok := t.Comment2Value[qry.TagValue]; ok {
-			return format.ParseCodeTagValue(v)
-		}
-		return 0, promql.ErrNotFoundRawTagStr
-	}
-	return h.getTagValueID(qry.TagValue)
+	return res, err
 }
 
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
