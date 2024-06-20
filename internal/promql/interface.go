@@ -110,7 +110,7 @@ type Handler interface {
 	//
 
 	GetHostName(hostID int32) string
-	GetTagValue(qry TagValueQuery) (string, error)
+	GetTagValue(qry TagValueQuery) string
 	GetTagValueID(qry TagValueIDQuery) (int32, error)
 
 	//
@@ -137,7 +137,6 @@ type Handler interface {
 
 // Used by 'Handler' implementation to signal that entity requested was just not found
 var ErrNotFound = fmt.Errorf("not found")
-var ErrNotFoundRawTagStr = fmt.Errorf("not found")
 
 // Wrapper for errors returned by 'Exec'
 type Error struct {
