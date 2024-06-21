@@ -1,11 +1,11 @@
 ---
 sidebar_position: 4
-title: How to install
+title: Install components
 ---
 
 import ComponentsOrder from '../img/components-order.png'
 
-# How to install
+# Install components
 
 Here is the flow to install StatsHouse components (1 → 5):
 

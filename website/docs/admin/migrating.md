@@ -1,6 +1,6 @@
 ---
 sidebar_position: 11
-title: How to migrate
+title: Migrate
 ---
 
-# How to migrate from the other monitoring system
+# Migrate

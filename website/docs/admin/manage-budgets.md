@@ -1,6 +1,6 @@
 ---
-sidebar_position: 6
-title: How to manage budgets
+sidebar_position: 8
+title: Manage budgets
 ---
 
 import Namespace from '../img/namespace.png'
@@ -11,7 +11,7 @@ import EditWeight1 from '../img/edit-weight-1.png'
 import EditWeight2 from '../img/edit-weight-2.png'
 import Weight from '../img/weight.png'
 
-# How to manage budgets
+# Manage budgets
 
 You can manage budgets for multiple groups of users to fit the needs of your organization.
 

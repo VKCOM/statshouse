@@ -1,11 +1,11 @@
 ---
 sidebar_position: 7
-title: How to use host metrics
+title: Use host metrics
 ---
 
 import HardwareInfo from '../img/hardware-info.png'
 
-# How to use hardware (host) metrics
+# Use hardware (host) metrics
 
 Popular hardware (host) metrics are displayed in StatsHouse out of the box:
 * You can view them as individual metrics: host metric names begin with `host_`.

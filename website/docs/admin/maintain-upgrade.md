@@ -1,7 +1,7 @@
 ---
 sidebar_position: 10
-title: How to maintain and upgrade
+title: Maintain and upgrade
 ---
 
-# How to maintain and upgrade
+# Maintain and upgrade
 

@@ -1,9 +1,9 @@
 ---
 sidebar_position: 3
-title: How to find packages
+title: Find packages
 ---
 
-# How to find packages
+# Find packages
 
 Find the StatsHouse packages in the public _vkpartner_ repositories:
 * [for the DEB packages](https://artifactory-external.vkpartner.ru/ui/repos/tree/General/debian-statshouse),

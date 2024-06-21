@@ -18,22 +18,22 @@ This guide will help you to deploy and maintain your own StatsHouse cluster on y
 
 **Before you begin:**
 
-* [System requirements](sys-req)
+* [System requirements](sys-req.md)
 
 **Basic how-tos:**
 
-* [How to find packages](packages)
-* [How to install](install)
-* [How to ensure security](security)
-* [How to manage budgets](manage-budgets)
-* [How to use host metrics](host-metrics)
-* [How to monitor](monitor)
-* [How to manage users](manage-users)
-* [How to maintain and upgrade](maintain-upgrade)
-* [How to migrate from the other monitoring system](maintain-upgrade)
+* [Find packages](packages.md)
+* [Install components](install.md)
+* [Monitor components](monitor.md)
+* [Ensure security](security.md)
+* [Use host metrics](host-metrics.md)
+* [Manage budgets](manage-budgets.md)
+* [Manage users](manage-users.md)
+* [Maintain and upgrade](maintain-upgrade.md)
+* [Migrate from the other monitoring system](maintain-upgrade.md)
 
 **Additional:**
 
-* [Integrations](integrations)
-* [Troubleshooting](troubleshooting)
-* [Support and resources](support)
+* [Integrations](integrations.md)
+* [Troubleshooting](troubleshooting.md)
+* [Support and resources](support.md)

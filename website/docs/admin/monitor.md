@@ -1,13 +1,13 @@
 ---
-sidebar_position: 8
-title: How to monitor
+sidebar_position: 5
+title: Monitor components
 ---
 
 import HeartbeatVersion from '../img/heartbeat-version.png'
 import AggMetrics from '../img/agg-metrics.png'
 import AggInsertMetrics from '../img/agg-insert-metrics.png'
 
-# How to monitor
+# Monitor components
 
 To monitor StatsHouse, use the predefined service [metrics](#service-metrics). Additionally, find [logs](#logs).
 

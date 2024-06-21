@@ -1,13 +1,13 @@
 ---
-sidebar_position: 5
-title: How to ensure security
+sidebar_position: 6
+title: Ensure security
 ---
 
 import Aes from '../img/aes.png'
 import NoProxyEncryption from '../img/no-proxy-encryption.png'
 import WithProxyEncryption from '../img/with-proxy-encryption.png'
 
-# How to ensure security
+# Ensure security
 
 StatsHouse encrypts data between the agent and the aggregator even if they are located in the same
 data center. The AES encryption is used by default.

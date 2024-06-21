@@ -1,6 +1,6 @@
 ---
 sidebar_position: 9
-title: How to manage users
+title: Manage users
 ---
 
-# How to manage users
+# Manage users
