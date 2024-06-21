@@ -19,8 +19,6 @@ type binlogEngine struct {
 	waitQBuffer        []waitCommitInfo
 	committedOffset    int64
 	safeSnapshotOffset int64
-
-	checkpointer *checkpointer
 }
 
 func (b *binlogEngine) Shutdown() {
@@ -46,17 +44,8 @@ func isExpectedError(err error) bool {
 func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine {
 	return &binlogEngine{
 		e:             e,
-		checkpointer:  newCkeckpointer(e),
 		applyFunction: applyFunction,
 	}
-}
-
-func (b *binlogEngine) RunCheckpointer() {
-	b.checkpointer.goCheckpoint()
-}
-
-func (b *binlogEngine) StopCheckpointer() {
-	b.checkpointer.stop()
 }
 
 func (b *binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
@@ -96,7 +85,7 @@ func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotO
 	if err != nil {
 		return err
 	}
-	b.checkpointer.notifyCommit(toOffset)
+	b.e.checkpointer.notifyCommit(toOffset)
 	return nil
 
 }

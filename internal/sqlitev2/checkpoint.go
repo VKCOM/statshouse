@@ -5,26 +5,35 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 )
 
 type checkpointer struct {
 	ctx                  context.Context
 	cancel               func()
 	ch                   chan struct{}
-	e                    *Engine
+	rw                   *sqliteBinlogConn
+	re                   *restart2.RestartFile
+	binlogRun            bool
 	waitCheckpointOffset int64
 	waitCheckpoint       bool
+	StatsOptions         StatsOptions
 }
 
 const checkInterval = time.Millisecond * 10
 
-func newCkeckpointer(e *Engine) *checkpointer {
+func newCkeckpointer(rw *sqliteBinlogConn,
+	re *restart2.RestartFile,
+	statsOptions StatsOptions) *checkpointer {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &checkpointer{
 		ctx:                  ctx,
 		cancel:               cancel,
 		ch:                   make(chan struct{}, 1),
-		e:                    e,
+		rw:                   rw,
+		re:                   re,
+		StatsOptions:         statsOptions,
 		waitCheckpointOffset: 0,
 		waitCheckpoint:       false,
 	}
@@ -39,7 +48,7 @@ loop:
 		case <-time.After(checkInterval):
 		case <-c.ch:
 		}
-		c.doCheckpointIfCan()
+		c.DoCheckpointIfCan()
 	}
 }
 
@@ -48,7 +57,7 @@ func (c *checkpointer) stop() {
 }
 
 func (c *checkpointer) notifyCommit(commitOffset int64) {
-	c.e.re.SetCommitOffset(commitOffset)
+	c.re.SetCommitOffset(commitOffset)
 	select {
 	case c.ch <- struct{}{}:
 	default:
@@ -58,39 +67,78 @@ func (c *checkpointer) notifyCommit(commitOffset int64) {
 }
 
 func (c *checkpointer) setWaitCheckpointOffsetLocked() {
-	c.waitCheckpointOffset = c.e.rw.getDBOffsetLocked()
+	if debugFlag {
+		log.Println("Wal switch")
+	}
+	c.waitCheckpointOffset = c.rw.getDBOffsetLocked()
 	c.waitCheckpoint = true
 }
 
-func (c *checkpointer) doCheckpointIfCan() {
-	c.e.rw.mu.Lock()
-	defer c.e.rw.mu.Unlock()
+func (c *checkpointer) SetBinlogRunLocked(binlogRun bool) {
+	c.binlogRun = binlogRun
+}
+
+func (c *checkpointer) DoCheckpointIfCan() error {
+	c.rw.mu.Lock()
+	defer c.rw.mu.Unlock()
+	if c.binlogRun {
+		return c.checkpointBinlogLocked()
+	}
+	return c.checkpointNonBinlogLocked()
+
+}
+
+func (c *checkpointer) checkpointNonBinlogLocked() error {
+	waitCheckpoint := c.waitCheckpoint
+	if !waitCheckpoint {
+		return nil
+	}
+	start := time.Now()
+	err := c.rw.conn.conn.Checkpoint()
+
+	if err != nil {
+		if debugFlag {
+			log.Println(fmt.Errorf("NONBINLOG CHECKPOINT ERROR: %w", err).Error())
+		}
+		c.StatsOptions.walCheckpointDuration("error-nonbinlog", time.Since(start))
+		return err
+	}
+	if debugFlag {
+		log.Println("NONBINLOG CHECKPOINT OK")
+	}
+	c.StatsOptions.walCheckpointDuration("ok-nonbinlog", time.Since(start))
+	c.waitCheckpoint = false
+	return nil
+}
+
+func (c *checkpointer) checkpointBinlogLocked() error {
 	waitCheckpoint := c.waitCheckpoint
 	waitCheckpointOffset := c.waitCheckpointOffset
-	dbOffset := c.e.rw.getDBOffsetLocked()
-	commitOffset := c.e.re.GetCommitOffset()
+	dbOffset := c.rw.getDBOffsetLocked()
+	commitOffset := c.re.GetCommitOffset()
 	if waitCheckpoint && waitCheckpointOffset <= commitOffset &&
 		// в новом вале должен быть хотя бы один коммит
 		dbOffset > waitCheckpointOffset {
-		err := c.e.re.SetCommitOffsetAndSync(commitOffset)
+		err := c.re.SetCommitOffsetAndSync(commitOffset)
 		if err != nil {
-			_ = c.e.rw.setErrorLocked(err)
-			return
+			_ = c.rw.setErrorLocked(err)
+			return err
 		}
 		start := time.Now()
-		err = c.e.rw.conn.conn.Checkpoint()
+		err = c.rw.conn.conn.Checkpoint()
 
 		if err != nil {
 			if debugFlag {
-				log.Println(fmt.Errorf("CHECKPOINT ERROR: %w", err).Error())
+				log.Println(fmt.Errorf("BINLOG CHECKPOINT ERROR: %w", err).Error())
 			}
-			c.e.opt.StatsOptions.walCheckpointDuration("error", time.Since(start))
-			return
+			c.StatsOptions.walCheckpointDuration("error-binlog", time.Since(start))
+			return err
 		}
 		if debugFlag {
-			log.Println("CHECKPOINT OK: %w")
+			log.Println("BINLOG CHECKPOINT OK")
 		}
-		c.e.opt.StatsOptions.walCheckpointDuration("ok", time.Since(start))
+		c.StatsOptions.walCheckpointDuration("ok-binlog", time.Since(start))
 		c.waitCheckpoint = false
 	}
+	return nil
 }

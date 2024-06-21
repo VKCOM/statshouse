@@ -205,6 +205,10 @@ func (c *sqliteConn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
 }
 
+func (c *sqliteConn) RowsAffected() int64 {
+	return c.conn.RowsAffected()
+}
+
 func (c *sqliteConn) Close() error {
 	err := c.connError
 	c.connError = errAlreadyClosed

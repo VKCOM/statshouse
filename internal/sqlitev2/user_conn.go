@@ -1,5 +1,6 @@
 package sqlitev2
 
+import "C"
 import (
 	"context"
 	"time"
@@ -59,6 +60,10 @@ func (r *Rows) ColumnReal(i int) float64 {
 
 func (c Conn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
+}
+
+func (c Conn) RowsAffected() int64 {
+	return c.conn.RowsAffected()
 }
 
 func (r *Rows) Error() error {
