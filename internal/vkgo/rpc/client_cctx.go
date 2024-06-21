@@ -25,27 +25,6 @@ import (
 //    If receiver reads context from channel, it must pass it to putCallContext
 //    If receiver does not read from channel, context is GC-ed with the channel
 
-type callContext struct {
-	queryID            int64
-	failIfNoConnection bool // set in setupCall call and never changes. Allows to quickly try multiple servers without waiting timeout
-	readonly           bool // set in setupCall call and never changes. TODO - implement logic
-
-	sent  bool
-	stale bool // Was cancelled before sending. Instead of removing from the write queue, we set the flag
-
-	singleResult chan *callContext // channel for single caller is reused here
-	result       chan *callContext // can point to singleResult or multiResult if used by MultiClient
-
-	cb       ClientCallback // callback-style API, if set result channels are unused
-	userData any
-
-	// Response
-	resp *Response // if set, has priority
-	err  error     // otherwise err must be set. May point to rpcErr
-
-	hookState ClientHooks // can be nil
-}
-
 func preparePacket(req *Request, deadline time.Time) error {
 	if !deadline.IsZero() && !req.Extra.IsSetCustomTimeoutMs() {
 		// Not as close to actual writing as possible (we want that due to time.Until)
@@ -83,13 +62,13 @@ func preparePacket(req *Request, deadline time.Time) error {
 	return nil
 }
 
-func parseResponseExtra(resp *Response, logf LoggerFunc) (err error) {
+func parseResponseExtra(extra *ReqResultExtra, respBody []byte) (_ []byte, err error) {
 	var tag uint32
 	var afterTag []byte
 	extraSet := 0
 	for {
-		if afterTag, err = basictl.NatRead(resp.Body, &tag); err != nil {
-			return err
+		if afterTag, err = basictl.NatRead(respBody, &tag); err != nil {
+			return respBody, err
 		}
 		if (tag != tl.ReqResultHeader{}.TLTag()) {
 			break
@@ -97,48 +76,44 @@ func parseResponseExtra(resp *Response, logf LoggerFunc) (err error) {
 		// var extra tl.ReqResultHeader
 		// if resp.Body, err = extra.Read(afterTag); err != nil {
 		// we optimize copy of large extra here
-		if resp.Body, err = resp.Extra.Read(afterTag); err != nil {
-			return err
+		if respBody, err = extra.Read(afterTag); err != nil {
+			return respBody, err
 		}
 		extraSet++
 	}
 	if extraSet > 1 {
-		return fmt.Errorf("rpc: ResultExtra set more than once (%d) for result tag #%08d; please report to infrastructure team", extraSet, tag)
+		return respBody, fmt.Errorf("rpc: ResultExtra set more than once (%d) for result tag #%08d; please report to infrastructure team", extraSet, tag)
 	}
 
 	switch tag {
 	case tl.ReqError{}.TLTag():
 		var rpcErr tl.ReqError
-		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
-			return err
+		if respBody, err = rpcErr.Read(afterTag); err != nil {
+			return respBody, err
 		}
-		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultError{}.TLTag():
 		var rpcErr tl.RpcReqResultError // ignore query ID
-		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
-			return err
+		if respBody, err = rpcErr.Read(afterTag); err != nil {
+			return respBody, err
 		}
-		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultErrorWrapped{}.TLTag():
 		var rpcErr tl.RpcReqResultErrorWrapped
-		if resp.Body, err = rpcErr.Read(afterTag); err != nil {
-			return err
+		if respBody, err = rpcErr.Read(afterTag); err != nil {
+			return respBody, err
 		}
-		return Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	}
-	return nil
+	return respBody, nil
 }
 
-func (cctx *callContext) deliverResult(c *Client) {
-	cb := cctx.cb
+func (resp *Response) deliverResult(c *Client) {
+	cb := resp.cb
 	if cb == nil {
-		cctx.result <- cctx // cctx owned by channel
+		resp.result <- resp // cctx owned by channel
 		return
 	}
-	queryID := cctx.queryID
-	resp := cctx.resp
-	err := cctx.err
-	userData := cctx.userData
-	c.putCallContext(cctx)
-	cb(c, queryID, resp, err, userData)
+	// TODO - catch panic in callback, write to rare log
+	cb(c, resp, resp.err)
 }

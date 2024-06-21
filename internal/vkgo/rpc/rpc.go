@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
@@ -53,6 +54,16 @@ const (
 	DefaultConnTimeoutAccuracy = 100 * time.Millisecond
 	// We optimize excess SetDeadline calls
 )
+
+type ReqResultExtra = tl.RpcReqResultExtra
+
+type InvokeReqExtra struct {
+	tl.RpcInvokeReqExtra
+
+	// Requests fail immediately when connection fails, so that switch to fallback is faster
+	// Here, because generated code calls GetRequest() so caller has no access to request
+	FailIfNoConnection bool
+}
 
 type UnencHeader = tlnetUdpPacket.UnencHeader // TODO - move to better place when UDP impl is ready
 type EncHeader = tlnetUdpPacket.EncHeader     // TODO - move to better place when UDP impl is ready
