@@ -158,6 +158,7 @@ func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
 }
 
 func (ls *longpollShard) callback(client *rpc.Client, resp *rpc.Response, err error) {
+	defer client.PutResponse(resp)
 	userData := resp.UserData()
 	hctx := userData.(*rpc.HandlerContext)
 	ls.mu.Lock()
