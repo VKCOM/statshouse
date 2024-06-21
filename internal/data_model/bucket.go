@@ -12,6 +12,7 @@ import (
 	"math/bits"
 	"sort"
 
+	"go4.org/mem"
 	"pgregory.net/rand"
 
 	"github.com/dchest/siphash"
@@ -23,6 +24,13 @@ import (
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead
 
 type (
+	RawKey struct {
+		Timestamp uint32
+		Metric    int32
+		Keys      [format.MaxTags]mem.RO // points to memory in RawKeys slice
+		RawKeys   []byte                 // normalized keys values separated by \0
+	}
+
 	// Time Series Key, will be optimized to single human-readable string
 	Key struct {
 		Timestamp uint32

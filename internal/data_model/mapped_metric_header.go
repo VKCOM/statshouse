@@ -27,6 +27,7 @@ type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)
 type MappedMetricHeader struct {
 	ReceiveTime time.Time // Saved at mapping start and used where we need time.Now. This is different to MetricBatch.T, which is sent by clients
 	MetricInfo  *format.MetricMetaValue
+	RawKey      RawKey // owned memory, TODO: reuse
 	Key         Key
 	SValue      []byte // reference to memory inside tlstatshouse.MetricBytes.
 	HostTag     int32

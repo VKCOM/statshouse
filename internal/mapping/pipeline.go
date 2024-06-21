@@ -42,6 +42,12 @@ func (mp *mapPipeline) stop() {
 func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (h data_model.MappedMetricHeader, done bool) {
 	h.ReceiveTime = time.Now() // mapping time is set once for all functions
 	h.MetricInfo = metricInfo
+	if done = mp.fillMetricInfo(&h, args); done {
+		return h, done
+	}
+	if done = mp.fillRawKeys(&h, args.MetricBytes); done {
+		return h, done
+	}
 	done = mp.doMap(args, &h)
 	// We map environment in all 3 cases
 	// done and no errors - very fast NOP
@@ -56,26 +62,6 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 
 func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
 	metric := args.MetricBytes
-	if h.MetricInfo == nil {
-		h.MetricInfo = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
-		if h.MetricInfo == nil {
-			if mp.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
-				// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
-				_ = mp.autoCreate.autoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
-			}
-			validName, err := format.AppendValidStringValue(metric.Name[:0], metric.Name)
-			if err != nil {
-				metric.Name = format.AppendHexStringValue(metric.Name[:0], metric.Name)
-				h.InvalidString = metric.Name
-				h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
-				return true
-			}
-			metric.Name = validName
-			h.InvalidString = metric.Name
-			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
-			return true
-		}
-	}
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
@@ -88,6 +74,91 @@ func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMe
 		return done
 	}
 	return done
+}
+
+func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args data_model.HandlerArgs) bool {
+	metric := args.MetricBytes
+	if h.MetricInfo != nil {
+		return false
+	}
+	h.MetricInfo = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
+	if h.MetricInfo != nil {
+		return false
+	}
+	if mp.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
+		// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
+		_ = mp.autoCreate.autoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
+	}
+	validName, err := format.AppendValidStringValue(metric.Name[:0], metric.Name)
+	if err != nil {
+		metric.Name = format.AppendHexStringValue(metric.Name[:0], metric.Name)
+		h.InvalidString = metric.Name
+		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
+		return true
+	}
+	metric.Name = validName
+	h.InvalidString = metric.Name
+	h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
+	return true
+}
+
+func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
+	// We do not validate metric name or tag keys, because they will be searched in finite maps
+	for i := 0; i < len(metric.Tags); i++ {
+		entry := &metric.Tags[i]
+		tagInfo, ok, legacyName := h.MetricInfo.APICompatGetTagFromBytes(entry.Key)
+		if !ok {
+			validKey, err := format.AppendValidStringValue(entry.Key[:0], entry.Key)
+			if err != nil {
+				entry.Key = format.AppendHexStringValue(entry.Key[:0], entry.Key)
+				h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, entry.Key)
+				return true
+			}
+			entry.Key = validKey
+			if _, ok := h.MetricInfo.GetTagDraft(entry.Key); ok {
+				h.FoundDraftTagName = entry.Key
+			} else {
+				h.NotFoundTagName = entry.Key
+			}
+			if mp.autoCreate != nil && format.ValidMetricName(mem.B(entry.Key)) {
+				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
+				_ = mp.autoCreate.autoCreateTag(metric, entry.Key, h.ReceiveTime)
+			}
+			continue
+		}
+		tagIDKey := int32(tagInfo.Index + format.TagIDShift)
+		if legacyName {
+			h.LegacyCanonicalTagKey = tagIDKey
+		}
+		validValue, err := format.AppendValidStringValue(entry.Value[:0], entry.Value)
+		if err != nil {
+			entry.Value = format.AppendHexStringValue(entry.Value[:0], entry.Value)
+			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, entry.Value)
+			return true
+		}
+		entry.Value = validValue
+
+		switch {
+		case tagInfo.Index == format.StringTopTagIndex:
+			h.SValue = entry.Value
+			if h.IsSKeySet {
+				h.TagSetTwiceKey = tagIDKey
+			}
+			h.IsSKeySet = true
+		case tagInfo.Raw:
+			_, ok := format.ContainsRawTagValue(mem.B(entry.Value)) // TODO - remove allocation in case of error
+			if !ok {
+				h.InvalidRawValue = entry.Value
+				h.InvalidRawTagKey = tagIDKey
+				// We could arguably call h.SetKey, but there is very little difference in semantic to care
+				continue
+			}
+			h.RawKey.Keys[tagInfo.Index] = mem.B(entry.Value)
+		default:
+			h.RawKey.Keys[tagInfo.Index] = mem.B(entry.Value)
+		}
+	}
+	return false
 }
 
 // transforms not yet mapped tags from metric into header
