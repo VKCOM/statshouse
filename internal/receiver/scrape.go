@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/textparse"
 	"github.com/vkcom/statshouse-go"
@@ -63,6 +64,7 @@ type scrapeOptions struct {
 	namespace    string
 	job          string
 	gaugeMetrics map[string]bool
+	labels       map[string]string
 }
 
 type scrapeCounter struct {
@@ -132,7 +134,10 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 	for _, v := range targets.Targets {
 		var namespace string
 		if v.Labels != nil {
-			namespace = v.Labels[format.ScrapeNamespaceTagName]
+			var ok bool
+			if namespace, ok = v.Labels[format.ScrapeNamespaceTagName]; ok {
+				delete(v.Labels, format.ScrapeNamespaceTagName)
+			}
 		}
 		res = append(res, scrapeTarget{
 			url: string(v.Url),
@@ -142,6 +147,7 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 				namespace:    namespace,
 				job:          v.JobName,
 				gaugeMetrics: gaugeMetrics,
+				labels:       v.Labels,
 			},
 		})
 	}
@@ -266,6 +272,16 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			}
 			if entry == textparse.EntrySeries {
 				p.Metric(&l)
+				// add aggregator labels if present, assume honor_labels is set to "false"
+				if len(opt.labels) != 0 {
+					lb := labels.NewBuilder(l)
+					for k, v := range opt.labels {
+						if !strings.HasPrefix(k, model.ReservedLabelPrefix) {
+							lb.Set(k, v)
+						}
+					}
+					l = lb.Labels()
+				}
 				break
 			}
 			if i == 0 {
