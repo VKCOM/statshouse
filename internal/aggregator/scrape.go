@@ -19,6 +19,7 @@ import (
 	"net/netip"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 
 	klog "github.com/go-kit/log"
@@ -27,6 +28,8 @@ import (
 	"github.com/prometheus/prometheus/discovery"
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/relabel"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
@@ -119,19 +122,33 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 				gaugeMetrics[i] = []byte(v)
 			}
 		}
-		tags := []tl.DictionaryFieldStringBytes{{
+		ns := tl.DictionaryFieldStringBytes{
 			Key:   []byte(format.ScrapeNamespaceTagName),
 			Value: []byte(c.Options.Namespace),
-		}}
+		}
 		for _, j := range c.Jobs {
-			c2 := config.ScrapeConfig{
-				JobName:        j.JobName,
-				Scheme:         j.Scheme,
-				MetricsPath:    j.MetricsPath,
-				ScrapeInterval: j.ScrapeInterval,
-				ScrapeTimeout:  j.ScrapeTimeout,
-			}
 			for _, g := range j.Groups {
+				groupConfig := config.ScrapeConfig{
+					JobName:        j.JobName,
+					Scheme:         j.Scheme,
+					MetricsPath:    j.MetricsPath,
+					ScrapeInterval: j.ScrapeInterval,
+					ScrapeTimeout:  j.ScrapeTimeout,
+				}
+				tags := make([]tl.DictionaryFieldStringBytes, 0, len(g.Labels)+1)
+				tags = append(tags, ns)
+				for k, v := range g.Labels {
+					if k == model.SchemeLabel {
+						groupConfig.Scheme = v
+					} else if k == model.MetricsPathLabel {
+						groupConfig.MetricsPath = v
+					} else if !strings.HasPrefix(k, model.ReservedLabelPrefix) {
+						tags = append(tags, tl.DictionaryFieldStringBytes{
+							Key:   []byte(k),
+							Value: []byte(v),
+						})
+					}
+				}
 				for _, t := range g.Targets {
 					var k nameAddr
 					if ipp, err := netip.ParseAddrPort(t); err == nil {
@@ -147,7 +164,7 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 						v = &tlstatshouse.GetTargetsResultBytes{GaugeMetrics: gaugeMetrics}
 						targets[k] = v
 					}
-					v.Targets = append(v.Targets, newPromTargetBytes(&c2, t, tags))
+					v.Targets = append(v.Targets, newPromTargetBytes(&groupConfig, t, tags))
 				}
 			}
 		}
@@ -396,7 +413,8 @@ func (j *scrapeStaticConfigJob) UnmarshalJSON(s []byte) error {
 }
 
 type scrapeStaticConfigG struct {
-	Targets []string `json:"targets"`
+	Targets []string          `json:"targets"`
+	Labels  map[string]string `json:"labels,omitempty"`
 }
 
 func newScrapeConfigService() *scrapeStaticConfigGenerator {
@@ -511,26 +529,58 @@ func (s *scrapeStaticConfigGenerator) applyTargets(jobsM map[string][]*targetgro
 			if len(sourceTargets) == 0 {
 				continue
 			}
-			var targets []string
+			var groups []scrapeStaticConfigG
 			for _, sourceGroup := range sourceTargets {
+				ls := make([]labels.Label, 0, len(sourceGroup.Labels))
+				for k, v := range sourceGroup.Labels {
+					ls = append(ls, labels.Label{Name: string(k), Value: string(v)})
+				}
+				ls = relabel.Process(ls, j.RelabelConfigs...)
+				if ls == nil {
+					// the whole target group is dropped
+					continue
+				}
+				// drop service labels
+				var k int
+				for _, v := range ls {
+					if !strings.HasPrefix(v.Name, model.ReservedLabelPrefix) ||
+						v.Name == model.SchemeLabel ||
+						v.Name == model.MetricsPathLabel {
+						ls[k] = v
+						k++
+					}
+				}
+				ls = ls[:k]
+				// build target list
+				var targets []string
 				for _, sourceTarget := range sourceGroup.Targets {
 					addr := string(sourceTarget[model.AddressLabel])
 					if addr != "" {
 						targets = append(targets, addr)
 					}
 				}
+				// create static config group
+				if len(targets) != 0 {
+					sort.Strings(targets)
+					group := scrapeStaticConfigG{Targets: targets}
+					if len(ls) != 0 {
+						lset := make(map[string]string, len(ls))
+						for _, v := range ls {
+							lset[v.Name] = v.Value
+						}
+						group.Labels = lset
+					}
+					groups = append(groups, group)
+				}
 			}
-			if len(targets) != 0 {
-				sort.Strings(targets)
+			if len(groups) != 0 {
 				jobs = append(jobs, scrapeStaticConfigJob{
 					JobName:        j.JobName,
 					ScrapeInterval: j.ScrapeInterval,
 					ScrapeTimeout:  j.ScrapeTimeout,
 					MetricsPath:    j.MetricsPath,
 					Scheme:         j.Scheme,
-					Groups: []scrapeStaticConfigG{{
-						Targets: targets,
-					}},
+					Groups:         groups,
 				})
 			}
 		}
