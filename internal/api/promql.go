@@ -741,7 +741,7 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-func getPromQuery(req seriesRequest) (string, error) {
+func (h *Handler) getPromQuery(req seriesRequest) (string, error) {
 	if len(req.promQL) != 0 {
 		return req.promQL, nil
 	}
@@ -763,8 +763,11 @@ func getPromQuery(req seriesRequest) (string, error) {
 	}
 	// filtering and grouping
 	var filterGroupBy []string
+	var m [1]*format.MetricMetaValue
+	matcher := labels.Matcher{Type: labels.MatchEqual, Value: req.metricWithNamespace}
+	copy(m[:], h.metricsStorage.MatchMetrics(&matcher, "", h.showInvisible, m[:0]))
 	if len(req.by) != 0 {
-		by, err := promqlGetBy(req.by)
+		by, err := promqlGetBy(req.by, m[0])
 		if err != nil {
 			return "", err
 		}
@@ -776,7 +779,8 @@ func getPromQuery(req seriesRequest) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v)))
+			tid = promqlTagName(tid, m[0])
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v, m[0])))
 		}
 	}
 	for t, out := range req.filterNotIn {
@@ -785,7 +789,8 @@ func getPromQuery(req seriesRequest) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v)))
+			tid = promqlTagName(tid, m[0])
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v, m[0])))
 		}
 	}
 	// generate resulting string
@@ -846,7 +851,7 @@ func getPromQuery(req seriesRequest) (string, error) {
 	return res, nil
 }
 
-func promqlGetBy(by []string) (string, error) {
+func promqlGetBy(by []string, m *format.MetricMetaValue) (string, error) {
 	var (
 		tags = make([]int, format.MaxTags)
 		skey bool
@@ -867,18 +872,25 @@ func promqlGetBy(by []string) (string, error) {
 	by = by[:0]
 	for i, v := range tags {
 		if v > 0 {
-			by = append(by, strconv.Itoa(i))
+			by = append(by, promqlTagNameAt(i, m))
 		}
 	}
 	if skey {
-		by = append(by, format.StringTopTagID)
+		by = append(by, promqlTagNameSTop(m))
 	}
 	return strings.Join(by, ","), nil
 }
 
-func promqlGetFilterValue(tagID string, s string) string {
+func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) string {
 	if tagID == format.StringTopTagID && s == format.TagValueCodeZero {
 		return ""
+	}
+	if m != nil {
+		if t := m.Name2Tag[tagID]; t.Raw && !t.IsMetric && !t.IsNamespace && !t.IsGroup && len(t.ValueComments) != 0 {
+			if v := t.ValueComments[s]; v != "" {
+				return v
+			}
+		}
 	}
 	return s
 }
@@ -888,4 +900,27 @@ func promqlEncodeSTagValue(s string) string {
 		return format.TagValueCodeZero
 	}
 	return s
+}
+
+func promqlTagName(tagID string, m *format.MetricMetaValue) string {
+	if m != nil {
+		if t := m.Name2Tag[tagID]; t.Name != "" {
+			return t.Name
+		}
+	}
+	return tagID
+}
+
+func promqlTagNameAt(tagX int, m *format.MetricMetaValue) string {
+	if m != nil && 0 <= tagX && tagX < format.MaxTags && m.Tags[tagX].Name != "" {
+		return m.Tags[tagX].Name
+	}
+	return strconv.Itoa(tagX)
+}
+
+func promqlTagNameSTop(m *format.MetricMetaValue) string {
+	if m == nil || m.StringTopName == "" {
+		return format.StringTopTagID
+	}
+	return m.StringTopName
 }

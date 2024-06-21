@@ -2358,7 +2358,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 	var limit int
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL, err = getPromQuery(req)
+		req.promQL, err = h.getPromQuery(req)
 		if err != nil {
 			return seriesResponse{}, nil, httpErr(http.StatusBadRequest, err)
 		}
