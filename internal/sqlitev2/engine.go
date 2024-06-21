@@ -262,7 +262,16 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	}
 	defer func() { close(e.finishBinlogRunCh) }()
 	defer e.checkpointer.stop()
-
+	meta, err := e.binlogLoadOrCreateMeta()
+	if err != nil {
+		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
+		e.readyNotify.Do(func() {
+			e.readyCh <- err
+			close(e.readyCh)
+		})
+		return err
+	}
+	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
 	err = e.checkpointer.DoCheckpointIfCan()
 	if err != nil {
 		e.readyNotify.Do(func() {
@@ -277,17 +286,6 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	e.userEngine = userEngine
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	e.rw.mu.Unlock()
-
-	meta, err := e.binlogLoadOrCreateMeta()
-	if err != nil {
-		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
-		e.readyNotify.Do(func() {
-			e.readyCh <- err
-			close(e.readyCh)
-		})
-		return err
-	}
-	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
 
 	e.logger.Printf("running binlog")
 	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), meta, meta, false, e.binlogEngine))
