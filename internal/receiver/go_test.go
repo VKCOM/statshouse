@@ -146,8 +146,8 @@ func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
-	// recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
-	recv, err := receiver.ListenUDP("unixgram", goStatsHouseAddrUnix, receiver.DefaultConnBufSize, true, nil, nil)
+	recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	//recv, err := receiver.ListenUDP("unixgram", goStatsHouseAddrUnix, receiver.DefaultConnBufSize, true, nil, nil)
 	require.NoError(t, err)
 	g.recv = recv
 	g.addr = recv.Addr()
@@ -155,7 +155,7 @@ func (g *goMachine) init(t *rapid.T) {
 	if g.envIsSet {
 		env = envName
 	}
-	g.send = statshouse.NewClient(t.Logf, "unixgram", g.addr, env)
+	g.send = statshouse.NewClient(t.Logf, "udp", g.addr, env)
 }
 
 func (g *goMachine) Cleanup() {
