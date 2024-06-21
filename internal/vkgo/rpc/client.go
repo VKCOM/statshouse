@@ -62,12 +62,31 @@ func (req *Request) HookState() ClientHooks {
 }
 
 type Response struct {
-	body  []byte // slice for reuse, always len 0
-	Body  []byte
+	body  *[]byte // slice for reuse, always len 0
+	Body  []byte  // rest of body after parsing various extras
 	Extra ReqResultExtra
 
-	responseType uint32
+	// We use Response as a call context to reduce # of allocations. Fields below represent call context.
+	queryID            int64
+	failIfNoConnection bool // set in setupCall call and never changes. Allows to quickly try multiple servers without waiting timeout
+	readonly           bool // set in setupCall call and never changes. TODO - implement logic
+
+	sent  bool // Request was sent.
+	stale bool // Request was cancelled before sending. Instead of removing from the write queue which is O(N), we set the flag  and check before sending
+
+	singleResult chan *Response // channel for single caller is reused here
+	result       chan *Response // can point to singleResult or multiResult if used by MultiClient
+
+	cb       ClientCallback // callback-style API, if set result channels are unused
+	userData any
+
+	err error // if set, we have error response, sometimes we have Body and Extra with it. May point to rpcErr.
+
+	hookState ClientHooks // can be nil
 }
+
+func (resp *Response) QueryID() int64 { return resp.queryID }
+func (resp *Response) UserData() any  { return resp.userData }
 
 // lifecycle of connections:
 // when connection is first needed, it is added to conns, and connect goroutine is started
@@ -96,9 +115,9 @@ type Client struct {
 	closed bool
 	conns  map[NetAddr]*clientConn
 
-	requestPool  sync.Pool
-	responsePool sync.Pool
-	callCtxPool  sync.Pool
+	requestPool      sync.Pool
+	responseDataPool sync.Pool
+	responsePool     sync.Pool
 
 	wg sync.WaitGroup
 }
@@ -164,21 +183,21 @@ func (c *Client) Logf(format string, args ...any) {
 // Do supports only "tcp", "tcp4", "tcp6" and "unix" networks
 func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
 	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
-	if err != nil {
-		return nil, err
+	if err != nil { // got ownership of cctx, if not nil
+		return cctx, err
 	}
 	select {
 	case <-ctx.Done():
 		_ = pc.cancelCall(cctx.queryID, nil) // do not unblock, reuse normally
 		return nil, ctx.Err()
 	case r := <-cctx.result: // got ownership of cctx
-		defer c.putCallContext(cctx)
-		return r.resp, r.err
+		return cctx, r.err
 	}
 }
 
 // Experimental API, can change any moment. For high-performance clients, like ingress proxy
-type ClientCallback func(client *Client, queryID int64, resp *Response, err error, userData any)
+// TODO - most arguments are in resp already
+type ClientCallback func(client *Client, resp *Response, err error)
 
 type CallbackContext struct {
 	pc      *clientConn
@@ -209,7 +228,7 @@ func (c *Client) CancelDoCallback(cc CallbackContext) (cancelled bool) {
 
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext, cb ClientCallback, userData any) (*clientConn, *callContext, error) {
+func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, *Response, error) {
 	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
 		return nil, nil, ErrClientDropRequest
 	}
@@ -268,7 +287,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 		pc = &clientConn{
 			client:               c,
 			address:              address,
-			calls:                map[int64]*callContext{},
+			calls:                map[int64]*Response{},
 			closeCC:              closeCC,
 			resetReconnectDelayC: resetReconnectDelayC,
 		}
@@ -367,49 +386,49 @@ func (c *Client) putRequest(req *Request) {
 	c.requestPool.Put(req)
 }
 
+func (c *Client) getResponseData() *[]byte {
+	v := c.responseDataPool.Get()
+	if v != nil {
+		resp := v.(*[]byte)
+		return resp
+	}
+	var result []byte
+	return &result
+}
+
+func (c *Client) putResponseData(resp *[]byte) {
+	if resp != nil {
+		c.responseDataPool.Put(resp)
+	}
+}
+
 func (c *Client) getResponse() *Response {
 	v := c.responsePool.Get()
 	if v != nil {
-		resp := v.(*Response)
-		return resp
+		return v.(*Response)
 	}
-	return &Response{}
-}
-
-func (c *Client) PutResponse(resp *Response) {
-	if resp == nil {
-		// We sometimes return both error and response, so user can inspect Extra, if parsed successfully
-		return
-	}
-
-	*resp = Response{
-		body: resp.body,
-	}
-	c.responsePool.Put(resp)
-}
-
-func (c *Client) getCallContext() *callContext {
-	v := c.callCtxPool.Get()
-	if v != nil {
-		return v.(*callContext)
-	}
-	cctx := &callContext{
-		singleResult: make(chan *callContext, 1),
+	cctx := &Response{
+		singleResult: make(chan *Response, 1),
 		hookState:    c.opts.Hooks(),
 	}
 	cctx.result = cctx.singleResult
 	return cctx
 }
 
-func (c *Client) putCallContext(cctx *callContext) {
+func (c *Client) PutResponse(cctx *Response) {
+	if cctx == nil {
+		// We sometimes return both error and response, so user can inspect Extra, if parsed successfully
+		return
+	}
 	if cctx.hookState != nil {
 		cctx.hookState.Reset()
 	}
-	*cctx = callContext{
+	c.putResponseData(cctx.body)
+	*cctx = Response{
 		singleResult: cctx.singleResult,
 		result:       cctx.singleResult,
 		hookState:    cctx.hookState,
 	}
 
-	c.callCtxPool.Put(cctx)
+	c.responsePool.Put(cctx)
 }

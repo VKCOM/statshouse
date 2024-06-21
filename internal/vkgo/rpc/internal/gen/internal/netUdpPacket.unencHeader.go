@@ -24,7 +24,7 @@ type NetUdpPacketUnencHeader struct {
 }
 
 func (NetUdpPacketUnencHeader) TLName() string { return "netUdpPacket.unencHeader" }
-func (NetUdpPacketUnencHeader) TLTag() uint32  { return 0xa8e945 }
+func (NetUdpPacketUnencHeader) TLTag() uint32  { return 0x00a8e945 }
 
 func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPid) {
 	item.RemotePid = v
@@ -174,7 +174,7 @@ func (item *NetUdpPacketUnencHeader) Write(w []byte) []byte {
 }
 
 func (item *NetUdpPacketUnencHeader) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xa8e945); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x00a8e945); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -186,7 +186,7 @@ func (item *NetUdpPacketUnencHeader) WriteBoxedGeneral(w []byte) (_ []byte, err 
 }
 
 func (item *NetUdpPacketUnencHeader) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xa8e945)
+	w = basictl.NatWrite(w, 0x00a8e945)
 	return item.Write(w)
 }
 

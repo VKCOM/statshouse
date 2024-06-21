@@ -157,11 +157,13 @@ func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
 	}
 }
 
-func (ls *longpollShard) callback(client *rpc.Client, queryID int64, resp *rpc.Response, err error, userData any) {
+func (ls *longpollShard) callback(client *rpc.Client, resp *rpc.Response, err error) {
+	userData := resp.UserData()
 	hctx := userData.(*rpc.HandlerContext)
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	lpc, ok := ls.clientList[hctx]
+	queryID := resp.QueryID()
 	if !ok || lpc.queryID != queryID {
 		// server already cancelled longpoll call
 		// or hctx was cancelled and reused by server before client response arrived

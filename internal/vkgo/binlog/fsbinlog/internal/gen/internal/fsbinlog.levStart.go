@@ -22,7 +22,7 @@ type FsbinlogLevStart struct {
 }
 
 func (FsbinlogLevStart) TLName() string { return "fsbinlog.levStart" }
-func (FsbinlogLevStart) TLTag() uint32  { return 0x44c644b }
+func (FsbinlogLevStart) TLTag() uint32  { return 0x044c644b }
 
 func (item *FsbinlogLevStart) Reset() {
 	item.SchemaId = 0
@@ -63,7 +63,7 @@ func (item *FsbinlogLevStart) Write(w []byte) []byte {
 }
 
 func (item *FsbinlogLevStart) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x44c644b); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x044c644b); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -75,7 +75,7 @@ func (item *FsbinlogLevStart) WriteBoxedGeneral(w []byte) (_ []byte, err error) 
 }
 
 func (item *FsbinlogLevStart) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x44c644b)
+	w = basictl.NatWrite(w, 0x044c644b)
 	return item.Write(w)
 }
 
