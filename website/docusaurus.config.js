@@ -192,10 +192,9 @@ const config = {
 
         copyright: `Copyright © ${new Date().getFullYear()} StatsHouse.`,
       },
-      prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
-      },
+        prism: {
+              theme: prismThemes.github,
+            },
     }),
 
 };

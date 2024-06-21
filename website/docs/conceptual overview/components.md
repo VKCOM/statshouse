@@ -11,7 +11,6 @@ import RealHist from '../img/real-hist.png'
 import OddEven from '../img/odd-even.png'
 import IngressProxy from '../img/ingress-proxy.png'
 import AgentParameters from '../img/agent-parameters.png'
-import IngressProxyParameters from '../img/ingress-proxy-parameters.png'
 import Mapping from '../img/mapping.png'
 import MappingCached from '../img/mapping-cached.png'
 
@@ -428,8 +427,8 @@ ephemeral connection keys. To establish a connection, the client has to use one 
 The central system component is the aggregators. Upon startup, they get the single "major" data center cryptokey.</p>
 
   <p>To connect to aggregators, the agents should get the parameters:
-<li>`-agg-addr=X`—the addresses of the first aggregators' shards;</li>
-<li>`-aes-pwd-file=X`—the "major" data center cryptokey.</li></p>
+<li>`-agg-addr`—the addresses of the first aggregators' shards;</li>
+<li>`-aes-pwd-file`—the "major" data center cryptokey.</li></p>
 
   <p>The mechanism above is secure only inside the protected perimeter. To connect from the outside, use the ingress proxy 
 installed at the border.</p>
@@ -440,13 +439,13 @@ installed at the border.</p>
 
   <p>For the ingress proxy, one should configure the parameters:
 <li>`-ingress-external-addr`—the proxies' external addresses the agents use for connection;</li>
-<li>`-ingress-addr=X`—the parameter to control the interfaces for connecting agents.</li>
-<li>`-aes-pwd-file=X`—the inner cryptokey for sending data to the aggregators,</li>
-<li>`-ingress-pwd-dir=X`—a set of the external keys for the agents from the remote sites.</li></p>
+<li>`-ingress-addr`—the parameter to control the interfaces for connecting agents.</li>
+<li>`-aes-pwd-file`—the inner cryptokey for sending data to the aggregators,</li>
+<li>`-ingress-pwd-dir`—a set of the external keys for the agents from the remote sites.</li></p>
 
-  <p>The `-ingress-addr=X` parameter is usually `:8128` that is the same as `0.0.0.0:8128`.
+  <p>The `-ingress-addr` parameter is usually `:8128` that is the same as `0.0.0.0:8128`.
 It also may contain the subnet address of the network adapter to make it the
-only gateway for connections. The port in the `-ingress-addr=X` parameter should match one of the ports in the
+only gateway for connections. The port in the `-ingress-addr` parameter should match one of the ports in the
 `-ingress-external-addr` parameter. The "outer" part of the ingress proxy should be available to the agents via 
 these ports.</p>
 
@@ -457,13 +456,13 @@ be identical.</p>
   <p>If the external keys in the directory are changed, restart the ingress proxy. The ingress proxy does not keep track 
 of this directory, because the external keys in the set are changed rarely.</p>
 
-  <p>Each agent gets one of the keys from the ingress proxy's `-ingress-pwd-dir=X` directory as the `-aes-pwd-file=X` 
+  <p>Each agent gets one of the keys from the ingress proxy's `-ingress-pwd-dir` directory as the `-aes-pwd-file` 
 parameter.</p>
 </details>
 
 ## Metadata
 
-The metadata component stores the global [`string`↔`int32` map](#the-mapping-mechanism)—it maps the metric names and 
+The metadata component stores the global `string`↔`int32` map—it maps the metric names and 
 the tag values, which are strings, to integers.
 
 StatsHouse is known for providing real-time data. To provide users with low latency, StatsHouse maps the 

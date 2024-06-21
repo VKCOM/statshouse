@@ -52,7 +52,7 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Query with PromQL](guides/query-wth-promql.md)
 * [Find OpenAPI specification](guides/openapi.md)
 
-### [Conceptual overview](conceptual%20overview/features.md)
+### [Overview](conceptual%20overview/features.md)
 
 * Find more about StatsHouse [features](conceptual%20overview/features.md).
 * Understand the underlying [concepts](conceptual%20overview/concepts.md).
