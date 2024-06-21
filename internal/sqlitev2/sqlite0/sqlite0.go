@@ -219,6 +219,11 @@ func (c *Conn) LastInsertRowID() int64 {
 	return int64(id)
 }
 
+func (c *Conn) RowsAffected() int64 {
+	id := C.sqlite3_changes(c.conn)
+	return int64(id)
+}
+
 type Stmt struct {
 	conn             *Conn
 	stmt             *C.sqlite3_stmt

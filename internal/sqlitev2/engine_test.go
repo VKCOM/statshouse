@@ -150,6 +150,21 @@ func (u userEngine) ChangeRole(info binlog2.ChangeRoleInfo) {
 
 }
 
+func openEngineWithoutBinlog(t *testing.T, opt testEngineOptions) *Engine {
+	engine, err := OpenEngine(Options{
+		Path:   opt.prefix + "/" + opt.dbFile,
+		APPID:  32,
+		Scheme: opt.scheme,
+		BinlogOptions: BinlogOptions{
+			Replica: opt.replica,
+		},
+		CacheApproxMaxSizePerConnect: 1,
+		MaxROConn:                    opt.maxRoConn,
+	})
+	require.NoError(t, err)
+	return engine
+}
+
 func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath:  opt.prefix + "/test",
@@ -887,4 +902,70 @@ func Test_Engine_WaitCommit(t *testing.T) {
 		require.Equal(t, offsetAfterWrite, offsetView)
 		require.Equal(t, int64(1), id)
 	})
+}
+
+func Test_Engine_Wal_Switch_Before_Engine_Run(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY);"
+	dir := t.TempDir()
+	engine := openEngineWithoutBinlog(t, testEngineOptions{
+		prefix:      dir,
+		dbFile:      "db",
+		scheme:      schema,
+		create:      true,
+		replica:     false,
+		readAndExit: false,
+		applyF:      nil,
+		maxRoConn:   4000,
+	})
+	for i := 0; i < 1000; i++ {
+		_, err := engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			err := conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", int64(i)))
+			return cache, err
+		})
+		require.NoError(t, err)
+		_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
+			rows := conn.Query("test", "SELECT * FROM test_db")
+			for rows.Next() {
+			}
+			return rows.Error()
+		})
+		require.NoError(t, err)
+	}
+	options := binlog2.Options{
+		PrefixPath: dir + "/test",
+		Magic:      3456,
+	}
+	_, err := fsbinlog.CreateEmptyFsBinlog(options)
+	require.NoError(t, err)
+	bl, err := fsbinlog.NewFsBinlog(&Logger{}, options)
+	require.NoError(t, err)
+	ch := make(chan error)
+
+	go func() {
+		ch <- engine.Run(bl, &userEngine{}, nil)
+	}()
+	require.NoError(t, <-engine.ReadyCh())
+	require.NoError(t, engine.Close())
+	require.NoError(t, <-ch)
+}
+
+// TODO unify all small test to one test suite
+func Test_Engine_Rows_Affected(t *testing.T) {
+	eng := createEngMaster(t, testEngineOptions{
+		prefix: t.TempDir(),
+		dbFile: "db",
+		create: true,
+		applyF: nil,
+	})
+	require.NoError(t, eng.put(context.Background(), 1, 1))
+	require.NoError(t, eng.put(context.Background(), 2, 1))
+	require.NoError(t, eng.put(context.Background(), 3, 1))
+	var rowsAffected int
+	_, err := eng.engine.DoTx(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
+		err := c.Exec("test", "UPDATE test_db SET v = v + 1")
+		rowsAffected = int(c.RowsAffected())
+		return []byte{0, 0, 0, 0}, err
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, rowsAffected)
 }

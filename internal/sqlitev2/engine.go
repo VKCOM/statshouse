@@ -56,6 +56,7 @@ type (
 		readyCh           chan error
 		readOnly          bool
 		re                *restart2.RestartFile
+		checkpointer      *checkpointer
 
 		roConnPool  *connPool
 		readyNotify sync.Once
@@ -125,7 +126,7 @@ const (
 	snapshotMetaTable     = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
 	internalQueryPrefix   = "__"
 	logPrefix             = "[sqlite-engine]"
-	debugFlag             = true
+	debugFlag             = false
 )
 
 func openRO(opt Options) (*Engine, error) {
@@ -158,11 +159,12 @@ OpenEngine open or create SQLite db file.
 	engine := OpenEngine(...)
 	can use engine as sqlite wrapper
 
+	must finish all DoTx and ViewTx before next line
 	go engine.Run(...)
-	can use ViewTx, can't use DoTx
+	can't use ViewTx, can't use DoTx
 
 	err := <-engine.ReadyCh()
-	can use engine as sqlite + binlog wrapper
+	if err == nil can use engine as sqlite + binlog wrapper
 */
 func OpenEngine(opt Options) (*Engine, error) {
 	if opt.ReadOnly {
@@ -190,6 +192,12 @@ func OpenEngine(opt Options) (*Engine, error) {
 		return nil, multierr.Append(err, re.Close())
 	}
 
+	err = rw.enableWALSwitchCallbackLocked()
+	if err != nil {
+		err = fmt.Errorf("failed to set wal switch callback: %w", err)
+		return nil, multierr.Append(err, re.Close())
+	}
+
 	if opt.IntegrityCheckBeforeStart {
 		err = rw.conn.integrityCheck()
 		if err != nil {
@@ -199,17 +207,12 @@ func OpenEngine(opt Options) (*Engine, error) {
 		}
 		logger.Println("integrity check: ok")
 	}
-	err = rw.conn.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
-	if err != nil {
-		err = multierr.Append(err, re.Close())
-		errClose := rw.Close()
-		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, errClose))
-	}
 
 	e := &Engine{
 		opt:               opt,
 		rw:                rw,
 		re:                re,
+		checkpointer:      newCkeckpointer(rw, re, opt.StatsOptions),
 		finishBinlogRunCh: make(chan struct{}),
 		readyCh:           make(chan error, 1),
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
@@ -217,6 +220,14 @@ func OpenEngine(opt Options) (*Engine, error) {
 		}, logger),
 		logger:           logger,
 		waitDbOffsetPool: waitDbOffsetPool,
+	}
+	rw.registerWALSwitchCallbackLocked(e.switchCallBack)
+
+	err = rw.conn.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
+	if err != nil {
+		err = multierr.Append(err, re.Close())
+		errClose := rw.Close()
+		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, errClose))
 	}
 
 	dbOffset, err := e.binlogLoadOrCreatePosition()
@@ -238,12 +249,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
 		return nil, multierr.Append(err, re.Close())
 	}
-
-	err = e.rw.enableWALSwitchCallbackLocked()
-	if err != nil {
-		err = fmt.Errorf("failed to set wal switch callback: %w", err)
-		return nil, multierr.Append(err, re.Close())
-	}
+	go e.checkpointer.goCheckpoint()
 	return e, nil
 }
 
@@ -254,16 +260,24 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	if e.readOnly {
 		return fmt.Errorf("can't use binlog in readonly mode")
 	}
+	defer func() { close(e.finishBinlogRunCh) }()
+	defer e.checkpointer.stop()
+
+	err = e.checkpointer.DoCheckpointIfCan()
+	if err != nil {
+		e.readyNotify.Do(func() {
+			e.readyCh <- err
+			close(e.readyCh)
+		})
+		return fmt.Errorf("failed to checkpoint before run: %w", err)
+	}
 	e.rw.mu.Lock()
-	e.rw.registerWALSwitchCallbackLocked(e.switchCallBack)
+	e.checkpointer.SetBinlogRunLocked(true)
 	e.binlog = binlog
 	e.userEngine = userEngine
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	e.rw.mu.Unlock()
-	defer func() { close(e.finishBinlogRunCh) }()
 
-	go e.binlogEngine.RunCheckpointer()
-	defer e.binlogEngine.StopCheckpointer()
 	meta, err := e.binlogLoadOrCreateMeta()
 	if err != nil {
 		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
@@ -299,7 +313,7 @@ func (e *Engine) ReadyCh() <-chan error {
 
 func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
 	e.opt.StatsOptions.walSwitchSize(iApp, maxFrame)
-	e.binlogEngine.checkpointer.setWaitCheckpointOffsetLocked()
+	e.checkpointer.setWaitCheckpointOffsetLocked()
 }
 
 // TODO better interface?
@@ -575,7 +589,11 @@ func (e *Engine) Close() error {
 
 func (e *Engine) close(waitCommitBinlog bool) error {
 	e.logger.Printf("starting close, waitCommitBinlog: %t", waitCommitBinlog)
-	defer e.opt.StatsOptions.measureActionDurationSince(closeEngine, time.Now())
+	start := time.Now()
+	defer func() {
+		e.logger.Printf("close finished, duration: %fs", time.Since(start).Seconds())
+	}()
+	defer e.opt.StatsOptions.measureActionDurationSince(closeEngine, start)
 	readOnly := e.readOnly
 	if !readOnly {
 		e.rw.mu.Lock()
@@ -591,7 +609,7 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, err)
 		}
 		<-e.finishBinlogRunCh
-		e.binlogEngine.checkpointer.doCheckpointIfCan()
+		e.checkpointer.DoCheckpointIfCan()
 	}
 	if !readOnly {
 		e.logger.Println("closing RW connection")
