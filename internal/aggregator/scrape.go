@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/netip"
 	"net/url"
 	"sort"
@@ -133,10 +134,13 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 			for _, g := range j.Groups {
 				for _, t := range g.Targets {
 					var k nameAddr
-					if ipp, err := netip.ParseAddrPort(t); err != nil {
-						k.name = t
-					} else {
+					if ipp, err := netip.ParseAddrPort(t); err == nil {
 						k.addr = ipp.Addr()
+					} else if host, _, err := net.SplitHostPort(t); err == nil {
+						k.name = host
+					} else {
+						log.Printf("scrape target not recognized: %v\n", err)
+						continue
 					}
 					v := targets[k]
 					if v == nil {
