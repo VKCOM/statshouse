@@ -48,7 +48,11 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	if done = mp.fillRawKeys(&h, args.MetricBytes); done {
 		return h, done
 	}
-	done = mp.doMap(args, &h)
+	// TODO: might be slow, don't do it if not necessary
+	if done = mp.validateValues(&h, args.MetricBytes); done {
+		return h, done
+	}
+	done = mp.doMap(&h, args)
 	// We map environment in all 3 cases
 	// done and no errors - very fast NOP
 	// done and errors - try to find environment in tags after error tag
@@ -60,7 +64,7 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	return h, done
 }
 
-func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
+func (mp *mapPipeline) doMap(h *data_model.MappedMetricHeader, args data_model.HandlerArgs) (done bool) {
 	metric := args.MetricBytes
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
@@ -103,6 +107,7 @@ func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args dat
 }
 
 func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
+	h.RawKey.Metric = h.MetricInfo.MetricID
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for i := 0; i < len(metric.Tags); i++ {
 		entry := &metric.Tags[i]
@@ -251,6 +256,10 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			h.SetKey(tagInfo.Index, id, tagIDKey, mem.B(v.Value))
 		}
 	}
+	return true
+}
+
+func (mp *mapPipeline) validateValues(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
 	// We validate values here, because we want errors to contain metric ID
 	if h.ValuesChecked {
 		return true
@@ -276,7 +285,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		}
 		metric.Value[i] = format.ClampFloatValue(v)
 	}
-	return true
+	return false
 }
 
 // We wish to know which environment generates 'metric not found' events and other errors
