@@ -781,7 +781,11 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			for rhsH, rhsXs := range rhsM {
 				if lhsMt, ok := lhsM[rhsH]; ok {
 					for _, rhsX := range rhsXs {
-						fn(*rhs.Data[rhsX].Values, *rhs.Data[rhsX].Values, *lhs.Data[lhsMt.x].Values)
+						if expr.VectorMatching.Card == parser.CardOneToMany {
+							fn(*rhs.Data[rhsX].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsX].Values)
+						} else {
+							fn(*rhs.Data[rhsX].Values, *rhs.Data[rhsX].Values, *lhs.Data[lhsMt.x].Values)
+						}
 						if rhs.Data[rhsX].What != lhs.Data[lhsMt.x].What {
 							rhs.Data[rhsX].What = SelectorWhat{}
 						}
