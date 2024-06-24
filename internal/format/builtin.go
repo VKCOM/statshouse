@@ -1487,6 +1487,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        "__rpc_request_size",
 			Kind:        MetricKindValue,
 			Description: "Size of RPC request bodies.\nFor ingress proxy, key_id can be used to identify senders.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
 				ValueComments: convertToValueComments(componentToValue),
