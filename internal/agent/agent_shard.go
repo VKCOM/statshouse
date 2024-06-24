@@ -49,9 +49,6 @@ type (
 		// [           ] [k1 k2 k3 k4]
 		// 3. data from next future second moved into CurrentBucket during second switch
 
-		CurentLowResBucket [][]*data_model.MetricsBucket // [resolution][shard]
-		LowResFutureQueue  []*data_model.MetricsBucket   // Max 60 seconds long. Shorter if max resolution is lower.
-
 		BucketsToSend     chan compressedBucketDataOnDisk
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
