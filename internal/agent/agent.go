@@ -84,7 +84,10 @@ type Agent struct {
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
-	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
+	newClient := func() *rpc.Client {
+		return rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
+	}
+	rpcClient := newClient() // for autoconfig + first shard
 	rnd := rand.New()
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
@@ -171,6 +174,13 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		}
 	}
 	for i, a := range config.AggregatorAddresses {
+		shardClient := rpcClient
+		if i != 0 {
+			// We want separate connection per shard even in case of ingress proxy,
+			// where many/all shards have the same address.
+			// So proxy can simply proxy packet conn, not rpc
+			shardClient = newClient()
+		}
 		shardReplica := &ShardReplica{
 			config:          config,
 			agent:           result,
@@ -179,7 +189,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			ReplicaKey:      int32(i%3) + 1,
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			client: tlstatshouse.Client{
-				Client:  rpcClient,
+				Client:  shardClient,
 				Network: network,
 				Address: a,
 				ActorID: 0,
