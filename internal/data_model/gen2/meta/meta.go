@@ -376,7 +376,6 @@ func init() {
 	fillObject("statshouse.mapping#bf401d4b", "#bf401d4b", &TLItem{tag: 0xbf401d4b, annotations: 0x0, tlName: "statshouse.mapping"})
 	fillObject("statshouse.metric#3325d884", "#3325d884", &TLItem{tag: 0x3325d884, annotations: 0x0, tlName: "statshouse.metric"})
 	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0xc803e07, annotations: 0x0, tlName: "statshouse.multi_item"})
-	fillObject("statshouse.promTarget#ac5296df", "#ac5296df", &TLItem{tag: 0xac5296df, annotations: 0x0, tlName: "statshouse.promTarget"})
 	fillObject("statshouse.putTagMappingBootstrapResult#486affde", "#486affde", &TLItem{tag: 0x486affde, annotations: 0x0, tlName: "statshouse.putTagMappingBootstrapResult"})
 	fillObject("statshouse.sample_factor#4f7b7822", "#4f7b7822", &TLItem{tag: 0x4f7b7822, annotations: 0x0, tlName: "statshouse.sample_factor"})
 	fillFunction("statshouse.sendKeepAlive2#4285ff53", "#4285ff53", &TLItem{tag: 0x4285ff53, annotations: 0x8, tlName: "statshouse.sendKeepAlive2"})
