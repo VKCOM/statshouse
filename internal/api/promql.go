@@ -912,7 +912,7 @@ func promqlTagName(tagID string, m *format.MetricMetaValue) string {
 }
 
 func promqlTagNameAt(tagX int, m *format.MetricMetaValue) string {
-	if m != nil && 0 <= tagX && tagX < format.MaxTags && m.Tags[tagX].Name != "" {
+	if m != nil && 0 <= tagX && tagX < len(m.Tags) && m.Tags[tagX].Name != "" {
 		return m.Tags[tagX].Name
 	}
 	return strconv.Itoa(tagX)
