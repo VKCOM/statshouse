@@ -27,17 +27,6 @@ func (k *Key) KeysToSlice() []int32 {
 	return result[:i]
 }
 
-func (k *Key) SkeysToSlice() []string {
-	result := append([]string{}, k.Skeys[:]...)
-	i := format.MaxTags
-	for ; i != 0; i-- {
-		if result[i-1] != "" {
-			break
-		}
-	}
-	return result[:i]
-}
-
 func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, shardID int) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	sID := item.FieldsMask >> 24
@@ -63,19 +52,6 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 			break
 		}
 	}
-	sz += 4 + 4*i // # of keys, keys
-	i = format.MaxTags
-	for ; i != 0; i-- {
-		if k.Skeys[i-1] != "" {
-			break
-		}
-	}
-	if i > 0 {
-		sz += 4 + i // # of skeys, skeys lens(1 byte for tiny string)
-		for ; i != 0; i-- {
-			sz += len(k.Skeys[i-1]) // skey
-		}
-	}
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {
 		sz += 4 // timestamp
 	}
@@ -86,9 +62,6 @@ func (k *Key) TLMultiItemFromKey(defaultTimestamp uint32) tlstatshouse.MultiItem
 	item := tlstatshouse.MultiItem{
 		Metric: k.Metric,
 		Keys:   k.KeysToSlice(),
-	}
-	if skeys := k.SkeysToSlice(); len(skeys) > 0 {
-		item.SetSkeys(skeys)
 	}
 	// TODO - check that timestamp is never 0 here
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {

@@ -33,8 +33,7 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Keys      [format.MaxTags]int32  // Unused keys are set to special 0-value
-		Skeys     [format.MaxTags]string // Unused or unmapped keys are empty strings
+		Keys      [format.MaxTags]int32 // Unused keys are set to special 0-value
 	}
 
 	ItemValue struct {
