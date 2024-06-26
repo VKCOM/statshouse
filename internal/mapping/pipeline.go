@@ -45,39 +45,28 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	if done = mp.fillMetricInfo(&h, args); done {
 		return h, done
 	}
-	if done = mp.fillRawKeys(&h, args.MetricBytes); done {
-		return h, done
-	}
-	// TODO: might be slow, don't do it if not necessary
-	if done = mp.validateValues(&h, args.MetricBytes); done {
-		return h, done
-	}
-	done = mp.doMap(&h, args)
-	// We map environment in all 3 cases
-	// done and no errors - very fast NOP
-	// done and errors - try to find environment in tags after error tag
-	// not done - when making requests to map, we want to send our environment to server, so it can record it in builtin metric
-	mp.mapEnvironment(&h, args.MetricBytes)
-	if done {
-		return h, done
-	}
-	return h, done
-}
-
-func (mp *mapPipeline) doMap(h *data_model.MappedMetricHeader, args data_model.HandlerArgs) (done bool) {
-	metric := args.MetricBytes
+	h.RawKey.Metric = h.MetricInfo.MetricID
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
-		return true
+		return h, true
 	}
-	if done = mp.mapTags(h, metric, true); done {
-		return done
+	if done = mp.fillRawKeys(&h, args.MetricBytes); done {
+		return h, done
 	}
-	if done = mp.tagValueQueue.enqueue(metric, h, args.MapCallback); done {
-		return done
+	if done = mp.fillCachedTags(&h, args.MetricBytes); done {
+		if h.IngestionStatus == 0 {
+			mp.validateValues(&h, args.MetricBytes)
+		}
+		return h, done
 	}
-	return done
+	if done = mp.validateValues(&h, args.MetricBytes); done {
+		return h, done
+	}
+	if done = mp.tagValueQueue.enqueue(args.MetricBytes, &h, args.MapCallback); done {
+		return h, done
+	}
+	return h, done
 }
 
 func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args data_model.HandlerArgs) bool {
@@ -107,7 +96,6 @@ func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args dat
 }
 
 func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
-	h.RawKey.Metric = h.MetricInfo.MetricID
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for i := 0; i < len(metric.Tags); i++ {
 		entry := &metric.Tags[i]
@@ -158,12 +146,33 @@ func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tls
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.RawKey.Keys[tagInfo.Index] = mem.B(entry.Value)
+			h.RawKey.Keys[tagInfo.Index] = entry.Value
 		default:
-			h.RawKey.Keys[tagInfo.Index] = mem.B(entry.Value)
+			h.RawKey.Keys[tagInfo.Index] = entry.Value
 		}
 	}
 	return false
+}
+
+func (mp *mapPipeline) fillCachedTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
+	allMapped := true
+	for i, key := range h.RawKey.Keys {
+		if len(key) == 0 {
+			continue
+		}
+		mappedId, err, found := mp.getTagValueIDCached(h.ReceiveTime, key) // returns err from cache, so no allocations
+		if err != nil {
+			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueCached, int32(i), key)
+			h.CheckedTagIndex++
+			return true
+		}
+		if !found {
+			allMapped = false
+			continue
+		}
+		h.Key.Keys[i] = mappedId
+	}
+	return allMapped
 }
 
 // transforms not yet mapped tags from metric into header
@@ -286,38 +295,6 @@ func (mp *mapPipeline) validateValues(h *data_model.MappedMetricHeader, metric *
 		metric.Value[i] = format.ClampFloatValue(v)
 	}
 	return false
-}
-
-// We wish to know which environment generates 'metric not found' events and other errors
-// Also we need to know which environment generates mapping create events. So we do it before adding to mapping queue
-// If environment is not in cache, we will not detect it, but this should be relatively rare
-// We might wish to load in background, but this must be fair with normal mapping queues, and
-// we do not know metric here. So we decided to only load environments from cache.
-// If called after mapTags consumed env, h.Tags[0] is already set by mapTags, otherwise will set h.Tags[0] here
-func (mp *mapPipeline) mapEnvironment(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) {
-	// fast NOP when all tags already mapped
-	// must not change h.CheckedTagIndex or h.IsKeySet because mapTags will be called after this func by mapping queue in slow path
-	for i := h.CheckedTagIndex; i < len(metric.Tags); i++ {
-		v := &metric.Tags[i]
-		if !format.APICompatIsEnvTagID(v.Key) {
-			// TODO - remove extra checks after all libraries use new canonical name
-			continue
-		}
-		var err error
-		v.Value, err = format.AppendValidStringValue(v.Value[:0], v.Value)
-		if err != nil {
-			return // do not bother if the first one set is crappy
-		}
-		if len(v.Value) == 0 {
-			return // we are ok with the first one
-		}
-		id, err, found := mp.getTagValueIDCached(h.ReceiveTime, v.Value)
-		if err != nil || !found {
-			return // do not bother if the first one set is crappy
-		}
-		h.Key.Keys[0] = id
-		return // we are ok with the first one
-	}
 }
 
 func (mp *mapPipeline) doCallback(req *mapRequest) {
