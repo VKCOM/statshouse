@@ -787,33 +787,35 @@ func TestDoMustErrorWithBadName(t *testing.T) {
 	require.Error(t, err)
 }
 
-func Test_Engine_Slice_Params(t *testing.T) {
-	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY, oid INT);"
+func sliceTestGeneric[A any](t *testing.T, sqliteTypeName string,
+	args []A,
+	argMapper func(name string, v A) Arg,
+	argsSliceMapper func(name string, args []A) Arg) {
+	require.Equal(t, len(args), 3)
+	schema := fmt.Sprintf("CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY, oid %s);", sqliteTypeName)
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
 	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
-		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 1))
-		require.NoError(t, err)
-		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 2))
-		require.NoError(t, err)
-		err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Integer("$oid", 3))
-		require.NoError(t, err)
+		for _, v := range args {
+			err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", argMapper("$oid", v))
+			require.NoError(t, err)
+		}
 		return append(cache, 1), err
 	})
 	require.NoError(t, err)
 	count := 0
 	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
-			IntegerSlice("$ids$", []int64{1, 2}),
-			IntegerSlice("$ids1$", []int64{3}))
+			argsSliceMapper("$ids$", []A{args[0], args[1]}),
+			argsSliceMapper("$ids1$", []A{args[2]}))
 
 		for rows.Next() {
 			count++
 		}
 		rows = conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
-			IntegerSlice("$ids$", []int64{1, 2, 3}),
-			IntegerSlice("$ids1$", []int64{3}))
+			argsSliceMapper("$ids$", args),
+			argsSliceMapper("$ids1$", []A{args[2]}))
 
 		for rows.Next() {
 			count++
@@ -822,6 +824,27 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.Equal(t, 3*2, count)
 	require.NoError(t, err)
+}
+
+func Test_Engine_Slice_Params(t *testing.T) {
+	t.Run("Integer", func(t *testing.T) {
+		sliceTestGeneric(t, "INT",
+			[]int64{1, 2, 3},
+			Integer,
+			IntegerSlice)
+	})
+	t.Run("TextString", func(t *testing.T) {
+		sliceTestGeneric(t, "TEXT",
+			[]string{"1", "2", "3"},
+			TextString,
+			TextStringSlice)
+	})
+	t.Run("Integer", func(t *testing.T) {
+		sliceTestGeneric(t, "BLOB",
+			[][]byte{[]byte{1}, []byte{2}, []byte{3}},
+			Blob,
+			BlobSlice)
+	})
 }
 
 func Test_Engine_WaitCommit(t *testing.T) {
