@@ -46,7 +46,7 @@ type scrapeConsulConfig struct {
 }
 
 type scrapeGroupConfig struct {
-	Targets []string       `json:"targets"`
+	Targets []string       `json:"targets,omitempty"`
 	Labels  model.LabelSet `json:"labels,omitempty"`
 }
 

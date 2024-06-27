@@ -175,7 +175,13 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 						})
 					}
 				}
-				for _, t := range g.Targets {
+				ts := g.Targets
+				if len(ts) == 0 {
+					if t := g.Labels[model.AddressLabel]; t != "" {
+						ts = []string{string(t)}
+					}
+				}
+				for _, t := range ts {
 					var k nameAddr
 					if ipp, err := netip.ParseAddrPort(t); err == nil {
 						k.addr = ipp.Addr()
