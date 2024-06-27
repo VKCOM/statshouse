@@ -1,6 +1,8 @@
 ---
-sidebar_position: 13
-title: Troubleshooting
+sidebar_position: 11
+title: Troubleshoot
 ---
 
-# Troubleshooting
+# Troubleshoot
+
+Identify and resolve common issues you may encounter while using StatsHouse.

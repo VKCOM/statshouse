@@ -9,13 +9,13 @@ import WhatIsSh from './img/what-is-sh.png'
 
 # What is StatsHouse?
 
-StatsHouse is a monitoring system that is highly available, scalable, and multitenant.
+StatsHouse is an [open-source](https://github.com/VKCOM/statshouse) monitoring system that is highly available, scalable, and multitenant.
 One can hardly overload it—due to [aggregation](conceptual%20overview/concepts.md#aggregation) and 
 [sampling](conceptual%20overview/concepts.md#sampling).
-Read more about StatsHouse [features](conceptual%20overview/features.md).
-
 It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live 
 mode.
+
+Read more about StatsHouse [features](conceptual%20overview/features.md). Find StatsHouse on [GitHub](https://github.com/VKCOM/statshouse).
 
 <img src={WhatIsSh} width="1000"/>
 
@@ -24,6 +24,11 @@ mode.
 Here is [what the StatsHouse user interface looks like](guides/view-graph.md) and what it basically allows you to do:
 
 <img src={Intro} width="900"/>
+
+You have three options to use StatsHouse:
+- [run StatsHouse locally](quick-start.md),
+- [get access to a StatsHouse cluster deployed in your organization](guides/access-cluster.md),
+- or [deploy your own StatsHouse cluster](admin/install.md).
 
 ## What you can find in the docs
 
@@ -52,24 +57,24 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Query with PromQL](guides/query-wth-promql.md)
 * [Find OpenAPI specification](guides/openapi.md)
 
-### [Administrator guide](admin/adm-intro.md)
+### [Administrator guide](admin/sys-req.md)
 
-* [System requirements](admin/sys-req.md)
+* [Check system requirements](admin/sys-req.md)
 * [Find packages](admin/packages.md)
 * [Install components](admin/install.md)
-* [Monitor components](admin/monitor.md)
+* [Monitor StatsHouse](admin/monitor.md)
 * [Ensure security](admin/security.md)
 * [Use host metrics](admin/host-metrics.md)
 * [Manage budgets](admin/manage-budgets.md)
-* [Manage users](admin/manage-users.md)
 * [Maintain and upgrade](admin/maintain-upgrade.md)
 * [Migrate from the other monitoring system](admin/maintain-upgrade.md)
-* [Integrations](admin/integrations.md)
-* [Troubleshooting](admin/troubleshooting.md)
-* [Support and resources](admin/support.md)
+* [Integrate the external systems](admin/integrations.md)
+* [Troubleshoot](admin/troubleshooting.md)
 
 ### [Overview](conceptual%20overview/features.md)
 
 * Find more about StatsHouse [features](conceptual%20overview/features.md).
 * Understand the underlying [concepts](conceptual%20overview/concepts.md).
 * Learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
+
+### [Support](support.md)

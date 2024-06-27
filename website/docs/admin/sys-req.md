@@ -1,12 +1,12 @@
 ---
-sidebar_position: 2
-title: System requirements
+sidebar_position: 1
+title: Check system requirements
 ---
 
 import ShardReplicas from '../img/shard-replicas.png'
 import LocalDisks from '../img/local-disks.png'
 
-# System requirements
+# Check system requirements
 
 **Software:** you can install StatsHouse components on the Linux systems.
 

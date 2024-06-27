@@ -1,13 +1,13 @@
 ---
-sidebar_position: 5
-title: Monitor components
+sidebar_position: 4
+title: Monitor StatsHouse
 ---
 
 import HeartbeatVersion from '../img/heartbeat-version.png'
 import AggMetrics from '../img/agg-metrics.png'
 import AggInsertMetrics from '../img/agg-insert-metrics.png'
 
-# Monitor components
+# Monitor StatsHouse
 
 To monitor StatsHouse, use the predefined service [metrics](#service-metrics). Additionally, find [logs](#logs).
 
@@ -16,6 +16,8 @@ To monitor StatsHouse, use the predefined service [metrics](#service-metrics). A
 The `__heartbeat_version` metric shows the number of running components. Group the data by the "component" tag:
 
 <img src={HeartbeatVersion} width="700"/>
+
+Read more about [checking the agent's version](maintain-upgrade.md).
 
 To monitor the aggregator's metrics, use the `__agg` prefix:
 

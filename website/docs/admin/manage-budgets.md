@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 7
 title: Manage budgets
 ---
 
@@ -15,14 +15,15 @@ import Weight from '../img/weight.png'
 
 You can manage budgets for multiple groups of users to fit the needs of your organization.
 
-StatsHouse provides multiple groups of users with fair resource sharing.
-If you need to manage the resources manually, you can change the _weight_ for namespaces, groups, or individual metrics.
+StatsHouse provides multiple groups of users (tenants) with fair resource sharing.
+If you need to manage the resources manually, you can change the _weight_ for namespaces, groups, or 
+individual metrics.
 
 ## Namespaces
 
 A namespace is the named metric container.
 Namespaces help to
-* [manage budgets](#manage-budgets) for StatsHouse tenants,
+* manage budgets for StatsHouse tenants by changing their [weight](#what-is-weight),
 * [manage access](#manage-access) to metric data.
 
 The metric's name defines if a metric relates to a namespace or not.
@@ -44,8 +45,6 @@ Find the examples below:
 | The administrators have created the `foo` namespace for you.     | The `foo:bar` metric belongs to the `foo` namespace.<br/>The `abc` metric belongs to a default namespace. |
 | There is **no** `buz` namespace in your StatsHouse installation. | The `buz:bar` metric belongs to a default namespace.                                                      |
 
-### Manage budgets
-
 Namespaces allow you to budget the cluster resources. You can allocate the disk space for your namespace so that you
 can send at least N bytes per second and nobody interferes with your data. This kind of budgeting may be crucial when
 you need minimum or zero sampling.
@@ -57,7 +56,7 @@ As an administrator, create a namespace using the admin panel in the left StatsH
 By default, the resources are shared fairly between the namespaces. To allocate more or less resources to a namespace,
 configure the _weight_ parameter.
 
-**What is _weight_?**
+### What is _weight_?
 
 Weight is the percentage of resources allocated for a tenant (which can be a namespace, a group, or a metric).
 Changing weight works similarly for namespaces, groups, and individual metrics. See the example of changing weight
@@ -70,7 +69,7 @@ While increasing the weight (and the budget) for a tenant, you automatically red
 This may lead to higher [sampling](conceptual%20overview/concepts.md#sampling) rates for them. See the picture above.
 :::
 
-### Manage access
+### Manage access for namespaces
 
 StatsHouse allows you to integrate an access management system so that you can grant access to a particular namespace.
 Usually, each business unit has its namespace.
