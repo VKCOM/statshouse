@@ -19,7 +19,7 @@
           "source_labels": [
             "__meta_consul_service"
           ],
-          "target_label": "service2"
+          "target_label": "service"
         },
         {
           "source_labels": [
@@ -48,7 +48,7 @@
       "metric_relabel_configs": [
         {
           "source_labels": [
-            "service2"
+            "service"
           ],
           "target_label": "service3"
         }

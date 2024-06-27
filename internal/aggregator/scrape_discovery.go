@@ -155,22 +155,26 @@ func (s *scrapeDiscovery) applyTargets(targets map[string][]*targetgroup.Group) 
 			staticConfigs = append(staticConfigs, job.StaticConfigs...)
 			k := src[i].Options.Namespace + ":" + job.JobName
 			for _, group := range targets[k] {
-				// build target list
-				var targets []string
 				for _, lset := range group.Targets {
-					addr := string(lset[model.AddressLabel])
-					if addr != "" {
-						targets = append(targets, addr)
+					if _, ok := lset[model.AddressLabel]; !ok {
+						continue
 					}
-				}
-				// create static config group
-				if len(targets) != 0 {
-					sort.Strings(targets)
-					staticConfig := scrapeGroupConfig{
-						Targets: targets,
-						Labels:  group.Labels,
+					// remove empty labels
+					for k, v := range lset {
+						if v == "" {
+							delete(lset, k)
+						}
 					}
-					staticConfigs = append(staticConfigs, staticConfig)
+					// add group labels
+					for k, v := range group.Labels {
+						if v != "" {
+							lset[k] = v
+						}
+					}
+					// add target
+					if len(lset) != 0 {
+						staticConfigs = append(staticConfigs, scrapeGroupConfig{Labels: lset})
+					}
 				}
 			}
 			if len(staticConfigs) != 0 {
