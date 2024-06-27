@@ -33,15 +33,6 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		log.Println("db not exists")
 		return nil
 	}
-	// чтобы не переписывать код sqlite'а вызываем его открытием
-	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
-	if err != nil {
-		return fmt.Errorf("failed to open db conn: %w", err)
-	}
-	err = conn.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close 2 wal conn: %w", err)
-	}
 	wals, err := loadWalsInfo(opt.Path)
 	if err != nil {
 		return fmt.Errorf("failed to load wals: %w", err)
@@ -84,7 +75,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		return fmt.Errorf("failed to rename second wal to restart path: %w", err)
 	}
 
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
+	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
 		return fmt.Errorf("failed to open 1 wal db: %w", err)
 	}
@@ -188,7 +179,6 @@ func checkWal(f *os.File) (delete bool, _ error) {
 	if n < 24 {
 		return true, nil
 	}
-
 	return false, nil
 }
 

@@ -681,7 +681,7 @@ func TestBrokenEngineCantWrite(t *testing.T) {
 		return expectedErr
 	})
 	require.Error(t, err)
-	err = eng.put(context.Background(), 0, 0)
+	err = eng.insertOrReplace(context.Background(), 0, 0)
 	require.ErrorIs(t, err, expectedErr)
 	err = eng.engine.internalDo("__check", func(c internalConn) error {
 		return nil
@@ -712,7 +712,7 @@ func TestCanWriteAfterPanic(t *testing.T) {
 	_, ok, err := eng.get(context.Background(), k)
 	require.NoError(t, err)
 	require.False(t, ok)
-	require.NoError(t, eng.put(context.Background(), k, v))
+	require.NoError(t, eng.insertOrReplace(context.Background(), k, v))
 	actualV, ok, err := eng.get(context.Background(), k)
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -763,7 +763,7 @@ func TestCanWriteAfterInternalPanic(t *testing.T) {
 	_, ok, err := eng.get(context.Background(), k)
 	require.NoError(t, err)
 	require.False(t, ok)
-	err = eng.put(context.Background(), 0, 0)
+	err = eng.insertOrReplace(context.Background(), 0, 0)
 	require.Error(t, err)
 }
 
@@ -980,9 +980,9 @@ func Test_Engine_Rows_Affected(t *testing.T) {
 		create: true,
 		applyF: nil,
 	})
-	require.NoError(t, eng.put(context.Background(), 1, 1))
-	require.NoError(t, eng.put(context.Background(), 2, 1))
-	require.NoError(t, eng.put(context.Background(), 3, 1))
+	require.NoError(t, eng.insertOrReplace(context.Background(), 1, 1))
+	require.NoError(t, eng.insertOrReplace(context.Background(), 2, 1))
+	require.NoError(t, eng.insertOrReplace(context.Background(), 3, 1))
 	var rowsAffected int
 	_, err := eng.engine.DoTx(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
 		err := c.Exec("test", "UPDATE test_db SET v = v + 1")
@@ -991,4 +991,17 @@ func Test_Engine_Rows_Affected(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 3, rowsAffected)
+}
+
+func Test_Engine_Wrap_Sqlite_Error(t *testing.T) {
+	eng := createEngMaster(t, testEngineOptions{
+		prefix: t.TempDir(),
+		dbFile: "db",
+		create: true,
+		applyF: nil,
+	})
+	require.NoError(t, eng.insert(context.Background(), 1, 1))
+	require.ErrorIs(t, eng.insert(context.Background(), 1, 3), ErrConstraintPrimarykey)
+	require.NoError(t, eng.engine.Close())
+
 }

@@ -436,7 +436,7 @@ func (e *Engine) ViewTxOpts(ctx context.Context, opt ViewTxOptions, fn func(Conn
 	res.DBOffset = offset
 	err = fn(c)
 	if err != nil {
-		return res, fmt.Errorf("user error: %w", err)
+		return res, fmt.Errorf("user error: %w", mapSqliteErr(err))
 	}
 	err = conn.commitTxLocked()
 	if err != nil {
@@ -471,7 +471,7 @@ func (e *Engine) DoTx(ctx context.Context, queryName string, do func(c Conn, cac
 	conn := newUserConn(e.rw.conn, ctx)
 	bytes, err := do(conn, e.rw.binlogCache[:0])
 	if err != nil {
-		return res, fmt.Errorf("user error: %w", err)
+		return res, fmt.Errorf("user error: %w", mapSqliteErr(err))
 	}
 	if len(bytes) == 0 {
 		if e.binlog != nil {
@@ -536,7 +536,7 @@ func (e *Engine) internalDoLocked(do func(c internalConn) (int64, error)) (err e
 	conn := newInternalConn(e.rw.conn)
 	offset, err := do(conn)
 	if err != nil {
-		return fmt.Errorf("user logic error: %w", err)
+		return fmt.Errorf("user logic error: %w", mapSqliteErr(err))
 	}
 	if offset > 0 {
 		return e.rw.binlogCommitTxLocked(offset)
