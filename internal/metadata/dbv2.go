@@ -154,7 +154,7 @@ const StepSec = 3600
 const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
-const metricBytesReadLimit int64 = 1024 * 1024
+const metricBytesReadLimit int64 = 1024 * 1024 * 10
 const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
 
@@ -264,12 +264,7 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 			deletedAt, _ := rows.ColumnInt64(6)
 			namespaceID, _ := rows.ColumnInt64(7)
 			bytesRead += int64(len(data)) + 20
-			if bytesRead > metricBytesReadLimit {
-				break
-			}
-			if int64(len(result)) >= limit {
-				break
-			}
+
 			event := tlmetadata.Event{
 				Id:         id,
 				Name:       name,
@@ -281,6 +276,12 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 			}
 			event.SetNamespaceId(namespaceID)
 			result = append(result, event)
+			if bytesRead > metricBytesReadLimit {
+				break
+			}
+			if int64(len(result)) >= limit {
+				break
+			}
 		}
 		return cache, nil
 	})
@@ -325,6 +326,9 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
+	if int64(len(metadata)) > metricBytesReadLimit {
+		return tlmetadata.Event{}, fmt.Errorf("entity is too big")
+	}
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		resolvedNamespaceID, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
 		if err != nil {
