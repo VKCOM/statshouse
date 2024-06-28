@@ -8,16 +8,19 @@ package metadata
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -333,6 +336,16 @@ func TestRPCServer(t *testing.T) {
 		resp, _ = putMetricTest(t, rpcClient, "abc3", resp.Id, resp.Version, "")
 		require.NotEqual(t, 0, resp.Version)
 		require.NotEqual(t, version, resp.Version)
+	})
+
+	t.Run("insert metric greater than limit", func(t *testing.T) {
+		jsonStr, _ := statJson("abc2", 1235, strings.Repeat("a", maxReqSize))
+		checkJson(t, jsonStr)
+		_, err := putMetric(t, rpcClient, "abc2", jsonStr, 0, 0)
+		require.ErrorIs(t, err, data_model.ErrRequestIsTooBig)
+		rpcErr := rpc.Error{}
+		errors.As(err, &rpcErr)
+		require.Equal(t, data_model.ErrRequestIsTooBig.Code, rpcErr.Code)
 	})
 
 	t.Run("get all metrics", func(t *testing.T) {
