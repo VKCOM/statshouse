@@ -8,11 +8,13 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 
 	"github.com/vkcom/statshouse-go"
@@ -191,13 +193,16 @@ func (h *Handler) RawGetEntity(ctx context.Context, hctx *rpc.HandlerContext) (s
 
 func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.EditEntitynew
+	if err := checkLimit(hctx.Request); err != nil {
+		return "request_limit", err
+	}
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
 	}
 	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType, args.Event.Metadata)
-	if err == errInvalidMetricVersion {
-		return "", fmt.Errorf("invalid version. Reload this page and try again")
+	if errors.Is(err, errInvalidMetricVersion) {
+		return "", data_model.ErrEntityInvalidVersion
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to create event: %w", err)

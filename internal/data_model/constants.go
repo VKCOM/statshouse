@@ -109,7 +109,21 @@ const (
 
 var ErrEntityNotExists = rpc.Error{
 	Code:        -1234,
-	Description: "entity doesn't exists",
+	Description: "Entity doesn't exists",
+}
+var ErrEntityExists = rpc.Error{
+	Code:        -1235,
+	Description: "Entity already exists",
+}
+
+var ErrEntityInvalidVersion = rpc.Error{
+	Code:        -1236,
+	Description: "Invalid version. Reload this page and try again",
+}
+
+var ErrRequestIsTooBig = rpc.Error{
+	Code:        -1237,
+	Description: "Entity is too big",
 }
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {

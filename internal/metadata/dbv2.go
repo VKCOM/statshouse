@@ -154,13 +154,9 @@ const StepSec = 3600
 const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
-const metricBytesReadLimit int64 = 1024 * 1024 * 10
+const metricBytesReadLimit int64 = 1024 * 1024
 const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
-
-var errInvalidMetricVersion = fmt.Errorf("invalid version")
-var errMetricIsExist = fmt.Errorf("entity is exists")
-var errNamespaceNotExists = fmt.Errorf("namespace doesn't exists")
 
 func OpenDB(
 	path string,
@@ -326,9 +322,6 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
-	if int64(len(metadata)) > metricBytesReadLimit {
-		return tlmetadata.Event{}, fmt.Errorf("entity is too big")
-	}
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		resolvedNamespaceID, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
 		if err != nil {
