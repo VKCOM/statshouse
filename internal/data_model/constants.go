@@ -44,6 +44,11 @@ const (
 	AgentPercentileCompression      = 40 // TODO - will typically have 20-30 centroids for compression 40
 	AggregatorPercentileCompression = 80 // TODO - clickhouse has compression of 256 by default
 
+	// time between calendar second is finished and sending to aggregators starts
+	// so clients have this time after finishing second to send events to agent
+	// if they succeed, there is no sampling penalty.
+	AgentWindow = 500 * time.Millisecond // must be < 1 seconds
+
 	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
 	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
 	MaxHistoricWindow = 6 * 3600 // 1 day to send historic data, then drop. TODO - return to 86400 after ZK is faster and/or seconds table is partitioned by 12h

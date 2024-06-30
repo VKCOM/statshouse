@@ -21,6 +21,8 @@ import (
 	"sort"
 	"sync"
 
+	"go.uber.org/atomic"
+
 	"github.com/prometheus/common/model"
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/model/labels"
@@ -32,7 +34,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"go.uber.org/atomic"
 )
 
 type scrapeServer struct {
@@ -263,10 +264,10 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 	s.configH.Store(int32(binary.BigEndian.Uint32(h[:])))
 }
 
-func (s *scrapeServer) reportConfigHash() {
+func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 	v := s.configH.Load()
 	s.sh2.AddCounterHostStringBytes(
-		s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
+		s.sh2.AggKey(nowUnix, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
 		nil, 1, 0, nil)
 }
 
