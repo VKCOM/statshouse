@@ -67,7 +67,7 @@ type Agent struct {
 	AggregatorReplicaKey int32
 	AggregatorHost       int32
 
-	beforeFlushBucketFunc func(s *Agent, now time.Time) // used by aggregator to add built-in metrics
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32) // used by aggregator to add built-in metrics
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -83,7 +83,7 @@ type Agent struct {
 
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
 	}
@@ -142,25 +142,24 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
 		shard := &Shard{
-			config:                           config,
-			hardwareMetricResolutionResolved: atomic.NewInt32(int32(config.HardwareMetricResolution)),
-			agent:                            result,
-			ShardNum:                         i,
-			ShardKey:                         int32(i) + 1,
-			timeSpreadDelta:                  3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			CurrentTime:                      nowUnix,
-			FutureQueue:                      make([][]*data_model.MetricsBucket, 60),
-			BucketsToSend:                    make(chan compressedBucketDataOnDisk),
-			perm:                             rnd.Perm(data_model.AggregationShardsPerSecond),
+			config:          config,
+			agent:           result,
+			ShardNum:        i,
+			ShardKey:        int32(i) + 1,
+			timeSpreadDelta: 3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			CurrentTime:     nowUnix,
+			BucketsToSend:   make(chan compressedBucketDataOnDisk),
+			perm:            rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
-		shard.CurrentBuckets = make([][]*data_model.MetricsBucket, 61)
+		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		for r := range shard.CurrentBuckets {
 			if r != format.AllowedResolution(r) {
 				continue
 			}
-			bucketTime := (nowUnix / uint32(r)) * uint32(r)
+			ur := uint32(r)
+			bucketTime := (nowUnix / ur) * ur
 			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime})
+				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
@@ -169,6 +168,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
+		// TODO - make historic queue strict queue instead
 		for j := 0; j < data_model.MaxConveyorDelay*2; j++ {
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
@@ -227,7 +227,6 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 		go shardReplica.goTestConnectionLoop()
 	}
 	for _, shard := range s.Shards {
-
 		go shard.goPreProcess()
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
 			go shard.goSendRecent()
@@ -337,7 +336,7 @@ func (s *Agent) goFlusher() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, now)
+			s.beforeFlushBucketFunc(s, uint32(now.Unix()))
 		}
 		for _, shard := range s.Shards {
 			shard.flushBuckets(now)

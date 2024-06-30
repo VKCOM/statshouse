@@ -337,8 +337,9 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 	}
 }
 
-func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
-	nowUnix := uint32(now.Unix())
+func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) {
+	a.scrape.reportConfigHash(nowUnix)
+
 	a.mu.Lock()
 	recentSenders := a.recentSenders
 	historicSends := a.historicSenders
@@ -356,7 +357,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	a.mu.Unlock()
 
 	writeWaiting := func(metricID int32, key4 int32, item *data_model.ItemValue) {
-		key := a.aggKey(0, metricID, [16]int32{0, 0, 0, 0, key4})
+		key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, key4})
 		a.sh2.MergeItemValue(key, item, nil)
 	}
 	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorOriginal, &original)
@@ -364,9 +365,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
 
-	key := a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
+	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
 	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
-	key = a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
+	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
 	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
@@ -534,7 +535,7 @@ func (a *Aggregator) goSend(senderID int) {
 					delete(b.contributors, hctx)
 				}
 				b.mu.Unlock()
-				key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
+				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
 				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
@@ -678,7 +679,6 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
-		a.scrape.reportConfigHash()
 		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {
