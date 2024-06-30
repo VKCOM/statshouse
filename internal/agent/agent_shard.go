@@ -31,8 +31,8 @@ type (
 		perm     []int
 
 		mu                               sync.Mutex
-		config                           Config        // can change if remotely updated
-		hardwareMetricResolutionResolved *atomic.Int32 // depends on config
+		config                           Config       // can change if remotely updated
+		hardwareMetricResolutionResolved atomic.Int32 // depends on config
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
