@@ -21,8 +21,6 @@ import (
 	"sort"
 	"sync"
 
-	"go.uber.org/atomic"
-
 	"github.com/prometheus/common/model"
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/model/labels"
@@ -34,11 +32,14 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"go.uber.org/atomic"
 )
 
 type scrapeServer struct {
-	config  *scrapeDiscovery // runs on a single aggretator (shard 1, replica 1)
-	configH atomic.Int32     // configuration string SHA1 hash
+	discovery scrapeDiscovery
+	configS   string       // configuration string
+	configMu  sync.RWMutex // serialize access to "configS"
+	configH   atomic.Int32 // configuration string SHA1 hash
 
 	// set on "run"
 	sh2     *agent.Agent // used to report statistics
@@ -61,52 +62,44 @@ type scrapeRequest struct {
 	args tlstatshouse.GetTargets2Bytes
 }
 
-func newScrapeServer(shard, replica int32) scrapeServer {
-	var config *scrapeDiscovery
-	if shard == 1 && replica == 1 {
-		config = newScrapeDiscovery()
-	}
-	return scrapeServer{
-		config:        config,
+func newScrapeServer() *scrapeServer {
+	res := &scrapeServer{
 		targetsByName: make(map[string]tlstatshouse.GetTargetsResultBytes),
 		targetsByAddr: make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
 		requests:      make(map[*rpc.HandlerContext]scrapeRequest),
 	}
+	res.discovery = newScrapeDiscovery(res.applyScrapeConfig)
+	return res
 }
 
 func (s *scrapeServer) run(meta *metajournal.MetricsStorage, journal *metajournal.MetricMetaLoader, sh2 *agent.Agent) {
 	if s.running {
 		return
 	}
-	if s.config != nil {
-		s.config.run(meta, journal, sh2)
-	}
+	s.discovery.run(meta, journal, sh2)
 	s.sh2 = sh2
 	s.running = true
 }
 
+func (s *scrapeServer) reportStats(m map[string]string) {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	m["scrape_config"] = s.configS
+}
+
 func (s *scrapeServer) applyConfig(configID int32, configS string) {
+	if configID != format.PrometheusConfigID {
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("scrape server panic!", r)
 		}
 	}()
-	switch configID {
-	case format.PrometheusConfigID:
-		if s.config != nil {
-			s.config.applyConfig(configS)
-		}
-		return
-	case format.PrometheusGeneratedConfigID:
-		break
-	default:
-		return
-	}
-	// build targets
-	cs, err := DeserializeScrapeConfig([]byte(configS), nil)
-	if err != nil {
-		return
-	}
+	s.discovery.applyConfig(configS)
+}
+
+func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 	type nameAddr struct {
 		name string
 		addr netip.Addr
@@ -259,9 +252,15 @@ func (s *scrapeServer) applyConfig(configID int32, configS string) {
 			s.CancelHijack(v.hctx)
 		}
 	}
-	// config applied successfully, update hash
-	h := sha1.Sum([]byte(configS))
-	s.configH.Store(int32(binary.BigEndian.Uint32(h[:])))
+	// config applied successfully
+	if b, err := json.Marshal(cs); err == nil {
+		configS := string(b)
+		s.configMu.Lock()
+		s.configS = configS
+		s.configMu.Unlock()
+		h := sha1.Sum(b)
+		s.configH.Store(int32(binary.BigEndian.Uint32(h[:])))
+	}
 }
 
 func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
