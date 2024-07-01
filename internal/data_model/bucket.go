@@ -28,7 +28,7 @@ type (
 		Timestamp uint32
 		Metric    int32
 		Tags      [format.NewMaxTags][]byte
-		RawTags   [format.NewMaxRawTags][]int64
+		RawTags   [format.NewMaxRawTags]uint64
 		Host      []byte
 	}
 
@@ -121,6 +121,34 @@ func (k *Key) Hash() uint64 {
 	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Keys[15]))
 	const _ = uint(16 - format.MaxTags) // compile time assert to manually add new keys above
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
+}
+
+func (k *NewKey) Hash() uint64 {
+	// 32 bit metric id
+	// 64 bit raw tags
+	// string tags
+	// string host tag
+	// \0 separators between tags and host
+	var b [4 + 8*format.NewMaxRawTags + format.MaxStringLen*format.NewMaxTags + format.MaxStringLen + format.NewMaxTags]byte
+	pos := 0
+	// timestamp is not part of shard
+	binary.LittleEndian.PutUint32(b[:], uint32(k.Metric))
+	pos += 4
+	for i := 0; i < format.NewMaxRawTags; i++ {
+		binary.LittleEndian.PutUint64(b[pos:], k.RawTags[i])
+		pos += 8
+	}
+	copy(b[pos:], k.Host)
+	pos += len(k.Host)
+	b[pos] = 0
+	pos += 1
+	for i := 0; i < format.NewMaxTags; i++ {
+		copy(b[pos:], k.Tags[i])
+		pos += len(k.Tags[i])
+		b[pos] = 0
+		pos += 1
+	}
+	return siphash.Hash(sipKeyA, sipKeyB, b[:pos])
 }
 
 func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {

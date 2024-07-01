@@ -7,10 +7,11 @@
 package agent
 
 import (
+	"fmt"
+	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/format"
 	"testing"
 	"time"
-
-	"github.com/vkcom/statshouse/internal/data_model"
 
 	"pgregory.net/rand"
 )
@@ -18,10 +19,48 @@ import (
 func Benchmark_Hash(b *testing.B) {
 	var k data_model.Key
 	var result uint64
+	rng := rand.New(1)
+	k.Metric = int32(rng.Intn(1000000))
+	for i := 0; i < format.MaxTags; i++ {
+		k.Keys[i] = int32(rng.Intn(1000000))
+	}
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		result += k.Hash()
+	}
+}
+
+func Benchmark_NewKeyHash(b *testing.B) {
+	var k data_model.NewKey
+	var result uint64
+	rng := rand.New(1)
+	k.Metric = int32(rng.Intn(1000000))
+	for i := 0; i < format.MaxTags; i++ {
+		k.Tags[i] = []byte(fmt.Sprint(rng.Intn(1000000)))
+	}
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		result += k.Hash()
+	}
+}
+
+func Benchmark_NewKeyHash_AllKeys(b *testing.B) {
+	var k data_model.NewKey
+	var result uint64
+	rng := rand.New(1)
+	k.Metric = int32(rng.Intn(1000000))
+	for i := 0; i < format.NewMaxTags; i++ {
+		k.Tags[i] = []byte(fmt.Sprint(rng.Intn(1000000)))
+	}
+	k.Host = []byte(fmt.Sprint(rng.Uint64()))
+	for i := 0; i < format.NewMaxRawTags; i++ {
+		k.RawTags[i] = rng.Uint64()
+	}
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
 		result += k.Hash()
 	}
 }
