@@ -266,6 +266,11 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
+	envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
+	if err != nil {
+		logErr.Printf("failed to start listen env file: %s", err.Error())
+	}
+	defer closeF()
 	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
@@ -291,7 +296,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 				}
 			}
 		},
-		nil)
+		nil,
+		envLoader)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
@@ -426,11 +432,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	// Run scrape
 	receiver.RunScrape(sh2, w)
 	if !argv.hardwareMetricScrapeDisable {
-		envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
-		if err != nil {
-			logErr.Printf("failed to start listen env file: %s", err.Error())
-		}
-		defer closeF()
 		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, envLoader, logErr)
 		if err != nil {
 			logErr.Println("failed to init hardware collector", err.Error())
@@ -518,7 +519,7 @@ func mainIngressProxy(aesPwd string) {
 	// Run agent (we use agent instance for ingress proxy built-in metrics)
 	argv.configAgent.Cluster = argv.cluster
 	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
+		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil, nil)
 	if err != nil {
 		logErr.Fatalf("error creating Agent instance: %v", err)
 	}

@@ -143,6 +143,7 @@ const (
 	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
 	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
 	BuiltinMetricNameBudgetHost                 = "__budget_host"
+	BuiltinMetricNameBudgetOwner                = "__budget_owner"
 	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
@@ -1161,6 +1162,8 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}, {
 				Description: "remote_ip",
 				RawKind:     "ip",
+			}, {
+				Description: "owner",
 			}},
 		},
 		BuiltinMetricIDHeartbeatArgs: {
