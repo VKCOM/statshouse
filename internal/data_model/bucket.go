@@ -23,7 +23,7 @@ import (
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead
 
 type (
-	RawKey struct {
+	NewKey struct {
 		Timestamp uint32
 		Metric    int32
 		Keys      [format.MaxTags][]byte

@@ -45,13 +45,13 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	if done = mp.fillMetricInfo(&h, args); done {
 		return h, done
 	}
-	h.RawKey.Metric = h.MetricInfo.MetricID
+	h.NewKey.Metric = h.MetricInfo.MetricID
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
 		return h, true
 	}
-	if done = mp.fillRawKeys(&h, args.MetricBytes); done {
+	if done = mp.fillNewKey(&h, args.MetricBytes); done {
 		return h, done
 	}
 	if done = mp.fillCachedTags(&h, args.MetricBytes); done {
@@ -95,7 +95,7 @@ func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args dat
 	return true
 }
 
-func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
+func (mp *mapPipeline) fillNewKey(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for i := 0; i < len(metric.Tags); i++ {
 		entry := &metric.Tags[i]
@@ -146,9 +146,9 @@ func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tls
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.RawKey.Keys[tagInfo.Index] = entry.Value
+			h.NewKey.Tags[tagInfo.Index] = entry.Value
 		default:
-			h.RawKey.Keys[tagInfo.Index] = entry.Value
+			h.NewKey.Tags[tagInfo.Index] = entry.Value
 		}
 	}
 	return false
@@ -156,7 +156,7 @@ func (mp *mapPipeline) fillRawKeys(h *data_model.MappedMetricHeader, metric *tls
 
 func (mp *mapPipeline) fillCachedTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
 	allMapped := true
-	for i, key := range h.RawKey.Keys {
+	for i, key := range h.NewKey.Tags {
 		if len(key) == 0 {
 			continue
 		}
