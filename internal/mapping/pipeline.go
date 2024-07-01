@@ -45,7 +45,6 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	if done = mp.fillMetricInfo(&h, args); done {
 		return h, done
 	}
-	h.NewKey.Metric = h.MetricInfo.MetricID
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
@@ -96,6 +95,9 @@ func (mp *mapPipeline) fillMetricInfo(h *data_model.MappedMetricHeader, args dat
 }
 
 func (mp *mapPipeline) fillNewKey(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
+	// TODO: fixKeyTimestamp should be used here to get proper timestamp for the key
+	h.NewKey.Timestamp = metric.Ts
+	h.NewKey.Metric = h.MetricInfo.MetricID
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for i := 0; i < len(metric.Tags); i++ {
 		entry := &metric.Tags[i]
