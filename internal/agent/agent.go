@@ -10,6 +10,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/env"
 	"os"
 	"runtime"
 	"strconv"
@@ -46,6 +47,7 @@ type Agent struct {
 	args            string
 	config          Config
 	logF            rpc.LoggerFunc
+	envLoader       *env.Loader
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
@@ -84,7 +86,7 @@ type Agent struct {
 
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
 			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
@@ -112,6 +114,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
+		envLoader:             envLoader,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 

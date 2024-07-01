@@ -137,15 +137,14 @@ func (ms *TagsMapper) mapTagAtStartup(tagName []byte, metricName string) int32 {
 	}
 }
 
-func (ms *TagsMapper) mapHost(now time.Time, hostName []byte, metricName string, shouldWait bool) int32 {
-	// All hosts must be valid and non-empty
+func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string, shouldWait bool) int32 {
 	// if aggregator fails to map agent host, then sets as a max host for some built-in metric, then
 	// when agent sends to another aggregator, max host will be set to original aggregator host, not to "empty" (unknown).
 	// This is why we set to invalid "Mapping Flood" value. This is not perfect, but better.
-	if !format.ValidStringValue(mem.B(hostName)) {
+	if !format.ValidStringValue(mem.B(value)) {
 		return format.TagValueIDMappingFlood
 	}
-	ret := ms.getTagOr0LoadLater(now, hostName, metricName, shouldWait)
+	ret := ms.getTagOr0LoadLater(now, value, metricName, shouldWait)
 	if ret != 0 {
 		return ret
 	}
@@ -167,7 +166,7 @@ func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args 
 
 func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes) error {
 	now := time.Now()
-	host := ms.mapHost(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
+	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
 	agentEnv := ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	route := int32(format.TagValueIDRouteDirect) // all config routes are direct

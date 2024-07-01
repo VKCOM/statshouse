@@ -237,7 +237,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	// TODO - pass storage dir after design is fixed
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
+		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
 		return fmt.Errorf("built-in agent failed to start: %v", err)
 	}
