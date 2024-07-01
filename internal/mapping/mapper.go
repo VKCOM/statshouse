@@ -45,6 +45,10 @@ func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache,
 	}
 }
 
+func (m *Mapper) LoadFromDisk(now time.Time) (pcache.LoadStats, error) {
+	return m.pipeline.tagValue.LoadFromDisk(now)
+}
+
 func (m *Mapper) TagValueDiskCacheSize() int {
 	return m.pipeline.tagValue.DiskCacheSize()
 }

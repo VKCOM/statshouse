@@ -9,6 +9,7 @@ package pcache
 import (
 	"context"
 	"encoding"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -81,6 +82,74 @@ type Cache struct {
 	workQueue []workQueueItem
 	workCond  *sync.Cond
 	stop      *sync.WaitGroup
+}
+
+type LoadStats struct {
+	Loaded          int
+	NotFound        int
+	WithError       int
+	UnmarshalFailed int
+}
+
+func (ls LoadStats) String() string {
+	return fmt.Sprint("Loaded=", ls.Loaded, ", NotFound=", ls.NotFound, ", WithError", ls.WithError, ", UnmarshalFailed=", ls.UnmarshalFailed)
+}
+
+func (c *Cache) LoadFromDisk(now time.Time) (ls LoadStats, err error) {
+	keyResults, err := c.DiskCache.ListKeys(c.DiskCacheNamespace, c.MaxMemCacheSize, 0)
+	if err != nil {
+		return ls, err
+	}
+	keys := make([]string, 0, len(keyResults))
+	for _, keyResult := range keyResults {
+		keys = append(keys, keyResult.Key)
+	}
+	entries := make([]*entry, 0, len(keyResults))
+	for _, key := range keys {
+		valueBytes, _, ttl, err, found := c.DiskCache.Get(c.DiskCacheNamespace, key)
+		if !found {
+			entries = append(entries, nil)
+			ls.NotFound++
+			continue
+		}
+		if err != nil {
+			entries = append(entries, nil)
+			ls.WithError++
+			continue
+		}
+		var value Int32Value
+		err = value.UnmarshalBinary(valueBytes)
+		if err != nil {
+			entries = append(entries, nil)
+			ls.UnmarshalFailed++
+			continue
+		}
+		entry := &entry{
+			result: Result{
+				Value: &value,
+				Err:   nil,
+				TTL:   ttl,
+			},
+			update: now,
+			lru:    now,
+		}
+		entries = append(entries, entry)
+	}
+
+	c.memCacheMu.Lock()
+	if c.memCache == nil {
+		c.memCache = map[string]*entry{}
+	}
+	for i, key := range keys {
+		entry := entries[i]
+		if entry != nil {
+			c.memCache[key] = entry
+			entries[i] = nil
+		}
+	}
+	ls.Loaded = len(c.memCache)
+	defer c.memCacheMu.Unlock()
+	return ls, err
 }
 
 func (e Result) Found() bool {
