@@ -25,6 +25,10 @@ import (
 )
 
 const (
+	// New* names are temorary, will be renamed after migration
+	NewMaxTags    = 64
+	NewMaxRawTags = 4
+
 	MaxTags      = 16
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)

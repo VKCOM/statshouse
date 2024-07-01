@@ -23,10 +23,13 @@ import (
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead
 
 type (
+	// NewKey fully qualifies point in time series. Without Timestamp, it fully qualifies time series.
 	NewKey struct {
 		Timestamp uint32
 		Metric    int32
-		Keys      [format.MaxTags][]byte
+		Tags      [format.NewMaxTags][]byte
+		RawTags   [format.NewMaxRawTags][]int64
+		Host      []byte
 	}
 
 	// Time Series Key, will be optimized to single human-readable string
