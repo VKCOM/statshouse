@@ -19,6 +19,7 @@ import RawValueComments from '../img/raw-value-comments.png'
 import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
+import DraftTags from '../img/draft-tags.png'
 
 # Edit a metric
 
@@ -36,6 +37,7 @@ Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options
     * [Value comments](#value-comments)
     * [Specifying formats for raw tag values](#specifying-formats-for-raw-tag-values)
   * [Set up _String top tag_](#set-up-string-top-tag)
+  * [Map the draft tag names to the tag IDs](#map-the-draft-tag-names-to-the-tag-ids)
 * [Disabling a metric](#disabling-a-metric)
 * [Admin settings](#admin-settings)
 <!-- TOC -->
@@ -207,6 +209,28 @@ StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI
 To filter data with the [String top tag](design-metric.md#string-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
+
+### Map the draft tag names to the tag IDs
+
+Draft tags appear when the data you send contains the tag names, but these names were not mapped to tag IDs, so they 
+are "unknown" to StatsHouse.
+
+The feature was implemented to support
+[migrating from Prometheus](../admin/migrating.md#how-to-migrate-from-prometheus). There may be more than 16 tags in 
+the scraped metrics, and StatsHouse cannot map them to the tag IDs randomly.
+
+StatsHouse extracts the "unknown" tag names from the scraped metric data and shows them as the _draft tags_. Users 
+can map these draft tag names with the tag IDs manually:
+
+<img src={DraftTags} width="700"/>
+
+:::tip
+Draft tags also appear when you refer to the tags in your code by the custom names, but you have not previously 
+specified these names in the UI. See more about [describing tags](#describe-tags). The draft tag feature may help 
+you to configure metric tags faster.
+:::
+
+Learn more about [designing tags for your metrics](../guides/design-metric.md#tags).
 
 ## Disabling a metric
 

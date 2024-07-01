@@ -57,6 +57,10 @@ An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datag
 * [MessagePack](https://msgpack.org),
 * [TL](https://core.telegram.org/mtproto/TL).
 
+:::note
+Agents support IPv6.
+:::
+
 ### Receiving data via UDP
 
 StatsHouse receives data via UDP in the MessagePack, Protocol Buffers, JSON, and TL formats—they are semantically 

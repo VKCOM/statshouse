@@ -2,7 +2,6 @@
 sidebar_position: 2
 ---
 
-import MetricTypes from '../img/metric-types.png';
 import WhatIsMetric from '../img/what-is-metric.png'
 import AbTest from '../img/ab-test.png'
 import MetricFormula from '../img/metric-formula.png'
@@ -52,8 +51,6 @@ It stores [aggregates](../conceptual%20overview/concepts.md#aggregation) associa
 ## Metric types
 
 You can measure same things in different ways—they are metric types.
-
-<img src={MetricTypes} width="800"/>
 
 See the table below for definitions and examples:
 

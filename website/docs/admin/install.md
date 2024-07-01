@@ -156,8 +156,7 @@ Make sure an agent is installed on each machine that sends metrics to StatsHouse
 The agent opens the local port (13337, by default) and gets data from the application. Then it sends the data to the
 aggregators.
 
-Read more about the StatsHouse [agent](../conceptual%20overview/components.md#agent) component in the conceptual 
-overview.
+Read more about the StatsHouse [agent](../conceptual%20overview/components.md#agent) component in the conceptual overview.
 
 The agents are available as the RPM or DEB packages, for example:
 
@@ -183,6 +182,17 @@ Read more about the `--aes-pwd-file` parameter and the encryption keys in the [s
 
 Read more about [using tags for the host (hardware) metrics](host-metrics.md#how-to-use-tags-for-the-hardware-host-metrics)
 and the `--env-file-path` parameter.
+
+### How to monitor the agent's health
+
+1. Open the `__heartbeat_version` [service metric](monitor.md#service-metrics) that shows the number of running 
+components.
+2. For the `component` tag, select the `agent` tag value.
+3. For the `host` tag, select the required hostname.
+4. Check if you see the heartbeat from the host.
+
+Additionally, check if the agent is able to send real metric data: [send a testing piece of data 
+from the host](../guides/send-data.md#how-to-send-data-without-client-libraries).
 
 ## API/UI
 

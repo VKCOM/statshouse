@@ -359,7 +359,7 @@ Here are some error examples:
 <img src={ReceiveStatus} width="300"/>
 
 For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/components.md#mapping-budget).
+indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/components.md#metadata).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
 
@@ -370,7 +370,8 @@ The `err_*_utf8` statuses store the original string values in `hex`.
 StatshHouse has two bottlenecks where it samples data: an agent and an aggregator. An agent is also referred 
 to as _source_ because it is the same machine the data come from.
 
-Sampling means that StatsHouse throws away pieces of data to reduce its overall amount. 
+[Sampling](../conceptual%20overview/concepts.md#sampling) means that StatsHouse throws away pieces of data to reduce its 
+overall amount. 
 To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
 sampling factor).
 
@@ -397,7 +398,9 @@ Learn more about StatsHouse [agents](../conceptual%20overview/components.md#agen
 
 ### Cardinality
 
-In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
+In StatsHouse, metric [cardinality](../conceptual%20overview/concepts.md#cardinality) is how many unique tag value combinations 
+you send 
+for a metric.
 
 The _Cardinality_ meta-metric redirects you to the `__agg_hour_cardinality` metric:
 
@@ -412,12 +415,12 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 ### Mapping status
 
 If you create too many tag values, which have not been 
-[mapped](../conceptual%20overview/components.md#mapping-budget) yet, the mapping flood errors appear:
+mapped yet, the [mapping](../conceptual%20overview/components.md#the-budget-for-creating-tag-values) flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
 Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
-Learn more about [mapping](../conceptual%20overview/components.md#mapping-budget) 
+Learn more about [mapping](../conceptual%20overview/components.md#metadata) 
 and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis

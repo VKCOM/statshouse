@@ -17,7 +17,11 @@ The `__heartbeat_version` metric shows the number of running components. Group t
 
 <img src={HeartbeatVersion} width="700"/>
 
+:::tip
 Read more about [checking the agent's version](maintain-upgrade.md).
+
+Learn [how to monitor the agent's health](install.md#how-to-monitor-the-agents-health).
+:::
 
 To monitor the aggregator's metrics, use the `__agg` prefix:
 

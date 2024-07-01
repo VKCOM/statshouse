@@ -69,7 +69,6 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Maintain and upgrade](admin/maintain-upgrade.md)
 * [Migrate from the other monitoring system](admin/maintain-upgrade.md)
 * [Integrate the external systems](admin/integrations.md)
-* [Troubleshoot](admin/troubleshooting.md)
 
 ### [Overview](conceptual%20overview/features.md)
 

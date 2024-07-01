@@ -14,5 +14,5 @@ If you did not find the relevant information in this documentation, feel free to
 [olganaumenko](https://github.com/olganaumenko).
 
 :::tip
-Use the **🔍 Search** bar in the upper-right corner or the **💬 AI chat** dialog to find the relevant info.
+Use the **🔍 Search** bar in the upper-right corner to find the relevant info.
 :::

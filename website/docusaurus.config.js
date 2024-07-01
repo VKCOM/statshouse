@@ -168,6 +168,7 @@ const config = {
           src: '/img/statshouse.jpeg',
         },
         items: [
+
 //          {
 //            type: 'docSidebar',
 //            sidebarId: 'tutorialSidebar',
