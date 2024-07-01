@@ -24,61 +24,78 @@ import (
 	"pgregory.net/rand"
 )
 
-// If clients wish periodic measurements, they are advised to send them around the middle of calendar second
+// If clients want less jitter (they want), they should send data quickly after end pf calendar second.
+// Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
 func (s *Shard) flushBuckets(now time.Time) {
+	// called several times/sec only, but must still be fast, so we do not lock for too long
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	nowUnix := uint32(now.Unix())
+	if nowUnix := uint32(now.Unix()); nowUnix > s.addBuiltInsTime {
+		s.addBuiltInsTime = nowUnix
+		s.addBuiltInsLocked(nowUnix - 1) // account to the previous second
+	}
+	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
-	if s.CurrentTime+s.MissedSeconds >= nowUnix { // fastpath
-		return
+	currentTime := uint32(now.Add(-data_model.AgentWindow).Unix())
+	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
+	if s.PreprocessingBuckets == nil && currentTime > wasCurrentBucketTime {
+		// if we cannot flush 1-second resolution, we cannot flush any higher resolution
+		// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
+		// 2. move next buckets into current buckets
+		// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
+		for r, bs := range s.CurrentBuckets {
+			if r != format.AllowedResolution(r) {
+				continue
+			}
+			currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
+			for sh, b := range bs {
+				if currentTimeRounded <= b.Time {
+					continue
+				}
+				if !b.Empty() {
+					// future queue pos is assigned without seams if missed seconds is 0
+					futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
+					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
+				}
+				s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
+				s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
+			}
+		}
+		s.PreprocessingBuckets = s.FutureQueue[(wasCurrentBucketTime+1)%60]
+		s.FutureQueue[(wasCurrentBucketTime+1)%60] = nil
+
+		// Due to !b.Empty() optimization above, if no data is collected, nothing is in FutureQueue
+		// As we use PreprocessingBuckets as flag, it must be not nil so that processing and sending is performed
+		// for each contributor every second
+		if s.PreprocessingBuckets == nil {
+			s.PreprocessingBuckets = []*data_model.MetricsBucket{}
+		}
+
+		s.PreprocessingMissedSeconds = s.MissedSeconds
+		s.MissedSeconds = 0
+
+		s.PreprocessingBucketTime = wasCurrentBucketTime
+
+		s.condPreprocess.Signal()
 	}
-	s.addBuiltInsLocked(nowUnix)
-	// We send missed seconds if timestamp "jumps", which are converted  by aggregator into contributors for previous seconds
-	// otherwise #contributors will fluctuate. For this reason we also send empty buckets
-	if s.PreprocessingBuckets != nil {
-		// s.client.Client.Logf("Zatup 1 %d replica %d (shard-replica %d) bucket.time %d nowUnix %d",
-		//	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
-		s.MissedSeconds = nowUnix - s.CurrentTime
-		// We continue aggregating if processing conveyor is stalled now
-		return
-	}
-	for r, bs := range s.CurrentBuckets {
+	// now after CurrentBuckets flushed, we want to move NextBuckets timestamp
+	// if conveyor is stuck, so that data from previous seconds is still kept there,
+	// but we considere this bucket to correspond to the unixNow point of time.
+	// this is important because we clamp future timestamps by content of NextBuckets timestamps
+	for r, bs := range s.NextBuckets {
 		if r != format.AllowedResolution(r) {
 			continue
 		}
-		nextT := (nowUnix / uint32(r)) * uint32(r)
-		for sh, b := range bs {
-			if nextT == b.Time {
+		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
+		for _, b := range bs {
+			if currentTimeRounded+uint32(r) <= b.Time {
 				continue
 			}
-			if b.Empty() { // optimize by only moving time forward
-				s.CurrentBuckets[r][sh].Time = nextT
-				continue
-			}
-			// future queue pos is assigned without seams if missed seconds is 0
-			futureQueuePos := (nextT + uint32(sh)) % 60
-			s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
-			s.CurrentBuckets[r][sh] = &data_model.MetricsBucket{Time: nextT}
+			b.Time = currentTimeRounded + uint32(r) // TODO - add metric for missed second here
+			// We send missed seconds if timestamp "jumps", which are converted  by aggregator into contributors for previous seconds
+			// otherwise #contributors will fluctuate. For this reason we also send empty buckets
 		}
 	}
-	s.PreprocessingBuckets = s.FutureQueue[nowUnix%60]
-	s.FutureQueue[nowUnix%60] = nil
-
-	// Due to b.Empty() optimization above, if no data is collected, nothing is in FutureQueue
-	// As we use PreprocessingBuckets as flag, it must be not nil so that processing and sending is performed
-	// for each contributor every second
-	if s.PreprocessingBuckets == nil {
-		s.PreprocessingBuckets = []*data_model.MetricsBucket{}
-	}
-
-	s.PreprocessingMissedSeconds = s.MissedSeconds
-	s.MissedSeconds = 0
-
-	s.PreprocessingBucketTime = s.CurrentTime
-	s.CurrentTime = nowUnix
-
-	s.condPreprocess.Signal()
 }
 
 func addSizeByTypeMetric(sb *tlstatshouse.SourceBucket2, partKey int32, size int) {
