@@ -98,7 +98,7 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		scrape     scrapeServer
+		scrape     *scrapeServer
 		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
@@ -203,6 +203,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
 	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
+	a.scrape = newScrapeServer()
 	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithMaxWorkers(-1),
@@ -215,11 +216,11 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<33),
+		rpc.ServerWithStatsHandler(a.scrape.reportStats),
 		metrics.ServerWithMetrics,
 	)
 	defer metrics.Run(a.server)()
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	a.scrape = newScrapeServer(shardKey, replicaKey)
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(metadataClient, config.AutoCreateDefaultNamespace)
 		defer a.autoCreate.shutdown()

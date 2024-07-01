@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sort"
@@ -32,14 +31,20 @@ type scrapeDiscovery struct {
 	// updated on "applyConfig"
 	config   []ScrapeConfig
 	configMu sync.RWMutex
+
+	// receives config generated
+	cb scrapeDiscoveryCallback
 }
 
-func newScrapeDiscovery() *scrapeDiscovery {
+type scrapeDiscoveryCallback func([]ScrapeConfig)
+
+func newScrapeDiscovery(cb scrapeDiscoveryCallback) scrapeDiscovery {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &scrapeDiscovery{
+	return scrapeDiscovery{
 		ctx:     ctx,
 		cancel:  cancel,
 		manager: discovery.NewManager(ctx, klog.NewLogfmtLogger(log.Writer())),
+		cb:      cb,
 	}
 }
 
@@ -217,20 +222,6 @@ func (s *scrapeDiscovery) applyTargets(targets map[string][]*targetgroup.Group) 
 			ScrapeConfigs: jobs,
 		})
 	}
-	// write static config
-	b, err := json.Marshal(res)
-	if err != nil {
-		log.Printf("failed to serialize scrape static config: %v\n", err)
-		return
-	}
-	newData := string(b)
-	current := s.storage.PromConfigGenerated()
-	if newData == current.Data {
-		log.Println("scrape static config remains unchanged")
-		return
-	}
-	_, err = s.meta.SaveScrapeStaticConfig(s.ctx, current.Version, newData)
-	if err != nil {
-		log.Printf("failed to save scrape static config: %v\n", err)
-	}
+	// --
+	s.cb(res)
 }
