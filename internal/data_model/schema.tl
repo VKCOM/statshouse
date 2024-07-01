@@ -138,6 +138,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
 @readwrite statshouse.sendSourceBucket2#44575940
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)
+    owner:fields_mask.4?string
     time:#
     historic:fields_mask.0?true
     spare:fields_mask.1?true
