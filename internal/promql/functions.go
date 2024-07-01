@@ -844,11 +844,21 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			res = make([]Series, 0, len(ev.opt.Offsets))
+			t := ev.time()
+			for _, v := range ev.opt.Offsets {
+				d := SeriesData{
+					Values: ev.alloc(),
+					Offset: v,
+				}
+				for i := range *d.Values {
+					(*d.Values)[i] = float64(t[i] - v)
+				}
+				res = append(res, Series{Data: []SeriesData{d}})
+			}
 		}
 		for i := range res {
-			if res[i].Data == nil {
-				res[i] = funcTime(ev, args)
-			}
 			for _, d := range res[i].Data {
 				for i, v := range *d.Values {
 					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.location)))
