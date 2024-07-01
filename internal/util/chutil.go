@@ -25,6 +25,12 @@ import (
 	"github.com/vkcom/statshouse/internal/util/queue"
 )
 
+type contextKey int
+
+const lockFreeLaneContextKey contextKey = iota
+
+var lockFreeLaneContextValue = struct{}{}
+
 type connPool struct {
 	rnd     *rand.Rand
 	servers []*chpool.Pool
@@ -38,6 +44,10 @@ type connPool struct {
 
 type ClickHouse struct {
 	pools [4]*connPool
+
+	// "lockFree" lane
+	rnd     *rand.Rand
+	servers []*chpool.Pool
 }
 
 type QueryMetaInto struct {
@@ -77,12 +87,17 @@ func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 		return nil, fmt.Errorf("at least one ClickHouse address must be specified")
 	}
 
-	result := &ClickHouse{[4]*connPool{
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastLight
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowLight
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
-	}}
+	result := &ClickHouse{
+		pools: [4]*connPool{
+			{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastLight
+			{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
+			{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowLight
+			{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
+		},
+		// "lockFree" lane
+		rnd:     rand.New(),
+		servers: make([]*chpool.Pool, 0, len(opt.Addrs)),
+	}
 	for _, addr := range opt.Addrs {
 		for _, pool := range result.pools {
 			server, err := chpool.New(context.Background(), chpool.Options{
@@ -101,6 +116,21 @@ func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 			}
 			pool.servers = append(pool.servers, server)
 		}
+		// "lockFree" lane
+		server, err := chpool.New(context.Background(), chpool.Options{
+			ClientOptions: ch.Options{
+				Address:          addr,
+				User:             opt.User,
+				Password:         opt.Password,
+				Compression:      ch.CompressionLZ4,
+				DialTimeout:      opt.DialTimeout,
+				HandshakeTimeout: 10 * time.Second,
+			}})
+		if err != nil {
+			result.Close()
+			return nil, err
+		}
+		result.servers = append(result.servers, server)
 	}
 
 	return result, nil
@@ -160,6 +190,9 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		info.Profile = p
 		return nil
 	}
+	if lockFreeLane(ctx) {
+		return ch.lockFreeSelect(ctx, query)
+	}
 	kind := QueryKind(meta.IsFast, meta.IsLight)
 	pool := ch.pools[kind]
 	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
@@ -218,6 +251,37 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		servers = append(servers[:i], servers[i+1:]...)
 	}
 	return info, err
+}
+
+func (ch *ClickHouse) lockFreeSelect(ctx context.Context, query ch.Query) (QueryHandleInfo, error) {
+	for s := ch.servers; len(s) != 0; {
+		i, err := pickRandomServer(s, ch.rnd)
+		if err != nil {
+			return QueryHandleInfo{}, err
+		}
+		start := time.Now()
+		err = s[i].Do(ctx, query)
+		if err == nil {
+			// succeeded
+			return QueryHandleInfo{Duration: time.Since(start)}, nil
+		}
+		if ctx.Err() != nil {
+			// failed
+			return QueryHandleInfo{}, err
+		}
+		log.Printf("ClickHouse server is dead #%d: %v", i, err)
+		// keep searching alive server
+		s = append(s[:i], s[i+1:]...)
+	}
+	return QueryHandleInfo{}, fmt.Errorf("all ClickHouse servers are dead")
+}
+
+func WithLockFreeSelect(ctx context.Context) context.Context {
+	return context.WithValue(ctx, lockFreeLaneContextKey, &lockFreeLaneContextValue)
+}
+
+func lockFreeLane(ctx context.Context) bool {
+	return ctx.Value(lockFreeLaneContextKey) != nil
 }
 
 func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {
