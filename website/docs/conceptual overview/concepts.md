@@ -20,6 +20,10 @@ To understand StatsHouse deeply, learn the basic metric-related concepts:
 * [cardinality](#cardinality),
 * [sampling](#sampling).
 
+:::tip
+Find a kind of **TL;DR** [**here**](../guides/design-metric.md#how-many-tag-values).
+:::
+
 ## Aggregation
 
 StatsHouse aggregates the events with the same tag sets—both within the time period and between the hosts. 

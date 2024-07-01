@@ -129,7 +129,7 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
-          sidebarCollapsed: false,
+          sidebarCollapsed: true,
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
 //          editUrl:
@@ -152,14 +152,14 @@ const config = {
           disableSwitch: true,
         },
 
-    announcementBar: {
-          id: 'test_version',
-          content:
-            'This documentation is currently in draft form, so it may be misleading. Please wait until the documentation is officially released.',
-          backgroundColor: '#ff4013',
-          textColor: '#ffffff',
-          isCloseable: false,
-        },
+//    announcementBar: {
+//          id: 'test_version',
+//          content:
+//            'This documentation is currently in draft form, so it may be misleading. Please wait until the documentation is officially released.',
+//          backgroundColor: '#ff4013',
+//          textColor: '#ffffff',
+//          isCloseable: false,
+//        },
 
       navbar: {
         title: 'StatsHouse Docs',
@@ -192,10 +192,9 @@ const config = {
 
         copyright: `Copyright © ${new Date().getFullYear()} StatsHouse.`,
       },
-      prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
-      },
+        prism: {
+              theme: prismThemes.github,
+            },
     }),
 
 };
