@@ -109,13 +109,12 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	if s.Value.MaxHostTag != 0 {
 		item.SetMaxHostTag(s.Value.MaxHostTag, fieldsMask)
 	}
-	// TODO - uncomment after aggregators deplayed
-	// if s.Value.MinHostTag != s.Value.MaxHostTag {
-	//	item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
-	// }
-	// if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
-	//	item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
-	// }
+	if s.Value.MinHostTag != s.Value.MaxHostTag {
+		item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
+	}
+	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
+	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
 		item.SetUniques(string(*marshalBuf), fieldsMask)
