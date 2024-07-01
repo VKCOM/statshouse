@@ -1,0 +1,4 @@
+hostname: docker
+owner: vkcom
+dc: local
+group: docker
