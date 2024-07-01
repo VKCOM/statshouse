@@ -129,7 +129,7 @@ const (
 	maxFunctions     = 10
 
 	cacheInvalidateCheckInterval = 1 * time.Second
-	cacheInvalidateCheckTimeout  = 5 * time.Second
+	cacheInvalidateCheckTimeout  = 8 * time.Second // should be greater than dial timeout see chDialTimeout
 	cacheInvalidateMaxRows       = 100_000
 	cacheDefaultDropEvery        = 90 * time.Second
 
