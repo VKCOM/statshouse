@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -19,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"pgregory.net/rand"
 
@@ -604,7 +602,8 @@ func Test_Engine_Backup(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
 	var id int64
 	dir := t.TempDir()
-	dbPath := path.Join(dir, "db")
+	var backupOffset int64
+	//dbPath := path.Join(dir, "db")
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
 	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
@@ -615,10 +614,13 @@ func Test_Engine_Backup(t *testing.T) {
 		return buf, err
 	})
 	require.NoError(t, err)
-	backupPath, _, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
+	backupPath, _, err := engine.Backup(context.Background(), dir, func(prefix string, binlogOffset int64) (string, error) {
+		backupOffset = binlogOffset
+		return path.Join(prefix, "db1."+strconv.Itoa(int(binlogOffset))), nil
+	})
 	require.NoError(t, err)
+	require.Equal(t, path.Join(dir, "db1."+strconv.Itoa(int(backupOffset))), backupPath)
 	require.NoError(t, engine.Close())
-	_ = os.Rename(checkpoint.CommitFileName(dbPath), checkpoint.CommitFileName(backupPath))
 
 	dir, db := path.Split(backupPath)
 	engine, _ = openEngine(t, dir, db, schema, false, false, false, nil)
@@ -632,7 +634,15 @@ func Test_Engine_Backup(t *testing.T) {
 		}
 		return nil, rows.Error()
 	})
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
+		offset, isExists, err := binlogLoadPosition(internalFromUser(conn))
+		require.True(t, isExists)
+		require.Equal(t, backupOffset, offset)
+		return err
+	})
+	require.NoError(t, err)
 	require.Equal(t, int64(1), id)
+
 }
 
 func Test_Engine_RO(t *testing.T) {
