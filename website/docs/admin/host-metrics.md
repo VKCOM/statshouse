@@ -63,7 +63,7 @@ and will be updated later with more detail as well as tag information.
 ## How to use tags for the hardware (host) metrics
 
 To configure tag values for the host metrics, use the optional `--env-file-path`
-parameter when [starting the agent](#agents).
+parameter when [starting the agent](install.md#agents).
 
 The default file is `/etc/statshouse_env.yml`. You can specify your YAML file as the command line parameter:
 ```

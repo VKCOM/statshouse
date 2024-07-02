@@ -24,7 +24,7 @@ individual metrics.
 A namespace is the named metric container.
 Namespaces help to
 * manage budgets for StatsHouse tenants by changing their [weight](#what-is-weight),
-* [manage access](#manage-access) to metric data.
+* [manage access](#manage-access-for-namespaces) to metric data.
 
 The metric's name defines if a metric relates to a namespace or not.
 To assign a namespace, use a colon in a metric name:

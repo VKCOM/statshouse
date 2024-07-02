@@ -23,7 +23,7 @@ Understand what you want from your metric and how to implement it with StatsHous
   * [Tag names](#tag-names)
   * [Tag values](#tag-values)
   * [_Raw_ tags](#raw-tags)
-  * [String top tag](#string-tag)
+  * [String top tag](#string-top-tag)
   * [Host name as a tag](#host-name-as-a-tag)
   * [Customizing the `environment` tag](#customizing-the-environment-tag)
 * [Timestamps](#timestamps)
@@ -260,7 +260,7 @@ You can use 16 tags per metric:
 * the `0` tag is usually for an `environment` (read more about [customizing it](#customizing-the-environment-tag)),
 * the `1..15` tags are for any other characteristics.
 
-There is also one more [String top tag](#string-tag):
+There is also one more [String top tag](#string-top-tag):
 * the `__s` tag.
 
 #### "What if I want more tags?"
@@ -312,7 +312,7 @@ high [cardinality](../conceptual%20overview/concepts.md#cardinality).
 In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
 If a tag has too many values, they will soon exceed the
-[mapping budget](../conceptual%20overview/components.md#the-budget-for-creating-mappings) and will be lost: tag values
+[mapping budget](../conceptual%20overview/components.md#the-budget-for-creating-tag-values) and will be lost: tag values
 for your measurements will become the empty strings.
 
 Even if all your tag values have been already mapped, and you
@@ -339,7 +339,7 @@ For many different string values (such as `search_request`), use a [String top t
 
 If tag values in your metric are originally 32-bit integer values, you can
 [mark them as _Raw_ ones](edit-metrics.md#set-up-raw-tags)
-to avoid the [mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-mappings).
+to avoid the [mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-tag-values).
 
 These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed) 
 and inserted into the ClickHouse database as is.
@@ -355,14 +355,14 @@ requests.
 
 With the common tags, you will get [mapping flood errors](view-graph.md#mapping-status) very soon for this scenario.
 The _String top tag_ stands apart from the other ones as its values are not
-[mapped](../conceptual%20overview/components.md#the-mapping-mechanism) to integers. Thus, you can avoid
+[mapped](../conceptual%20overview/components.md#metadata) to integers. Thus, you can avoid
 mapping flood errors and massive sampling.
 
 The _String top tag_ has a special storage: when you send your data labeled with the _String top_ tag values, only the 
 most popular tag values are stored. The other tag values for this metric become empty strings and are aggregated. Read 
 more about the [String top tag implementation](../conceptual%20overview/components.md#string-top-tag).
 
-To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-tag) to it.
+To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-top-tag) to it.
 
 ### Host name as a tag
 

@@ -38,7 +38,7 @@ working.
 
 Read more about [handling aggregator's shutdown](conceptual%20overview/components.md#handling-aggregators-shutdown).
 
-## Сloud installations
+## Cloud installations
 
 StatsHouse is not a cloud-native product. We recommend you to install StatsHouse components on the hardware, not in
 the pods or the short-lived virtual machines. If you use virtual machines, they should be full analogues of the

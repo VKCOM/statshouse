@@ -175,7 +175,7 @@ Add tag descriptions to show in the UI:
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
 [_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
-[mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-mappings).
+[mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-tag-values).
 
 To help yourself remember what they mean, specify a 
 [format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
@@ -206,7 +206,7 @@ StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI
 
 ### Set up _String top tag_
 
-To filter data with the [String top tag](design-metric.md#string-tag) on a graph, add a name or description to it:
+To filter data with the [String top tag](design-metric.md#string-top-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
 

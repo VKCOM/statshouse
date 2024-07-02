@@ -44,7 +44,7 @@ import MetricTabDelete from '../img/metric-tab-delete.png'
 # View metric data
 
 Display data on a graph, in a [table](#10--table-view), or as a [CSV](#12--csv) file via the StatsHouse UI.
-For complicated scenarios, [query StatsHouse with PromQL](#18--query-with-promql).
+For complicated scenarios, [query StatsHouse with PromQL](#18--promql-query-editor).
 StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
