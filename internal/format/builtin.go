@@ -43,6 +43,7 @@ const (
 	BuiltinMetricIDAggHistoricBucketsWaiting  = -13
 	BuiltinMetricIDAggBucketAggregateTimeSec  = -14
 	BuiltinMetricIDAggActiveSenders           = -15
+	BuiltinMetricIDAggOutdatedAgents          = -16
 	BuiltinMetricIDAgentDiskCacheErrors       = -18
 	BuiltinMetricIDTimingErrors               = -20
 	BuiltinMetricIDAgentReceivedBatchSize     = -21
@@ -212,6 +213,9 @@ const (
 	TagValueIDHistoricQueueMemory     = 1
 	TagValueIDHistoricQueueDiskUnsent = 2
 	TagValueIDHistoricQueueDiskSent   = 3
+
+	TagValueIDDecisionDeclined = 1
+	TagValueIDDecisionGrace    = 2
 
 	TagValueIDDiskCacheErrorWrite             = 1
 	TagValueIDDiskCacheErrorRead              = 2
@@ -688,6 +692,31 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 			}, {
 				Description:   "conveyor",
 				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDAggOutdatedAgents: {
+			Name:        "__agg_outdated_agents",
+			Kind:        MetricKindCounter,
+			Description: "Number of outdated agents.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "owner",
+			}, {
+				Description: "host",
+			}, {
+				Description: "remote_ip",
+				RawKind:     "ip",
+			}, {
+				Description: "decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDDecisionDeclined: "declined", // we do not accept metrics from this agent
+					TagValueIDDecisionGrace:    "grace",    // agent is outdated but we accept metrics
+				}),
 			}},
 		},
 		BuiltinMetricIDAgentDiskCacheErrors: {

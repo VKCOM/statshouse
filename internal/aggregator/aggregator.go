@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/version"
 	"io"
 	"log"
 	"net"
@@ -97,6 +98,7 @@ type (
 		metricStorage  *metajournal.MetricsStorage
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
+		versionCache   *version.Cache
 
 		scrape     *scrapeServer
 		autoCreate *autoCreate
@@ -198,6 +200,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
+		versionCache:                version.NewVersionCache(dc),
 	}
 	if len(a.hostName) == 0 {
 		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")

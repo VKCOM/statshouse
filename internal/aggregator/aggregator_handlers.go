@@ -11,6 +11,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/version"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"time"
 
 	"go4.org/mem"
@@ -279,6 +281,22 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 		addrIPV4 = uint32(args.Header.AgentIp[3])
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
+
+	if build.CommitTimestamp() > 0 && args.BuildCommitTs > 0 {
+		allow, outdated := version.AllowAgent(string(args.Header.HostName), build.CommitTimestamp(), uint32(args.BuildCommitTs), a.versionCache)
+		if !allow {
+			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, host, int32(addrIPV4), format.TagValueIDDecisionDeclined})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(key, 1, host, nil)
+			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("agent is too old please update"))
+			return nil
+		}
+		if outdated {
+			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, host, int32(addrIPV4), format.TagValueIDDecisionGrace})
+			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(key, 1, host, nil)
+		}
+	}
 
 	var aggBucket *aggregatorBucket
 	a.mu.Lock()
