@@ -314,8 +314,12 @@ func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
 	e.checkpointer.setWaitCheckpointOffsetLocked()
 }
 
-// TODO better interface?
-func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
+/*
+Backup is only sqlite backup, not barsic snapshot. To make barsic snapshot you should put this backup to snapshotExternalFile
+prefix - directory to store backup
+nameGenerator - should return full path to backup
+*/
+func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(prefix string, binlogOffset int64) (string, error)) (string, int64, error) {
 	if prefix == "" {
 		return "", 0, fmt.Errorf("backup prefix is Empty")
 	}
@@ -353,7 +357,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, erro
 		_ = conn1.Close()
 	}()
 	c1 := newInternalConn(conn1)
-	expectedPath, binlogPos, err := getBackupPath(c1, prefix)
+	expectedPath, binlogPos, err := getBackupPath(c1, prefix, nameGenerator)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to get backup path: %w", err)
 	}
@@ -365,7 +369,14 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, erro
 	return expectedPath, binlogPos, os.Rename(path, expectedPath)
 }
 
-func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
+// Deprecated: DO NOT USE
+func (e *Engine) BackupOld(ctx context.Context, prefix string) (string, int64, error) {
+	return e.Backup(ctx, prefix, func(prefix string, binlogOffset int64) (string, error) {
+		return getBackupPathOldStyle(prefix, binlogOffset)
+	})
+}
+
+func getBackupPath(conn internalConn, prefix string, nameGenerator func(prefix string, offset int64) (string, error)) (string, int64, error) {
 	pos, isExists, err := binlogLoadPosition(conn)
 	if err != nil {
 		return "", pos, fmt.Errorf("failed to load binlog position from backup: %w", err)
@@ -373,7 +384,11 @@ func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
 	if !isExists {
 		return "", pos, fmt.Errorf("failed to load binlog position: db is Empty")
 	}
+	path, err := nameGenerator(prefix, pos)
+	return path, pos, err
+}
 
+func getBackupPathOldStyle(prefix string, pos int64) (string, error) {
 	copyPos := pos
 	numLen := -4
 	for copyPos > 0 {
@@ -389,12 +404,12 @@ func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
 
 	for l := 4; l <= len(posStr); l++ {
 		filename := prefix + posStr[:l]
-		if _, err = os.Stat(filename); os.IsNotExist(err) {
-			return filename, pos, nil
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			return filename, nil
 		}
 	}
 
-	return "", pos, fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
+	return "", fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
 }
 
 func (e *Engine) ViewTx(ctx context.Context, queryName string, fn func(Conn) error) (res ViewTxResult, err error) {
