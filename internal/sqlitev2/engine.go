@@ -118,6 +118,13 @@ type (
 	ViewTxResult struct {
 		DBOffset int64 // sqlite snapshot offset for current ViewTx transaction
 	}
+
+	BackupMeta struct {
+		Path          string
+		PayloadOffset int64
+		SnapshotMeta  string
+		ControlMeta   string // actually this is equal SnapshotMeta
+	}
 )
 
 const (
@@ -319,16 +326,16 @@ Backup is only sqlite backup, not barsic snapshot. To make barsic snapshot you s
 prefix - directory to store backup
 nameGenerator - should return full path to backup
 */
-func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(prefix string, binlogOffset int64) (string, error)) (string, int64, error) {
+func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(prefix string, binlogOffset int64) (string, error)) (m BackupMeta, _ error) {
 	if prefix == "" {
-		return "", 0, fmt.Errorf("backup prefix is Empty")
+		return m, fmt.Errorf("backup prefix is Empty")
 	}
 	e.logger.Printf("starting backup")
 	startTime := time.Now()
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", startTime)
 	conn, err := newSqliteROWALConn(e.opt.Path, 10, e.opt.StatsOptions, e.logger)
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to open RO connection to backup: %w", err)
+		return m, fmt.Errorf("failed to open RO connection to backup: %w", err)
 	}
 	defer func() {
 		_ = conn.Close()
@@ -342,16 +349,16 @@ func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(p
 		if errors.Is(err, os.ErrNotExist) {
 			err := c.Exec("__vacuum", "VACUUM INTO $to", TextString("$to", path))
 			if err != nil {
-				return path, 0, err
+				return m, err
 			}
 		} else {
-			return path, 0, fmt.Errorf("os.Stats failed: %w", err)
+			return m, fmt.Errorf("os.Stats failed: %w", err)
 		}
 	}
 
 	conn1, err := newSqliteROConn(path, e.opt.StatsOptions, e.logger)
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to open RO connection to rename backup: %w", err)
+		return m, fmt.Errorf("failed to open RO connection to rename backup: %w", err)
 	}
 	defer func() {
 		_ = conn1.Close()
@@ -359,14 +366,19 @@ func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(p
 	c1 := newInternalConn(conn1)
 	expectedPath, binlogPos, err := getBackupPath(c1, prefix, nameGenerator)
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to get backup path: %w", err)
+		return m, fmt.Errorf("failed to get backup path: %w", err)
 	}
 	e.logger.Printf("backup is loaded to temp file. Starting wait binlog commit")
 	// TODO при реверте без рестарта требуется таймаут
 	e.binlogEngine.binlogWait(binlogPos, true)
 	stat, _ := os.Stat(path)
 	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
-	return expectedPath, binlogPos, os.Rename(path, expectedPath)
+	return BackupMeta{
+		Path:          expectedPath,
+		PayloadOffset: binlogPos,
+		SnapshotMeta:  "",
+		ControlMeta:   "",
+	}, os.Rename(path, expectedPath)
 }
 
 // Deprecated: DO NOT USE
