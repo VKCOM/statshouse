@@ -540,6 +540,31 @@ func (sr *Series) freeSome(ev *evaluator, xs ...int) {
 	ev.freeSome(sr.Data, xs...)
 }
 
+func (sr *Series) removeEmpty(ev *evaluator) {
+	if sr.Meta.Total == 0 {
+		sr.Meta.Total = len(sr.Data)
+	}
+	for j := 0; j < len(sr.Data); {
+		var keep bool
+		if sr.Data[j].Values != nil {
+			for _, v := range (*sr.Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
+				if !math.IsNaN(v) {
+					keep = true
+					break
+				}
+			}
+		}
+		if keep {
+			j++
+		} else {
+			ev.free(sr.Data[j].Values)
+			sr.Data[j], sr.Data[len(sr.Data)-1] = sr.Data[len(sr.Data)-1], sr.Data[j]
+			sr.Data = sr.Data[:len(sr.Data)-1]
+			sr.Meta.Total--
+		}
+	}
+}
+
 func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) int {
 	n := 0
 	for i, maxHost := range d.MinMaxHost[x] {
@@ -681,6 +706,22 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 		tgs.hashSumValid = true
 	}
 	return sum, ht, nil
+}
+
+func tagsEqual(a, b map[string]*SeriesTag) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, ta := range a {
+		if tb, ok := b[k]; !ok ||
+			ta.Metric != tb.Metric ||
+			ta.ID != tb.ID ||
+			ta.Value != tb.Value ||
+			ta.SValue != tb.SValue {
+			return false
+		}
+	}
+	return true
 }
 
 // Serializes into JSON of Prometheus format. Slow but only 20 lines long.
