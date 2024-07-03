@@ -1431,12 +1431,16 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 
 func funcRate(ev *evaluator, sr Series) Series {
 	t := ev.time()
+	ev.funcPrefixSum(sr)
 	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
 		for wnd.moveOneLeft() {
-			if 1 < wnd.n {
+			if wnd.n > 1 {
 				delta := (*s.Values)[wnd.r] - (*s.Values)[wnd.l]
-				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]))
+				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]+wnd.s))
+			} else if wnd.l == wnd.r && wnd.l > 0 {
+				delta := (*s.Values)[wnd.r] - (*s.Values)[wnd.l-1]
+				wnd.setValueAtRight(delta / float64(wnd.s))
 			} else {
 				wnd.setValueAtRight(NilValue)
 			}
