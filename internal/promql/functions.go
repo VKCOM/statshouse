@@ -1434,9 +1434,12 @@ func funcRate(ev *evaluator, sr Series) Series {
 	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
 		for wnd.moveOneLeft() {
-			if 1 < wnd.n {
-				delta := (*s.Values)[wnd.r] - (*s.Values)[wnd.l]
-				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]))
+			if dt := t[wnd.r] - t[wnd.l] + wnd.s; dt != 0 {
+				dv := (*s.Values)[wnd.r]
+				if wnd.l > 0 {
+					dv -= (*s.Values)[wnd.l-1]
+				}
+				wnd.setValueAtRight(dv / float64(dt))
 			} else {
 				wnd.setValueAtRight(NilValue)
 			}
