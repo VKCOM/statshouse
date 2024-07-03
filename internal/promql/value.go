@@ -724,6 +724,9 @@ func (ts *TimeSeries) Type() parser.ValueType {
 }
 
 func (ts *TimeSeries) String() string {
+	if ts == nil {
+		return "<nil>"
+	}
 	var from, to int64
 	if len(ts.Time) != 0 {
 		from = ts.Time[0]
