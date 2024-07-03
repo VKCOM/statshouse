@@ -199,26 +199,7 @@ func (ev *evaluator) removeEmptySeries(srs []Series) {
 		return
 	}
 	for i := 0; i < len(srs); i++ {
-		if srs[i].Meta.Total == 0 {
-			srs[i].Meta.Total = len(srs[i].Data)
-		}
-		for j := 0; j < len(srs[i].Data); {
-			var keep bool
-			for _, v := range (*srs[i].Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
-				if !math.IsNaN(v) {
-					keep = true
-					break
-				}
-			}
-			if keep {
-				j++
-			} else {
-				ev.free(srs[i].Data[j].Values)
-				srs[i].Data[j], srs[i].Data[len(srs[i].Data)-1] = srs[i].Data[len(srs[i].Data)-1], srs[i].Data[j]
-				srs[i].Data = srs[i].Data[:len(srs[i].Data)-1]
-				srs[i].Meta.Total--
-			}
-		}
+		srs[i].removeEmpty(ev)
 	}
 }
 

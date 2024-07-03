@@ -540,6 +540,50 @@ func (sr *Series) freeSome(ev *evaluator, xs ...int) {
 	ev.freeSome(sr.Data, xs...)
 }
 
+func (sr *Series) removeEmpty(ev *evaluator) {
+	if sr.Meta.Total == 0 {
+		sr.Meta.Total = len(sr.Data)
+	}
+	for j := 0; j < len(sr.Data); {
+		var keep bool
+		values := sr.Data[j].Values
+		if values != nil {
+			for _, v := range (*values)[ev.t.ViewStartX:ev.t.ViewEndX] {
+				if !math.IsNaN(v) {
+					keep = true
+					break
+				}
+			}
+		}
+		if keep {
+			j++
+		} else {
+			if values != nil {
+				ev.free(values)
+			}
+			sr.Data[j], sr.Data[len(sr.Data)-1] = sr.Data[len(sr.Data)-1], sr.Data[j]
+			sr.Data = sr.Data[:len(sr.Data)-1]
+			sr.Meta.Total--
+		}
+	}
+}
+
+func tagsEqual(a, b map[string]*SeriesTag) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, ta := range a {
+		if tb, ok := b[k]; !ok ||
+			ta.Metric != tb.Metric ||
+			ta.ID != tb.ID ||
+			ta.Value != tb.Value ||
+			ta.SValue != tb.SValue {
+			return false
+		}
+	}
+	return true
+}
+
 func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) int {
 	n := 0
 	for i, maxHost := range d.MinMaxHost[x] {

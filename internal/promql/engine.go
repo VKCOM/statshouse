@@ -802,8 +802,8 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			}
 			lhs.free(ev)
 		case parser.CardManyToMany:
-			var lhsM map[uint64][]int
-			lhsM, _, err = lhs.group(ev, hashOptions{
+			var lhsM map[uint64]hashMeta
+			lhsM, err = lhs.hash(ev, hashOptions{
 				on:    expr.VectorMatching.On,
 				tags:  expr.VectorMatching.MatchingLabels,
 				stags: rhs.Meta.STags,
@@ -813,8 +813,8 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			}
 			switch expr.Op {
 			case parser.LAND:
-				var rhsM map[uint64][]int
-				rhsM, _, err = rhs.group(ev, hashOptions{
+				var rhsM map[uint64]hashMeta
+				rhsM, err = rhs.hash(ev, hashOptions{
 					on:    expr.VectorMatching.On,
 					tags:  expr.VectorMatching.MatchingLabels,
 					stags: lhs.Meta.STags,
@@ -823,17 +823,12 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 					return nil, err
 				}
 				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
-				for lhsH, lhsX := range lhsM {
+				for lhsH, lhsMt := range lhsM {
 					if rhsX, ok := rhsM[lhsH]; ok {
-						for _, rx := range rhsX[1:] {
-							sliceOr(*rhs.Data[rhsX[0]].Values, *rhs.Data[rhsX[0]].Values, *rhs.Data[rx].Values)
-						}
-						for _, lx := range lhsX {
-							sliceAnd(*lhs.Data[lx].Values, *lhs.Data[lx].Values, *rhs.Data[rhsX[0]].Values)
-						}
-						res[x].appendSome(lhs, lhsX...)
+						sliceAnd(*lhs.Data[lhsMt.x].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsX.x].Values)
+						res[x].appendSome(lhs, lhsMt.x)
 					} else {
-						ev.freeSome(lhs.Data, lhsX...)
+						lhs.Data[lhsMt.x].free(ev)
 					}
 				}
 				rhs.free(ev)
@@ -852,45 +847,50 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 					}
 					res[x] = lhs
 					res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
-					for lhsH, lhsXs := range lhsM {
+					for lhsH, lhsMt := range lhsM {
 						if rhsMt, ok := rhsM[lhsH]; ok {
-							for _, lhsX := range lhsXs {
-								sliceOr(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsMt.x].Values)
-							}
+							sliceOr(*res[x].Data[lhsMt.x].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsMt.x].Values)
 						}
 					}
 					rhs.free(ev)
 				}
 			case parser.LOR:
-				var rhsM map[uint64][]int
-				rhsM, _, err = rhs.group(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
-				})
-				if err != nil {
-					return nil, err
-				}
-				for rhsH, rhsXs := range rhsM {
-					if lhsXs, ok := lhsM[rhsH]; ok {
-						for i := range ev.time() {
-							for _, lhsX := range lhsXs {
-								if !math.IsNaN((*lhs.Data[lhsX].Values)[i]) {
-									for _, rhsX := range rhsXs {
-										(*rhs.Data[rhsX].Values)[i] = NilValue
-									}
-									break
-								}
+				if lhs.empty() {
+					res[x] = rhs
+				} else {
+					var rhsM map[uint64]hashMeta
+					rhsM, err = rhs.hash(ev, hashOptions{
+						on:    expr.VectorMatching.On,
+						tags:  expr.VectorMatching.MatchingLabels,
+						stags: lhs.Meta.STags,
+					})
+					if err != nil {
+						return nil, err
+					}
+					for rhsH, rhsMt := range rhsM {
+						if lhsMt, ok := lhsM[rhsH]; ok {
+							lhsTags := lhs.Data[lhsMt.x].Tags.ID2Tag
+							rhsTags := rhs.Data[rhsMt.x].Tags.ID2Tag
+							if tagsEqual(lhsTags, rhsTags) {
+								// merge series present on both sides
+								sliceOr(*res[x].Data[lhsMt.x].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsMt.x].Values)
+								rhs.Data[rhsMt.x].free(ev)
+							} else {
+								sliceUnless(*rhs.Data[rhsMt.x].Values, *rhs.Data[rhsMt.x].Values, *lhs.Data[lhsMt.x].Values)
 							}
 						}
 					}
+					res[x] = lhs
+					rhs.removeEmpty(ev) // RHS might contain freed or all-nil series
+					if !rhs.empty() {
+						// add RHS series which are not found on the LHS
+						res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
+						res[x].appendAll(rhs)
+					}
 				}
-				res[x] = lhs
-				res[x].appendAll(rhs)
-				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
 			case parser.LUNLESS:
-				var rhsM map[uint64][]int
-				rhsM, _, err = rhs.group(ev, hashOptions{
+				var rhsM map[uint64]hashMeta
+				rhsM, err = rhs.hash(ev, hashOptions{
 					on:    expr.VectorMatching.On,
 					tags:  expr.VectorMatching.MatchingLabels,
 					stags: lhs.Meta.STags,
@@ -898,17 +898,11 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				if err != nil {
 					return nil, err
 				}
-				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
-				for lhsH, lhsXs := range lhsM {
-					if rhsXs, ok := rhsM[lhsH]; ok {
-						for _, rhsX := range rhsXs[1:] {
-							sliceOr(*rhs.Data[rhsXs[0]].Values, *rhs.Data[rhsXs[0]].Values, *rhs.Data[rhsX].Values)
-						}
-						for _, lhsX := range lhsXs {
-							sliceUnless(*lhs.Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsXs[0]].Values)
-						}
+				res[x] = lhs
+				for lhsH, lhsMt := range lhsM {
+					if rhsMt, ok := rhsM[lhsH]; ok {
+						sliceUnless(*lhs.Data[lhsMt.x].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsMt.x].Values)
 					}
-					res[x].appendSome(lhs, lhsXs...)
 				}
 				rhs.free(ev)
 			default:
