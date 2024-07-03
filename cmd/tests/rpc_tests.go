@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"pgregory.net/rand"
 )
 
 func main() {
@@ -23,23 +25,37 @@ func main() {
 		Network: *net,
 		Address: *addr,
 	}
-	to := time.Now().Unix()
-	from := time.Now().Add(-time.Minute * 5).Unix()
-	qp := tlstatshouseApi.GetQueryPoint{
-		AccessToken: "",
-		Query: tlstatshouseApi.QueryPoint{
-			Version:    2,
-			TopN:       1,
-			MetricName: *metric,
-			TimeFrom:   from,
-			TimeTo:     to,
-			Function:   tlstatshouseApi.FnCount(),
-		},
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 10000; i++ {
+				to := time.Now().Unix()
+				from := time.Now().Add(-time.Minute * time.Duration(5+rand.Intn(60*24*2))).Unix()
+				qp := tlstatshouseApi.GetQueryPoint{
+					AccessToken: "",
+					Query: tlstatshouseApi.QueryPoint{
+						Version:    2,
+						TopN:       1,
+						MetricName: *metric,
+						TimeFrom:   from,
+						TimeTo:     to,
+						Function:   tlstatshouseApi.FnCount(),
+						TimeShift:  []int64{3600},
+					},
+				}
+				resp := tlstatshouseApi.GetQueryPointResponse{}
+				ctx, c := context.WithTimeout(context.Background(), time.Second)
+				err := apiClient.GetQueryPoint(ctx, qp, nil, &resp)
+				c()
+				if err != nil && !errors.Is(err, context.Canceled) {
+					panic(err)
+				}
+			}
+		}()
 	}
-	resp := tlstatshouseApi.GetQueryPointResponse{}
-	err := apiClient.GetQueryPoint(context.Background(), qp, nil, &resp)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(resp.WriteJSON(nil)))
+	wg.Wait()
+	//fmt.Println(string(resp.WriteJSON(nil)))
 }
