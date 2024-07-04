@@ -1113,7 +1113,7 @@ func (h *Handler) HandleGetPromConfigGenerated(w http.ResponseWriter, r *http.Re
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	s, err := aggregator.DeserializeScrapeStaticConfig([]byte(h.metricsStorage.PromConfigGenerated().Data))
+	s, err := aggregator.DeserializeScrapeConfig([]byte(h.metricsStorage.PromConfigGenerated().Data), nil)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return

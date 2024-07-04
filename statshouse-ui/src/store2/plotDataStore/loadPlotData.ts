@@ -12,18 +12,19 @@ import { type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
+import { autoLowAgg, autoAgg } from '../constants';
 
-export async function loadPlotData(
+export function getLoadPlotUrlParams(
   plotKey: PlotKey,
   params: QueryParams,
+  fetchBadges: boolean = false,
   priority?: number
-): Promise<ProduceUpdate<StatsHouseStore> | null> {
+): ApiQueryGet | null {
   const plot = params.plots[plotKey];
   if (!plot) {
     return null;
   }
-  const fetchBadges = true;
-  const width = plot.customAgg === -1 ? `500` : plot.customAgg === 0 ? `2000` : `${plot.customAgg}s`;
+  const width = plot.customAgg === -1 ? autoLowAgg : plot.customAgg === 0 ? autoAgg : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
     [GET_PARAMS.numResults]: plot.numSeries.toString(),
     [GET_PARAMS.metricWhat]: plot.what.slice(),
@@ -47,11 +48,27 @@ export async function loadPlotData(
   if (plot.maxHost) {
     urlParams[GET_PARAMS.metricMaxHost] = '1';
   }
-  // if (fetchBadges) {
-  //   urlParams[GET_PARAMS.metricVerbose] = '1';
-  // }
   if (priority) {
     urlParams[GET_PARAMS.priority] = priority.toString();
+  }
+  // if (allParams) {
+  //   urlParams.push(...encodeVariableValues(allParams));
+  //   urlParams.push(...encodeVariableConfig(allParams));
+  // }
+
+  return urlParams;
+}
+
+export async function loadPlotData(
+  plotKey: PlotKey,
+  params: QueryParams,
+  fetchBadges: boolean = false,
+  priority?: number
+): Promise<ProduceUpdate<StatsHouseStore> | null> {
+  const urlParams = getLoadPlotUrlParams(plotKey, params, fetchBadges, priority);
+  const plot = params.plots[plotKey];
+  if (!urlParams || !plot) {
+    return null;
   }
   // todo:
   // loadMetricMeta(plot.metricName).then();

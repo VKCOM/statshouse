@@ -862,32 +862,41 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 					rhs.free(ev)
 				}
 			case parser.LOR:
-				var rhsM map[uint64][]int
-				rhsM, _, err = rhs.group(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
-				})
-				if err != nil {
-					return nil, err
-				}
-				for rhsH, rhsXs := range rhsM {
-					if lhsXs, ok := lhsM[rhsH]; ok {
-						for i := range ev.time() {
+				if lhs.empty() {
+					res[x] = rhs
+				} else {
+					var rhsM map[uint64][]int
+					rhsM, _, err = rhs.group(ev, hashOptions{
+						on:    expr.VectorMatching.On,
+						tags:  expr.VectorMatching.MatchingLabels,
+						stags: lhs.Meta.STags,
+					})
+					if err != nil {
+						return nil, err
+					}
+					for rhsH, rhsXs := range rhsM {
+						if lhsXs, ok := lhsM[rhsH]; ok {
 							for _, lhsX := range lhsXs {
-								if !math.IsNaN((*lhs.Data[lhsX].Values)[i]) {
-									for _, rhsX := range rhsXs {
-										(*rhs.Data[rhsX].Values)[i] = NilValue
+								for _, rhsX := range rhsXs {
+									if tagsEqual(lhs.Data[lhsX].Tags.ID2Tag, rhs.Data[rhsX].Tags.ID2Tag) {
+										sliceOr(*lhs.Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
+										rhs.Data[rhsX].empty = true // exactly matching series on the left found
+									} else {
+										sliceUnless(*rhs.Data[rhsX].Values, *rhs.Data[rhsX].Values, *lhs.Data[lhsX].Values)
 									}
-									break
 								}
 							}
 						}
 					}
+					res[x] = lhs
+					// remove all-nil series on the right
+					rhs.removeEmpty(ev)
+					// add RHS series which are not found on the left
+					if !rhs.empty() {
+						res[x].appendAll(rhs)
+						res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
+					}
 				}
-				res[x] = lhs
-				res[x].appendAll(rhs)
-				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
 			case parser.LUNLESS:
 				var rhsM map[uint64][]int
 				rhsM, _, err = rhs.group(ev, hashOptions{

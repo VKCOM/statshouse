@@ -24,6 +24,8 @@ import { debug } from 'common/debug';
 import { PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { isPromQL } from 'store2/helpers';
+import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
+import cn from 'classnames';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
@@ -33,8 +35,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey = '', class
   const {
     plot,
     singleLink,
-    live,
-    disabledLive,
     setLiveMode,
     timeRangePanLeft,
     timeRangePanRight,
@@ -47,7 +47,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey = '', class
     ({
       params: { plots },
       links: { plotsLink },
-      liveMode,
       setLiveMode,
       timeRangePanLeft,
       timeRangePanRight,
@@ -59,8 +58,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey = '', class
     }) => ({
       plot: plots[plotKey],
       singleLink: plotsLink[plotKey]?.singleLink,
-      live: liveMode.status,
-      disabledLive: liveMode.disabled,
       setLiveMode,
       timeRangePanLeft,
       timeRangePanRight,
@@ -123,7 +120,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey = '', class
   );
 
   return (
-    <div className={`btn-group ${className}`} role="group">
+    <div className={cn('btn-group', className)} role="group">
       <Button type="button" className="btn btn-outline-primary" title="Pan left" onClick={panLeft}>
         <SVGChevronLeft />
       </Button>
@@ -187,16 +184,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey = '', class
           </Link>
         </Tooltip>
       )}
-
-      <ToggleButton
-        className="btn btn-outline-primary"
-        title="Follow live"
-        checked={live}
-        onChange={setLiveMode}
-        disabled={disabledLive}
-      >
-        <SVGPlayFill />
-      </ToggleButton>
+      <ButtonToggleLiveMode />
     </div>
   );
 };

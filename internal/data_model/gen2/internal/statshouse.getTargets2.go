@@ -14,11 +14,12 @@ import (
 var _ = basictl.NatWrite
 
 type StatshouseGetTargets2 struct {
-	FieldsMask   uint32
-	Header       StatshouseCommonProxyHeader
-	PromHostName string
-	OldHash      string
-	GaugeMetrics bool // Conditional: item.FieldsMask.0
+	FieldsMask           uint32
+	Header               StatshouseCommonProxyHeader
+	PromHostName         string
+	OldHash              string
+	GaugeMetrics         bool // Conditional: item.FieldsMask.0
+	MetricRelabelConfigs bool // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetTargets2) TLName() string { return "statshouse.getTargets2" }
@@ -34,12 +35,25 @@ func (item *StatshouseGetTargets2) ClearGaugeMetrics() {
 }
 func (item StatshouseGetTargets2) IsSetGaugeMetrics() bool { return item.FieldsMask&(1<<0) != 0 }
 
+func (item *StatshouseGetTargets2) SetMetricRelabelConfigs(v bool) {
+	item.MetricRelabelConfigs = v
+	item.FieldsMask |= 1 << 1
+}
+func (item *StatshouseGetTargets2) ClearMetricRelabelConfigs() {
+	item.MetricRelabelConfigs = false
+	item.FieldsMask &^= 1 << 1
+}
+func (item StatshouseGetTargets2) IsSetMetricRelabelConfigs() bool {
+	return item.FieldsMask&(1<<1) != 0
+}
+
 func (item *StatshouseGetTargets2) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.PromHostName = ""
 	item.OldHash = ""
 	item.GaugeMetrics = false
+	item.MetricRelabelConfigs = false
 }
 
 func (item *StatshouseGetTargets2) Read(w []byte) (_ []byte, err error) {
@@ -62,6 +76,13 @@ func (item *StatshouseGetTargets2) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.GaugeMetrics = false
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		if w, err = BoolReadBoxed(w, &item.MetricRelabelConfigs); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricRelabelConfigs = false
+	}
 	return w, nil
 }
 
@@ -77,6 +98,9 @@ func (item *StatshouseGetTargets2) Write(w []byte) []byte {
 	w = basictl.StringWrite(w, item.OldHash)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = BoolWriteBoxed(w, item.GaugeMetrics)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = BoolWriteBoxed(w, item.MetricRelabelConfigs)
 	}
 	return w
 }
@@ -161,6 +185,7 @@ func (item *StatshouseGetTargets2) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	var propPromHostNamePresented bool
 	var propOldHashPresented bool
 	var propGaugeMetricsPresented bool
+	var propMetricRelabelConfigsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -211,6 +236,14 @@ func (item *StatshouseGetTargets2) ReadJSON(legacyTypeNames bool, in *basictl.Js
 					return err
 				}
 				propGaugeMetricsPresented = true
+			case "metric_relabel_configs":
+				if propMetricRelabelConfigsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargets2", "metric_relabel_configs")
+				}
+				if err := Json2ReadBool(in, &item.MetricRelabelConfigs); err != nil {
+					return err
+				}
+				propMetricRelabelConfigsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getTargets2", key)
 			}
@@ -233,8 +266,14 @@ func (item *StatshouseGetTargets2) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	if !propGaugeMetricsPresented {
 		item.GaugeMetrics = false
 	}
+	if !propMetricRelabelConfigsPresented {
+		item.MetricRelabelConfigs = false
+	}
 	if propGaugeMetricsPresented {
 		item.FieldsMask |= 1 << 0
+	}
+	if propMetricRelabelConfigsPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -287,6 +326,11 @@ func (item *StatshouseGetTargets2) WriteJSONOpt(newTypeNames bool, short bool, w
 		w = append(w, `"gauge_metrics":`...)
 		w = basictl.JSONWriteBool(w, item.GaugeMetrics)
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_relabel_configs":`...)
+		w = basictl.JSONWriteBool(w, item.MetricRelabelConfigs)
+	}
 	return append(w, '}')
 }
 
@@ -302,11 +346,12 @@ func (item *StatshouseGetTargets2) UnmarshalJSON(b []byte) error {
 }
 
 type StatshouseGetTargets2Bytes struct {
-	FieldsMask   uint32
-	Header       StatshouseCommonProxyHeaderBytes
-	PromHostName []byte
-	OldHash      []byte
-	GaugeMetrics bool // Conditional: item.FieldsMask.0
+	FieldsMask           uint32
+	Header               StatshouseCommonProxyHeaderBytes
+	PromHostName         []byte
+	OldHash              []byte
+	GaugeMetrics         bool // Conditional: item.FieldsMask.0
+	MetricRelabelConfigs bool // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetTargets2Bytes) TLName() string { return "statshouse.getTargets2" }
@@ -322,12 +367,25 @@ func (item *StatshouseGetTargets2Bytes) ClearGaugeMetrics() {
 }
 func (item StatshouseGetTargets2Bytes) IsSetGaugeMetrics() bool { return item.FieldsMask&(1<<0) != 0 }
 
+func (item *StatshouseGetTargets2Bytes) SetMetricRelabelConfigs(v bool) {
+	item.MetricRelabelConfigs = v
+	item.FieldsMask |= 1 << 1
+}
+func (item *StatshouseGetTargets2Bytes) ClearMetricRelabelConfigs() {
+	item.MetricRelabelConfigs = false
+	item.FieldsMask &^= 1 << 1
+}
+func (item StatshouseGetTargets2Bytes) IsSetMetricRelabelConfigs() bool {
+	return item.FieldsMask&(1<<1) != 0
+}
+
 func (item *StatshouseGetTargets2Bytes) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.PromHostName = item.PromHostName[:0]
 	item.OldHash = item.OldHash[:0]
 	item.GaugeMetrics = false
+	item.MetricRelabelConfigs = false
 }
 
 func (item *StatshouseGetTargets2Bytes) Read(w []byte) (_ []byte, err error) {
@@ -350,6 +408,13 @@ func (item *StatshouseGetTargets2Bytes) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.GaugeMetrics = false
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		if w, err = BoolReadBoxed(w, &item.MetricRelabelConfigs); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricRelabelConfigs = false
+	}
 	return w, nil
 }
 
@@ -365,6 +430,9 @@ func (item *StatshouseGetTargets2Bytes) Write(w []byte) []byte {
 	w = basictl.StringWriteBytes(w, item.OldHash)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = BoolWriteBoxed(w, item.GaugeMetrics)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = BoolWriteBoxed(w, item.MetricRelabelConfigs)
 	}
 	return w
 }
@@ -449,6 +517,7 @@ func (item *StatshouseGetTargets2Bytes) ReadJSON(legacyTypeNames bool, in *basic
 	var propPromHostNamePresented bool
 	var propOldHashPresented bool
 	var propGaugeMetricsPresented bool
+	var propMetricRelabelConfigsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -499,6 +568,14 @@ func (item *StatshouseGetTargets2Bytes) ReadJSON(legacyTypeNames bool, in *basic
 					return err
 				}
 				propGaugeMetricsPresented = true
+			case "metric_relabel_configs":
+				if propMetricRelabelConfigsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargets2", "metric_relabel_configs")
+				}
+				if err := Json2ReadBool(in, &item.MetricRelabelConfigs); err != nil {
+					return err
+				}
+				propMetricRelabelConfigsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getTargets2", key)
 			}
@@ -521,8 +598,14 @@ func (item *StatshouseGetTargets2Bytes) ReadJSON(legacyTypeNames bool, in *basic
 	if !propGaugeMetricsPresented {
 		item.GaugeMetrics = false
 	}
+	if !propMetricRelabelConfigsPresented {
+		item.MetricRelabelConfigs = false
+	}
 	if propGaugeMetricsPresented {
 		item.FieldsMask |= 1 << 0
+	}
+	if propMetricRelabelConfigsPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -574,6 +657,11 @@ func (item *StatshouseGetTargets2Bytes) WriteJSONOpt(newTypeNames bool, short bo
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"gauge_metrics":`...)
 		w = basictl.JSONWriteBool(w, item.GaugeMetrics)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_relabel_configs":`...)
+		w = basictl.JSONWriteBool(w, item.MetricRelabelConfigs)
 	}
 	return append(w, '}')
 }

@@ -8,7 +8,7 @@ import { produce } from 'immer';
 import { getDefaultParams, type GroupKey, type PlotKey, type PlotParams, type QueryParams } from 'url2';
 import { type StoreSlice } from '../createStore';
 import { appHistory } from 'common/appHistory';
-import { getUrl, type ProduceUpdate, validPath } from '../helpers';
+import { getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
 import { mergeLeft } from 'common/helpers';
 import { getUrlState } from './getUrlState';
 import { type StatsHouseStore } from '../statsHouseStore';
@@ -26,10 +26,13 @@ import {
 } from './timeRangeNavigate';
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
+import { updateRemovePlot } from './updateRemovePlot';
 
 export type UrlStore = {
   params: QueryParams;
   saveParams: QueryParams;
+  isEmbed: boolean;
+  dashboardLayoutEdit: boolean;
   updateUrlState(): void;
   setUrlStore(next: ProduceUpdate<UrlStore>, replace?: boolean): void;
   setParams(next: ProduceUpdate<QueryParams>, replace?: boolean): void;
@@ -38,11 +41,14 @@ export type UrlStore = {
   setPlotType(plotKey: PlotKey, nextType: PlotType, replace?: boolean): void;
   setPlotYLock(plotKey: PlotKey, status: boolean): void;
   resetZoom(plotKey: PlotKey): void;
+  removePlot(plotKey: PlotKey): void;
   timeRangePanLeft(): void;
   timeRangePanRight(): void;
   timeRangeZoomIn(): void;
   timeRangeZoomOut(): void;
   toggleGroupShow(groupKey: GroupKey): void;
+  setDashboardLayoutEdit(status: boolean): void;
+  saveDashboard(): Promise<void>;
 };
 
 export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState, store) => {
@@ -52,6 +58,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   function updateUrlState() {
     getUrlState(getState().saveParams, prevLocation, getState().setUrlStore).then((res) => {
       setState((s) => {
+        s.isEmbed = isEmbedPath(prevLocation);
         s.params = mergeLeft(s.params, res.params);
         s.saveParams = mergeLeft(s.saveParams, res.saveParams);
       });
@@ -73,7 +80,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   appHistory.listen(({ location }) => {
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
-      if (validPath(prevLocation) && prevSearch !== prevLocation.search) {
+      if (isValidPath(prevLocation)) {
         prevSearch = prevLocation.search;
         updateUrlState();
       }
@@ -81,12 +88,16 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   });
 
   const saveParams = getDefaultParams();
-  setTimeout(updateUrlState, 0);
+  if (isValidPath(prevLocation)) {
+    setTimeout(updateUrlState, 0);
+  }
   return {
     params: saveParams,
     saveParams: saveParams,
+    isEmbed: isEmbedPath(prevLocation),
     updateUrlState,
     setUrlStore,
+    dashboardLayoutEdit: false,
     setParams(next: ProduceUpdate<QueryParams>, replace) {
       setUrlStore(updateParams(next), replace);
     },
@@ -105,6 +116,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     resetZoom(plotKey: PlotKey) {
       setUrlStore(updateResetZoom(plotKey));
     },
+    removePlot(plotKey: PlotKey) {
+      setUrlStore(updateRemovePlot(plotKey));
+    },
     timeRangePanLeft() {
       setUrlStore(timeRangePanLeft());
     },
@@ -119,6 +133,14 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     toggleGroupShow(groupKey) {
       setUrlStore(toggleGroupShow(groupKey));
+    },
+    setDashboardLayoutEdit(status) {
+      setState((s) => {
+        s.dashboardLayoutEdit = status;
+      });
+    },
+    async saveDashboard() {
+      //todo: save dash
     },
   };
 };

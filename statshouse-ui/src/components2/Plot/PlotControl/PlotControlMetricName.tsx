@@ -6,8 +6,8 @@
 
 import React, { memo, useCallback } from 'react';
 import { SelectMetric } from 'components';
-import { useStatsHouseShallow } from '../../../store2';
-import { PlotKey } from '../../../url2';
+import { useStatsHouseShallow } from 'store2';
+import { type PlotKey } from 'url2';
 
 export type PlotControlMetricNameProps = {
   plotKey: PlotKey;
@@ -35,4 +35,5 @@ export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) 
   );
   return <SelectMetric value={metricName} onChange={onChange} />;
 }
+
 export const PlotControlMetricName = memo(_PlotControlMetricName);

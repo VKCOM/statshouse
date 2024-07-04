@@ -96,7 +96,7 @@ statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     build_arch:int // comparison of x64 and arm64 nodes will be interesting for some time
 = statshouse.CommonProxyHeader fields_mask;
 
-statshouse.promTarget#ac5296df
+statshouse.promTarget#ac5296df {fields_mask_arg:#}
     fields_mask: #
     job_name: string
     url: string
@@ -111,10 +111,11 @@ statshouse.promTarget#ac5296df
     label_value_length_limit: long
     // raw yaml from prom config
     http_client_config: string
-= statshouse.PromTarget;
+    metric_relabel_configs: fields_mask_arg.1?string
+= statshouse.PromTarget fields_mask_arg;
 
 statshouse.getTargetsResult#51ac86df {fields_mask:#}
-    targets: (vector statshouse.promTarget)
+    targets: (vector (statshouse.promTarget fields_mask))
     hash: string
     gauge_metrics:fields_mask.0?(vector string)
 = statshouse.GetTargetsResult fields_mask;
@@ -199,6 +200,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     prom_host_name:string // in contrast to normalized and validated for statshouse key, like in header
     old_hash: string
     gauge_metrics:fields_mask.0?Bool
+    metric_relabel_configs:fields_mask.1?Bool
      = statshouse.GetTargetsResult fields_mask;
 
 @readwrite statshouse.testConnection2#4285ff58

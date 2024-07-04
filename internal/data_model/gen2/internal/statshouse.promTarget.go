@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinVectorStatshousePromTargetRead(w []byte, vec *[]StatshousePromTarget) (_ []byte, err error) {
+func BuiltinVectorStatshousePromTargetRead(w []byte, vec *[]StatshousePromTarget, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -27,22 +27,22 @@ func BuiltinVectorStatshousePromTargetRead(w []byte, vec *[]StatshousePromTarget
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
+		if w, err = (*vec)[i].Read(w, nat_t); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorStatshousePromTargetWrite(w []byte, vec []StatshousePromTarget) []byte {
+func BuiltinVectorStatshousePromTargetWrite(w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.Write(w)
+		w = elem.Write(w, nat_t)
 	}
 	return w
 }
 
-func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTarget) error {
+func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -70,19 +70,19 @@ func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl
 	return nil
 }
 
-func BuiltinVectorStatshousePromTargetWriteJSON(w []byte, vec []StatshousePromTarget) []byte {
-	return BuiltinVectorStatshousePromTargetWriteJSONOpt(true, false, w, vec)
+func BuiltinVectorStatshousePromTargetWriteJSON(w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
+	return BuiltinVectorStatshousePromTargetWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTarget) []byte {
+func BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
 	}
 	return append(w, ']')
 }
 
-func BuiltinVectorStatshousePromTargetBytesRead(w []byte, vec *[]StatshousePromTargetBytes) (_ []byte, err error) {
+func BuiltinVectorStatshousePromTargetBytesRead(w []byte, vec *[]StatshousePromTargetBytes, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -96,22 +96,22 @@ func BuiltinVectorStatshousePromTargetBytesRead(w []byte, vec *[]StatshousePromT
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
+		if w, err = (*vec)[i].Read(w, nat_t); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorStatshousePromTargetBytesWrite(w []byte, vec []StatshousePromTargetBytes) []byte {
+func BuiltinVectorStatshousePromTargetBytesWrite(w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.Write(w)
+		w = elem.Write(w, nat_t)
 	}
 	return w
 }
 
-func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes) error {
+func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -125,7 +125,7 @@ func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *ba
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -139,14 +139,14 @@ func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *ba
 	return nil
 }
 
-func BuiltinVectorStatshousePromTargetBytesWriteJSON(w []byte, vec []StatshousePromTargetBytes) []byte {
-	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(true, false, w, vec)
+func BuiltinVectorStatshousePromTargetBytesWriteJSON(w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
+	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTargetBytes) []byte {
+func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -165,6 +165,7 @@ type StatshousePromTarget struct {
 	LabelNameLengthLimit  int64
 	LabelValueLengthLimit int64
 	HttpClientConfig      string
+	MetricRelabelConfigs  string // Conditional: nat_fields_mask_arg.1
 }
 
 func (StatshousePromTarget) TLName() string { return "statshouse.promTarget" }
@@ -188,6 +189,22 @@ func (item *StatshousePromTarget) SetHonorLabels(v bool) {
 }
 func (item StatshousePromTarget) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *StatshousePromTarget) SetMetricRelabelConfigs(v string, nat_fields_mask_arg *uint32) {
+	item.MetricRelabelConfigs = v
+	if nat_fields_mask_arg != nil {
+		*nat_fields_mask_arg |= 1 << 1
+	}
+}
+func (item *StatshousePromTarget) ClearMetricRelabelConfigs(nat_fields_mask_arg *uint32) {
+	item.MetricRelabelConfigs = ""
+	if nat_fields_mask_arg != nil {
+		*nat_fields_mask_arg &^= 1 << 1
+	}
+}
+func (item StatshousePromTarget) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
+	return nat_fields_mask_arg&(1<<1) != 0
+}
+
 func (item *StatshousePromTarget) Reset() {
 	item.FieldsMask = 0
 	item.JobName = ""
@@ -200,9 +217,10 @@ func (item *StatshousePromTarget) Reset() {
 	item.LabelNameLengthLimit = 0
 	item.LabelValueLengthLimit = 0
 	item.HttpClientConfig = ""
+	item.MetricRelabelConfigs = ""
 }
 
-func (item *StatshousePromTarget) Read(w []byte) (_ []byte, err error) {
+func (item *StatshousePromTarget) Read(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -233,15 +251,25 @@ func (item *StatshousePromTarget) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.LabelValueLengthLimit); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.HttpClientConfig)
+	if w, err = basictl.StringRead(w, &item.HttpClientConfig); err != nil {
+		return w, err
+	}
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		if w, err = basictl.StringRead(w, &item.MetricRelabelConfigs); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricRelabelConfigs = ""
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
-func (item *StatshousePromTarget) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+func (item *StatshousePromTarget) WriteGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTarget) Write(w []byte) []byte {
+func (item *StatshousePromTarget) Write(w []byte, nat_fields_mask_arg uint32) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.JobName)
 	w = basictl.StringWrite(w, item.Url)
@@ -253,31 +281,30 @@ func (item *StatshousePromTarget) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.LabelNameLengthLimit)
 	w = basictl.LongWrite(w, item.LabelValueLengthLimit)
 	w = basictl.StringWrite(w, item.HttpClientConfig)
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		w = basictl.StringWrite(w, item.MetricRelabelConfigs)
+	}
 	return w
 }
 
-func (item *StatshousePromTarget) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshousePromTarget) ReadBoxed(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xac5296df); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.Read(w, nat_fields_mask_arg)
 }
 
 // This method is general version of WriteBoxed, use it instead!
-func (item *StatshousePromTarget) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+func (item *StatshousePromTarget) WriteBoxedGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTarget) WriteBoxed(w []byte) []byte {
+func (item *StatshousePromTarget) WriteBoxed(w []byte, nat_fields_mask_arg uint32) []byte {
 	w = basictl.NatWrite(w, 0xac5296df)
-	return item.Write(w)
+	return item.Write(w, nat_fields_mask_arg)
 }
 
-func (item StatshousePromTarget) String() string {
-	return string(item.WriteJSON(nil))
-}
-
-func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -293,6 +320,7 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	var propLabelNameLengthLimitPresented bool
 	var propLabelValueLengthLimitPresented bool
 	var propHttpClientConfigPresented bool
+	var propMetricRelabelConfigsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -407,6 +435,17 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				propHttpClientConfigPresented = true
+			case "metric_relabel_configs":
+				if propMetricRelabelConfigsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "metric_relabel_configs")
+				}
+				if nat_fields_mask_arg&(1<<1) == 0 {
+					return ErrorInvalidJSON("statshouse.promTarget", "field 'metric_relabel_configs' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadString(in, &item.MetricRelabelConfigs); err != nil {
+					return err
+				}
+				propMetricRelabelConfigsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.promTarget", key)
 			}
@@ -450,6 +489,9 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	if !propHttpClientConfigPresented {
 		item.HttpClientConfig = ""
 	}
+	if !propMetricRelabelConfigsPresented {
+		item.MetricRelabelConfigs = ""
+	}
 	if trueTypeHonorTimestampsPresented {
 		if trueTypeHonorTimestampsValue {
 			item.FieldsMask |= 1 << 0
@@ -472,14 +514,14 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTarget) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshousePromTarget) WriteJSONGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTarget) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+func (item *StatshousePromTarget) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -566,18 +608,12 @@ func (item *StatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if (len(item.HttpClientConfig) != 0) == false {
 		w = w[:backupIndexHttpClientConfig]
 	}
-	return append(w, '}')
-}
-
-func (item *StatshousePromTarget) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil), nil
-}
-
-func (item *StatshousePromTarget) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.promTarget", err.Error())
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_relabel_configs":`...)
+		w = basictl.JSONWriteString(w, item.MetricRelabelConfigs)
 	}
-	return nil
+	return append(w, '}')
 }
 
 type StatshousePromTargetBytes struct {
@@ -594,6 +630,7 @@ type StatshousePromTargetBytes struct {
 	LabelNameLengthLimit  int64
 	LabelValueLengthLimit int64
 	HttpClientConfig      []byte
+	MetricRelabelConfigs  []byte // Conditional: nat_fields_mask_arg.1
 }
 
 func (StatshousePromTargetBytes) TLName() string { return "statshouse.promTarget" }
@@ -617,6 +654,22 @@ func (item *StatshousePromTargetBytes) SetHonorLabels(v bool) {
 }
 func (item StatshousePromTargetBytes) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *StatshousePromTargetBytes) SetMetricRelabelConfigs(v []byte, nat_fields_mask_arg *uint32) {
+	item.MetricRelabelConfigs = v
+	if nat_fields_mask_arg != nil {
+		*nat_fields_mask_arg |= 1 << 1
+	}
+}
+func (item *StatshousePromTargetBytes) ClearMetricRelabelConfigs(nat_fields_mask_arg *uint32) {
+	item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
+	if nat_fields_mask_arg != nil {
+		*nat_fields_mask_arg &^= 1 << 1
+	}
+}
+func (item StatshousePromTargetBytes) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
+	return nat_fields_mask_arg&(1<<1) != 0
+}
+
 func (item *StatshousePromTargetBytes) Reset() {
 	item.FieldsMask = 0
 	item.JobName = item.JobName[:0]
@@ -629,9 +682,10 @@ func (item *StatshousePromTargetBytes) Reset() {
 	item.LabelNameLengthLimit = 0
 	item.LabelValueLengthLimit = 0
 	item.HttpClientConfig = item.HttpClientConfig[:0]
+	item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
 }
 
-func (item *StatshousePromTargetBytes) Read(w []byte) (_ []byte, err error) {
+func (item *StatshousePromTargetBytes) Read(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -662,15 +716,25 @@ func (item *StatshousePromTargetBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.LabelValueLengthLimit); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.HttpClientConfig)
+	if w, err = basictl.StringReadBytes(w, &item.HttpClientConfig); err != nil {
+		return w, err
+	}
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.MetricRelabelConfigs); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
-func (item *StatshousePromTargetBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+func (item *StatshousePromTargetBytes) WriteGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.Write(w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTargetBytes) Write(w []byte) []byte {
+func (item *StatshousePromTargetBytes) Write(w []byte, nat_fields_mask_arg uint32) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.JobName)
 	w = basictl.StringWriteBytes(w, item.Url)
@@ -682,31 +746,30 @@ func (item *StatshousePromTargetBytes) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.LabelNameLengthLimit)
 	w = basictl.LongWrite(w, item.LabelValueLengthLimit)
 	w = basictl.StringWriteBytes(w, item.HttpClientConfig)
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		w = basictl.StringWriteBytes(w, item.MetricRelabelConfigs)
+	}
 	return w
 }
 
-func (item *StatshousePromTargetBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshousePromTargetBytes) ReadBoxed(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xac5296df); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.Read(w, nat_fields_mask_arg)
 }
 
 // This method is general version of WriteBoxed, use it instead!
-func (item *StatshousePromTargetBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+func (item *StatshousePromTargetBytes) WriteBoxedGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteBoxed(w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTargetBytes) WriteBoxed(w []byte) []byte {
+func (item *StatshousePromTargetBytes) WriteBoxed(w []byte, nat_fields_mask_arg uint32) []byte {
 	w = basictl.NatWrite(w, 0xac5296df)
-	return item.Write(w)
+	return item.Write(w, nat_fields_mask_arg)
 }
 
-func (item StatshousePromTargetBytes) String() string {
-	return string(item.WriteJSON(nil))
-}
-
-func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -722,6 +785,7 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 	var propLabelNameLengthLimitPresented bool
 	var propLabelValueLengthLimitPresented bool
 	var propHttpClientConfigPresented bool
+	var propMetricRelabelConfigsPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -836,6 +900,17 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propHttpClientConfigPresented = true
+			case "metric_relabel_configs":
+				if propMetricRelabelConfigsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "metric_relabel_configs")
+				}
+				if nat_fields_mask_arg&(1<<1) == 0 {
+					return ErrorInvalidJSON("statshouse.promTarget", "field 'metric_relabel_configs' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadStringBytes(in, &item.MetricRelabelConfigs); err != nil {
+					return err
+				}
+				propMetricRelabelConfigsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.promTarget", key)
 			}
@@ -879,6 +954,9 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 	if !propHttpClientConfigPresented {
 		item.HttpClientConfig = item.HttpClientConfig[:0]
 	}
+	if !propMetricRelabelConfigsPresented {
+		item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
+	}
 	if trueTypeHonorTimestampsPresented {
 		if trueTypeHonorTimestampsValue {
 			item.FieldsMask |= 1 << 0
@@ -901,14 +979,14 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTargetBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshousePromTargetBytes) WriteJSONGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg), nil
 }
 
-func (item *StatshousePromTargetBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+func (item *StatshousePromTargetBytes) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -995,16 +1073,10 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if (len(item.HttpClientConfig) != 0) == false {
 		w = w[:backupIndexHttpClientConfig]
 	}
-	return append(w, '}')
-}
-
-func (item *StatshousePromTargetBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil), nil
-}
-
-func (item *StatshousePromTargetBytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.promTarget", err.Error())
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_relabel_configs":`...)
+		w = basictl.JSONWriteStringBytes(w, item.MetricRelabelConfigs)
 	}
-	return nil
+	return append(w, '}')
 }

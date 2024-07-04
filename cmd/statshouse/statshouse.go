@@ -275,9 +275,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		metricStorage,
 		dc,
 		log.Printf,
-		func(a *agent.Agent, t time.Time) {
+		func(a *agent.Agent, unixNow uint32) {
 			k := data_model.Key{
-				Timestamp: uint32(t.Unix()),
+				Timestamp: unixNow,
 				Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
 			}
 			for _, r := range receiversUDP {
@@ -287,7 +287,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			if dc != nil {
 				s, err := dc.DiskSizeBytes()
 				if err == nil {
-					a.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, nil)
+					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, nil)
 				}
 			}
 		},

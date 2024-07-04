@@ -84,6 +84,16 @@ func IntegerSlice(name string, ns []int64) Arg {
 	return Arg{name: name, typ: argInt64, slice: true, ns: ns, length: len(ns)}
 }
 
+// Deprecated: DO NOT USE
+func BlobSlice(name string, bs [][]byte) Arg {
+	return Arg{name: name, typ: argBlob, slice: true, bs: bs, length: len(bs)}
+}
+
+// Deprecated: DO NOT USE
+func TextStringSlice(name string, ss []string) Arg {
+	return Arg{name: name, typ: argTextString, slice: true, ss: ss, length: len(ss)}
+}
+
 func bindParam(si *sqlite0.Stmt, builder *queryBuilder, args ...Arg) (*sqlite0.Stmt, error) {
 	start := 0
 	for _, arg := range args {

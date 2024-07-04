@@ -18,9 +18,22 @@ type eng struct {
 
 const schemeKV = "CREATE TABLE IF NOT EXISTS test_db (k INTEGER PRIMARY KEY, v INTEGER);"
 
-func (e *eng) put(ctx context.Context, k, v int64) error {
+func (e *eng) insertOrReplace(ctx context.Context, k, v int64) error {
 	_, err := e.engine.DoTx(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
 		return putConn(c, cache, k, v)
+	})
+	return err
+}
+
+func (e *eng) insert(ctx context.Context, k, v int64) error {
+	_, err := e.engine.DoTx(ctx, "Insert", func(c Conn, cache []byte) ([]byte, error) {
+		err := c.Exec("update", "INSERT INTO test_db (k, v) VALUES ($k, $v)", Integer("$k", k), Integer("$v", v))
+		if err != nil {
+			return cache, err
+		}
+		event := tl.VectorLong{k, v}
+		cache = event.WriteBoxed(cache)
+		return cache, err
 	})
 	return err
 }

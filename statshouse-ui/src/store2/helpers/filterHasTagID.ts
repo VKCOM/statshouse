@@ -7,7 +7,10 @@
 import type { PlotParams } from 'url2';
 import type { TagKey } from 'api/enum';
 
-export function filterHasTagID(params: PlotParams, tagKey: TagKey): boolean {
+export function filterHasTagID(
+  params: Pick<PlotParams, 'filterIn' | 'filterNotIn' | 'groupBy'>,
+  tagKey: TagKey
+): boolean {
   return (
     (params.filterIn[tagKey] !== undefined && params.filterIn[tagKey]?.length !== 0) ||
     (params.filterNotIn[tagKey] !== undefined && params.filterNotIn[tagKey]?.length !== 0) ||

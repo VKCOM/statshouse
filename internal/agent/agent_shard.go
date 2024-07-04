@@ -31,32 +31,30 @@ type (
 		perm     []int
 
 		mu                               sync.Mutex
-		config                           Config        // can change if remotely updated
-		hardwareMetricResolutionResolved *atomic.Int32 // depends on config
+		config                           Config       // can change if remotely updated
+		hardwareMetricResolutionResolved atomic.Int32 // depends on config
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
 		CurrentTime    uint32
-		CurrentBuckets [][]*data_model.MetricsBucket // [resolution][shard]. All disallowed resolutions are always skipped
-		MissedSeconds  uint32                        // If disk is slow or computer sleeps/slows, several seconds can get into single bucket
-		FutureQueue    [][]*data_model.MetricsBucket // 60 seconds long circular buffer.
-
-		// Low res buckets work like this, example 4 seconds resolution
+		CurrentBuckets [61][]*data_model.MetricsBucket // [resolution][shard]. All disallowed resolutions are always skipped
+		MissedSeconds  uint32                          // If disk is slow or computer sleeps/slows, several seconds can get into single bucket
+		FutureQueue    [60][]*data_model.MetricsBucket // 60 seconds long circular buffer.
+		// Current buckets work like this, example 4 seconds resolution
 		// 1. data collected for 4 seconds into 4 key shards
 		//   data(k0,k1,k2,k3)
 		// [_  _  _  _ ]
 		// 2. at the end pf 4 second interval key shards are put (merged) into future queue
 		// [           ] [k1 k2 k3 k4]
 		// 3. data from next future second moved into CurrentBucket during second switch
-
-		CurentLowResBucket [][]*data_model.MetricsBucket // [resolution][shard]
-		LowResFutureQueue  []*data_model.MetricsBucket   // Max 60 seconds long. Shorter if max resolution is lower.
+		// Next buckets are simply buckets with timestamp + resolution, when current buckets are moved
+		// into future queue, next buckets become current buckets and new next buckets are added
 
 		BucketsToSend     chan compressedBucketDataOnDisk
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
 		PreprocessingBucketTime    uint32
-		PreprocessingBuckets       []*data_model.MetricsBucket // CurrentBuckets is moved here, if PreviousBucket empty
+		PreprocessingBuckets       []*data_model.MetricsBucket // current FutureQueue element is moved here
 		PreprocessingMissedSeconds uint32                      // copy of MissedSeconds for bucket being processed
 		condPreprocess             *sync.Cond
 

@@ -15,6 +15,7 @@ import { plotVisibilityStore, type PlotVisibilityStore } from './plotVisibilityS
 import { plotPreviewStore, type PlotPreviewStore } from './plotPreviewStore';
 import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
 import { plotsDataStore, PlotsDataStore } from './plotDataStore';
+import { tvModeStore, TVModeStore } from './tvModeStore';
 
 export type StatsHouseStore = UrlStore &
   UserStore &
@@ -24,7 +25,8 @@ export type StatsHouseStore = UrlStore &
   PlotVisibilityStore &
   PlotPreviewStore &
   PlotHealsStore &
-  PlotsDataStore;
+  PlotsDataStore &
+  TVModeStore;
 
 const statsHouseStore: Store<StatsHouseStore> = (...props) => ({
   ...urlStore(...props),
@@ -36,6 +38,7 @@ const statsHouseStore: Store<StatsHouseStore> = (...props) => ({
   ...plotPreviewStore(...props),
   ...plotHealsStore(...props),
   ...plotsDataStore(...props),
+  ...tvModeStore(...props),
 });
 export const useStatsHouse = createStore<StatsHouseStore>(statsHouseStore);
 

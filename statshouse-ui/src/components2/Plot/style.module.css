@@ -32,3 +32,11 @@
   overflow: auto;
   position: relative;
 }
+
+@media screen and (min-width: 992px) {
+  .plotColumn {
+    min-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+  }
+}

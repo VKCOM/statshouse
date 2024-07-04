@@ -200,13 +200,35 @@ func BenchmarkAppendHexValue(b *testing.B) {
 
 func TestAllowedResolution(t *testing.T) {
 	for i := -10; i < 70; i++ {
-		r := AllowedResolution(i)
+		r1 := allowedResolutionSwitch(i)
+		r2 := allowedResolutionTable(i)
+		require.Equal(t, r1, r2)
 		divisible := false
 		if i > 0 {
 			divisible = (60/i)*i == 60
 		}
-		require.Equal(t, r == i, divisible)
+		require.Equal(t, r1 == i, divisible)
 	}
+}
+
+func BenchmarkAllowedResolutionSwitch(b *testing.B) {
+	allowed := 0
+	for i := 0; i < b.N; i++ {
+		if allowedResolutionSwitch(i&63) == i&63 {
+			allowed++
+		}
+	}
+	fmt.Printf("result: %d\n", allowed) // do not allow to optimize out
+}
+
+func BenchmarkAllowedResolutionTable(b *testing.B) {
+	allowed := 0
+	for i := 0; i < b.N; i++ {
+		if allowedResolutionTable(i&63) == i&63 {
+			allowed++
+		}
+	}
+	fmt.Printf("result: %d\n", allowed) // do not allow to optimize out
 }
 
 func TestNamespaceConst(t *testing.T) {

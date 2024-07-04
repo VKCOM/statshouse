@@ -1,0 +1,58 @@
+{
+  "statshouse": {
+    "namespace": "scrape"
+  },
+  "global": {
+    "scrape_interval": "5s"
+  },
+  "scrape_configs": [
+    {
+      "job_name": "consul",
+      "consul_sd_configs": [
+        {
+          "server": "consul:8500",
+          "datacenter": "dc1"
+        }
+      ],
+      "relabel_configs": [
+        {
+          "source_labels": [
+            "__meta_consul_service"
+          ],
+          "target_label": "service"
+        },
+        {
+          "source_labels": [
+            "__meta_consul_tags"
+          ],
+          "regex": ".*,metrics_path=([^,]+),.*",
+          "replacement": "${1}",
+          "target_label": "__metrics_path__"
+        },
+        {
+          "source_labels": [
+            "__meta_consul_service"
+          ],
+          "regex": "consul",
+          "action": "drop"
+        },
+        {
+          "source_labels": [
+            "__meta_consul_service"
+          ],
+          "regex": "\\w*(-)(.*)",
+          "replacement": "${2}",
+          "target_label": "job"
+        }
+      ],
+      "metric_relabel_configs": [
+        {
+          "source_labels": [
+            "service"
+          ],
+          "target_label": "service3"
+        }
+      ]
+    }
+  ]
+}

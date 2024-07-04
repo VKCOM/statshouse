@@ -7,7 +7,9 @@
 import { TIME_RANGE_ABBREV } from 'api/enum';
 
 export const prefixPath = '/2';
-export const viewPath = prefixPath + '/view';
-export const embedPath = prefixPath + '/embed';
-export const isValidPath = [viewPath, embedPath];
+export const viewPath = [prefixPath + '/view'];
+export const embedPath = [prefixPath + '/embed'];
+export const validPath = [...viewPath, ...embedPath];
 export const defaultBaseRange = TIME_RANGE_ABBREV.last2d;
+export const autoAgg = '2000';
+export const autoLowAgg = '500';

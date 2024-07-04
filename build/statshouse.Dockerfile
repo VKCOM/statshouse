@@ -24,5 +24,6 @@ FROM gcr.io/distroless/base-debian11:nonroot
 WORKDIR /var/lib/statshouse/cache/aggregator
 WORKDIR /var/lib/statshouse/cache/agent
 WORKDIR /home/nonroot
+COPY build/statshouse_env.yml /etc/statshouse_env.yml
 COPY --from=build /src/target/statshouse /bin
 ENTRYPOINT ["/bin/statshouse"]
