@@ -38,6 +38,7 @@ type SeriesData struct {
 	Tags       SeriesTags
 	Offset     int64
 	What       SelectorWhat
+	empty      bool // used in "or" operator implementation to mark RHS series for removal
 }
 
 type SeriesMeta struct {
@@ -538,6 +539,47 @@ func (sr *Series) free(ev *evaluator) {
 
 func (sr *Series) freeSome(ev *evaluator, xs ...int) {
 	ev.freeSome(sr.Data, xs...)
+}
+
+func (sr *Series) removeEmpty(ev *evaluator) {
+	if sr.Meta.Total == 0 {
+		sr.Meta.Total = len(sr.Data)
+	}
+	for i := 0; i < len(sr.Data); {
+		var keep bool
+		if !sr.Data[i].empty {
+			for j := ev.t.ViewStartX; j < ev.t.ViewEndX; j++ {
+				if !math.IsNaN((*sr.Data[i].Values)[j]) {
+					keep = true
+					break
+				}
+			}
+		}
+		if keep {
+			i++
+		} else {
+			sr.Data[i].free(ev)
+			sr.Data[i], sr.Data[len(sr.Data)-1] = sr.Data[len(sr.Data)-1], sr.Data[i]
+			sr.Data = sr.Data[:len(sr.Data)-1]
+			sr.Meta.Total--
+		}
+	}
+}
+
+func tagsEqual(a, b map[string]*SeriesTag) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, ta := range a {
+		if tb, ok := b[k]; !ok ||
+			ta.Metric != tb.Metric ||
+			ta.ID != tb.ID ||
+			ta.Value != tb.Value ||
+			ta.SValue != tb.SValue {
+			return false
+		}
+	}
+	return true
 }
 
 func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) int {
