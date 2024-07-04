@@ -5,8 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type Location } from 'history';
-import { isValidPath } from '../constants';
+import { validPath, embedPath } from '../constants';
 
-export function validPath(location: Location) {
-  return isValidPath.indexOf(location.pathname) > -1;
+export function isValidPath(location: Location) {
+  return validPath.indexOf(location.pathname) > -1;
+}
+
+export function isEmbedPath(location: Location) {
+  return embedPath.indexOf(location.pathname) > -1;
 }

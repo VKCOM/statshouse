@@ -3,20 +3,19 @@ import { PLOT_TYPE } from 'api/enum';
 import { PlotViewMetric } from './PlotViewMetric';
 import { PlotViewEvent } from './PlotViewEvent';
 import { PlotKey } from 'url2';
+import { useStatsHouse } from 'store2';
 
 export type PlotViewProps = {
   className?: string;
   plotKey: PlotKey;
 };
-export function PlotView({ className, plotKey }: PlotViewProps) {
-  // if (!plot || !plotInfo || !plotData) {
-  //   return null;
-  // }
-  switch (plotKey) {
+export function PlotView(props: PlotViewProps) {
+  const type = useStatsHouse((s) => s.params.plots[props.plotKey]?.type ?? PLOT_TYPE.Metric);
+  switch (type) {
     case PLOT_TYPE.Metric:
-      return <PlotViewMetric className={className} plotKey={plotKey}></PlotViewMetric>;
+      return <PlotViewMetric {...props}></PlotViewMetric>;
     case PLOT_TYPE.Event:
-      return <PlotViewEvent className={className} plotKey={plotKey}></PlotViewEvent>;
+      return <PlotViewEvent {...props}></PlotViewEvent>;
     default:
       return null;
   }

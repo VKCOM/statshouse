@@ -11,18 +11,18 @@ import { isNotNil } from 'common/helpers';
 import { PlotLink, PlotsInfoLinks } from './plotsInfoStore';
 
 export function updatePlotsLink(params: QueryParams, saveParams?: QueryParams): PlotsInfoLinks {
-  const dashboardLink = { pathname: viewPath, search: getPlotLink('-1', params, saveParams) };
-  const dashboardOuterLink = { pathname: viewPath, search: getPlotLink('-1', params, saveParams) };
-  const dashboardSettingLink = { pathname: viewPath, search: getPlotLink('-1', params, saveParams) };
-  const addLink = { pathname: viewPath, search: getAddPlotLink(params, saveParams) };
+  const dashboardLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
+  const dashboardOuterLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
+  const dashboardSettingLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
+  const addLink = { pathname: viewPath[0], search: getAddPlotLink(params, saveParams) };
   const plotsLink = Object.fromEntries(
     Object.entries(params.plots)
       .map(([plotKey, plot]): undefined | [PlotKey, PlotLink] => {
         if (!plot) {
           return undefined;
         }
-        const link = { pathname: viewPath, search: getPlotLink(plot.id, params, saveParams) };
-        const singleLink = { pathname: viewPath, search: getSinglePlotLink(plot.id, params) };
+        const link = { pathname: viewPath[0], search: getPlotLink(plot.id, params, saveParams) };
+        const singleLink = { pathname: viewPath[0], search: getSinglePlotLink(plot.id, params) };
         return [plotKey, { link, singleLink }];
       })
       .filter(isNotNil)

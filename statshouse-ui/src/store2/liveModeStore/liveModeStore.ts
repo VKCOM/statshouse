@@ -6,7 +6,7 @@
 
 import { type StoreSlice } from '../createStore';
 import { type StatsHouseStore } from '../statsHouseStore';
-import { validPath } from '../helpers';
+import { isValidPath } from '../helpers';
 import { appHistory } from 'common/appHistory';
 import { debug } from 'common/debug';
 import { TIME_RANGE_KEYS_TO } from 'api/enum';
@@ -23,20 +23,18 @@ export type LiveModeStore = {
 export const liveModeStore: StoreSlice<StatsHouseStore, LiveModeStore> = (setState, getState, store) => {
   let id: NodeJS.Timeout | undefined = undefined;
   function liveTick() {
-    if (document.visibilityState === 'visible' && getState().liveMode.status && validPath(appHistory.location)) {
+    if (document.visibilityState === 'visible' && getState().liveMode.status && isValidPath(appHistory.location)) {
+      debug.log('liveTick');
       getState().setTimeRange({ from: getState().params.timeRange.from, to: TIME_RANGE_KEYS_TO.Now }, true);
     }
   }
 
   store.subscribe((state, prevState) => {
     const disabled = !state.params.orderPlot.every((plotKey) => state.params.plots[plotKey]?.useV2 ?? true);
-    if (state.params.live !== prevState.params.live || disabled !== prevState.liveMode.disabled) {
-      getState().setLiveMode(
-        state.params.live,
-        !state.params.orderPlot.every((plotKey) => state.params.plots[plotKey]?.useV2 ?? true)
-      );
+    if (state.params.live !== prevState.params.live || disabled !== state.liveMode.disabled) {
+      getState().setLiveMode(state.params.live, disabled);
     }
-    if (!state.liveMode.status || state.liveMode.interval !== prevState.liveMode.interval || id != null) {
+    if ((!state.liveMode.status || state.liveMode.interval !== prevState.liveMode.interval) && id != null) {
       clearInterval(id);
       id = undefined;
       debug.log('live mode disabled');

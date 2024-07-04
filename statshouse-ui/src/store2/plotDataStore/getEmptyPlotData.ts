@@ -6,6 +6,7 @@
 
 import { METRIC_TYPE } from 'api/enum';
 import { type PlotData } from './plotsDataStore';
+import { autoAgg } from '../constants';
 
 export function getEmptyPlotData(): PlotData {
   return {
@@ -19,6 +20,8 @@ export function getEmptyPlotData(): PlotData {
     metricName: '',
     metricWhat: '',
     whats: [],
+    plotAgg: autoAgg,
+    showMetricName: '',
     metricUnit: METRIC_TYPE.none,
     error: '',
     error403: '',
@@ -43,5 +46,6 @@ export function getEmptyPlotData(): PlotData {
     maxHostLists: [],
     promqltestfailed: false,
     promqlExpand: false,
+    numQueries: 0,
   };
 }
