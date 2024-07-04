@@ -325,6 +325,7 @@ func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
 Backup is only sqlite backup, not barsic snapshot. To make barsic snapshot you should put this backup to snapshotExternalFile
 prefix - directory to store backup
 nameGenerator - should return full path to backup
+could work infinitely if there are no barsic commits
 */
 func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(prefix string, binlogOffset int64) (string, error)) (m BackupMeta, _ error) {
 	if prefix == "" {
@@ -368,24 +369,33 @@ func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(p
 	if err != nil {
 		return m, fmt.Errorf("failed to get backup path: %w", err)
 	}
+	snapshotMeta, isExists, err := snapshotMetaLoad(c1)
+	if err != nil {
+		return m, fmt.Errorf("failed to load meta from backup: %w", err)
+	}
+	if !isExists {
+		return m, fmt.Errorf("snapshot metadata not found in backup: wait at least one commit")
+	}
 	e.logger.Printf("backup is loaded to temp file. Starting wait binlog commit")
 	// TODO при реверте без рестарта требуется таймаут
-	e.binlogEngine.binlogWait(binlogPos, true)
+	controlMeta := e.binlogEngine.binlogWait(binlogPos, true, true)
+	controlMetaS := string(controlMeta)
 	stat, _ := os.Stat(path)
 	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
 	return BackupMeta{
 		Path:          expectedPath,
 		PayloadOffset: binlogPos,
-		SnapshotMeta:  "",
-		ControlMeta:   "",
+		SnapshotMeta:  snapshotMeta,
+		ControlMeta:   controlMetaS,
 	}, os.Rename(path, expectedPath)
 }
 
 // Deprecated: DO NOT USE
 func (e *Engine) BackupOld(ctx context.Context, prefix string) (string, int64, error) {
-	return e.Backup(ctx, prefix, func(prefix string, binlogOffset int64) (string, error) {
+	info, err := e.Backup(ctx, prefix, func(prefix string, binlogOffset int64) (string, error) {
 		return getBackupPathOldStyle(prefix, binlogOffset)
 	})
+	return info.Path, info.PayloadOffset, err
 }
 
 func getBackupPath(conn internalConn, prefix string, nameGenerator func(prefix string, offset int64) (string, error)) (string, int64, error) {
@@ -662,6 +672,18 @@ func binlogLoadPosition(conn internalConn) (offset int64, isExists bool, err err
 		return offset, true, nil
 	}
 	return 0, false, nil
+}
+
+func snapshotMetaLoad(conn internalConn) (snapshotMeta string, isExists bool, err error) {
+	rows := conn.Query("__select_snapshot_meta", "SELECT meta from __snapshot_meta")
+	if rows.err != nil {
+		return "", false, rows.err
+	}
+	for rows.Next() {
+		meta, err := rows.ColumnBlobString(0)
+		return meta, true, err
+	}
+	return "", false, nil
 }
 
 func checkUserQueryName(qn string) error {
