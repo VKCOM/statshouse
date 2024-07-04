@@ -106,20 +106,20 @@ const config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-        locales: ['en'],
-//        path: 'i18n',
-//        localeConfigs: {
-//          en: {
-//            label: 'English',
-//            htmlLang: 'en-US',
-//            path: 'en',
-//          },
-//          ru: {
-//            label: 'Russian',
-//            htmlLang: 'ru-RU',
-//            path: 'ru',
-//          },
-//  },
+        locales: ['en', 'ru'],
+        path: 'i18n',
+        localeConfigs: {
+          en: {
+            label: 'English',
+            htmlLang: 'en-US',
+            path: 'en',
+          },
+          ru: {
+            label: 'Русский',
+            htmlLang: 'ru-RU',
+            path: 'ru',
+          },
+  },
   },
 
   presets: [
@@ -181,17 +181,15 @@ const config = {
             label: 'GitHub',
             position: 'right',
           },
-
-//          {
-//            type: 'localeDropdown',
-//            position: 'left',
-//          },
+          {            type: 'localeDropdown',
+            position: 'left',
+          },
         ],
       },
       footer: {
         style: 'light',
 
-        copyright: `Copyright © ${new Date().getFullYear()} StatsHouse.`,
+        copyright: `Copyright © 2024 StatsHouse.`,
       },
         prism: {
               theme: prismThemes.github,

@@ -288,7 +288,7 @@ and you can get per-hour data for any period you want.
 If getting the highest available resolution is not crucial for you, but it is important for you
 to reduce [sampling](#sampling), [reduce your metric resolution](../guides/edit-metrics.md#resolution).
 
-For example, you may choose a custom resolution to make the [agent](../conceptual%20overview/components.md#agent)
+For example, you may choose a custom resolution to make the [agent](components.md#agent)
 send data once per five seconds instead of sending per-second data.
 StatsHouse will send data five times more rarely and grant five times more rows for the metric.
 The processing delay will increase by **ten** seconds:

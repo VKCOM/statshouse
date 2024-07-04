@@ -14,7 +14,7 @@ to learn more about StatsHouse features and implementation details.
 
 ### Ready for production on a large scale
 
-StatsHouse is the [vk.com](https://vk.com) main monitoring system. As of November 2023, the main StatsHouse cluster
+StatsHouse is the [vk.com](https://vk.com) main monitoring system. As of June 2024, the main StatsHouse cluster
 receives 1.6 billion measurements per second from 28,000 servers and stores 5 years of data.
 
 ### Providing high-resolution, low-latency data

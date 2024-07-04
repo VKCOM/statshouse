@@ -1,0 +1,18 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.tutorialSidebar.category.User guide": {
+    "message": "Пользователям",
+    "description": "The label for category User guide in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Administrator guide": {
+    "message": "Администраторам",
+    "description": "The label for category Administrator guide in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Overview": {
+    "message": "Обзор",
+    "description": "The label for category Overview in sidebar tutorialSidebar"
+  }
+}

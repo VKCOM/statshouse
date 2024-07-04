@@ -5,6 +5,8 @@
  */
 
 /* You can override the default Infima variables here. */
+
+
 :root {
   --ifm-color-primary: #006d8f;
   --ifm-color-primary-dark: #006281;
@@ -31,4 +33,9 @@
 
 .orange-text {
   color: #F08C00;
+}
+
+.navbar__icon {
+  height: 2rem;
+  width: 2rem;
 }

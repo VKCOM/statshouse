@@ -10,12 +10,12 @@ import WhatIsSh from './img/what-is-sh.png'
 # What is StatsHouse?
 
 StatsHouse is an [open-source](https://github.com/VKCOM/statshouse) monitoring system that is highly available, scalable, and multitenant.
-One can hardly overload it—due to [aggregation](conceptual%20overview/concepts.md#aggregation) and 
-[sampling](conceptual%20overview/concepts.md#sampling).
+One can hardly overload it—due to [aggregation](overview/concepts.md#aggregation) and 
+[sampling](overview/concepts.md#sampling).
 It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live 
 mode.
 
-Read more about StatsHouse [features](conceptual%20overview/features.md). Find StatsHouse on [GitHub](https://github.com/VKCOM/statshouse).
+Read more about StatsHouse [features](overview/features.md). Find StatsHouse on [GitHub](https://github.com/VKCOM/statshouse).
 
 <img src={WhatIsSh} width="1000"/>
 
@@ -70,10 +70,10 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Migrate from the other monitoring system](admin/maintain-upgrade.md)
 * [Integrate the external systems](admin/integrations.md)
 
-### [Overview](conceptual%20overview/features.md)
+### [Overview](overview/features.md)
 
-* Find more about StatsHouse [features](conceptual%20overview/features.md).
-* Understand the underlying [concepts](conceptual%20overview/concepts.md).
-* Learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
+* Find more about StatsHouse [features](overview/features.md).
+* Understand the underlying [concepts](overview/concepts.md).
+* Learn how the StatsHouse [components](overview/components.md) implement all of the above.
 
 ### [Support](support.md)

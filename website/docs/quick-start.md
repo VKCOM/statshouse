@@ -164,23 +164,25 @@ Read more about choosing the [time period](guides/view-graph.md#4--time-period).
 
 ### Aggregation interval
 
-Aggregation interval is a kind of resolution for your metric data.
+[Aggregation](overview/concepts.md#aggregation) interval is a kind of resolution for your metric data.
 The larger aggregation interval you choose, the smoother look your graph has:
 
 <img src={AggregationInterval} width="600"/>
 
 :::tip
-An _Auto_ interval uses the _minimal available interval_ for aggregation to show data on a graph.
+An _Auto_ interval uses the 
+[minimal available interval_ for aggregation](overview/concepts.md#minimal-available-aggregation-interval) to show data on a 
+graph.
 This interval _varies_ depending on the currently available aggregation: 
-* per-second aggregated data is stored for the first three days, 
+* per-second aggregated data is stored for the first two days, 
 * per-minute aggregated data is stored for a month, 
 * per-hour aggregated data is available forever.
 
 The currently available aggregation is also related to 
-a metric [resolution](conceptual%20overview/concepts.md#resolution).
+a metric [resolution](overview/concepts.md#resolution).
 :::
 
-Read more about [aggregation](conceptual%20overview/concepts.md#aggregation) in StatsHouse, 
+Read more about [aggregation](overview/concepts.md#aggregation) in StatsHouse, 
 and changing metric [resolution](guides/edit-metrics.md#resolution).
 
 ### Tags
@@ -196,13 +198,13 @@ For example, a particular piece of data can be labeled as related to
 
 :::tip
 Tags with many different values such as user IDs may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
-or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual%20overview/concepts.md#cardinality). 
+or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](overview/concepts.md#cardinality). 
 If you need to create such a tag, read more about 
 [tags with many different values](guides/design-metric.md#how-many-tag-values).
 :::
 
 Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/design-metric.md#tags) 
-and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual%20overview/concepts.md#cardinality).
+and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](overview/concepts.md#cardinality).
 
 ### Top N
 

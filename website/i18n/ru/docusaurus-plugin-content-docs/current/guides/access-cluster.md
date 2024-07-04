@@ -1,0 +1,17 @@
+---
+sidebar_position: 1
+---
+
+# Получите доступ к StatsHouse
+
+Before you are able to send and view metric data, make sure you have access to StatsHouse.
+
+We suppose you already have StatsHouse deployed in your organization, so you only have to get
+corresponding internal permissions.
+
+:::tip
+If you have internal permissions but still have issues with access, try to log out of the system and them to log in 
+again.
+:::
+
+Otherwise, [run StatsHouse locally](../quick-start.md#запустите-statshouse-локально).
