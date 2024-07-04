@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { type PlotControlProps } from './PlotControl';
 import { ErrorMessages } from 'components';
 import { isTagEnabled } from '../../../view/utils';
-import { PLOT_TYPE, TAG_KEY } from '../../../api/enum';
+import { PLOT_TYPE, TAG_KEY, TagKey } from '../../../api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
@@ -22,84 +22,80 @@ import { PlotControlPromQLSwitch } from './PlotControlPromQLSwitch';
 import { PlotControlFilterTag } from './PlotControlFilterTag';
 import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
-import { getNewPlot } from 'url2';
-import { useStatsHouse } from 'store2';
+import { useStatsHouseShallow } from 'store2';
 import { filterHasTagID } from 'store2/helpers';
 
-const emptyPlot = getNewPlot();
+const emptyFilter: Partial<Record<TagKey, string[]>> = {};
+const emptyGroup: TagKey[] = [];
 
-export function PlotControlFilter({ className, plot = emptyPlot }: PlotControlProps) {
-  const plotKey = plot?.id;
-  const meta = useStatsHouse((s) => s.metricMeta[plot?.metricName]);
-  // const meta = useMetricsStore((s) => s.meta[plot?.metricName ?? '']);
-  const metaLoading = !meta;
+export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
+  const { meta, plotType, filterIn, filterNotIn, groupBy, globalLoader } = useStatsHouseShallow(
+    ({ params: { plots }, metricMeta, globalNumQueries }) => ({
+      plot: plots[plotKey],
+      plotType: plots[plotKey]?.type ?? PLOT_TYPE.Metric,
+      filterIn: plots[plotKey]?.filterIn ?? emptyFilter,
+      filterNotIn: plots[plotKey]?.filterNotIn ?? emptyFilter,
+      groupBy: plots[plotKey]?.groupBy ?? emptyGroup,
+      meta: metricMeta[plots[plotKey]?.metricName ?? ''],
+      globalLoader: globalNumQueries > 0,
+    })
+  );
+  const filterInfo = useMemo(() => ({ filterIn, filterNotIn, groupBy }), [filterIn, filterNotIn, groupBy]);
 
-  if (!plotKey) {
-    return (
-      <div className={className}>
-        <ErrorMessages />
-      </div>
-    );
-  }
   return (
     <div className={className}>
       <ErrorMessages />
-      <form spellCheck="false">
-        <div className="d-flex mb-2 gap-3">
-          <div className="col input-group">
-            <PlotControlMetricName plotKey={plotKey} />
-          </div>
-          {plot.type === PLOT_TYPE.Metric && <PlotControlPromQLSwitch plotKey={plotKey} />}
+      <div className="d-flex flex-column gap-2">
+        <div className="d-flex flex-row gap-3">
+          {/*<div className="d-flex flex-row input-group">*/}
+          <PlotControlMetricName plotKey={plotKey} />
+          {/*</div>*/}
+          {plotType === PLOT_TYPE.Metric && <PlotControlPromQLSwitch plotKey={plotKey} />}
         </div>
+        {globalLoader && (
+          <div className="text-center">
+            <div className="text-info spinner-border spinner-border-sm m-5" role="status" aria-hidden="true" />
+          </div>
+        )}
         {!!meta && (
           <>
-            <div className="row mb-3">
-              <div className="d-flex gap-4">
-                <PlotControlWhats plotKey={plot.id} />
-                {plot.type === PLOT_TYPE.Metric && <PlotControlMaxHost plotKey={plotKey} />}
-              </div>
+            <div className="d-flex flex-row mb-1 gap-4 w-100">
+              <PlotControlWhats plotKey={plotKey} />
+              {plotType === PLOT_TYPE.Metric && <PlotControlMaxHost plotKey={plotKey} />}
             </div>
 
-            <div className="row mb-2 align-items-baseline">
-              <div className="d-flex align-items-baseline gap-1">
+            <div className="d-flex flex-column gap-2">
+              <div className="d-flex flex-row gap-1 w-100">
                 <PlotControlFrom />
-                {plot.type === PLOT_TYPE.Metric && <PlotControlView plotKey={plotKey} />}
+                {plotType === PLOT_TYPE.Metric && <PlotControlView plotKey={plotKey} />}
               </div>
-              <div className="align-items-baseline mt-2">
-                <PlotControlTo />
-              </div>
-              <PlotControlGlobalTimeShifts className="w-100 mt-2" />
+              <PlotControlTo />
+              <PlotControlGlobalTimeShifts className="w-100" />
+              {plotType === PLOT_TYPE.Metric && (
+                <PlotControlEventOverlay plotKey={plotKey} className="input-group-sm" />
+              )}
             </div>
-            {plot.type === PLOT_TYPE.Metric && (
-              <PlotControlEventOverlay plotKey={plotKey} className="input-group-sm mb-3" />
-            )}
-            <div className="mb-3 d-flex">
-              <div className="d-flex me-4 gap-3 flex-grow-1">
+            <div className="d-flex flex-row gap-4 mb-1">
+              <div className="d-flex flex-row gap-3 flex-grow-1">
                 <PlotControlAggregation plotKey={plotKey} />
                 <PlotControlNumSeries plotKey={plotKey} />
               </div>
               <PlotControlVersion plotKey={plotKey} />
             </div>
-            {metaLoading && (
-              <div className="text-center">
-                <div className="text-info spinner-border spinner-border-sm m-5" role="status" aria-hidden="true" />
-              </div>
-            )}
-            {!metaLoading && (
-              <div>
-                {(meta?.tagsOrder || []).map((tagKey) =>
-                  !tagKey || (!isTagEnabled(meta, tagKey) && !filterHasTagID(plot, tagKey)) ? null : (
-                    <PlotControlFilterTag key={tagKey} plotKey={plot.id} tagKey={tagKey} className="mb-3" />
-                  )
-                )}
-                {!isTagEnabled(meta, TAG_KEY._s) && !filterHasTagID(plot, TAG_KEY._s) ? null : (
-                  <PlotControlFilterTag key={TAG_KEY._s} plotKey={plot.id} tagKey={TAG_KEY._s} className="mb-3" />
-                )}
-              </div>
-            )}
+
+            <div className={'d-flex flex-column gap-3'}>
+              {(meta?.tagsOrder || []).map((tagKey) =>
+                !tagKey || (!isTagEnabled(meta, tagKey) && !filterHasTagID(filterInfo, tagKey)) ? null : (
+                  <PlotControlFilterTag key={tagKey} plotKey={plotKey} tagKey={tagKey} />
+                )
+              )}
+              {!isTagEnabled(meta, TAG_KEY._s) && !filterHasTagID(filterInfo, TAG_KEY._s) ? null : (
+                <PlotControlFilterTag key={TAG_KEY._s} plotKey={plotKey} tagKey={TAG_KEY._s} />
+              )}
+            </div>
           </>
         )}
-      </form>
+      </div>
     </div>
   );
 }

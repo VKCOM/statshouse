@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-export * from './validPath';
+export * from './isValidPath';
 export * from './isPromQL';
 export * from './getPlotLink';
 export * from './lib';

@@ -27,7 +27,9 @@ function App() {
   return (
     <Routes>
       <Route path="/2/" element={<Core />}>
+        <Route path="" element={<Navigate to="view" replace={true} />} />
         <Route path="view" element={<View2Page />} />
+        <Route path="embed" element={<View2Page />} />
         <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
           <Route path="group" element={<GroupPage />} />
           <Route path="namespace" element={<NamespacePage />} />

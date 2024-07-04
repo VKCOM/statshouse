@@ -1,15 +1,17 @@
 import React from 'react';
 import { PlotControlFilter } from './PlotControlFilter';
 import { PlotControlPromQL } from './PlotControlPromQL';
-import { PlotParams } from 'url2';
+import { PlotKey } from 'url2';
 import { isPromQL } from 'store2/helpers';
+import { useStatsHouse } from 'store2';
 
 export type PlotControlProps = {
   className?: string;
-  plot?: PlotParams;
+  plotKey: PlotKey;
 };
 export function PlotControl(props: PlotControlProps) {
-  if (isPromQL(props.plot)) {
+  const isProm = useStatsHouse(({ params: { tabNum, plots } }) => isPromQL(plots[tabNum]));
+  if (isProm) {
     return <PlotControlPromQL {...props}></PlotControlPromQL>;
   }
   return <PlotControlFilter {...props}></PlotControlFilter>;

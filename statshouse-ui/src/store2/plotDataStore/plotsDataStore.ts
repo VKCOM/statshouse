@@ -14,6 +14,7 @@ import { type StatsHouseStore } from '../statsHouseStore';
 import { loadPlotData } from './loadPlotData';
 import { getClearPlotsData } from './getClearPlotsData';
 import { debug } from 'common/debug';
+import { updateClearPlotError } from './updateClearPlotError';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -47,6 +48,8 @@ export type PlotData = {
   metricName: string;
   metricWhat: string;
   whats: QueryWhat[];
+  plotAgg: string;
+  showMetricName: string;
   metricUnit: MetricType;
   error: string;
   error403?: string;
@@ -71,12 +74,17 @@ export type PlotData = {
   maxHostLists: SelectOptionProps[][];
   promqltestfailed?: boolean;
   promqlExpand: boolean;
+  numQueries: number;
 };
 
 export type PlotsDataStore = {
   plotsData: Partial<Record<PlotKey, PlotData>>;
+  globalNumQueries: number;
   togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
   loadPlotData(plotKey: PlotKey): void;
+  globalQueryStart(): void;
+  queryStart(plotKey: PlotKey): void;
+  clearPlotError(plotKey: PlotKey): void;
 };
 export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setState, getState, store) => {
   store.subscribe((state, prevState) => {
@@ -97,6 +105,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
   });
   return {
     plotsData: {},
+    globalNumQueries: 0,
     togglePromqlExpand(plotKey, status) {
       setState((state) => {
         const pd = state.plotsData[plotKey];
@@ -107,6 +116,35 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
     },
     loadPlotData(plotKey) {
       debug.log('load', plotKey);
+    },
+    globalQueryStart() {
+      setState((state) => {
+        state.globalNumQueries += 1;
+      });
+      return () => {
+        setState((state) => {
+          state.globalNumQueries -= 1;
+        });
+      };
+    },
+    queryStart(plotKey) {
+      setState((state) => {
+        const plotData = state.plotsData[plotKey];
+        if (plotData) {
+          plotData.numQueries += 1;
+        }
+      });
+      return () => {
+        setState((state) => {
+          const plotData = state.plotsData[plotKey];
+          if (plotData) {
+            plotData.numQueries -= 1;
+          }
+        });
+      };
+    },
+    clearPlotError(plotKey) {
+      setState(updateClearPlotError(plotKey));
     },
   };
 };

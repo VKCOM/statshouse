@@ -47,7 +47,7 @@ export function resetDefaultParams(
       reset = true;
     }
   });
-  if (reset) {
+  if (reset && params.dashboardId === null) {
     setUrlStore((p) => {
       p.params = params;
     }, true);

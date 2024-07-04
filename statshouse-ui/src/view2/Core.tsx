@@ -13,9 +13,7 @@ export function Core() {
         <LeftMenu />
       </div>
       <div className={css.right}>
-        <div className={css.top}>
-          <TopMenuWidget />
-        </div>
+        <div className={css.top}>{/*<TopMenuWidget />*/}</div>
         <div className={css.bottom}>
           <Outlet />
         </div>
