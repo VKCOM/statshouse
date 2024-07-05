@@ -245,7 +245,7 @@ const (
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 	TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft     = 53
-	TagValueIDSrcIngestionStatusErrMetricMustBeInternal      = 54
+	TagValueIDSrcIngestionStatusErrReservedMetricName        = 54
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -607,7 +607,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
 					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 					TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
-					TagValueIDSrcIngestionStatusErrMetricMustBeInternal:      "err_internal_metric_produced_by_external_clients",
+					TagValueIDSrcIngestionStatusErrReservedMetricName:        "err_reserved_metric_name",
 				}),
 			}, {
 				Description: "tag_id",
