@@ -606,23 +606,30 @@ func Test_Engine_Backup(t *testing.T) {
 	//dbPath := path.Join(dir, "db")
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
-	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
-		buf := make([]byte, 12)
-		err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Integer("$id", 1))
-		binary.LittleEndian.PutUint32(buf, magic)
-		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
-		return buf, err
-	})
-	require.NoError(t, err)
-	backupPath, _, err := engine.Backup(context.Background(), dir, func(prefix string, binlogOffset int64) (string, error) {
+	for i := 0; i < 1000; i++ {
+		_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			buf := make([]byte, 12)
+			err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Integer("$id", 1))
+			binary.LittleEndian.PutUint32(buf, magic)
+			binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+			return buf, err
+		})
+		require.NoError(t, err)
+	}
+	meta, err := engine.Backup(context.Background(), dir, func(prefix string, binlogOffset int64) (string, error) {
 		backupOffset = binlogOffset
 		return path.Join(prefix, "db1."+strconv.Itoa(int(binlogOffset))), nil
 	})
 	require.NoError(t, err)
-	require.Equal(t, path.Join(dir, "db1."+strconv.Itoa(int(backupOffset))), backupPath)
+	require.Equal(t, path.Join(dir, "db1."+strconv.Itoa(int(backupOffset))), meta.Path)
+	require.Greater(t, meta.PayloadOffset, int64(0))
+	require.NotEmpty(t, meta.ControlMeta)
+	require.NotEmpty(t, meta.SnapshotMeta)
+	require.NotEqual(t, meta.SnapshotMeta, meta.ControlMeta)
+
 	require.NoError(t, engine.Close())
 
-	dir, db := path.Split(backupPath)
+	dir, db := path.Split(meta.Path)
 	engine, _ = openEngine(t, dir, db, schema, false, false, false, nil)
 	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
 		rows := conn.Query("test", "SELECT id FROM test_db")

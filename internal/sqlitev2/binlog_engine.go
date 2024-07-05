@@ -28,7 +28,9 @@ func (b *binlogEngine) Shutdown() {
 type waitCommitInfo struct {
 	offset                 int64
 	waitSafeSnapshotOffset bool // если true ждем safeSnapshotOffset, в противном случае смотрим на commit offset
-	waitCh                 chan struct{}
+	waitSnapshotMeta       bool
+
+	waitCh chan []byte
 }
 
 func isEOFErr(err error) bool {
@@ -80,7 +82,7 @@ func (b *binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
-	b.binlogNotifyWaited(toOffset, safeSnapshotOffset)
+	b.binlogNotifyWaited(toOffset, safeSnapshotOffset, snapshotMeta)
 	err = b.e.rw.saveCommitInfo(snapshotMeta, toOffset) // унести в другое место чтобы не лочить в бинлог горутине?
 	if err != nil {
 		return err
@@ -115,35 +117,41 @@ func (b *binlogEngine) StartReindex() error {
 	return fmt.Errorf("implement")
 }
 
-func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool) {
+func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool, waitSnapshotMeta bool) []byte {
 	b.waitQMx.Lock()
 	if (!waitSafeSnapshotOffset && offset <= b.committedOffset) || waitSafeSnapshotOffset && offset <= b.safeSnapshotOffset {
 		b.waitQMx.Unlock()
-		return
+		return nil
 	}
-	ch := make(chan struct{}, 1)
+	ch := make(chan []byte, 1)
 	b.waitQ = append(b.waitQ, waitCommitInfo{
 		offset:                 offset,
 		waitCh:                 ch,
 		waitSafeSnapshotOffset: waitSafeSnapshotOffset,
+		waitSnapshotMeta:       waitSnapshotMeta,
 	})
 	b.waitQMx.Unlock()
-	<-ch
+	return <-ch
 }
 
-func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, safeSnapshotOffset int64) {
+func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, safeSnapshotOffset int64, snapshotMeta []byte) {
 	b.waitQMx.Lock()
 	defer b.waitQMx.Unlock()
 	b.committedOffset = committedOffset
 	b.safeSnapshotOffset = safeSnapshotOffset
 	b.waitQBuffer = b.waitQBuffer[:0]
+	var snapshotMetaCopy []byte
 	for _, wi := range b.waitQ {
 		if (!wi.waitSafeSnapshotOffset && wi.offset > committedOffset) ||
 			(wi.waitSafeSnapshotOffset && wi.offset > safeSnapshotOffset) {
 			b.waitQBuffer = append(b.waitQBuffer, wi)
 			continue
 		}
-		wi.waitCh <- struct{}{}
+		if wi.waitSnapshotMeta && len(snapshotMetaCopy) == 0 {
+			snapshotMetaCopy = make([]byte, len(snapshotMeta))
+			copy(snapshotMetaCopy, snapshotMeta)
+		}
+		wi.waitCh <- snapshotMetaCopy
 		close(wi.waitCh)
 	}
 	t := b.waitQ
