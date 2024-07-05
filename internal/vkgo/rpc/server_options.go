@@ -19,6 +19,7 @@ type ServerOptions struct {
 	SyncHandler            HandlerFunc
 	Handler                HandlerFunc
 	StatsHandler           StatsHandlerFunc
+	RecoverPanics          bool
 	VerbosityHandler       VerbosityHandlerFunc
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
@@ -91,6 +92,12 @@ func ServerWithStatsHandler(handler StatsHandlerFunc) ServerOptionsFunc {
 func ServerWithVerbosityHandler(handler VerbosityHandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.VerbosityHandler = handler
+	}
+}
+
+func ServerWithRecoverPanics(recoverPanics bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.RecoverPanics = recoverPanics
 	}
 }
 

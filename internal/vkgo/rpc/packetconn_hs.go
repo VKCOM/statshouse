@@ -7,16 +7,26 @@
 package rpc
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"time"
 
 	"golang.org/x/crypto/curve25519"
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
+
+// if we are performing many heavy handshakes (protocol 2 Diffie-Hellman),
+// we want to limit # of parallel handshakes so scheduler allows reads and writes
+// for connections which are fully ready (handshake complete).
+// We acquire twice because 1. we have socket write between 2 cpu intensive tasks. 2. we are in different functions (simplicity).
+var handshakeSem = semaphore.NewWeighted(1 + int64(runtime.GOMAXPROCS(0)))
 
 // Function returns all groups that parsed successfully and all errors
 func ParseTrustedSubnets(groups [][]string) (trustedSubnetGroups [][]*net.IPNet, errs []error) {
@@ -172,6 +182,9 @@ func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trus
 	pc.protocolVersion = server.ProtocolVersion() // all next packets will be read/written in a new transport format
 
 	if server.EncryptionSchema() == cryptoSchemaAES {
+		defer handshakeSem.Release(1)
+		_ = handshakeSem.Acquire(context.Background(), 1) // no error for background context
+
 		var sharedSecret []byte
 		if pc.protocolVersion >= 2 {
 			sharedSecret, err = curve25519.X25519(x25519Scalar[:], client.DHPoint[:])
@@ -188,7 +201,7 @@ func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trus
 			return nil, body, server.KeyID, fmt.Errorf("encryption setup failed: %w", err)
 		}
 		pc.keyID = server.KeyID
-		return nil, body, server.KeyID, err
+		return nil, body, server.KeyID, nil
 	}
 
 	return nil, body, server.KeyID, nil
@@ -297,6 +310,8 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		return nonceMsg{}, "", err
 	}
 	if protocol >= 2 {
+		defer handshakeSem.Release(1)
+		_ = handshakeSem.Acquire(context.Background(), 1) // no error for background context
 		_, err := cryptorand.Read(x25519Scalar)
 		if err != nil {
 			return nonceMsg{}, "", err
@@ -306,6 +321,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 			return nonceMsg{}, "", err
 		}
 		copy(server.DHPoint[:], pk)
+		return server, cryptoKey, nil
 	}
 	return server, cryptoKey, nil
 }
