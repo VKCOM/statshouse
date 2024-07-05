@@ -14,13 +14,13 @@ import AgentParameters from '../img/agent-parameters.png'
 import Mapping from '../img/mapping.png'
 import MappingCached from '../img/mapping-cached.png'
 
-# Components
+# Компоненты
 
-Find basic StatsHouse components in the picture:
+Основные компоненты StatsHouse изображены на рисунке:
 
 <img src={Components} width="1000"/>
 
-Check the descriptions below:
+А вот их описания:
 <!-- TOC -->
 * [Agent](#agent)
   * [Receiving data via UDP](#receiving-data-via-udp)
@@ -39,17 +39,17 @@ Check the descriptions below:
   * [The budget for creating metrics](#the-budget-for-creating-metrics)
 <!-- TOC -->
 
-## Agent
+## Агент
 
-The agent 
-* validates metric data (e.g., if a metric exists), 
-* [aggregates](concepts.md#aggregation) data over a second, 
-* determines how to shard data,
-* and sends data to aggregators.
+Агент
+* валидирует метрику (например, проверяет, существует ли она),
+* [агрегирует](concepts.md#aggregation) данные в пределах секунды,
+* шардирует данные
+* и отправляет их на агрегаторы.
 
 <img src={Agent} width="500"/>
 
-If aggregators are unavailable, the agent stores data on a local disk within the quota and sends it later.
+Если агрегаторы недоступны, агент хранит данные на локальном диске в пределах квоты и отправляет их позже.
 
 An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol). Supported formats are
 * [JSON](https://www.json.org/json-en.html),
@@ -57,17 +57,28 @@ An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datag
 * [MessagePack](https://msgpack.org),
 * [TL](https://core.telegram.org/mtproto/TL).
 
+
+Агент получает данные по протоколу [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol). Поддерживаются 
+следующие форматы:
+* [JSON](https://www.json.org/json-en.html),
+* [Protocol Buffers](https://protobuf.dev),
+* [MessagePack](https://msgpack.org),
+* [TL](https://core.telegram.org/mtproto/TL).
+
 :::note
-Agents support IPv6.
+Агенты поддерживают IPv6.
 :::
 
-### Receiving data via UDP
+### Получение данных по UDP
 
 StatsHouse receives data via UDP in the MessagePack, Protocol Buffers, JSON, and TL formats—they are semantically 
 identical. It automatically detects the format by the first bytes in the packet.
 
-Find the schemes for [TL](https://github.com/VKCOM/statshouse/blob/master/internal/data_model/public.tl), MessagePack,
-and [Protocol Buffers](https://github.com/VKCOM/statshouse/blob/master/internal/receiver/statshouse.proto):
+StatsHouse получает данные по UDP в форматах MessagePack, Protocol Buffers, JSON и TL — они семантически
+идентичны. Формат определяется автоматически по первым байтам в пакете.
+
+Посмотрите схемы для [TL](https://github.com/VKCOM/statshouse/blob/master/internal/data_model/public.tl), 
+MessagePack и [Protocol Buffers](https://github.com/VKCOM/statshouse/blob/master/internal/receiver/statshouse.proto):
 
 <Tabs>
 
@@ -167,15 +178,14 @@ message MetricBatch {
 
 </Tabs>
 
-
-A packet is an object with an array of metrics inside:
+Пакет — это объект, содержащий массив метрик:
 
 ```
     {"metrics":[ ... ]}
 
 ```
 
-Each element in this array is an object with the fields:
+Каждый элемент этого массива представляет собой объект с полями:
 
 ```
 {
@@ -188,7 +198,7 @@ Each element in this array is an object with the fields:
 }
 ```
 
-For example, one can send a packet like this:
+Например, можно отправить такой пакет:
 
 ```
 {"metrics":[
@@ -206,122 +216,129 @@ For example, one can send a packet like this:
 ]}
 ```
 
-Сheck the requirements for using formats.
-* For TL: the packet body should be the Boxed-serialized `statshouse.addMetricsBatch` object.
-* For JSON: the first character should be a curly bracket `{` (to detect the format correctly).
-* For Protocol Buffers: do not add fields to the `MetricBatch` object (to detect the format correctly).
+Обратите внимание на требования к использованию форматов.
+* Для TL: тело пакета должно быть Boxed-сериализацией объекта `statshouse.addMetricsBatch`.
+* Для JSON: первым символом должна быть фигурная скобка `{` (для корректного определения формата).
+* Для Protocol Buffers: не добавляйте поля в объект `MetricBatch` (для корректного определения формата).
 
-### Deploying agents in the Kubernetes pods
+### Разворачивание агентов в подах Kubernetes
 
-Please avoid deploying agents in the Kubernetes pods.
-We strongly recommend deploying them on the real servers—make sure to specify the `13337` port.
+Не устанавливайте агенты в подах Kubernetes.
+Мы настоятельно рекомендуем устанавливать их только на реальных серверах (обязательно указывайте порт `13337`).
 
 The reason is that StatsHouse "does not like" the fluctuating number of agents.
 The agents send per-second reports to the aggregators. The permanent number of agents indicates that the agents are
 connected to the aggregators. The pods that stopped working reduce the number of agents and activate the main StatsHouse alert.
 
+StatsHouse "не любит", когда число агентов колеблется.
+Агенты отправляют агрегаторам посекундные отчёты. Если число агентов постоянно, значит, они подключены к 
+агрегаторам. Из-за остановки подов число агентов уменьшается, и срабатываюет главный алерт StatsHouse.
+
 <details>
     <summary>Details</summary>
-  <p>With the VK RPC protocol, StatsHouse gets the ephemeral connection keys using the remote and local IP addresses
-of the connection—as they are shown to the client and the server. 
-Routing packets from one adapter to another via firewall makes establishing the connections impossible.
-To connect the Kubernetes-like components, create the virtual network adapters and connect
-them using the Linux network namespaces.</p>
+  <p>При шифровании в VK RPC для вывода эфемерных ключей используются удалённый и локальный IP-адреса соединений (как их 
+видят клиент и сервер).
+Маршрутизация пакетов от одного адаптера к другому через брандмауэр делает установление соединений невозможным.
+Для соединения компонентов в таком случае понадобится создать виртуальные сетевые адаптеры и соединить
+их средствами Linux network namespaces.</p>
 </details>
 
-## Aggregator
+## Агрегатор
 
-It aggregates per-second metric data from all the agents and inserts the resulting aggregation into the ClickHouse
-database.
+Он агрегирует посекундные данные метрик от всех агентов и вставляет результат в базу данных ClickHouse.
 
 <img src={Aggregator} width="500"/>
 
 There are as many aggregators as there are ClickHouse shards with replicas. Each aggregator inserts data to its 
 local database replica deployed on the same machine. For example: 3 shards × 3 replicas = 9 aggregators.
 
+Агрегаторов должно быть столько, сколько имеется шардов ClickHouse с репликами. Каждый агрегатор вставляет данные в 
+реплику базы данных, развёрнутую на той же машине. Например: 3 шарда × 3 реплики = 9 агрегаторов.
+
 <img src={ShardsReplicas} width="700"/>
 
-### Real-time and "historical" data
+### Актуальные и "исторические" данные
 
-The aggregator has two "workflows":
-* for real-time data,
-* for "historical" data. The data is "historical" if it has not been sent immediately upon creating.
+У агрегатора есть два режима работы:
+* работа с актуальными данными,
+* работа с "историческими" данными. Данные считаются "историческими", если их не удалось отправить сразу после создания.
 
-Inserting real-time data is the top priority for the aggregator.
+Вставка актуальных данных — приоритет для агрегатора.
 
 <img src={RealHist} width="800"/>
 
-Imagine the breakdown situation: it was impossible to insert data for a long time, then the system recovered.
-StatsHouse starts to insert real-time data immediately. As for the "historical" data, StatsHouse will insert it as 
-soon as possible—if only it does not prevent real-time data from being inserted.
+Представьте: возник сбой. Долгое время вставить данные было невозможно, затем система восстановилась.
+StatsHouse немедленно начинает вставлять актуальные данные. А вот "исторические" данные StatsHouse вставит при 
+первой возможности, если только это не помешает вставке актуальных данных.
 
 <details>
-    <summary>Details</summary>
-  <p>Prioritizing real-time data in StatsHouse is related to the ClickHouse database's way of inserting "historical" data, 
-which is rather slow.</p>
+    <summary>Подробнее</summary>
+  <p>Вставка актуальных данных имеет приоритет, поскольку "исторические" данные вставляются в базу ClickHouse 
+довольно медленно.</p>
 
-<p>**Real-time data**</p>
+<p>**Актуальные данные**</p>
 
-<p>The aggregator allows agents to insert last 5-minute data—this is a "small" inserting window (customizable).
-If an agent was not able to insert data in time, it is required to send data as the "historical" one.</p>
+<p>Агрегатор позволяет агентам вставлять данные за последние 5 минут — это "короткое" окно вставки (его можно 
+настроить). Если агент не успел вставить данные вовремя, он отправит данные как "исторические".</p>
 
-<p>The aggregator keeps a container with statistics per each second—such a container aggregates data from the agents.
-As soon as the next second data arrives, the aggregator inserts this data (from the "small" window) into the database.
-And the agents receive the response with the insert result.</p>
+<p>Для каждой актуальной секунды агрегатор хранит контейнер со статистикой. В этот контейнер агрегируются данные от 
+агентов. Как только наступает следующая секунда, агрегатор вставляет данные для неё (из "короткого" окна) 
+в базу. А агенты получают ответ с результатом вставки.</p>
 
-<p>The "small" window extends to the future for 2 seconds. It helps the agents to insert data correctly
-if their clock is going too fast.</p>
+<p>"Короткое" окно распространяется на две секунды в будущее, чтобы нормально работали агенты, у которых часы немного 
+спешат.</p>
 
-<p>**"Historical" data**</p>
+<p>**"Исторические" данные**</p>
 
-<p>The aggregator allows agents to insert last 48-hour data—this is a "large" inserting window (customizable).</p>
+<p>Агрегатор позволяет агентам вставлять данные за последние 48 часов — это "длинное" окно вставки (его можно
+настроить).</p>
 
-<p>If the data is older than 48 hours, StatsHouse records meta-statistics, and throws away this piece of data. The agent
-receives the `OK` response.</p>
+<p>Если данные старше 48 часов, StatsHouse записывает метастатистику и выбрасывает этот фрагмент данных. Агент получает ответ `OK`.</p>
 
-<p>The between-host aggregation is really important, so StatsHouse does its best to make it possible:
-<li>each agent makes a request to insert a few tens of "historical" seconds—starting from the "oldest" one;</li>
-<li>the aggregator receives these requests and chooses the "oldest" second;</li>
-<li>it aggregates data, inserts it into the database and sends the response;</li>
-<li>then it chooses the "oldest" second again, etc.</li></p>
+<p>Агрегация между хостами очень важн, поэтому StatsHouse делает всё возможное, чтобы она состоялась:
+<li>каждый агент делает запрос на вставку нескольких десятков "исторических" секунд, начиная с самой "старой";</li>
+<li>агрегатор получает эти запросы и выбирает самую "старую" секунду;</li>
+<li>он агрегирует данные, вставляет их в базу данных и отправляет ответ;</li>
+<li>затем снова выбирает "самую старую" секунду и т.д.</li></p>
 
-<p>This algorithm helps the most distant ("oldest") seconds to come up with the "newest" ones. It makes aggregating
-historical data possible and helps to insert data simultaneously.</p>
+<p>Этот алгоритм помогает наиболее удалённым ("старым") секундам оказаться рядом с самыми "новыми". Он делает 
+возможным агрегирование исторических данных и помогает вставлять данные одновременно.</p>
 </details>
 
-### Handling aggregator's shutdown
+### Работа при отказе агрегатора
 
-If the aggregator is unavailable or responds with an error, the agent stores data on a local disk.
-Storing data on a disk is limited in bytes. It is also limited in time—within the "large"
-(48-hour) inserting window.
+Если агрегатор недоступен или отвечает с ошибкой, агент хранит данные на локальном диске.
+Хранение данных на диске ограничено в байтах. Оно также ограничено по времени — в пределах "длинного"
+(48-часового) окна вставки.
 
 <details>
-    <summary>Details</summary>
-  <p>**Distributing data between the replicas**</p>
+    <summary>Подробнее</summary>
+  <p>**Распределение данных между репликами**</p>
 
-  <p>If it is unacceptable or impossible to access the disk, one may run the agent with the empty `--cache-dir` argument.
-StatsHouse will not use the disk. The "historical" data will be stored in memory—while the aggregators are
-unavailable, i.e., for several minutes.</p>
+  <p>Если доступ к диску нежелателен или невозможен, можно запустить агент с пустым аргументом `--cache-dir`.
+StatsHouse не будет использовать диск. "Исторические" данные будут храниться в памяти, пока агрегаторы
+недоступны, т. е. в течение нескольких минут.</p>
 
-<p>If the aggregator is unavailable, the agents send data to the rest of the replicas.
-The data is distributed according to the seconds' ordinal numbers: the even seconds are sent to one of the replicas,
-the odd seconds are sent to another. So the load for both increases by 50%. This is one of the reasons to support
-writing data to exactly three ClickHouse replicas.</p>
+<p>Если агрегатор недоступен, агенты отправляют данные репликам.
+Данные распределяются в соответствии с порядковыми номерами секунд: чётные секунды отправляются в одну из реплик,
+нечётные — в другую. Таким образом, нагрузка на обе реплики увеличивается на 50 %. Это одна из причин, по которой 
+StatsHouse записывает данные ровно в три реплики ClickHouse.</p>
 
-  <p>**Handling double inserts**</p>
+  <p>**Предотвращение двойной вставки**</p>
 
-  <p>If the aggregator responds with an error, the agent sends data to another aggregator (another replica) on the other
-host. For deduplication, we need a consensus algorithm, which is a rather complicated thing.</p>
+  <p>Если агрегатор отвечает с ошибкой, агент отправляет данные другому агрегатору (другой реплике) на другом
+хосте. Для дедупликации нужно использовать алгоритм консенсуса, а это довольно сложно.</p>
 
-  <p>In StatsHouse, the main and the back-up aggregators can insert data from the same agent at the same second.
-For this rare case, we track the double inserts via the `__heartbeat_version` meta-metric, which is the _number of
-agents sending data at the current second_. To make this meta-metric stable during normal aggregators' operation, 
-the agents send data every second—even if there is no real user data at the moment.</p>
+  <p>В StatsHouse основной и резервный агрегаторы могут вставлять данные от одного и того же агента в одну и ту же секунду.
+Это происходит редко, и для такого случая мы отслеживаем двойные вставки с помощью метаметрики `__heartbeat_version`, 
+которая показывает _количество агентов, отправляющих данные в текущую секунду_. Чтобы эта метаметрика была 
+стабильной при нормальной работе агрегаторов, агенты отправляют данные каждую секунду, даже если в данный момент нет 
+реальных пользовательских данных.</p>
 </details>
 
-## Database
+## База данных
 
-The [ClickHouse](https://clickhouse.com) database stores [aggregated](concepts.md#aggregation) metric data.
+В базе данных [ClickHouse](https://clickhouse.com) хранятся [агрегированные](concepts.md#aggregation) данные метрик.
 
 StatsHouse inserts metric data into the ClickHouse table having the following definition:
 
