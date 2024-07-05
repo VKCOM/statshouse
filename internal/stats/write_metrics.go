@@ -176,7 +176,7 @@ func (p *MetricWriterSHImpl) WriteSystemMetricValue(nowUnix int64, name string, 
 	m := p.metric
 	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Value = append(m.Value, value)
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32) {
@@ -184,21 +184,21 @@ func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name str
 	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
 	m.Value = append(m.Value, value)
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	m := p.metric
 	fillCommonMetric(p, m, false, name, nowUnix, tagsList...)
 	m.Value = append(m.Value, value)
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32) {
 	m := p.metric
 	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag) {
@@ -206,12 +206,12 @@ func (p *MetricWriterSHImpl) WriteSystemMetricCountValueExtendedTag(nowUnix int6
 	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
 	m.Value = append(m.Value, value)
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag) {
 	m := p.metric
 	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
-	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m, FromStatsHouse: true})
 }

@@ -245,6 +245,7 @@ const (
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 	TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft     = 53
+	TagValueIDSrcIngestionStatusErrMetricMustBeInternal      = 54
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -606,6 +607,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
 					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 					TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
+					TagValueIDSrcIngestionStatusErrMetricMustBeInternal:      "err_internal_metric_produced_by_external_clients",
 				}),
 			}, {
 				Description: "tag_id",
@@ -1852,18 +1854,17 @@ Value is delta between second value and time it was inserted.`,
 			Name:        BuiltinMetricNameAPICacheHit,
 			Kind:        MetricKindValue,
 			Description: `API cache hit rate`,
-			Tags: []MetricMetaTag{
-				{Description: "environment"}, {
-					Description: "source",
-				}, {
-					Description: "metric",
-					IsMetric:    true,
-					Raw:         true,
-				}, {
-					Description: "table",
-				}, {
-					Description: "kind",
-				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+			Tags: []MetricMetaTag{{
+				Description: "source",
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+				Raw:         true,
+			}, {
+				Description: "table",
+			}, {
+				Description: "kind",
+			}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 		BuiltinMetricIDAggScrapeTargetDispatch: {
 			Name:                 "__agg_scrape_target_dispatch",
@@ -1977,6 +1978,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 		BuiltinMetricIDPromQLEngineTime:           true,
+		BuiltinMetricIDAPICacheHit:                true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2178,6 +2180,7 @@ func init() {
 		}
 	}
 	for k, v := range hostMetrics {
+		v.IsHostMetric = true
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 5
 		v.GroupID = BuiltinGroupIDHost

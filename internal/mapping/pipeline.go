@@ -225,6 +225,13 @@ func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMe
 			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
 			return true
 		}
+		if h.MetricInfo.IsHostMetric && !args.FromStatsHouse {
+			validName, _ := format.AppendValidStringValue(metric.Name[:0], metric.Name)
+			h.Key.Metric = h.MetricInfo.MetricID
+			metric.Name = validName
+			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricMustBeInternal
+			return true
+		}
 	}
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
