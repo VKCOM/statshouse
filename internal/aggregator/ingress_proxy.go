@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
@@ -27,7 +29,6 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"go.uber.org/atomic"
 )
 
 type clientPool struct {
@@ -345,7 +346,11 @@ func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client 
 		return client
 	}
 	log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
-	client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+	client = rpc.NewClient(
+		rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+		rpc.ClientWithLogf(log.Printf),
+		rpc.ClientWithCryptoKey(pool.aesPwd),
+		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	pool.clients[clientHost] = client
 	return client
 }

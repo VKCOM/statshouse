@@ -128,6 +128,7 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 		ResponseTimeoutAdjust:  0,
 		StatsHandler:           func(m map[string]string) {},
 		Handler:                func(ctx context.Context, hctx *HandlerContext) error { return ErrNoHandler },
+		RecoverPanics:          true,
 	}
 	for _, option := range options {
 		option(&opts)
@@ -585,9 +586,9 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		s.opts.Logf("rpc: %s->%s Disconnect with readErr=%v writeErr=%v", sc.conn.remoteAddr, sc.conn.localAddr, readErr, writeErr)
 	}
 
-	defer s.dropConn(sc)
-
 	_ = sc.WaitClosed()
+
+	s.dropConn(sc)
 }
 
 func (s *Server) rareLog(last *time.Time, format string, args ...any) {
@@ -948,6 +949,9 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 }
 
 func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err error) {
+	if !s.opts.RecoverPanics {
+		return s.callHandlerNoRecover(ctx, hctx)
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, tracebackBufSize)
@@ -956,7 +960,10 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			err = &Error{Code: TlErrorInternal, Description: fmt.Sprintf("rpc: HandlerFunc panic: %v serving %v", r, hctx.remoteAddr.String())}
 		}
 	}()
+	return s.callHandlerNoRecover(ctx, hctx)
+}
 
+func (s *Server) callHandlerNoRecover(ctx context.Context, hctx *HandlerContext) (err error) {
 	switch hctx.reqTag {
 	case constants.EnginePid:
 		return s.handleEnginePID(hctx)

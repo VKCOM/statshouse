@@ -85,7 +85,11 @@ type Agent struct {
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
 	newClient := func() *rpc.Client {
-		return rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
+		return rpc.NewClient(
+			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithCryptoKey(aesPwd),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+			rpc.ClientWithLogf(logF))
 	}
 	rpcClient := newClient() // for autoconfig + first shard
 	rnd := rand.New()

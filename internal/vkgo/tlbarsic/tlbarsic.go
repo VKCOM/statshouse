@@ -24,32 +24,35 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicShutdown"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSkip"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotDependency"
+	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotExternalFile"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotHeader"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicStart"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type (
-	ApplyPayload            = tlBarsicApplyPayload.BarsicApplyPayload
-	ApplyPayloadBytes       = tlBarsicApplyPayload.BarsicApplyPayloadBytes
-	ChangeRole              = tlBarsicChangeRole.BarsicChangeRole
-	Commit                  = tlBarsicCommit.BarsicCommit
-	CommitBytes             = tlBarsicCommit.BarsicCommitBytes
-	EngineStarted           = tlBarsicEngineStarted.BarsicEngineStarted
-	EngineStartedBytes      = tlBarsicEngineStarted.BarsicEngineStartedBytes
-	EngineStatus            = tlBarsicEngineStatus.BarsicEngineStatus
-	EngineStatusBytes       = tlBarsicEngineStatus.BarsicEngineStatusBytes
-	EngineWantsRestart      = tlBarsicEngineWantsRestart.BarsicEngineWantsRestart
-	Reindex                 = tlBarsicReindex.BarsicReindex
-	Revert                  = tlBarsicRevert.BarsicRevert
-	Shutdown                = tlBarsicShutdown.BarsicShutdown
-	Skip                    = tlBarsicSkip.BarsicSkip
-	SnapshotDependency      = tlBarsicSnapshotDependency.BarsicSnapshotDependency
-	SnapshotDependencyBytes = tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
-	SnapshotHeader          = tlBarsicSnapshotHeader.BarsicSnapshotHeader
-	SnapshotHeaderBytes     = tlBarsicSnapshotHeader.BarsicSnapshotHeaderBytes
-	Start                   = tlBarsicStart.BarsicStart
-	StartBytes              = tlBarsicStart.BarsicStartBytes
+	ApplyPayload              = tlBarsicApplyPayload.BarsicApplyPayload
+	ApplyPayloadBytes         = tlBarsicApplyPayload.BarsicApplyPayloadBytes
+	ChangeRole                = tlBarsicChangeRole.BarsicChangeRole
+	Commit                    = tlBarsicCommit.BarsicCommit
+	CommitBytes               = tlBarsicCommit.BarsicCommitBytes
+	EngineStarted             = tlBarsicEngineStarted.BarsicEngineStarted
+	EngineStartedBytes        = tlBarsicEngineStarted.BarsicEngineStartedBytes
+	EngineStatus              = tlBarsicEngineStatus.BarsicEngineStatus
+	EngineStatusBytes         = tlBarsicEngineStatus.BarsicEngineStatusBytes
+	EngineWantsRestart        = tlBarsicEngineWantsRestart.BarsicEngineWantsRestart
+	Reindex                   = tlBarsicReindex.BarsicReindex
+	Revert                    = tlBarsicRevert.BarsicRevert
+	Shutdown                  = tlBarsicShutdown.BarsicShutdown
+	Skip                      = tlBarsicSkip.BarsicSkip
+	SnapshotDependency        = tlBarsicSnapshotDependency.BarsicSnapshotDependency
+	SnapshotDependencyBytes   = tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
+	SnapshotExternalFile      = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile
+	SnapshotExternalFileBytes = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes
+	SnapshotHeader            = tlBarsicSnapshotHeader.BarsicSnapshotHeader
+	SnapshotHeaderBytes       = tlBarsicSnapshotHeader.BarsicSnapshotHeaderBytes
+	Start                     = tlBarsicStart.BarsicStart
+	StartBytes                = tlBarsicStart.BarsicStartBytes
 )
 
 type Client struct {

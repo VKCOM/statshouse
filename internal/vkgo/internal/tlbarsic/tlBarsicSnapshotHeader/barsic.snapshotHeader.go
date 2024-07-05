@@ -11,7 +11,9 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tl/tlBuiltinVectorBarsicSnapshotDependency"
+	"github.com/vkcom/statshouse/internal/vkgo/internal/tl/tlBuiltinVectorBarsicSnapshotExternalFile"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotDependency"
+	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotExternalFile"
 )
 
 var _ = basictl.NatWrite
@@ -26,7 +28,8 @@ type BarsicSnapshotHeader struct {
 	PayloadOffset    int64
 	EngineVersion    string
 	CreationTimeNano int64
-	ControlMeta      string // Conditional: item.FieldsMask.0
+	ControlMeta      string                                                    // Conditional: item.FieldsMask.0
+	ExternalFiles    []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile // Conditional: item.FieldsMask.1
 }
 
 func (BarsicSnapshotHeader) TLName() string { return "barsic.snapshotHeader" }
@@ -42,6 +45,16 @@ func (item *BarsicSnapshotHeader) ClearControlMeta() {
 }
 func (item BarsicSnapshotHeader) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
 
+func (item *BarsicSnapshotHeader) SetExternalFiles(v []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) {
+	item.ExternalFiles = v
+	item.FieldsMask |= 1 << 1
+}
+func (item *BarsicSnapshotHeader) ClearExternalFiles() {
+	item.ExternalFiles = item.ExternalFiles[:0]
+	item.FieldsMask &^= 1 << 1
+}
+func (item BarsicSnapshotHeader) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
+
 func (item *BarsicSnapshotHeader) Reset() {
 	item.FieldsMask = 0
 	item.ClusterId = ""
@@ -52,6 +65,7 @@ func (item *BarsicSnapshotHeader) Reset() {
 	item.EngineVersion = ""
 	item.CreationTimeNano = 0
 	item.ControlMeta = ""
+	item.ExternalFiles = item.ExternalFiles[:0]
 }
 
 func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
@@ -60,6 +74,9 @@ func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldsMask = 0
 	if maskFieldsMask&(1<<0) != 0 {
 		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
 	}
 	item.ClusterId = basictl.RandomString(rg)
 	item.ShardId = basictl.RandomString(rg)
@@ -72,6 +89,11 @@ func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.ControlMeta = basictl.RandomString(rg)
 	} else {
 		item.ControlMeta = ""
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileFillRandom(rg, &item.ExternalFiles)
+	} else {
+		item.ExternalFiles = item.ExternalFiles[:0]
 	}
 }
 
@@ -107,6 +129,13 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.ControlMeta = ""
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileRead(w, &item.ExternalFiles); err != nil {
+			return w, err
+		}
+	} else {
+		item.ExternalFiles = item.ExternalFiles[:0]
+	}
 	return w, nil
 }
 
@@ -126,6 +155,9 @@ func (item *BarsicSnapshotHeader) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.StringWrite(w, item.ControlMeta)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWrite(w, item.ExternalFiles)
 	}
 	return w
 }
@@ -161,6 +193,7 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	var propEngineVersionPresented bool
 	var propCreationTimeNanoPresented bool
 	var propControlMetaPresented bool
+	var propExternalFilesPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -243,6 +276,14 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				propControlMetaPresented = true
+			case "external_files":
+				if propExternalFilesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "external_files")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSON(legacyTypeNames, in, &item.ExternalFiles); err != nil {
+					return err
+				}
+				propExternalFilesPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
 			}
@@ -280,8 +321,14 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	if !propControlMetaPresented {
 		item.ControlMeta = ""
 	}
+	if !propExternalFilesPresented {
+		item.ExternalFiles = item.ExternalFiles[:0]
+	}
 	if propControlMetaPresented {
 		item.FieldsMask |= 1 << 0
+	}
+	if propExternalFilesPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
@@ -357,6 +404,11 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w 
 		w = append(w, `"control_meta":`...)
 		w = basictl.JSONWriteString(w, item.ControlMeta)
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"external_files":`...)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(newTypeNames, short, w, item.ExternalFiles)
+	}
 	return append(w, '}')
 }
 
@@ -380,7 +432,8 @@ type BarsicSnapshotHeaderBytes struct {
 	PayloadOffset    int64
 	EngineVersion    []byte
 	CreationTimeNano int64
-	ControlMeta      []byte // Conditional: item.FieldsMask.0
+	ControlMeta      []byte                                                         // Conditional: item.FieldsMask.0
+	ExternalFiles    []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes // Conditional: item.FieldsMask.1
 }
 
 func (BarsicSnapshotHeaderBytes) TLName() string { return "barsic.snapshotHeader" }
@@ -396,6 +449,16 @@ func (item *BarsicSnapshotHeaderBytes) ClearControlMeta() {
 }
 func (item BarsicSnapshotHeaderBytes) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
 
+func (item *BarsicSnapshotHeaderBytes) SetExternalFiles(v []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) {
+	item.ExternalFiles = v
+	item.FieldsMask |= 1 << 1
+}
+func (item *BarsicSnapshotHeaderBytes) ClearExternalFiles() {
+	item.ExternalFiles = item.ExternalFiles[:0]
+	item.FieldsMask &^= 1 << 1
+}
+func (item BarsicSnapshotHeaderBytes) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
+
 func (item *BarsicSnapshotHeaderBytes) Reset() {
 	item.FieldsMask = 0
 	item.ClusterId = item.ClusterId[:0]
@@ -406,6 +469,7 @@ func (item *BarsicSnapshotHeaderBytes) Reset() {
 	item.EngineVersion = item.EngineVersion[:0]
 	item.CreationTimeNano = 0
 	item.ControlMeta = item.ControlMeta[:0]
+	item.ExternalFiles = item.ExternalFiles[:0]
 }
 
 func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
@@ -414,6 +478,9 @@ func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldsMask = 0
 	if maskFieldsMask&(1<<0) != 0 {
 		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
 	}
 	item.ClusterId = basictl.RandomStringBytes(rg)
 	item.ShardId = basictl.RandomStringBytes(rg)
@@ -426,6 +493,11 @@ func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
 		item.ControlMeta = basictl.RandomStringBytes(rg)
 	} else {
 		item.ControlMeta = item.ControlMeta[:0]
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesFillRandom(rg, &item.ExternalFiles)
+	} else {
+		item.ExternalFiles = item.ExternalFiles[:0]
 	}
 }
 
@@ -461,6 +533,13 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.ControlMeta = item.ControlMeta[:0]
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesRead(w, &item.ExternalFiles); err != nil {
+			return w, err
+		}
+	} else {
+		item.ExternalFiles = item.ExternalFiles[:0]
+	}
 	return w, nil
 }
 
@@ -480,6 +559,9 @@ func (item *BarsicSnapshotHeaderBytes) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.StringWriteBytes(w, item.ControlMeta)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWrite(w, item.ExternalFiles)
 	}
 	return w
 }
@@ -515,6 +597,7 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 	var propEngineVersionPresented bool
 	var propCreationTimeNanoPresented bool
 	var propControlMetaPresented bool
+	var propExternalFilesPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -597,6 +680,14 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propControlMetaPresented = true
+			case "external_files":
+				if propExternalFilesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "external_files")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSON(legacyTypeNames, in, &item.ExternalFiles); err != nil {
+					return err
+				}
+				propExternalFilesPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
 			}
@@ -634,8 +725,14 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 	if !propControlMetaPresented {
 		item.ControlMeta = item.ControlMeta[:0]
 	}
+	if !propExternalFilesPresented {
+		item.ExternalFiles = item.ExternalFiles[:0]
+	}
 	if propControlMetaPresented {
 		item.FieldsMask |= 1 << 0
+	}
+	if propExternalFilesPresented {
+		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
@@ -710,6 +807,11 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short boo
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"control_meta":`...)
 		w = basictl.JSONWriteStringBytes(w, item.ControlMeta)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"external_files":`...)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(newTypeNames, short, w, item.ExternalFiles)
 	}
 	return append(w, '}')
 }
