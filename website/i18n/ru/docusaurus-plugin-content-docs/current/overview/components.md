@@ -235,7 +235,7 @@ StatsHouse "не любит", когда число агентов колебл�
 агрегаторам. Из-за остановки подов число агентов уменьшается, и срабатываюет главный алерт StatsHouse.
 
 <details>
-    <summary>Details</summary>
+    <summary>Подробнее</summary>
   <p>При шифровании в VK RPC для вывода эфемерных ключей используются удалённый и локальный IP-адреса соединений (как их 
 видят клиент и сервер).
 Маршрутизация пакетов от одного адаптера к другому через брандмауэр делает установление соединений невозможным.
@@ -340,7 +340,7 @@ StatsHouse записывает данные ровно в три реплики
 
 В базе данных [ClickHouse](https://clickhouse.com) хранятся [агрегированные](concepts.md#aggregation) данные метрик.
 
-StatsHouse inserts metric data into the ClickHouse table having the following definition:
+StatsHouse вставляет данные в таблицу ClickHouse, которая определяется следущим образом:
 
 ```
 CREATE TABLE statshouse2_value_1s (
@@ -362,132 +362,139 @@ CREATE TABLE statshouse2_value_1s (
 PARTITION BY toDate(time) ORDER BY (metric, time,tag0,tag1, ...,tag15, stag);
 ```
 
-If writing [percentiles](../guides/edit-metrics.md#percentiles) is not enabled for a metric, or the metric is not a 
-[_unique counter_](../guides/design-metric.md#unique-counters), the corresponding table columns (`percentiles` or `uniq_state`) are empty.
+Если для метрики не включена запись [перцентилей](../guides/edit-metrics.md#percentiles) или метрика не имеет тип
+[_unique counter_](../guides/design-metric.md#unique-counters), соответствующие столбцы таблицы (`percentiles` или 
+`uniq_state`) будут пустыми.
 
-If a metric is a simple [counter](../guides/design-metric.md#counters), all the columns are empty except the `count` 
-one.  The `stag` column is not empty only if a metric has a [String top tag](../guides/design-metric.md#string-top-tag).
+Если метрика представляет собой простой [счётчик](../guides/design-metric.md#counters), все столбцы будут пустыми, 
+кроме `count`.  Колонка `stag` не пуста, только если в метрике используется 
+[тег String top](../guides/design-metric.md#string-top-tag).
 
-To get data for time intervals longer than a second, StatsHouse aggregates data within them and produces per-minute
-and per-hour aggregates.
+Чтобы получить данные за интервал, превышающий секунду, StatsHouse агрегирует данные и создает поминутные
+и часовые агрегаты.
 
 <details>
-    <summary>Details</summary>
-  <p>Data is distributed across the ClickHouse shards using the hash of `metric, key0, … , key15`.
-If a metric has multiple tags, its data related to a particular tag (i.e., `"protocol":"tcp"`) are usually stored on
-different shards. To get the full statistics, one should always make _distributed queries_ to the whole set of shards.</p>
+    <summary>Подробнее</summary>
+  <p>Данные распределяются между шардами ClickHouse с помощью хэша `metric, key0, ... , key15`.
+Если в метрике используется несколько тегов, то данные, относящиеся к конкретному тегу (например, `"protocol": 
+"tcp"`), обычно хранятся на разных шардах. Чтобы получить полную статистику, всегда нужно делать _распределённые 
+запросы_ ко всему набору шардов.</p>
 
-  <p>What is the reason for it?
-The set of tag values has a certain cardinality: there is a finite number of possible tag value combinations for a
-metric. If we reach this cardinality limit, i.e., we send all these tag value combinations, the amount of data stops
-increasing due to aggregation—StatsHouse aggregates the events with the same tag value combination.</p>
+  <p>Почему это так?
+Набор значений тегов имеет определенную кардинальность: существует конечное число возможных комбинаций значений тегов для
+метрики. Если мы достигаем предела кардинальности, то есть отправляем все эти комбинации значений тегов, 
+объём данных перестает увеличиваться из-за агрегации — StatsHouse объединяет события с одним и тем же сочетанием 
+значений тегов.</p>
 
-  <p>To store the sample of data for the whole metric, each shard should store as many rows as there are tag value
-combinations for a metric—not a part proportional to a number of shards.</p>
+  <p>Чтобы хранить выборку данных для всей метрики, каждый шард должен хранить столько рядов, сколько существует 
+комбинаций значений тегов для метрики, а не долю, пропорциональную числу шардов.</p>
 
-  <p>StatsHouse does not use buffer tables—each aggregator inserts data once per second. Data is inserted into the 
-incoming table. The data is filtered by `time` within a receive window (48 hours) and copied via the meterialized 
-view. It prevents StatsHouse from inserting the "garbage" data. Otherwise, ClickHouse should have read data not 
-from one or two partitions but from all of them.</p>
+  <p>StatsHouse не использует буферные таблицы: каждый агрегатор вставляет данные раз в секунду в 
+incoming-таблицу. Данные фильтруются по `time` в пределах окна приёма (48 часов) и копируются через 
+метриализованное представление. Это защищает StatsHouse от вставки "мусорных" данных. В противном случае 
+ClickHouse должен был бы читать данные не из одного или двух шардов, а из всех.</p>
 
-  <p>A shard should have three or more replicas. Aggregators insert data into the first three replicas.
-The rest ones are read-only replicas and may be used to scale the reading load.</p>
+  <p>Шард должен иметь три или более реплик. Агрегаторы вставляют данные в первые три реплики.
+Остальные являются read-only репликами — их можно использовать, чтобы масштабировать нагрузку на чтение.</p>
 
-  <p>The number of shards can be any. To prevent incorrect configuration and inconsistent sharding, which may lead to a
-sharp increase in the amount of data due to weak aggregation, agents send the number of a replica shard to
-the aggregator. If the aggregator is not the right recipient for this data, it responds with an error. The same
-number helps the _ingress proxy_ to forward data to the right aggregator.</p>
+  <p>Количество шардов может быть любым. Для предотвращения неправильной конфигурации и непоследовательного 
+шардирования, которое может привести к резкому увеличению объема данных из-за слабой агрегации, агенты отправляют агрегатору
+номер реплики шарда. Если агрегатор "видит", что данные предназначаются не ему, то отвечает ошибкой. 
+Этот же номер позволяет прокси-серверу направить данные нужному агрегатору.</p>
 </details>
 
-## Application programming interface (API)
+## API
 
-Find StatsHouse [OpenAPI](../guides/openapi.md) specification.
+Ознакомьтесь со спецификацией [OpenAPI](../guides/openapi.md) для StatsHouse.
 
-The thin API client allows StatsHouse to send efficient queries to the database.
-The service caches data to minimize a database load. We limit retrieving data directly from ClickHouse
-as much as possible, since ineffective queries can negatively impact the ClickHouse cluster.
+Тонкий API-клиент позволяет StatsHouse отправлять эффективные запросы к базе данных.
+Сервис кэширует данные, чтобы минимизировать нагрузку на базу данных. Мы ограничиваем получение данных 
+непосредственно из ClickHouse, поскольку неэффективные запросы могут негативно повлиять на кластер ClickHouse.
 
-## User interface (UI)
+## Пользовательский интерфейс (UI)
 
-A user interface retrieves data from the StatsHouse API and displays metric data in a graph view.
+Пользовательский интерфейс получает данные из StatsHouse API и отображает данные метрик в виде графика.
 
-## Ingress proxy
+## Прокси
 
-An ingress proxy receives data from the agents that live outside the protected perimeter
-(i.e., outside the data center) and sends it to the aggregators.
+Прокси получает данные от агентов, которые находятся за пределами защищённого периметра
+(т.е. за пределами центра обработки данных) и отправляет их в агрегаторы.
 
-Agents and aggregators use the TL/RPC protocol with the data center encryption key. So, the agents outside the 
-data center cannot connect to aggregators directly, because it would require disclosing or copying the key to the 
-external systems.
+Агенты и агрегаторы используют протокол TL/RPC с ключом шифрования датацентра. Таким образом, агенты, находящиеся за 
+пределами датацентра, не могут подключаться к агрегаторам напрямую, поскольку это потребует раскрытия или копирования 
+ключа для внешних систем.
 
-The ingress proxy has a separate set of encryption keys for the external connections. To revoke the encryption 
-key, one should delete it from the ingress proxy configuration.
+Для внешних подключений у прокси-сервера есть отдельный набор ключей шифрования. Чтобы отозвать ключ шифрования,
+необходимо удалить его из конфигурации прокси.
 
-Ingress proxy does not have a state. To reduce the likelihood of an attack, it proxies only the subset of TL/RPC 
-request types used by the aggregators.
+Проекси не имеет состояния. Чтобы снизить вероятность атаки, он проксирует только подмножество TL/RPC
+типов запросов, используемых агрегаторами.
 
-There should be exactly three ingress proxies. Each of them is a proxy to a corresponding replica of a shard. 
-If the proxy is unavailable due to service or shutdown, it is equivalent to a breakdown of one shard's replica and 
-does not affect the normal operation of the StatsHouse system.
+Требуется ровно три прокси-сервера. Каждый из них является прокси для соответствующей реплики шарда.
+Если недоступный прокси эквивалентен выходу из строя реплики одного шарда и не влияет на работу StatsHouse.
 
 <img src={IngressProxy} width="600"/>
 
-Three ingress proxy instances simulate aggregators. One can set up one more ingress proxy level behind the existing
-proxies. This level will use the previous ingress proxies as the aggregators.
+Три экземпляра прокси имитируют агрегаторы. Можно установить еще один уровень проксирования за имеющимися
+прокси. Этот уровень будет использовать предыдущие прокси в качестве агрегаторов.
 
-Please avoid deploying ingress proxies in the Kubernetes pods.
+Не рекомендуется устанавливать прокси в подах Kubernetes.
 
 <details>
-    <summary>Details</summary>
-  <p>**Cryptokeys**</p>
+    <summary>Подробнее</summary>
+  <p>**Криптоключи**</p>
 
-  <p>StatsHouse uses the VK RPC protocol with the (optional) encryption to connect the components.</p>
+  <p>StatsHouse использует протокол VK RPC с (опциональным) шифрованием для общения компонентов.</p>
 
-  <p>According to the VK RPC protocol, the cryptokey is both the login for getting access and the secret for getting the 
-ephemeral connection keys. To establish a connection, the client has to use one of the keys known to a server. 
-The central system component is the aggregators. Upon startup, they get the single "major" data center cryptokey.</p>
+  <p>Согласно протоколу VK RPC, криптоключ является одновременно логином для получения доступа и секретом для получения 
+эфемерных ключей соединения. Чтобы установить соединение, клиент должен использовать один из ключей, известных серверу. 
+Центральным компонентом системы являются агрегаторы. При запуске они получают единственный "главный" криптоключ 
+датацентра.</p>
 
-  <p>To connect to aggregators, the agents should get the parameters:
-<li>`-agg-addr`—the addresses of the first aggregators' shards;</li>
-<li>`-aes-pwd-file`—the "major" data center cryptokey.</li></p>
+  <p>Для подключения к агрегаторам агенты должны получить следующие параметры:
+<li>`-agg-addr` — адреса первого шарда аггрегаторов;</li>
+<li>`-aes-pwd-file` — "главный" криптоключ датацентра.</li></p>
 
-  <p>The mechanism above is secure only inside the protected perimeter. To connect from the outside, use the ingress proxy 
-installed at the border.</p>
+  <p>Описанный механизм безопасен только внутри защищённого периметра. Для подключения извне используйте прокси, 
+установленный на границе.</p>
 
-  <p>This ingress proxy at the border has two parts:
-<li>an RPC server for the agents to connect from the outside,</li>
-<li>an RPC client for the proxy to connect to the aggregators within the perimeter.</li></p>
+  <p>Прокси, стоящий на границе, состоит из двух частей:
+<li>RPC-сервера для подключения агентов извне,</li>
+<li>RPC-клиента для подключения самого прокси к агрегаторам внутри периметра.</li></p>
 
-  <p>For the ingress proxy, one should configure the parameters:
-<li>`-ingress-external-addr`—the proxies' external addresses the agents use for connection;</li>
-<li>`-ingress-addr`—the parameter to control the interfaces for connecting agents.</li>
-<li>`-aes-pwd-file`—the inner cryptokey for sending data to the aggregators,</li>
-<li>`-ingress-pwd-dir`—a set of the external keys for the agents from the remote sites.</li></p>
+  <p>Для прокси необходимо настроить следующие параметры:
+<li>`-ingress-external-addr` — внешние адреса прокси-серверов, которые агенты используют для подключения;</li>
+<li>`-ingress-addr` — параметр для управления интерфейсами, на которые подключаются агенты;</li>
+<li>`-aes-pwd-file` — внутренний криптоключ для отправки данных агрегаторам;</li>
+<li>`-ingress-pwd-dir` — набор внешних ключей для агентов с удаленных площадок.</li></p>
 
-  <p>The `-ingress-addr` parameter is usually `:8128` that is the same as `0.0.0.0:8128`.
-It also may contain the subnet address of the network adapter to make it the
-only gateway for connections. The port in the `-ingress-addr` parameter should match one of the ports in the
-`-ingress-external-addr` parameter. The "outer" part of the ingress proxy should be available to the agents via 
-these ports.</p>
+  <p>Параметр `-ingress-addr` обычно имеет значение `:8128`, что равнозначно `0.0.0.0:8128`.
+Он также может содержать адрес подсети сетевого адаптера, чтобы разрешить подключение только через него. Порт в 
+параметре `-ingress-addr` должен совпадать с одним из портов в параметре `-ingress-external-addr`. "Внешняя" часть 
+входящего прокси должна быть доступна агентам через эти порты.</p>
 
-  <p>Each of these files contains the cryptokey; the file name is ignored and regarded as a comment.  
-The keys have random length—four bytes at least. The first four bytes are for key identification, so they must not 
-be identical.</p>
+  <p>Каждый из этих файлов содержит криптоключ; имя файла игнорируется и считается комментарием.  
+Ключи имеют произвольную длину — не менее четырех байт. Первые четыре байта служат для идентификации ключа, поэтому 
+они не должны быть одинаковыми.</p>
 
-  <p>If the external keys in the directory are changed, restart the ingress proxy. The ingress proxy does not keep track 
-of this directory, because the external keys in the set are changed rarely.</p>
+  <p>Если внешние ключи в папке изменились, перезапустите прокси. Прокси не следит за этой папкой, так как набор 
+ключей меняются редко.</p>
 
-  <p>Each agent gets one of the keys from the ingress proxy's `-ingress-pwd-dir` directory as the `-aes-pwd-file` 
-parameter.</p>
+  <p>Каждый агент получает один из ключей, указанных у прокси в папке `-ingress-pwd-dir`, в качестве 
+параметра `-aes-pwd-file`.</p>
 </details>
 
-## Metadata
+## Сервис метаданных
 
-The metadata component stores the global `string`↔`int32` map—it maps the metric names and 
-the tag values, which are strings, to integers.
+Сервис метаданных хранит глобальный маппинг `string`↔`int32`: именно здесь имена метрик и значения тегов, 
+которые являются строками, отображаются в целые числа.
 
 StatsHouse is known for providing real-time data. To provide users with low latency, StatsHouse maps the 
 `string` tag values (as well as metric names) to `int32` values:
+
+StatsHouse известен тем, что предоставляет данные в режиме реального времени. Чтобы гарантировать минимальную 
+задержку, StatsHouse отображает строковые значения тегов (а также названия метрик) в `int32`:
+
 ```
     'iphone' <=> 12
     'null' <=> 26
