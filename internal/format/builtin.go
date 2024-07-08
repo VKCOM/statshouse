@@ -1424,6 +1424,10 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				{
 					Description: "token-long",
 				},
+				{
+					Description: "shard", // metric % 16 for now, experimental
+					Raw:         true,
+				},
 			},
 		},
 		BuiltinMetricIDAPISourceSelectRows: {
