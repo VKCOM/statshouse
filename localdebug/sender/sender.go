@@ -14,7 +14,7 @@ import (
 func main() {
 	conn, err := net.Dial("udp", "127.0.0.1:13334")
 	if err != nil {
-		log.Fatal("Dial error: %v", err)
+		log.Fatalf("Dial error: %v", err)
 	}
 
 	ts := time.Now().Unix()
