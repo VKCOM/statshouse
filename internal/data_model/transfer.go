@@ -27,17 +27,21 @@ func (k *Key) ToSlice() []int32 {
 	return result[:i]
 }
 
-func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, shardID int) {
+func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key Key, shardID int) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	sID := item.FieldsMask >> 24
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
 		key.Timestamp = item.T
-		if key.Timestamp >= bucketTimestamp {
-			key.Timestamp = bucketTimestamp
+		// sometimes if agent conveyor is stuck or if it is on machine with wrong clock but receives events from
+		// client with correct clock, item timestamp will be > agent bucketTimestamp, we should not clamp by it.
+		// instead we use aggregator clock which we demand to always be set correctly.
+		if key.Timestamp > newestTime {
+			key.Timestamp = newestTime
 		} else if bucketTimestamp > BelieveTimestampWindow && key.Timestamp < bucketTimestamp-BelieveTimestampWindow {
 			key.Timestamp = bucketTimestamp - BelieveTimestampWindow
 		}
+		// above checks can be moved below }, but they will always be NOP as bucketTimestamp is both <= newestTime and in beleive window
 	}
 	key.Metric = item.Metric
 	copy(key.Keys[:], item.Keys)

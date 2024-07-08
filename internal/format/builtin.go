@@ -194,15 +194,16 @@ const (
 	TagValueIDTimingLateRecent                      = 3
 	TagValueIDTimingLongWindowThrownAgent           = 4
 	TagValueIDTimingLongWindowThrownAggregator      = 5
-	TagValueIDTimingMissedSeconds                   = 6
+	TagValueIDTimingMissedSeconds                   = 6 // TODO - remove after everyone uses TagValueIDTimingMissedSecondsAgents
 	TagValueIDTimingLongWindowThrownAggregatorLater = 7
 	TagValueIDTimingDiskOverflowThrownAgent         = 8
+	TagValueIDTimingMissedSecondsAgent              = 9 // separate to prevent mix of old and new way to write missed seconds
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
 
 	TagValueIDSecondReal    = 1
-	TagValueIDSecondPhantom = 2
+	TagValueIDSecondPhantom = 2 // We do not add phantom seconds anymore
 
 	TagValueIDInsertTimeOK    = 1
 	TagValueIDInsertTimeError = 2
@@ -719,6 +720,7 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDTimingMissedSeconds:                   "missed_seconds",
 					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
 					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
+					TagValueIDTimingMissedSecondsAgent:              "missed_seconds_agent",
 				}),
 			}, {
 				Description: "-",
