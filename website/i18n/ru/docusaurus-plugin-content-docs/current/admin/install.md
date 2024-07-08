@@ -69,7 +69,7 @@ see the above-mentioned [scheme](https://github.com/VKCOM/statshouse/blob/master
 
 As soon as you have created the ClickHouse tables, proceed to metadata service installation.
 
-Read more about the StatsHouse [metadata](../overview/components.md#metadata) component in the conceptual
+Read more about the StatsHouse [metadata](../overview/components.md#сервис-метаданных) component in the conceptual
 overview.
 
 You may install the metadata service on any machine. You have one metadata service instance.
@@ -99,7 +99,7 @@ The metadata service has its agent too.
 ### In case of metadata service failure
 
 If the metadata service is unreachable, StatsHouse cannot create new metrics and tags, and use tag information (see
-more about the [mapping mechanism](../overview/components.md#metadata)).
+more about the [mapping mechanism](../overview/components.md#сервис-метаданных)).
 
 Each StatsHouse component has its metadata copy and continues working even in case of metadata failure.
 But if the component fails too, it will not be able to restore.
@@ -110,7 +110,7 @@ In case of aggregator failure, restore the metadata service with the same IP add
 
 ## Aggregators
 
-Read more about the StatsHouse [aggregator](../overview/components.md#aggregator) component in the
+Read more about the StatsHouse [aggregator](../overview/components.md#агрегатор) component in the
 conceptual overview.
 
 The aggregator needs to know where to find the cluster, so please specify the following parameters:
@@ -156,7 +156,7 @@ Make sure an agent is installed on each machine that sends metrics to StatsHouse
 The agent opens the local port (13337, by default) and gets data from the application. Then it sends the data to the
 aggregators.
 
-Read more about the StatsHouse [agent](../overview/components.md#agent) component in the conceptual overview.
+Read more about the StatsHouse [agent](../overview/components.md#агент) component in the conceptual overview.
 
 The agents are available as the RPM or DEB packages, for example:
 
@@ -196,7 +196,7 @@ from the host](../guides/send-data.md#how-to-send-data-without-client-libraries)
 
 ## API/UI
 
-The [API component](../overview/components.md#application-programming-interface-api) has the StatsHouse
+The [API component](../overview/components.md#api) has the StatsHouse
 user interface as its part. As soon as you start the API/UI component, you can view
 the [service metrics](../guides/view-graph.md#service-metrics) that help to monitor StatsHouse.
 
@@ -206,7 +206,7 @@ The API component needs the following parameters:
 * `--clickhouse-v2-addrs` that is the ClickHouse cluster address,
 * `--listen-addr` that is the port to listen to,
 * `--disk-cache` that is the place to store the cached
-  [global `string↔int32` map](../overview/components.md#the-budget-for-creating-tag-values),
+  [global `string↔int32` map](../overview/components.md#бюджет-на-создание-значений-тегов),
 * `--static-dir` that is the place where the UI static files live.
 
 Find the example of the API/UI installation script:
@@ -225,6 +225,6 @@ To use the API with no authentication, enable the `--insecure-mode` option.
 
 ## Ingress proxy
 
-Find information about the StatsHouse [ingress proxy](../overview/components.md#ingress-proxy) component in
+Find information about the StatsHouse [ingress proxy](../overview/components.md#прокси) component in
 the conceptual overview. Read more about [ensuring security](security.md)
 with the ingress proxies and the cryptokeys.

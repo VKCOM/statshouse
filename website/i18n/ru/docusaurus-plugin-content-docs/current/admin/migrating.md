@@ -27,7 +27,7 @@ Prometheus and StatsHouse differ so much:
 | System     | Data model                                                                    | How it works                                                                                                                | Push/pull |
 |------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|-----------|
 | Prometheus | stores data as [time series](https://prometheus.io/docs/concepts/data_model/) | collects metrics from targets by [scraping](https://prometheus.io/docs/prometheus/latest/getting_started/) metrics endpoints | pull      |
-| StatsHouse | stores data as [aggregates](../overview/concepts.md#aggregate)   | monitored applications push metric data to the StatsHouse agents,<br/>which aggregate it and transfer it further                 | push      |
+| StatsHouse | stores data as [aggregates](../overview/concepts.md#агрегат)                  | monitored applications push metric data to the StatsHouse agents,<br/>which aggregate it and transfer it further                 | push      |
 
 How can we bring these two systems together? StatsHouse offers a proof of concept for scraping metrics in a 
 Prometheus-like manner.

@@ -49,16 +49,16 @@ Let's make them clear.
 ### The query result is an aggregate
 
 Prometheus stores `timestamp—value` pairs. Instead, StatsHouse stores aggregated data per time intervals, or 
-[_aggregates_](../overview/concepts.md#aggregate).
+[_aggregates_](../overview/concepts.md#агрегат).
 
 So, the query result in StatsHouse is an aggregate, and it depends on
-* the [_minimal available aggregation interval_](../overview/concepts.md#minimal-available-aggregation-interval)
+* the [_minimal available aggregation interval_](../overview/concepts.md#минимальный-интервал-агрегации-из-доступных)
 (i.e., on the "age" of the data),
 * the [_requested aggregation interval_](view-graph.md#6--aggregation-interval),
-* the metric [_resolution_](../overview/concepts.md#resolution).
+* the metric [_resolution_](../overview/concepts.md#разрешение).
 
-An [aggregate](../overview/concepts.md#aggregate) contains the _count_, _sum_, _min_, _max_ 
-statistics, and, optionally, the [_String top_](../overview/components.md#string-top-tag) tag (`tag_s`)
+An [aggregate](../overview/concepts.md#агрегат) contains the _count_, _sum_, _min_, _max_ 
+statistics, and, optionally, the [_String top_](../overview/components.md#тег-string-top-топ-строк) tag (`tag_s`)
 and [percentiles](edit-metrics.md#percentiles) (if enabled). 
 They are _aggregate components_:
 
@@ -66,7 +66,7 @@ They are _aggregate components_:
 |-----------|------------|-------|-------|-------|-------|-----|-----|-----|-------------|
 | 13:45:05  | toy_metric | ...   | ...   | ...   | ...   | ... | ... | ... | ...         |
 
-Read more about [aggregation](../overview/concepts.md#aggregation) in StatsHouse.
+Read more about [aggregation](../overview/concepts.md#агрегация) in StatsHouse.
 
 ### ___what___ for choosing the aggregate components
 

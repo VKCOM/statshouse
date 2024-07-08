@@ -16,7 +16,7 @@ data center. The AES encryption is used by default.
 
 If your cluster receives data from the agents that live outside the protected perimeter (i.e., outside the data center),
 use the ingress proxies. The ingress proxy has a separate set of encryption keys for the external connections.
-Read more about the StatsHouse [ingress proxy](overview/components.md#ingress-proxy) component
+Read more about the StatsHouse [ingress proxy](../overview/components.md#прокси) component
 in the conceptual overview.
 
 ## Without the ingress proxy

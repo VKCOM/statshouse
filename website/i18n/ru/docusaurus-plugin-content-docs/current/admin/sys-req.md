@@ -22,7 +22,7 @@ import LocalDisks from '../img/local-disks.png'
 <img src={ShardReplicas} width="500"/>
 
 Read more about
-[distributing data between the replicas](overview/components.md#handling-aggregators-shutdown).
+[distributing data between the replicas](../overview/components.md#работа-при-отказе-агрегатора).
 
 ## Backup disks
 
@@ -36,7 +36,7 @@ Make sure there is enough space on a disk to store data resulting from **six hou
 working.
 :::
 
-Read more about [handling aggregator's shutdown](overview/components.md#handling-aggregators-shutdown).
+Read more about [handling aggregator's shutdown](../overview/components.md#работа-при-отказе-агрегатора).
 
 ## Cloud installations
 
@@ -45,4 +45,4 @@ the pods or the short-lived virtual machines. If you use virtual machines, they 
 physical hardware.
 
 Read more about
-[deploying agents in the Kubernetes pods](overview/components.md#deploying-agents-in-the-kubernetes-pods).
+[deploying agents in the Kubernetes pods](../overview/components.md#установка-агентов-в-подах-kubernetes).

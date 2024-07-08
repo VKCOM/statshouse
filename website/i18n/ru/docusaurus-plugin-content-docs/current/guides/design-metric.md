@@ -45,7 +45,7 @@ Here, `counter`, `value`, and `unique` are basic metric types in StatsHouse.
 :::important
 StatsHouse **does not** store an exact metric value per each moment.
 
-It stores [aggregates](../overview/concepts.md#aggregation) associated with time intervals.
+It stores [aggregates](../overview/concepts.md#агрегация) associated with time intervals.
 :::
 
 ## Metric types
@@ -102,7 +102,7 @@ or
 ```
 
 Let's represent an event as a row in a conventional database. Upon per-second 
-[aggregation](../overview/concepts.md#aggregation),
+[aggregation](../overview/concepts.md#агрегация),
 we'll get the table below—for each tag value combination received, we get the row with the corresponding count:
 
 | timestamp | metric            | format | status          | counter |
@@ -111,7 +111,7 @@ we'll get the table below—for each tag value combination received, we get the 
 | 13:45:05  | toy_packets_count | TL     | ok              | 200     |
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 5       |
 
-The number of rows in such a table is a metric's [cardinality](../overview/concepts.md#cardinality).
+The number of rows in such a table is a metric's [cardinality](../overview/concepts.md#кардинальность).
 
 ### Value metrics
 
@@ -130,7 +130,7 @@ or
  "value": [0]} ]}
 ```
 
-When you use value metrics, StatsHouse calculates an [aggregate](../overview/concepts.md#aggregation)
+When you use value metrics, StatsHouse calculates an [aggregate](../overview/concepts.md#агрегат)
 in addition to a counter: _sum_, _min_, _max_.
 
 | timestamp | metric           | format | status          | counter | sum   | min | max  |
@@ -145,7 +145,7 @@ The metric value is an array, so you can send several values at a time.
 
 If you need to record a value per second (a "water level"), the StatsHouse client libraries try to send each value
 in the middle of the calendar second.
-[Agents](../overview/components.md#agent) finalize the second in accordance to a calendar second.
+[Agents](../overview/components.md#агент) finalize the second in accordance to a calendar second.
 StatsHouse does not ensure that each second contains exactly one measurement but tries to make it more probable.
 If you need to ensure this, add the [timestamp](#timestamps) explicitly.
 
@@ -170,7 +170,7 @@ The unique value is an array, so you can send several values at a time.
 | 13:45:05  | toy_packets_user | TL     | error_too_short | 5       | uniq(51)                 |
 
 StatsHouse uses the [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)-like function: the values themselves are inaccessible, so
-you can only estimate the [cardinality](../overview/concepts.md#cardinality) for the sets.
+you can only estimate the [cardinality](../overview/concepts.md#кардинальность) for the sets.
 
 For unique metrics, StatsHouse stores the aggregates: _sum_, _min_, _max_ (the same as for the value metrics
 interpreted as `int64` and approximated to `float64`). Knowing the range of values may be useful for debugging.
@@ -189,13 +189,13 @@ them into `float64` as the column for these aggregates are the same as for the v
 
 Check the valid metric type combinations in the table below:
 
-| What you send                    | What you get                                                                     |
-|----------------------------------|----------------------------------------------------------------------------------|
-| `"counter":100`                  | `counter`                                                                        |
-| `"value":[1, 2, 3]`              | `counter` (the size of the array), `value` (`sum`, `min`, `max`)                 |
-| `"unique":[17, 25, 37]`          | `counter` (the size of the array), `value` (`sum`, `min`, `max`), `unique`    |
-| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](../overview/concepts.md#user-guided-sampling) |
-| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>             |
+| What you send                    | What you get                                                                   |
+|----------------------------------|--------------------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                                      |
+| `"value":[1, 2, 3]`              | `counter` (the size of the array), `value` (`sum`, `min`, `max`)               |
+| `"unique":[17, 25, 37]`          | `counter` (the size of the array), `value` (`sum`, `min`, `max`), `unique`     |
+| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](../overview/concepts.md#пользовательское-семплирование) |
+| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>           |
 
 If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
 become confusing or uninformative.
@@ -209,7 +209,7 @@ Keep sending data of the **same type per metric**.
 If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric.
 Thus, you should not implement a separate counter metric for your `value` or `unique` metrics.
 You still can specify `counter` to implement 
-[user-guided sampling](../overview/concepts.md#user-guided-sampling).
+[user-guided sampling](../overview/concepts.md#пользовательское-семплирование).
 
 ## Tags
 
@@ -308,16 +308,16 @@ There is no formal limitation for a number of tag values, but the rule is to hav
 
 Tags with many different values such as user IDs or email addresses may lead to
 [mapping flood](view-graph.md#mapping-status) errors or increased [sampling](view-graph.md#sampling) due to
-high [cardinality](../overview/concepts.md#cardinality).
+high [cardinality](../overview/concepts.md#кардинальность).
 In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
 If a tag has too many values, they will soon exceed the
-[mapping budget](../overview/components.md#the-budget-for-creating-tag-values) and will be lost: tag values
+[mapping budget](../overview/components.md#бюджет-на-создание-значений-тегов) and will be lost: tag values
 for your measurements will become the empty strings.
 
 Even if all your tag values have been already mapped, and you
 [avoid the mapping flood](edit-metrics.md#set-up-raw-tags) but keep sending data with many tag values,
-your data will probably be [sampled](../overview/concepts.md#sampling). Sampling means that
+your data will probably be [sampled](../overview/concepts.md#семплирование). Sampling means that
 StatsHouse throws away pieces of data to reduce its overall amount. To keep aggregation, statistics, and overall
 graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
 
@@ -339,7 +339,7 @@ For many different string values (such as `search_request`), use a [String top t
 
 If tag values in your metric are originally 32-bit integer values, you can
 [mark them as _Raw_ ones](edit-metrics.md#set-up-raw-tags)
-to avoid the [mapping flood](../overview/components.md#the-budget-for-creating-tag-values).
+to avoid the [mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
 
 These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed) 
 and inserted into the ClickHouse database as is.
@@ -355,12 +355,12 @@ requests.
 
 With the common tags, you will get [mapping flood errors](view-graph.md#mapping-status) very soon for this scenario.
 The _String top tag_ stands apart from the other ones as its values are not
-[mapped](../overview/components.md#metadata) to integers. Thus, you can avoid
+[mapped](../overview/components.md#сервис-метаданных) to integers. Thus, you can avoid
 mapping flood errors and massive sampling.
 
 The _String top tag_ has a special storage: when you send your data labeled with the _String top_ tag values, only the 
 most popular tag values are stored. The other tag values for this metric become empty strings and are aggregated. Read 
-more about the [String top tag implementation](../overview/components.md#string-top-tag).
+more about the [String top tag implementation](../overview/components.md#тег-string-top-топ-строк).
 
 To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-top-tag) to it.
 
@@ -411,7 +411,7 @@ to one or more hosts, label them with the `staging` or `development` tag values 
 
 ### Customizing the `environment` tag
 
-StatsHouse stores metrics in a ClickHouse [database](../overview/components.md#database), 
+StatsHouse stores metrics in a ClickHouse [database](../overview/components.md#база-данных), 
 where 16 columns are for tags. These tag columns are named like `1..15`. For example, the tag names may be “format” 
 and “status.” One can edit the metric, so that "format" relates to the `1` column, 
 and "status" relates to the `2` column. You can use system names `1..15`.
@@ -439,5 +439,5 @@ it is OK to send data once in an hour, but it is not OK to send data once in a d
 
 We do not encourage you to specify timestamps explicitly because rows with differing timestamps cannot be 
 aggregated—this may lead to increased sampling. Moreover, the ClickHouse 
-[database](../overview/components.md#database) is rather slow when inserting historical data.
+[database](../overview/components.md#база-данных) is rather slow when inserting historical data.
 

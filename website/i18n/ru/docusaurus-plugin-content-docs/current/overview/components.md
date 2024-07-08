@@ -22,28 +22,28 @@ import MappingCached from '../img/mapping-cached.png'
 
 А вот их описания:
 <!-- TOC -->
-* [Agent](#agent)
-  * [Receiving data via UDP](#receiving-data-via-udp)
-  * [Deploying agents in the Kubernetes pods](#deploying-agents-in-the-kubernetes-pods)
-* [Aggregator](#aggregator)
-  * [Real-time and "historical" data](#real-time-and-historical-data)
-  * [Handling aggregator's shutdown](#handling-aggregators-shutdown)
-* [Database](#database)
-* [Application programming interface (API)](#application-programming-interface-api)
-* [User interface (UI)](#user-interface-ui)
-* [Ingress proxy](#ingress-proxy)
-* [Metadata](#metadata)
-  * [The budget for creating tag values](#the-budget-for-creating-tag-values)
-    * [_String top_ tag](#string-top-tag)
-    * [_Raw_ tags](#raw-tags)
-  * [The budget for creating metrics](#the-budget-for-creating-metrics)
+* [Агент](#агент)
+  * [Получение данных UDP](#получение-данных-по-udp)
+  * [Установка агентов в подах Kubernetes](#установка-агентов-в-подах-kubernetes)
+* [Агрегатор](#агрегатор)
+  * [Актуальные и "исторические" данные](#актуальные-и-исторические-данные)
+  * [Работа при отказе агрегатора](#работа-при-отказе-агрегатора)
+* [База данных](#база-данных)
+* [API](#api)
+* [Пользовательский интерфейс (UI)](#пользовательский-интерфейс-ui)
+* [Прокси](#прокси)
+* [Сервис метаданных](#сервис-метаданных)
+  * [Бюджет на создание значений тегов](#бюджет-на-создание-значений-тегов)
+    * [_Тег String top_ (Топ строк)](#тег-string-top-топ-строк)
+    * ["Сырые" (_Raw_) теги](#сырые-raw-теги)
+  * [Бюджет на создание метрик](#бюджет-на-создание-метрик)
 <!-- TOC -->
 
 ## Агент
 
 Агент
 * валидирует метрику (например, проверяет, существует ли она),
-* [агрегирует](concepts.md#aggregation) данные в пределах секунды,
+* [агрегирует](concepts.md#агрегация) данные в пределах секунды,
 * шардирует данные
 * и отправляет их на агрегаторы.
 
@@ -221,14 +221,10 @@ message MetricBatch {
 * Для JSON: первым символом должна быть фигурная скобка `{` (для корректного определения формата).
 * Для Protocol Buffers: не добавляйте поля в объект `MetricBatch` (для корректного определения формата).
 
-### Разворачивание агентов в подах Kubernetes
+### Установка агентов в подах Kubernetes
 
 Не устанавливайте агенты в подах Kubernetes.
 Мы настоятельно рекомендуем устанавливать их только на реальных серверах (обязательно указывайте порт `13337`).
-
-The reason is that StatsHouse "does not like" the fluctuating number of agents.
-The agents send per-second reports to the aggregators. The permanent number of agents indicates that the agents are
-connected to the aggregators. The pods that stopped working reduce the number of agents and activate the main StatsHouse alert.
 
 StatsHouse "не любит", когда число агентов колеблется.
 Агенты отправляют агрегаторам посекундные отчёты. Если число агентов постоянно, значит, они подключены к 
@@ -245,15 +241,12 @@ StatsHouse "не любит", когда число агентов колебл�
 
 ## Агрегатор
 
-Он агрегирует посекундные данные метрик от всех агентов и вставляет результат в базу данных ClickHouse.
+Агрегирует посекундные данные от всех агентов и вставляет результат в базу данных ClickHouse.
 
 <img src={Aggregator} width="500"/>
 
-There are as many aggregators as there are ClickHouse shards with replicas. Each aggregator inserts data to its 
-local database replica deployed on the same machine. For example: 3 shards × 3 replicas = 9 aggregators.
-
-Агрегаторов должно быть столько, сколько имеется шардов ClickHouse с репликами. Каждый агрегатор вставляет данные в 
-реплику базы данных, развёрнутую на той же машине. Например: 3 шарда × 3 реплики = 9 агрегаторов.
+Число агрегаторов должно быть равно числу шардов ClickHouse с репликами. Каждый агрегатор вставляет 
+данные в реплику базы данных, развёрнутую на той же машине. Например: 3 шарда × 3 реплики = 9 агрегаторов.
 
 <img src={ShardsReplicas} width="700"/>
 
@@ -338,7 +331,7 @@ StatsHouse записывает данные ровно в три реплики
 
 ## База данных
 
-В базе данных [ClickHouse](https://clickhouse.com) хранятся [агрегированные](concepts.md#aggregation) данные метрик.
+В базе данных [ClickHouse](https://clickhouse.com) хранятся [агрегированные](concepts.md#агрегация) данные метрик.
 
 StatsHouse вставляет данные в таблицу ClickHouse, которая определяется следущим образом:
 
@@ -489,10 +482,7 @@ ClickHouse должен был бы читать данные не из одно
 Сервис метаданных хранит глобальный маппинг `string`↔`int32`: именно здесь имена метрик и значения тегов, 
 которые являются строками, отображаются в целые числа.
 
-StatsHouse is known for providing real-time data. To provide users with low latency, StatsHouse maps the 
-`string` tag values (as well as metric names) to `int32` values:
-
-StatsHouse известен тем, что предоставляет данные в режиме реального времени. Чтобы гарантировать минимальную 
+StatsHouse предоставляет данные в режиме реального времени. Чтобы гарантировать минимальную 
 задержку, StatsHouse отображает строковые значения тегов (а также названия метрик) в `int32`:
 
 ```
@@ -500,48 +490,53 @@ StatsHouse известен тем, что предоставляет данны
     'null' <=> 26
 ```
 
-This huge `string`↔`int32` map is common for all metrics. The elements of this map are never deleted.
+Этот огромный маппинг общий для всех метрик. Элементы маппинга никогда не удаляются.
 
-To prevent the uncontrollable increase of the `string`↔`int32` map, the budgets for 
-[creating metrics](#the-budget-for-creating-metrics) and [tag values](#the-budget-for-creating-tag-values) are limited.
+Чтобы не допустить неконтролируемого увеличения маппинга, бюджеты на
+[создание метрик](#бюджет-на-создание-метрик) и [значений тегов](#бюджет-на-создание-значений-тегов) ограничены.
 
-### The budget for creating tag values
+### Бюджет на создание значений тегов
 
-To prevent the uncontrollable increase of the `string`↔`int32` map, the budget for creating tag values is limited to 
-300 per day. Upon exceeding the budget, new mappings can be added twice per hour (this rule is customizable).
+Чтобы предотвратить неконтролируемый рост маппинга `string`↔`int32`, мы ограничиваем бюджет на создание значений 
+тегов до 300 в день. Если бюджет исчерпан, новые строки (значения тегов) можно добавлять в маппинг дважды в час 
+(правило настраивается).
 
-**Mapping flood** appears when you exceed this budget. When the budget is over and new mappings are not allowed, 
-StatsHouse inserts a service `mapping flood` value to a tag column not to lose the entire event.
+При превышении бюджета возникают ошибки типа **Mapping flood**. Когда бюджет исчерпан и добавлять новые строки в 
+маппинг нельзя, StatsHouse вставляет значение `mapping flood` в колонку тега, чтобы не потерять событие целиком.
 
-There are options to use [tags with too many different values](../guides/design-metric.md#how-many-tag-values) 
-and to avoid the mapping flood: [String top](../guides/design-metric.md#string-top-tag) tag and 
-[Raw](../guides/design-metric.md#raw-tags) tags.
+Чтобы создавать [теги с большим количеством разных значений](../guides/design-metric.md#how-many-tag-values), но 
+избежать ошибок `mapping flood`, можно использовать тег 
+[String top (Топ строк)](../guides/design-metric.md#string-top-tag) и 
+[Raw](../guides/design-metric.md#raw-tags) теги (теги с "сырыми" значениями).
 
 <img src={Mapping} width="600"/>
 
-If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-[Raw](../guides/design-metric.md#raw-tags) tag values to avoid the mapping flood.
+Если вам нужны теги с большим количеством 32-битных чисел (например, тег `user_ID`), 
+используйте [Raw](../guides/design-metric.md#raw-tags) теги, чтобы избежать ошибок `mapping flood`.
 
-For many different string values (such as `search_request`), use a [String top tag](#string-top-tag).
+Если вам нужен тег с разнообразными строковыми значениями (например, тег `search_request`), используйте 
+тег [String top (Топ строк)](#тег-string-top-топ-строк).
 
-#### _String top_ tag
+#### Тег String top (Топ строк)
 
-The _String top tag_ stands apart from the other ones as its values are _not mapped to integers_. It is a separate 
-`stag` column in the ClickHouse table:
+Тег _String top_ отличается от других тем, что его значения _не добавляются в маппинг `string`↔`int32`_. Это отдельный
+столбец `tag_s` в таблице ClickHouse:
 
 | timestamp | metric           | tag_1                                                           | tag_2                                                         | <text className="orange-text">tag_s</text>                                  | counter   | sum    | min   | max   | 
 |-----------|------------------|-----------------------------------------------------------------|---------------------------------------------------------------|-----------------------------------------------------------------------------|-----------|--------|-------|-------|
 | 13:45:05  | toy_packets_size | JSON<br/><text className="orange-text">mapped to `int32`</text> | ok<br/><text className="orange-text">mapped to `int32`</text> | my-tag-value<br/><text className="orange-text">NOT mapped to `int32`</text> | 100       | 1300   | 20    | 1200  | 
 
-As the non-mapped strings take up a lot of space and are longer to read, StatsHouse limits their number (e.g., to a 
-hundred). This limit is not configurable for users.
+Поскольку строки, не добавленные в маппинг, занимают много места и дольше читаются, StatsHouse ограничивает их 
+количество (например, до сотни). Это ограничение настраивать нельзя. Что же происходит с остальными 
+строками, не поместившимися в эту сотню?
 
 :::important
-For these _String top_ tag values, StatsHouse stores only the most frequently used ones—those with the highest 
-_counter_. The other tag values for this metric become _empty_ and are aggregated.
+StatsHouse сохраняет только строки с наиболее часто используемыми значениями тега _String top_ — строки с наибольшим 
+_счётчиком_. Остальные значения тега _String top_ превращаются в _empty_ и агрегируются.
 :::
 
-For example, the limitation for the non-mapped strings is 4, and we have the following metric data:
+Как это работает? Посмотрим на примере.
+Представим, что ограничение на тег _String top_ равно не сотне, а четырём. А данные для нашей метрики выглядят так:
 
 | timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
 |-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
@@ -550,8 +545,8 @@ For example, the limitation for the non-mapped strings is 4, and we have the fol
 | 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
 | 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
 
-The next piece of data adds one more row: with the `e` _String top_ tag value and the counter equal to `5`.
-The _String top_ mechanism chooses the tag value with the lowest count (`b` is the less popular one) and makes it 
+Приходят новые данные: строка со значением тега _String top_, равным `e`, и счётчиком, равным `55`.
+Механизм _String top_ выбирает значение тега с наименьшим счётчиком (`b` — менее популярный) и превращает его в
 _empty_:
 
 | timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
@@ -562,7 +557,7 @@ _empty_:
 | 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
 | 13:45:05  | toy_metric | ...   | ...   | **e**                                      | **55**  | ... | ... | ... |
 
-The next piece of data adds one more row: with the `f` tag value and the counter equal to `2`.
+Затем добавляется строка со значением `f` в теге и счётчиком, равным `2`.
 
 | timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
 |-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
@@ -573,8 +568,8 @@ The next piece of data adds one more row: with the `f` tag value and the counter
 | 13:45:05  | toy_metric | ...   | ...   | e                                          | 55      | ... | ... | ... |
 | 13:45:05  | toy_metric | ...   | ...   | **f** → _empty string_                     | **2**   | ... | ... | ... |
 
-As the `f` tag value is not in the top of the frequently used ones (i.e., it has the low _count_), it becomes the 
-empty string too and is aggregated with the previous _empty string_:
+Поскольку значение `f` используется редко (значение счётчика меньше, чем у других), оно тоже превращается в 
+_empty_ и агрегируется с предыдущей пустой строкой:
 
 | timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
 |-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
@@ -584,45 +579,46 @@ empty string too and is aggregated with the previous _empty string_:
 | 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
 | 13:45:05  | toy_metric | ...   | ...   | e                                          | 55      | ... | ... | ... |
 
-#### _Raw_ tags
+#### "Сырые" (_Raw_) теги
 
-If tag values in your metric are originally 32-bit integer values, you can mark them as the _Raw_ ones 
-to avoid the mapping flood. 
-These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed) 
-and inserted into the ClickHouse database as is.
-Learn how to [set up _Raw_ tags](../guides/edit-metrics.md#set-up-raw-tags).
+Если значения тегов изначально являются 32-битными числами, вы можете пометить их как "сырые" (_Raw_),
+чтобы избежать переполнения маппинга.
+Такие значения тегов (_Raw_) StatsHouse будет воспринимать как `(u)int32` (возможные значения: `-2^31..2^32-1`)
+и вставлять в базу ClickHouse, не добавляя в маппинг.
+Узнайте, как [настроить "сырые" (_Raw_) теги](../guides/edit-metrics.md#set-up-raw-tags).
 
-### The budget for creating metrics
+### Бюджет на создание метрик
 
-Users can create as many metrics as they wish as soon as they do it manually via the StatsHouse UI.
-As a rule, administrators cannot automate creating metrics.
+Пользователи могут создавать сколько угодно метрик — вручную через пользовательский интерфейс StatsHouse.
+Как правило, автоматизировать создание метрик нельзя.
 
-The StatsHouse components rely on the idea that there are not so many different metrics—hundreds of thousands as a
-maximum. StatsHouse is not protected from the uncontrollable increase of the metrics' number.
+StatsHouse предполагает, что метрик не так много: сотни тысяч. Система не защищёна от 
+неконтролируемого роста числа метрик.
 
 :::tip
-If you migrate to StatsHouse from the other monitoring solution, contact the StatsHouse administrators in your
-organization to enable the "Auto-create" mode (and to disable it upon migration).
+Если вы переходите на StatsHouse с другой системы мониторинга, обратитесь к администраторам StatsHouse в вашей 
+организации, чтобы включить режим автосоздания (по завершении миграции его нужно отключить).
 :::
 
 <details>
-    <summary>Details</summary>
-  <p>**Getting metric properties from metadata**</p>
+    <summary>Подробнее</summary>
+  <p>**Получение свойств метрики из сервиса метаданных**</p>
 
-  <p>Aggregators get information directly from the metadata service. Agents deal with the mappings via the aggregators.
-Both the agents and the aggregators cache the mappings in memory or in files—for a month.</p>
+  <p>Агрегаторы получают информацию непосредственно от сервиса метаданных. Агенты работают с маппингом через 
+агрегаторы. И агенты, и агрегаторы кэшируют содержимое маппинга в памяти или файла и хранят в течение месяца.</p>
 
-  <p>Upon initial startup, the agents use the special bootstrap request to get the 100,000 most frequently used mappings.
-Otherwise, while deploying the agents on the 10,000 hosts, StatsHouse should have downloaded a billion values one by
-one. It would take a lot of time, and StatsHouse would not be able to write metric data.</p>
+  <p>При первом запуске агенты используют специальный bootstrap-запрос, чтобы получить 100 000 наиболее часто 
+используемых строк из маппинга. В противном случае при развертывании большого количества агентов
+StatsHouse должен был бы загрузить огромное чилос значений одно за другим. Это заняло бы много времени, в течение 
+которого StatsHouse не мог бы записывать данные.</p>
 
-  <p>Aggregators use the TL/RPC long polling to get metrics' information from metadata. Similarly, agents use
-long polling to get information from aggregators. So, all the agents become informed about the changes in the metrics'
-properties almost immediately (in a second).</p>
+  <p>Агрегаторы используют TL/RPC long polling для получения информации о метриках из сервиса метаданных. Агенты 
+используют long polling для получения информации от агрегаторов. Таким образом, все агенты получают 
+информацию об изменениях в свойствах метрик практически мгновенно (за секунду).</p>
 
-  <p>**Deleting metrics**</p>
+  <p>**Удаление метрик**</p>
 
-  <p>One cannot delete a metric, because there is no efficient way to do it in the ClickHouse database.
-StatsHouse uses the `visible` flag to disable the metric, i.e., to hide the metric from the metric list
-(it is reversible). Disabling a metric stops writing data for it to the database.</p>
+  <p>Удалить метрику нельзя, потому что в базе данных ClickHouse нет эффективного способа сделать это.
+StatsHouse использует флаг `visible` для отключения метрики, т.е. для скрытия метрики из списка метрик
+(это действие обратимо). Отключение метрики прекращает запись данных для нее в базу данных.</p>
 </details>

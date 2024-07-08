@@ -66,9 +66,9 @@ You can create as many metrics as you wish as soon as you do it manually via the
 #### "What if I send too much data? Can I overload StatsHouse or spoil other metrics?"
 
 Most likely, you cannot do anything wrong to StatsHouse or other users with your metrics. It is almost
-impossible to overload StatsHouse due to [aggregation](../overview/concepts.md#aggregation)
-and [sampling](../overview/concepts.md#sampling).
-StatsHouse provides users with [fair resource sharing](../overview/concepts.md#fair-resource-sharing),
+impossible to overload StatsHouse due to [aggregation](../overview/concepts.md#агрегация)
+and [sampling](../overview/concepts.md#семплирование).
+StatsHouse provides users with [fair resource sharing](../overview/concepts.md#справедливое-распределение-ресурсов),
 so no metric can steal budget from the other one.
 
 :::info

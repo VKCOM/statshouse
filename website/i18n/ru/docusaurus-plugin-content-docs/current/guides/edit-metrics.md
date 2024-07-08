@@ -93,14 +93,14 @@ You will not see percentiles for the previously written data.
 :::
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
-[sampling](../overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
+[sampling](../overview/concepts.md#семплирование). If it is important for you to have the lower sampling factor, keep an
 eye on your metric [cardinality](view-graph.md#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
 ## Resolution
 
 The highest available resolution of data to show on a graph depends on the currently available 
-[aggregate](../overview/concepts.md#aggregation):
+[aggregate](../overview/concepts.md#агрегация):
 * per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
@@ -109,15 +109,15 @@ So, you can get per-second data for the last two days, per-minute data for the l
 per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 
-to reduce [sampling](../overview/concepts.md#sampling), reduce your metric resolution. 
-For example, choose a custom resolution to make the [agent](../overview/components.md#agent) send data once 
+to reduce [sampling](../overview/concepts.md#семплирование), reduce your metric resolution. 
+For example, choose a custom resolution to make the [agent](../overview/components.md#агент) send data once 
 per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
 Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
 in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../overview/concepts.md#resolution).
+[resolution](../overview/concepts.md#разрешение).
 
 You see custom resolution near the metric name in a graph view:
 
@@ -175,7 +175,7 @@ Add tag descriptions to show in the UI:
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
 [_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
-[mapping flood](../overview/components.md#the-budget-for-creating-tag-values).
+[mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
 
 To help yourself remember what they mean, specify a 
 [format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 

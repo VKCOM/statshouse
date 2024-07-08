@@ -66,7 +66,7 @@ for the group below:
 
 :::important
 While increasing the weight (and the budget) for a tenant, you automatically reduce the budget for the other ones.
-This may lead to higher [sampling](overview/concepts.md#sampling) rates for them. See the picture above.
+This may lead to higher [sampling](../overview/concepts.md#семплирование) rates for them. See the picture above.
 :::
 
 ### Manage access for namespaces

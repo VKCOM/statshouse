@@ -526,7 +526,7 @@ For example, the limitation for the non-mapped strings is 4, and we have the fol
 | 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
 | 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
 
-The next piece of data adds one more row: with the `e` _String top_ tag value and the counter equal to `5`.
+The next piece of data adds one more row: with the `e` _String top_ tag value and the counter equal to `55`.
 The _String top_ mechanism chooses the tag value with the lowest count (`b` is the less popular one) and makes it 
 _empty_:
 
