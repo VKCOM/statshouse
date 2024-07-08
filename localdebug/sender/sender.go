@@ -17,19 +17,20 @@ func main() {
 		log.Fatal("Dial error: %v", err)
 	}
 
-	ts := int64(0)
+	ts := time.Now().Unix()
 	for {
 		time.Sleep(time.Millisecond * 100)
 		ts2 := time.Now().Unix()
-		if ts2 == ts {
+		if ts == ts2 {
 			continue
 		}
-		ts = ts2
-		str := fmt.Sprintf(`{"metrics":[{"ts":%d, "name":"gbuteyko_investigation","tags":{"1":"I_test_statshouse","2":"2"},"counter":1}]}`, ts)
-		fmt.Println(str)
-		time.Sleep(time.Millisecond * time.Duration(rand.Intn(700))) // simulate slow packet delivery
-		if _, err := conn.Write([]byte(str)); err != nil {
-			log.Printf("error writing UDP: %v", err)
+		time.Sleep(time.Millisecond * time.Duration(rand.Intn(2000))) // simulate slow packet delivery
+		for ; ts < ts2; ts++ {                                        // skip no events
+			str := fmt.Sprintf(`{"metrics":[{"ts":%d, "name":"gbuteyko_investigation","tags":{"1":"I_test_statshouse","2":"2"},"counter":1}]}`, ts)
+			fmt.Println(str)
+			if _, err := conn.Write([]byte(str)); err != nil {
+				log.Printf("error writing UDP: %v", err)
+			}
 		}
 	}
 }
