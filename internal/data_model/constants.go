@@ -68,8 +68,6 @@ const (
 
 	MaxConveyorDelay = MaxShortWindow + FutureWindow + InsertDelay + AgentAggregatorDelay
 
-	MaxMissedSecondsIntoContributors = 60 // If source sends more MissedSeconds, they will be truncated. Do not make large. We scan 4 arrays of this size on each insert.
-
 	AgentMappingTimeout1 = 10 * time.Second
 	AgentMappingTimeout2 = 30 * time.Second
 	AutoConfigTimeout    = 30 * time.Second

@@ -36,9 +36,10 @@ type (
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
-		CurrentTime    uint32
+		addBuiltInsTime uint32 // separate for simplicity
+
 		CurrentBuckets [61][]*data_model.MetricsBucket // [resolution][shard]. All disallowed resolutions are always skipped
-		MissedSeconds  uint32                          // If disk is slow or computer sleeps/slows, several seconds can get into single bucket
+		NextBuckets    [61][]*data_model.MetricsBucket // [resolution][shard]. All disallowed resolutions are always skipped
 		FutureQueue    [60][]*data_model.MetricsBucket // 60 seconds long circular buffer.
 		// Current buckets work like this, example 4 seconds resolution
 		// 1. data collected for 4 seconds into 4 key shards
@@ -53,10 +54,9 @@ type (
 		BucketsToSend     chan compressedBucketDataOnDisk
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
-		PreprocessingBucketTime    uint32
-		PreprocessingBuckets       []*data_model.MetricsBucket // current FutureQueue element is moved here
-		PreprocessingMissedSeconds uint32                      // copy of MissedSeconds for bucket being processed
-		condPreprocess             *sync.Cond
+		PreprocessingBucketTime uint32
+		PreprocessingBuckets    []*data_model.MetricsBucket // current FutureQueue element is moved here
+		condPreprocess          *sync.Cond
 
 		// only used by single shard randomly selected for sending this infp
 		currentJournalVersion     int64
@@ -127,41 +127,50 @@ func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
 	return s.agent.diskBucketCache.TotalFileSize(s.ShardNum)
 }
 
-// If user did not set timestamp or set to 0 (default timestamp), metric arrived with 0 up to here.
-// We do not want metrics with default timestamp and timestamp explicitly set by clients to get into
-// different map entries due to key differences, that's why we must set timestamp here.
-// Also for low-resolution metrics, we must ensure timestamps are rounded, so they again end up in the same map item,
+// For low-resolution metrics, we must ensure timestamps are rounded, so they again end up in the same map item,
 // and clients should set timestamps freely and not make assumptions on metric resolution (it can be changed on the fly).
-// Later, when sending bucket, we will make reverse operation, removing timestamps for all items which have it
+// Later, when sending bucket, we will remove timestamps for all items which have it
 // equal to bucket timestamp (only for transport efficiency), then reset timestamps on aggregator after receiving.
-// This is the only correct way to operate with timestamps.
-func fixKeyTimestamp(key *data_model.Key, resolution int, currentTimestamp uint32) {
-	if key.Timestamp == 0 || key.Timestamp >= currentTimestamp {
-		key.Timestamp = currentTimestamp
-		return
-	}
-	// - 60 accounts for rounding below
-	if currentTimestamp > data_model.BelieveTimestampWindow-60 && key.Timestamp < currentTimestamp-(data_model.BelieveTimestampWindow-60) {
-		key.Timestamp = currentTimestamp - (data_model.BelieveTimestampWindow - 60)
-	}
-	if resolution > 1 {
-		key.Timestamp = (key.Timestamp / uint32(resolution)) * uint32(resolution)
-	}
-}
-
-func (s *Shard) resolutionShardFromHashLocked(hash uint64, metricInfo *format.MetricMetaValue) (*data_model.MetricsBucket, int, int) {
+func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, keyHash uint64, metricInfo *format.MetricMetaValue) *data_model.MetricsBucket {
 	resolution := 1
 	if metricInfo != nil {
 		if !format.HardwareMetric(metricInfo.MetricID) {
-			resolution = metricInfo.EffectiveResolution // TODO - better idea?
+			resolution = metricInfo.EffectiveResolution
 		} else {
 			resolution = int(s.hardwareMetricResolutionResolved.Load())
 		}
 	}
-	numShards := uint64(resolution)
-	// lower bits of hash are independent of higher bits used by shardFromHash function
-	mul := (hash & 0xFFFFFFFF) * numShards >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
-	return s.CurrentBuckets[resolution][mul], resolution, int(mul)
+	resolutionShardNum := 0
+	if resolution > 1 { // division is expensive
+		key.Timestamp = (key.Timestamp / uint32(resolution)) * uint32(resolution)
+		resolutionShardNum = int((keyHash & 0xFFFFFFFF) * uint64(resolution) >> 32) // trunc([0..0.9999999] * numShards) in fixed point 32.32
+	}
+	currentShard := s.CurrentBuckets[resolution][resolutionShardNum]
+	currentTimestamp := currentShard.Time
+	if key.Timestamp == 0 {
+		// we have lots of builtin metrics in aggregator which should correspond to "current" second.
+		// but unfortunately now agent's current second is lagging behind.
+		// TODO - add explicit timestamp to all of them, then do panic here
+		// panic("all builtin metrics must have correct timestamp set at this point")
+		key.Timestamp = currentTimestamp
+		return currentShard
+	}
+
+	if key.Timestamp <= currentTimestamp { // older or current, goes to current bucket
+		if currentTimestamp > data_model.BelieveTimestampWindow && key.Timestamp < currentTimestamp-data_model.BelieveTimestampWindow {
+			// we shift by the qhole number of minutes, so get correct timestamp for any resolution
+			key.Timestamp = currentTimestamp - data_model.BelieveTimestampWindow
+		}
+		return currentShard
+	}
+	nextShard := s.NextBuckets[resolution][resolutionShardNum]
+	// we cannot disallow timestamps in the future, because our conveyor can be stuck
+	// or our clock wrong while client has events with correct timestamps
+	// timestamp will be clamped by aggregators
+	// if key.Timestamp > nextShard.Time {
+	//	key.Timestamp = nextShard.Time
+	// }
+	return nextShard
 }
 
 func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
@@ -175,8 +184,7 @@ func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	totalCount := float64(len(hashes))
 	if count != 0 {
@@ -188,8 +196,7 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	totalCount := float64(len(values))
 	if count != 0 {
@@ -201,8 +208,7 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, valu
 func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.MapStringTopBytes(str, count).AddCounterHost(count, hostTag)
 }
@@ -210,8 +216,7 @@ func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, cou
 func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.Tail.AddCounterHost(count, hostTag)
 }
@@ -219,8 +224,7 @@ func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64
 func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.MapStringTopBytes(str, count).AddCounterHost(count, hostTag)
 }
@@ -228,8 +232,7 @@ func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, st
 func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.MapStringTopBytes(str, count).AddValueCounterHost(value, count, hostTag)
 }
@@ -237,8 +240,7 @@ func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint6
 func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		mi.Tail.AddValueCounterHostPercentile(value, counter, hostTag, data_model.AgentPercentileCompression)
@@ -250,8 +252,7 @@ func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value fl
 func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		mi.Tail.AddValueArrayHostPercentile(values, mult, hostTag, data_model.AgentPercentileCompression)
@@ -263,8 +264,7 @@ func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, val
 func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	count := float64(len(values)) * mult
 	if metricInfo != nil && metricInfo.HasPercentiles {
@@ -277,8 +277,7 @@ func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash 
 func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.Tail.Value.Merge(item)
 }
@@ -286,14 +285,13 @@ func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, item *data_mo
 func (s *Shard) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, keyHash uint64, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
-	fixKeyTimestamp(&key, resolution, resolutionShard.Time)
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	mi.MapStringTopBytes(str, count).AddUniqueHost(hashes, count, hostTag)
 }
 
 func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
-	resolutionShard := s.CurrentBuckets[1][0] // we aggregate built-ins locally into first second of second resolution
+	resolutionShard := s.CurrentBuckets[1][0] // we aggregate built-ins locally into first second of one second resolution
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Counter > 0 {

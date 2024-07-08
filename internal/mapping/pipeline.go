@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"time"
 
+	"go4.org/mem"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
-	"go4.org/mem"
 )
 
 type mapPipeline struct {
@@ -40,6 +41,13 @@ func (mp *mapPipeline) stop() {
 
 func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (h data_model.MappedMetricHeader, done bool) {
 	h.ReceiveTime = time.Now() // mapping time is set once for all functions
+	// We do not check fields mask in code below, only field value, because
+	// sending 0 instead of manipulating field mask is more convenient for many clients
+	if args.MetricBytes.Ts != 0 {
+		h.Key.Timestamp = args.MetricBytes.Ts
+	} else { // we encourage users to mark events with explicit timestamp, so this branch must be rare
+		h.Key.Timestamp = uint32(h.ReceiveTime.Unix())
+	}
 	h.MetricInfo = metricInfo
 	done = mp.doMap(args, &h)
 	// We map environment in all 3 cases

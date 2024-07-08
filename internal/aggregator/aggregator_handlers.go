@@ -391,7 +391,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	}
 
 	for _, item := range bucket.Metrics {
-		k, sID := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
+		k, sID := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
 			k = k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			if k.Metric == format.BuiltinMetricIDAgentHeartbeatVersion {
@@ -424,7 +424,6 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 				}
 				// Valid for api as well because it is on the same host as agent
 				k.Keys[8] = int32(addrIPV4)
-
 			}
 			if k.Metric == format.BuiltinMetricIDRPCRequests {
 				k.Keys[7] = host // agent cannot easily map its own host for now
@@ -472,13 +471,9 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(args.OriginalSize), 1, host)
 	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}).Tail.AddValueCounterHost(receiveDelay, 1, host)
-	for i := uint32(0); i < bucket.MissedSeconds && i < data_model.MaxMissedSecondsIntoContributors; i++ {
-		d := receiveDelay - float64(i+1)
-		getMultiItem(args.Time+i, format.BuiltinMetricIDAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondPhantom}).Tail.AddValueCounterHost(d, 1, host)
-	}
 	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketAggregateTimeSec, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(now2.Sub(now).Seconds(), 1, host)
 	getMultiItem(args.Time, format.BuiltinMetricIDAggAdditionsToEstimator, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(len(newKeys)), 1, host)
-	if bucket.MissedSeconds != 0 {
+	if bucket.MissedSeconds != 0 { // TODO - remove after all agents upgraded to write this metric with tag format.TagValueIDTimingMissedSecondsAgent
 		getMultiItem(args.Time, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingMissedSeconds}).Tail.AddValueCounterHost(float64(bucket.MissedSeconds), 1, host)
 	}
 	if args.QueueSizeMemory > 0 {

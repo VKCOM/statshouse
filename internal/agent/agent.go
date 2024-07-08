@@ -68,6 +68,7 @@ type Agent struct {
 	AggregatorHost       int32
 
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32) // used by aggregator to add built-in metrics
+	beforeFlushTime       uint32                         // changed exclusively by goFlusher
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -135,6 +136,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
 	nowUnix := uint32(time.Now().Unix())
+	result.beforeFlushTime = nowUnix
+
 	result.startTimestamp = nowUnix
 	if storageDir != "" {
 		dbc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
@@ -151,7 +154,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			ShardNum:        i,
 			ShardKey:        int32(i) + 1,
 			timeSpreadDelta: 3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			CurrentTime:     nowUnix,
+			addBuiltInsTime: nowUnix,
 			BucketsToSend:   make(chan compressedBucketDataOnDisk),
 			perm:            rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
@@ -164,6 +167,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			bucketTime := (nowUnix / ur) * ur
 			for sh := 0; sh < r; sh++ {
 				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
+				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
@@ -335,17 +339,27 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 }
 
 func (s *Agent) goFlusher() {
-	now := time.Now()
 	for { // TODO - quit
-		tick := time.After(data_model.TillStartOfNextSecond(now))
-		now = <-tick // We synchronize with calendar second boundary
-		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, uint32(now.Unix()))
-		}
-		for _, shard := range s.Shards {
-			shard.flushBuckets(now)
-		}
+		time.Sleep(time.Millisecond * 100) // if flush queue was stuck on some shard for < second, we want to retry, so we get no missed seconds
+		s.goFlushIteration(time.Now())
 		s.updateConfigRemotelyExperimental()
+		// code below was used to test agent resilience to jitter
+		// if rand.Intn(30) == 0 {
+		//	time.Sleep(2 * time.Second)
+		// }
+	}
+}
+
+func (s *Agent) goFlushIteration(now time.Time) {
+	nowUnix := uint32(now.Unix())
+	if nowUnix > s.beforeFlushTime {
+		s.beforeFlushTime = nowUnix
+		if s.beforeFlushBucketFunc != nil {
+			s.beforeFlushBucketFunc(s, nowUnix-1) // account to the previous second
+		}
+	}
+	for _, shard := range s.Shards {
+		shard.flushBuckets(now)
 	}
 }
 
@@ -446,10 +460,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, 1)
 	}
 
-	// We do not check fields mask here, only fields values
-	if m.Ts != 0 { // sending 0 instead of manipulating field mask is more convenient for many clients
-		h.Key.Timestamp = m.Ts
-	}
+	// We do not check fields mask in code below, only fields values, because
+	// often sending 0 instead of manipulating field mask is more convenient for many clients
+
 	// Ignore metric kind and use all the info we have: this way people can continue
 	// using single metric as a "namespace" for "sub-metrics" of different kinds.
 	// The only thing we check is if percentiles are allowed. This is configured per metric.
