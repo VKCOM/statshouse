@@ -10,7 +10,7 @@ import (
 )
 
 // primitive tool for testing conveyor jitter
-// alternative agent port, because default agent receives tons of other metrics
+// alternative agent port, because default agent receives tons of other metrics from API
 func main() {
 	conn, err := net.Dial("udp", "127.0.0.1:13334")
 	if err != nil {
