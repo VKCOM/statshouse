@@ -12,5 +12,6 @@ import (
 )
 
 type (
-	Metainfo = internal.SqliteMetainfo
+	Metainfo      = internal.SqliteMetainfo
+	MetainfoBytes = internal.SqliteMetainfoBytes
 )

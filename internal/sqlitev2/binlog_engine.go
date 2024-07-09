@@ -87,7 +87,7 @@ func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotO
 	if err != nil {
 		return err
 	}
-	b.e.checkpointer.notifyCommit(toOffset)
+	b.e.checkpointer.notifyCommit(toOffset, snapshotMeta)
 	return nil
 
 }

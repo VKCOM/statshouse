@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"pgregory.net/rand"
 
@@ -1020,5 +1022,60 @@ func Test_Engine_Wrap_Sqlite_Error(t *testing.T) {
 	require.NoError(t, eng.insert(context.Background(), 1, 1))
 	require.ErrorIs(t, eng.insert(context.Background(), 1, 3), ErrConstraintPrimarykey)
 	require.NoError(t, eng.engine.Close())
+}
 
+func Test_Prepare(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	var backupOffset int64
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
+	var err error
+	for i := 0; i < 1000; i++ {
+		_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			buf := make([]byte, 12)
+			err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Integer("$id", 1))
+			binary.LittleEndian.PutUint32(buf, magic)
+			binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+			return buf, err
+		})
+		require.NoError(t, err)
+	}
+	meta, err := engine.Backup(context.Background(), dir, func(prefix string, binlogOffset int64) (string, error) {
+		backupOffset = binlogOffset
+		return path.Join(prefix, "db1."+strconv.Itoa(int(binlogOffset))), nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, path.Join(dir, "db1."+strconv.Itoa(int(backupOffset))), meta.Path)
+	require.Greater(t, meta.PayloadOffset, int64(0))
+	require.NotEmpty(t, meta.ControlMeta)
+	require.NotEmpty(t, meta.SnapshotMeta)
+	require.NotEqual(t, meta.SnapshotMeta, meta.ControlMeta)
+	require.NoError(t, engine.Close())
+	newDbName := "db2"
+	newDbPath := path.Join(dir, newDbName)
+	require.NoError(t, PrepareSnapshotToStart(meta.Path, meta.ControlMeta, meta.PayloadOffset, newDbPath))
+	_, err = os.Stat(newDbPath)
+	require.NoError(t, err)
+	_, err = os.Stat(checkpoint.CommitFileName(newDbPath))
+	require.NoError(t, err)
+	engine, _ = openEngine(t, dir, newDbName, schema, false, false, false, nil)
+	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id = rows.ColumnInteger(0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, rows.Error()
+	})
+	_, err = engine.ViewTx(context.Background(), "test", func(conn Conn) error {
+		offset, isExists, err := binlogLoadPosition(internalFromUser(conn))
+		require.True(t, isExists)
+		require.Equal(t, backupOffset, offset)
+		return err
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), id)
 }

@@ -123,7 +123,7 @@ type (
 		Path          string
 		PayloadOffset int64
 		SnapshotMeta  string
-		ControlMeta   string // actually this is equal SnapshotMeta
+		ControlMeta   string
 	}
 )
 
@@ -152,6 +152,22 @@ func openRO(opt Options) (*Engine, error) {
 		waitDbOffsetPool: waitpool.NewPool(),
 	}
 	return e, nil
+}
+
+func PrepareSnapshotToStart(pathToSnapshot string, controlMeta string, payloadOffset int64, wantedName string) (err error) {
+	re, err := restart2.OpenAndLock(wantedName)
+	if err != nil {
+		return fmt.Errorf("failed to open runRestart file: %w", err)
+	}
+	defer func() {
+		err = multierr.Append(err, re.Close())
+	}()
+	re.SetCommitInfo(payloadOffset, []byte(controlMeta))
+	err = re.SyncCommitInfo()
+	if err != nil {
+		return fmt.Errorf("failed to prepare to run db from snapshotЖ %w", err)
+	}
+	return os.Rename(pathToSnapshot, wantedName)
 }
 
 /*
@@ -262,6 +278,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 
 /*
 binlog - will be closed during to Engin	e.Close
+controlMeta - if run from snapshot, fill this from snapshot header
 */
 func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunction ApplyEventFunction) (err error) {
 	if e.readOnly {
@@ -269,7 +286,7 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	}
 	defer func() { close(e.finishBinlogRunCh) }()
 	defer e.checkpointer.stop()
-	meta, err := e.binlogLoadOrCreateMeta()
+	snapshotMeta, err := e.binlogLoadOrCreateMeta()
 	if err != nil {
 		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
 		e.readyNotify.Do(func() {
@@ -278,7 +295,10 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 		})
 		return err
 	}
-	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
+	controlMeta := e.re.GetSnapshotMetaCopy()
+	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(snapshotMeta))
+	e.logger.Printf("load control meta: %s", hex.EncodeToString(controlMeta))
+
 	err = e.checkpointer.DoCheckpointIfCan()
 	if err != nil {
 		e.readyNotify.Do(func() {
@@ -295,7 +315,10 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	e.rw.mu.Unlock()
 
 	e.logger.Printf("running binlog")
-	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), meta, meta, false, e.binlogEngine))
+	if len(controlMeta) == 0 {
+		controlMeta = snapshotMeta
+	}
+	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), snapshotMeta, controlMeta, false, e.binlogEngine))
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	e.binlog = nil
@@ -589,7 +612,7 @@ func (e *Engine) binlogLoadOrCreateMeta() ([]byte, error) {
 			return rows.err
 		}
 		for rows.Next() {
-			meta, _ = rows.ColumnBlob(0, meta)
+			meta, _ = rows.ColumnBlob(0, nil)
 		}
 		if meta != nil {
 			return nil
