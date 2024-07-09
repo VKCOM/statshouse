@@ -13,8 +13,8 @@ import { type StoreSlice } from '../createStore';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { loadPlotData } from './loadPlotData';
 import { getClearPlotsData } from './getClearPlotsData';
-import { debug } from 'common/debug';
 import { updateClearPlotError } from './updateClearPlotError';
+import { getEmptyPlotData } from './getEmptyPlotData';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -81,10 +81,12 @@ export type PlotsDataStore = {
   plotsData: Partial<Record<PlotKey, PlotData>>;
   globalNumQueries: number;
   togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
+  updatePlotsData(): void;
   loadPlotData(plotKey: PlotKey): void;
-  globalQueryStart(): void;
-  queryStart(plotKey: PlotKey): void;
+  globalQueryStart(): () => void;
+  queryStart(plotKey: PlotKey): () => void;
   clearPlotError(plotKey: PlotKey): void;
+  setPlotShow(plotKey: PlotKey, idx: number, show?: boolean, single?: boolean): void;
 };
 export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setState, getState, store) => {
   store.subscribe((state, prevState) => {
@@ -92,13 +94,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       setState((s) => {
         getClearPlotsData(state, prevState).forEach((plotKey) => {
           delete s.plotsData[plotKey];
-        });
-      });
-      state.viewOrderPlot.forEach((plotKey) => {
-        loadPlotData(plotKey, state.params).then((updatePlotData) => {
-          if (updatePlotData) {
-            setState(updatePlotData);
-          }
         });
       });
     }
@@ -114,8 +109,19 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         }
       });
     },
+    updatePlotsData() {
+      getState().viewOrderPlot.forEach((plotKey) => {
+        getState().loadPlotData(plotKey);
+      });
+    },
     loadPlotData(plotKey) {
-      debug.log('load', plotKey);
+      const queryEnd = getState().queryStart(plotKey);
+      loadPlotData(plotKey, getState().params).then((updatePlotData) => {
+        if (updatePlotData) {
+          queryEnd();
+          setState(updatePlotData);
+        }
+      });
     },
     globalQueryStart() {
       setState((state) => {
@@ -129,7 +135,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
     },
     queryStart(plotKey) {
       setState((state) => {
-        const plotData = state.plotsData[plotKey];
+        const plotData = (state.plotsData[plotKey] ??= getEmptyPlotData());
         if (plotData) {
           plotData.numQueries += 1;
         }
@@ -145,6 +151,33 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
     },
     clearPlotError(plotKey) {
       setState(updateClearPlotError(plotKey));
+    },
+    setPlotShow(plotKey, idx, show, single) {
+      setState((state) => {
+        const plotData = state.plotsData[plotKey];
+        if (plotData) {
+          if (single) {
+            const otherShow = plotData.seriesShow.some((_show, indexSeries) => (indexSeries === idx ? false : _show));
+            plotData.seriesShow = plotData.seriesShow.map((s, indexSeries) =>
+              indexSeries === idx ? true : !otherShow
+            );
+          } else {
+            plotData.seriesShow[idx] = show ?? !plotData.seriesShow[idx];
+          }
+        }
+      });
+      //setState((state) => {
+      //         if (single) {
+      //           const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
+      //             indexSeries === idx ? false : _show
+      //           );
+      //           state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
+      //             indexSeries === idx ? true : !otherShow
+      //           );
+      //         } else {
+      //           state.plotsData[indexPlot].seriesShow[idx] = show ?? !state.plotsData[indexPlot].seriesShow[idx];
+      //         }
+      //       });
     },
   };
 };

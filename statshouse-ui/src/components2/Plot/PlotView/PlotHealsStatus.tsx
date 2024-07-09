@@ -4,16 +4,17 @@ import { Button, Tooltip } from 'components';
 import { ReactComponent as SVGExclamationTriangleFill } from 'bootstrap-icons/icons/exclamation-triangle-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { useStatsHouseShallow } from '../../../store2';
+import cn from 'classnames';
 
 export type PlotHealsStatusProps = {
   className?: string;
   plotKey: PlotKey;
 };
 export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
-  const { lastError, plotHealsTimeout, interval, numQueries, clearPlotError, loadPlotData } = useStatsHouseShallow(
+  const { lastError, plotHealsTimeout, interval, loader, clearPlotError, loadPlotData } = useStatsHouseShallow(
     ({ plotsData, plotHeals, liveMode, clearPlotError, loadPlotData }) => ({
       lastError: plotsData[plotKey]?.error,
-      numQueries: plotsData[plotKey]?.numQueries ?? 0,
+      loader: (plotsData[plotKey]?.numQueries ?? 0) > 0,
       plotHealsTimeout: plotHeals[plotKey]?.timeout,
       interval: liveMode.interval,
       clearPlotError,
@@ -35,7 +36,7 @@ export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
   }, [clearPlotError, loadPlotData, plotKey]);
   return (
     <Tooltip
-      titleClassName="alert alert-danger p-0"
+      titleClassName={cn('alert alert-danger p-0', className)}
       horizontal="left"
       vertical="out-bottom"
       hover
@@ -58,7 +59,7 @@ export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
         )
       }
     >
-      {numQueries > 0 ? (
+      {loader ? (
         <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
       ) : !!lastError ? (
         <div>

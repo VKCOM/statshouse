@@ -1,0 +1,45 @@
+.overlay {
+  --plot-padding-top-loc: min(var(--plot-padding-top), var(--plot-padding-top-max));
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% + var(--plot-padding-top-loc));
+  margin-top: calc(-1 * var(--plot-padding-top-loc));
+  pointer-events: none;
+  z-index: 100;
+}
+
+:global(.dashboard-edit) .overlayFlag {
+  pointer-events: none;
+}
+
+.overlayFlag {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.overlayCardTable {
+  max-height: 250px;
+  max-width: var(--popper-inner-width);
+  font-size: 14px;
+}
+
+.overlayCardTableSmall {
+  font-size: 12px;
+}
+
+.overlayCardTableSmall td {
+  padding: 0.125rem 0.25rem;
+}
+
+.overlayCardTable tr:hover {
+  background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
+}
+
+.overlayCardTableItem {
+  border-bottom: 1px solid var(--bs-secondary-bg);
+}
+.overlayCardTableItem:last-child {
+  border-bottom: none;
+}

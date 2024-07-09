@@ -39,7 +39,7 @@ export type UrlStore = {
   setTimeRange(tr: { from: number; to: number | TimeRangeKeysTo }, replace?: boolean): void;
   setPlot(plotKey: PlotKey, next: ProduceUpdate<PlotParams>, replace?: boolean): void;
   setPlotType(plotKey: PlotKey, nextType: PlotType, replace?: boolean): void;
-  setPlotYLock(plotKey: PlotKey, status: boolean): void;
+  setPlotYLock(plotKey: PlotKey, status: boolean, yLock?: { min: number; max: number }): void;
   resetZoom(plotKey: PlotKey): void;
   removePlot(plotKey: PlotKey): void;
   timeRangePanLeft(): void;
@@ -51,18 +51,22 @@ export type UrlStore = {
   saveDashboard(): Promise<void>;
 };
 
-export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState, store) => {
+export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState) => {
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
 
   function updateUrlState() {
-    getUrlState(getState().saveParams, prevLocation, getState().setUrlStore).then((res) => {
-      setState((s) => {
-        s.isEmbed = isEmbedPath(prevLocation);
-        s.params = mergeLeft(s.params, res.params);
-        s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+    getUrlState(getState().saveParams, prevLocation, getState().setUrlStore)
+      .then((res) => {
+        setState((s) => {
+          s.isEmbed = isEmbedPath(prevLocation);
+          s.params = mergeLeft(s.params, res.params);
+          s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+        });
+      })
+      .finally(() => {
+        getState().updatePlotsInfo();
       });
-    });
   }
 
   function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
@@ -110,8 +114,8 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setPlotType(plotKey, nextType, replace) {
       setUrlStore(updatePlotType(plotKey, nextType), replace);
     },
-    setPlotYLock(plotKey, status) {
-      setUrlStore(updatePlotYLock(plotKey, status));
+    setPlotYLock(plotKey, status, yLock?: { min: number; max: number }) {
+      setUrlStore(updatePlotYLock(plotKey, status, yLock));
     },
     resetZoom(plotKey: PlotKey) {
       setUrlStore(updateResetZoom(plotKey));
