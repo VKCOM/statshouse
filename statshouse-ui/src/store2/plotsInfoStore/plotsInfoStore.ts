@@ -52,7 +52,7 @@ export type PlotsInfoStore = {
 export const plotsInfoStore: StoreSlice<StatsHouseStore, PlotsInfoStore> = (setState, getState, store) => {
   store.subscribe((state, prevState) => {
     if (state.params !== prevState.params || state.saveParams !== prevState.saveParams) {
-      getState().updatePlotsInfo();
+      // getState().updatePlotsInfo();
     }
   });
   return {
@@ -82,6 +82,7 @@ export const plotsInfoStore: StoreSlice<StatsHouseStore, PlotsInfoStore> = (setS
         s.viewOrderPlot = mergeLeft(s.viewOrderPlot, viewOrderPlot);
         s.plotVariablesLink = mergeLeft(s.plotVariablesLink, updatePlotVariablesLink(s.params));
       });
+      getState().updatePlotsData();
     },
   };
 };

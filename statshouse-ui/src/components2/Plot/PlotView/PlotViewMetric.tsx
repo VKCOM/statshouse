@@ -15,11 +15,12 @@ import { dataIdxNearest } from 'common/dataIdxNearest';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from 'common/axisValues';
 import { formatByMetricType, getMetricType, splitByMetricType } from 'common/formatByMetricType';
 import { METRIC_TYPE } from 'api/enum';
-import { useLinkCSV2 } from 'hooks/useLinkCSV2';
 import { xRangeStatic } from './xRangeStatic';
 import { calcYRange } from 'common/calcYRange';
-import { useThemeStore } from 'store';
 import css from './style.module.css';
+import { PlotEventOverlay } from './PlotEventOverlay';
+import { type PlotValues } from 'store2/plotDataStore';
+import { useThemeStore } from 'store';
 
 const rightPad = 16;
 const threshold = buildThresholdList(1);
@@ -43,11 +44,35 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     data,
     series,
     scales,
+    seriesShow,
     plotWhat,
     plotDataWhat,
+    legendNameWidth,
+    legendValueWidth,
+    legendMaxHostWidth,
+    legendMaxDotSpaceWidth,
     setPlotVisibility,
+    setPlotYLock,
+    setTimeRange,
+    setLiveMode,
+    createPlotPreview,
+    setPlotShow,
+    resetZoom,
   } = useStatsHouseShallow(
-    ({ plotsData, params: { plots, tabNum }, metricMeta, isEmbed, baseRange, setPlotVisibility }) => {
+    ({
+      plotsData,
+      params: { plots, tabNum },
+      metricMeta,
+      isEmbed,
+      baseRange,
+      setPlotVisibility,
+      setPlotYLock,
+      setTimeRange,
+      setLiveMode,
+      createPlotPreview,
+      setPlotShow,
+      resetZoom,
+    }) => {
       const plot = plots[plotKey];
       const plotData = plotsData[plotKey];
       return {
@@ -62,10 +87,21 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         data: plotData?.data,
         series: plotData?.series,
         scales: plotData?.scales,
+        seriesShow: plotData?.seriesShow,
+        legendNameWidth: plotData?.legendNameWidth,
+        legendValueWidth: plotData?.legendValueWidth,
+        legendMaxHostWidth: plotData?.legendMaxHostWidth,
+        legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
         isEmbed,
         isDashboard: +tabNum < 0,
         baseRange,
         setPlotVisibility,
+        setPlotYLock,
+        setTimeRange,
+        setLiveMode,
+        createPlotPreview,
+        setPlotShow,
+        resetZoom,
       };
     }
   );
@@ -73,120 +109,37 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
-  //const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
-  //
-  //   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
-  //   const sel = useStore(selectorParamsPlot);
-  //   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
-  //
-  //   const timeRange = useStore(selectorTimeRange);
-  //
-  //   const baseRange = useStore(selectorBaseRange);
-  //
-  //   const { live, interval } = useLiveModeStore((s) => s);
-  //
-  //   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
-  //   const {
-  //     scales,
-  //     series,
-  //     seriesShow,
-  //     data,
-  //     legendNameWidth,
-  //     legendValueWidth,
-  //     legendMaxDotSpaceWidth,
-  //     legendMaxHostWidth,
-  //     mappingFloodEvents,
-  //     samplingFactorSrc,
-  //     samplingFactorAgg,
-  //     receiveErrors,
-  //     receiveWarnings,
-  //     error: lastError,
-  //     error403,
-  //     topInfo,
-  //     nameMetric,
-  //     whats,
-  //     metricType: metaMetricType,
-  //   } = useStore(selectorPlotsData, shallow);
-  //
-  //   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
-  //
-  //   const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
-  //   const numQueries = useStore(selectorNumQueries);
-  //
-  //   const selectorPlotMetricsMeta = useMemo(
-  //     () => selectorMetricsMetaByName.bind(undefined, sel.metricName ?? ''),
-  //     [sel.metricName]
-  //   );
-  //   const meta = useStore(selectorPlotMetricsMeta);
+
   const [cursorLock, setCursorLock] = useState(false);
 
-  //
-  //   const plotHeals = usePlotHealsStore((s) => s.status[indexPlot]);
-  //   const healsInfo = useMemo(() => {
-  //     if (plotHeals?.timout && interval < plotHeals.timout) {
-  //       return `plot update timeout ${plotHeals.timout} sec`;
-  //     }
-  //     return undefined;
-  //   }, [interval, plotHeals?.timout]);
-  //
   const uPlotRef = useRef<uPlot>();
   const [legend, setLegend] = useState<LegendItem[]>([]);
 
   const [pluginEventOverlay, pluginEventOverlayHooks] = useUPlotPluginHooks();
 
-  //   const metricName = useMemo(
-  //     () => (sel.metricName !== promQLMetric ? sel.metricName : nameMetric),
-  //     [sel.metricName, nameMetric]
-  //   );
-  //
-  //   const clearLastError = useCallback(() => {
-  //     setPlotLastError(indexPlot, '');
-  //     removePlotHeals(indexPlot.toString());
-  //   }, [indexPlot]);
-  //
-  //   const reload = useCallback(() => {
-  //     setPlotLastError(indexPlot, '');
-  //     removePlotHeals(indexPlot.toString());
-  //     loadPlot(indexPlot);
-  //   }, [indexPlot]);
-  //
-  //   const resetZoom = useCallback(() => {
-  //     setSel(
-  //       produce((s) => {
-  //         s.yLock = { min: 0, max: 0 };
-  //       })
-  //     );
-  //     setTimeRange(timeRangeAbbrevExpand(baseRange, now()));
-  //   }, [setSel, baseRange]);
-  //
   const topPad = compact ? 8 : 16;
   const xAxisSize = compact ? 32 : 48;
 
-  //   // all of this so that our "create plot" layout effect does not depend on the time range
-  //   const resetZoomRef = useRef(resetZoom);
-  //   useEffect(() => {
-  //     resetZoomRef.current = resetZoom;
-  //   }, [resetZoom]);
-  //
-  const onSetSelect = useCallback((u: uPlot) => {
-    if (u.status === 1) {
-      const xMin = u.posToVal(u.select.left, 'x');
-      const xMax = u.posToVal(u.select.left + u.select.width, 'x');
-      const yMin = u.posToVal(u.select.top + u.select.height, 'y');
-      const yMax = u.posToVal(u.select.top, 'y');
-      const xOnly = u.select.top === 0;
-      if (!xOnly) {
-        // setSel(
-        //   produce((s) => {
-        //     s.yLock = { min: yMin, max: yMax }; // unfortunately will cause a re-scale from the effect
-        //   })
-        // );
-      } else {
-        // setLiveMode(false);
-        // setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
+  const resetZoomRef = useStateToRef(resetZoom);
+
+  const onSetSelect = useCallback(
+    (u: uPlot) => {
+      if (u.status === 1) {
+        const xMin = u.posToVal(u.select.left, 'x');
+        const xMax = u.posToVal(u.select.left + u.select.width, 'x');
+        const yMin = u.posToVal(u.select.top + u.select.height, 'y');
+        const yMax = u.posToVal(u.select.top, 'y');
+        const xOnly = u.select.top === 0;
+        if (!xOnly) {
+          setPlotYLock(plotKey, true, { min: yMin, max: yMax });
+        } else {
+          setLiveMode(false);
+          setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
+        }
       }
-    }
-  }, []);
+    },
+    [setPlotYLock, plotKey, setLiveMode, setTimeRange]
+  );
 
   const metricType = useMemo(() => {
     if (metricUnit != null) {
@@ -200,19 +153,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
       stroke: themeDark ? greyDark : grey,
       width: 1 / devicePixelRatio,
     };
-    // const sync: uPlot.Cursor.Sync | undefined = group
-    //   ? {
-    //       key: group,
-    //       filters: {
-    //         sub(event) {
-    //           return event !== 'mouseup' && event !== 'mousedown';
-    //         },
-    //         pub(event) {
-    //           return event !== 'mouseup' && event !== 'mousedown';
-    //         },
-    //       },
-    //     }
-    //   : undefined;
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -292,27 +232,31 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
       plugins: [pluginEventOverlay],
     };
   }, [compact, getAxisStroke, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yLockRef]);
-  //
-  const linkCSV = useLinkCSV2(plotKey);
 
-  const onReady = useCallback((u: uPlot) => {
-    if (uPlotRef.current !== u) {
-      uPlotRef.current = u;
-    }
-    // setUPlotWidth(indexPlot, u.bbox.width);
-    u.over.onclick = () => {
-      // @ts-ignore
-      setCursorLock(u.cursor._lock);
-    };
-    u.over.ondblclick = () => {
-      // resetZoomRef.current();
-    };
-    u.setCursor({ top: -10, left: -10 }, false);
-  }, []);
+  const onReady = useCallback(
+    (u: uPlot) => {
+      if (uPlotRef.current !== u) {
+        uPlotRef.current = u;
+      }
+      // setUPlotWidth(indexPlot, u.bbox.width);
+      u.over.onclick = () => {
+        // @ts-ignore
+        setCursorLock(u.cursor._lock);
+      };
+      u.over.ondblclick = () => {
+        resetZoomRef.current(plotKey);
+      };
+      u.setCursor({ top: -10, left: -10 }, false);
+    },
+    [plotKey, resetZoomRef]
+  );
 
-  const onUpdatePreview = useCallback((u: uPlot) => {
-    // createPlotPreview(indexPlot, u);
-  }, []);
+  const onUpdatePreview = useCallback(
+    (u: uPlot) => {
+      createPlotPreview(plotKey, u);
+    },
+    [createPlotPreview, plotKey]
+  );
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);
@@ -333,19 +277,19 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     uPlotRef.current?.setSeries(index, { focus }, true);
   }, []);
   //
-  //   const onLegendShow = useCallback(
-  //     (index: number, show: boolean, single: boolean) => {
-  //       setPlotShow(indexPlot, index - 1, show, single);
-  //     },
-  //     [indexPlot]
-  //   );
-  //   useEffect(() => {
-  //     seriesShow.forEach((show, idx) => {
-  //       if (uPlotRef.current?.series[idx + 1] && uPlotRef.current?.series[idx + 1].show !== show) {
-  //         uPlotRef.current?.setSeries(idx + 1, { show }, true);
-  //       }
-  //     });
-  //   }, [seriesShow]);
+  const onLegendShow = useCallback(
+    (index: number, show: boolean, single: boolean) => {
+      setPlotShow(plotKey, index - 1, show, single);
+    },
+    [plotKey, setPlotShow]
+  );
+  useEffect(() => {
+    seriesShow?.forEach((show, idx) => {
+      if (uPlotRef.current?.series[idx + 1] && uPlotRef.current?.series[idx + 1].show !== show) {
+        uPlotRef.current?.setSeries(idx + 1, { show }, true);
+      }
+    });
+  }, [seriesShow]);
 
   useEffect(() => {
     setPlotVisibility(plotKey, visible > 0);
@@ -363,10 +307,10 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
       ref={divOut}
       style={
         {
-          //     '--legend-name-width': `${legendNameWidth}px`,
-          //     '--legend-value-width': `${legendValueWidth}px`,
-          //     '--legend-max-host-width': `${legendMaxHostWidth}px`,
-          //     '--legend-dot-space-width': `${legendMaxDotSpaceWidth}px`,
+          '--legend-name-width': `${legendNameWidth}px`,
+          '--legend-value-width': `${legendValueWidth}px`,
+          '--legend-max-host-width': `${legendMaxHostWidth}px`,
+          '--legend-dot-space-width': `${legendMaxDotSpaceWidth}px`,
           height: fixHeight > 0 && isDashboard ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
@@ -391,20 +335,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
             <PlotHeader plotKey={plotKey} />
             {!compact && <PlotSubMenu plotKey={plotKey} />}
-            {/*{!compact && (*/}
-            {/*meta*/}
-            {/*  <PlotSubMenu*/}
-            {/*    linkCSV={linkCSV}*/}
-            {/*    mappingFloodEvents={mappingFloodEvents}*/}
-            {/*    timeRange={timeRange}*/}
-            {/*    sel={sel}*/}
-            {/*    receiveErrors={receiveErrors}*/}
-            {/*    receiveWarnings={receiveWarnings}*/}
-            {/*    samplingFactorAgg={samplingFactorAgg}*/}
-            {/*    samplingFactorSrc={samplingFactorSrc}*/}
-            {/*    metricName={metricName}*/}
-            {/*  />*/}
-            {/*)}*/}
           </div>
         </div>
         <div
@@ -412,7 +342,7 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
           style={
             {
               paddingTop: '61.8034%',
-              // '--plot-padding-top': `${topPad}px`,
+              '--plot-padding-top': `${topPad}px`,
             } as React.CSSProperties
           }
         >
@@ -433,12 +363,12 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
               onUpdateLegend={setLegend}
             >
               <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
-                {/*<PlotEventOverlay*/}
-                {/*  indexPlot={indexPlot}*/}
-                {/*  hooks={pluginEventOverlayHooks}*/}
-                {/*  flagHeight={Math.min(topPad, 10)}*/}
-                {/*  compact={compact}*/}
-                {/*/>*/}
+                <PlotEventOverlay
+                  plotKey={plotKey}
+                  hooks={pluginEventOverlayHooks}
+                  flagHeight={Math.min(topPad, 10)}
+                  compact={compact}
+                />
               </UPlotPluginPortal>
             </UPlotWrapper>
           )}
@@ -446,12 +376,13 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         {!error403 && (
           <div className="plot-legend">
             <PlotLegend
-            // indexPlot={indexPlot}
-            // legend={legend as LegendItem<PlotValues>[]}
-            // onLegendShow={onLegendShow}
-            // onLegendFocus={onLegendFocus}
-            // compact={compact && !(fixHeight > 0 && dashboard)}
-            // unit={metricType}
+              plotKey={plotKey}
+              // indexPlot={indexPlot}
+              legend={legend as LegendItem<PlotValues>[]}
+              onLegendShow={onLegendShow}
+              onLegendFocus={onLegendFocus}
+              compact={compact && !(fixHeight > 0 && isDashboard)}
+              unit={metricType}
             />
             {topInfo && (!compact || (fixHeight > 0 && isDashboard)) && (
               <div className="pb-3">

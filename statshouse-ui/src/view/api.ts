@@ -648,7 +648,7 @@ export function formatFilterNotIn(tagID: string, tagValue: string): string {
   return `${freeKeyPrefix(tagID)}${filterNotInSep}${tagValue}`;
 }
 
-function filterParams(
+export function filterParams(
   filterIn: Record<string, readonly string[]>,
   filterNotIn: Record<string, readonly string[]>
 ): string[][] {
