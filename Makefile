@@ -77,7 +77,7 @@ gen-sqlite:
 		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
  		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
  		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
- 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+ 		--generateByteVersions=sqlite. \
  		--copyrightPath=./copyright \
 		./internal/data_model/common.tl \
 		./internal/sqlitev2/checkpoint/metainfo.tl

@@ -56,8 +56,8 @@ func (c *checkpointer) stop() {
 	c.cancel()
 }
 
-func (c *checkpointer) notifyCommit(commitOffset int64) {
-	c.re.SetCommitOffset(commitOffset)
+func (c *checkpointer) notifyCommit(commitOffset int64, snapshotMeta []byte) {
+	c.re.SetCommitInfo(commitOffset, snapshotMeta)
 	select {
 	case c.ch <- struct{}{}:
 	default:
@@ -119,7 +119,7 @@ func (c *checkpointer) checkpointBinlogLocked() error {
 	if waitCheckpoint && waitCheckpointOffset <= commitOffset &&
 		// в новом вале должен быть хотя бы один коммит
 		dbOffset > waitCheckpointOffset {
-		err := c.re.SetCommitOffsetAndSync(commitOffset)
+		err := c.re.SyncCommitInfo()
 		if err != nil {
 			_ = c.rw.setErrorLocked(err)
 			return err

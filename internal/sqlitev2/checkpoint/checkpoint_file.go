@@ -20,7 +20,7 @@ import (
 type RestartFile struct {
 	mx                 sync.Mutex
 	buffer             []byte
-	metainfo           tlsqlite.Metainfo
+	metainfo           tlsqlite.MetainfoBytes
 	syncedCommitOffset int64
 	f                  *os.File
 }
@@ -70,17 +70,26 @@ func (f *RestartFile) Close() (err error) {
 	return multierr.Append(err, f.f.Close())
 }
 
-func (f *RestartFile) SetCommitOffset(offset int64) {
+func (f *RestartFile) SetCommitInfo(offset int64, controlMeta []byte) {
 	f.mx.Lock()
 	defer f.mx.Unlock()
 	f.metainfo.Offset = offset
+	f.fillControlMetaLocked(controlMeta)
 }
 
-func (f *RestartFile) SetCommitOffsetAndSync(offset int64) error {
+func (f *RestartFile) fillControlMetaLocked(controlMeta []byte) {
+	if cap(f.metainfo.ControlMeta) < len(controlMeta) {
+		f.metainfo.ControlMeta = make([]byte, 0, len(controlMeta))
+	}
+	f.metainfo.ControlMeta = f.metainfo.ControlMeta[:len(controlMeta)]
+	copy(f.metainfo.ControlMeta, controlMeta)
+	f.metainfo.SetControlMeta(f.metainfo.ControlMeta)
+}
+
+func (f *RestartFile) SyncCommitInfo() error {
 	f.mx.Lock()
 	defer f.mx.Unlock()
-	f.metainfo.Offset = offset
-	if offset == f.syncedCommitOffset {
+	if f.metainfo.Offset == f.syncedCommitOffset {
 		return nil
 	}
 	data := encode(f.metainfo, f.buffer[:0])
@@ -92,7 +101,7 @@ func (f *RestartFile) SetCommitOffsetAndSync(offset int64) error {
 	if err != nil {
 		return err
 	}
-	f.syncedCommitOffset = offset
+	f.syncedCommitOffset = f.metainfo.Offset
 	return nil
 }
 
@@ -102,14 +111,22 @@ func (f *RestartFile) GetCommitOffset() int64 {
 	return f.metainfo.Offset
 }
 
-func encode(metainfo tlsqlite.Metainfo, buffer []byte) []byte {
+func (f *RestartFile) GetSnapshotMetaCopy() []byte {
+	f.mx.Lock()
+	defer f.mx.Unlock()
+	res := make([]byte, len(f.metainfo.ControlMeta))
+	copy(res, f.metainfo.ControlMeta)
+	return res
+}
+
+func encode(metainfo tlsqlite.MetainfoBytes, buffer []byte) []byte {
 	buffer = metainfo.WriteBoxed(buffer)
 	hash := xxh3.Hash(buffer)
 	buffer = binary.BigEndian.AppendUint64(buffer, hash)
 	return buffer
 }
 
-func decode(data []byte) (metainfo tlsqlite.Metainfo, err error) {
+func decode(data []byte) (metainfo tlsqlite.MetainfoBytes, err error) {
 	tail, err := metainfo.ReadBoxed(data)
 	if err != nil {
 		return metainfo, fmt.Errorf("failed to decode checkpoint file: %w", err)
