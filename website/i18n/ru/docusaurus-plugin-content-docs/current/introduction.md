@@ -45,16 +45,16 @@ StatsHouse не сломается из-за слишком
 
 А вот список разделов:
 
-### [Quick start](quick-start.md)
+### [Краткое руководство](quick-start.md)
 
-* [Run StatsHouse locally](quick-start.md#запустите-statshouse-локально) or 
-[access the deployed one](quick-start.md#получите-доступ)
-* [Send metrics from a demo web server](quick-start.md#отправьте-данные-с-демосервера)
-* [Create your own metric](quick-start.md#создайте-свою-метрику)
-* [Send data to your metric](quick-start.md#отправьте-данные-в-свою-метрику)
-* [Check basic viewing options](quick-start.md#что-посмотреть-на-графике)
+* [Запустите StatsHouse локально](quick-start.md#запустите-statshouse-локально) or 
+[получите доступ к готовой инсталляции](quick-start.md#получите-доступ)
+* [Отправьте данные с демосервера](quick-start.md#отправьте-данные-с-демосервера)
+* [Создайте свою метрику](quick-start.md#создайте-свою-метрику)
+* [Отправьте данные в свою метрику](quick-start.md#отправьте-данные-в-свою-метрику)
+* [Что посмотреть на графике](quick-start.md#что-посмотреть-на-графике)
 
-### [User guide](guides/access-cluster.md)
+### [Пользователям](guides/access-cluster.md)
 
 * [Get access to StatsHouse](guides/access-cluster.md)
 * [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from 
@@ -68,23 +68,23 @@ StatsHouse не сломается из-за слишком
 * [Query with PromQL](guides/query-wth-promql.md)
 * [Find OpenAPI specification](guides/openapi.md)
 
-### [Administrator guide](admin/sys-req.md)
+### [Администраторам](admin/sys-req.md)
 
-* [Check system requirements](admin/sys-req.md)
-* [Find packages](admin/packages.md)
-* [Install components](admin/install.md)
-* [Monitor StatsHouse](admin/monitor.md)
-* [Ensure security](admin/security.md)
-* [Use host metrics](admin/host-metrics.md)
-* [Manage budgets](admin/manage-budgets.md)
-* [Maintain and upgrade](admin/maintain-upgrade.md)
-* [Migrate from the other monitoring system](admin/maintain-upgrade.md)
-* [Integrate the external systems](admin/integrations.md)
+* [Требования к системе](admin/sys-req.md)
+* [Пакеты](admin/packages.md)
+* [Установка компонентов](admin/install.md)
+* [Мониторинг StatsHouse](admin/monitor.md)
+* [Безопасность подключений](admin/security.md)
+* [Хостовые метрики](admin/host-metrics.md)
+* [Управление бюджетом](admin/manage-budgets.md)
+* [Поддержка и обновление](admin/maintain-upgrade.md)
+* [Переход с других систем](admin/migrating.md)
+* [Подключение других систем](admin/integrations.md)
 
-### [Overview](overview/features.md)
+### [Обзор](overview/features.md)
 
-* Find more about StatsHouse [features](overview/features.md).
-* Understand the underlying [concepts](overview/concepts.md).
-* Learn how the StatsHouse [components](overview/components.md) implement all of the above.
+* [Преимущества](overview/features.md)
+* [Основные понятия](overview/concepts.md)
+* [Компоненты](overview/components.md)
 
-### [Support](support.md)
+### [Поддержка](support.md)

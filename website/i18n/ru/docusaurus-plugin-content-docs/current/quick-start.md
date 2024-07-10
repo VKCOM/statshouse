@@ -34,7 +34,7 @@ import TopN from './img/top-n.png'
 :::
 
 Как создавать метрики, отправлять и просматривать данные: читайте в 
-[руководстве пользователя](introduction.md#user-guide).
+[руководстве пользователя](introduction.md#пользователям).
 
 ## Получите доступ
 
@@ -231,5 +231,5 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 <img src={TopN} width="900"/>
 
 :::note
-Чтобы узнать обо всех возможностях StatsHouse, изучите [руководство пользователя](introduction.md#user-guide).
+Чтобы узнать обо всех возможностях StatsHouse, изучите [руководство пользователя](introduction.md#пользователям).
 :::
