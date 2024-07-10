@@ -2174,7 +2174,8 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			r.numResults = 15
 		}
 		start := time.Now()
-		v, cancel, err := h.handleSeriesRequest(withEndpointStat(ctx, es), r, seriesRequestOptions{
+
+		v, cancel, err := h.handleSeriesRequest(util.WithLockFreeSelect(withEndpointStat(ctx, es)), r, seriesRequestOptions{
 			metricCallback: func(meta *format.MetricMetaValue) {
 				req.seriesRequest[i].metricWithNamespace = meta.Name
 			},
