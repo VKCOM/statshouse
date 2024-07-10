@@ -1,6 +1,6 @@
 ---
 sidebar_position: 7
-title: Manage budgets
+title: Управление бюджетом
 ---
 
 import Namespace from '../img/namespace.png'
@@ -11,94 +11,96 @@ import EditWeight1 from '../img/edit-weight-1.png'
 import EditWeight2 from '../img/edit-weight-2.png'
 import Weight from '../img/weight.png'
 
-# Manage budgets
+# Управление бюджетом
 
-You can manage budgets for multiple groups of users to fit the needs of your organization.
+Вы можете устанавливать отдельные бюджеты для групп пользователей (тенантов) в соответствии с их потребностями.
 
-StatsHouse provides multiple groups of users (tenants) with fair resource sharing.
-If you need to manage the resources manually, you can change the _weight_ for namespaces, groups, or 
-individual metrics.
+StatsHouse обеспечивает справедливое распределение ресурсов между тенантами.
+Если вам нужно управлять ресурсами вручную, вы можете изменить _вес_ для неймспейса (пространства имён), группы или
+отдельной метрики.
 
-## Namespaces
+## Неймспейсы (пространства имён)
 
-A namespace is the named metric container.
-Namespaces help to
-* manage budgets for StatsHouse tenants by changing their [weight](#what-is-weight),
-* [manage access](#manage-access-for-namespaces) to metric data.
+Неймспейс (или пространство имён) — это именованный контейнер для метрик.
+Неймспейсы помогают
+* управлять бюджетами тенантов, меняя их [вес](#что-такое-вес),
+* [управлять доступом](#управление-доступом-к-неймспейсу) к данным.
 
-The metric's name defines if a metric relates to a namespace or not.
-To assign a namespace, use a colon in a metric name:
+Принадлежность метрики к неймспейсу определяется по имени метрики.
+Чтобы задать неймспейс, используйте двоеточие в имени метрики:
 
 <img src={Namespace} width="400"/>
 
-The namespace does not appear by itself. The StatsHouse administrators create namespaces explicitly.
-Use the full metric name, i.e. `foo:bar`, while sending data to StatsHouse.
+Неймспейсы не возникают сами по себе. Их создают администраторы StatsHouse.
+При отправке данных в StatsHouse используйте полное имя метрики, например `foo:bar`.
 
-The metric belongs to a default namespace
-* if you do not specify the namespace in the metric name,
-* if a metric name contains the nonexistent namespace.
+Метрика принадлежит к общему неймспейсу,
+* если вы не указали неймспейс в имени метрики,
+* если имя метрики содержит указание на несуществующий неймспейс.
 
-Find the examples below:
+Примеры:
 
-| If                                                               | Then                                                                                                      |
-|------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| The administrators have created the `foo` namespace for you.     | The `foo:bar` metric belongs to the `foo` namespace.<br/>The `abc` metric belongs to a default namespace. |
-| There is **no** `buz` namespace in your StatsHouse installation. | The `buz:bar` metric belongs to a default namespace.                                                      |
+| Если                                                               | То                                                                                               |
+|--------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| Администраторы создали для вас неймспейс `foo` .                   | Метрика `foo:bar` принадлежит неймспейсу `foo`.<br/>Метрика `abc` принадлежит общему неймспейсу. |
+| В вашем кластере StatsHouse **нет** неймспейса с названием `buz` . | Метрика `buz:bar` принадлежит общему неймспейсу.                                                 |
 
-Namespaces allow you to budget the cluster resources. You can allocate the disk space for your namespace so that you
-can send at least N bytes per second and nobody interferes with your data. This kind of budgeting may be crucial when
-you need minimum or zero sampling.
+Неймспейсы позволяют бюджетировать ресурсы кластера. Вы можете выделить дисковое пространство для своего 
+неймспейса так, можно было отправлять не менее N байт в секунду и никто не мешал вашим данным. Такое 
+бюджетирование может быть нужно, чтобы минимизировать семплирование.
 
-As an administrator, create a namespace using the admin panel in the left StatsHouse menu:
+Создать неймспейс можно в панели администратора (в левом меню StatsHouse):
 
 <img src={NamespaceAdd} width="800"/>
 
-By default, the resources are shared fairly between the namespaces. To allocate more or less resources to a namespace,
-configure the _weight_ parameter.
+По умолчанию ресурсы распределяются между неймспейсами справедливым образом. Чтобы выделить неймспейсу 
+больше или меньше ресурсов, настройте параметр _Weight_ (_вес_).
 
-### What is _weight_?
+### Что такое _вес_?
 
-Weight is the percentage of resources allocated for a tenant (which can be a namespace, a group, or a metric).
-Changing weight works similarly for namespaces, groups, and individual metrics. See the example of changing weight
-for the group below:
+Вес — это доля ресурсов (в процентах), выделенных для тенанта. Тенант — это пространство имён, группа или метрика.
+
+Настройка веса работает одинаково для неймспейсов, групп и отдельных метрик. Ниже показано, как изменить вес
+для группы:
 
 <img src={Weight} width="800"/>
 
 :::important
-While increasing the weight (and the budget) for a tenant, you automatically reduce the budget for the other ones.
-This may lead to higher [sampling](../overview/concepts.md#семплирование) rates for them. See the picture above.
+Увеличивая вес (и бюджет) для одного тенанта, вы автоматически уменьшаете бюджет для других.
+Это может привести к усилению [семплирования](../overview/concepts.md#семплирование) для них. См. рисунок выше.
 :::
 
-### Manage access for namespaces
+### Управление доступом к неймспейсу
 
-StatsHouse allows you to integrate an access management system so that you can grant access to a particular namespace.
-Usually, each business unit has its namespace.
+К StatsHouse можно подключить систему управления доступом, чтобы контролировать использование отдельных неймспейсов.
+Обычно у каждого крупного отдела в организации есть свой неймспейс.
 
-## Groups
+## Группы
 
-A group is a prefix for the metric name (the first part of it):
+Группа — это префикс в имени метрики (его первая часть):
 
 <img src={GroupName} width="400"/>
 
-You can create groups that belong or do not belong to a namespace. Specify the group name (as well as the namespace)
-when naming your metric or sending the metric data.
+Группы могут принадлежать или не принадлежать неймспейсу.
+Указывайте название группы (а также неймспейс, если он есть), когда создаёте метрику (даёте ей название) 
+или отправляете данные.
 
-Groups allow you to manage budgets within the namespace. By default, the resources are shared fairly
-between the groups. To allocate more or less resources to a group, configure the _weight_ parameter.
+Группы позволяют управлять бюджетами внутри неймспейсов. По умолчанию ресурсы распределяются
+между группами справедливым образом. Чтобы выделить группе больше или меньше ресурсов, настройте параметр _Weight_ 
+(_вес_).
 
 <img src={GroupAdd} width="900"/>
 
-## Editing weight for a metric
+## Настройка веса для отдельной метрики
 
-To allocate more or less resources to individual metrics, change the weight for them.
+Чтобы выделить больше или меньше ресурсов отдельным метрикам, измените их _вес_.
 
-Go to the **Edit** section on a metric page:
+Перейдите в раздел **Edit** на странице метрики:
 
 <img src={EditWeight1} width="700"/>
 
-Then scroll down to change the weight for the metric:
+Прокрутите страницу вниз и настройте параметр **Weight** :
 
 <img src={EditWeight2} width="700"/>
 
-This option is for administrators only.
-
+Эта настройка доступна только администраторам.

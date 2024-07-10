@@ -1,28 +1,29 @@
 ---
 sidebar_position: 6
-title: Use host metrics
+title: Хостовые метрики
 ---
 
 import HardwareInfo from '../img/hardware-info.png'
 
-# Use hardware (host) metrics
+# Хостовые метрики
 
-Popular hardware (host) metrics are displayed in StatsHouse out of the box:
-* You can view them as individual metrics: host metric names begin with `host_`.
-* You can view them on the _Hardware info_ dashboard:
+Хостовые (аппаратные) метрики заранее настроены в StatsHouse:
+* их можно просматривать как отдельные метрики (названия начинаются с `host_`),
+* их можно посмотреть на дашборде _Hardware info_.
 
 <img src={HardwareInfo} width="900"/>
 
-Find the host metrics implementation on [GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+Узнайте, 
+[как использовать теги для хостовых (аппаратных) метрик](#как-использовать-теги-для-хостовых-аппаратных-метрик).
 
-Learn [how to use tags for the host metrics](#how-to-use-tags-for-the-hardware-host-metrics).
-
-Find the full list of host metrics in the table below.
+Реализацию хостовых метрик можно найти на
+[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+Полный список приведён в таблице ниже.
 
 :::warning
-The descriptions are now copied from
-[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37)
-and will be updated later with more detail as well as tag information.
+Описания скопированы из кода на
+[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/forma/predefined_hardware.go#L37).
+Мы позже дополним их, в том числе описаниями тегов.
 :::
 
 | #  | Metric name                  | Description                                                                                                                 |
@@ -60,16 +61,20 @@ and will be updated later with more detail as well as tag information.
 | 31 | host_dmesg_events            | dmesg events                                                                                                                |
 | 32 | host_oom_kill_detailed       | // todo                                                                                                                     |
 
-## How to use tags for the hardware (host) metrics
+## Как использовать теги для хостовых (аппаратных) метрик
 
-To configure tag values for the host metrics, use the optional `--env-file-path`
-parameter when [starting the agent](install.md#agents).
+Чтобы настроить значения тегов для хостовых метрик, используйте дополнительный параметр `--env-file-path`
+при [запуске агента](install.md#агенты).
 
-The default file is `/etc/statshouse_env.yml`. You can specify your YAML file as the command line parameter:
+По умолчанию используется файл `/etc/statshouse_env.yml`. 
+Вы можете указать свой YAML-файл в параметре командной строки:
+
 ```
 --env-file-path my_env.yml
 ```
-In this file, specify the values for the standard host metric tags, for example:
+
+В этом файле укажите значения для стандартных тегов хостовых метрик, например:
+
 ```
 hostname: myhost
 env: production
@@ -79,5 +84,6 @@ region: spb
 owner: example_team
 ```
 
-For your convenience, define the way the teams in your organization name the tag values.
-For example, all the teams should use the `production` value — not the `prod`, `Production`, etc.
+Чтобы пользоваться тегами было удобнее, договоритесь с командами в вашей организации,
+какие значения тегов следует использовать.
+Например, все должны использовать значение `production`, а не `prod`, `Production` и т. д.

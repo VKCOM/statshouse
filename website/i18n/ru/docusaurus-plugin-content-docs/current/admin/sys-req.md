@@ -1,48 +1,49 @@
 ---
 sidebar_position: 1
-title: Check system requirements
+title: Требования к системе
 ---
 
 import ShardReplicas from '../img/shard-replicas.png'
 import LocalDisks from '../img/local-disks.png'
 
-# Check system requirements
+# Требования к системе
 
-**Software:** you can install StatsHouse components on the Linux systems.
+**Требования к программному обеспечению:** компоненты StatsHouse можно устанавливать только на Linux-системы.
 
-**Hardware:** please check the recommendations below regarding the [ClickHouse machines](#clickhouse-machines),
-[backup disks](#backup-disks), and [cloud installations](#cloud-installations).
+**Требования к аппаратному обеспечению:** ознакомьтесь с приведёнными ниже рекомендациями, касающимися
+[машин для установки ClickHouse](#машины-для-установки-clickhouse), [дисков для резервного хранения](#диски-для-резервного-хранения) и 
+[установки в облако](#установка-в-облако).
 
-## ClickHouse machines
+## Машины для установки ClickHouse
 
-1. Your hardware should comply with the
-   [requirements for running ClickHouse database](https://clickhouse.com/docs/ru/operations/requirements).
-2. Each shard should have at least three replicas. You can have any number of shards (one or more).
+1. Машины должны соответствовать
+   [требованиям для работы базы данных ClickHouse](https://clickhouse.com/docs/ru/operations/requirements).
+2. На каждый шард должно приходиться по три реплики. Шардов может быть сколько угодно (один или несколько).
 
 <img src={ShardReplicas} width="500"/>
 
-Read more about
-[distributing data between the replicas](../overview/components.md#работа-при-отказе-агрегатора).
+Узнайте больше о
+[распределении данных между репликами](../overview/components.md#работа-при-отказе-агрегатора).
 
-## Backup disks
+## Диски для резервного хранения
 
-If the aggregator is unavailable, responds with an error, or cannot insert data into the ClickHouse database,
-StatsHouse stores data locally — the local disks prevent you from losing data:
+Если агрегатор недоступен, отвечает с ошибкой или не может вставить данные в базу ClickHouse,
+StatsHouse хранит данные локально, чтобы не потерять данные:
 
 <img src={LocalDisks} width="500"/>
 
 :::important
-Make sure there is enough space on a disk to store data resulting from **six hours** of the agent or the aggregator
-working.
+Убедитесь, что на диске достаточно места для хранения данных, полученных в результате **шести часов** работы 
+агента или агрегатора.
 :::
 
-Read more about [handling aggregator's shutdown](../overview/components.md#работа-при-отказе-агрегатора).
+Узнайте больше о [работе при отказе агрегатора](../overview/components.md#работа-при-отказе-агрегатора).
 
-## Cloud installations
+## Установка в облако
 
-StatsHouse is not a cloud-native product. We recommend you to install StatsHouse components on the hardware, not in
-the pods or the short-lived virtual machines. If you use virtual machines, they should be full analogues of the
-physical hardware.
+StatsHouse — не облачное приложение. Мы рекомендуем устанавливать компоненты StatsHouse на физические машины, а 
+не в поды или виртуальные машины с коротким жизенным циклом. Если необходимо использовать виртуальную машину для 
+установки агента, она должна быть полным аналогом физической машины.
 
-Read more about
-[deploying agents in the Kubernetes pods](../overview/components.md#установка-агентов-в-подах-kubernetes).
+Узнайте больше об
+[установке агентов в поды Kubernetes](../overview/components.md#установка-агентов-в-подах-kubernetes).

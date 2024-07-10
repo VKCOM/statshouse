@@ -1,24 +1,25 @@
 ---
 sidebar_position: 8
-title: Maintain and upgrade
+title: Поддержка и обновление
 ---
 
 import AgentVersion from '../img/agent-version.png'
 
-# Maintain and upgrade
+# Поддержка и обновление
 
-As for maintaining the system, you should regularly upgrade the agents on your machines.
-In the nearest future, we plan to prevent the agents with the outdated version from sending data to StatsHouse.
+Следует регулярно обновлять агенты на машинах.
+В ближайшее время мы планируем запретить агентам с устаревшей версией отправлять данные в StatsHouse.
 
 :::important
-We assume that upgrading should be done within **one month** since the [new version](packages.md) is available.
+Агенты необходимо обновлять в течение **одного месяца** с момента выхода
+[новой версии](packages.md).
 :::
 
-To check the current version of your agents, view the `__heartbeat_version` [service metric](monitor.md#service-metrics).
+Чтобы узнать текущую версию агентов, откройте [служебную метрику](monitor.md#служебные-метрики) `__heartbeat_version`.
 
-The `commit_hash` tag is for the build versions (the `Build Commit` tag is the full hash), see the 
-`commit_timestamp` or the `commit_date` tag for the build date:
+В теге `commit_hash` перечислены версии сборки (в теге `Build Commit` указан полный хэш).
+В тегах `commit_timestamp` или `commit_date` можно посмотреть дату сборки:
 
 <img src={AgentVersion} width="700"/>
 
-Read more about [finding the packages](packages.md).
+Узнайте, [где найти пакеты с новыми версиями](packages.md).

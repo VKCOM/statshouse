@@ -216,7 +216,7 @@ For example, one can send a packet like this:
 Please avoid deploying agents in the Kubernetes pods.
 We strongly recommend deploying them on the real servers—make sure to specify the `13337` port.
 
-The reason is that StatsHouse "does not like" the fluctuating number of agents.
+The number of agents should not be fluctuating.
 The agents send per-second reports to the aggregators. The permanent number of agents indicates that the agents are
 connected to the aggregators. The pods that stopped working reduce the number of agents and activate the main StatsHouse alert.
 

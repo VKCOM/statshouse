@@ -1,38 +1,39 @@
 ---
 sidebar_position: 4
-title: Monitor StatsHouse
+title: Мониторинг StatsHouse
 ---
 
 import HeartbeatVersion from '../img/heartbeat-version.png'
 import AggMetrics from '../img/agg-metrics.png'
 import AggInsertMetrics from '../img/agg-insert-metrics.png'
 
-# Monitor StatsHouse
+# Мониторинг StatsHouse
 
-To monitor StatsHouse, use the predefined service [metrics](#service-metrics). Additionally, find [logs](#logs).
+Чтобы следить за состоянием StatsHouse, используйте готовые [служебные метрики](#служебные-метрики). Также можно
+получить [логи](#логи).
 
-## Service metrics
+## Служебные метрики
 
-The `__heartbeat_version` metric shows the number of running components. Group the data by the "component" tag:
+Метрика `__heartbeat_version` показывает количество запущенных компонентов. Сгруппируйте данные по тегу `component`:
 
 <img src={HeartbeatVersion} width="700"/>
 
 :::tip
-Read more about [checking the agent's version](maintain-upgrade.md).
+Узнайте, как [проверить версию агента](maintain-upgrade.md).
 
-Learn [how to monitor the agent's health](install.md#how-to-monitor-the-agents-health).
+Прочитайте, как [следить за состоянием агента](install.md#как-следить-за-состоянием-агентов).
 :::
 
-To monitor the aggregator's metrics, use the `__agg` prefix:
+Чтобы найти метрики агрегаторов, введите префикс `__agg` в поле поиска:
 
 <img src={AggMetrics} width="700"/>
 
-To monitor the process of inserting data into the ClickHouse database, use the `__agg_insert` prefix:
+Чтобы следить за вставкой данных в базу ClickHouse, используйте префикс `__agg_insert`:
 
 <img src={AggInsertMetrics} width="150"/>
 
-## Logs
+## Логи
 
-By default, StatsHouse exports logs to `/dev/stdout`.
-We recommend wrapping the process of running the agent into the `Systemd Unit` and managing logs via its `journal`
-service.
+По умолчанию StatsHouse выводит логи в `/dev/stdout`.
+
+Рекомендуем использовать `Systemd Unit` при запуске агента и работать с логами при помощи сервиса `journal`.

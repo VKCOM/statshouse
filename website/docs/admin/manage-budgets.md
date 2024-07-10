@@ -47,7 +47,7 @@ Find the examples below:
 
 Namespaces allow you to budget the cluster resources. You can allocate the disk space for your namespace so that you
 can send at least N bytes per second and nobody interferes with your data. This kind of budgeting may be crucial when
-you need minimum or zero sampling.
+you need minimum sampling.
 
 As an administrator, create a namespace using the admin panel in the left StatsHouse menu:
 

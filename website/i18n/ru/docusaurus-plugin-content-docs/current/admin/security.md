@@ -1,48 +1,50 @@
 ---
 sidebar_position: 5
-title: Ensure security
+title: Безопасность подключений
 ---
 
 import Aes from '../img/aes.png'
 import NoProxyEncryption from '../img/no-proxy-encryption.png'
 import WithProxyEncryption from '../img/with-proxy-encryption.png'
 
-# Ensure security
+# Безопасность подключений
 
-StatsHouse encrypts data between the agent and the aggregator even if they are located in the same
-data center. The AES encryption is used by default.
+StatsHouse шифрует данные между агентом и агрегатором, даже если они расположены в одном и том же
+датацентре. По умолчанию используется AES-шифрование.
 
 <img src={Aes} width="700"/>
 
-If your cluster receives data from the agents that live outside the protected perimeter (i.e., outside the data center),
-use the ingress proxies. The ingress proxy has a separate set of encryption keys for the external connections.
-Read more about the StatsHouse [ingress proxy](../overview/components.md#прокси) component
-in the conceptual overview.
+Если ваш кластер получает данные от агентов, которые находятся за пределами защищённого периметра (вне 
+датацентра), используйте прокси. У прокси есть свой набор ключей шифрования для внешних соединений.
 
-## Without the ingress proxy
+Общую информацию о [прокси](../overview/components.md#прокси) можно найти в обзоре
+компонентов StatsHouse.
 
-Check the flow for encrypting data between the agent and the aggregator without the ingress proxy.
+## Без использования прокси
+
+Вот как шифруются данные между агентом и агрегатором, когда прокси не используется:
 
 <img src={NoProxyEncryption} width="300"/>
 
-The agents send encrypted data to aggregators.
-They use the key from the `--aes-pwd-file` directory.
+Агенты отправляют зашифрованные данные агрегаторам.
+Они используют ключ из директории `--aes-pwd-file`.
 
-The aggregators decrypt the incoming data.
-They use the same key from the `--aes-pwd-file` directory.
+Агрегаторы расшифровывают входящие данные.
+Они используют тот же ключ из директории `--aes-pwd-file`.
 
-## With the ingress proxy
+## С использованием прокси
 
-Check the flow for encrypting data between the agent and the aggregator with the ingress proxy in the middle.
+Вот как шифруются данные между агентом и агрегатором, когда между ними установлен прокси:
 
 <img src={WithProxyEncryption} width="600"/>
 
-The agents send encrypted data to the ingress proxies.
-Each agent gets one of the keys from the ingress proxy's `-ingress-pwd-dir` directory as the `-aes-pwd-file` parameter.
+Агенты отправляют зашифрованные данные на прокси.
+Каждый агент получает в качестве параметра `-aes-pwd-file` один из ключей, содержащихся в директории 
+`-ingress-pwd-dir` у прокси.
 
-The ingress proxies decrypt the incoming data using the keys from the `--ingress-pwd-dir` directory.
+Прокси расшифровывают входящие данные, используя ключи из директории `--ingress-pwd-dir`.
 
-The ingress proxies send encrypted data to the aggregators.
-They use the key from the `--aes-pwd-file` directory to encrypt the outgoing traffic.
+Прокси отправляют зашифрованные данные на агрегаторы.
+Для шифрования исходящего трафика они используют ключ из директории `--aes-pwd-file`.
 
-The aggregator starts with the parameter `--aes-pwd-file` to decrypt the incoming traffic.
+Агрегатор запускается с параметром `--aes-pwd-file` (для расшифровки входящего трафика).

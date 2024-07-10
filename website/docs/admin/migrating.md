@@ -38,7 +38,7 @@ The user interface for the experimental scraping feature is under development.
 
 See the top-level description below.
 
-### _Push_ or _pull_: how to combine
+### _Push_ and _pull_: how to combine
 
 To bring the _"pushing"_ StatsHouse with the _"pulling"_ Prometheus together, we implemented the following 
 mechanism:
@@ -62,15 +62,13 @@ StatsHouse never knows the amount of data it can get upon scraping the metrics, 
 If you try to scrape metrics to a default namespace, you'll get the `err_metric_not_found` error (see the 
 `__src_ingestion_status` metric and the `status` tag).
 
-### Creating metrics and tags
-
-#### How to create metrics
+### How to create metrics (when scraping)
 
 If you specify the namespace in a configuration file, StatsHouse creates the metrics _automatically_ for 
 this namespace. If you try to scrape metrics to a default namespace, the metrics will not be created (you will get 
 the `err_metric_not_found` error).
 
-#### How to create tags
+### How to create tags (when scraping)
 
 For the scraped metrics, tags are extracted _automatically_. There may be more than 16 tags in
 each scraped metric, and StatsHouse does not "know" how to map them to the tag IDs.

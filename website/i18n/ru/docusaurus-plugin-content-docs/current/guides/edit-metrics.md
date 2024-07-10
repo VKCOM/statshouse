@@ -216,7 +216,7 @@ Draft tags appear when the data you send contains the tag names, but these names
 are "unknown" to StatsHouse.
 
 The feature was implemented to support
-[migrating from Prometheus](../admin/migrating.md#how-to-migrate-from-prometheus). There may be more than 16 tags in 
+[migrating from Prometheus](../admin/migrating.md#как-перейти-с-prometheus). There may be more than 16 tags in 
 the scraped metrics, and StatsHouse cannot map them to the tag IDs randomly.
 
 StatsHouse extracts the "unknown" tag names from the scraped metric data and shows them as the _draft tags_. Users 

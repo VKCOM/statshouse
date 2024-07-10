@@ -20,7 +20,7 @@ Read more about the StatsHouse [components](../overview/components.md).
 
 ## ClickHouse database
 
-Read more about the StatsHouse database component in the conceptual overview.
+Read more about the StatsHouse [database](../overview/components.md#database) component in the conceptual overview.
 
 Check the [system requirements for the ClickHouse machines](sys-req.md).
 We recommend using fast SSDs for storing per-second data, so that StatsHouse is able to provide you with the live mode.
@@ -133,8 +133,7 @@ installed on.
 
 The agents need all the aggregators' addresses. Each agent scans these addresses successively and tries to get the
 necessary configuration from the first available one.
-The agent sends the data to the aggregators in a pseudorandom order (read more about distributing data
-across the shards and replicas).
+The agent sends the data to the aggregators in a pseudorandom order.
 
 The aggregator starts with the `--aes-pwd-file` parameter that is the directory containing a key to decrypt the
 incoming traffic. Read more about the `--aes-pwd-file` parameter and the encryption keys in the
@@ -147,10 +146,9 @@ working.
 
 :::important
 Make sure an agent is installed on each machine that sends metrics to StatsHouse:
-* the aggregators' machines,
+* the ClickHouse/aggregators' machines,
 * the metadata service machine,
-* the API/UI machine,
-* the ClickHouse machines.
+* the API/UI ocmponent machine.
   :::
 
 The agent opens the local port (13337, by default) and gets data from the application. Then it sends the data to the

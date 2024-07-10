@@ -1,41 +1,44 @@
 ---
 sidebar_position: 3
-title: Install components
+title: Установка компонентов
 ---
 
 import ComponentsOrder from '../img/components-order.png'
 
-# Install components
+# Установка компонентов
 
-Here is the flow to install StatsHouse components (1 → 5):
+Компоненты StatsHouse нужно устанавливать в следующем порядке (1 → 5):
 
 <img src={ComponentsOrder} width="500"/>
 
-The [local StatsHouse installation](../quick-start.md) is almost the same. The only difference is that
-the [local installation script](https://github.com/VKCOM/statshouse/blob/master/localrun.sh) puts the ClickHouse
-database and aggregator on different virtual machines. To install StatsHouse on the real servers, use the same
-machine for the ClickHouse database and the aggregator.
+[Локальная установка StatsHouse](../quick-start.md) выглядит почти так же. Отличие заключается в том, что
+скрипт [локальной установки](https://github.com/VKCOM/statshouse/blob/master/localrun.sh) размещает базу данных 
+ClickHouse и агрегатор на разных виртуальных машинах. При полномасштабном развёртывании StatsHouse 
+устанавливайте базу данных ClickHouse и агрегатор на одну и ту же машину.
 
-Read more about the StatsHouse [components](../overview/components.md).
+Узнайте больше о [компонентах](../overview/components.md) StatsHouse.
 
-## ClickHouse database
+## База данных (ClickHouse)
 
-Read more about the StatsHouse database component in the conceptual overview.
+Общую информацию о [базе данных](../overview/components.md#база-данных) можно найти в обзоре компонентов 
+StatsHouse.
 
-Check the [system requirements for the ClickHouse machines](sys-req.md).
-We recommend using fast SSDs for storing per-second data, so that StatsHouse is able to provide you with the live mode.
-See more about the ClickHouse [configuration (storage policies)](#cluster-configuration-storage-policies).
+Убедитесь, что ваши машины соответствуют [требованиям для установки ClickHouse](sys-req.md).
+Мы рекомендуем использовать быстрые SSD-накопители для хранения посекундных данных, чтобы StatsHouse мог 
+предоставлять информацию в режиме реального времени.
+Узнайте больше о [конфигурации (политиках хранения)](#конфигурация-кластера-политики-хранения) ClickHouse.
 
-### Cluster scheme
+### Схема кластера
 
-The ClickHouse cluster must have three replicas per shard. You can have any number of shards (one or more).
+В кластере ClickHouse на каждый шард должно приходиться по три реплики. Шардов может быть сколько угодно (один или 
+несколько).
 
-Find the [scheme](https://github.com/VKCOM/statshouse/blob/master/build/clickhouse-cluster.sql)
-to create the necessary ClickHouse tables.
+Используйте эту [схему](https://github.com/VKCOM/statshouse/blob/master/build/clickhouse-cluster.sql) для создания 
+таблиц ClickHouse.
 
-### Cluster configuration (storage policies)
+### Конфигурация кластера (политики хранения)
 
-Find the example of the ClickHouse cluster configuration:
+Пример конфигурации кластера ClickHouse:
 
 ```
 <storage_configuration>
@@ -59,157 +62,158 @@ Find the example of the ClickHouse cluster configuration:
 </storage_configuration>
 ```
 
-This policy means that ClickHouse should initially insert data into the fast SSDs, and then move it to the slower
-HDDs.
+Такая политика подразумевает, что база ClickHouse вначале поместит данные на быстрые SSD, а затем переместит 
+их на более медленные жёсткие диски.
 
-This configuration is applied to a created table:
-see the above-mentioned [scheme](https://github.com/VKCOM/statshouse/blob/master/build/clickhouse-cluster.sql).
+Конфигурация применяется к созданной таблице:
+см. приведённую выше [схему](https://github.com/VKCOM/statshouse/blob/master/build/clickhouse-cluster.sql).
 
-## Metadata service
+## Сервис метаданных
 
-As soon as you have created the ClickHouse tables, proceed to metadata service installation.
+Как только вы создали таблицы ClickHouse, можно устанавливать сервис метаданных.
 
-Read more about the StatsHouse [metadata](../overview/components.md#сервис-метаданных) component in the conceptual
-overview.
+Общую информацию о [сервисе метаданных](../overview/components.md#сервис-метаданных) можно найти в обзоре 
+компонентов StatsHouse.
 
-You may install the metadata service on any machine. You have one metadata service instance.
+Сервис метаданных можно установить на любой машине. Устанавливается один экземпляр сервиса.
 
-To handle the possible failure of the metadata service, back up it manually. Now, one can copy the
-database binlog once a day using the `cron` job to restart the service if necessary.
+На случай возможных сбоев создавайте резервную копию сервиса. Например, можно копировать
+бинлог базы данных сервиса раз в день, используя `cron`. Так сервис метаданных можно будет перезапустить при 
+необходимости.
 
 :::info
-We are now developing our own consensus mechanism to make the metadata service distributed.
+Сейчас мы разрабатываем собственный механизм консенсуса, чтобы сделать сервис метаданных распределённым.
 :::
 
-The metadata service needs the following parameters:
-* `--db-path` that is the place to store data;
-* `--binlog-prefix` that is the place to store the binlog.
+Сервису метаданных нужны следующие параметры:
+* `--db-path` — место хранения данных,
+* `--binlog-prefix` — место хранения бинлога.
 
-Find the example of the metadata service installation script:
+Пример скрипта для установки сервиса метаданных:
 
 ```shell
 statshouse-metadata --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
 ```
 
-The aggregator, the API/UI component, and the agents need to know the metadata address. The agents get this
-information from the aggregators.
+Агрегатору, API/UI-компоненту и агентам нужен адрес сервиса метаданных. Агенты получают эту информацию от агрегаторов.
 
-The metadata service has its agent too.
+В сервисе метаданных установлен свой агент.
 
-### In case of metadata service failure
+### Что происходит при отказе сервиса метаданных
 
-If the metadata service is unreachable, StatsHouse cannot create new metrics and tags, and use tag information (see
-more about the [mapping mechanism](../overview/components.md#сервис-метаданных)).
+Если сервис метаданных не работает, StatsHouse не сможет создавать новые метрики и теги, а также использовать 
+информацию о тегах (читайте подробнее о [маппинге](../overview/components.md#сервис-метаданных)).
 
-Each StatsHouse component has its metadata copy and continues working even in case of metadata failure.
-But if the component fails too, it will not be able to restore.
+У каждого компонента StatsHouse есть копия метаданных, так что компонент продолжит работать, даже если сервис метаданных 
+недоступен. Если компонент тоже выйдет из строя, восстановить его при неработающем сервисе метаданных будет невозможно.
 
 :::important
-In case of aggregator failure, restore the metadata service with the same IP address as soon as possible.
+В случае отказа агрегатора как можно скорее восстановите сервис метаданных с тем же IP-адресом.
 :::
 
-## Aggregators
+## Агрегаторы
 
-Read more about the StatsHouse [aggregator](../overview/components.md#агрегатор) component in the
-conceptual overview.
+Общую информацию об [агрегаторах](../overview/components.md#агрегатор) можно найти в обзоре
+компонентов StatsHouse.
 
-The aggregator needs to know where to find the cluster, so please specify the following parameters:
-* `--cluster` that is the cluster name,
-* `--kh` that is the database address (the database may contain many clusters),
-* `--agg-addr` that is the port to listen to,
-* `--aes-pwd-file` that is the directory with the encryption key (the obligatory start parameter: `/etc/engine/pass`
-  by default),
-* `--cache-dir` that is the directory to store data in case the database does not insert data,
-* `-u`, `-g` that are the group and the user (the obligatory start parameters).
+Агрегатору необходимо знать, где найти кластер. Укажите следующие параметры:
+* `--cluster` — имя кластера;
+* `--kh` — адрес базы данных (в базе может содержаться много кластеров);
+* `--agg-addr` — порт для приёма данных;
+* `--aes-pwd-файл` — директория, в которой хранится ключ шифрования (этот параметр обязателен для запуска: 
+  `/etc/engine/pass` — значение по умолчанию);
+* `--cache-dir` — директория, где будут храниться данные, если возникнут проблемы со вставкой в базу;
+* `-u`, `-g` — группа и пользователь (обязательные параметры).
 
-On each ClickHouse replica, install the StatsHouse aggregator. Find the example of the aggregator installation script:
+На каждой реплике ClickHouse установите агрегатор StatsHouse. Пример скрипта для установки агрегатора:
+
 ```
 statshouse aggregator --cluster=test_shard_localhost --agg-addr=':13336' --aes-pwd-file=/etc/engine/pass \
 --kh=XXX.X.X.X:XXXX --cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root
 ```
 
-As the aggregators get the ClickHouse cluster address, they get info about the shard and the replica they are
-installed on.
+Когда агрегатор получает адрес кластера ClickHouse, он узнаёт, на каком шарде и какой реплике он установлен.
 
-The agents need all the aggregators' addresses. Each agent scans these addresses successively and tries to get the
-necessary configuration from the first available one.
-The agent sends the data to the aggregators in a pseudorandom order (read more about distributing data
-across the shards and replicas).
+Агентам нужны адреса всех агрегаторов. Каждый агент последовательно сканирует эти адреса и пытается получить
+необходимую конфигурацию с первого доступного агрегатора. Агент отправляет данные агрегаторам в псевдослучайном 
+порядке.
 
-The aggregator starts with the `--aes-pwd-file` parameter that is the directory containing a key to decrypt the
-incoming traffic. Read more about the `--aes-pwd-file` parameter and the encryption keys in the
-[security](security.md) section.
+Агрегатор запускается с параметром `--aes-pwd-file`. Он указывает на директорию, в которой содержится ключ для 
+расшифровки входящего трафика. Подробнее о параметре `--aes-pwd-file` и ключах шифрования читайте в разделе о
+[безопасности подключений](security.md).
 
-The size of the `--cache-dir` directory should be enough to store data resulting from **six hours** of the aggregator
-working.
+Размера директории `--cache-dir` должно быть достаточно для хранения данных, полученных за **шесть часов** работы 
+агрегатора.
 
-## Agents
+## Агенты
 
 :::important
-Make sure an agent is installed on each machine that sends metrics to StatsHouse:
-* the aggregators' machines,
-* the metadata service machine,
-* the API/UI machine,
-* the ClickHouse machines.
-  :::
+Убедитесь, что агент установлен на каждой машине, которая отправляет метрики в StatsHouse:
+* на машинах ClickHouse/агрегаторов,
+* на машине сервиса метаданных,
+* на машине API/UI-компонента.
+:::
 
-The agent opens the local port (13337, by default) and gets data from the application. Then it sends the data to the
-aggregators.
+Агент открывает локальный порт (13337 по умолчанию) и получает данные от приложения. Затем он отправляет данные в
+агрегаторы.
 
-Read more about the StatsHouse [agent](../overview/components.md#агент) component in the conceptual overview.
+Общую информацию об [агентах](../overview/components.md#агент) можно найти в обзоре
+компонентов StatsHouse.
 
-The agents are available as the RPM or DEB packages, for example:
+Агенты доступны в виде RPM- или DEB-пакетов, например:
 
-`statshouse-2024.05.1-1.almalinux9.x86_64.rpm` or `statshouse_2024.05.1-focal_amd64.deb`.
+`statshouse-2024.05.1-1.almalinux9.x86_64.rpm` или `statshouse_2024.05.1-focal_amd64.deb`.
 
-The agent needs the following parameters:
-* `--agg-addr` that is the aggregators' (or the proxies') addresses,
-* `--aes-pwd-file` that is the directory with the encryption key (encrypting the data the agent sends to the aggregator
-  or the ingress proxy),
-* `--cache-dir` that is the directory to store data in case the aggregator is unavailable,
-* `--env-file-path` (optional) that is the file to configure tags for the host (hardware) metrics.
+Агенту необходимы следующие параметры:
+* `--agg-addr` — адреса агрегаторов (или прокси);
+* `--aes-pwd-файл` — директория, в которой хранится ключ шифрования (шифрует данные, которые агент отправляет 
+  в агрегатор или прокси);
+* `--cache-dir` — директория, где будут храниться данные в случае недоступности агрегатора;
+* `--env-file-path` — файл, в котором можно настроить теги для хостовых (аппаратных) метрик (необязательный параметр).
 
-Find the example of the agent installation script:
+Пример скрипта для установки агента:
+
 ```
 statshouse agent --agg-addr=XX.XXX.XXX.XXX:XXXX,YY.YYY.YYY.YYY:YYYY,ZZ.ZZZ.ZZZ.ZZZ:ZZZZ \ 
 --aes-pwd-file=/etc/engine/pass --cache-dir=/var/lib/statshouse/
 ```
 
-The size of the `--cache-dir` directory should be enough to store data resulting from **six hours** of the agent working.
-If the aggregators are unavailable for more than six hours, the older data is deleted from the disk.
+Размера директории `--cache-dir` должно быть достаточно для хранения данных, полученных за **шесть часов** работы
+агента. Если агрегаторы недоступны более шести часов, старые данные удаляются с диска.
 
-Read more about the `--aes-pwd-file` parameter and the encryption keys in the [security](security.md) section.
+Подробнее о параметре `--aes-pwd-file` и ключах шифрования читайте в разделе о [безопасном подключении](security.md).
 
-Read more about [using tags for the host (hardware) metrics](host-metrics.md#how-to-use-tags-for-the-hardware-host-metrics)
-and the `--env-file-path` parameter.
+Читайте также о том, как 
+[использовать теги для хостовых (аппаратных) метрик](host-metrics.md#как-использовать-теги-для-хостовых-аппаратных-метрик)
+и параметр `--env-file-path`.
 
-### How to monitor the agent's health
+### Как следить за состоянием агентов
 
-1. Open the `__heartbeat_version` [service metric](monitor.md#service-metrics) that shows the number of running 
-components.
-2. For the `component` tag, select the `agent` tag value.
-3. For the `host` tag, select the required hostname.
-4. Check if you see the heartbeat from the host.
+1. Откройте [служебную метрику](monitor.md#служебные-метрики) `__heartbeat_version`, которая показывает 
+   количество запущенных компонентов.
+2. Для тега `component` выберите значение `agent`.
+3. Для тега `host` выберите нужное имя хоста.
+4. Проверьте, отображается ли контрольный сигнал от хоста.
 
-Additionally, check if the agent is able to send real metric data: [send a testing piece of data 
-from the host](../guides/send-data.md#how-to-send-data-without-client-libraries).
+Также проверьте, может ли агент отправлять реальные данные: попробуйте
+[отправить тестовые данные](../guides/send-data.md#how-to-send-data-without-client-libraries).
 
 ## API/UI
 
-The [API component](../overview/components.md#api) has the StatsHouse
-user interface as its part. As soon as you start the API/UI component, you can view
-the [service metrics](../guides/view-graph.md#service-metrics) that help to monitor StatsHouse.
+Пользовательский интерфейс (UI) StatsHouse входит в состав [API-компонента](../overview/components.md#api).
+Сразу после установки API/UI можно просматривать
+[служебные метрики](../guides/view-graph.md#service-metrics) — они отражают состояние StatsHouse.
 
-You can install the API component on any machine.
+API-компонент можно установить на любой машине.
 
-The API component needs the following parameters:
-* `--clickhouse-v2-addrs` that is the ClickHouse cluster address,
-* `--listen-addr` that is the port to listen to,
-* `--disk-cache` that is the place to store the cached
-  [global `string↔int32` map](../overview/components.md#бюджет-на-создание-значений-тегов),
-* `--static-dir` that is the place where the UI static files live.
+API-компоненту требуются следующие параметры:
+* `--clickhouse-v2-addrs` — адрес кластера ClickHouse,
+* `--listen-addr` — порт для приёма данных,
+* `--disk-cache` — место для хранения кэшированных метаданных
+  ([маппинга `string↔int32`](../overview/components.md#бюджет-на-создание-значений-тегов)),
+* `--static-dir` — место, где хранятся статические файлы UI.
 
-Find the example of the API/UI installation script:
+Пример скрипта для установки API/UI:
 
 ```
 statshouse-api --clickhouse-v2-addrs=XXX.X.X.X:XXXX \
@@ -217,14 +221,15 @@ statshouse-api --clickhouse-v2-addrs=XXX.X.X.X:XXXX \
 --static-dir=/usr/lib/statshouse-api/statshouse-ui/
 ```
 
-### Authentication
+### Аутентификация
 
-You may use an authentication mechanism you need, for example, an _nginx_ server using JSON Web Tokens (JWT).
+Подключите свой механизм аутентификации. Например, можно установить сервер _nginx_, использующий JSON Web Tokens 
+(JWT).
 
-To use the API with no authentication, enable the `--insecure-mode` option.
+Чтобы обращаться к API без аутентификации, включите режим `--insecure-mode`.
 
-## Ingress proxy
+## Прокси
 
-Find information about the StatsHouse [ingress proxy](../overview/components.md#прокси) component in
-the conceptual overview. Read more about [ensuring security](security.md)
-with the ingress proxies and the cryptokeys.
+Информацию о [прокси](../overview/components.md#прокси) можно найти в обзоре
+компонентов StatsHouse.
+Узнайте, как обеспечить [безопасность подключений](security.md) с помощью прокси и криптоключей.

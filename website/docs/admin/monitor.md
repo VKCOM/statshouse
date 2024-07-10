@@ -13,7 +13,7 @@ To monitor StatsHouse, use the predefined service [metrics](#service-metrics). A
 
 ## Service metrics
 
-The `__heartbeat_version` metric shows the number of running components. Group the data by the "component" tag:
+The `__heartbeat_version` metric shows the number of running components. Group the data by the `component` tag:
 
 <img src={HeartbeatVersion} width="700"/>
 

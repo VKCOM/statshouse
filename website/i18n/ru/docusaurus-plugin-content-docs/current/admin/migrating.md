@@ -1,89 +1,87 @@
 ---
 sidebar_position: 9
-title: Migrate
+title: Переход с других систем
 ---
 
-# Migrate
+# Переход с других систем
 
-Migrate to StatsHouse from the popular monitoring tools such as Grafana and Prometheus.
+Вы можете перейти на StatsHouse с других систем мониторинга, таких как Grafana и Prometheus.
 
-Learn more about the StatsHouse [features](../overview/features.md).
+Узнайте больше о [преимуществах](../overview/features.md) StatsHouse.
 
-## How to migrate from Grafana
+## Как перейти с Grafana
 
-Initially, StatsHouse provided users with the 
-[Grafana data source plugin](https://github.com/VKCOM/statshouse/tree/master/grafana-plugin-ui). We discontinued the 
-plugin development—we put our effort to developing StatsHouse visualizing system.
+Изначально StatsHouse предоставлял пользователям
+[плагин (источник данных) для Grafana](https://github.com/VKCOM/statshouse/tree/master/grafana-plugin-ui). Мы прекратили
+разработку плагина — сейчас мы направляем все усилия на развитие собственной системы визуализации в StatsHouse.
 
-To help our users migrate, we focus on implementing widgets, thresholds, improved table view, 
-support for several metrics on a graph, and more.
+Чтобы пользователям было проще перейти на StatsHouse, мы работаем над виджетами, отображением пороговых 
+значений, улучшенным представлением таблиц, отображением нескольких метрик на одном графике и другими функциями.
 
-To request a feature or to discuss the roadmap, please refer to the [support](../support.md) section.
+Чтобы обсудить расширение функциональности или наш план разработки, обратитесь к разделу
+[Поддержка](../support.md).
 
-## How to migrate from Prometheus
+## Как перейти с Prometheus
 
-Prometheus and StatsHouse differ so much:
+Системы Prometheus и StatsHouse различаются во многом:
 
-| System     | Data model                                                                    | How it works                                                                                                                | Push/pull |
-|------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|-----------|
-| Prometheus | stores data as [time series](https://prometheus.io/docs/concepts/data_model/) | collects metrics from targets by [scraping](https://prometheus.io/docs/prometheus/latest/getting_started/) metrics endpoints | pull      |
-| StatsHouse | stores data as [aggregates](../overview/concepts.md#агрегат)                  | monitored applications push metric data to the StatsHouse agents,<br/>which aggregate it and transfer it further                 | push      |
+| Система    | Модель данных                                                                             | Как работает                                                                                                                                | Push или pull |
+|------------|-------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| Prometheus | хранит данные в виде [временных рядов](https://prometheus.io/docs/concepts/data_model/)   | использует _скрейпинг_: собирает данные от источников, [обходя](https://prometheus.io/docs/prometheus/latest/getting_started/) конечные точки | pull          |
+| StatsHouse | хранит данные в виде [агрегатов](../overview/concepts.md#агрегат)                         | приложения отправляют данные в агенты StatsHouse, агенты агрегируют данные и передают их дальше в систему                                   | push          |
 
-How can we bring these two systems together? StatsHouse offers a proof of concept for scraping metrics in a 
-Prometheus-like manner.
+Как совместить эти две системы? В StatsHouse разработан прототип, который позволяет собирать метрики почти так, как это 
+делает Prometheus.
 
 :::info
-The user interface for the experimental scraping feature is under development.
+Пользовательский интерфейс для Prometheus-совместимого режима находится в стадии разработки.
 :::
 
-See the top-level description below.
+Прототип описан ниже.
 
-### _Push_ or _pull_: how to combine
+### _Push_ и _pull_: как совместить
 
-To bring the _"pushing"_ StatsHouse with the _"pulling"_ Prometheus together, we implemented the following 
-mechanism:
+Чтобы совместить модели StatsHouse и Prometheus, мы используем следующий механизм:
 
-> Install a StatsHouse agent on each machine you want to get metrics from, and the agent will scrape metric 
-> data from the corresponding machine using the 
-> [Prometheus configuration file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/).
+> Агент StatsHouse нужно установить на каждую машину, с которой вы хотите получать метрики. Агенты будут собирать
+> данные со своих машин, используя
+> [конфигурационный файл (как в Prometheus)](https://prometheus.io/docs/prometheus/latest/configuration/configuration/).
 
-### Configuration file
+### Конфигурационный файл
 
-A configuration file for scraping metrics in StatsHouse is similar to the common 
-[Prometheus configuration file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)—with
-the additional fields, such as the [namespace](#scraping-into-the-particular-namespace) to locate the scraped 
-metrics, and some others.
+Конфигурационный файл для скрейпинга метрик в StatsHouse похож на
+[конфигурационный файл Prometheus](https://prometheus.io/docs/prometheus/latest/configuration/configuration/).
+Однако у него есть дополнительные поля, такие как [неймспейс](#сбор-метрик-в-неймспейс), который 
+формирует пространство для собираемых метрик, и некоторые другие.
 
-### Scraping into the particular namespace
+### Сбор метрик в неймспейс
 
-StatsHouse scrapes metrics only into the [explicitly specified](#configuration-file) namespace.
-StatsHouse never knows the amount of data it can get upon scraping the metrics, so it has to control the budget.
+В Prometheus-совместимом режиме StatsHouse собирает метрики только в [явно указанный](#конфигурационный-файл) 
+неймспейс. StatsHouse не знает, какой объём данных он получит при скрейпинге, поэтому ему приходится 
+контролировать бюджет.
 
-If you try to scrape metrics to a default namespace, you'll get the `err_metric_not_found` error (see the 
-`__src_ingestion_status` metric and the `status` tag).
+Если вы попытаетесь собрать метрики в общий неймспейс, вы получите ошибку `err_metric_not_found` 
+(см. метрику `__src_ingestion_status` и тег `status`).
 
-### Creating metrics and tags
+### Как создавать метрики (при скрейпинге)
 
-#### How to create metrics
+Если неймспейс указан в конфигурационном файле, StatsHouse _автоматически_ создаст метрики в этом неймспейсе. Если вы 
+попытаетесь собрать данные в общий неймспейс, метрики не будут созданы (появится ошибка `err_metric_not_found`).
 
-If you specify the namespace in a configuration file, StatsHouse creates the metrics _automatically_ for 
-this namespace. If you try to scrape metrics to a default namespace, the metrics will not be created (you will get 
-the `err_metric_not_found` error).
+### Как создавать теги (при скрейпинге)
 
-#### How to create tags
+При скрейпинге метрик теги извлекаются _автоматически_. В полученной Prometheus-метрике может быть более 16 тегов (т.
+е. названий тегов), и StatsHouse "не знает", как сопоставить их с идентификаторами.
 
-For the scraped metrics, tags are extracted _automatically_. There may be more than 16 tags in
-each scraped metric, and StatsHouse does not "know" how to map them to the tag IDs.
+Эти извлечённые теги появляются в качестве "черновых" тегов — см. раздел [Edit](../guides/edit-metrics.md) для 
+конкретной метрики. Узнайте, как вручную
+[сопоставить извлечённые названия тегов с идентификаторами тегов в StatsHouse](../guides/edit-metrics.md#map-the-draft-tag-names-to-the-tag-ids).
 
-These extracted tags appear as the draft tags in the [Edit](../guides/edit-metrics.md) section for the metric.
-Learn how to manually 
-[map the draft tag names to the tag IDs](../guides/edit-metrics.md#map-the-draft-tag-names-to-the-tag-ids).
+### Форматы метрик: как сопоставить
 
-### Metric formats: how to map
-
-The basic [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/) and 
-[StatsHouse metric types](../guides/design-metric.md#metric-types) differ as well. For migrating purposes, we 
-mapped them so:
+Основные [типы метрик в Prometheus](https://prometheus.io/docs/concepts/metric_types/) и
+[типы метрик в StatsHouse](../guides/design-metric.md#metric-types) также различаются. Мы
+сопоставили их таким образом:
 
 | Prometheus                                                                              | StatsHouse                                                                          |
 |-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
@@ -91,4 +89,4 @@ mapped them so:
 | gauge                                                                                 → | value                                                                               |
 | histogram                                                                             → | histogram (_experimental_)                                                          |
 
-Further details about scraping Prometheus metrics will be provided later.
+Более подробную информацию о скрейпинге метрик мы предоставим позже.
