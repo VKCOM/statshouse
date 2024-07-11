@@ -8,7 +8,7 @@
 <noscript>
                             <div><img src="https://mc.yandex.ru/watch/96098475" style="position:absolute; left:-9999px;" alt=""></div>
                         </noscript><link rel="stylesheet" href="/statshouse/ru/assets/css/styles.a17eb7a5.css">
-<script src="/statshouse/ru/assets/js/runtime~main.b2ef38b6.js" defer="defer"></script>
+<script src="/statshouse/ru/assets/js/runtime~main.972461f4.js" defer="defer"></script>
 <script src="/statshouse/ru/assets/js/main.3dc6f218.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard" data-theme="light">
@@ -55,13 +55,6 @@
 </ul>
 <img src="/statshouse/ru/assets/images/agent-2b52ee89860a5ea30deee612bc707b4a.png" width="500">
 <p>Если агрегаторы недоступны, агент хранит данные на локальном диске в пределах квоты и отправляет их позже.</p>
-<p>An agent receives metric data via <a href="https://en.wikipedia.org/wiki/User_Datagram_Protocol" target="_blank" rel="noopener noreferrer">UDP</a>. Supported formats are</p>
-<ul>
-<li><a href="https://www.json.org/json-en.html" target="_blank" rel="noopener noreferrer">JSON</a>,</li>
-<li><a href="https://protobuf.dev" target="_blank" rel="noopener noreferrer">Protocol Buffers</a>,</li>
-<li><a href="https://msgpack.org" target="_blank" rel="noopener noreferrer">MessagePack</a>,</li>
-<li><a href="https://core.telegram.org/mtproto/TL" target="_blank" rel="noopener noreferrer">TL</a>.</li>
-</ul>
 <p>Агент получает данные по протоколу <a href="https://en.wikipedia.org/wiki/User_Datagram_Protocol" target="_blank" rel="noopener noreferrer">UDP</a>. Поддерживаются
 следующие форматы:</p>
 <ul>
@@ -72,8 +65,6 @@
 </ul>
 <div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"></path></svg></span>note</div><div class="admonitionContent_BuS1"><p>Агенты поддерживают IPv6.</p></div></div>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="получение-данных-по-udp">Получение данных по UDP<a class="hash-link" aria-label="Прямая ссылка на Получение данных по UDP" title="Прямая ссылка на Получение данных по UDP" href="/statshouse/ru/overview/components#получение-данных-по-udp">​</a></h3>
-<p>StatsHouse receives data via UDP in the MessagePack, Protocol Buffers, JSON, and TL formats—they are semantically
-identical. It automatically detects the format by the first bytes in the packet.</p>
 <p>StatsHouse получает данные по UDP в форматах MessagePack, Protocol Buffers, JSON и TL — они семантически
 идентичны. Формат определяется автоматически по первым байтам в пакете.</p>
 <p>Посмотрите схемы для <a href="https://github.com/VKCOM/statshouse/blob/master/internal/data_model/public.tl" target="_blank" rel="noopener noreferrer">TL</a>,
@@ -111,17 +102,17 @@ MessagePack и <a href="https://github.com/VKCOM/statshouse/blob/master/internal
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="актуальные-и-исторические-данные">Актуальные и &quot;исторические&quot; данные<a class="hash-link" aria-label="Прямая ссылка на Актуальные и &quot;исторические&quot; данные" title="Прямая ссылка на Актуальные и &quot;исторические&quot; данные" href="/statshouse/ru/overview/components#актуальные-и-исторические-данные">​</a></h3>
 <p>У агрегатора есть два режима работы:</p>
 <ul>
-<li>работа с актуальными  данными,</li>
+<li>работа с актуальными данными,</li>
 <li>работа с &quot;историческими&quot; данными. Данные считаются &quot;историческими&quot;, если их не удалось отправить сразу после создания.</li>
 </ul>
 <p>Вставка актуальных данных — приоритет для агрегатора.</p>
 <img src="/statshouse/ru/assets/images/real-hist-bc7cebbb031517a8477b2c88aa11865a.png" width="800">
 <p>Представьте: возник сбой. Долгое время вставить данные было невозможно, затем система восстановилась.
-StatsHouse немедленно начинает вставлять актуальные данные. А вот &quot;исторические&quot; данные StatsHouse вставит при
+StatsHouse немедленно начинает вставлять актуальные данные. А вот &quot;историч еские&quot; данные StatsHouse вставит при
 первой возможности, если только это не помешает вставке актуальных данных.</p>
 <details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Подробнее</summary><div><div class="collapsibleContent_i85q"><p>Вставка актуальных данных имеет приоритет, поскольку &quot;исторические&quot; данные вставляются в базу ClickHouse
 довольно медленно.</p><p><strong>Актуальные данные</strong></p><p>Агрегатор позволяет агентам вставлять данные за последние 5 минут — это &quot;короткое&quot; окно вставки (его можно
-настроить). Если агент не успел вставить данные вовремя, он отправит данные как &quot;исторические&quot;.</p><p>Для каждой актуальной секунды агрегатор хранит контейнер со статистикой. В этот контейнер агрегирую тся данные от
+настроить). Если агент не успел вставить данные вовремя, он отправит данные как &quot;исторические&quot;.</p><p>Для каждой актуальной секунды агрегатор хранит контейнер со статистикой. В этот контейнер агрегируются данные от
 агентов. Как только наступает следующая секунда, агрегатор вставляет данные для неё (из &quot;короткого&quot; окна)
 в базу. А агенты получают ответ с результатом вставки.</p><p>&quot;Короткое&quot; окно распространяется на две секунды в будущее, чтобы нормально работали агенты, у которых часы немного
 спешат.</p><p><strong>&quot;Исторические&quot; данные</strong></p><p>Агрегатор позволяет агентам вставлять данные за последние 48 часов — это &quot;длинное&quot; окно вставки (его можно
@@ -141,7 +132,7 @@ StatsHouse не будет использовать диск. &quot;Истори
 Данные распределяются в соответствии с порядковыми номерами секунд: чётные секунды отправляются в одну из реплик,
 нечётные — в другую. Таким образом, нагрузка на обе реплики увеличивается на 50 %. Это одна из причин, по которой
 StatsHouse записывает данные ровно в три реплики ClickHouse.</p><p><strong>Предотвращение двойной вставки</strong></p><p>Если агрегатор отвечает с ошибкой, агент отправляет данные другому агрегатору (другой реплике) на другом
-хосте. Для дедупликации нужно использовать алгоритм консенсуса, а это довольно сложно.</p><p>В StatsHouse основной и резервный агрегаторы могут вставлять данные от одного и того же агента в одну и ту же секунду.
+хосте. Для дедупликации нужно использоват ь алгоритм консенсуса, а это довольно сложно.</p><p>В StatsHouse основной и резервный агрегаторы могут вставлять данные от одного и того же агента в одну и ту же секунду.
 Это происходит редко, и для такого случая мы отслеживаем двойные вставки с помощью метаметрики <code>__heartbeat_version</code>,
 которая показывает <em>количество агентов, отправляющих данные в текущую секунду</em>. Чтобы эта метаметрика была
 стабильной при нормальной работе агрегаторов, агенты отправляют данные каждую секунду, даже если в данный момент нет
@@ -162,7 +153,7 @@ StatsHouse записывает данные ровно в три реплики
 Если в метрике используется несколько тегов, то данные, относящиеся к конкретному тегу (например, <code>&quot;protocol&quot;:  &quot;tcp&quot;</code>), обычно хранятся на разных шардах. Чтобы получить полную статистику, всегда нужно делать <em>распределённые
 запросы</em> ко всему набору шардов.</p><p>Почему это так?
 Набор значений тегов имеет определенную кардинальность: существует конечное число возможных комбинаций значений тегов для
-метрики. Если мы достигаем предела кардинальности, то есть отправляем все эти комбинации значений те гов,
+метрики. Если мы достигаем предела кардинальности, то есть отправляем все эти комбинации значений тегов,
 объём данных перестает увеличиваться из-за агрегации — StatsHouse объединяет события с одним и тем же сочетанием
 значений тегов.</p><p>Чтобы хранить выборку данных для всей метрики, каждый шард должен хранить столько рядов, сколько существует
 комбинаций значений тегов для метрики, а не долю, пропорциональную числу шардов.</p><p>StatsHouse не использует буферные таблицы: каждый агрегатор вставляет данные раз в секунду в
@@ -193,7 +184,7 @@ ClickHouse должен был бы читать данные не из одно
 <p>Требуется ровно три прокси. Каждый из них является прокси для соответствующей реплики шарда.
 Недоступный прокси эквивалентен выходу из строя реплики одного шарда и не влияет на работу StatsHouse.</p>
 <img src="/statshouse/ru/assets/images/ingress-proxy-84f922c34ded3524048637ae15c26af5.png" width="600">
-<p>Три экземпляра прокси имитируют агрегаторы. Можно устано вить ещё один уровень проксирования за имеющимися
+<p>Три экземпляра прокси имитируют агрегаторы. Можно установить ещё один уровень проксирования за имеющимися
 прокси. Этот уровень будет использовать предыдущие прокси в качестве агрегаторов.</p>
 <p>Не рекомендуется устанавливать прокси в подах Kubernetes.</p>
 <details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Подробнее</summary><div><div class="collapsibleContent_i85q"><p><strong>Криптоключи</strong></p><p>StatsHouse использует протокол VK RPC с (опциональным) шифрованием для общения компонентов.</p><p>Согласно протоколу VK RPC криптоключ является одновременно логином для получения доступа и секретом для получения
@@ -207,7 +198,7 @@ ClickHouse должен был бы читать данные не из одно
 <li>RPC-клиента для подключения самого прокси к агрегаторам внутри периметра.</li><p></p><p>Для прокси необходимо настроить следующие параметры:
 </p><li><code>-ingress-external-addr</code> — внешние адреса прокси-серверов, которые агенты используют для подключения;</li>
 <li><code>-ingress-addr</code> — параметр для управления интерфейсами, на которые подключаются агенты;</li>
-<li><code>-aes-pwd-file</code> — внутренний криптоключ для отправки данных агрегаторам;</li>
+<li><code>-aes-pwd-file</code> — внутренний к риптоключ для отправки данных агрегаторам;</li>
 <li><code>-ingress-pwd-dir</code> — набор внешних ключей для агентов с удаленных площадок.</li><p></p><p>Параметр <code>-ingress-addr</code> обычно имеет значение <code>:8128</code>, что равнозначно <code>0.0.0.0:8128</code>.
 Он также может содержать адрес подсети сетевого адаптера, чтобы разрешить подключение только через него. Порт в
 параметре <code>-ingress-addr</code> должен совпадать с одним из портов в параметре <code>-ingress-external-addr</code>. &quot;Внешняя&quot; часть
@@ -282,6 +273,6 @@ StatsHouse должен был бы загрузить огромное чило
 используют long polling для получения информации от агрегаторов. Таким образом, все агенты получают
 информацию об изменениях в свойствах метрик практически мгновенно (за секунду).</p><p><strong>Удаление метрик</strong></p><p>Удалить метрику нельзя, потому что в базе данных ClickHouse нет эффективного способа сделать это.
 StatsHouse использует флаг <code>visible</code> для отключения метрики, т.е. для скрытия метрики из списка метрик
-(это действие обратимо). Отключение метрики прекращает запись данных для нее в базу данных.</p></div></div></details></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Страница документа"><a class="pagination-nav__link pagination-nav__link--prev" href="/statshouse/ru/overview/concepts"><div class="pagination-nav__sublabel">Предыдущая страница</div><div class="pagination-nav__label">Основные понятия</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/statshouse/ru/support"><div class="pagination-nav__sublabel">Следующая страница</div><div class="pagination-nav__label">Поддержка</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#агент">Агент</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#получение-данных-по-udp">Получение данных по UDP</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#установка-агентов-в-подах-kubernetes">Установка агентов в подах Kubernetes</a></li></ul></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#агрегатор">Агрегатор</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#актуальные-и-исторические-данные">Актуальные и &quot;исторические&quot; данные</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#работа-при-отказе-агрегатора">Работа при отказе агрегатора</a></li></ul></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#база-данных">База данных</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#api">API</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#пользовательский-интерфейс-ui">Пользовательский интерфейс (UI)</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#прокси">Прокси</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#сервис-метаданных">Сервис метаданных</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#бюджет-на-создание-значений-тегов">Бюджет на создание значений тегов</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#бюджет-на-создание-метрик">Бюджет на создание метрик</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">© StatsHouse, 2024 г.</div></div></div></footer></div>
+(это действие обратимо). Отключение метрики прекращает запись данных  для нее в базу данных.</p></div></div></details></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Страница документа"><a class="pagination-nav__link pagination-nav__link--prev" href="/statshouse/ru/overview/concepts"><div class="pagination-nav__sublabel">Предыдущая страница</div><div class="pagination-nav__label">Основные понятия</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/statshouse/ru/support"><div class="pagination-nav__sublabel">Следующая страница</div><div class="pagination-nav__label">Поддержка</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#агент">Агент</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#получение-данных-по-udp">Получение данных по UDP</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#установка-агентов-в-подах-kubernetes">Установка агентов в подах Kubernetes</a></li></ul></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#агрегатор">Агрегатор</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#актуальные-и-исторические-данные">Актуальные и &quot;исторические&quot; данные</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#работа-при-отказе-агрегатора">Работа при отказе агрегатора</a></li></ul></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#база-данных">База данных</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#api">API</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#пользовательский-интерфейс-ui">Пользовательский интерфейс (UI)</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#прокси">Прокси</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#сервис-метаданных">Сервис метаданных</a><ul><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#бюджет-на-создание-значений-тегов">Бюджет на создание значений тегов</a></li><li><a class="table-of-contents__link toc-highlight" href="/statshouse/ru/overview/components#бюджет-на-создание-метрик">Бюджет на создание метрик</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">© StatsHouse, 2024 г.</div></div></div></footer></div>
 </body>
 </html>
