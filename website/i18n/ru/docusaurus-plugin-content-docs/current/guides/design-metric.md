@@ -14,18 +14,18 @@ Understand what you want from your metric and how to implement it with StatsHous
 <!-- TOC -->
 * [What are metrics in StatsHouse?](#what-are-metrics-in-statshouse)
 * [Metric types](#metric-types)
-  * [Counters](#counters)
-  * [Value metrics](#value-metrics)
-  * [Unique counters](#unique-counters)
-  * [Combining metric types](#combining-metric-types)
+    * [Counters](#counters)
+    * [Value metrics](#value-metrics)
+    * [Unique counters](#unique-counters)
+    * [Combining metric types](#combining-metric-types)
 * [Tags](#tags)
-  * [How many tags](#how-many-tags)
-  * [Tag names](#tag-names)
-  * [Tag values](#tag-values)
-  * [_Raw_ tags](#raw-tags)
-  * [String top tag](#string-top-tag)
-  * [Host name as a tag](#host-name-as-a-tag)
-  * [Customizing the `environment` tag](#customizing-the-environment-tag)
+    * [How many tags](#how-many-tags)
+    * [Tag names](#tag-names)
+    * [Tag values](#tag-values)
+    * [_Raw_ tags](#raw-tags)
+    * [String top tag](#string-top-tag)
+    * [Host name as a tag](#host-name-as-a-tag)
+    * [Customizing the `environment` tag](#customizing-the-environment-tag)
 * [Timestamps](#timestamps)
 <!-- TOC -->
 
@@ -101,7 +101,7 @@ or
  "counter": 1} ]}
 ```
 
-Let's represent an event as a row in a conventional database. Upon per-second 
+Let's represent an event as a row in a conventional database. Upon per-second
 [aggregation](../overview/concepts.md#агрегация),
 we'll get the table below—for each tag value combination received, we get the row with the corresponding count:
 
@@ -208,7 +208,7 @@ Keep sending data of the **same type per metric**.
 
 If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric.
 Thus, you should not implement a separate counter metric for your `value` or `unique` metrics.
-You still can specify `counter` to implement 
+You still can specify `counter` to implement
 [user-guided sampling](../overview/concepts.md#пользовательское-семплирование).
 
 ## Tags
@@ -269,7 +269,7 @@ Unfortunately, it is impossible for now. We plan to increase the number of tags 
 
 ### Tag names
 
-You can use system tag names (`0..15`) to send data. For convenience, 
+You can use system tag names (`0..15`) to send data. For convenience,
 [add aliases (custom names) to your tags](edit-metrics.md#describe-tags).
 
 Please use these characters:
@@ -341,11 +341,11 @@ If tag values in your metric are originally 32-bit integer values, you can
 [mark them as _Raw_ ones](edit-metrics.md#set-up-raw-tags)
 to avoid the [mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
 
-These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed) 
+These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed)
 and inserted into the ClickHouse database as is.
 
 To help yourself remember what your _Raw_ tag values mean, specify a
-[format](edit-metrics.md#specifying-formats-for-raw-tag-values) for your data to show in the UI and add 
+[format](edit-metrics.md#specifying-formats-for-raw-tag-values) for your data to show in the UI and add
 [value comments](edit-metrics.md#value-comments).
 
 ### String top tag
@@ -358,8 +358,8 @@ The _String top tag_ stands apart from the other ones as its values are not
 [mapped](../overview/components.md#сервис-метаданных) to integers. Thus, you can avoid
 mapping flood errors and massive sampling.
 
-The _String top tag_ has a special storage: when you send your data labeled with the _String top_ tag values, only the 
-most popular tag values are stored. The other tag values for this metric become empty strings and are aggregated. Read 
+The _String top tag_ has a special storage: when you send your data labeled with the _String top_ tag values, only the
+most popular tag values are stored. The other tag values for this metric become empty strings and are aggregated. Read
 more about the [String top tag implementation](../overview/components.md#тег-string-top-топ-строк).
 
 To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-top-tag) to it.
@@ -378,11 +378,11 @@ The _Max host_ option helps to answer questions like these:
 * which host has the maximum disk space usage, or
 * which host shows the maximum rate for a particular error type.
 
-During aggregation, StatsHouse uses the special `max_host` column in the database to store the name of the host, 
-which is responsible for sending the maximum value (for value metrics) or the maximum contribution to the counter (for 
+During aggregation, StatsHouse uses the special `max_host` column in the database to store the name of the host,
+which is responsible for sending the maximum value (for value metrics) or the maximum contribution to the counter (for
 counter metrics).
 
-For example, StatsHouse aggregates the rows from two agents: 
+For example, StatsHouse aggregates the rows from two agents:
 
 | timestamp | metric      | format | … | min | max  | max_host |
 | --------- | ----------- | ------ | - | --- | ---- | -------- |
@@ -411,9 +411,9 @@ to one or more hosts, label them with the `staging` or `development` tag values 
 
 ### Customizing the `environment` tag
 
-StatsHouse stores metrics in a ClickHouse [database](../overview/components.md#база-данных), 
-where 16 columns are for tags. These tag columns are named like `1..15`. For example, the tag names may be “format” 
-and “status.” One can edit the metric, so that "format" relates to the `1` column, 
+StatsHouse stores metrics in a ClickHouse [database](../overview/components.md#база-данных),
+where 16 columns are for tags. These tag columns are named like `1..15`. For example, the tag names may be “format”
+and “status.” One can edit the metric, so that "format" relates to the `1` column,
 and "status" relates to the `2` column. You can use system names `1..15`.
 
 What about the `0` column? Use it to specify environments for collecting statistics, e.g., `production` or `staging`.
@@ -437,7 +437,7 @@ minus 1.5 hours.
 For `cron` jobs that send metric data, use the one-hour sending period:
 it is OK to send data once in an hour, but it is not OK to send data once in a day.
 
-We do not encourage you to specify timestamps explicitly because rows with differing timestamps cannot be 
-aggregated—this may lead to increased sampling. Moreover, the ClickHouse 
+We do not encourage you to specify timestamps explicitly because rows with differing timestamps cannot be
+aggregated—this may lead to increased sampling. Moreover, the ClickHouse
 [database](../overview/components.md#база-данных) is rather slow when inserting historical data.
 

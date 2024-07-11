@@ -51,13 +51,6 @@ import MappingCached from '../img/mapping-cached.png'
 
 Если агрегаторы недоступны, агент хранит данные на локальном диске в пределах квоты и отправляет их позже.
 
-An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol). Supported formats are
-* [JSON](https://www.json.org/json-en.html),
-* [Protocol Buffers](https://protobuf.dev),
-* [MessagePack](https://msgpack.org),
-* [TL](https://core.telegram.org/mtproto/TL).
-
-
 Агент получает данные по протоколу [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol). Поддерживаются 
 следующие форматы:
 * [JSON](https://www.json.org/json-en.html),
@@ -70,9 +63,6 @@ An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datag
 :::
 
 ### Получение данных по UDP
-
-StatsHouse receives data via UDP in the MessagePack, Protocol Buffers, JSON, and TL formats—they are semantically 
-identical. It automatically detects the format by the first bytes in the packet.
 
 StatsHouse получает данные по UDP в форматах MessagePack, Protocol Buffers, JSON и TL — они семантически
 идентичны. Формат определяется автоматически по первым байтам в пакете.
