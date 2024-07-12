@@ -36,7 +36,7 @@ StatsHouse не сломается из-за слишком
 
 Чтобы работать со StatsHouse, можно
 - [запустить StatsHouse локально](quick-start.md),
-- [получить доступ к уже развёрнутому кластеру StatsHouse](guides/access-cluster.md),
+- [получить доступ к уже развёрнутому кластеру StatsHouse](guides/access-cluster.md)
 - или [развернуть свой кластер](admin/install.md).
 
 ## Про что написано в документации
@@ -56,13 +56,13 @@ StatsHouse не сломается из-за слишком
 
 ### [Пользователям](guides/access-cluster.md)
 
-* [Get access to StatsHouse](guides/access-cluster.md)
-* [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from 
-  your metric_</text>
+* [Как получить доступ](guides/access-cluster.md)
+* [Как спроектировать метрику](guides/design-metric.md) <text className="orange-text">← _подумайте, как вы будете 
+  пользоваться метрикой_</text>
 * [Create a metric](guides/create-metric.md)
 * [Send metric data](guides/send-data.md)
-* [View data on a graph](guides/view-graph.md) <text className="orange-text">← _the detailed UI description is 
-  here_</text>
+* [View data on a graph](guides/view-graph.md) <text className="orange-text">← _здесь есть подробное описание 
+  интерфейса_</text>
 * [Edit a metric](guides/edit-metrics.md)
 * [Create and view dashboards](guides/dashboards.md)
 * [Query with PromQL](guides/query-wth-promql.md)
@@ -75,7 +75,7 @@ StatsHouse не сломается из-за слишком
 * [Установка компонентов](admin/install.md)
 * [Мониторинг StatsHouse](admin/monitor.md)
 * [Безопасность подключений](admin/security.md)
-* [Хостовые метрики](admin/host-metrics.md)
+* [Метрики хостов](admin/host-metrics.md)
 * [Управление бюджетом](admin/manage-budgets.md)
 * [Поддержка и обновление](admin/maintain-upgrade.md)
 * [Переход с других систем](admin/migrating.md)
