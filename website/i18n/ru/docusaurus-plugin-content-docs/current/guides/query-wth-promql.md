@@ -120,8 +120,8 @@ For example, this query returns the `api_methods` metric's counter rate for five
 rate(api_methods[5m])
 ```
 
-If StatsHouse fails to guess, it returns the counter for the [_counter_ metrics](design-metric.md#counters) 
-and the average (the sum divided by the counter) for the [_value_ metrics](design-metric.md#value-metrics).
+If StatsHouse fails to guess, it returns the counter for the [_counter_ metrics](design-metric.md#счётчики-тип-counter) 
+and the average (the sum divided by the counter) for the [_value_ metrics](design-metric.md#значения-тип-value).
 
 ### Histograms are _t-digests_
 

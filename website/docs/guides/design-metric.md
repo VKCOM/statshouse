@@ -139,7 +139,7 @@ in addition to a counter: _sum_, _min_, _max_.
 | 13:45:05  | toy_packets_size | TL     | ok              | 200     | 7000  | 4   | 800  |
 | 13:45:05  | toy_packets_size | TL     | error_too_short | 5       | 10    | 0   | 8    |
 
-The metric value is an array, so you can send several values at a time.
+The value metric is an array, so you can send several values at a time.
 
 #### Sending regular values
 
@@ -324,9 +324,6 @@ graph's shape the same, StatsHouse multiplies the rest of data by a sampling coe
 If it is important for you not to sample data at all,
 [keep an eye on your metric cardinality](view-graph.md#cardinality) or reduce [resolution](edit-metrics.md#resolution) for
 your metric.
-
-We recommend that the very first tags have the lowest cardinality rate. For example, the `0` tag is usually an
-`environment` tag having not that many values.
 
 :::tip
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the

@@ -68,7 +68,7 @@ without changing the name of the metric itself. You [cannot rename a metric](cre
 
 ## Aggregation
 
-Basically, a [metric type](design-metric.md#metric-types) affects the range of descriptive statistics 
+Basically, a [metric type](design-metric.md#типы-метрик) affects the range of descriptive statistics 
 that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--descriptive-statistics) 
 dropdown menu, you can see statistics, which may be not relevant for your metric type.
 If you pick them, you will see 0 values for them on a graph. For example, you cannot view the cumulative graph 
@@ -79,7 +79,7 @@ To switch off showing irrelevant statistics in the UI, specify the type of your 
 <img src={AggregationEdit} width="500"/>
 
 The _Mixed_ type allows you to display all the statistics (even irrelevant ones) in the UI.
-See more on [changing or combining metric types](design-metric.md#combining-metric-types).
+See more on [changing or combining metric types](design-metric.md#как-сочетаются-типы-метрик).
 
 ### Percentiles
 
@@ -174,7 +174,7 @@ Add tag descriptions to show in the UI:
 ### Set up _Raw tags_
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-[_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
+[_Raw_ tag values](design-metric.md#сырые-raw-теги) to avoid the 
 [mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
 
 To help yourself remember what they mean, specify a 
@@ -206,7 +206,7 @@ StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI
 
 ### Set up _String top tag_
 
-To filter data with the [String top tag](design-metric.md#string-top-tag) on a graph, add a name or description to it:
+To filter data with the [String top tag](design-metric.md#тег-string-top-топ-строк) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
 
@@ -230,7 +230,7 @@ specified these names in the UI. See more about [describing tags](#describe-tags
 you to configure metric tags faster.
 :::
 
-Learn more about [designing tags for your metrics](design-metric.md#tags).
+Learn more about [designing tags for your metrics](design-metric.md#теги).
 
 ## Disabling a metric
 

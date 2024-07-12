@@ -17,11 +17,12 @@
   "dependencies": {
     "@cmfcmf/docusaurus-search-local": "^1.1.0",
     "@documate/react": "^0.2.2",
-    "@docusaurus/core": "3.4.0",
-    "@docusaurus/preset-classic": "3.4.0",
+    "@docusaurus/core": "3.3.2",
+    "@docusaurus/preset-classic": "3.3.2",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@mdx-js/react": "^3.0.0",
+    "@orama/plugin-docusaurus-v3": "^2.0.21",
     "clsx": "^2.1.1",
     "docusaurus-plugin-yandex-metrica": "^1.2.0",
     "enhancedocs-chat": "^1.1.9",
@@ -35,8 +36,8 @@
   },
   "devDependencies": {
     "@documate/documate": "^0.2.1",
-    "@docusaurus/module-type-aliases": "3.4.0",
-    "@docusaurus/types": "3.4.0",
+    "@docusaurus/module-type-aliases": "3.3.2",
+    "@docusaurus/types": "3.3.2",
     "@iconify/react": "^5.0.1"
   },
   "browserslist": {
@@ -56,7 +57,7 @@
   },
   "overrides": {
     "@cmfcmf/docusaurus-search-local": {
-      "@docusaurus/core": "^3.0.0"
+      "@docusaurus/core": "^3.0.0-rc.0"
     }
   }
 }

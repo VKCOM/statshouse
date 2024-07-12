@@ -278,7 +278,7 @@ To get the lowest values, choose one of the _Bottom N_ options in the same dropd
 
 ## 9 — Max host
 
-Enable the [Max host](design-metric.md#host-name-as-a-tag) option to find the host 
+Enable the [Max host](design-metric.md#имя-хоста-как-тег) option to find the host 
 that sends the maximum value for your metric:
 
 <img src={MaxHostEnable} width="100"/>
@@ -421,7 +421,7 @@ mapped yet, the [mapping](../overview/components.md#бюджет-на-созда
 
 Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
 Learn more about [mapping](../overview/components.md#сервис-метаданных) 
-and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
+and [how many tag values](design-metric.md#сколько-значений-тегов-можно-использовать) to create per metric.
 
 ## 14 — Lock Y-axis
 

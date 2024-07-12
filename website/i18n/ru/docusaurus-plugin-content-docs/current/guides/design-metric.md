@@ -7,103 +7,103 @@ import AbTest from '../img/ab-test.png'
 import MetricFormula from '../img/metric-formula.png'
 import MetricFormulaType from '../img/metric-formula-type.png'
 
-# Design your metric
+# Как спроектировать метрику
 
-Understand what you want from your metric and how to implement it with StatsHouse:
+Подумайте, как и для чего вы будете пользоваться метрикой. Узнайте, как реализовать эти требования в 
+StatsHouse:
 
 <!-- TOC -->
-* [What are metrics in StatsHouse?](#what-are-metrics-in-statshouse)
-* [Metric types](#metric-types)
-    * [Counters](#counters)
-    * [Value metrics](#value-metrics)
-    * [Unique counters](#unique-counters)
-    * [Combining metric types](#combining-metric-types)
-* [Tags](#tags)
-    * [How many tags](#how-many-tags)
-    * [Tag names](#tag-names)
-    * [Tag values](#tag-values)
-    * [_Raw_ tags](#raw-tags)
-    * [String top tag](#string-top-tag)
-    * [Host name as a tag](#host-name-as-a-tag)
-    * [Customizing the `environment` tag](#customizing-the-environment-tag)
-* [Timestamps](#timestamps)
+* [Что представляют собой метрики в StatsHouse?](#что-представляют-собой-метрики-в-statshouse)
+* [Типы метрик](#типы-метрик)
+    * [Счётчики (тип `counter`)](#счётчики-тип-counter)
+    * [Значения (тип `value`)](#значения-тип-value)
+    * [Счётчики уникальных значений (тип `unique`)](#счётчики-уникальных-значений-тип-unique)
+    * [Как сочетаются типы метрик](#как-сочетаются-типы-метрик)
+* [Теги](#теги)
+    * [Сколько тегов можно использовать?](#сколько-тегов-можно-использовать)
+    * [Имена тегов](#имена-тегов)
+    * [Значения тегов](#значения-тегов)
+    * ["Сырые" (_Raw_) теги](#сырые-raw-теги)
+    * [Тег _String top_ (Топ строк)](#тег-string-top-топ-строк)
+    * [Имя хоста как тег](#имя-хоста-как-тег)
+    * [Настройка тега `environment`](#настройка-тега-environment)
+* [Метки времени](#метки-времени)
 <!-- TOC -->
 
-Then [create a metric](create-metric.md) and start [sending data](send-data.md).
+Затем [создайте метрику](create-metric.md) и начинайте [отправлять данные](send-data.md).
 
-## What are metrics in StatsHouse?
+## Что представляют собой метрики в StatsHouse?
 
-By "monitoring," we mean getting statistical data.
-A _metric_ is the minimal unit for setting up, collecting, and viewing statistics.
+Под "мониторингом" мы понимаем получение статистических данных.
+Метрика — это минимальная единица настройки, сбора и просмотра статистики.
 
-A metric structure in StatsHouse looks like this:
+Структура метрики в StatsHouse выглядит так:
 
 <img src={MetricFormulaType} width="800"/>
 
-Here, `counter`, `value`, and `unique` are basic metric types in StatsHouse.
+Здесь `counter`, `value` и `unique` — это основные типы метрик.
 
 :::important
-StatsHouse **does not** store an exact metric value per each moment.
-
-It stores [aggregates](../overview/concepts.md#агрегация) associated with time intervals.
+StatsHouse не хранит точное значение метрики за каждый момент времени. Вместо этого в системе хранятся агрегаты,
+относящиеся к временным интервалам.
 :::
 
-## Metric types
+## Типы метрик
 
-You can measure same things in different ways—they are metric types.
+Одно и то же можно измерить по-разному. Разные способы измерений — это и есть типы метрик.
 
-See the table below for definitions and examples:
+Определения и примеры можно посмотреть в таблице:
 
-| Metric type  | What does it measure?                                                                     | Examples                                                                                                                                        |
-|--------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| `counter`    | It counts the number of times an event has occurred.                                      | The number of API method calls<br/>The number of requests to a server<br/>The number of errors received while sending messages                  |
-| `value`      | It measures magnitude of a parameter.<br/>A measurement event itself is counted as well.  | How long does it take <br/>for a service to generate a newsfeed?<br/>What is CPU usage for this host?<br/>What is the response size (in bytes)? |
-| `unique`     | It counts the number of unique events.<br/>The total number of events is counted as well. | The number of unique users who sent packages to a service                                                                                       |
+| Тип метрики | Что она измеряет?                                                                               | Примеры                                                                                                                       |
+|-------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `counter`   | Подсчитывает, сколько раз произошло то или иное событие.                                        | Количество вызовов методов API<br/>Количество запросов к серверу<br/>Количество ошибок, полученных при отправке сообщений     |
+| `value`     | Измеряет величину какого-либо параметра.<br/> Также подсчитывается количество измерений.        | Как долго сервис генерирует ленту новостей?<br/>Какова загрузка процессора на этом хосте?<br/>Каков размер ответа (в байтах)? |
+| `unique`    | Подсчитывает количество уникальных событий.<br/> Также подсчитывается общее количество событий. | Количество уникальных пользователей, отправивших пакеты в сервис                                                              |
 
 :::important
-A metric type affects the range of
-[descriptive statistics](view-graph.md#3--descriptive-statistics) available for your metric to view
-and analyze. For example, percentiles are available for _values_ only.
-Or you cannot view the cumulative graph for _uniques_.
+Тип метрики влияет на то, какие
+[описательные статистики](view-graph.md#3--descriptive-statistics) доступны и имеют смысл для метрики.
+Например, перцентили доступны только для _value_-метрик.
+А накопленные значения нельзя посмотреть для типа _unique_.
 
-See more about [enabling percentiles](edit-metrics.md#percentiles)
-and [showing descriptive statistics](edit-metrics.md#aggregation) in the UI.
+Узнайте, как [включить запись перцентилей](edit-metrics.md#percentiles)
+и [настроить отображение описательных статистик](edit-metrics.md#aggregation) в интерфейсе.
 :::
 
 :::note
-Metric types should not be confused with [data types](https://en.wikipedia.org/wiki/Data_type) in programming
-languages.
+Не путайте типы метрик с [типами данных](https://en.wikipedia.org/wiki/Data_type) в языках программирования.
 :::
 
 <details>
-    <summary>Implementation details</summary>
-  <p>Counter and value metrics are `float64`. When StatsHouse receives metric data of a `counter` or `value` type, 
-it trims everything outside the `[-max(float32)..max(float32)]` range. 
-Thus, you avoid getting positive or negative infinity (`±inf`) while summarizing values—in the database as well.</p>
+    <summary>Детали реализации</summary>
+  <p>Метрики типа `counter` (счётчик) и `value` (значение) являются числами типа `float64`. Для `counter` и 
+`value` StatsHouse обрезает всё, что выходит за пределы диапазона `[-max(float32)..max(float32)]`. 
+Это сделано для того, чтобы при суммировании и других операциях над ними, в том числе внутри базы данных, никогда 
+не получать значения, равные бесконечности.</p>
 </details>
 
-### Counters
+### Счётчики (тип `counter`)
 
-Imagine a hypothetical product. For this product, we need to get the number of received packets per second.
-The packets may have different formats and statuses.
+Представьте себе гипотетический продукт. Для него нам нужно получить количество принятых пакетов в секунду.
+Пакеты могут иметь различные форматы и статусы.
 
-Each time an application receives a packet, it sends an event to StatsHouse:
+Когда приложение получает пакет, оно отправляет событие в StatsHouse:
 ```
 {"metrics":[ {"name": "toy_packets_count",
  "tags":{"format": "JSON", "status": "ok"},
  "counter": 1}] }
 ```
 
-or
+или
 ```
 {"metrics":[ {"name": "toy_packets_count",
  "tags":{"format": "TL", "status": "error_too_short"},
  "counter": 1} ]}
 ```
 
-Let's represent an event as a row in a conventional database. Upon per-second
-[aggregation](../overview/concepts.md#агрегация),
-we'll get the table below—for each tag value combination received, we get the row with the corresponding count:
+Представим событие в виде ряда в обычной базе данных. При посекундной [агрегации](../overview/concepts.md#агрегация) 
+мы получим таблицу, которая показана ниже. Для каждой полученной комбинации значений тегов в ней появится ряд с 
+соответствующим счётчиком:
 
 | timestamp | metric            | format | status          | counter |
 |-----------|-------------------|--------|-----------------|---------|
@@ -111,18 +111,17 @@ we'll get the table below—for each tag value combination received, we get the 
 | 13:45:05  | toy_packets_count | TL     | ok              | 200     |
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 5       |
 
-The number of rows in such a table is a metric's [cardinality](../overview/concepts.md#кардинальность).
+Количество рядов в такой таблице - это [кардинальность](../overview/concepts.md#кардинальность) метрики.
 
-### Value metrics
+### Значения (тип `value`)
 
-Suppose we want to monitor the size of the received packets. This is what our metric could look like:
-
+Предположим, нам нужно знать размер полученных пакетов. Вот как может выглядеть наша метрика:
 ```
 {"metrics":[ {"name": "toy_packets_size",
  "tags":{"format": "JSON", "status": "ok"},
  "value": [150]} ]}
 ```
-or
+или
 
 ```
 {"metrics":[ {"name": "toy_packets_size",
@@ -130,8 +129,8 @@ or
  "value": [0]} ]}
 ```
 
-When you use value metrics, StatsHouse calculates an [aggregate](../overview/concepts.md#агрегат)
-in addition to a counter: _sum_, _min_, _max_.
+Для метрик с типом `value` помимо счётчика StatsHouse вычисляет [агрегат](../overview/concepts.md#агрегат):
+_sum_, _min_, _max_.
 
 | timestamp | metric           | format | status          | counter | sum   | min | max  |
 | --------- | ---------------- | ------ | --------------- | ------- | ----- | --- | ---- |
@@ -139,29 +138,30 @@ in addition to a counter: _sum_, _min_, _max_.
 | 13:45:05  | toy_packets_size | TL     | ok              | 200     | 7000  | 4   | 800  |
 | 13:45:05  | toy_packets_size | TL     | error_too_short | 5       | 10    | 0   | 8    |
 
-The metric value is an array, so you can send several values at a time.
+Метрика этого типа является массивом, так что можно отправлять несколько значений одновременно.
 
-#### Sending regular values
+#### Приём регулярных значений
 
-If you need to record a value per second (a "water level"), the StatsHouse client libraries try to send each value
-in the middle of the calendar second.
-[Agents](../overview/components.md#агент) finalize the second in accordance to a calendar second.
-StatsHouse does not ensure that each second contains exactly one measurement but tries to make it more probable.
-If you need to ensure this, add the [timestamp](#timestamps) explicitly.
+Для случаев, когда требуется записывать значение в секунду (т. е. отслеживать "уровень" какого-то показателя), 
+клиентские библиотеки StatsHouse стараются отправлять каждое значение в середине календарной секунды.
+[Агенты](../overview/components.md#агент) определяют секунду в соответствии с календарной секундой.
+StatsHouse не гарантирует, что каждая секунда содержит ровно одно измерение, но старается сделать вероятность 
+этого максимальной. Если вы хотите отправлять значения именно так, укажите [метку времени](#метки-времени) явным образом.
 
-### Unique counters
+### Счётчики уникальных значений (тип `unique`)
 
-A unique counter is the number of unique `integer` values. For the `string` values, hashes are used.
+Этот тип метрики позволяет оценить число разных уникальных целых значений. Для строковых значений используется хеш 
+строк.
 
-Suppose we receive packets containing the senders' IDs. We can count how many distinct senders there are:
-
+Предположим: мы получаем пакеты, содержащие идентификаторы отправителей. Мы можем подсчитать, сколько существует 
+разных отправителей:
 ```
 {"metrics":[ {"name": "toy_packets_user",
  "tags":{"format": "JSON", "status": "ok"},
  "unique": [17]} ]}
 ```
 
-The unique value is an array, so you can send several values at a time.
+Метрика этого типа является массивом, так что можно отправлять несколько значений одновременно.
 
 | timestamp | metric           | format | status          | counter | unique                   |
 | --------- | ---------------- | ------ | --------------- | ------- | ------------------------ |
@@ -169,70 +169,69 @@ The unique value is an array, so you can send several values at a time.
 | 13:45:05  | toy_packets_user | TL     | ok              | 200     | uniq(17, 19, 13, 15, 11) |
 | 13:45:05  | toy_packets_user | TL     | error_too_short | 5       | uniq(51)                 |
 
-StatsHouse uses the [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)-like function: the values themselves are inaccessible, so
-you can only estimate the [cardinality](../overview/concepts.md#кардинальность) for the sets.
+Множества хранятся в сжатом виде. StatsHouse использует функцию наподобие 
+[HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog): сами значения недоступны, поэтому можно узнать только оценку 
+[кардинальности](../overview/concepts.md#кардинальность) множеств.
 
-For unique metrics, StatsHouse stores the aggregates: _sum_, _min_, _max_ (the same as for the value metrics
-interpreted as `int64` and approximated to `float64`). Knowing the range of values may be useful for debugging.
+Для счётчиков уникальных значений StatsHouse хранит агрегаты: _sum_, _min_, _max_ (те же, что и для метрик-значений,
+интерпретированных как `int64` и округленных до `float64`). Знание диапазона значений бывает полезно для отладки.
 
 <details>
-    <summary>Implementation details</summary>
-  <p>Unique counters are `int64`—StatsHouse interprets it as 64 bits. They are not `uint64` just because some 
-programming languages does not have it. These values are regarded as hashes. When estimating cardinality for the 
-sets of these values, StatsHouse tests them for equality and inequality.</p>
+    <summary>Детали реализации</summary>
+  <p>Счётчики уникальных значений имеют тип `int64`, который интерпретируется как 64 бита. Этот тип выбран вместо `uint64` 
+потому, что в некоторых языках нет `uint64`. Эти значения рассматриваются как хеши.
+При оценке кардинальности множеств, составленных из этих значений, StatsHouse проверяет их на равенство и неравенство.</p>
 
-<p>When producing aggregates (`sum`, `min`, `max`), StatsHouse interprets these values as `int64` and then converts 
-them into `float64` as the column for these aggregates are the same as for the value aggregates.</p>
+<p>При записи агрегатов (`sum`, `min`, `max`) StatsHouse сначала интерпретирует эти значения как `int64` и затем 
+конвертирует их в тип `float64` — они пишутся в те же колонки, что и агрегаты обычных значений.</p>
 </details>
 
-### Combining metric types
+### Как сочетаются типы метрик
 
-Check the valid metric type combinations in the table below:
+В таблице показано, как значения разных типов сочетаются в рамках одной метрики:
 
-| What you send                    | What you get                                                                   |
-|----------------------------------|--------------------------------------------------------------------------------|
-| `"counter":100`                  | `counter`                                                                      |
-| `"value":[1, 2, 3]`              | `counter` (the size of the array), `value` (`sum`, `min`, `max`)               |
-| `"unique":[17, 25, 37]`          | `counter` (the size of the array), `value` (`sum`, `min`, `max`), `unique`     |
-| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](../overview/concepts.md#пользовательское-семплирование) |
-| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>           |
+| Что вы отправите                 | Что вы получите                                                                                         |
+|----------------------------------|---------------------------------------------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                                                               |
+| `"value":[1, 2, 3]`              | `counter` (размер массива), `value` (`sum`, `min`, `max`)                                               |
+| `"unique":[17, 25, 37]`          | `counter` (размер массива), `value` (`sum`, `min`, `max`), `unique`                                     |
+| `"counter":6, "value":[1, 2, 3]` | [Пользовательское семплирование](../overview/concepts.md#пользовательское-семплирование) |
+| `"value":100,"unique":100`       | <text className="orange-text">Такое сочетание недопустимо</text>                                        |
 
-If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
-become confusing or uninformative.
+Если вы меняете тип существующей метрики, данные могут стать непонятными или неинформативными.
 
 :::important
-Keep sending data of the **same type per metric**.
+Рекомендуем отправлять в метрику данные **одного и того же типа**.
 :::
 
-#### Counters for value and unique metrics
+#### Счётчики для метрик с типом `value` и `unique`
 
-If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric.
-Thus, you should not implement a separate counter metric for your `value` or `unique` metrics.
-You still can specify `counter` to implement
-[user-guided sampling](../overview/concepts.md#пользовательское-семплирование).
+Если вы отправляете массив данных типа `value` или `unique`, размер этого массива становится счётчиком для этой 
+метрики. Вам не нужно отдельно создавать счётчик для метрик типа `value` или `unique`.
+Вы можете указать такой счётчик вручную, чтобы реализовать 
+[пользовательское семплирование](../overview/concepts.md#пользовательское-семплирование).
 
-## Tags
+## Теги
 
-Use tags to differentiate the characteristics of what you measure, the contributing factors, or a context.
+Теги помогают учитывать дополнительные характеристики данных, влияющие факторы или контекст.
+С помощью тегов можно фильтровать и группировать данные. Иногда их называют `лейблами` или `ключами`.
+Теги — это пары _имя—значение_.
 
-Tags are additional dimensions you use to filter or group your data. They are sometimes mentioned as "labels" or
-"keys." Tags are the _name-value_ pairs.
-
-Imagine you conducting an A/B test: which color-text combination is better for a button? You measure the number
-of clicks per button and use the tags:
+Представьте, что вы проводите A/B-тест: кнопки с каким сочетанием цвета и текста будут работать эффективнее?
+Чтобы ответить на этот вопрос, можно измерить количество нажатий на кнопку и использовать такие теги:
 
 <img src={AbTest} width="900"/>
 
-Tagged metrics help to verify hypotheses about your data. For monitoring, troubleshooting, or other purposes, you may
-ask questions like these:
+Метрики с тегами помогают проверять гипотезы о данных.
+Можно задавать, например, такие вопросы:
 
-> "Does the error rate differ for platforms?"
+> "Различается ли количество ошибок для разных платформ?"
 
-or
+или
 
-> "What is the region we have the highest request rate from? Does it differ for environments?"
+> "Из какого региона приходит наибольшее количество запросов? Различно ли оно для разных окружений?"
 
-For these example questions, you may send metrics (here, using the client library for Python):
+Чтобы ответить на эти вопросы, можно создать следующие метрики (используется клиентская библиотека для Python):
 
 ```Python
 statshouse.value("error_rate", {"platform": "web"}, 42.5)
@@ -241,7 +240,7 @@ statshouse.value("error_rate", {"platform": "web"}, 42.5)
                                  tag name      ↑       
                                              tag value 
 ```
-or
+или
 
 ```Python
 statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5)
@@ -251,193 +250,193 @@ statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5
                                              tag value            tag value   
 ```
 
-Then you can [filter or group](view-graph.md#7--tags) your data using these tags.
-When you view a metric on a graph, the default UI behavior is to use no grouping.
+Затем можно [отфильтровать или сгруппировать](view-graph.md#7--tags) данные с помощью тегов.
+По умолчанию в UI группировка отключена.
 
-### How many tags
+### Сколько тегов можно использовать?
 
-You can use 16 tags per metric:
-* the `0` tag is usually for an `environment` (read more about [customizing it](#customizing-the-environment-tag)),
-* the `1..15` tags are for any other characteristics.
+Для каждой метрики можно использовать 16 тегов:
+* тег `0` обычно обозначает `environment` (см., [как настроить этот тег](#настройка-тега-environment)),
+* теги `1...15` — для любых других характеристик.
 
-There is also one more [String top tag](#string-top-tag):
-* the `__s` tag.
+Тег [String top (Топ строк)](#тег-string-top-топ-строк) дополнительный, он ведёт себя не так, как другие:
+* тег `__s`.
 
-#### "What if I want more tags?"
+#### "А если мне нужно больше тегов?"
 
-Unfortunately, it is impossible for now. We plan to increase the number of tags in the future.
+К сожалению, пока увеличить количество тегов нельзя. Мы планируем добавить такую возможность позже.
 
-### Tag names
+### Имена тегов
 
-You can use system tag names (`0..15`) to send data. For convenience,
-[add aliases (custom names) to your tags](edit-metrics.md#describe-tags).
+При отправке данных можно использовать системные имена тегов (`0..15`). Для удобства можно использовать
+[алиасы (пользовательские имена)](edit-metrics.md#describe-tags).
 
-Please use these characters:
-* Latin alphabet
-* integers
-* underscores
+Допускаются следующие символы:
+* латинский алфавит,
+* целые числа, 
+* подчёркивание.
 
 :::note
-Do not start tag names with underscores. They are for StatsHouse internal use only.
+Не начинайте имена тегов с подчёркиваний. Они предназначены для служебных метрик StatsHouse.
 :::
 
-You can use the same tag names for different metrics.
+Одни и те же имена тегов можно использовать для разных метрик.
 
-In the StatsHouse UI, you can [edit](edit-metrics.md#tags) tag names and add short descriptions to them.
+В интерфейсе StatsHouse можно [редактировать](edit-metrics.md#tags) имена тегов и добавлять к ним описания.
 
-### Tag values
+### Значения тегов
 
-Tag values are usually `string` values. StatsHouse maps all of them to `int32` values for higher efficiency.
-This huge `string`↔`int32` map is common for all metrics, and the budget for creating new mappings is limited.
-Mapping flood appears when you exceed this budget.
+Значения тегов обычно являются строками. Чтобы работать с ними быстрее, StatsHouse отображает их в значения `int32`.
+Этот огромный маппинг `string`↔`int32` общий для всех метрик. Чтобы не допустить его неконтролируемого увеличения,
+бюджет на создание значений тегов ограничен. При превышении этого бюджета возникает ошибка типа **Mapping flood**.
 
-#### Length and characters
+#### Длина и символы
 
-Tag values must contain only **UTF-8 printable** characters.
-All the non-printing characters are replaced with the traffic sign.
+Значения тегов должны содержать только печатаемые символы UTF-8.
+Все непечатаемые символы заменяются дорожным знаком.
 
-The maximum tag value length is 128 bytes—the rest is cut.
+Максимальная длина значения тега — 128 байтов (остальное обрезается).
+Также выполнется нормализация: с обеих сторон делается TRIM, все последовательности Unicode-пробелов внутри значения 
+тега заменяются на один ASCII пробел.
 
-Tag values are also normalized: all leading and trailing white space is removed, as defined by Unicode.
-The sequence of Unicode whitespace characters within a tag value is replaced with one ASCII whitespace
-character.
+#### Сколько значений тегов можно использовать?
 
-#### How many tag values
+Формального ограничения на количество значений тегов нет, но их должно быть **не слишком много**.
 
-There is no formal limitation for a number of tag values, but the rule is to have **not that many** of them.
+Бывают теги с большим числом разнообразных значений. Например, вам может быть нужен тег "идентификатор
+пользователя". Такие теги могут вызывать ошибки типа ["mapping flood"](view-graph.md#mapping-status)
+или увеличивать [семплирование](view-graph.md#sampling) из-за высокой
+[кардинальности](../overview/concepts.md#кардинальность).
 
-Tags with many different values such as user IDs or email addresses may lead to
-[mapping flood](view-graph.md#mapping-status) errors or increased [sampling](view-graph.md#sampling) due to
-high [cardinality](../overview/concepts.md#кардинальность).
-In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
+Кардинальность — это количество уникальных комбинаций значений тегов, которые вы отправляете для 
+метрики.
 
-If a tag has too many values, they will soon exceed the
-[mapping budget](../overview/components.md#бюджет-на-создание-значений-тегов) and will be lost: tag values
-for your measurements will become the empty strings.
+Если у тега слишком много значений, то вскоре они исчерпают
+[бюджет на создание новых значений](../overview/components.md#бюджет-на-создание-значений-тегов) и будут потеряны 
+(превратятся в пустые строки).
 
-Even if all your tag values have been already mapped, and you
-[avoid the mapping flood](edit-metrics.md#set-up-raw-tags) but keep sending data with many tag values,
-your data will probably be [sampled](../overview/concepts.md#семплирование). Sampling means that
-StatsHouse throws away pieces of data to reduce its overall amount. To keep aggregation, statistics, and overall
-graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
+Даже если все значения тегов уже есть в маппинге, и вы
+[избежали ошибок типа "mapping flood"](edit-metrics.md#set-up-raw-tags), однако продолжаете отправлять данные с большим 
+количеством значений тегов, к вашим данным, вероятно, будет применено 
+[семплирование](../overview/concepts.md#семплирование). Семплирование означает, что StatsHouse выбрасывает часть 
+данных, чтобы уменьшить их общий объём. Чтобы сохранить значения агрегатов и статистик, StatsHouse домножает 
+оставшиеся данные на коэффициент семплирования.
 
-If it is important for you not to sample data at all,
-[keep an eye on your metric cardinality](view-graph.md#cardinality) or reduce [resolution](edit-metrics.md#resolution) for
-your metric.
-
-We recommend that the very first tags have the lowest cardinality rate. For example, the `0` tag is usually an
-`environment` tag having not that many values.
+Если для вас важно минимизировать семплирование,
+[следите за тем, чтобы кардинальность вашей метрики была минимальной](view-graph.md#cardinality), или уменьшите её 
+[разрешение](edit-metrics.md#resolution).
 
 :::tip
-If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-[Raw](#raw-tags) tag values to avoid the mapping flood.
+Если вам нужны теги с большим количеством значений, которые являются 32-битными числами, (например, тег `user_ID`),
+используйте [_Raw_](#сырые-raw-теги) теги, чтобы избежать ошибок `mapping flood`.
 
-For many different string values (such as `search_request`), use a [String top tag](#string-top-tag).
+Если вам нужен тег с разнообразными строковыми значениями (например, тег `search_request`), используйте
+тег [String top (Топ строк)](#тег-string-top-топ-строк).
 :::
 
-### _Raw_ tags
+### "Сырые" (_Raw_) теги
 
-If tag values in your metric are originally 32-bit integer values, you can
-[mark them as _Raw_ ones](edit-metrics.md#set-up-raw-tags)
-to avoid the [mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
+Если значения тегов изначально являются 32-битными числами, вы можете [пометить их как "сырые" (_Raw_)](edit-metrics.md#set-up-raw-tags),
+чтобы избежать [переполнения маппинга](../overview/components.md#бюджет-на-создание-значений-тегов).
 
-These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed)
-and inserted into the ClickHouse database as is.
+Такие значения тегов (_Raw_) StatsHouse будет воспринимать как `(u)int32` (возможные значения: `-2^31..2^32-1`)
+и вставлять в базу ClickHouse, не добавляя в маппинг.
 
-To help yourself remember what your _Raw_ tag values mean, specify a
-[format](edit-metrics.md#specifying-formats-for-raw-tag-values) for your data to show in the UI and add
-[value comments](edit-metrics.md#value-comments).
+Чтобы не забыть, что означают "сырые" значения тегов, укажите
+[формат](edit-metrics.md#specifying-formats-for-raw-tag-values), который будет отображаться в иннтерфейсе, и добавьте
+[комментарии](edit-metrics.md#value-comments).
 
-### String top tag
+### Тег _String top_ (Топ строк)
 
-Use a _String top tag_ (`__s`) when you need a tag with many different `string` values such as referrers or search
-requests.
+Используйте тег _String top_ (`__s`), когда вам нужен тег с большим числом строковых значений, например тег 
+`referrer` или `search request`.
 
-With the common tags, you will get [mapping flood errors](view-graph.md#mapping-status) very soon for this scenario.
-The _String top tag_ stands apart from the other ones as its values are not
-[mapped](../overview/components.md#сервис-метаданных) to integers. Thus, you can avoid
-mapping flood errors and massive sampling.
+Используя обычные теги для такого случая, вы очень скоро получите 
+[ошибку переполнения маппинга](view-graph.md#mapping-status).
+Тег _String top_ отличается от других тем, что его значения не добавляются в 
+[маппинг](../overview/components.md#сервис-метаданных). Он позволяет избежать
+переполнения маппинга и роста семплирования.
 
-The _String top tag_ has a special storage: when you send your data labeled with the _String top_ tag values, only the
-most popular tag values are stored. The other tag values for this metric become empty strings and are aggregated. Read
-more about the [String top tag implementation](../overview/components.md#тег-string-top-топ-строк).
+StatsHouse сохраняет только строки с наиболее часто используемыми значениями тега String top — строки с наибольшим 
+счётчиком. Остальные значения тега String top превращаются в `empty` и агрегируются. Узнайте больше о том, 
+[как работает тег _String top_](../overview/components.md#тег-string-top-топ-строк).
 
-To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-top-tag) to it.
+Чтобы фильтровать данные с помощью тега _String top_ на графике, [добавьте ему имя или описание](edit-metrics.md#set-up-string-top-tag).
 
-### Host name as a tag
+### Имя хоста как тег
 
-To view statistics for each host separately, you may want to use host names as tag values.
-Try the _Max host_ option instead. You do not have to send something special to get use
-of _Max host_—[enable it in the UI](view-graph.md#9--max-host).
+Вам может быть нужно просматривать статистику по отдельным хостам. Часто пользователи хотят использовать имя 
+хоста в качестве тега. Попробуйте вместо этого использовать функцию _Max host_. Вам не нужно ничего менять в 
+отправляемых данных — просто [включите _Max host_ в интерфейсе](view-graph.md#9--max-host).
 
-Using host names as tag values prevents data from being aggregated and leads to increased sampling.
-By contrast, the _Max host_ option does not lead to increased sampling but allows you to find the host that sends the
-maximum value for your metric.
+Когда имя хоста используется в качестве тега, данные становится сложно агрегировать. Такие данные приходится сильнее
+семплировать. Включение _Max host_ не приводит к росту семплирования, но позволяет найти хост, который отправляет 
+максимальное значение для конкрентной метрики.
 
-The _Max host_ option helps to answer questions like these:
-* which host has the maximum disk space usage, or
-* which host shows the maximum rate for a particular error type.
+ _Max host_ помогает ответить, например, на такие вопросы:
+* "На каком хосте занят максимальный объём дискового пространства?"
+* "На каком хосте количество ошибок заданного типа максимально?"
 
-During aggregation, StatsHouse uses the special `max_host` column in the database to store the name of the host,
-which is responsible for sending the maximum value (for value metrics) or the maximum contribution to the counter (for
-counter metrics).
+Агрегируя данные, StatsHouse помещает в отдельную колонку `max_host` в базе данных имя хоста, который отвечает за 
+отправку максимального значения (для `value`-метрик) или за максимальный вклад в счётчик (для `counter`-метрик).
 
-For example, StatsHouse aggregates the rows from two agents:
+Например, StatsHouse агрегирует ряды от двух агентов:
 
 | timestamp | metric      | format | … | min | max  | max_host |
 | --------- | ----------- | ------ | - | --- | ---- | -------- |
 | 13:45:05  | toy_latency | JSON   |   | 200 | 1200 | nginx001 |
 
-and
+и
 
 | timestamp | metric      | format | … | min | max | max_host |
 | --------- | ----------- | ------ | - | --- | --- | -------- |
 | 13:45:05  | toy_latency | JSON   |   | 4   | 80  | nginx003 |
 
-The maximum `toy_latency` value (which is 1200) is associated with the `nginx001` host in the resulting aggregate:
+Максимальное значение `toy_latency` (равно 1200) связано с хостом `nginx001` в получившемся агрегате:
 
 | timestamp | metric      | format | … | min | max  | max_host |
 | --------- | ----------- | ------ | - | --- | ---- | -------- |
 | 13:45:05  | toy_latency | JSON   |   | 4   | 1200 | nginx001 |
 
 <details>
-    <summary>Implementation details</summary>
-  <p> The value in the `max_host` column is `float32` rather than `float64` for better compression as there is no 
-need for high precision here. The host name is stored as the `string`↔`int32` mapping similar to tag values.</p>
+    <summary>Детали реализации</summary>
+  <p>Значение в столбце `max_host` имеет тип `float32`, а не `float64`: это сделано для лучшего сжатия, так как высокая 
+точность здесь не нужна. Имя хоста хранится в маппинге `string`↔`int32`, как значения тегов.</p>
 </details>
 
-We also recommend using the `environment` tag (or similar) instead of `host_name`. When you deploy an experimental feature
-to one or more hosts, label them with the `staging` or `development` tag values instead of their host names.
+Иногда вместо тега `host_name` можно использовать тег `environment` (или аналогичный): когда вы 
+внедряете функциональность в экспериментальном режиме на одном или нескольких хостах, пометьте их значениями 
+`staging` или `development`.
 
-### Customizing the `environment` tag
+### Настройка тега `environment`
 
-StatsHouse stores metrics in a ClickHouse [database](../overview/components.md#база-данных),
-where 16 columns are for tags. These tag columns are named like `1..15`. For example, the tag names may be “format”
-and “status.” One can edit the metric, so that "format" relates to the `1` column,
-and "status" relates to the `2` column. You can use system names `1..15`.
+StatsHouse хранит метрики в [базе данных ClickHouse](../overview/components.md#база-данных): 16 колонок в ней 
+предназначены для тегов. Эти колонки тегов по умолчанию названы системными именами: `1...15`.
 
-What about the `0` column? Use it to specify environments for collecting statistics, e.g., `production` or `staging`.
-For example, if the experimental version of software is installed on a number of hosts, you can associate the `0` tag
-with this experiment. Set up this tag once in the client library during initialization. In other respects, the `0`
-tag is similar to the other ones.
+Вам может быть нужно назвать теги по-своему, например "format" и "status". Можно отредактировать метрику так, чтобы имя 
+"format" относилось к колонке `1`, а "status" - к колонке `2`. Можно оставить и системные имена `1...15`.
 
-## Timestamps
+Но как обращаться с нулевой колонкой? С помощью неё можно обозначить окружение, например `production` или `staging`.
+Например, если экспериментальная версия программы установлена на нескольких хостах, вы можете связать тег `0`
+со своим экспериментом. Укажите тег в клиентской библиотеке во время инициализации. В остальном тег `0`
+похож на другие теги.
 
-StatsHouse writes real-time data as a priority.
+## Метки времени
+
+Запись актуальных данных является приоритетом для StatsHouse.
 
 :::important
-Writing historical data is allowed only for the latest hour and a half.
+Исторические данные записываются только для последних полутора часов.
 :::
 
-If the timestamp is in the future, StatsHouse replaces it with the current time.
+Если метка времени находится в будущем, StatsHouse заменяет ее текущим временем.
 
-If the timestamp relates to a moment that is more than 1.5 hours ago, StatsHouse replaces it with the current time
-minus 1.5 hours.
+Если данные появились раньше, чем полтора часа назад, StatsHouse заменит метку времени на текущее время минус полтора 
+часа.
 
-For `cron` jobs that send metric data, use the one-hour sending period:
-it is OK to send data once in an hour, but it is not OK to send data once in a day.
+Если вы используете `cron` для отправки данных, отправляйте данные раз в час, а не раз в день.
 
-We do not encourage you to specify timestamps explicitly because rows with differing timestamps cannot be
-aggregated—this may lead to increased sampling. Moreover, the ClickHouse
-[database](../overview/components.md#база-данных) is rather slow when inserting historical data.
+Мы не рекомендуем явно указывать метки времени, поскольку строки с разными метками не получится
+агрегировать, а это может привести к увеличению семплирования. Кроме того, 
+[база данных ClickHouse](../overview/components.md#база-данных) при вставке исторических данных работает довольно медленно.
 

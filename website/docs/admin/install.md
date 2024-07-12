@@ -189,8 +189,8 @@ components.
 3. For the `host` tag, select the required hostname.
 4. Check if you see the heartbeat from the host.
 
-Additionally, check if the agent is able to send real metric data: [send a testing piece of data 
-from the host](../guides/send-data.md#how-to-send-data-without-client-libraries).
+Additionally, check if the agent is able to send real metric data: 
+[send a testing piece of data from the host](../guides/send-data.md#how-to-send-data-without-client-libraries).
 
 ## API/UI
 

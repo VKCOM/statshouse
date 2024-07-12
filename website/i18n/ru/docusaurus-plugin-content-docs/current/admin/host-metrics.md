@@ -73,16 +73,24 @@ import HardwareInfo from '../img/hardware-info.png'
 --env-file-path my_env.yml
 ```
 
-В этом файле укажите значения для стандартных тегов, используемых в метриках хостов, например:
+В этом файле укажите значения для стандартных тегов, используемых в метриках хостов.
 
-```
-hostname: myhost
-env: production
-group: group_name
-dc: data_center_name
-region: spb
-owner: example_team
-```
+[//]: # ()
+[//]: # (```)
+
+[//]: # (hostname: myhost)
+
+[//]: # (env: production)
+
+[//]: # (group: group_name)
+
+[//]: # (dc: data_center_name)
+
+[//]: # (region: spb)
+
+[//]: # (owner: example_team)
+
+[//]: # (```)
 
 Чтобы пользоваться тегами было удобнее, договоритесь с командами в вашей организации,
 какие значения тегов допустимы.

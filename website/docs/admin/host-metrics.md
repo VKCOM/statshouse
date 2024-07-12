@@ -69,15 +69,23 @@ The default file is `/etc/statshouse_env.yml`. You can specify your YAML file as
 ```
 --env-file-path my_env.yml
 ```
-In this file, specify the values for the standard host metric tags, for example:
-```
-hostname: myhost
-env: production
-group: group_name
-dc: data_center_name
-region: spb
-owner: example_team
-```
+In this file, specify the values for the standard host metric tags.
+
+[//]: # (```)
+
+[//]: # (hostname: myhost)
+
+[//]: # (env: production)
+
+[//]: # (group: group_name)
+
+[//]: # (dc: data_center_name)
+
+[//]: # (region: spb)
+
+[//]: # (owner: example_team)
+
+[//]: # (```)
 
 For your convenience, define the way the teams in your organization name the tag values.
 For example, all the teams should use the `production` value — not the `prod`, `Production`, etc.

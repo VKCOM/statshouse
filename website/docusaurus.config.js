@@ -26,7 +26,7 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   plugins: [
-        ['docusaurus-plugin-yandex-metrica', {
+            ['docusaurus-plugin-yandex-metrica', {
               counterID: '96098475',
               webvisor: true,
             }],
@@ -53,7 +53,7 @@ const config = {
             indexPages: false,
 
             // language of your documentation, see next section
-            language: "en",
+            language: ["en", "ru"],
 
             // setting this to "none" will prevent the default CSS to be included. The default CSS
             // comes from autocomplete-theme-classic, which you can read more about here:

@@ -78,13 +78,13 @@ title: Переход с других систем
 ### Форматы метрик: как сопоставить
 
 Основные [типы метрик в Prometheus](https://prometheus.io/docs/concepts/metric_types/) и
-[типы метрик в StatsHouse](../guides/design-metric.md#metric-types) также различаются. Мы
+[типы метрик в StatsHouse](../guides/design-metric.md#типы-метрик) также различаются. Мы
 сопоставили их таким образом:
 
-| Prometheus                                                                              | StatsHouse                                                                          |
-|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| counter →<br/>([cumulative](https://prometheus.io/docs/concepts/metric_types/#counter))  | counter<br/>([an aggregate per time interval](../guides/design-metric.md#counters)) |
-| gauge                                                                                 → | value                                                                               |
-| histogram                                                                             → | histogram (_experimental_)                                                          |
+| Prometheus                                                                              | StatsHouse                                                                                                |
+|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| counter →<br/>([cumulative](https://prometheus.io/docs/concepts/metric_types/#counter))  | counter<br/>([an <br/><br/>aggregate per time interval](../guides/design-metric.md#счётчики-тип-counter)) |
+| gauge                                                                                 → | value                                                                                                     |
+| histogram                                                                             → | histogram (_experimental_)                                                                                |
 
 Более подробную информацию о скрейпинге метрик мы предоставим позже.
