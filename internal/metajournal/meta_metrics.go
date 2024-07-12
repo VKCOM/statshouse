@@ -219,12 +219,12 @@ func (ms *MetricsStorage) GetDashboardMeta(dashboardID int32) *format.DashboardM
 	return ms.dashboardByID[dashboardID]
 }
 
-func (ms *MetricsStorage) GetDashboardList() []*format.DashboardMeta {
+func (ms *MetricsStorage) GetDashboardList(showInvisible bool) []*format.DashboardMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	li := make([]*format.DashboardMeta, 0, len(ms.dashboardByID))
 	for _, v := range ms.dashboardByID {
-		if v.DeleteTime > 0 {
+		if v.DeleteTime > 0 && !showInvisible {
 			continue
 		}
 		li = append(li, v)
