@@ -1,0 +1,35 @@
+<?php
+include 'src/StatsHouse.php';
+$sh = new VK\StatsHouse\StatsHouse('udp://127.0.0.1:13337');
+for ($x = 0; $x < {{.NumberOfIterations}}; $x++) {
+    {{- range $v := .Metrics -}}
+    {{- if eq $v.Kind 2 }}
+    $sh->writeUnique("{{ $v.Name }}",[
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}'_{{ index $v 0 }}'=>'{{ index $v 1 }}'
+            {{- end -}}
+        ],[
+            {{- range $i, $v := $v.Uniques -}}
+                {{ $v }},
+            {{- end -}}
+        ],{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+    {{- else if eq $v.Kind 1 }}
+    $sh->writeValue("{{ $v.Name }}",[
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}'_{{ index $v 0 }}'=>'{{ index $v 1 }}'
+            {{- end -}}
+        ],[
+            {{- range $i, $v := $v.Values -}}
+                {{ $v }},
+            {{- end -}}
+        ],{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+    {{- else }}
+    $sh->writeCount("{{ $v.Name }}",[
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}'_{{ index $v 0 }}'=>'{{ index $v 1 }}'
+            {{- end -}}
+        ],{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+    {{- end }}
+    {{- end }}
+    usleep(100*1000);
+}

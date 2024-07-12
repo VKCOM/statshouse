@@ -1,0 +1,36 @@
+import sys
+import time
+sys.path.insert(1, './src')
+import statshouse
+
+for x in range({{.NumberOfIterations}}):
+    {{- range $v := .Metrics -}}
+    {{- if eq $v.Kind 2 }}
+    statshouse.unique("{{ $v.Name }}",{
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}"{{ index $v 0 }}":"{{ index $v 1 }}"
+            {{- end -}}
+        },[
+            {{- range $i, $v := $v.Uniques -}}
+                {{ if $i }},{{ end }}{{ $v }}
+            {{- end -}}
+        ],ts={{ $v.Timestamp }})
+    {{- else if eq $v.Kind 1 }}
+    statshouse.value("{{ $v.Name }}",{
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}"{{ index $v 0 }}":"{{ index $v 1 }}"
+            {{- end -}}
+        },[
+            {{- range $i, $v := $v.Values -}}
+                {{ if $i }},{{ end }}{{ $v }}
+            {{- end -}}
+        ],ts={{ $v.Timestamp }})
+    {{- else }}
+    statshouse.count("{{ $v.Name }}",{
+            {{- range $i, $v := $v.Tags -}}
+                {{ if $i }},{{ end }}"{{ index $v 0 }}":"{{ index $v 1 }}"
+            {{- end -}}
+        },{{ printf "%.1f" $v.Count }},ts={{ $v.Timestamp }})
+    {{- end }}
+    {{- end }}
+    time.sleep(0.1)

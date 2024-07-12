@@ -1,0 +1,38 @@
+#include <chrono>
+#include <thread>
+#include "statshouse.hpp"
+
+int main() {
+	statshouse::TransportUDP t;
+	for (int i=0; i<{{.NumberOfIterations}}; ++i) {
+		{{- range $v := .Metrics }}
+		{
+		{{- if eq $v.Kind 2 -}}
+			uint64_t a[{{ len $v.Uniques }}]={
+				{{- range $i, $v := $v.Uniques -}}
+					{{ if $i }},{{ end }}{{ $v }}
+				{{- end -}}
+			};
+		{{- else if eq $v.Kind 1 -}}
+			double a[{{ len $v.Values }}]={
+				{{- range $i, $v := $v.Values -}}
+					{{ if $i }},{{ end }}{{ $v }}
+				{{- end -}}
+			};
+		{{- end -}}
+		t.metric("{{ $v.Name }}")
+		{{- range $v := $v.Tags -}}
+			.tag("{{ index $v 0 }}","{{ index $v 1 }}")
+		{{- end -}}
+		{{- if eq $v.Kind 2 -}}
+		.write_unique(a,{{ len $v.Uniques }},{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+		{{- else if eq $v.Kind 1 -}}
+		.write_values(a,{{ len $v.Values }},{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+		{{- else -}}
+		.write_count({{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+		{{- end -}}
+		}
+		{{- end }}
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+}

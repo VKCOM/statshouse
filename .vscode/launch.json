@@ -105,6 +105,15 @@
                 "--auto-create",
                 "--cache-dir=target/run/cache/aggregator",
             ],
+        },
+        {
+            "name": "client test",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/statshouse-client-test/",
+            "args": [],
         }
     ]
 }
