@@ -1,0 +1,32 @@
+use std::{thread, time};
+{{ .Include "https://raw.githubusercontent.com/VKCOM/statshouse-rs/malpinskiy/dev/statshouse/src/lib.rs" }}
+
+fn main() {
+    let mut t = Transport::default();
+    let mut i = 0;
+    while i<{{.NumberOfIterations}} {
+    {{- range $v := .Metrics }}
+        t.metric(b"{{ $v.Name }}")
+        {{- range $v := $v.Tags -}}
+            .tag(b"{{ index $v 0 }}",b"{{ index $v 1 }}")
+        {{- end -}}
+        {{- if eq $v.Kind 2 -}}
+        .write_uniques(&[
+            {{- range $i, $v := $v.Uniques -}}
+                {{ if $i }},{{ end }}{{ $v }}
+            {{- end -}}
+        ],{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+        {{- else if eq $v.Kind 1 -}}
+        .write_values(&[
+            {{- range $i, $v := $v.Values -}}
+                {{ if $i }},{{ end }}{{ $v }}
+            {{- end -}}
+        ],{{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+        {{- else -}}
+        .write_count({{ printf "%.1f" $v.Count }},{{ $v.Timestamp }});
+        {{- end -}}
+    {{- end }}
+    i+=1;
+    thread::sleep(time::Duration::from_millis(100));
+    }
+}

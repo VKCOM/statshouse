@@ -1,0 +1,36 @@
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import com.vk.statshouse.Client;
+
+class test {
+    public static void main(String[] args) throws SocketException, UnknownHostException, IOException, InterruptedException {
+        try (var t = new Client(InetAddress.getLocalHost(), 13337, "")) {
+            for (int i=0; i<{{.NumberOfIterations}}; i++) {
+            {{- range $v := .Metrics }}
+                t.getMetric("{{ $v.Name }}").time({{ $v.Timestamp }}L)
+                {{- range $v := $v.Tags -}}
+                    .tag("{{ index $v 0 }}","{{ index $v 1 }}")
+                {{- end -}}
+                {{- if eq $v.Kind 2 -}}
+                .uniques(new long[]{
+                    {{- range $i, $v := $v.Uniques -}}
+                        {{ if $i }},{{ end }}{{ $v }}L
+                    {{- end -}}
+                });
+                {{- else if eq $v.Kind 1 -}}
+                .values(new double[]{
+                    {{- range $i, $v := $v.Values -}}
+                        {{ if $i }},{{ end }}{{ $v }}
+                    {{- end -}}
+                });
+                {{- else -}}
+                .count({{ printf "%.1f" $v.Count }});
+                {{- end -}}
+            {{- end }}
+                Thread.sleep(100);
+            }
+        }
+    }
+}
