@@ -47,7 +47,8 @@ const (
 	// time between calendar second is finished and sending to aggregators starts
 	// so clients have this time after finishing second to send events to agent
 	// if they succeed, there is no sampling penalty.
-	AgentWindow = 500 * time.Millisecond // must be < 1 seconds
+	// set to >300ms only after all libraries which send at 0.5 calendar second are updated
+	AgentWindow = 300 * time.Millisecond // must be < 1 seconds.
 
 	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
 	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
