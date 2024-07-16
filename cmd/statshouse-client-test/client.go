@@ -15,13 +15,13 @@ import (
 )
 
 type lib interface {
-	getClient() *client
-	foundLocalCopy() bool
+	// library info
 	localPath() string
 	remotePath() string
-	sourceFileTemplate() string
 	sourceFileName() string
-	configure(any) error
+	// client builder
+	init(lib, argv, string)
+	configure(string, any) error
 	make() error
 	run() error
 	cleanup()
@@ -36,27 +36,17 @@ type client struct {
 	binFile string
 }
 
-func (c *client) getClient() *client {
-	return c
+func (c *client) init(lib lib, args argv, path string) {
+	c.lib = lib
+	c.args = args
+	c.path = path
 }
 
 func (c *client) remotePath() string {
 	return "" // works for golang ("go get" knows where to get the code)
 }
 
-func newClient[T lib](lib T, args argv) lib {
-	c := lib.getClient()
-	c.lib = lib
-	c.args = args
-	c.path = searchLib(lib)
-	return lib
-}
-
-func (c *client) foundLocalCopy() bool {
-	return c.path != ""
-}
-
-func (c *client) configure(d any) error {
+func (c *client) configure(text string, data any) error {
 	var err error
 	c.temp, err = os.MkdirTemp("", typeName(c.lib))
 	if err != nil {
@@ -68,10 +58,9 @@ func (c *client) configure(d any) error {
 			if err := c.clone(remotePath); err != nil {
 				return err
 			}
-			c.path = c.temp
 		}
 	}
-	t, err := template.New(typeName(c.lib)).Parse(c.sourceFileTemplate())
+	t, err := template.New(typeName(c.lib)).Parse(text)
 	if err != nil {
 		return err
 	}
@@ -84,7 +73,7 @@ func (c *client) configure(d any) error {
 		return err
 	}
 	defer srcFile.Close()
-	if err := t.Execute(srcFile, d); err != nil {
+	if err := t.Execute(srcFile, data); err != nil {
 		return err
 	}
 	if c.args.viewCode {
@@ -139,7 +128,7 @@ func (c *client) exec(args ...string) error {
 	return cmd.Run()
 }
 
-func searchLib(l lib) string {
+func search(l lib) string {
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -151,15 +140,15 @@ func searchLib(l lib) string {
 	return wd
 }
 
-func runClient(l lib, data any) error {
-	defer l.cleanup()
-	if err := l.configure(data); err != nil {
+func runClient(client lib, text string, data any) error {
+	defer client.cleanup()
+	if err := client.configure(text, data); err != nil {
 		return err
 	}
-	if err := l.make(); err != nil {
+	if err := client.make(); err != nil {
 		return err
 	}
-	return l.run()
+	return client.run()
 }
 
 func typeName(l lib) string {

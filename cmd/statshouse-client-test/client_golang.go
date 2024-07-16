@@ -1,9 +1,6 @@
 package main
 
-import (
-	_ "embed"
-	"fmt"
-)
+import "fmt"
 
 type golang struct{ client }
 
@@ -11,19 +8,12 @@ func (*golang) localPath() string {
 	return "statshouse.go"
 }
 
-//go:embed template_golang.txt
-var golangTemplate string
-
-func (*golang) sourceFileTemplate() string {
-	return golangTemplate
-}
-
 func (*golang) sourceFileName() string {
 	return "main.go"
 }
 
-func (l *golang) configure(d any) error {
-	if err := l.client.configure(d); err != nil {
+func (l *golang) configure(text string, data any) error {
+	if err := l.client.configure(text, data); err != nil {
 		return err
 	}
 	if err := l.exec("go", "mod", "init", "main"); err != nil {

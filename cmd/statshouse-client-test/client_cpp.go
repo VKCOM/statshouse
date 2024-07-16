@@ -1,9 +1,6 @@
 package main
 
-import (
-	_ "embed"
-	"strings"
-)
+import "strings"
 
 type cpp struct{ client }
 
@@ -12,7 +9,7 @@ func (*cpp) localPath() string {
 }
 
 func (*cpp) remotePath() string {
-	return "https://raw.githubusercontent.com/VKCOM/statshouse-cpp/master/statshouse.hpp"
+	return "git@github.com:VKCOM/statshouse-cpp.git"
 }
 
 func (*cpp) sourceFileName() string {
@@ -21,22 +18,9 @@ func (*cpp) sourceFileName() string {
 
 func (l *cpp) make() error {
 	l.binFile = strings.TrimSuffix(l.srcFile, ".cpp")
-	return l.exec("g++", "-I", l.path, "-o", l.binFile, l.srcFile)
-}
-
-type cppTransport struct{ cpp }
-type cppRegistry struct{ cpp }
-
-//go:embed template_cpp_transport.txt
-var cppTransportTemplate string
-
-func (*cppTransport) sourceFileTemplate() string {
-	return cppTransportTemplate
-}
-
-//go:embed template_cpp_registry.txt
-var cppRegistryTemplate string
-
-func (*cppRegistry) sourceFileTemplate() string {
-	return cppRegistryTemplate
+	if l.path != "" {
+		return l.exec("g++", "-I", l.path, "-o", l.binFile, l.srcFile)
+	} else {
+		return l.exec("g++", "-o", l.binFile, l.srcFile)
+	}
 }

@@ -1,9 +1,5 @@
 package main
 
-import (
-	_ "embed"
-)
-
 type python struct{ client }
 
 func (*python) localPath() string {
@@ -12,13 +8,6 @@ func (*python) localPath() string {
 
 func (*python) remotePath() string {
 	return "git@github.com:VKCOM/statshouse-py.git"
-}
-
-//go:embed template_python.txt
-var pythonTemplate string
-
-func (*python) sourceFileTemplate() string {
-	return pythonTemplate
 }
 
 func (*python) sourceFileName() string {

@@ -1,9 +1,6 @@
 package main
 
-import (
-	_ "embed"
-	"fmt"
-)
+import "fmt"
 
 type php struct{ client }
 
@@ -12,14 +9,7 @@ func (*php) localPath() string {
 }
 
 func (*php) remotePath() string {
-	return "https://raw.githubusercontent.com/VKCOM/statshouse-php/master/src/StatsHouse.php"
-}
-
-//go:embed template_php.txt
-var phpTemplate string
-
-func (*php) sourceFileTemplate() string {
-	return phpTemplate
+	return "git@github.com:VKCOM/statshouse-php.git"
 }
 
 func (*php) sourceFileName() string {
