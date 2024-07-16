@@ -1,9 +1,6 @@
 package main
 
-import (
-	_ "embed"
-	"strings"
-)
+import "strings"
 
 type rust struct{ client }
 
@@ -12,14 +9,7 @@ func (*rust) localPath() string {
 }
 
 func (*rust) remotePath() string {
-	return "https://raw.githubusercontent.com/VKCOM/statshouse-rs/malpinskiy/dev/statshouse/src/lib.rs"
-}
-
-//go:embed template_rust.txt
-var rustTemplate string
-
-func (*rust) sourceFileTemplate() string {
-	return rustTemplate
+	return "git@github.com:VKCOM/statshouse-py.git"
 }
 
 func (*rust) sourceFileName() string {

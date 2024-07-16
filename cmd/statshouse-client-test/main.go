@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -35,48 +37,66 @@ func run(args argv) int {
 	defer cancel()
 	data := newTestData(args)
 	expected := data.toSeries(args)
-	test := func(l lib) int {
-		fmt.Printf("*** %q test ***\n", typeName(l))
-		if err = runClient(l, data); err != nil {
-			log.Println(err)
-			return 1 // error
+	fail := func(v ...any) int {
+		log.Println(v...)
+		log.Println("*** FAILED ***")
+		return 1
+	}
+	test := func(lib lib) int {
+		matches, err := filepath.Glob("test_template*.txt")
+		if err != nil {
+			log.Fatal(err)
 		}
-		select {
-		case actual := <-actualC:
-			if diff := compareSeries(expected, actual); !diff.empty() {
-				log.Println(typeName(l), diff.String())
-				log.Println("*** FAILED ***")
-			} else {
-				log.Println("*** PASSED ***")
+		if len(matches) == 0 {
+			log.Fatal("test template not found")
+		}
+		var failCount int
+		for _, path := range matches {
+			log.Printf("*** %s ***\n", path)
+			file, err := os.Open(path)
+			if err != nil {
+				log.Fatal(err)
 			}
-		case <-time.After(100 * time.Millisecond):
-			log.Println("TIMEOUT")
-			log.Println("*** FAILED ***")
+			var sb strings.Builder
+			if _, err = io.Copy(&sb, file); err != nil {
+				log.Fatal(err)
+			}
+			if err = runClient(lib, sb.String(), data); err != nil {
+				failCount += fail(err)
+				continue
+			}
+			select {
+			case actual := <-actualC:
+				if diff := compareSeries(expected, actual); !diff.empty() {
+					failCount += fail(diff.String())
+				} else {
+					log.Println("*** PASSED ***")
+				}
+			case <-time.After(100 * time.Millisecond):
+				failCount += fail("TIMEOUT")
+			}
 		}
-		return 0 // success
+		return failCount
 	}
-	var targets []lib
-	clients := []lib{
-		newClient(&cppTransport{}, args),
-		newClient(&cppRegistry{}, args),
-		newClient(&rust{}, args),
-		newClient(&java{}, args),
-		newClient(&python{}, args),
-		newClient(&php{}, args),
-		newClient(&golang{}, args),
+	libs := []lib{
+		&cpp{},
+		&rust{},
+		&java{},
+		&python{},
+		&php{},
+		&golang{},
 	}
-	for _, c := range clients {
-		if c.foundLocalCopy() {
-			targets = append(targets, c)
+	for _, lib := range libs {
+		path := search(lib)
+		lib.init(lib, args, path)
+		if path != "" {
+			return test(lib)
 		}
 	}
-	if len(targets) == 0 {
-		// no libraries found locally, download and run all
-		targets = clients
+	// no library was found in the current directory, download and run them all
+	var failCount int
+	for _, lib := range libs {
+		failCount += test(lib)
 	}
-	var exitCode int
-	for _, l := range targets {
-		exitCode += test(l)
-	}
-	return exitCode
+	return failCount
 }

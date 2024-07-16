@@ -1,9 +1,6 @@
 package main
 
-import (
-	_ "embed"
-	"path/filepath"
-)
+import "path/filepath"
 
 type java struct{ client }
 
@@ -13,13 +10,6 @@ func (*java) localPath() string {
 
 func (*java) remotePath() string {
 	return "git@github.com:VKCOM/statshouse-java.git"
-}
-
-//go:embed template_java.txt
-var javaTemplate string
-
-func (*java) sourceFileTemplate() string {
-	return javaTemplate
 }
 
 func (*java) sourceFileName() string {
