@@ -15,46 +15,45 @@ type argv struct {
 	keepTemp  bool
 }
 
-func parseCommandLine() (res argv) {
-	var flags = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	flags.IntVar(&res.n, "n", 100, "number of iterations")
-	flags.IntVar(&res.m, "m", 300, "number of series to send per iteration")
-	flags.IntVar(&res.maxStrLen, "max-str-len", 32, "maximum string length")
-	flags.BoolVar(&res.viewCode, "view-code", false, "open generated source files in Visual Studio Code")
-	flags.BoolVar(&res.keepTemp, "keep-temp", false, "do not remove generated temporary files")
-	flags.Parse(os.Args[1:])
-	return res
+func main() {
+	var args argv
+	flag.IntVar(&args.n, "n", 100, "number of iterations")
+	flag.IntVar(&args.m, "m", 300, "number of series to send per iteration")
+	flag.IntVar(&args.maxStrLen, "max-str-len", 32, "maximum string length")
+	flag.BoolVar(&args.viewCode, "view-code", false, "open generated source files in Visual Studio Code")
+	flag.BoolVar(&args.keepTemp, "keep-temp", false, "do not remove generated temporary files")
+	flag.Parse()
+	os.Exit(run(args))
 }
 
-func main() {
-	args := parseCommandLine()
+func run(args argv) int {
 	actualC := make(chan series)
 	cancel, err := listenUDP(args, actualC)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 	defer cancel()
 	data := newTestData(args)
 	expected := data.toSeries(args)
-	test := func(l lib) {
-		fmt.Printf("\n*** %q test ***\n", typeName(l))
+	test := func(l lib) int {
+		fmt.Printf("*** %q test ***\n", typeName(l))
 		if err = runClient(l, data); err != nil {
 			log.Println(err)
-			return
+			return 1 // error
 		}
 		select {
 		case actual := <-actualC:
 			if diff := compareSeries(expected, actual); !diff.empty() {
 				log.Println(typeName(l), diff.String())
-				fmt.Println("*** FAILED ***")
+				log.Println("*** FAILED ***")
 			} else {
-				fmt.Println("*** PASSED ***")
+				log.Println("*** PASSED ***")
 			}
 		case <-time.After(100 * time.Millisecond):
 			log.Println("TIMEOUT")
-			fmt.Println("*** FAILED ***")
+			log.Println("*** FAILED ***")
 		}
+		return 0 // success
 	}
 	var targets []lib
 	clients := []lib{
@@ -75,7 +74,9 @@ func main() {
 		// no libraries found locally, download and run all
 		targets = clients
 	}
+	var exitCode int
 	for _, l := range targets {
-		test(l)
+		exitCode += test(l)
 	}
+	return exitCode
 }
