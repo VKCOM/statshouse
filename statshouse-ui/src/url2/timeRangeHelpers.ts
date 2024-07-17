@@ -62,6 +62,10 @@ export function readTimeRange(from: unknown, to: unknown): TimeRange {
   return { urlTo, to: timeTo, from: timeFrom, now: timeNow, absolute: timeAbsolute };
 }
 
+export function getTimeRangeAbsolute(timeRange: TimeRange) {
+  return { from: timeRange.from + timeRange.to, to: timeRange.to };
+}
+
 export function constToTime(now: number, value: number | TimeRangeKeysTo) {
   switch (value) {
     case TIME_RANGE_KEYS_TO.EndDay:
