@@ -125,6 +125,8 @@ func (c *client) exec(args ...string) error {
 	log.Printf("$ %s\n", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = c.temp
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 

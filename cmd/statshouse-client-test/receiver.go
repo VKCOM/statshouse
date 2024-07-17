@@ -54,6 +54,9 @@ func listenUDP(args argv, ch chan series) (func(), error) {
 				n += int(b.Counter)
 				log.Println("iteration #", n)
 				if n == args.n {
+					if args.zeroTime {
+						res.sort()
+					}
 					ch <- res
 					res = make(series, len(res))
 					n = 0
@@ -94,6 +97,14 @@ func (s series) addMetricBytes(b *tlstatshouse.MetricBytes) {
 	val.addMetricBytes(b)
 }
 
+func (s series) sort() {
+	for _, sec := range s {
+		for _, val := range sec {
+			val.sort()
+		}
+	}
+}
+
 func (v *value) addMetricBytes(b *tlstatshouse.MetricBytes) {
 	v.counter += b.Counter
 	v.values = append(v.values, b.Value...)
@@ -104,4 +115,9 @@ func (v *value) addMetric(b metric) {
 	v.counter += b.Count
 	v.values = append(v.values, b.Values...)
 	v.uniques = append(v.uniques, b.Uniques...)
+}
+
+func (v *value) sort() {
+	slices.Sort(v.values)
+	slices.Sort(v.uniques)
 }

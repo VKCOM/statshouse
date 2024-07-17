@@ -18,6 +18,8 @@ type argv struct {
 	zeroTime  bool
 }
 
+// Consider increasing UDP receive buffer size up to 16M:
+// sysctl -w net.core.rmem_max=16777216
 func main() {
 	var args argv
 	flag.IntVar(&args.n, "n", 100, "number of iterations")

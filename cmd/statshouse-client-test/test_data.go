@@ -117,5 +117,8 @@ func (t testData) toSeries(args argv) series {
 			val.addMetric(m)
 		}
 	}
+	if args.zeroTime {
+		res.sort()
+	}
 	return res
 }
