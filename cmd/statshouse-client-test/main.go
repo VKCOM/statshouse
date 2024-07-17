@@ -15,6 +15,7 @@ type argv struct {
 	maxStrLen int
 	viewCode  bool
 	keepTemp  bool
+	zeroTime  bool
 }
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 	flag.IntVar(&args.maxStrLen, "max-str-len", 32, "maximum string length")
 	flag.BoolVar(&args.viewCode, "view-code", false, "open generated source files in Visual Studio Code")
 	flag.BoolVar(&args.keepTemp, "keep-temp", false, "do not remove generated temporary files")
+	flag.BoolVar(&args.zeroTime, "zero-time", false, "do not compare timestamps")
 	flag.Parse()
 	os.Exit(run(args))
 }

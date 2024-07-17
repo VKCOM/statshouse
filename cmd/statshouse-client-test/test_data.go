@@ -47,7 +47,24 @@ func newTestData(args argv) testData {
 	}
 	res := make([]metric, args.m+1)
 	for i := 0; i < args.m; i++ {
-		res[i].generateRandom(str, values, uniques, r)
+		m := &res[i]
+		if !args.zeroTime {
+			m.Timestamp = r.Uint32()
+		}
+		m.Name = string(str[:rand.Intn(len(str)-1)+1])
+		m.Tags = make([][2]string, r.Intn(format.MaxTags))
+		for i, j := r.Intn(format.MaxTags), 0; j < len(m.Tags); i, j = i+1, j+1 {
+			m.Tags[j] = [2]string{strconv.Itoa(i % format.MaxTags), string(str[:rand.Intn(len(str)-1)+1])}
+		}
+		m.Kind = r.Intn(3)
+		switch m.Kind {
+		case 0: // counter
+			m.Count = 1
+		case 1: // values
+			m.Values = values[:r.Intn(len(values)-1)+1]
+		case 2: // uniques
+			m.Uniques = uniques[:r.Intn(len(uniques)-1)+1]
+		}
 	}
 	res[args.m].Name = endOfIterationMark
 	res[args.m].Count = 1
@@ -101,22 +118,4 @@ func (t testData) toSeries(args argv) series {
 		}
 	}
 	return res
-}
-
-func (m *metric) generateRandom(str []byte, values []float64, uniques []int64, r *rand.Rand) {
-	m.Timestamp = r.Uint32()
-	m.Name = string(str[:rand.Intn(len(str)-1)+1])
-	m.Tags = make([][2]string, r.Intn(format.MaxTags))
-	for i, j := r.Intn(format.MaxTags), 0; j < len(m.Tags); i, j = i+1, j+1 {
-		m.Tags[j] = [2]string{strconv.Itoa(i % format.MaxTags), string(str[:rand.Intn(len(str)-1)+1])}
-	}
-	m.Kind = r.Intn(3)
-	switch m.Kind {
-	case 0: // counter
-		m.Count = 1
-	case 1: // values
-		m.Values = values[:r.Intn(len(values)-1)+1]
-	case 2: // uniques
-		m.Uniques = uniques[:r.Intn(len(uniques)-1)+1]
-	}
 }
