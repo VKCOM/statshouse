@@ -13,7 +13,10 @@ import { toTagKey } from '../url/queryParams';
 import { TAG_KEY } from '../api/enum';
 import { useStatsHouse } from 'store2';
 
-export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
+export function getEventTagColumns(plot?: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
+  if (plot == null) {
+    return [];
+  }
   const columns: UseEventTagColumnReturn2[] = (meta?.tags ?? [])
     .map((tag, indexTag) => {
       const tagKey = toTagKey(indexTag.toString());
@@ -59,12 +62,7 @@ export type UseEventTagColumnReturn2 = {
   hide: boolean;
 };
 
-export function useEventTagColumns2(plot: PlotParams, selectedOnly: boolean = false): UseEventTagColumnReturn2[] {
-  // const selectorMetricsMeta = useMemo(
-  //   () => selectorMetricsMetaByName.bind(undefined, plot.metricName),
-  //   [plot.metricName]
-  // );
-  // const meta = useStore(selectorMetricsMeta);
-  const meta = useStatsHouse((s) => s.metricMeta[plot.metricName]);
+export function useEventTagColumns2(plot?: PlotParams, selectedOnly: boolean = false): UseEventTagColumnReturn2[] {
+  const meta = useStatsHouse((s) => s.metricMeta[plot?.metricName ?? '']);
   return useMemo(() => getEventTagColumns(plot, meta, selectedOnly), [meta, plot, selectedOnly]);
 }

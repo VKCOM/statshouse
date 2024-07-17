@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import uPlot from 'uplot';
-import { type MetricType, type QueryWhat } from 'api/enum';
+import { type MetricType, PLOT_TYPE, type QueryWhat } from 'api/enum';
 import { type SelectOptionProps, type UPlotWrapperPropsScales } from '../../components';
 import { type PlotKey, type PlotParams, type TimeRange } from 'url2';
 import { type QuerySeriesMeta } from 'api/query';
@@ -122,6 +122,17 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           setState(updatePlotData);
         }
       });
+      const plot = getState().params.plots[plotKey];
+      if (plot?.type === PLOT_TYPE.Event) {
+        const { params } = getState();
+        const from =
+          params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom
+            ? params.eventFrom
+            : undefined;
+        getState()
+          .loadPlotEvents(plotKey, undefined, undefined, from)
+          .catch(() => undefined);
+      }
     },
     globalQueryStart() {
       setState((state) => {

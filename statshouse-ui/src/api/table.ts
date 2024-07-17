@@ -39,7 +39,7 @@ export type ApiTableGet = {
 };
 
 export type GetTableResp = {
-  rows: QueryTableRow[];
+  rows: QueryTableRow[] | null;
   what: QueryWhat[];
   from_row: string;
   to_row: string;

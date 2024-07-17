@@ -13,6 +13,7 @@ import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { autoLowAgg, autoAgg } from '../constants';
+import { replaceVariable } from '../helpers/replaceVariable';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -20,10 +21,11 @@ export function getLoadPlotUrlParams(
   fetchBadges: boolean = false,
   priority?: number
 ): ApiQueryGet | null {
-  const plot = params.plots[plotKey];
+  let plot = params.plots[plotKey];
   if (!plot) {
     return null;
   }
+  plot = replaceVariable(plotKey, plot, params.variables);
   const width = plot.customAgg === -1 ? autoLowAgg : plot.customAgg === 0 ? autoAgg : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
     [GET_PARAMS.numResults]: plot.numSeries.toString(),
