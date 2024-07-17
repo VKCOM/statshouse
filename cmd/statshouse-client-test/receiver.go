@@ -51,7 +51,8 @@ func listenUDP(args argv, ch chan series) (func(), error) {
 		var n int
 		if err := ln.Serve(handler{func(b *tlstatshouse.MetricBytes) {
 			if bytes.Equal(b.Name, endOfIterationMarkBytes) {
-				n += int(b.Counter) // iteration #n
+				n += int(b.Counter)
+				log.Println("iteration #", n)
 				if n == args.n {
 					ch <- res
 					res = make(series, len(res))
