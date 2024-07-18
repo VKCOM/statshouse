@@ -121,17 +121,20 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
 		return
 	}
+	namespace := r.Header.Get("X-StatsHouse-Namespace")
+	var prefix string
+	switch namespace {
+	case "", "__default":
+		// no prefix
+	default:
+		prefix = namespace + format.NamespaceSeparator
+	}
 	var res []string
 	tagName := mux.Vars(r)["name"]
 	if tagName == "__name__" {
-		for _, m := range format.BuiltinMetrics {
-			if ai.CanViewMetric(*m) {
-				res = append(res, m.Name)
-			}
-		}
-		for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-			if ai.CanViewMetric(*v) {
-				res = append(res, v.Name)
+		for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+			if ai.CanViewMetric(*meta) {
+				res = append(res, strings.TrimPrefix(meta.Name, prefix))
 			}
 		}
 	} else {
@@ -145,12 +148,12 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 			start, end := r.Form["start"], r.Form["end"]
 			if len(start) >= 1 && len(end) >= 1 {
 				for _, metricName := range r.Form["match[]"] {
-					if meta, _ := h.getMetricMeta(ai, metricName); meta != nil {
+					if meta, _ := h.getMetricMeta(ai, prefix+metricName); meta != nil {
 						if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
 							if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
 								version:             Version2,
 								ai:                  ai,
-								metricWithNamespace: metricName,
+								metricWithNamespace: meta.Name,
 								tagID:               format.TagID(tag.Index),
 								from:                start[0],
 								to:                  end[0],
