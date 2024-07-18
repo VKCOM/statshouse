@@ -121,25 +121,51 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
 		return
 	}
-
-	name := mux.Vars(r)["name"]
-	if name != "__name__" {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	s := make([]string, 0)
-	for _, m := range format.BuiltinMetrics {
-		if ai.CanViewMetric(*m) {
-			s = append(s, m.Name)
+	var res []string
+	tagName := mux.Vars(r)["name"]
+	if tagName == "__name__" {
+		for _, m := range format.BuiltinMetrics {
+			if ai.CanViewMetric(*m) {
+				res = append(res, m.Name)
+			}
+		}
+		for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+			if ai.CanViewMetric(*v) {
+				res = append(res, v.Name)
+			}
+		}
+	} else {
+		if tagName != format.StringTopTagID {
+			// StatsHouse tags have numeric names (indices) but Grafana forbids them,
+			// allow "_" prefix to workaround
+			tagName = strings.TrimPrefix(tagName, "_")
+		}
+		if tagName != "" {
+			_ = r.ParseForm()
+			start, end := r.Form["start"], r.Form["end"]
+			if len(start) >= 1 && len(end) >= 1 {
+				for _, metricName := range r.Form["match[]"] {
+					if meta, _ := h.getMetricMeta(ai, metricName); meta != nil {
+						if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
+							if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
+								version:             Version2,
+								ai:                  ai,
+								metricWithNamespace: metricName,
+								tagID:               format.TagID(tag.Index),
+								from:                start[0],
+								to:                  end[0],
+							}); s != nil {
+								for _, v := range s.TagValues {
+									res = append(res, v.Value)
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.CanViewMetric(*v) {
-			s = append(s, v.Name)
-		}
-	}
-	promRespond(w, s)
+	promRespond(w, res)
 }
 
 // region Request
