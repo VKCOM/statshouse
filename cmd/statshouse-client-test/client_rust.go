@@ -1,22 +1,39 @@
 package main
 
-import "strings"
+import (
+	"fmt"
+	"io/fs"
+	"path/filepath"
+)
 
 type rust struct{ client }
 
-func (*rust) localPath() string {
+func (*rust) libMain() string {
 	return "statshouse/src/lib.rs"
 }
 
-func (*rust) remotePath() string {
-	return "git@github.com:VKCOM/statshouse-py.git"
+func (*rust) testMain() string {
+	return "test.rs"
 }
 
-func (*rust) sourceFileName() string {
-	return "main.rs"
+func (*rust) gitURL() string {
+	return "git@github.com:VKCOM/statshouse-rs.git"
 }
 
-func (l *rust) make() error {
-	l.binFile = strings.TrimSuffix(l.srcFile, ".rs")
-	return l.exec("rustc", "-o", l.binFile, l.srcFile)
+func (client *rust) make() error {
+	if err := client.library.exec("cargo", "build"); err != nil {
+		return err
+	}
+	var libraryPath string
+	filepath.Walk(
+		filepath.Join(client.library.rootDir, "target"),
+		func(path string, info fs.FileInfo, err error) error {
+			if !info.IsDir() && info.Name() == "libstatshouse.rlib" {
+				libraryPath = path
+				return fmt.Errorf("found")
+			}
+			return nil // continue search
+		})
+	client.binFile = filepath.Join(client.dir, "test")
+	return client.exec("rustc", "--extern", fmt.Sprintf("statshouse=%s", libraryPath), "-o", client.binFile, "test.rs")
 }

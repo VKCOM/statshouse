@@ -1,26 +1,20 @@
 package main
 
-import "strings"
-
 type cpp struct{ client }
 
-func (*cpp) localPath() string {
+func (*cpp) libMain() string {
 	return "statshouse.hpp"
 }
 
-func (*cpp) remotePath() string {
+func (*cpp) testMain() string {
+	return "test.cpp"
+}
+
+func (*cpp) gitURL() string {
 	return "git@github.com:VKCOM/statshouse-cpp.git"
 }
 
-func (*cpp) sourceFileName() string {
-	return "main.cpp"
-}
-
-func (l *cpp) make() error {
-	l.binFile = strings.TrimSuffix(l.srcFile, ".cpp")
-	if l.path != "" {
-		return l.exec("g++", "-I", l.path, "-o", l.binFile, l.srcFile)
-	} else {
-		return l.exec("g++", "-o", l.binFile, l.srcFile)
-	}
+func (client *cpp) make() error {
+	client.binFile = "test"
+	return client.exec("g++", "-I", client.library.rootDir, "-o", client.binFile, client.srcFile)
 }

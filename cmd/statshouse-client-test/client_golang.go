@@ -4,29 +4,32 @@ import "fmt"
 
 type golang struct{ client }
 
-func (*golang) localPath() string {
+func (*golang) libMain() string {
 	return "statshouse.go"
 }
 
-func (*golang) sourceFileName() string {
-	return "main.go"
+func (*golang) gitURL() string {
+	return "git@github.com:VKCOM/statshouse-go.git"
 }
 
-func (l *golang) configure(text string, data any) error {
-	if err := l.client.configure(text, data); err != nil {
-		return err
-	}
-	if err := l.exec("go", "mod", "init", "main"); err != nil {
-		return err
-	}
-	if l.path != "" {
-		if err := l.exec("go", "mod", "edit", fmt.Sprintf("-replace=github.com/vkcom/statshouse-go=%s", l.path)); err != nil {
-			return err
-		}
-	}
-	return l.exec("go", "get")
+func (*golang) testMain() string {
+	return "test.go"
 }
 
-func (l *golang) run() error {
-	return l.exec("go", "run", "main.go")
+func (client *golang) configure(text string, data any) error {
+	if err := client.client.configure(text, data); err != nil {
+		return err
+	}
+	if err := client.exec("go", "mod", "init", "main"); err != nil {
+		return err
+	}
+	if err := client.exec("go", "mod", "edit",
+		fmt.Sprintf("-replace=github.com/vkcom/statshouse-go=%s", client.library.rootDir)); err != nil {
+		return err
+	}
+	return client.exec("go", "get")
+}
+
+func (client *golang) run() error {
+	return client.exec("go", "run", "test.go")
 }

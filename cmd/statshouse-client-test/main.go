@@ -2,11 +2,8 @@ package main
 
 import (
 	"flag"
-	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -41,66 +38,54 @@ func run(args argv) int {
 	defer cancel()
 	data := newTestData(args)
 	expected := data.toSeries(args)
-	fail := func(v ...any) int {
-		log.Println(v...)
-		log.Println("*** FAILED ***")
-		return 1
+	lib, cancel, err := loadLibraryFromWD()
+	if err != nil {
+		return fail(err)
 	}
-	test := func(lib lib) int {
-		matches, err := filepath.Glob("test_template*.txt")
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(matches) == 0 {
-			log.Fatal("test template not found")
-		}
-		var failCount int
-		for _, path := range matches {
-			log.Printf("*** %s ***\n", path)
-			file, err := os.Open(path)
-			if err != nil {
-				log.Fatal(err)
-			}
-			var sb strings.Builder
-			if _, err = io.Copy(&sb, file); err != nil {
-				log.Fatal(err)
-			}
-			if err = runClient(lib, sb.String(), data); err != nil {
-				failCount += fail(err)
-				continue
-			}
-			select {
-			case actual := <-actualC:
-				if diff := compareSeries(expected, actual); !diff.empty() {
-					failCount += fail(diff.String())
-				} else {
-					log.Println("*** PASSED ***")
-				}
-			case <-time.After(100 * time.Millisecond):
-				failCount += fail("TIMEOUT")
-			}
-		}
-		return failCount
+	if lib != nil {
+		defer cancel()
+		return testClient(args, lib, data, expected, actualC)
 	}
-	libs := []lib{
-		&cpp{},
-		&rust{},
-		&java{},
-		&python{},
-		&php{},
-		&golang{},
-	}
-	for _, lib := range libs {
-		path := search(lib)
-		lib.init(lib, args, path)
-		if path != "" {
-			return test(lib)
-		}
-	}
-	// no library was found in the current directory, download and run them all
 	var failCount int
-	for _, lib := range libs {
-		failCount += test(lib)
+	failCount += testClientT[cpp](args, data, expected, actualC)
+	failCount += testClientT[golang](args, data, expected, actualC)
+	failCount += testClientT[java](args, data, expected, actualC)
+	failCount += testClientT[php](args, data, expected, actualC)
+	failCount += testClientT[python](args, data, expected, actualC)
+	failCount += testClientT[rust](args, data, expected, actualC)
+	return failCount
+}
+
+func testClient(args argv, lib *library, data any, expected series, actualC chan series) int {
+	var failCount int
+	for k, v := range testTemplates(lib) {
+		log.Printf("*** %s ***\n", k)
+		runClient(args, lib, v, data)
+		select {
+		case actual := <-actualC:
+			if diff := compareSeries(expected, actual); !diff.empty() {
+				failCount += fail(diff.String())
+			} else {
+				log.Println("*** PASSED ***")
+			}
+		case <-time.After(100 * time.Millisecond):
+			failCount += fail("TIMEOUT")
+		}
 	}
 	return failCount
+}
+
+func testClientT[T any](args argv, data any, expected series, actualC chan series) int {
+	lib, cancel, err := loadLibrary[T]("")
+	if err != nil {
+		return fail(err)
+	}
+	defer cancel()
+	return testClient(args, lib, data, expected, actualC)
+}
+
+func fail(v ...any) int {
+	log.Println(v...)
+	log.Println("*** FAILED ***")
+	return 1
 }
