@@ -171,15 +171,15 @@ func calcNetDev(old, new_ *procfs.NetDevLine) (stat *devStat) {
 	if old == nil {
 		return nil
 	}
-	rxBytes := float64(new_.RxBytes) - float64(old.RxBytes)
-	rxPackets := float64(new_.RxPackets) - float64(old.RxPackets)
-	rxErrors := float64(new_.RxErrors) - float64(old.RxErrors)
-	rxDropped := float64(new_.RxDropped) - float64(old.RxDropped)
+	rxBytes := diff(new_.RxBytes, old.RxBytes)
+	rxPackets := diff(new_.RxPackets, old.RxPackets)
+	rxErrors := diff(new_.RxErrors, old.RxErrors)
+	rxDropped := diff(new_.RxDropped, old.RxDropped)
 
-	txBytes := float64(new_.TxBytes) - float64(old.TxBytes)
-	txPackets := float64(new_.TxPackets) - float64(old.TxPackets)
-	txErrors := float64(new_.TxErrors) - float64(old.TxErrors)
-	txDropped := float64(new_.TxDropped) - float64(old.TxDropped)
+	txBytes := diff(new_.TxBytes, old.TxBytes)
+	txPackets := diff(new_.TxPackets, old.TxPackets)
+	txErrors := diff(new_.TxErrors, old.TxErrors)
+	txDropped := diff(new_.TxDropped, old.TxDropped)
 
 	return &devStat{
 		RxBytes:   rxBytes,
@@ -264,17 +264,17 @@ func (c *NetStats) writeSNMP(nowUnix int64) error {
 }
 
 func (c *NetStats) writePackets(nowUnix int64, stat netStat) {
-	tcpR := stat.tcp.InSegs - c.oldNetStat.tcp.InSegs
-	tcpO := stat.tcp.OutSegs - c.oldNetStat.tcp.OutSegs
+	tcpR := diff(stat.tcp.InSegs, c.oldNetStat.tcp.InSegs)
+	tcpO := diff(stat.tcp.OutSegs, c.oldNetStat.tcp.OutSegs)
 
-	ipR := stat.ip.InReceives - c.oldNetStat.ip.InReceives
-	ipO := stat.ip.OutRequests - c.oldNetStat.ip.OutRequests
+	ipR := diff(stat.ip.InReceives, c.oldNetStat.ip.InReceives)
+	ipO := diff(stat.ip.OutRequests, c.oldNetStat.ip.OutRequests)
 
-	udpR := stat.udp.InDatagrams - c.oldNetStat.udp.InDatagrams
-	udpO := stat.udp.OutDatagrams - c.oldNetStat.udp.OutDatagrams
+	udpR := diff(stat.udp.InDatagrams, c.oldNetStat.udp.InDatagrams)
+	udpO := diff(stat.udp.OutDatagrams, c.oldNetStat.udp.OutDatagrams)
 
-	icmpR := stat.icmp.InMsgs - c.oldNetStat.icmp.InMsgs
-	icmpO := stat.icmp.OutMsgs - c.oldNetStat.icmp.OutMsgs
+	icmpR := diff(stat.icmp.InMsgs, c.oldNetStat.icmp.InMsgs)
+	icmpO := diff(stat.icmp.OutMsgs, c.oldNetStat.icmp.OutMsgs)
 
 	if c.oldNetStat.tcp.isSuccess {
 		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, tcpR, format.RawIDTagReceived, format.RawIDTagTCP)
@@ -289,8 +289,8 @@ func (c *NetStats) writePackets(nowUnix int64, stat netStat) {
 		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, icmpO, format.RawIDTagSent, format.RawIDTagICMP)
 	}
 	if c.oldNetStat.ip.isSuccess {
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, ipR-tcpR-udpR-icmpR, format.RawIDTagReceived, format.RawIDTagOther)
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, ipO-tcpO-udpO-icmpO, format.RawIDTagSent, format.RawIDTagOther)
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, nonNegative(ipR-tcpR-udpR-icmpR), format.RawIDTagReceived, format.RawIDTagOther)
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetPacket, nonNegative(ipO-tcpO-udpO-icmpO), format.RawIDTagSent, format.RawIDTagOther)
 	}
 }
 
@@ -299,22 +299,22 @@ func (c *NetStats) writeIP(nowUnix int64, stat netStat) {
 		return
 	}
 
-	inHdrErrs := stat.ip.InHdrErrors - c.oldNetStat.ip.InHdrErrors
+	inHdrErrs := diff(stat.ip.InHdrErrors, c.oldNetStat.ip.InHdrErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inHdrErrs, format.RawIDTagInHdrError, format.RawIDTagIP)
 
-	inDiscards := stat.ip.InDiscards - c.oldNetStat.ip.InDiscards
+	inDiscards := diff(stat.ip.InDiscards, c.oldNetStat.ip.InDiscards)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inDiscards, format.RawIDTagInDiscard, format.RawIDTagIP)
 
-	outDiscard := stat.ip.OutDiscards - c.oldNetStat.ip.OutDiscards
+	outDiscard := diff(stat.ip.OutDiscards, c.oldNetStat.ip.OutDiscards)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, outDiscard, format.RawIDTagOutDiscard, format.RawIDTagIP)
 
-	outNoRoutes := stat.ip.OutNoRoutes - c.oldNetStat.ip.OutNoRoutes
+	outNoRoutes := diff(stat.ip.OutNoRoutes, c.oldNetStat.ip.OutNoRoutes)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, outNoRoutes, format.RawIDTagOutNoRoute, format.RawIDTagIP)
 
-	inAddrErrors := stat.ip.InAddrErrors - c.oldNetStat.ip.InAddrErrors
+	inAddrErrors := diff(stat.ip.InAddrErrors, c.oldNetStat.ip.InAddrErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inAddrErrors, format.RawIDTagInAddrError, format.RawIDTagIP)
 
-	inUnknownProtos := stat.ip.InUnknownProtos - c.oldNetStat.ip.InUnknownProtos
+	inUnknownProtos := diff(stat.ip.InUnknownProtos, c.oldNetStat.ip.InUnknownProtos)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inUnknownProtos, format.RawIDTagInUnknownProto, format.RawIDTagIP)
 }
 
@@ -323,11 +323,11 @@ func (c *NetStats) writeTCP(nowUnix int64, stat netStat) {
 		return
 	}
 
-	inErrs := stat.tcp.InErrs - c.oldNetStat.tcp.InErrs
+	inErrs := diff(stat.tcp.InErrs, c.oldNetStat.tcp.InErrs)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErr, format.RawIDTagTCP)
-	inCsumError := stat.tcp.InCsumErrors - c.oldNetStat.tcp.InCsumErrors
+	inCsumError := diff(stat.tcp.InCsumErrors, c.oldNetStat.tcp.InCsumErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErr, format.RawIDTagTCP)
-	retransSegs := stat.tcp.RetransSegs - c.oldNetStat.tcp.RetransSegs
+	retransSegs := diff(stat.tcp.RetransSegs, c.oldNetStat.tcp.RetransSegs)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, retransSegs, format.RawIDTagRetransSeg, format.RawIDTagTCP)
 }
 
@@ -335,15 +335,15 @@ func (c *NetStats) writeUDP(nowUnix int64, stat netStat) {
 	if !c.oldNetStat.udp.isSuccess {
 		return
 	}
-	inErrs := stat.udp.InErrors - c.oldNetStat.udp.InErrors
+	inErrs := diff(stat.udp.InErrors, c.oldNetStat.udp.InErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErrors, format.RawIDTagUDP)
-	inCsumError := stat.udp.InCsumErrors - c.oldNetStat.udp.InCsumErrors
+	inCsumError := diff(stat.udp.InCsumErrors, c.oldNetStat.udp.InCsumErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErrors, format.RawIDTagUDP)
-	rcvbufErrors := stat.udp.RcvbufErrors - c.oldNetStat.udp.RcvbufErrors
+	rcvbufErrors := diff(stat.udp.RcvbufErrors, c.oldNetStat.udp.RcvbufErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, rcvbufErrors, format.RawIDTagRcvbufErrors, format.RawIDTagUDP)
-	sndbufErrors := stat.udp.SndbufErrors - c.oldNetStat.udp.SndbufErrors
+	sndbufErrors := diff(stat.udp.SndbufErrors, c.oldNetStat.udp.SndbufErrors)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, sndbufErrors, format.RawIDTagSndbufErrors, format.RawIDTagUDP)
-	noPorts := stat.udp.NoPorts - c.oldNetStat.udp.NoPorts
+	noPorts := diff(stat.udp.NoPorts, c.oldNetStat.udp.NoPorts)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, noPorts, format.RawIDTagNoPorts, format.RawIDTagUDP)
 }
 

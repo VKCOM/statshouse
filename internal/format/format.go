@@ -239,6 +239,7 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
+	IsHostMetric        bool                     `json:"-"`
 
 	GroupID int32 `json:"-"`
 

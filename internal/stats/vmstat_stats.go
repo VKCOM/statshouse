@@ -83,7 +83,7 @@ func (c *VMStatStats) WriteMetrics(nowUnix int64) error {
 	for name, value := range m {
 		oldValue, ok := c.old[name]
 		if ok {
-			c.pushMetric(nowUnix, name, value-oldValue, m)
+			c.pushMetric(nowUnix, name, diff(value, oldValue), m)
 		}
 		c.old[name] = value
 	}

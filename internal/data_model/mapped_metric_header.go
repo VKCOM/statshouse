@@ -18,6 +18,7 @@ type HandlerArgs struct {
 	Description    string
 	ScrapeInterval int
 	MapCallback    MapCallbackFunc
+	FromStatsHouse bool // mark metric which is produced by agent but used our common metric flow (host metrics)
 }
 
 type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)

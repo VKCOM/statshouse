@@ -6,3 +6,10 @@ func diff[A float64 | uint64](new, old A) float64 {
 	}
 	return 0
 }
+
+func nonNegative[A float64 | int64](v A) float64 {
+	if v < 0 {
+		return 0
+	}
+	return float64(v)
+}
