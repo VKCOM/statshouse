@@ -403,6 +403,12 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 		}
 		return false
 	}
+	if resp != nil {
+		respS := string(resp)
+		if respS != "Dummy historic result" {
+			s.agent.logF("Send bucket returned: \"%s\"", respS)
+		}
+	}
 	shardReplica.stats.recentSendSuccess.Add(1)
 	return true
 }
