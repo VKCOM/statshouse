@@ -283,7 +283,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
-	if build.CommitTimestamp() > 0 && args.BuildCommitTs > 0 {
+	if a.configR.DenyOldAgents && build.CommitTimestamp() > 0 && args.BuildCommitTs > 0 {
 		allow, outdated := version.AllowAgent(string(args.Header.HostName), build.CommitTimestamp(), uint32(args.BuildCommitTs), a.versionCache)
 		if !allow {
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, host, int32(addrIPV4), format.TagValueIDDecisionDeclined})
