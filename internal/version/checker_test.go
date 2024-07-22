@@ -2,10 +2,11 @@ package version
 
 import (
 	"fmt"
-	"github.com/vkcom/statshouse/internal/pcache"
-	"pgregory.net/rand"
 	"testing"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/pcache"
+	"pgregory.net/rand"
 )
 
 func host(number int) string {

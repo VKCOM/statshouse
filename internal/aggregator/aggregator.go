@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/vkcom/statshouse/internal/version"
 	"io"
 	"log"
 	"net"
@@ -22,6 +21,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/version"
 
 	"pgregory.net/rand"
 

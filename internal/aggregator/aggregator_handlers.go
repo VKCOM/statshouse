@@ -11,9 +11,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/vkcom/statshouse/internal/version"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"time"
 
 	"go4.org/mem"
 	"pgregory.net/rand"

@@ -1,8 +1,9 @@
 package version
 
 import (
-	"github.com/vkcom/statshouse/internal/pcache"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/pcache"
 )
 
 const cacheNamespace = "agent_commits"
