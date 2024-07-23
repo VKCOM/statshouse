@@ -471,6 +471,23 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// using single metric as a "namespace" for "sub-metrics" of different kinds.
 	// The only thing we check is if percentiles are allowed. This is configured per metric.
 
+	keyHash := h.Key.Hash()
+	if s.config.ShardByMetric {
+		shardNum := int(h.Key.Metric) % len(s.Shards)
+		shard := s.Shards[shardNum]
+		if len(m.Unique) != 0 {
+			shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+			return
+		}
+		if len(m.Value) != 0 {
+			shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+			return
+		}
+		if m.Counter > 0 {
+			shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
+			return
+		}
+	}
 	// here m.Unique and m.Value cannot be both non-empty
 	// also m.Counter is >= 0
 	//
@@ -486,9 +503,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// so if counter is 20, and Uniques len is 3, we simply add each of 3 events to HLL
 	// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
 	// for the purpose of this, Uniques are treated exactly as Values
-	keyHash := h.Key.Hash()
-	shordNum := s.shardNumFromHash(keyHash)
-	shard := s.Shards[shordNum]
+	shardNum := s.shardNumFromHash(keyHash)
+	shard := s.Shards[shardNum]
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	if len(m.Unique) != 0 {
 		numShards := s.NumShards()
