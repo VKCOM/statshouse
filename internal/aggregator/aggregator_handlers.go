@@ -23,6 +23,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
@@ -281,7 +282,9 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
 	if a.configR.DenyOldAgents && format.LeastAllowedAgentCommitTs > 0 {
-		if args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
+		// ensure that it's not bigger then aggregator ts in order to write BuiltinMetricIDAggOutdatedAgents metric
+		effectiveLeastAllowedAgentCommitTs := int32(min(format.LeastAllowedAgentCommitTs, build.CommitTimestamp()))
+		if args.BuildCommitTs < effectiveLeastAllowedAgentCommitTs {
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, host, int32(addrIPV4)})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddCounterHost(key, 1, host, nil)
