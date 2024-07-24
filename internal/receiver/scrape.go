@@ -300,7 +300,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 				if len(l) != 0 {
 					var n int
 					for i := range l {
-						if !strings.HasPrefix(l[i].Name, model.ReservedLabelPrefix) {
+						if !strings.HasPrefix(l[i].Name, model.ReservedLabelPrefix) || l[i].Name == model.MetricNameLabel {
 							l[n] = l[i]
 							n++
 						}
