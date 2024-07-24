@@ -61,7 +61,7 @@ type (
 		roConnPool  *connPool
 		readyNotify sync.Once
 
-		//testOptions *testOptions
+		// testOptions *testOptions
 
 		logMx       sync.Mutex
 		logger      *log.Logger
@@ -535,7 +535,7 @@ func (e *Engine) DoTx(ctx context.Context, queryName string, do func(c Conn, cac
 	}
 	if len(bytes) == 0 {
 		if e.binlog != nil {
-			return res, fmt.Errorf("do without binlog event")
+			return res, ErrDoWithoutEvent
 		}
 		return res, e.rw.nonBinlogCommitTxLocked()
 	}

@@ -19,6 +19,7 @@ var (
 	ErrConstraintUnique     = errors.New("unique_constraint_error")
 	ErrConstraintDatatype   = errors.New("datatype_constraint_error")
 	ErrConstraintPrimarykey = errors.New("primarykey_constraint_error")
+	ErrDoWithoutEvent       = errors.New("do without binlog event")
 	codeToError             = map[int]error{
 		2067: ErrConstraintUnique,
 		3091: ErrConstraintDatatype,
