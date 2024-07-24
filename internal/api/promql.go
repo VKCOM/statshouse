@@ -115,6 +115,63 @@ func (h *Handler) HandleRangeQuery(w http.ResponseWriter, r *http.Request) {
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
+func (h *Handler) HandlePromSeriesQuery(w http.ResponseWriter, r *http.Request) {
+	ai, err := h.parseAccessToken(r, nil)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		return
+	}
+	_ = r.ParseForm()
+	match := r.Form["match[]"]
+	if len(match) == 0 {
+		promRespondError(w, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
+		return
+	}
+	namespace := r.Header.Get("X-StatsHouse-Namespace")
+	var prefix string
+	switch namespace {
+	case "", "__default":
+		// no prefix
+	default:
+		prefix = namespace + format.NamespaceSeparator
+	}
+	var res []labels.Labels
+	if start, end := r.Form["start"], r.Form["end"]; len(start) >= 1 && len(end) >= 1 {
+		for _, expr := range match {
+			if ast, err := parser.ParseExpr(expr); err == nil {
+				parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+					if sel, ok := node.(*parser.VectorSelector); ok {
+						for _, matcher := range sel.LabelMatchers {
+							if matcher.Name == labels.MetricName {
+								if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
+									for _, tag := range meta.Tags {
+										if tag.Name != "" { // query tags with custom name only
+											if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
+												version:             Version2,
+												ai:                  ai,
+												metricWithNamespace: meta.Name,
+												tagID:               format.TagID(tag.Index),
+												from:                start[0],
+												to:                  end[0],
+											}); s != nil {
+												for _, v := range s.TagValues {
+													res = append(res, labels.Labels{labels.Label{Name: tag.Name, Value: v.Value}})
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					return nil
+				})
+			}
+		}
+	}
+	promRespond(w, res)
+}
+
 func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Request) {
 	ai, err := h.parseAccessToken(r, nil)
 	if err != nil {
