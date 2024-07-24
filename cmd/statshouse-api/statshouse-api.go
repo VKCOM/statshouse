@@ -384,6 +384,8 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandleInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandleRangeQuery)
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
+	m.Path("/prom/api/v1/series").Methods("GET").HandlerFunc(f.HandlePromSeriesQuery)
+	m.Path("/prom/api/v1/series").Methods("POST").HandlerFunc(f.HandlePromSeriesQuery)
 	m.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
