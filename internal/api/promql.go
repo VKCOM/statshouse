@@ -147,22 +147,33 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 			_ = r.ParseForm()
 			start, end := r.Form["start"], r.Form["end"]
 			if len(start) >= 1 && len(end) >= 1 {
-				for _, metricName := range r.Form["match[]"] {
-					if meta, _ := h.getMetricMeta(ai, prefix+metricName); meta != nil {
-						if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
-							if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
-								version:             Version2,
-								ai:                  ai,
-								metricWithNamespace: meta.Name,
-								tagID:               format.TagID(tag.Index),
-								from:                start[0],
-								to:                  end[0],
-							}); s != nil {
-								for _, v := range s.TagValues {
-									res = append(res, v.Value)
+				for _, expr := range r.Form["match[]"] {
+					if ast, err := parser.ParseExpr(expr); err == nil {
+						parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+							if sel, ok := node.(*parser.VectorSelector); ok {
+								for _, matcher := range sel.LabelMatchers {
+									if matcher.Name == labels.MetricName {
+										if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
+											if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
+												if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
+													version:             Version2,
+													ai:                  ai,
+													metricWithNamespace: meta.Name,
+													tagID:               format.TagID(tag.Index),
+													from:                start[0],
+													to:                  end[0],
+												}); s != nil {
+													for _, v := range s.TagValues {
+														res = append(res, v.Value)
+													}
+												}
+											}
+										}
+									}
 								}
 							}
-						}
+							return nil
+						})
 					}
 				}
 			}
