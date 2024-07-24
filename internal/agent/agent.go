@@ -355,7 +355,7 @@ func (s *Agent) goFlushIteration(now time.Time) {
 	if nowUnix > s.beforeFlushTime {
 		s.beforeFlushTime = nowUnix
 		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, nowUnix-1) // account to the previous second
+			s.beforeFlushBucketFunc(s, nowUnix) // account to the current second. This is debatable.
 		}
 	}
 	for _, shard := range s.Shards {
