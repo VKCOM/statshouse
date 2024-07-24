@@ -32,7 +32,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 	defer s.mu.Unlock()
 	if nowUnix := uint32(now.Unix()); nowUnix > s.addBuiltInsTime {
 		s.addBuiltInsTime = nowUnix
-		s.addBuiltInsLocked(nowUnix - 1) // account to the previous second
+		s.addBuiltInsLocked(nowUnix) // account to the current second. This is debatable.
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
