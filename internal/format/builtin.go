@@ -214,9 +214,6 @@ const (
 	TagValueIDHistoricQueueDiskUnsent = 2
 	TagValueIDHistoricQueueDiskSent   = 3
 
-	TagValueIDDecisionDeclined = 1
-	TagValueIDDecisionGrace    = 2
-
 	TagValueIDDiskCacheErrorWrite             = 1
 	TagValueIDDiskCacheErrorRead              = 2
 	TagValueIDDiskCacheErrorDelete            = 3
@@ -711,12 +708,6 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 			}, {
 				Description: "remote_ip",
 				RawKind:     "ip",
-			}, {
-				Description: "decision",
-				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDDecisionDeclined: "declined", // we do not accept metrics from this agent
-					TagValueIDDecisionGrace:    "grace",    // agent is outdated but we accept metrics
-				}),
 			}},
 		},
 		BuiltinMetricIDAgentDiskCacheErrors: {

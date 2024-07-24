@@ -72,6 +72,9 @@ const (
 
 	NamespaceSeparator     = ":"
 	NamespaceSeparatorRune = ':'
+
+	// if more than 0 then agents with older commitTs will be declined
+	LeastAllowedAgentCommitTs = 0
 )
 
 // Do not change values, they are stored in DB
