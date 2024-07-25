@@ -41,6 +41,13 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 	queryRows := make(queryTableRows, 0)
 	used := map[int]struct{}{}
 	shouldSort := false
+	fromTime, toTime := tableReqParams.req.fromRow.Time, tableReqParams.req.toRow.Time
+	if tableReqParams.req.fromEnd {
+		fromTime, toTime = toTime, fromTime
+	}
+	if toTime == 0 {
+		toTime = math.MaxInt
+	}
 	for qIndex, q := range tableReqParams.req.what {
 		rowsCount := 0
 		kind := q.What.Kind(req.maxHost)
@@ -58,8 +65,14 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 			orderBy:     true,
 			desc:        req.fromEnd,
 		}
-
-		for _, lod := range lods {
+		for k := range lods {
+			if tableReqParams.req.fromEnd {
+				k = len(lods) - k - 1
+			}
+			lod := lods[k]
+			if toTime < lod.FromSec || lod.ToSec < fromTime {
+				continue
+			}
 			m, err := loadPoints(ctx, req.version, qs, pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
@@ -75,6 +88,9 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 			var rowRepr RowMarker
 			rows, hasMoreValues := limitQueries(m, req.fromRow, req.toRow, req.fromEnd, req.numResults-rowsCount)
 			for i := 0; i < len(rows); i++ {
+				if toTime < rows[i].time || rows[i].time < fromTime {
+					continue
+				}
 				rowsCount++
 				rowRepr.Time = rows[i].time
 				rowRepr.Tags = rowRepr.Tags[:0]
@@ -147,15 +163,15 @@ func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, 
 			i = len(rowsByTime) - i - 1
 		}
 		rows := rowsByTime[i]
-		if len(rows) > 0 && !inRange(rows[0], from, to) &&
-			!inRange(rows[len(rows)-1], from, to) {
+		if len(rows) > 0 && !inRange(rows[0], from, to, fromEnd) &&
+			!inRange(rows[len(rows)-1], from, to, fromEnd) {
 			continue
 		}
 		for _, row := range rows {
 			if len(limitedRows) == limit {
 				return limitedRows, true
 			}
-			if !inRange(row, from, to) {
+			if !inRange(row, from, to, fromEnd) {
 				continue
 			}
 			limitedRows = append(limitedRows, row)
@@ -164,14 +180,14 @@ func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, 
 	return limitedRows, false
 }
 
-func inRange(row tsSelectRow, from, to RowMarker) bool {
+func inRange(row tsSelectRow, from, to RowMarker, fromEnd bool) bool {
 	if from.Time != 0 {
-		if !lessThan(from, row, skeyFromFixedString(&row.tsTags.tagStr), false) {
+		if !lessThan(from, row, skeyFromFixedString(&row.tsTags.tagStr), false, fromEnd) {
 			return false
 		}
 	}
 	if to.Time != 0 {
-		if lessThan(to, row, skeyFromFixedString(&row.tsTags.tagStr), true) {
+		if lessThan(to, row, skeyFromFixedString(&row.tsTags.tagStr), true, fromEnd) {
 			return false
 		}
 	}

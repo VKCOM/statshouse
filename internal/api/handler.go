@@ -3040,21 +3040,38 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool) bool {
-	if l.Time != r.time {
-		return l.Time < r.time
-	}
-	for i := range l.Tags {
-		lv := l.Tags[i].Value
-		rv := r.tag[l.Tags[i].Index]
-		if lv != rv {
-			return lv < rv
+func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool, fromEnd bool) bool {
+	if fromEnd {
+		if l.Time != r.time {
+			return l.Time > r.time
 		}
+		for i := range l.Tags {
+			lv := l.Tags[i].Value
+			rv := r.tag[l.Tags[i].Index]
+			if lv != rv {
+				return lv > rv
+			}
+		}
+		if orEq {
+			return l.SKey >= skey
+		}
+		return l.SKey > skey
+	} else {
+		if l.Time != r.time {
+			return l.Time < r.time
+		}
+		for i := range l.Tags {
+			lv := l.Tags[i].Value
+			rv := r.tag[l.Tags[i].Index]
+			if lv != rv {
+				return lv < rv
+			}
+		}
+		if orEq {
+			return l.SKey <= skey
+		}
+		return l.SKey < skey
 	}
-	if orEq {
-		return l.SKey <= skey
-	}
-	return l.SKey < skey
 }
 
 func (s queryTableRows) Less(i, j int) bool {
