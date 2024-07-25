@@ -431,6 +431,8 @@ type (
 		rowRepr RowMarker
 	}
 
+	queryTableRows []queryTableRow
+
 	QuerySeriesMeta struct {
 		TimeShift int64             `json:"time_shift"`
 		Tags      map[string]string `json:"tags"`
@@ -3055,7 +3057,8 @@ func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool) bool {
 	return l.SKey < skey
 }
 
-func rowMarkerLessThan(l, r RowMarker) bool {
+func (s queryTableRows) Less(i, j int) bool {
+	l, r := s[i].rowRepr, s[j].rowRepr
 	if l.Time != r.Time {
 		return l.Time < r.Time
 	}
@@ -3071,6 +3074,14 @@ func rowMarkerLessThan(l, r RowMarker) bool {
 	}
 
 	return l.SKey < r.SKey
+}
+
+func (s queryTableRows) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s queryTableRows) Len() int {
+	return len(s)
 }
 
 func (h *Handler) parseHTTPRequest(r *http.Request) (seriesRequest, error) {

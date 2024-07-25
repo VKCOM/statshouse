@@ -38,7 +38,7 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 	req := tableReqParams.req
 	metricMeta := tableReqParams.metricMeta
 	rowsIdx := make(map[tableRowKey]int)
-	queryRows := make([]queryTableRow, 0)
+	queryRows := make(queryTableRows, 0)
 	used := map[int]struct{}{}
 	shouldSort := false
 	for qIndex, q := range tableReqParams.req.what {
@@ -129,9 +129,11 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 			}
 		}
 	}
-	sort.Slice(queryRows, func(i, j int) bool {
-		return rowMarkerLessThan(queryRows[i].rowRepr, queryRows[j].rowRepr)
-	})
+	if tableReqParams.req.fromEnd {
+		sort.Sort(sort.Reverse(queryRows))
+	} else {
+		sort.Sort(queryRows)
+	}
 	return queryRows, hasMore, nil
 }
 
