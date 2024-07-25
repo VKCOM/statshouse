@@ -564,7 +564,13 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 
 	keyHash := h.Key.Hash()
 	if s.shardByMetric.Load() {
-		shardNum := int(h.Key.Metric) % len(s.Shards)
+		metricId := int(h.Key.Metric)
+		if h.Key.Metric == format.BuiltinMetricIDBadges {
+			// __badges is a special case because it's created by us, extremely heavy, and always requested with metric
+			// we shard it same way as metric it's used for
+			metricId = int(h.Key.Keys[2])
+		}
+		shardNum := metricId % len(s.Shards)
 		if shardNum < 0 {
 			shardNum += len(s.Shards)
 		}
