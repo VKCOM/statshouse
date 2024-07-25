@@ -52,6 +52,7 @@ type Agent struct {
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
+	shardByMetric                atomic.Bool  // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -329,6 +330,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
+	s.shardByMetric.Store(config.ShardByMetric)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -472,8 +474,11 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// The only thing we check is if percentiles are allowed. This is configured per metric.
 
 	keyHash := h.Key.Hash()
-	if s.config.ShardByMetric {
+	if s.shardByMetric.Load() {
 		shardNum := int(h.Key.Metric) % len(s.Shards)
+		if shardNum < 0 {
+			shardNum += len(s.Shards)
+		}
 		shard := s.Shards[shardNum]
 		if len(m.Unique) != 0 {
 			shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
@@ -485,8 +490,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}
 		if m.Counter > 0 {
 			shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
-			return
 		}
+		return
 	}
 	// here m.Unique and m.Value cannot be both non-empty
 	// also m.Counter is >= 0
