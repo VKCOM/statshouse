@@ -151,7 +151,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     queue_size_memory_sum:fields_mask.2?int
     queue_size_disk_unsent:fields_mask.3?int
     queue_size_disk_sum_unsent:fields_mask.3?int
-    original_size:int
+    original_size:#
     compressed_data:string = String;
 
 @readwrite statshouse.sendKeepAlive2#4285ff53

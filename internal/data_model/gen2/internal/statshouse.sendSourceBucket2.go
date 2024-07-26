@@ -29,7 +29,7 @@ type StatshouseSendSourceBucket2 struct {
 	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
 	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
-	OriginalSize           int32
+	OriginalSize           uint32
 	CompressedData         string
 }
 
@@ -190,7 +190,7 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.QueueSizeDiskSumUnsent = 0
 	}
-	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
+	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
 	return basictl.StringRead(w, &item.CompressedData)
@@ -225,7 +225,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
-	w = basictl.IntWrite(w, item.OriginalSize)
+	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
 	return w
 }
@@ -462,7 +462,7 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 				if propOriginalSizePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
 				}
-				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+				if err := Json2ReadUint32(in, &item.OriginalSize); err != nil {
 					return err
 				}
 				propOriginalSizePresented = true
@@ -669,7 +669,7 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"original_size":`...)
-	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	w = basictl.JSONWriteUint32(w, item.OriginalSize)
 	if (item.OriginalSize != 0) == false {
 		w = w[:backupIndexOriginalSize]
 	}
@@ -710,7 +710,7 @@ type StatshouseSendSourceBucket2Bytes struct {
 	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
 	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
-	OriginalSize           int32
+	OriginalSize           uint32
 	CompressedData         []byte
 }
 
@@ -871,7 +871,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	} else {
 		item.QueueSizeDiskSumUnsent = 0
 	}
-	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
+	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
 	return basictl.StringReadBytes(w, &item.CompressedData)
@@ -906,7 +906,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
-	w = basictl.IntWrite(w, item.OriginalSize)
+	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
 	return w
 }
@@ -1143,7 +1143,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 				if propOriginalSizePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
 				}
-				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+				if err := Json2ReadUint32(in, &item.OriginalSize); err != nil {
 					return err
 				}
 				propOriginalSizePresented = true
@@ -1350,7 +1350,7 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"original_size":`...)
-	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	w = basictl.JSONWriteUint32(w, item.OriginalSize)
 	if (item.OriginalSize != 0) == false {
 		w = w[:backupIndexOriginalSize]
 	}
