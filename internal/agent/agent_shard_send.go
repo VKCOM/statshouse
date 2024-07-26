@@ -37,29 +37,29 @@ func (s *Shard) flushBuckets(now time.Time) {
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
 	currentTime := uint32(now.Add(-data_model.AgentWindow).Unix())
-	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
+	wasCurrentBucketTime := s.CurrentBuckets[1].Time
 	if s.PreprocessingBuckets == nil && currentTime > wasCurrentBucketTime {
 		// if we cannot flush 1-second resolution, we cannot flush any higher resolution
 		// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
 		// 2. move next buckets into current buckets
 		// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
-		for r, bs := range s.CurrentBuckets {
+		for r, b := range s.CurrentBuckets {
 			if r != format.AllowedResolution(r) {
 				continue
 			}
 			currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
-			for sh, b := range bs {
-				if currentTimeRounded <= b.Time {
-					continue
-				}
-				if !b.Empty() {
-					// future queue pos is assigned without seams if missed seconds is 0
-					futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
-					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
-				}
-				s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
-				s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
+			// process current bucket once in a resolution
+			// for 60 sec resolution this will be false once every 60 sec
+			if currentTimeRounded <= b.Time {
+				continue
 			}
+			if !b.Empty() {
+				// future queue pos is assigned without seams if missed seconds is 0
+				futureQueuePos := (b.Time + uint32(r)) % 60
+				s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
+			}
+			s.CurrentBuckets[r] = s.NextBuckets[r]
+			s.NextBuckets[r] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
 		}
 		// we put second into next second future queue position,
 		// same for higher resolutions, so first minute shard is sent togehter with 59-th normal second.
@@ -81,26 +81,24 @@ func (s *Shard) flushBuckets(now time.Time) {
 	// if conveyor is stuck, so that data from previous seconds is still kept there,
 	// but we considere this bucket to correspond to the unixNow point of time.
 	// this is important because we clamp future timestamps by content of NextBuckets timestamps
-	for r, bs := range s.NextBuckets {
+	for r, b := range s.NextBuckets {
 		if r != format.AllowedResolution(r) {
 			continue
 		}
 		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
-		for i, b := range bs {
-			if currentTimeRounded+uint32(r) <= b.Time {
-				continue
-			}
-			if r == 1 && i == 0 { // Add metric for missed second here only once
-				key := data_model.Key{
-					Timestamp: b.Time,
-					Metric:    format.BuiltinMetricIDTimingErrors,
-					Keys:      [16]int32{0, format.TagValueIDTimingMissedSecondsAgent},
-				}
-				mi := data_model.MapKeyItemMultiItem(&b.MultiItems, key, s.config.StringTopCapacity, nil, nil)
-				mi.Tail.AddValueCounterHost(float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
-			}
-			b.Time = currentTimeRounded + uint32(r)
+		if currentTimeRounded+uint32(r) <= b.Time {
+			continue
 		}
+		if r == 1 { // Add metric for missed second here only once
+			key := data_model.Key{
+				Timestamp: b.Time,
+				Metric:    format.BuiltinMetricIDTimingErrors,
+				Keys:      [16]int32{0, format.TagValueIDTimingMissedSecondsAgent},
+			}
+			mi := data_model.MapKeyItemMultiItem(&b.MultiItems, key, s.config.StringTopCapacity, nil, nil)
+			mi.Tail.AddValueCounterHost(float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
+		}
+		b.Time = currentTimeRounded + uint32(r)
 	}
 }
 
