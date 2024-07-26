@@ -24,6 +24,23 @@ import (
 	"pgregory.net/rand"
 )
 
+func partitionMultiItems(items map[data_model.Key]*data_model.MultiItem, parts int) []map[data_model.Key]*data_model.MultiItem {
+	result := make([]map[data_model.Key]*data_model.MultiItem, parts)
+	if parts == 1 {
+		result[0] = items
+		return result
+	}
+	currentPartition := 0
+	for k, v := range items {
+		if result[currentPartition] == nil {
+			result[currentPartition] = make(map[data_model.Key]*data_model.MultiItem)
+		}
+		result[currentPartition][k] = v
+		currentPartition = (currentPartition + 1) % parts
+	}
+	return result
+}
+
 // If clients want less jitter (they want), they should send data quickly after end pf calendar second.
 // Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
 func (s *Shard) flushBuckets(now time.Time) {
@@ -54,9 +71,17 @@ func (s *Shard) flushBuckets(now time.Time) {
 				continue
 			}
 			if !b.Empty() {
-				// future queue pos is assigned without seams if missed seconds is 0
-				futureQueuePos := (b.Time + uint32(r)) % 60
-				s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
+				// TODO: should be moved out of flushBuckets becase we want to keep it extremely fast
+				resolutionShards := partitionMultiItems(b.MultiItems, b.Resolution)
+				for rs := 0; rs < b.Resolution; rs++ {
+					if len(resolutionShards[rs]) == 0 {
+						break
+					}
+					// future queue pos is assigned without seams if missed seconds is 0
+					futureQueuePos := (b.Time + uint32(r) + uint32(rs)) % 60
+					fb := &data_model.MetricsBucket{Time: b.Time, Resolution: b.Resolution, MultiItems: resolutionShards[rs]}
+					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], fb)
+				}
 			}
 			s.CurrentBuckets[r] = s.NextBuckets[r]
 			s.NextBuckets[r] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
