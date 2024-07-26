@@ -86,10 +86,8 @@ func Test_AgentQueue(t *testing.T) {
 		}
 		ur := uint32(r)
 		bucketTime := (nowUnix / ur) * ur
-		for sh := 0; sh < r; sh++ {
-			shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-			shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-		}
+		shard.CurrentBuckets[r] = &data_model.MetricsBucket{Time: bucketTime, Resolution: r}
+		shard.NextBuckets[r] = &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r}
 	}
 	shard.cond = sync.NewCond(&shard.mu)
 	shard.condPreprocess = sync.NewCond(&shard.mu)
@@ -110,9 +108,9 @@ func Test_AgentQueue(t *testing.T) {
 	testEnsureFlush(t, shard, nowUnix)
 	shard.PreprocessingBuckets = nil
 	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 5}, 1, 0, metric5sec)
+	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 2, 0, metric5sec)
+	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 3, 0, metric1sec)
+	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 5}, 4, 0, metric5sec)
 	agent.goFlushIteration(startTime.Add(2 * time.Second))
 	testEnsureNoFlush(t, shard)
 	for i := 1; i < 12; i++ { // wait until 5-seconds metrics flushed

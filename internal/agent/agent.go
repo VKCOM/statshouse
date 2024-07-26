@@ -54,10 +54,9 @@ type Agent struct {
 	skipShards                   atomic.Int32 // copy from config.
 	shardByMetric                atomic.Bool  // copy from config.
 
-	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
-	heartBeatEventType    int32          // first time "start", then "heartbeat"
-	heartBeatSecondBucket int            // random [0..59] bucket for per minute heartbeat to spread load on aggregator
-	startTimestamp        uint32
+	rUsage             syscall.Rusage // accessed without lock by first shard addBuiltIns
+	heartBeatEventType int32          // first time "start", then "heartbeat"
+	startTimestamp     uint32
 
 	metricStorage format.MetaStorageInterface
 
@@ -105,7 +104,6 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		hostName:              format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		componentTag:          componentTag,
 		heartBeatEventType:    format.TagValueIDHeartbeatEventStart,
-		heartBeatSecondBucket: rnd.Intn(60),
 		config:                config,
 		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
 		argsLen:               int32(len(allArgs)),
@@ -170,10 +168,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			}
 			ur := uint32(r)
 			bucketTime := (nowUnix / ur) * ur
-			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-			}
+			shard.CurrentBuckets[r] = &data_model.MetricsBucket{Time: bucketTime, Resolution: r}
+			shard.NextBuckets[r] = &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
 		shard.condPreprocess = sync.NewCond(&shard.mu)
@@ -487,15 +483,15 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}
 		shard := s.Shards[shardNum]
 		if len(m.Unique) != 0 {
-			shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+			shard.ApplyUnique(h.Key, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 			return
 		}
 		if len(m.Value) != 0 {
-			shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+			shard.ApplyValues(h.Key, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
 			return
 		}
 		if m.Counter > 0 {
-			shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
+			shard.ApplyCounter(h.Key, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
 		}
 		return
 	}
@@ -531,7 +527,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			if len(m.Unique) == 1 { // very common case, optimize
 				uniqueShard := int(m.Unique[0] % int64(notSkippedShards)) // TODO - optimize %
 				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+				shard2.ApplyUnique(h.Key, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 				return
 			}
 			uniqueValuesCache := shard.getUniqueValuesCache(notSkippedShards) // TOO - better reuse without lock?
@@ -545,19 +541,19 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 					continue
 				}
 				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(h.Key, keyHash, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricInfo)
+				shard2.ApplyUnique(h.Key, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricInfo)
 			}
 			return
 		}
-		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyUnique(h.Key, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if len(m.Value) != 0 {
-		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyValues(h.Key, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if m.Counter > 0 {
-		shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyCounter(h.Key, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
 	}
 }
 
@@ -572,7 +568,7 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
+	shardReplica.AddCounterHost(key, count, hostTag, metricInfo)
 }
 
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
@@ -583,7 +579,7 @@ func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count 
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddCounterHostStringBytes(key, keyHash, str, count, hostTag, metricInfo)
+	shardReplica.AddCounterHostStringBytes(key, str, count, hostTag, metricInfo)
 }
 
 func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter float64, hostTag int32) {
@@ -592,7 +588,7 @@ func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter f
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddValueCounterHost(key, keyHash, value, counter, hostTag, nil)
+	shardReplica.AddValueCounterHost(key, value, counter, hostTag, nil)
 }
 
 // value should be not NaN.
@@ -602,7 +598,7 @@ func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddValueCounterHost(key, keyHash, value, counter, 0, metricInfo)
+	shardReplica.AddValueCounterHost(key, value, counter, 0, metricInfo)
 }
 
 /*
@@ -612,7 +608,7 @@ func (s *Agent) AddValueCounterHostArray(key data_model.Key, values []float64, m
 	}
 	keyHash := key.Hash()
 	shard := s.shardFromHash(keyHash)
-	shard.AddValueArrayCounterHost(key, keyHash, values, mult, hostTag, metricInfo)
+	shard.AddValueArrayCounterHost(key, values, mult, hostTag, metricInfo)
 }
 */
 
@@ -622,7 +618,7 @@ func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values [
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTag, str, metricInfo)
+	shardReplica.AddValueArrayCounterHostStringBytes(key, values, mult, hostTag, str, metricInfo)
 }
 
 func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTag int32, str []byte) {
@@ -631,7 +627,7 @@ func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTag, str, nil)
+	shardReplica.AddValueCounterHostStringBytes(key, value, counter, hostTag, str, nil)
 }
 
 func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
@@ -640,7 +636,7 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.MergeItemValue(key, keyHash, item, metricInfo)
+	shardReplica.MergeItemValue(key, item, metricInfo)
 }
 
 func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
@@ -649,7 +645,7 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 	}
 	keyHash := key.Hash()
 	shardReplica := s.shardFromHash(keyHash)
-	shardReplica.AddUniqueHostStringBytes(key, hostTag, str, keyHash, hashes, count, metricInfo)
+	shardReplica.AddUniqueHostStringBytes(key, hostTag, str, hashes, count, metricInfo)
 }
 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) data_model.Key {
