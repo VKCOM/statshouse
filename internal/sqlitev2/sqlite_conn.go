@@ -211,7 +211,7 @@ func (c *sqliteConn) RowsAffected() int64 {
 
 func (c *sqliteConn) Close() error {
 	err := c.connError
-	c.connError = errAlreadyClosed
+	c.connError = ErrAlreadyClosed
 	c.cache.Close(&err)
 	multierr.AppendInto(&err, c.conn.Close())
 	return err
