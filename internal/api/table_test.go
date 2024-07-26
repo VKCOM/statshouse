@@ -114,8 +114,8 @@ func Test_limitQueries(t *testing.T) {
 	}{
 		{"subslice full", args{rowsByTime, RowMarker{Time: 2}, RowMarker{Time: 7}, false, 10}, rows[2:6], false, nil},
 		{"subslice limited", args{rowsByTime, RowMarker{Time: 2}, RowMarker{Time: 7}, false, 2}, rows[2:4], true, nil},
-		{"subslice full from end", args{rowsByTime, RowMarker{Time: 2}, RowMarker{Time: 7}, true, 10}, reverse(rows[2:6]), false, nil},
-		{"subslice limited from end", args{rowsByTime, RowMarker{Time: 2}, RowMarker{Time: 7}, true, 2}, reverse(rows[4:6]), true, nil},
+		{"subslice full from end", args{rowsByTime, RowMarker{Time: 7}, RowMarker{Time: 2}, true, 10}, reverse(rows[2:6]), false, nil},
+		{"subslice limited from end", args{rowsByTime, RowMarker{Time: 7}, RowMarker{Time: 2}, true, 2}, reverse(rows[4:6]), true, nil},
 		{"slice full", args{rowsByTime, RowMarker{Time: 0}, RowMarker{Time: 10}, false, 10}, rows, false, nil},
 		{"slice full limited", args{rowsByTime, RowMarker{Time: -1}, RowMarker{Time: -1}, false, 2}, []tsSelectRow{}, false, nil},
 		{"slice full", args{rowsByTime, RowMarker{}, RowMarker{}, false, 10}, rows, false, nil},
