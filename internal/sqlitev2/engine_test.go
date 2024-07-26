@@ -1079,3 +1079,14 @@ func Test_Prepare(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1), id)
 }
+
+func Test_Engine_Close(t *testing.T) {
+	eng := createEngMaster(t, testEngineOptions{
+		prefix: t.TempDir(),
+		dbFile: "db",
+		create: true,
+		applyF: nil,
+	})
+	eng.mustCloseGoodEngine(t)
+	eng.mustCloseErrorEngine(t, ErrAlreadyClosed)
+}

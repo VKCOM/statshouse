@@ -66,13 +66,13 @@ func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
 func (e *eng) mustCloseGoodEngine(t *testing.T) {
 	require.NoError(t, e.engine.rw.conn.connError)
 	require.NoError(t, e.engine.Close())
-	require.ErrorIs(t, e.engine.rw.conn.connError, errAlreadyClosed)
+	require.ErrorIs(t, e.engine.rw.conn.connError, ErrAlreadyClosed)
 }
 
 func (e *eng) mustCloseErrorEngine(t *testing.T, err error) {
 	require.ErrorIs(t, e.engine.rw.conn.connError, err)
 	require.ErrorIs(t, e.engine.Close(), err)
-	require.ErrorIs(t, e.engine.rw.conn.connError, errAlreadyClosed)
+	require.ErrorIs(t, e.engine.rw.conn.connError, ErrAlreadyClosed)
 }
 
 func applyKV(conn Conn, bytes []byte) (read int, err error) {

@@ -482,6 +482,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDDiskUsage: {
 		Name:        BuiltinMetricNameDiskUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Disk space utilization",
 		Tags: []MetricMetaTag{
 			{

@@ -68,6 +68,8 @@ type (
 		nextLogTime time.Time
 
 		waitDbOffsetPool *waitpool.WaitPool
+
+		closeOnce sync.Once
 	}
 
 	Options struct {
@@ -321,7 +323,6 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), snapshotMeta, controlMeta, false, e.binlogEngine))
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	e.binlog = nil
 	if err != nil {
 		e.readyNotify.Do(func() {
 			e.readyCh <- err
@@ -642,7 +643,12 @@ func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 }
 
 func (e *Engine) Close() error {
-	return e.close(e.binlog != nil)
+	var err = ErrAlreadyClosed
+	e.closeOnce.Do(func() {
+		err = e.close(e.binlog != nil)
+	})
+	return err
+
 }
 
 func (e *Engine) close(waitCommitBinlog bool) error {

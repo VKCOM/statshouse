@@ -9,7 +9,7 @@ import (
 
 var (
 	AvoidUnsafe      = false // In the case of some bags
-	errAlreadyClosed = errors.New("sqlite-engine: already closed")
+	ErrAlreadyClosed = errors.New("sqlite-engine: already closed")
 	errReadOnly      = errors.New("sqlite-engine: engine is readonly")
 	errEngineBroken  = errors.New("sqlite-engine: engine is broken")
 	errEnginePanic   = errors.New("sqlite-engine: engine in panic")

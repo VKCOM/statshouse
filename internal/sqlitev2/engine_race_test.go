@@ -271,12 +271,12 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, engineMaster.Close())
 	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, nil)
 	c := 0
-	_, err := engineMaster.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	_, err := engineMaster.ViewTx(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++
 		}
-		return cache, nil
+		return nil
 	})
 	require.NoError(t, err)
 	require.Greater(t, c, 0, "no data in replica")
