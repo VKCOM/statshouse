@@ -127,47 +127,49 @@ func (h *Handler) HandlePromSeriesQuery(w http.ResponseWriter, r *http.Request) 
 		promRespondError(w, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
 		return
 	}
-	namespace := r.Header.Get("X-StatsHouse-Namespace")
-	var prefix string
-	switch namespace {
-	case "", "__default":
-		// no prefix
-	default:
-		prefix = namespace + format.NamespaceSeparator
+	start, err := parseTime(r.FormValue("start"))
+	if err != nil {
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		return
 	}
+	end, err := parseTime(r.FormValue("end"))
+	if err != nil {
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		return
+	}
+	if start < end-300 {
+		start = end - 300
+	}
+	end++ // handler expects half open interval [start, end)
 	var res []labels.Labels
-	if start, end := r.Form["start"], r.Form["end"]; len(start) >= 1 && len(end) >= 1 {
-		for _, expr := range match {
-			if ast, err := parser.ParseExpr(expr); err == nil {
-				parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
-					if sel, ok := node.(*parser.VectorSelector); ok {
-						for _, matcher := range sel.LabelMatchers {
-							if matcher.Name == labels.MetricName {
-								if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
-									for _, tag := range meta.Tags {
-										if tag.Name != "" { // query tags with custom name only
-											if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
-												version:             Version2,
-												ai:                  ai,
-												metricWithNamespace: meta.Name,
-												tagID:               format.TagID(tag.Index),
-												from:                start[0],
-												to:                  end[0],
-											}); s != nil {
-												for _, v := range s.TagValues {
-													res = append(res, labels.Labels{labels.Label{Name: tag.Name, Value: v.Value}})
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					return nil
+	for _, expr := range match {
+		func() {
+			val, cancel, err := h.promEngine.Exec(
+				withAccessInfo(r.Context(), &ai),
+				promql.Query{
+					Start: start,
+					End:   end,
+					Expr:  expr,
+					Options: promql.Options{
+						Limit:     1000,
+						Mode:      data_model.TagsQuery,
+						Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+					},
 				})
+			if err != nil {
+				return
 			}
-		}
+			defer cancel()
+			if ts, _ := val.(*promql.TimeSeries); ts != nil {
+				for _, series := range ts.Series.Data {
+					var tags labels.Labels
+					for _, v := range series.Tags.ID2Tag {
+						tags = append(tags, labels.Label{Name: v.GetName(), Value: v.SValue})
+					}
+					res = append(res, tags)
+				}
+			}
+		}()
 	}
 	promRespond(w, res)
 }
@@ -190,8 +192,9 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 	tagName := mux.Vars(r)["name"]
 	if tagName == "__name__" {
 		for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-			if ai.CanViewMetric(*meta) {
-				res = append(res, strings.TrimPrefix(meta.Name, prefix))
+			trimmed := strings.TrimPrefix(meta.Name, prefix)
+			if meta.Name != trimmed && ai.CanViewMetric(*meta) {
+				res = append(res, trimmed)
 			}
 		}
 	} else {
@@ -202,37 +205,47 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		}
 		if tagName != "" {
 			_ = r.ParseForm()
-			start, end := r.Form["start"], r.Form["end"]
-			if len(start) >= 1 && len(end) >= 1 {
-				for _, expr := range r.Form["match[]"] {
-					if ast, err := parser.ParseExpr(expr); err == nil {
-						parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
-							if sel, ok := node.(*parser.VectorSelector); ok {
-								for _, matcher := range sel.LabelMatchers {
-									if matcher.Name == labels.MetricName {
-										if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
-											if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
-												if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
-													version:             Version2,
-													ai:                  ai,
-													metricWithNamespace: meta.Name,
-													tagID:               format.TagID(tag.Index),
-													from:                start[0],
-													to:                  end[0],
-												}); s != nil {
-													for _, v := range s.TagValues {
-														res = append(res, v.Value)
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-							return nil
+			start, err := parseTime(r.FormValue("start"))
+			if err != nil {
+				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+				return
+			}
+			end, err := parseTime(r.FormValue("end"))
+			if err != nil {
+				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+				return
+			}
+			if start < end-300 {
+				start = end - 300
+			}
+			end++ // handler expects half open interval [start, end)
+			for _, expr := range r.Form["match[]"] {
+				func() {
+					val, cancel, err := h.promEngine.Exec(
+						withAccessInfo(r.Context(), &ai),
+						promql.Query{
+							Start: start,
+							End:   end,
+							Expr:  expr,
+							Options: promql.Options{
+								Limit:     1000,
+								Mode:      data_model.TagsQuery,
+								GroupBy:   []string{tagName},
+								Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+							},
 						})
+					if err != nil {
+						return
 					}
-				}
+					defer cancel()
+					if ts, _ := val.(*promql.TimeSeries); ts != nil {
+						for _, series := range ts.Series.Data {
+							if v, _ := series.Tags.Get(tagName); v != nil && v.SValue != "" {
+								res = append(res, v.SValue)
+							}
+						}
+					}
+				}()
 			}
 		}
 	}
@@ -401,7 +414,14 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
-	pointQuery := qry.Options.Mode == data_model.PointQuery
+	var valueQuery bool
+	var pointQuery bool
+	switch qry.Options.Mode {
+	case data_model.RangeQuery, data_model.InstantQuery:
+		valueQuery = true
+	case data_model.PointQuery:
+		pointQuery = true
+	}
 	if pointQuery {
 		for _, what := range qry.Whats {
 			switch what.Digest {
@@ -530,25 +550,27 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					for j := 0; j < len(data[i]); j++ {
 						x, ok := tagX[data[i][j].tsTags]
 						if !ok {
-							x = len(res.Data)
+							x = len(tagX)
 							tagX[data[i][j].tsTags] = x
-							for _, fn := range args.what {
-								v := h.Alloc(len(qry.Timescale.Time))
-								buffers = append(buffers, v)
-								for y := range *v {
-									(*v)[y] = promql.NilValue
-								}
-								var h [2][]int32
-								for z, qryHost := range qry.MinMaxHost {
-									if qryHost {
-										h[z] = make([]int32, len(qry.Timescale.Time))
+							if valueQuery {
+								for _, fn := range args.what {
+									v := h.Alloc(len(qry.Timescale.Time))
+									buffers = append(buffers, v)
+									for y := range *v {
+										(*v)[y] = promql.NilValue
 									}
+									var h [2][]int32
+									for z, qryHost := range qry.MinMaxHost {
+										if qryHost {
+											h[z] = make([]int32, len(qry.Timescale.Time))
+										}
+									}
+									res.Data = append(res.Data, promql.SeriesData{
+										Values:     v,
+										MinMaxHost: h,
+										What:       fn.sel,
+									})
 								}
-								res.Data = append(res.Data, promql.SeriesData{
-									Values:     v,
-									MinMaxHost: h,
-									What:       fn.sel,
-								})
 							}
 						}
 						k, err := lod.IndexOf(data[i][j].time)
@@ -556,11 +578,13 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							return promql.Series{}, nil, err
 						}
 						k += tx
-						for y, what := range args.what {
-							(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
-							for z, qryHost := range qry.MinMaxHost {
-								if qryHost {
-									res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
+						if valueQuery {
+							for y, what := range args.what {
+								(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
+								for z, qryHost := range qry.MinMaxHost {
+									if qryHost {
+										res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
+									}
 								}
 							}
 						}
@@ -568,6 +592,9 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				}
 				tx += len(data)
 			}
+		}
+		if qry.Options.Mode == data_model.TagsQuery {
+			res.Data = make([]promql.SeriesData, len(args.what)*len(tagX))
 		}
 		tagWhat := len(qry.Whats) > 1 || qry.Options.TagWhat
 		for i, what := range args.what {

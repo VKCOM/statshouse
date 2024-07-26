@@ -53,6 +53,7 @@ const (
 	RangeQuery QueryMode = iota
 	InstantQuery
 	PointQuery
+	TagsQuery
 )
 
 type Timescale struct {

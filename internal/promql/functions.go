@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -195,6 +196,9 @@ func funcDropEmptySeries(ev *evaluator, expr *parser.AggregateExpr) ([]Series, e
 }
 
 func (ev *evaluator) removeEmptySeries(srs []Series) {
+	if ev.opt.Mode == data_model.TagsQuery {
+		return
+	}
 	if ev.t.ViewStartX == ev.t.ViewEndX {
 		return
 	}
@@ -204,6 +208,9 @@ func (ev *evaluator) removeEmptySeries(srs []Series) {
 }
 
 func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
+	if ev.opt.Mode == data_model.TagsQuery {
+		return
+	}
 	if ev.t.ViewStartX == ev.t.ViewEndX {
 		return
 	}
