@@ -68,6 +68,7 @@ type Options struct {
 	QuerySequential  bool
 	Compat           bool // Prometheus compatibilty mode
 	Offsets          []int64
+	GroupBy          []string
 	Limit            int
 	Rand             *rand.Rand
 	Vars             map[string]Variable
@@ -245,8 +246,11 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 			} else {
 				e.Offsets = []int64{e.OriginalOffset}
 			}
-			if err = ev.bindVariables(e); err == nil {
-				err = ev.matchMetrics(e, path)
+			if err = ev.bindVariables(e); err != nil {
+				return err
+			}
+			if err = ev.matchMetrics(e, path); err != nil {
+				return err
 			}
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
@@ -512,12 +516,14 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 			}
 		}
 		for ; i < end; i++ {
-			// trim time outside [startX:endX]
-			vs := (*sr.Data[i].Values)[startX:endX]
-			sr.Data[i].Values = &vs
-			for j := range sr.Data[i].MinMaxHost {
-				if len(sr.Data[i].MinMaxHost[j]) != 0 {
-					sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][startX:endX]
+			if sr.Data[i].Values != nil {
+				// trim time outside [startX:endX]
+				vs := (*sr.Data[i].Values)[startX:endX]
+				sr.Data[i].Values = &vs
+				for j := range sr.Data[i].MinMaxHost {
+					if len(sr.Data[i].MinMaxHost[j]) != 0 {
+						sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][startX:endX]
+					}
 				}
 			}
 			res.Series.appendSome(sr, i)
@@ -790,7 +796,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 							rhs.Data[rhsX].What = SelectorWhat{}
 						}
 						for _, v := range expr.VectorMatching.Include {
-							if tag, ok := lhs.Data[lhsMt.x].Tags.get(v); ok {
+							if tag, ok := lhs.Data[lhsMt.x].Tags.Get(v); ok {
 								rhs.AddTagAt(rhsX, tag)
 							}
 						}
@@ -933,6 +939,19 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 
 func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err error) {
 	res := make([]Series, len(ev.opt.Offsets))
+	if len(sel.MatchingMetrics) > 1 && ev.opt.Mode == data_model.TagsQuery {
+		for i := range res {
+			res[i].Data = make([]SeriesData, len(sel.MatchingMetrics))
+			for j, m := range sel.MatchingMetrics {
+				res[i].AddTagAt(j, &SeriesTag{
+					Metric: m,
+					ID:     labels.MetricName,
+					SValue: m.Name,
+				})
+			}
+		}
+		return res, nil
+	}
 	run := func(j int, mu *sync.Mutex) error {
 		var locked bool
 		if mu != nil {
@@ -1070,7 +1089,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			groupBy = append(groupBy, format.TagID(t.Index))
 		}
 	)
-	if sel.GroupByAll {
+	if len(ev.opt.GroupBy) != 0 {
+		groupBy = ev.opt.GroupBy
+	} else if sel.GroupByAll {
 		if !sel.GroupWithout {
 			for _, t := range metric.Tags {
 				if len(t.Name) != 0 {

@@ -223,7 +223,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	for _, xs := range m {
 		buckets := make([]bucket, 0, len(sr.Meta.Metric.HistorgamBuckets))
 		for _, x := range xs {
-			if t, ok := sr.Data[x].Tags.get(labels.BucketLabel); ok {
+			if t, ok := sr.Data[x].Tags.Get(labels.BucketLabel); ok {
 				var le float32
 				if t.stringified {
 					var v float64
@@ -346,6 +346,14 @@ func (tg *SeriesTag) setSValue(v string) {
 	tg.stringified = true
 }
 
+func (tg *SeriesTag) GetName() string {
+	if tg.Name != "" {
+		return tg.Name
+	} else {
+		return tg.ID
+	}
+}
+
 func (tgs *SeriesTags) add(tg *SeriesTag, mt *SeriesMeta) {
 	if len(tg.SValue) == 0 && tg.stringified {
 		// setting empty string value removes tag
@@ -379,7 +387,7 @@ func (tgs *SeriesTags) add(tg *SeriesTag, mt *SeriesMeta) {
 	tgs.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
 }
 
-func (tgs *SeriesTags) get(id string) (*SeriesTag, bool) {
+func (tgs *SeriesTags) Get(id string) (*SeriesTag, bool) {
 	if tgs.ID2Tag == nil {
 		return nil, false
 	}
@@ -394,7 +402,7 @@ func (tgs *SeriesTags) get(id string) (*SeriesTag, bool) {
 }
 
 func (t *SeriesTags) gets(ev *evaluator, id string) (*SeriesTag, bool) {
-	if res, ok := t.get(id); ok {
+	if res, ok := t.Get(id); ok {
 		res.stringify(ev)
 		t.hashSumValid = false
 		return res, true
@@ -695,7 +703,7 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 	sort.Strings(ht.used)
 	buf := make([]byte, 4)
 	for _, v := range ht.used {
-		t, ok := tgs.get(v)
+		t, ok := tgs.Get(v)
 		if !ok {
 			continue
 		}
