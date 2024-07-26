@@ -71,7 +71,7 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 		BuildCommitTs:   s.agent.commitTimestamp,
 		QueueSizeDisk:   math.MaxInt32,
 		QueueSizeMemory: math.MaxInt32,
-		OriginalSize:    int32(binary.LittleEndian.Uint32(cbd.data)),
+		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
 		CompressedData:  cbd.data[4:],
 	}
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
