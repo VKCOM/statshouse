@@ -10,6 +10,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/zeebo/xxh3"
 
@@ -19,8 +22,15 @@ import (
 
 type SnapshotHeader = tlbarsic.SnapshotHeader
 type SnapshotDependency = tlbarsic.SnapshotDependency
+type SnapshotExternalFile = tlbarsic.SnapshotExternalFile
 
 var ErrHeaderCorrupted = fmt.Errorf("snapshot header corrupted")
+var ErrInvalidName = fmt.Errorf("invalid name format")
+
+const (
+	SnapshotExt = ".snap"
+	TimeLayout  = "2006-01-02T15-04-05"
+)
 
 const (
 	snapMagicSize      = 4
@@ -89,4 +99,50 @@ func hashFromBytes(r []byte) xxh3.Uint128 {
 	result.Hi = binary.BigEndian.Uint64(r)
 	result.Lo = binary.BigEndian.Uint64(r[8:])
 	return result
+}
+
+func CanonicalSnapshotName(clusterId string, shardId string, payloadOffset int64, t time.Time) string {
+	return CanonicalSnapshotNameNoExt(clusterId, shardId, payloadOffset, t) + SnapshotExt
+}
+
+func CanonicalSnapshotNameNoExt(clusterId string, shardId string, payloadOffset int64, t time.Time) string {
+	return fmt.Sprintf("%s_%s.%015d.%s", clusterId, shardId, payloadOffset, t.Format(TimeLayout))
+}
+
+func ExtractDataFromName(name string) (prefix string, payloadOffset int64, t time.Time, ext string, err error) {
+	var (
+		pos int
+	)
+
+	if pos = strings.Index(name, "."); pos == -1 {
+		return prefix, payloadOffset, t, ext, ErrInvalidName
+	}
+
+	prefix = name[:pos]
+	name = name[pos+1:]
+
+	if pos = strings.Index(name, "."); pos == -1 {
+		return prefix, payloadOffset, t, ext, err
+	}
+
+	if payloadOffset, err = strconv.ParseInt(name[:pos], 10, 64); err != nil {
+		return prefix, payloadOffset, t, ext, err
+	}
+
+	name = name[pos+1:]
+	pos = strings.Index(name, ".")
+
+	if pos == -1 {
+		if t, err = time.Parse(TimeLayout, name); err != nil {
+			return prefix, payloadOffset, t, ext, err
+		}
+	} else {
+		if t, err = time.Parse(TimeLayout, name[:pos]); err != nil {
+			return prefix, payloadOffset, t, ext, err
+		}
+
+		ext = name[pos+1:]
+	}
+
+	return prefix, payloadOffset, t, ext, nil
 }

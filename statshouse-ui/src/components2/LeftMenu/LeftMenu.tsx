@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { addPlotByUrl, PlotInfo, PlotKey, setUrlStore, UserStore } from 'store2';
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -17,12 +16,15 @@ import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg
 // import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import css from './style.module.css';
 import { LeftMenuItem } from './LeftMenuItem';
-import { Link, To, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { globalSettings } from 'common/settings';
 import cn from 'classnames';
-import { type Theme, THEMES, toTheme } from 'store';
+import { setDevEnabled, setTheme, THEMES, toTheme, useStore, useStoreDev, useThemeStore } from 'store';
 import { getClipboard } from '../../common/helpers';
 import { MetricName } from '../Plot';
+import { useStatsHouseShallow } from 'store2';
+import { addPlotByUrl } from '../../store2/helpers';
+import { produce } from 'immer';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -30,54 +32,64 @@ const themeIcon = {
   [THEMES.Auto]: SVGCircleHalf,
 };
 
-export type LeftMenuProps = {
-  plots: Partial<Record<PlotKey, PlotInfo>>;
-  orderPlot: PlotKey[];
-  tabNum: PlotKey;
-  user: UserStore;
-  devEnabled?: boolean;
-  toggleDevEnabled?: () => void;
-  theme?: Theme;
-  setTheme?: (theme: Theme) => void;
-  resetTheme?: () => void;
-  dashboardLink?: To;
-  addLink?: To;
-  promqltestfailed?: boolean;
+const toggleDevEnabled = () => {
+  setDevEnabled((s) => !s);
 };
-export function LeftMenu({
-  plots,
-  orderPlot,
-  tabNum,
-  user,
-  devEnabled = false,
-  toggleDevEnabled,
-  theme = THEMES.Light,
-  setTheme,
-  resetTheme,
-  dashboardLink,
-  addLink,
-  promqltestfailed = false,
-}: LeftMenuProps) {
+
+export type LeftMenuProps = {
+  className?: string;
+};
+export function LeftMenu({ className }: LeftMenuProps) {
   const location = useLocation();
+  const devEnabled = useStoreDev((s) => s.enabled);
+  const theme = useThemeStore((s) => s.theme);
+  const {
+    tabNum,
+    setUrlStore,
+    user,
+    paramsTheme,
+    dashboardLink,
+    orderPlot,
+    addLink,
+    plotsLink,
+    plotsData,
+    promqltestfailed,
+  } = useStatsHouseShallow(
+    ({
+      params: { theme, tabNum, orderPlot },
+      plotsData,
+      setUrlStore,
+      user,
+      links: { dashboardLink, addLink, plotsLink },
+    }) => ({
+      tabNum,
+      setUrlStore,
+      user,
+      paramsTheme: theme,
+      dashboardLink,
+      orderPlot,
+      addLink,
+      plotsLink,
+      plotsData,
+      promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
+    })
+  );
   const isView = location.pathname.indexOf('view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
   const isDash = tabNum === '-1' || tabNum === '-2';
-  const onSetTheme = useCallback(
-    (event: React.MouseEvent) => {
-      const value = toTheme(event.currentTarget.getAttribute('data-value'));
-      if (value) {
-        setTheme?.(value);
-      }
-    },
-    [setTheme]
-  );
+  const onSetTheme = useCallback((event: React.MouseEvent) => {
+    const value = toTheme(event.currentTarget.getAttribute('data-value'));
+    if (value) {
+      setTheme?.(value);
+    }
+  }, []);
   const refListMenuItemPlot = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     setTimeout(() => {
       refListMenuItemPlot.current?.querySelector('.' + css.active)?.scrollIntoView({ block: 'nearest' });
     }, 0);
-  }, [plots]);
+  }, []);
 
   const onPasteClipboard = useCallback(() => {
     getClipboard().then((url) => {
@@ -85,9 +97,16 @@ export function LeftMenu({
         state.params = addPlotByUrl(url, state.params);
       });
     });
+  }, [setUrlStore]);
+  const onResetTheme = useCallback(() => {
+    useStore.getState().setParams(
+      produce((p) => {
+        p.theme = undefined;
+      })
+    );
   }, []);
   return (
-    <ul className={css.leftMenu}>
+    <ul className={cn(css.leftMenu, className)}>
       <LeftMenuItem to="view" icon={SVGLightning} title="StatsHouse">
         <li className={css.splitter}></li>
         <li className={css.subItem}>
@@ -150,10 +169,10 @@ export function LeftMenu({
       </LeftMenuItem>
       <LeftMenuItem icon={themeIcon[theme] ?? SVGBrightnessHighFill} title="Theme">
         <li className={css.splitter}></li>
-        {!!resetTheme && (
+        {!!paramsTheme && (
           <>
             <li className={cn(css.subItem, ' bg-primary-subtle')}>
-              <span role="button" className={css.link} title="Reset url theme" onClick={resetTheme}>
+              <span role="button" className={css.link} title="Reset url theme" onClick={onResetTheme}>
                 Reset
               </span>
             </li>
@@ -221,9 +240,11 @@ export function LeftMenu({
             <LeftMenuItem
               key={plotKey}
               icon={SVGGraphUp}
-              to={plots[plotKey]?.link}
+              to={plotsLink[plotKey]?.link}
               active={isView && tabNum === plotKey}
-              title={<MetricName metricName={plots[plotKey]?.metricName} metricWhat={plots[plotKey]?.metricWhat} />}
+              title={
+                <MetricName metricName={plotsData[plotKey]?.metricName} metricWhat={plotsData[plotKey]?.metricWhat} />
+              }
             />
           ))}
         </ul>

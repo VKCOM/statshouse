@@ -199,26 +199,7 @@ func (ev *evaluator) removeEmptySeries(srs []Series) {
 		return
 	}
 	for i := 0; i < len(srs); i++ {
-		if srs[i].Meta.Total == 0 {
-			srs[i].Meta.Total = len(srs[i].Data)
-		}
-		for j := 0; j < len(srs[i].Data); {
-			var keep bool
-			for _, v := range (*srs[i].Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
-				if !math.IsNaN(v) {
-					keep = true
-					break
-				}
-			}
-			if keep {
-				j++
-			} else {
-				ev.free(srs[i].Data[j].Values)
-				srs[i].Data[j], srs[i].Data[len(srs[i].Data)-1] = srs[i].Data[len(srs[i].Data)-1], srs[i].Data[j]
-				srs[i].Data = srs[i].Data[:len(srs[i].Data)-1]
-				srs[i].Meta.Total--
-			}
-		}
+		srs[i].removeEmpty(ev)
 	}
 }
 
@@ -844,11 +825,21 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			res = make([]Series, 0, len(ev.opt.Offsets))
+			t := ev.time()
+			for _, v := range ev.opt.Offsets {
+				d := SeriesData{
+					Values: ev.alloc(),
+					Offset: v,
+				}
+				for i := range *d.Values {
+					(*d.Values)[i] = float64(t[i] - v)
+				}
+				res = append(res, Series{Data: []SeriesData{d}})
+			}
 		}
 		for i := range res {
-			if res[i].Data == nil {
-				res[i] = funcTime(ev, args)
-			}
 			for _, d := range res[i].Data {
 				for i, v := range *d.Values {
 					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.location)))
@@ -1443,9 +1434,12 @@ func funcRate(ev *evaluator, sr Series) Series {
 	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
 		for wnd.moveOneLeft() {
-			if 1 < wnd.n {
-				delta := (*s.Values)[wnd.r] - (*s.Values)[wnd.l]
-				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]))
+			if dt := t[wnd.r] - t[wnd.l] + wnd.s; dt != 0 {
+				dv := (*s.Values)[wnd.r]
+				if wnd.l > 0 {
+					dv -= (*s.Values)[wnd.l-1]
+				}
+				wnd.setValueAtRight(dv / float64(dt))
 			} else {
 				wnd.setValueAtRight(NilValue)
 			}

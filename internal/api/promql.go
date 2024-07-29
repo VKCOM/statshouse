@@ -115,31 +115,128 @@ func (h *Handler) HandleRangeQuery(w http.ResponseWriter, r *http.Request) {
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
+func (h *Handler) HandlePromSeriesQuery(w http.ResponseWriter, r *http.Request) {
+	ai, err := h.parseAccessToken(r, nil)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		return
+	}
+	_ = r.ParseForm()
+	match := r.Form["match[]"]
+	if len(match) == 0 {
+		promRespondError(w, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
+		return
+	}
+	namespace := r.Header.Get("X-StatsHouse-Namespace")
+	var prefix string
+	switch namespace {
+	case "", "__default":
+		// no prefix
+	default:
+		prefix = namespace + format.NamespaceSeparator
+	}
+	var res []labels.Labels
+	if start, end := r.Form["start"], r.Form["end"]; len(start) >= 1 && len(end) >= 1 {
+		for _, expr := range match {
+			if ast, err := parser.ParseExpr(expr); err == nil {
+				parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+					if sel, ok := node.(*parser.VectorSelector); ok {
+						for _, matcher := range sel.LabelMatchers {
+							if matcher.Name == labels.MetricName {
+								if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
+									for _, tag := range meta.Tags {
+										if tag.Name != "" { // query tags with custom name only
+											if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
+												version:             Version2,
+												ai:                  ai,
+												metricWithNamespace: meta.Name,
+												tagID:               format.TagID(tag.Index),
+												from:                start[0],
+												to:                  end[0],
+											}); s != nil {
+												for _, v := range s.TagValues {
+													res = append(res, labels.Labels{labels.Label{Name: tag.Name, Value: v.Value}})
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					return nil
+				})
+			}
+		}
+	}
+	promRespond(w, res)
+}
+
 func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Request) {
 	ai, err := h.parseAccessToken(r, nil)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
 		return
 	}
-
-	name := mux.Vars(r)["name"]
-	if name != "__name__" {
-		w.WriteHeader(http.StatusNoContent)
-		return
+	namespace := r.Header.Get("X-StatsHouse-Namespace")
+	var prefix string
+	switch namespace {
+	case "", "__default":
+		// no prefix
+	default:
+		prefix = namespace + format.NamespaceSeparator
 	}
-
-	s := make([]string, 0)
-	for _, m := range format.BuiltinMetrics {
-		if ai.CanViewMetric(*m) {
-			s = append(s, m.Name)
+	var res []string
+	tagName := mux.Vars(r)["name"]
+	if tagName == "__name__" {
+		for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+			if ai.CanViewMetric(*meta) {
+				res = append(res, strings.TrimPrefix(meta.Name, prefix))
+			}
+		}
+	} else {
+		if tagName != format.StringTopTagID {
+			// StatsHouse tags have numeric names (indices) but Grafana forbids them,
+			// allow "_" prefix to workaround
+			tagName = strings.TrimPrefix(tagName, "_")
+		}
+		if tagName != "" {
+			_ = r.ParseForm()
+			start, end := r.Form["start"], r.Form["end"]
+			if len(start) >= 1 && len(end) >= 1 {
+				for _, expr := range r.Form["match[]"] {
+					if ast, err := parser.ParseExpr(expr); err == nil {
+						parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+							if sel, ok := node.(*parser.VectorSelector); ok {
+								for _, matcher := range sel.LabelMatchers {
+									if matcher.Name == labels.MetricName {
+										if meta, _ := h.getMetricMeta(ai, prefix+matcher.Value); meta != nil {
+											if tag, ok, _ := meta.APICompatGetTag(tagName); ok {
+												if s, _, _ := h.handleGetMetricTagValues(r.Context(), getMetricTagValuesReq{
+													version:             Version2,
+													ai:                  ai,
+													metricWithNamespace: meta.Name,
+													tagID:               format.TagID(tag.Index),
+													from:                start[0],
+													to:                  end[0],
+												}); s != nil {
+													for _, v := range s.TagValues {
+														res = append(res, v.Value)
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+							return nil
+						})
+					}
+				}
+			}
 		}
 	}
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.CanViewMetric(*v) {
-			s = append(s, v.Name)
-		}
-	}
-	promRespond(w, s)
+	promRespond(w, res)
 }
 
 // region Request
@@ -741,7 +838,7 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-func getPromQuery(req seriesRequest) (string, error) {
+func (h *Handler) getPromQuery(req seriesRequest) (string, error) {
 	if len(req.promQL) != 0 {
 		return req.promQL, nil
 	}
@@ -763,8 +860,11 @@ func getPromQuery(req seriesRequest) (string, error) {
 	}
 	// filtering and grouping
 	var filterGroupBy []string
+	var m [1]*format.MetricMetaValue
+	matcher := labels.Matcher{Type: labels.MatchEqual, Value: req.metricWithNamespace}
+	copy(m[:], h.metricsStorage.MatchMetrics(&matcher, "", h.showInvisible, m[:0]))
 	if len(req.by) != 0 {
-		by, err := promqlGetBy(req.by)
+		by, err := promqlGetBy(req.by, m[0])
 		if err != nil {
 			return "", err
 		}
@@ -776,7 +876,8 @@ func getPromQuery(req seriesRequest) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v)))
+			tid = promqlTagName(tid, m[0])
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v, m[0])))
 		}
 	}
 	for t, out := range req.filterNotIn {
@@ -785,7 +886,8 @@ func getPromQuery(req seriesRequest) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v)))
+			tid = promqlTagName(tid, m[0])
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v, m[0])))
 		}
 	}
 	// generate resulting string
@@ -846,7 +948,7 @@ func getPromQuery(req seriesRequest) (string, error) {
 	return res, nil
 }
 
-func promqlGetBy(by []string) (string, error) {
+func promqlGetBy(by []string, m *format.MetricMetaValue) (string, error) {
 	var (
 		tags = make([]int, format.MaxTags)
 		skey bool
@@ -867,18 +969,25 @@ func promqlGetBy(by []string) (string, error) {
 	by = by[:0]
 	for i, v := range tags {
 		if v > 0 {
-			by = append(by, strconv.Itoa(i))
+			by = append(by, promqlTagNameAt(i, m))
 		}
 	}
 	if skey {
-		by = append(by, format.StringTopTagID)
+		by = append(by, promqlTagNameSTop(m))
 	}
 	return strings.Join(by, ","), nil
 }
 
-func promqlGetFilterValue(tagID string, s string) string {
+func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) string {
 	if tagID == format.StringTopTagID && s == format.TagValueCodeZero {
 		return ""
+	}
+	if m != nil {
+		if t := m.Name2Tag[tagID]; t.Raw && !t.IsMetric && !t.IsNamespace && !t.IsGroup && len(t.ValueComments) != 0 {
+			if v := t.ValueComments[s]; v != "" {
+				return v
+			}
+		}
 	}
 	return s
 }
@@ -888,4 +997,27 @@ func promqlEncodeSTagValue(s string) string {
 		return format.TagValueCodeZero
 	}
 	return s
+}
+
+func promqlTagName(tagID string, m *format.MetricMetaValue) string {
+	if m != nil {
+		if t := m.Name2Tag[tagID]; t.Name != "" {
+			return t.Name
+		}
+	}
+	return tagID
+}
+
+func promqlTagNameAt(tagX int, m *format.MetricMetaValue) string {
+	if m != nil && 0 <= tagX && tagX < len(m.Tags) && m.Tags[tagX].Name != "" {
+		return m.Tags[tagX].Name
+	}
+	return strconv.Itoa(tagX)
+}
+
+func promqlTagNameSTop(m *format.MetricMetaValue) string {
+	if m == nil || m.StringTopName == "" {
+		return format.StringTopTagID
+	}
+	return m.StringTopName
 }

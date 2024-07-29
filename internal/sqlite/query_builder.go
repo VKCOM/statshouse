@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 
@@ -50,8 +51,8 @@ func (p *queryBuilder) buildQueryLocked() ([]byte, error) {
 			i: i,
 		})
 	}
-	slices.SortFunc(p.paramsIndex, func(a, b indexedArg) bool {
-		return a.i < b.i
+	slices.SortFunc(p.paramsIndex, func(a, b indexedArg) int {
+		return cmp.Compare(a.i, b.i)
 	})
 	start := 0
 	for i, indexed := range p.paramsIndex {

@@ -202,6 +202,7 @@ const (
 	HostDCTag     = 11
 	HostGroupTag  = 12
 	HostRegionTag = 13
+	HostOwnerTag  = 14
 )
 
 func HardwareMetric(metricID int32) bool {
@@ -481,6 +482,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDDiskUsage: {
 		Name:        BuiltinMetricNameDiskUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Disk space utilization",
 		Tags: []MetricMetaTag{
 			{

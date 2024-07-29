@@ -21,6 +21,7 @@ type ConfigAggregatorRemote struct {
 	SampleNamespaces     bool
 	SampleGroups         bool
 	SampleKeys           bool
+	DenyOldAgents        bool
 }
 
 type ConfigAggregator struct {
@@ -73,6 +74,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			SampleNamespaces:     false,
 			SampleGroups:         false,
 			SampleKeys:           false,
+			DenyOldAgents:        true,
 		},
 	}
 }
@@ -85,6 +87,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
+		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
 	}
 }
 

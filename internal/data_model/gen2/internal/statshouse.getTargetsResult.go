@@ -45,7 +45,7 @@ func (item *StatshouseGetTargetsResult) Reset() {
 }
 
 func (item *StatshouseGetTargetsResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = BuiltinVectorStatshousePromTargetRead(w, &item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetRead(w, &item.Targets, nat_fields_mask); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringRead(w, &item.Hash); err != nil {
@@ -67,7 +67,7 @@ func (item *StatshouseGetTargetsResult) WriteGeneral(w []byte, nat_fields_mask u
 }
 
 func (item *StatshouseGetTargetsResult) Write(w []byte, nat_fields_mask uint32) []byte {
-	w = BuiltinVectorStatshousePromTargetWrite(w, item.Targets)
+	w = BuiltinVectorStatshousePromTargetWrite(w, item.Targets, nat_fields_mask)
 	w = basictl.StringWrite(w, item.Hash)
 	if nat_fields_mask&(1<<0) != 0 {
 		w = BuiltinVectorStringWrite(w, item.GaugeMetrics)
@@ -93,7 +93,7 @@ func (item *StatshouseGetTargetsResult) WriteBoxed(w []byte, nat_fields_mask uin
 }
 
 func (item *StatshouseGetTargetsResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
-	var propTargetsPresented bool
+	var rawTargets []byte
 	var propHashPresented bool
 	var propGaugeMetricsPresented bool
 
@@ -107,13 +107,13 @@ func (item *StatshouseGetTargetsResult) ReadJSON(legacyTypeNames bool, in *basic
 			in.WantColon()
 			switch key {
 			case "targets":
-				if propTargetsPresented {
+				if rawTargets != nil {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
 				}
-				if err := BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames, in, &item.Targets); err != nil {
-					return err
+				rawTargets = in.Raw()
+				if !in.Ok() {
+					return in.Error()
 				}
-				propTargetsPresented = true
 			case "hash":
 				if propHashPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "hash")
@@ -143,15 +143,21 @@ func (item *StatshouseGetTargetsResult) ReadJSON(legacyTypeNames bool, in *basic
 			return in.Error()
 		}
 	}
-	if !propTargetsPresented {
-		item.Targets = item.Targets[:0]
-	}
 	if !propHashPresented {
 		item.Hash = ""
 	}
 	if !propGaugeMetricsPresented {
 		item.GaugeMetrics = item.GaugeMetrics[:0]
 	}
+	var inTargetsPointer *basictl.JsonLexer
+	inTargets := basictl.JsonLexer{Data: rawTargets}
+	if rawTargets != nil {
+		inTargetsPointer = &inTargets
+	}
+	if err := BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames, inTargetsPointer, &item.Targets, nat_fields_mask); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -168,7 +174,7 @@ func (item *StatshouseGetTargetsResult) WriteJSONOpt(newTypeNames bool, short bo
 	backupIndexTargets := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"targets":`...)
-	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames, short, w, item.Targets)
+	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames, short, w, item.Targets, nat_fields_mask)
 	if (len(item.Targets) != 0) == false {
 		w = w[:backupIndexTargets]
 	}
@@ -219,7 +225,7 @@ func (item *StatshouseGetTargetsResultBytes) Reset() {
 }
 
 func (item *StatshouseGetTargetsResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = BuiltinVectorStatshousePromTargetBytesRead(w, &item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetBytesRead(w, &item.Targets, nat_fields_mask); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringReadBytes(w, &item.Hash); err != nil {
@@ -241,7 +247,7 @@ func (item *StatshouseGetTargetsResultBytes) WriteGeneral(w []byte, nat_fields_m
 }
 
 func (item *StatshouseGetTargetsResultBytes) Write(w []byte, nat_fields_mask uint32) []byte {
-	w = BuiltinVectorStatshousePromTargetBytesWrite(w, item.Targets)
+	w = BuiltinVectorStatshousePromTargetBytesWrite(w, item.Targets, nat_fields_mask)
 	w = basictl.StringWriteBytes(w, item.Hash)
 	if nat_fields_mask&(1<<0) != 0 {
 		w = BuiltinVectorStringBytesWrite(w, item.GaugeMetrics)
@@ -267,7 +273,7 @@ func (item *StatshouseGetTargetsResultBytes) WriteBoxed(w []byte, nat_fields_mas
 }
 
 func (item *StatshouseGetTargetsResultBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
-	var propTargetsPresented bool
+	var rawTargets []byte
 	var propHashPresented bool
 	var propGaugeMetricsPresented bool
 
@@ -281,13 +287,13 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSON(legacyTypeNames bool, in *
 			in.WantColon()
 			switch key {
 			case "targets":
-				if propTargetsPresented {
+				if rawTargets != nil {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
 				}
-				if err := BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames, in, &item.Targets); err != nil {
-					return err
+				rawTargets = in.Raw()
+				if !in.Ok() {
+					return in.Error()
 				}
-				propTargetsPresented = true
 			case "hash":
 				if propHashPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "hash")
@@ -317,15 +323,21 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSON(legacyTypeNames bool, in *
 			return in.Error()
 		}
 	}
-	if !propTargetsPresented {
-		item.Targets = item.Targets[:0]
-	}
 	if !propHashPresented {
 		item.Hash = item.Hash[:0]
 	}
 	if !propGaugeMetricsPresented {
 		item.GaugeMetrics = item.GaugeMetrics[:0]
 	}
+	var inTargetsPointer *basictl.JsonLexer
+	inTargets := basictl.JsonLexer{Data: rawTargets}
+	if rawTargets != nil {
+		inTargetsPointer = &inTargets
+	}
+	if err := BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames, inTargetsPointer, &item.Targets, nat_fields_mask); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -342,7 +354,7 @@ func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(newTypeNames bool, sho
 	backupIndexTargets := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"targets":`...)
-	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames, short, w, item.Targets)
+	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames, short, w, item.Targets, nat_fields_mask)
 	if (len(item.Targets) != 0) == false {
 		w = w[:backupIndexTargets]
 	}

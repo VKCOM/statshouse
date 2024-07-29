@@ -53,8 +53,6 @@ type HandlerContext struct {
 
 	RequestFunctionName string // Experimental. Generated handlers fill this during request processing.
 
-	hooksState ServerHookState // can be nil
-
 	commonConn HandlerContextConnection
 	reqTag     uint32 // actual request can be wrapped 0 or more times within reqHeader
 	reqTaken   int
@@ -97,16 +95,9 @@ func (hctx *HandlerContext) FillHandlerContextDoNotUse(
 	hctx.keyID = keyID
 	hctx.protocolVersion = protocolVersion
 	hctx.protocolTransport = protocolTransport
-	if options.Hooks != nil {
-		hctx.hooksState = options.Hooks()
-	}
 }
 
 func (hctx *HandlerContext) reset() {
-	if hctx.hooksState != nil {
-		hctx.hooksState.Reset()
-	}
-
 	// We do not preserve map in ResponseExtra because strings will not be reused anyway
 	// Also we do not reuse because client could possibly save slice/pointer
 	*hctx = HandlerContext{
@@ -120,7 +111,6 @@ func (hctx *HandlerContext) reset() {
 		keyID:             hctx.keyID,
 		protocolTransport: hctx.protocolTransport,
 		protocolVersion:   hctx.protocolVersion,
-		hooksState:        hctx.hooksState,
 	}
 }
 

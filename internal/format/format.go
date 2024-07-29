@@ -72,6 +72,9 @@ const (
 
 	NamespaceSeparator     = ":"
 	NamespaceSeparatorRune = ':'
+
+	// if more than 0 then agents with older commitTs will be declined
+	LeastAllowedAgentCommitTs = 0
 )
 
 // Do not change values, they are stored in DB
@@ -107,7 +110,6 @@ const (
 	LegacyStringTopTagID      = "skey"
 	legacyTagIDPrefix         = "key"
 	legacyEnvTagID            = legacyTagIDPrefix + "0"
-	legacyEnvTagName          = "env"
 	legacyMetricKindStringTop = "stop" // converted into counter during RestoreMetricInfo
 )
 
@@ -684,6 +686,10 @@ func TagID(i int) string {
 }
 
 func AllowedResolution(r int) int {
+	return allowedResolutionTable(r)
+}
+
+func allowedResolutionSwitch(r int) int {
 	// 60 must be divisible by allowed resolution
 	switch {
 	case r <= 1: // fast path
@@ -702,6 +708,19 @@ func AllowedResolution(r int) int {
 		return 30
 	}
 	return 60
+}
+
+const resolutionsTableStr = "\x01\x01\x02\x03\x04\x05\x06\x0a\x0a\x0a\x0a\x0c\x0c\x0f\x0f\x0f\x14\x14\x14\x14\x14\x1e\x1e\x1e\x1e\x1e\x1e\x1e\x1e\x1e\x1e\x3c"
+
+func allowedResolutionTable(r int) int {
+	if r < 0 {
+		return 1
+	}
+	if r >= len(resolutionsTableStr) {
+		return 60
+	}
+	// 60 must be divisible by allowed resolution
+	return int(resolutionsTableStr[r])
 }
 
 func isLetter(c byte) bool {

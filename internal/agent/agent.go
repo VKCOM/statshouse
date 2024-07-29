@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/env"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -39,13 +41,14 @@ type Agent struct {
 	Shards          []*Shard
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
 
-	diskCache *DiskBucketStorage
-	hostName  []byte
-	argsHash  int32
-	argsLen   int32
-	args      string
-	config    Config
-	logF      rpc.LoggerFunc
+	diskBucketCache *DiskBucketStorage
+	hostName        []byte
+	argsHash        int32
+	argsLen         int32
+	args            string
+	config          Config
+	logF            rpc.LoggerFunc
+	envLoader       *env.Loader
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
@@ -67,7 +70,8 @@ type Agent struct {
 	AggregatorReplicaKey int32
 	AggregatorHost       int32
 
-	beforeFlushBucketFunc func(s *Agent, now time.Time) // used by aggregator to add built-in metrics
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32) // used by aggregator to add built-in metrics
+	beforeFlushTime       uint32                         // changed exclusively by goFlusher
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -83,8 +87,15 @@ type Agent struct {
 
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
-	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
+	newClient := func() *rpc.Client {
+		return rpc.NewClient(
+			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithCryptoKey(aesPwd),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+			rpc.ClientWithLogf(logF))
+	}
+	rpcClient := newClient() // for autoconfig + first shard
 	rnd := rand.New()
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
@@ -104,6 +115,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
+		envLoader:             envLoader,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
@@ -128,36 +140,38 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
 	nowUnix := uint32(time.Now().Unix())
+	result.beforeFlushTime = nowUnix
+
 	result.startTimestamp = nowUnix
 	if storageDir != "" {
-		dc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
+		dbc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
 		if err != nil {
 			return nil, err
 		}
-		result.diskCache = dc
+		result.diskBucketCache = dbc
 	}
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
 		shard := &Shard{
-			config:                           config,
-			hardwareMetricResolutionResolved: atomic.NewInt32(int32(config.HardwareMetricResolution)),
-			agent:                            result,
-			ShardNum:                         i,
-			ShardKey:                         int32(i) + 1,
-			timeSpreadDelta:                  3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			CurrentTime:                      nowUnix,
-			FutureQueue:                      make([][]*data_model.MetricsBucket, 60),
-			BucketsToSend:                    make(chan compressedBucketDataOnDisk),
-			perm:                             rnd.Perm(data_model.AggregationShardsPerSecond),
+			config:          config,
+			agent:           result,
+			ShardNum:        i,
+			ShardKey:        int32(i) + 1,
+			timeSpreadDelta: 3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			addBuiltInsTime: nowUnix,
+			BucketsToSend:   make(chan compressedBucketDataOnDisk),
+			perm:            rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
-		shard.CurrentBuckets = make([][]*data_model.MetricsBucket, 61)
+		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		for r := range shard.CurrentBuckets {
 			if r != format.AllowedResolution(r) {
 				continue
 			}
-			bucketTime := (nowUnix / uint32(r)) * uint32(r)
+			ur := uint32(r)
+			bucketTime := (nowUnix / ur) * ur
 			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime})
+				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
+				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
@@ -166,11 +180,19 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
+		// TODO - make historic queue strict queue instead
 		for j := 0; j < data_model.MaxConveyorDelay*2; j++ {
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
 	}
 	for i, a := range config.AggregatorAddresses {
+		shardClient := rpcClient
+		if i != 0 {
+			// We want separate connection per shard even in case of ingress proxy,
+			// where many/all shards have the same address.
+			// So proxy can simply proxy packet conn, not rpc
+			shardClient = newClient()
+		}
 		shardReplica := &ShardReplica{
 			config:          config,
 			agent:           result,
@@ -179,7 +201,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			ReplicaKey:      int32(i%3) + 1,
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			client: tlstatshouse.Client{
-				Client:  rpcClient,
+				Client:  shardClient,
 				Network: network,
 				Address: a,
 				ActorID: 0,
@@ -217,7 +239,6 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 		go shardReplica.goTestConnectionLoop()
 	}
 	for _, shard := range s.Shards {
-
 		go shard.goPreProcess()
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
 			go shard.goSendRecent()
@@ -322,17 +343,27 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 }
 
 func (s *Agent) goFlusher() {
-	now := time.Now()
 	for { // TODO - quit
-		tick := time.After(data_model.TillStartOfNextSecond(now))
-		now = <-tick // We synchronize with calendar second boundary
-		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, now)
-		}
-		for _, shard := range s.Shards {
-			shard.flushBuckets(now)
-		}
+		time.Sleep(time.Millisecond * 100) // if flush queue was stuck on some shard for < second, we want to retry, so we get no missed seconds
+		s.goFlushIteration(time.Now())
 		s.updateConfigRemotelyExperimental()
+		// code below was used to test agent resilience to jitter
+		// if rand.Intn(30) == 0 {
+		//	time.Sleep(2 * time.Second)
+		// }
+	}
+}
+
+func (s *Agent) goFlushIteration(now time.Time) {
+	nowUnix := uint32(now.Unix())
+	if nowUnix > s.beforeFlushTime {
+		s.beforeFlushTime = nowUnix
+		if s.beforeFlushBucketFunc != nil {
+			s.beforeFlushBucketFunc(s, nowUnix) // account to the current second. This is debatable.
+		}
+	}
+	for _, shard := range s.Shards {
+		shard.flushBuckets(now)
 	}
 }
 
@@ -433,10 +464,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, 1)
 	}
 
-	// We do not check fields mask here, only fields values
-	if m.Ts != 0 { // sending 0 instead of manipulating field mask is more convenient for many clients
-		h.Key.Timestamp = m.Ts
-	}
+	// We do not check fields mask in code below, only fields values, because
+	// often sending 0 instead of manipulating field mask is more convenient for many clients
+
 	// Ignore metric kind and use all the info we have: this way people can continue
 	// using single metric as a "namespace" for "sub-metrics" of different kinds.
 	// The only thing we check is if percentiles are allowed. This is configured per metric.
@@ -604,11 +634,11 @@ func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
 }
 
 func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
-	if s.diskCache == nil {
+	if s.diskBucketCache == nil {
 		return 0, 0
 	}
 	for i := range s.ShardReplicas {
-		t, u := s.diskCache.TotalFileSize(i)
+		t, u := s.diskBucketCache.TotalFileSize(i)
 		total += t
 		unsent += u
 	}

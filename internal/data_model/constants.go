@@ -44,6 +44,12 @@ const (
 	AgentPercentileCompression      = 40 // TODO - will typically have 20-30 centroids for compression 40
 	AggregatorPercentileCompression = 80 // TODO - clickhouse has compression of 256 by default
 
+	// time between calendar second is finished and sending to aggregators starts
+	// so clients have this time after finishing second to send events to agent
+	// if they succeed, there is no sampling penalty.
+	// set to >300ms only after all libraries which send at 0.5 calendar second are updated
+	AgentWindow = 300 * time.Millisecond // must be < 1 seconds.
+
 	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
 	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
 	MaxHistoricWindow = 6 * 3600 // 1 day to send historic data, then drop. TODO - return to 86400 after ZK is faster and/or seconds table is partitioned by 12h
@@ -54,7 +60,7 @@ const (
 	MinCardinalityWindow = 300 // Our estimators GC depends on this not being too small
 	MinMaxCardinality    = 100
 
-	InsertBudgetFixed = 50000
+	InsertBudgetFixed = 300000
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors
 	// Also helps when # of contributors is very small
 
@@ -62,8 +68,6 @@ const (
 	InsertDelay          = 10 // Typical max
 
 	MaxConveyorDelay = MaxShortWindow + FutureWindow + InsertDelay + AgentAggregatorDelay
-
-	MaxMissedSecondsIntoContributors = 60 // If source sends more MissedSeconds, they will be truncated. Do not make large. We scan 4 arrays of this size on each insert.
 
 	AgentMappingTimeout1 = 10 * time.Second
 	AgentMappingTimeout2 = 30 * time.Second
@@ -95,6 +99,7 @@ const (
 
 	MappingMaxMetricsInQueue = 1000
 	MappingMaxMemCacheSize   = 2_000_000
+	MappingMaxDiskCacheSize  = 10_000_000
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
 	MappingNegativeCacheTTL  = 5 * time.Second
 	MappingMinInterval       = 1 * time.Millisecond
@@ -108,7 +113,21 @@ const (
 
 var ErrEntityNotExists = rpc.Error{
 	Code:        -1234,
-	Description: "entity doesn't exists",
+	Description: "Entity doesn't exists",
+}
+var ErrEntityExists = rpc.Error{
+	Code:        -1235,
+	Description: "Entity already exists",
+}
+
+var ErrEntityInvalidVersion = rpc.Error{
+	Code:        -1236,
+	Description: "Invalid version. Reload this page and try again",
+}
+
+var ErrRequestIsTooBig = rpc.Error{
+	Code:        -1237,
+	Description: "Entity is too big",
 }
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {

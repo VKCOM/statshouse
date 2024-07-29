@@ -25,23 +25,18 @@ var (
 // - returning from Wait/WaitAny when context.Context is Done() does not change state
 // - after Close(), Multi is in a terminal do-nothing state
 
-type callResult struct {
-	ok  *Response
-	err error
-}
-
 type callState struct {
 	pc   *clientConn
-	cctx *callContext
+	cctx *Response
 }
 
 type Multi struct {
 	c           *Client
 	sem         *semaphore.Weighted
 	mu          sync.Mutex
-	multiResult chan *callContext
+	multiResult chan *Response
 	calls       map[int64]callState
-	results     map[int64]callResult
+	results     map[int64]*Response
 	closed      bool
 	closeCh     chan struct{}
 }
@@ -51,9 +46,9 @@ func (c *Client) Multi(n int) *Multi {
 	return &Multi{
 		c:           c,
 		sem:         semaphore.NewWeighted(int64(n)),
-		multiResult: make(chan *callContext, n),
+		multiResult: make(chan *Response, n),
 		calls:       make(map[int64]callState, n),
-		results:     make(map[int64]callResult, n),
+		results:     make(map[int64]*Response, n),
 		closeCh:     make(chan struct{}),
 	}
 }
@@ -121,7 +116,7 @@ func (m *Multi) waitHasResult(queryID int64) (*Response, error, bool) {
 
 	if res, ok := m.results[queryID]; ok {
 		delete(m.results, queryID)
-		return res.ok, res.err, true
+		return res, res.err, true
 	}
 
 	if _, ok := m.calls[queryID]; !ok {
@@ -139,16 +134,14 @@ func (m *Multi) Wait(ctx context.Context, queryID int64) (*Response, error) {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case cs := <-m.multiResult: // got ownership of cctx
-			qID, resp, err := cs.queryID, cs.resp, cs.err
-			m.c.putCallContext(cs)
-
+			qID := cs.queryID
 			m.mu.Lock()
 			m.teardownCallStateLocked(qID)
 			if qID == queryID {
 				m.mu.Unlock()
-				return resp, err
+				return cs, cs.err
 			}
-			m.results[qID] = callResult{ok: resp, err: err}
+			m.results[qID] = cs
 			m.mu.Unlock()
 			continue
 		case <-m.closeCh:
@@ -167,7 +160,7 @@ func (m *Multi) waitAnyHasResult() (int64, *Response, error, bool) {
 
 	for queryID, res := range m.results {
 		delete(m.results, queryID)
-		return queryID, res.ok, res.err, true
+		return queryID, res, res.err, true
 	}
 
 	return 0, nil, nil, false
@@ -181,13 +174,11 @@ func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
 	case <-ctx.Done():
 		return 0, nil, ctx.Err()
 	case cs := <-m.multiResult:
-		qID, resp, err := cs.queryID, cs.resp, cs.err
-		m.c.putCallContext(cs)
-
+		qID := cs.queryID
 		m.mu.Lock()
 		m.teardownCallStateLocked(qID)
 		m.mu.Unlock()
-		return qID, resp, err
+		return qID, cs, cs.err
 	case <-m.closeCh:
 		return 0, nil, errMultiClosed
 	}

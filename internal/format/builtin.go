@@ -43,6 +43,7 @@ const (
 	BuiltinMetricIDAggHistoricBucketsWaiting  = -13
 	BuiltinMetricIDAggBucketAggregateTimeSec  = -14
 	BuiltinMetricIDAggActiveSenders           = -15
+	BuiltinMetricIDAggOutdatedAgents          = -16
 	BuiltinMetricIDAgentDiskCacheErrors       = -18
 	BuiltinMetricIDTimingErrors               = -20
 	BuiltinMetricIDAgentReceivedBatchSize     = -21
@@ -115,6 +116,8 @@ const (
 	BuiltinMetricIDAggScrapeTargetDiscovery   = -93
 	BuiltinMetricIDAggScrapeConfigHash        = -94
 	BuiltinMetricIDAggSamplingTime            = -95
+	BuiltinMetricIDAgentDiskCacheSize         = -96
+	BuiltinMetricIDAggContributors            = -97
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -141,6 +144,7 @@ const (
 	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
 	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
 	BuiltinMetricNameBudgetHost                 = "__budget_host"
+	BuiltinMetricNameBudgetOwner                = "__budget_owner"
 	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
@@ -192,15 +196,16 @@ const (
 	TagValueIDTimingLateRecent                      = 3
 	TagValueIDTimingLongWindowThrownAgent           = 4
 	TagValueIDTimingLongWindowThrownAggregator      = 5
-	TagValueIDTimingMissedSeconds                   = 6
+	TagValueIDTimingMissedSeconds                   = 6 // TODO - remove after everyone uses TagValueIDTimingMissedSecondsAgents
 	TagValueIDTimingLongWindowThrownAggregatorLater = 7
 	TagValueIDTimingDiskOverflowThrownAgent         = 8
+	TagValueIDTimingMissedSecondsAgent              = 9 // separate to prevent mix of old and new way to write missed seconds
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
 
 	TagValueIDSecondReal    = 1
-	TagValueIDSecondPhantom = 2
+	TagValueIDSecondPhantom = 2 // We do not add phantom seconds anymore
 
 	TagValueIDInsertTimeOK    = 1
 	TagValueIDInsertTimeError = 2
@@ -686,6 +691,25 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 				ValueComments: convertToValueComments(conveyorToValue),
 			}},
 		},
+		BuiltinMetricIDAggOutdatedAgents: {
+			Name:        "__agg_outdated_agents",
+			Kind:        MetricKindCounter,
+			Description: "Number of outdated agents.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "owner",
+			}, {
+				Description: "host",
+			}, {
+				Description: "remote_ip",
+				RawKind:     "ip",
+			}},
+		},
 		BuiltinMetricIDAgentDiskCacheErrors: {
 			Name:        "__src_disc_cache_errors",
 			Kind:        MetricKindCounter,
@@ -717,6 +741,7 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDTimingMissedSeconds:                   "missed_seconds",
 					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
 					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
+					TagValueIDTimingMissedSecondsAgent:              "missed_seconds_agent",
 				}),
 			}, {
 				Description: "-",
@@ -1157,6 +1182,8 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}, {
 				Description: "remote_ip",
 				RawKind:     "ip",
+			}, {
+				Description: "owner",
 			}},
 		},
 		BuiltinMetricIDHeartbeatArgs: {
@@ -1422,6 +1449,10 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				{
 					Description: "token-long",
 				},
+				{
+					Description: "shard", // metric % 16 for now, experimental
+					Raw:         true,
+				},
 			},
 		},
 		BuiltinMetricIDAPISourceSelectRows: {
@@ -1485,6 +1516,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        "__rpc_request_size",
 			Kind:        MetricKindValue,
 			Description: "Size of RPC request bodies.\nFor ingress proxy, key_id can be used to identify senders.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
 				ValueComments: convertToValueComments(componentToValue),
@@ -1828,7 +1860,7 @@ Value is delta between second value and time it was inserted.`,
 			Kind:                 MetricKindValue,
 			Description:          `Errors on the frontend.`,
 			StringTopDescription: "error_string",
-			Tags:                 []MetricMetaTag{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+			Tags:                 []MetricMetaTag{{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 		BuiltinMetricIDStatsHouseErrors: {
 			Name:                 BuiltinMetricNameStatsHouseErrors,
@@ -1918,6 +1950,31 @@ Value is delta between second value and time it was inserted.`,
 			}, {
 				Description:   "conveyor",
 				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDAgentDiskCacheSize: {
+			Name:        "__src_disk_cache_size",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: "Size of agent mapping cache",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}},
+		},
+		BuiltinMetricIDAggContributors: {
+			Name:        "__agg_contributors",
+			Kind:        MetricKindValue,
+			Description: "Number of contributors used to calculate sampling budget.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
 			}},
 		},
 	}
@@ -2169,7 +2226,6 @@ func init() {
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only
 	}
-	apiCompatTagID[legacyEnvTagName] = "0"
 	apiCompatTagID[StringTopTagID] = StringTopTagID
 	apiCompatTagID[LegacyStringTopTagID] = StringTopTagID
 	tagIDTag2TagID[TagIDShiftLegacy-1] = StringTopTagID
@@ -2211,6 +2267,7 @@ func init() {
 			m.Tags[HostDCTag] = MetricMetaTag{Description: "dc"}
 			m.Tags[HostGroupTag] = MetricMetaTag{Description: "group"}
 			m.Tags[HostRegionTag] = MetricMetaTag{Description: "region"}
+			m.Tags[HostOwnerTag] = MetricMetaTag{Description: "owner"}
 
 		}
 		if MetricsWithAgentEnvRouteArch[id] {

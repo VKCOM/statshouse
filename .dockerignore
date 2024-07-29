@@ -6,6 +6,8 @@
 !/build/*.xml
 !/build/*.sql
 !/build/*.sh
+!/build/statshouse_env.yml
+!/build/debian
 !/cmd
 !/internal
 !/go.mod

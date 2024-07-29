@@ -155,12 +155,8 @@ const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
-const maxResetLimit = 100_000
+const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
-
-var errInvalidMetricVersion = fmt.Errorf("invalid version")
-var errMetricIsExist = fmt.Errorf("entity is exists")
-var errNamespaceNotExists = fmt.Errorf("namespace doesn't exists")
 
 func OpenDB(
 	path string,
@@ -264,12 +260,7 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 			deletedAt, _ := rows.ColumnInt64(6)
 			namespaceID, _ := rows.ColumnInt64(7)
 			bytesRead += int64(len(data)) + 20
-			if bytesRead > metricBytesReadLimit {
-				break
-			}
-			if int64(len(result)) >= limit {
-				break
-			}
+
 			event := tlmetadata.Event{
 				Id:         id,
 				Name:       name,
@@ -281,6 +272,12 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 			}
 			event.SetNamespaceId(namespaceID)
 			result = append(result, event)
+			if bytesRead > metricBytesReadLimit {
+				break
+			}
+			if int64(len(result)) >= limit {
+				break
+			}
 		}
 		return cache, nil
 	})

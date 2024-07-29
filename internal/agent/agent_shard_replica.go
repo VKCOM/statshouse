@@ -71,7 +71,7 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 		BuildCommitTs:   s.agent.commitTimestamp,
 		QueueSizeDisk:   math.MaxInt32,
 		QueueSizeMemory: math.MaxInt32,
-		OriginalSize:    int32(binary.LittleEndian.Uint32(cbd.data)),
+		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
 		CompressedData:  cbd.data[4:],
 	}
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
@@ -107,6 +107,10 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 		args.SetQueueSizeMemorySum(int32(sizeMemSum))
 	} else {
 		args.SetQueueSizeMemorySum(math.MaxInt32)
+	}
+	if s.agent.envLoader != nil {
+		env := s.agent.envLoader.Load()
+		args.SetOwner([]byte(env.Owner))
 	}
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {

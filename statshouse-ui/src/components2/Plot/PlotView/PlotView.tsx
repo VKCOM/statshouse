@@ -1,22 +1,21 @@
 import React from 'react';
-import { PlotData, PlotInfo, PlotParams } from 'store2';
-import { PLOT_TYPE } from '../../../api/enum';
+import { PLOT_TYPE } from 'api/enum';
 import { PlotViewMetric } from './PlotViewMetric';
 import { PlotViewEvent } from './PlotViewEvent';
+import { PlotKey } from 'url2';
+import { useStatsHouse } from 'store2';
+
 export type PlotViewProps = {
-  plot?: PlotParams;
-  plotInfo?: PlotInfo;
-  plotData?: PlotData;
+  className?: string;
+  plotKey: PlotKey;
 };
-export function PlotView({ plot, plotInfo, plotData }: PlotViewProps) {
-  // if (!plot || !plotInfo || !plotData) {
-  //   return null;
-  // }
-  switch (plot?.type) {
+export function PlotView(props: PlotViewProps) {
+  const type = useStatsHouse((s) => s.params.plots[props.plotKey]?.type ?? PLOT_TYPE.Metric);
+  switch (type) {
     case PLOT_TYPE.Metric:
-      return <PlotViewMetric plot={plot} plotInfo={plotInfo} plotData={plotData}></PlotViewMetric>;
+      return <PlotViewMetric {...props}></PlotViewMetric>;
     case PLOT_TYPE.Event:
-      return <PlotViewEvent plot={plot} plotInfo={plotInfo} plotData={plotData}></PlotViewEvent>;
+      return <PlotViewEvent {...props}></PlotViewEvent>;
     default:
       return null;
   }

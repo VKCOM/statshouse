@@ -10,8 +10,10 @@ import (
 	"encoding/hex"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
 )
 
 func TestSimpleWriteRead(t *testing.T) {
@@ -88,4 +90,86 @@ ec35124bab940ca6bdaab3e114b6f84b1000000000000000000000001fc5
 	require.NoError(t, err)
 
 	require.Equal(t, hdrExpect, hdr)
+}
+
+func TestExtract(t *testing.T) {
+	t.Run("general", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			offset := rapid.Int64Min(0).Draw(t, "offset")
+			zone, err := time.LoadLocation("UTC")
+			require.NoError(t, err)
+			testTime := time.Unix(time.Now().Unix(), 0).In(zone)
+			name := CanonicalSnapshotName("kv_eng", "123_2000", offset, testTime)
+
+			_, offset2, time2, _, err := ExtractDataFromName(name)
+			require.NoError(t, err)
+			require.Equal(t, offset, offset2)
+			require.Equal(t, testTime, time2)
+		})
+	})
+
+	t.Run("extract with ext", func(t *testing.T) {
+		input := "kv_storage_0_1.000000016177280.2024-07-01T11-55-00.snap"
+
+		prefix, payloadOffset, time, ext, err := ExtractDataFromName(input)
+
+		require.NoError(t, err)
+		require.Equal(t, "kv_storage_0_1", prefix)
+		require.Equal(t, int64(16177280), payloadOffset)
+		require.Equal(t, int64(1719834900), time.Unix())
+		require.Equal(t, "snap", ext)
+	})
+
+	t.Run("extract with ext", func(t *testing.T) {
+		input := "kv_storage_0_1.000000016177280.2024-07-01T11-55-00.my.own.ext"
+
+		prefix, payloadOffset, createTime, ext, err := ExtractDataFromName(input)
+
+		require.NoError(t, err)
+		require.Equal(t, "kv_storage_0_1", prefix)
+		require.Equal(t, int64(16177280), payloadOffset)
+		require.Equal(t, int64(1719834900), createTime.Unix())
+		require.Equal(t, "my.own.ext", ext)
+	})
+
+	t.Run("extract without ext", func(t *testing.T) {
+		input := "kv_storage_0_1.000000016177280.2024-07-01T11-55-00"
+
+		prefix, payloadOffset, createTime, ext, err := ExtractDataFromName(input)
+
+		require.NoError(t, err)
+		require.Equal(t, "kv_storage_0_1", prefix)
+		require.Equal(t, int64(16177280), payloadOffset)
+		require.Equal(t, int64(1719834900), createTime.Unix())
+		require.Equal(t, "", ext)
+	})
+
+	t.Run("short", func(t *testing.T) {
+		input := "0161700"
+
+		_, _, _, _, err := ExtractDataFromName(input)
+
+		require.Error(t, err)
+		require.Equal(t, ErrInvalidName, err)
+	})
+
+	t.Run("bad data", func(t *testing.T) {
+		input := "dsijfs!#Y!&#$Ilkghl3hjk4rjhk3ytfi32342d2_32432"
+
+		_, _, _, _, err := ExtractDataFromName(input)
+
+		require.Error(t, err)
+	})
+}
+
+func BenchmarkExtract(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_, _, _, _, err := ExtractDataFromName("kv_storage_0_1.000000016177280.2024-07-01T11-55-00.snap")
+
+		if err != nil {
+			b.Error(err)
+		}
+	}
 }

@@ -72,6 +72,7 @@ import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
 import {
   decodeDashboardIdParam,
+  decodeDashboardVersionParam,
   decodeParams,
   encodeParams,
   fixMessageTrouble,
@@ -249,7 +250,7 @@ export type StatsHouseStore = {
   setPlotParamsTagGroupBy(indexPlot: number, tagKey: TagKey, nextState: React.SetStateAction<boolean>): void;
   setPlotType(indexPlot: number, nextState: React.SetStateAction<PlotType>): void;
   serverParamsAbortController?: AbortController;
-  loadServerParams(id: number): Promise<QueryParams>;
+  loadServerParams(id: number, v?: number | null): Promise<QueryParams>;
   saveServerParams(): Promise<QueryParams>;
   removeServerParams(): Promise<QueryParams>;
   saveDashboardParams?: QueryParams;
@@ -330,6 +331,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       const urlSearchParams = new URLSearchParams(document.location.search);
       const searchParams = [...urlSearchParams.entries()];
       const id = decodeDashboardIdParam(urlSearchParams);
+      const dashVersion = decodeDashboardVersionParam(urlSearchParams);
       if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
           state.params.plots = [];
@@ -338,7 +340,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           state.params.eventFrom = 0;
         });
       }
-      const saveParams = id ? await getState().loadServerParams(id) : undefined;
+      const saveParams = id ? await getState().loadServerParams(id, dashVersion) : undefined;
       const localDefaultParams: QueryParams = {
         ...(saveParams ?? getDefaultParams()),
         timeRange: {
@@ -781,10 +783,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       );
       const prev: PlotStore = getState().plotsData[index];
 
-      if (prev.error403) {
-        return;
-      }
-
       const deltaTime = Math.floor((prevStateTo - prevStateFrom) / 5);
       if (
         !usePlotVisibilityStore.getState().visibilityList[index] &&
@@ -807,6 +805,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         { metricName: lastPlotParams.metricName },
         { metricName: prev.lastPlotParams?.metricName }
       );
+      if (!changeMetric && prev.error403) {
+        return;
+      }
+
       const resetCache = !dequal(lastPlotParams, prev.lastPlotParams);
       if (
         width &&
@@ -1471,7 +1473,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       }
     },
     metricsListAbortController: undefined,
-    loadServerParams(id) {
+    loadServerParams(id, v) {
       return new Promise((resolve) => {
         const paramsLD = readJSONLD<QueryParams>('QueryParams');
         if (paramsLD?.dashboard?.dashboard_id && paramsLD.dashboard.dashboard_id === id) {
@@ -1484,7 +1486,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           return;
         }
         getState().setSaveDashboardParams(undefined);
-        const url = dashboardURL(id);
+        const url = dashboardURL(id, v);
         getState().serverParamsAbortController?.abort();
         const controller = new AbortController();
         setState((state) => {

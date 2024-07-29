@@ -218,7 +218,7 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x44c644b, annotations: 0x0, tlName: "fsbinlog.levStart"})
+	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x044c644b, annotations: 0x0, tlName: "fsbinlog.levStart"})
 	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms"})
 	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta"})
 }

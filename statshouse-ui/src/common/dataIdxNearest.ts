@@ -22,7 +22,7 @@ export function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: numbe
   const yCursor = self.cursor.top ?? 0;
   const yCursorValue = self.posToVal(yCursor, 'y');
   const timeLine = self.data[0] ?? [];
-  const onlyLines = self.data.slice(1);
+  const onlyLines = self.data.filter((l, indexLine) => self.series[indexLine].show).slice(1);
   const length = self.data[0]?.length ?? 0;
   const delta = Math.round(length * 0.02); //delta 2%;
   const deltaY = self.bbox.height * 0.01; //deltaY 1%;

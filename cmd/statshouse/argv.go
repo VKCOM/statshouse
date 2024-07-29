@@ -185,6 +185,7 @@ func argvAddIngressProxyFlags() {
 	flag.StringVar(&argv.configIngress.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
+	flag.IntVar(&argv.configIngress.ResponseMemoryLimit, "max-response-mem", rpc.DefaultResponseMemoryLimit, "Response memory limit")
 }
 
 func printVerbUsage() {

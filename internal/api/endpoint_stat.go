@@ -9,9 +9,11 @@ package api
 import (
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -51,12 +53,14 @@ type endpointStat struct {
 	protocol   int
 	method     string
 	dataFormat string
-	lane       string
-	metric     string
-	tokenName  string
-	user       string
-	priority   int
-	timings    ServerTimingHeader
+	// TODO: currently lane comes from the first query that sets it, it's non deterministic
+	lane      string
+	laneMutex sync.Mutex // we access lane from main and badges query
+	metric    string
+	tokenName string
+	user      string
+	priority  int
+	timings   ServerTimingHeader
 }
 
 func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
@@ -171,6 +175,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 			5: ok,
 			6: getStatTokenName(user),
 			7: user,
+			8: strconv.Itoa(int(uint32(metricID) % 16)), // experimental to see load distribution if we shard data by metricID
 		},
 	).Value(duration.Seconds())
 }

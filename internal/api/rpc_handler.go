@@ -61,6 +61,15 @@ func NewRpcHandler(
 	}
 }
 
+func (h *RPCHandler) statRpcTime(stat *endpointStat, err error, panicData any) {
+	if panicData != nil {
+		stat.reportServiceTime(rpc.TlErrorInternal, err)
+		panic(panicData)
+	} else {
+		stat.reportServiceTime(0, err)
+	}
+}
+
 func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerContext) error {
 	arg, qry, err := h.getPointQuery(hctx)
 	if err != nil {
@@ -69,7 +78,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 	var sr seriesResponse
 	defer func() {
 		log.Printf("POINT QUERY err=%v, res=%v", err, sr)
-		qry.stat.reportServiceTime(0, err)
+		h.statRpcTime(qry.stat, err, recover())
 	}()
 	var req seriesRequest
 	req, err = qry.toSeriesRequest(h)
@@ -116,7 +125,7 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		return err
 	}
 	defer func() {
-		qry.stat.reportServiceTime(0, err)
+		h.statRpcTime(qry.stat, err, recover())
 	}()
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
@@ -188,7 +197,7 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 	var err error
 	es := newEndpointStatRPC(endpointChunk, args.TLName())
 	defer func() {
-		es.reportServiceTime(0, err)
+		h.statRpcTime(es, err, recover())
 	}()
 
 	ai, err := h.parseAccessToken(args.AccessToken)
@@ -223,7 +232,7 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 	es := newEndpointStatRPC(endpointChunk, args.TLName())
 	ai, err := h.parseAccessToken(args.AccessToken)
 	defer func() {
-		es.reportServiceTime(0, err)
+		h.statRpcTime(es, err, recover())
 	}()
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}

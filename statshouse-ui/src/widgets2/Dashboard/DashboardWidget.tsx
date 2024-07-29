@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Dashboard,
   DashboardGroup,
@@ -9,57 +9,68 @@ import {
   PlotPanel,
   PlotView,
 } from 'components2';
-import { GroupKey, setUrlStore, usePlotsDataStore, usePlotsInfoStore, useUrlStore } from 'store2';
 import css from './style.module.css';
+import { PLOT_TYPE } from 'api/enum';
+import { Link } from 'react-router-dom';
+import { useStatsHouseShallow } from 'store2';
 
 export function DashboardWidget() {
-  const { groupPlots, orderGroup, plotsInfo } = usePlotsInfoStore();
-  const groups = useUrlStore((s) => s.params.groups);
-  const tabNum = useUrlStore((s) => s.params.tabNum);
-  const plots = useUrlStore((s) => s.params.plots);
-  const plotsData = usePlotsDataStore((s) => s.plotsData);
-  const toggleGroupShow = useCallback((groupKey: GroupKey) => {
-    setUrlStore((s) => {
-      const group = s.params.groups[groupKey];
-      if (group) {
-        group.show = !group.show;
-      }
-    });
-  }, []);
-  const activePlotInfo = useMemo(() => plotsInfo[tabNum], [plotsInfo, tabNum]);
+  const { groupPlots, params, plotsData, toggleGroupShow, plotsLink } = useStatsHouseShallow(
+    ({ groupPlots, params, plotsData, toggleGroupShow, links: { plotsLink } }) => ({
+      groupPlots,
+      params,
+      plotsData,
+      toggleGroupShow,
+      plotsLink,
+    })
+  );
+
+  const { tabNum, plots, groups, orderGroup } = params;
+
   const activePlot = useMemo(() => plots[tabNum], [plots, tabNum]);
   const activePlotData = useMemo(() => plotsData[tabNum], [plotsData, tabNum]);
-
-  return (
-    <Dashboard>
-      {orderGroup.map((groupKey) => (
-        <DashboardGroup key={groupKey} groupInfo={groups[groupKey]} toggleShow={toggleGroupShow}>
-          {groupPlots[groupKey]?.map((plotKey) => (
-            <DashboardPlot key={plotKey} plotInfo={plotsInfo[plotKey]}>
-              <PlotView plot={plots[plotKey]} plotInfo={plotsInfo[plotKey]} plotData={plotsData[plotKey]}></PlotView>
-              <PlotLegend></PlotLegend>
-            </DashboardPlot>
-          ))}
-        </DashboardGroup>
-      ))}
-      {+tabNum > -1 && (
-        <PlotPanel className={css.plotPanel}>
-          <div className={css.plotPanelLeft}>
-            <div className={css.plotPanelTop}>
-              <MetricName metricName={activePlotInfo?.metricName} metricWhat={activePlotInfo?.metricWhat} />
-            </div>
-            <div className={css.plotPanelMiddle}>
-              <PlotView plot={activePlot} plotInfo={activePlotInfo} plotData={activePlotData}></PlotView>
-            </div>
-            <div className={css.plotPanelBottom}>
-              <PlotLegend></PlotLegend>
-            </div>
-          </div>
-          <div className={css.plotPanelRight}>
-            <PlotControl plot={activePlot}></PlotControl>
-          </div>
-        </PlotPanel>
-      )}
-    </Dashboard>
-  );
+  // const activePlotsLink = useMemo(() => plotsLink[tabNum], [plotsLink, tabNum]);
+  return null;
+  // return (
+  // <Dashboard>
+  //   {orderGroup.map((groupKey) => (
+  //     <DashboardGroup key={groupKey} groupInfo={groups[groupKey]} toggleShow={toggleGroupShow}>
+  //       {groupPlots[groupKey]?.map((plotKey) => (
+  //         <DashboardPlot key={plotKey}>
+  //           <div className={css.dashboardPlotHeader}>
+  //             <Link to={plotsLink[plotKey]?.link ?? ''} className={css.dashboardPlotHeaderLink}>
+  //               <MetricName
+  //                 metricName={plotsData[plotKey]?.metricName}
+  //                 metricWhat={plotsData[plotKey]?.metricWhat}
+  //                 className={'flex-grow-1 w-0'}
+  //               ></MetricName>
+  //             </Link>
+  //           </div>
+  //
+  //           <PlotView className={css[`plotView_${plots[plotKey]?.type ?? '0'}`]} plotKey={plotKey}></PlotView>
+  //           <PlotLegend></PlotLegend>
+  //         </DashboardPlot>
+  //       ))}
+  //     </DashboardGroup>
+  //   ))}
+  //   {+tabNum > -1 && (
+  //     <PlotPanel className={css.plotPanel}>
+  //       <div className={css.plotPanelLeft}>
+  //         <div className={css.plotPanelTop}>
+  //           <MetricName metricName={activePlotData?.metricName} metricWhat={activePlotData?.metricWhat} />
+  //         </div>
+  //         <div className={css.plotPanelMiddle}>
+  //           <PlotView className={css.plotViewFull} plotKey={tabNum}></PlotView>
+  //         </div>
+  //         <div className={css.plotPanelBottom}>
+  //           {activePlot?.type === PLOT_TYPE.Metric && <PlotLegend></PlotLegend>}
+  //         </div>
+  //       </div>
+  //       <div className={css.plotPanelRight}>
+  //         <PlotControl className={css.plotControl} plot={activePlot}></PlotControl>
+  //       </div>
+  //     </PlotPanel>
+  //   )}
+  // </Dashboard>
+  // );
 }

@@ -23,22 +23,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	env2 "github.com/vkcom/statshouse/internal/env"
-	"github.com/vkcom/statshouse/internal/stats"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/vkcom/statshouse/internal/stats"
+	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 var (
@@ -266,6 +266,11 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
+	envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
+	if err != nil {
+		logErr.Printf("failed to start listen env file: %s", err.Error())
+	}
+	defer closeF()
 	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
@@ -275,17 +280,24 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		metricStorage,
 		dc,
 		log.Printf,
-		func(a *agent.Agent, t time.Time) {
+		func(a *agent.Agent, unixNow uint32) {
 			k := data_model.Key{
-				Timestamp: uint32(t.Unix()),
+				Timestamp: unixNow,
 				Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
 			}
 			for _, r := range receiversUDP {
 				v := float64(r.ReceiveBufferSize())
 				a.AddValueCounter(k, v, 1, nil)
 			}
+			if dc != nil {
+				s, err := dc.DiskSizeBytes()
+				if err == nil {
+					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, nil)
+				}
+			}
 		},
-		nil)
+		nil,
+		envLoader)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
@@ -395,6 +407,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_agent")
 	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
@@ -402,6 +415,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
+		metrics.ServerWithMetrics,
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
@@ -409,6 +423,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}))
 	}
 	srv := rpc.NewServer(options...)
+	defer metrics.Run(srv)()
 	defer func() { _ = srv.Close() }()
 	for _, ln := range listeners {
 		go serveRPC(ln, srv)
@@ -417,11 +432,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	// Run scrape
 	receiver.RunScrape(sh2, w)
 	if !argv.hardwareMetricScrapeDisable {
-		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
-		if err != nil {
-			logErr.Printf("failed to start listen env file: %s", err.Error())
-		}
-		defer closeF()
 		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, envLoader, logErr)
 		if err != nil {
 			logErr.Println("failed to init hardware collector", err.Error())
@@ -509,7 +519,7 @@ func mainIngressProxy(aesPwd string) {
 	// Run agent (we use agent instance for ingress proxy built-in metrics)
 	argv.configAgent.Cluster = argv.cluster
 	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
+		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil, nil)
 	if err != nil {
 		logErr.Fatalf("error creating Agent instance: %v", err)
 	}

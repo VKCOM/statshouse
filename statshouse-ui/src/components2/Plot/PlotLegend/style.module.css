@@ -1,8 +1,139 @@
-.plotLegend {
-  min-height: calc(var(--bs-body-line-height) + var(--bs-body-line-height));
+.legend {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    'Noto Sans',
+    sans-serif,
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    'Noto Color Emoji';
+  /*overflow: auto;*/
+  padding-bottom: 1em;
 }
 
-.plotLegendShort {
-  min-height: auto;
-  height: var(--bs-body-line-height);
+.innerLegend {
+  max-width: 100%;
+  line-height: 1.5;
+}
+
+.innerLegend th {
+  padding: 4px;
+  min-width: 9em;
+}
+
+.innerLegend td {
+  padding: 4px;
+}
+
+.hide th,
+.hide td,
+.hide.labelOuter {
+  opacity: 0.3;
+}
+
+.focus {
+  font-weight: bold;
+}
+
+.marker {
+  width: 1em;
+  height: 1em;
+  margin-right: 4px;
+}
+
+.labelOuter {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  cursor: pointer;
+}
+
+.compact .labelOuter {
+  width: auto;
+}
+
+.label {
+  flex-grow: 1;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.time .label {
+  min-width: 11em;
+  width: 3em;
+}
+
+.timeValue {
+  font-weight: normal;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.value {
+  text-align: end;
+  white-space: nowrap;
+  width: calc(var(--legend-value-width) + var(--legend-dot-space-width) + 2.3em);
+}
+
+.percent {
+  text-align: end;
+  white-space: nowrap;
+  width: var(--legend-percent-width);
+}
+
+.maxHost {
+  width: calc(var(--legend-max-host-width) + var(--legend-percent-width));
+  padding-bottom: 0 !important;
+  padding-top: 0 !important;
+}
+
+.maxHostPercent {
+  text-align: end;
+  white-space: nowrap;
+  width: var(--legend-percent-width);
+}
+
+.dotSpace {
+  display: inline-block;
+  text-align: start;
+  width: var(--legend-dot-space-width);
+  vertical-align: bottom;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+.percentSuffix .dotSpace {
+  width: calc(var(--legend-dot-space-width) + var(--legend-percent-suffix-width));
+}
+
+.labelCompact {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.innerLegendCompact {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  height: 1.5em;
+  overflow: hidden;
+}
+
+.innerLegendCompact .labelOuter {
+  margin-left: 4px;
+}
+
+.timeShift {
+  width: auto;
 }

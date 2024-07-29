@@ -57,7 +57,8 @@ type (
 	}
 
 	MetricsBucket struct {
-		Time uint32
+		Time       uint32
+		Resolution int // for tracking during testing. 0 is merge of all resolutions
 
 		MultiItems map[Key]*MultiItem
 	}

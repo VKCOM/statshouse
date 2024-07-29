@@ -431,6 +431,8 @@ type (
 		rowRepr RowMarker
 	}
 
+	queryTableRows []queryTableRow
+
 	QuerySeriesMeta struct {
 		TimeShift int64             `json:"time_shift"`
 		Tags      map[string]string `json:"tags"`
@@ -1113,7 +1115,7 @@ func (h *Handler) HandleGetPromConfigGenerated(w http.ResponseWriter, r *http.Re
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	s, err := aggregator.DeserializeScrapeStaticConfig([]byte(h.metricsStorage.PromConfigGenerated().Data))
+	s, err := aggregator.DeserializeScrapeConfig([]byte(h.metricsStorage.PromConfigGenerated().Data), nil)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -1479,7 +1481,7 @@ func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*Ge
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
+func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
 		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
@@ -1499,7 +1501,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash Da
 		UpdateTime:  dash.UpdateTime,
 		DeleteTime:  dash.DeletedTime,
 		JSONData:    dash.JSONData,
-	}, create, delete)
+	}, create, delete, ai.toMetadata())
 	if err != nil {
 		s := "edit"
 		if create {
@@ -2322,13 +2324,13 @@ func (h *Handler) handleSeriesRequestS(ctx context.Context, req seriesRequest, e
 	if req.verbose && len(s) > 1 {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
-		g.Go(func() error {
+		g.Go(func() (err error) {
 			s[0], freeRes, err = h.handleSeriesRequest(withEndpointStat(ctx, es), req, seriesRequestOptions{
 				trace: true,
 				metricCallback: func(meta *format.MetricMetaValue) {
 					req.metricWithNamespace = meta.Name
 					if meta.MetricID != format.BuiltinMetricIDBadges {
-						g.Go(func() error {
+						g.Go(func() (err error) {
 							s[1], freeBadges, err = h.queryBadges(ctx, req, meta)
 							return err
 						})
@@ -2358,7 +2360,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 	var limit int
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL, err = getPromQuery(req)
+		req.promQL, err = h.getPromQuery(req)
 		if err != nil {
 			return seriesResponse{}, nil, httpErr(http.StatusBadRequest, err)
 		}
@@ -3038,24 +3040,42 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool) bool {
-	if l.Time != r.time {
-		return l.Time < r.time
-	}
-	for i := range l.Tags {
-		lv := l.Tags[i].Value
-		rv := r.tag[l.Tags[i].Index]
-		if lv != rv {
-			return lv < rv
+func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool, fromEnd bool) bool {
+	if fromEnd {
+		if l.Time != r.time {
+			return l.Time > r.time
 		}
+		for i := range l.Tags {
+			lv := l.Tags[i].Value
+			rv := r.tag[l.Tags[i].Index]
+			if lv != rv {
+				return lv > rv
+			}
+		}
+		if orEq {
+			return l.SKey >= skey
+		}
+		return l.SKey > skey
+	} else {
+		if l.Time != r.time {
+			return l.Time < r.time
+		}
+		for i := range l.Tags {
+			lv := l.Tags[i].Value
+			rv := r.tag[l.Tags[i].Index]
+			if lv != rv {
+				return lv < rv
+			}
+		}
+		if orEq {
+			return l.SKey <= skey
+		}
+		return l.SKey < skey
 	}
-	if orEq {
-		return l.SKey <= skey
-	}
-	return l.SKey < skey
 }
 
-func rowMarkerLessThan(l, r RowMarker) bool {
+func (s queryTableRows) Less(i, j int) bool {
+	l, r := s[i].rowRepr, s[j].rowRepr
 	if l.Time != r.Time {
 		return l.Time < r.Time
 	}
@@ -3071,6 +3091,14 @@ func rowMarkerLessThan(l, r RowMarker) bool {
 	}
 
 	return l.SKey < r.SKey
+}
+
+func (s queryTableRows) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s queryTableRows) Len() int {
+	return len(s)
 }
 
 func (h *Handler) parseHTTPRequest(r *http.Request) (seriesRequest, error) {

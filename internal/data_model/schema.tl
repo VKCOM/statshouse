@@ -43,6 +43,7 @@ statshouse.multi_item#0c803e07
     fields_mask: # // contains shard num in top 8 bits
     metric: int
     keys: (vector int)
+    skeys: fields_mask.12?(vector string)
 
     t: fields_mask.10?# // timestamp, should be rare
 
@@ -79,6 +80,7 @@ statshouse.getConfigResult#0c803d07 {fields_mask:#}
     addresses: (vector string)
     max_addresses_count: int // when reducing # of shards, will return full list of addresses, limit by this number. Important for proxy
     previous_addresses: int // currently unused, but can be helpful for proxy in the future
+    ts: fields_mask.0?long // aggregator timestamp, for detecting clock discrepancy
 = statshouse.GetConfigResult fields_mask;
 
 // proxy uses and fills data in this header for all requests
@@ -94,7 +96,7 @@ statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     build_arch:int // comparison of x64 and arm64 nodes will be interesting for some time
 = statshouse.CommonProxyHeader fields_mask;
 
-statshouse.promTarget#ac5296df
+statshouse.promTarget#ac5296df {fields_mask_arg:#}
     fields_mask: #
     job_name: string
     url: string
@@ -109,10 +111,11 @@ statshouse.promTarget#ac5296df
     label_value_length_limit: long
     // raw yaml from prom config
     http_client_config: string
-= statshouse.PromTarget;
+    metric_relabel_configs: fields_mask_arg.1?string
+= statshouse.PromTarget fields_mask_arg;
 
 statshouse.getTargetsResult#51ac86df {fields_mask:#}
-    targets: (vector statshouse.promTarget)
+    targets: (vector (statshouse.promTarget fields_mask))
     hash: string
     gauge_metrics:fields_mask.0?(vector string)
 = statshouse.GetTargetsResult fields_mask;
@@ -123,6 +126,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
+    ts: fields_mask.0?true
      = statshouse.GetConfigResult fields_mask;
 
 // For ingress proxy, we pass shard_replica/shard_total immediately after fields mask
@@ -134,6 +138,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
 @readwrite statshouse.sendSourceBucket2#44575940
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)
+    owner:fields_mask.4?string
     time:#
     historic:fields_mask.0?true
     spare:fields_mask.1?true
@@ -146,7 +151,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     queue_size_memory_sum:fields_mask.2?int
     queue_size_disk_unsent:fields_mask.3?int
     queue_size_disk_sum_unsent:fields_mask.3?int
-    original_size:int
+    original_size:#
     compressed_data:string = String;
 
 @readwrite statshouse.sendKeepAlive2#4285ff53
@@ -196,6 +201,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     prom_host_name:string // in contrast to normalized and validated for statshouse key, like in header
     old_hash: string
     gauge_metrics:fields_mask.0?Bool
+    metric_relabel_configs:fields_mask.1?Bool
      = statshouse.GetTargetsResult fields_mask;
 
 @readwrite statshouse.testConnection2#4285ff58

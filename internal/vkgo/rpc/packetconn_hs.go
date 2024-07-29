@@ -7,16 +7,26 @@
 package rpc
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"time"
 
 	"golang.org/x/crypto/curve25519"
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
+
+// if we are performing many heavy handshakes (protocol 2 Diffie-Hellman),
+// we want to limit # of parallel handshakes so scheduler allows reads and writes
+// for connections which are fully ready (handshake complete).
+// We acquire twice because 1. we have socket write between 2 cpu intensive tasks. 2. we are in different functions (simplicity).
+var handshakeSem = semaphore.NewWeighted(1 + int64(runtime.GOMAXPROCS(0)))
 
 // Function returns all groups that parsed successfully and all errors
 func ParseTrustedSubnets(groups [][]string) (trustedSubnetGroups [][]*net.IPNet, errs []error) {
@@ -172,6 +182,9 @@ func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trus
 	pc.protocolVersion = server.ProtocolVersion() // all next packets will be read/written in a new transport format
 
 	if server.EncryptionSchema() == cryptoSchemaAES {
+		defer handshakeSem.Release(1)
+		_ = handshakeSem.Acquire(context.Background(), 1) // no error for background context
+
 		var sharedSecret []byte
 		if pc.protocolVersion >= 2 {
 			sharedSecret, err = curve25519.X25519(x25519Scalar[:], client.DHPoint[:])
@@ -188,7 +201,7 @@ func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trus
 			return nil, body, server.KeyID, fmt.Errorf("encryption setup failed: %w", err)
 		}
 		pc.keyID = server.KeyID
-		return nil, body, server.KeyID, err
+		return nil, body, server.KeyID, nil
 	}
 
 	return nil, body, server.KeyID, nil
@@ -249,7 +262,10 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		return nonceMsg{Schema: (protocol << 8) | cryptoSchemaNone}, "", nil
 	}
 	if !clientRequiresEncryption && requireEncryption && !clientSupportsEncryption {
-		return nonceMsg{}, "", fmt.Errorf("refusing to setup unencrypted connection between %v (local) and %v, client protocol %d schema %s", localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+		return nonceMsg{}, "", &tagError{
+			tag: "encryption_schema_mismatch",
+			msg: fmt.Sprintf("refusing to setup unencrypted connection between %v (local) and %v, client protocol %d schema %s", localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+		}
 	}
 	server := nonceMsg{
 		KeyID:  client.KeyID, // just report back. Client should ignore this field.
@@ -258,7 +274,10 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	}
 	dt := (time.Duration(client.Time) - time.Duration(server.Time)) * time.Second
 	if dt < -cryptoMaxTimeDelta || dt > cryptoMaxTimeDelta { // check as early as possible
-		return nonceMsg{}, "", fmt.Errorf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta)
+		return nonceMsg{}, "", &tagError{
+			tag: "out_of_range_time_delta",
+			msg: fmt.Sprintf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta),
+		}
 	}
 
 	cryptoKey := "" // We disallow empty crypto keys as protection against misconfigurations, when key is empty because error reading key file is ignored
@@ -268,10 +287,16 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		keyID := KeyIDFromCryptoKey(key)
 		if key != "" && key != cryptoKey && keyID == client.KeyID { // skip empty, allow duplicate keys, disallow different keys with the same KeyID
 			if keyID == emptyKeyID {
-				return nonceMsg{}, "", fmt.Errorf("client key with prefix 0x%s must not be 4 zero bytes between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+				return nonceMsg{}, "", &tagError{
+					tag: "zero_key_id",
+					msg: fmt.Sprintf("client key with prefix 0x%s must not be 4 zero bytes between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+				}
 			}
 			if cryptoKey != "" {
-				return nonceMsg{}, "", fmt.Errorf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema()))
+				return nonceMsg{}, "", &tagError{
+					tag: "key_id_collision",
+					msg: fmt.Sprintf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+				}
 			}
 			cryptoKey = key
 		}
@@ -285,6 +310,8 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		return nonceMsg{}, "", err
 	}
 	if protocol >= 2 {
+		defer handshakeSem.Release(1)
+		_ = handshakeSem.Acquire(context.Background(), 1) // no error for background context
 		_, err := cryptorand.Read(x25519Scalar)
 		if err != nil {
 			return nonceMsg{}, "", err
@@ -294,6 +321,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 			return nonceMsg{}, "", err
 		}
 		copy(server.DHPoint[:], pk)
+		return server, cryptoKey, nil
 	}
 	return server, cryptoKey, nil
 }

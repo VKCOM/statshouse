@@ -16,6 +16,7 @@ var _ = basictl.NatWrite
 type StatshouseSendSourceBucket2 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
+	Owner      string // Conditional: item.FieldsMask.4
 	Time       uint32
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
@@ -28,12 +29,22 @@ type StatshouseSendSourceBucket2 struct {
 	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
 	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
-	OriginalSize           int32
+	OriginalSize           uint32
 	CompressedData         string
 }
 
 func (StatshouseSendSourceBucket2) TLName() string { return "statshouse.sendSourceBucket2" }
 func (StatshouseSendSourceBucket2) TLTag() uint32  { return 0x44575940 }
+
+func (item *StatshouseSendSourceBucket2) SetOwner(v string) {
+	item.Owner = v
+	item.FieldsMask |= 1 << 4
+}
+func (item *StatshouseSendSourceBucket2) ClearOwner() {
+	item.Owner = ""
+	item.FieldsMask &^= 1 << 4
+}
+func (item StatshouseSendSourceBucket2) IsSetOwner() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseSendSourceBucket2) SetHistoric(v bool) {
 	if v {
@@ -104,6 +115,7 @@ func (item StatshouseSendSourceBucket2) IsSetQueueSizeDiskSumUnsent() bool {
 func (item *StatshouseSendSourceBucket2) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
+	item.Owner = ""
 	item.Time = 0
 	item.BuildCommit = ""
 	item.BuildCommitDate = 0
@@ -124,6 +136,13 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	}
 	if w, err = item.Header.Read(w, item.FieldsMask); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		if w, err = basictl.StringRead(w, &item.Owner); err != nil {
+			return w, err
+		}
+	} else {
+		item.Owner = ""
 	}
 	if w, err = basictl.NatRead(w, &item.Time); err != nil {
 		return w, err
@@ -171,7 +190,7 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.QueueSizeDiskSumUnsent = 0
 	}
-	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
+	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
 	return basictl.StringRead(w, &item.CompressedData)
@@ -185,6 +204,9 @@ func (item *StatshouseSendSourceBucket2) WriteGeneral(w []byte) (_ []byte, err e
 func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = item.Header.Write(w, item.FieldsMask)
+	if item.FieldsMask&(1<<4) != 0 {
+		w = basictl.StringWrite(w, item.Owner)
+	}
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
@@ -203,7 +225,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
-	w = basictl.IntWrite(w, item.OriginalSize)
+	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
 	return w
 }
@@ -289,6 +311,7 @@ func (item StatshouseSendSourceBucket2) String() string {
 func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
+	var propOwnerPresented bool
 	var propTimePresented bool
 	var trueTypeHistoricPresented bool
 	var trueTypeHistoricValue bool
@@ -331,6 +354,14 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 				if !in.Ok() {
 					return in.Error()
 				}
+			case "owner":
+				if propOwnerPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "owner")
+				}
+				if err := Json2ReadString(in, &item.Owner); err != nil {
+					return err
+				}
+				propOwnerPresented = true
 			case "time":
 				if propTimePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "time")
@@ -431,7 +462,7 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 				if propOriginalSizePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
 				}
-				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+				if err := Json2ReadUint32(in, &item.OriginalSize); err != nil {
 					return err
 				}
 				propOriginalSizePresented = true
@@ -455,6 +486,9 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	}
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
+	}
+	if !propOwnerPresented {
+		item.Owner = ""
 	}
 	if !propTimePresented {
 		item.Time = 0
@@ -491,6 +525,9 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	}
 	if !propCompressedDataPresented {
 		item.CompressedData = ""
+	}
+	if propOwnerPresented {
+		item.FieldsMask |= 1 << 4
 	}
 	if trueTypeHistoricPresented {
 		if trueTypeHistoricValue {
@@ -554,6 +591,11 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
 	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	if item.FieldsMask&(1<<4) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"owner":`...)
+		w = basictl.JSONWriteString(w, item.Owner)
+	}
 	backupIndexTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time":`...)
@@ -627,7 +669,7 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"original_size":`...)
-	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	w = basictl.JSONWriteUint32(w, item.OriginalSize)
 	if (item.OriginalSize != 0) == false {
 		w = w[:backupIndexOriginalSize]
 	}
@@ -655,6 +697,7 @@ func (item *StatshouseSendSourceBucket2) UnmarshalJSON(b []byte) error {
 type StatshouseSendSourceBucket2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
+	Owner      []byte // Conditional: item.FieldsMask.4
 	Time       uint32
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
@@ -667,12 +710,22 @@ type StatshouseSendSourceBucket2Bytes struct {
 	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
 	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
-	OriginalSize           int32
+	OriginalSize           uint32
 	CompressedData         []byte
 }
 
 func (StatshouseSendSourceBucket2Bytes) TLName() string { return "statshouse.sendSourceBucket2" }
 func (StatshouseSendSourceBucket2Bytes) TLTag() uint32  { return 0x44575940 }
+
+func (item *StatshouseSendSourceBucket2Bytes) SetOwner(v []byte) {
+	item.Owner = v
+	item.FieldsMask |= 1 << 4
+}
+func (item *StatshouseSendSourceBucket2Bytes) ClearOwner() {
+	item.Owner = item.Owner[:0]
+	item.FieldsMask &^= 1 << 4
+}
+func (item StatshouseSendSourceBucket2Bytes) IsSetOwner() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseSendSourceBucket2Bytes) SetHistoric(v bool) {
 	if v {
@@ -743,6 +796,7 @@ func (item StatshouseSendSourceBucket2Bytes) IsSetQueueSizeDiskSumUnsent() bool 
 func (item *StatshouseSendSourceBucket2Bytes) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
+	item.Owner = item.Owner[:0]
 	item.Time = 0
 	item.BuildCommit = item.BuildCommit[:0]
 	item.BuildCommitDate = 0
@@ -763,6 +817,13 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	}
 	if w, err = item.Header.Read(w, item.FieldsMask); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.Owner); err != nil {
+			return w, err
+		}
+	} else {
+		item.Owner = item.Owner[:0]
 	}
 	if w, err = basictl.NatRead(w, &item.Time); err != nil {
 		return w, err
@@ -810,7 +871,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	} else {
 		item.QueueSizeDiskSumUnsent = 0
 	}
-	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
+	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
 	return basictl.StringReadBytes(w, &item.CompressedData)
@@ -824,6 +885,9 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteGeneral(w []byte) (_ []byte, 
 func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = item.Header.Write(w, item.FieldsMask)
+	if item.FieldsMask&(1<<4) != 0 {
+		w = basictl.StringWriteBytes(w, item.Owner)
+	}
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
@@ -842,7 +906,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
-	w = basictl.IntWrite(w, item.OriginalSize)
+	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
 	return w
 }
@@ -928,6 +992,7 @@ func (item StatshouseSendSourceBucket2Bytes) String() string {
 func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
+	var propOwnerPresented bool
 	var propTimePresented bool
 	var trueTypeHistoricPresented bool
 	var trueTypeHistoricValue bool
@@ -970,6 +1035,14 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 				if !in.Ok() {
 					return in.Error()
 				}
+			case "owner":
+				if propOwnerPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "owner")
+				}
+				if err := Json2ReadStringBytes(in, &item.Owner); err != nil {
+					return err
+				}
+				propOwnerPresented = true
 			case "time":
 				if propTimePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "time")
@@ -1070,7 +1143,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 				if propOriginalSizePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "original_size")
 				}
-				if err := Json2ReadInt32(in, &item.OriginalSize); err != nil {
+				if err := Json2ReadUint32(in, &item.OriginalSize); err != nil {
 					return err
 				}
 				propOriginalSizePresented = true
@@ -1094,6 +1167,9 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	}
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
+	}
+	if !propOwnerPresented {
+		item.Owner = item.Owner[:0]
 	}
 	if !propTimePresented {
 		item.Time = 0
@@ -1130,6 +1206,9 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	}
 	if !propCompressedDataPresented {
 		item.CompressedData = item.CompressedData[:0]
+	}
+	if propOwnerPresented {
+		item.FieldsMask |= 1 << 4
 	}
 	if trueTypeHistoricPresented {
 		if trueTypeHistoricValue {
@@ -1193,6 +1272,11 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
 	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	if item.FieldsMask&(1<<4) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"owner":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Owner)
+	}
 	backupIndexTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time":`...)
@@ -1266,7 +1350,7 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"original_size":`...)
-	w = basictl.JSONWriteInt32(w, item.OriginalSize)
+	w = basictl.JSONWriteUint32(w, item.OriginalSize)
 	if (item.OriginalSize != 0) == false {
 		w = w[:backupIndexOriginalSize]
 	}

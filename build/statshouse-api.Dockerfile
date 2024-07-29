@@ -31,8 +31,8 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 RUN go mod download -x
 RUN make build-sh-api
-# dependencies for /api/render
-RUN apt-get update && apt-get install -y gnuplot-nox gnuplot-data libpango-1.0-0 libcairo2
+# dependencies for /api/render uncomment if needed
+# RUN apt-get update && apt-get install -y gnuplot-nox gnuplot-data libpango-1.0-0 libcairo2
 
 FROM gcr.io/distroless/base-debian11:nonroot
 WORKDIR /var/lib/statshouse/cache/api

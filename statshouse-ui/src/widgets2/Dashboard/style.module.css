@@ -3,6 +3,7 @@
   flex-direction: row;
   position: relative;
   overflow: auto;
+  max-width: 1320px;
 }
 .plotPanelLeft {
   display: flex;
@@ -10,6 +11,7 @@
   flex-grow: 1;
   position: relative;
   overflow: auto;
+  padding: 8px;
 }
 
 .plotPanelRight {
@@ -17,6 +19,8 @@
   flex-direction: column;
   position: relative;
   overflow: auto;
+  width: 380px;
+  padding: 8px;
 }
 
 .plotPanelTop {
@@ -25,11 +29,49 @@
 .plotPanelMiddle {
   overflow: auto;
   position: relative;
+  /*flex-grow: 1;*/
+  /*height: 0;*/
 }
 
 .plotPanelBottom {
-  flex-grow: 0;
-  max-height: 30%;
-  overflow: auto;
+  /*flex-grow: 1;*/
+  /*max-height: 30%;*/
+  /*min-height: 20%;*/
+  /*height: 0;*/
+  /*min-height: var(--bs-body-line-height);*/
+  /*overflow: auto;*/
   position: relative;
+}
+
+.plotViewFull {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+  /*height: 100%;*/
+  padding-top: calc(100% / var(--golden-ratio));
+  /*max-height: 100%;*/
+  /*--plot-padding-top: 8px;*/
+}
+
+.plotView_0 {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+  height: auto;
+  padding-top: calc(100% / var(--golden-ratio));
+  /*max-height: 100%;*/
+  /*--plot-padding-top: 8px;*/
+}
+
+.plotView_1 {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+  height: auto;
+  padding-top: calc(100% / var(--golden-ratio));
+  /*max-height: 100%;*/
+  /*--plot-padding-top: 8px;*/
+}
+
+.plotControl {
 }

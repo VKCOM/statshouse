@@ -71,7 +71,7 @@ func DefaultConfig() Config {
 		AutoCreate:                       true,
 		DisableRemoteConfig:              false,
 		DisableNoSampleAgent:             false,
-		HardwareMetricResolution:         60,
+		HardwareMetricResolution:         5,
 	}
 }
 

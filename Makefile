@@ -17,15 +17,13 @@ COMMON_BUILD_VARS := -X 'github.com/vkcom/statshouse/internal/vkgo/build.time=$(
 
 COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 
-.PHONY: all build-go build-ui build-docker \
+.PHONY: all build-go build-ui \
 	build-sh build-sh-api build-sh-api-embed build-sh-metadata build-sh-grafana \
-	build-sh-ui build-grafana-ui \
-	build-docker-sh build-docker-sh-api build-docker-sh-metadata
+	build-sh-ui build-grafana-ui
 
-all: build-go build-ui build-docker
+all: build-go build-ui
 build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana
 build-ui: build-sh-ui build-grafana-ui
-build-docker: build-docker-sh build-docker-sh-api build-docker-sh-metadata
 build-main-daemons: build-sh build-sh-api build-sh-metadata
 
 build-sh:
@@ -51,35 +49,14 @@ build-sh-ui:
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
 
-build-docker-sh:
-	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
-		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
-		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
-		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
-		-t statshouse -f build/statshouse.Dockerfile .
-
-build-docker-sh-api:
-	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
-		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
-		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
-		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
-		--build-arg REACT_APP_BUILD_VERSION="$(REACT_APP_BUILD_VERSION)" \
-		-t statshouse-api -f build/statshouse-api.Dockerfile .
-
-build-docker-sh-metadata:
-	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
-		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
-		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
-		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
-		-t statshouse-metadata -f build/statshouse-metadata.Dockerfile .
-
 build-deb:
 	./build/makedeb.sh
 
 # if tlgen is not installed, replace tlgen with full path, for example ~/go/src/gitlab.mvk.com/go/vkgo/projects/vktl/cmd/tlgen/tlgen
 .PHONY: gen
 gen:
-	@tlgen --outdir=./internal/data_model/gen2 -v \
+	go run github.com/vkcom/tl/cmd/tlgen@v1.1.1 --outdir=./internal/data_model/gen2 -v \
+		--generateRPCCode=true \
 		--pkgPath=github.com/vkcom/statshouse/internal/data_model/gen2/tl \
  		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
  		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
@@ -90,10 +67,22 @@ gen:
 		./internal/data_model/engine.tl \
 		./internal/data_model/metadata.tl \
 		./internal/data_model/public.tl \
-		./internal/data_model/kv_engine.tl \
 		./internal/data_model/schema.tl
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
+
+gen-sqlite:
+	go run github.com/vkcom/tl/cmd/tlgen@v1.1.1 --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+		--generateRPCCode=true \
+		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+ 		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
+ 		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
+ 		--generateByteVersions=sqlite. \
+ 		--copyrightPath=./copyright \
+		./internal/data_model/common.tl \
+		./internal/sqlitev2/checkpoint/metainfo.tl
+	@echo "Checking that generated code actually compiles..."
+	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
 .PHONY: lint
 lint:

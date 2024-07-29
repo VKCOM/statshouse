@@ -14,7 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/relabel"
 	"github.com/prometheus/prometheus/model/textparse"
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/agent"
@@ -23,11 +25,11 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"gopkg.in/yaml.v2"
 )
 
-type scrape struct {
-	agent   *agent.Agent
-	handler Handler
+func RunScrape(a *agent.Agent, h Handler) {
+	go run(a, h)
 }
 
 type scraper struct {
@@ -40,9 +42,10 @@ type scraper struct {
 	hash       hash.Hash64
 
 	// lifetime management
-	ctx    context.Context
-	cancel func()
-	dead   bool
+	ctx       context.Context
+	shutdown  func()
+	cancelled bool
+	exit      sync.WaitGroup
 
 	// HTTP client
 	client  http.Client
@@ -63,6 +66,8 @@ type scrapeOptions struct {
 	namespace    string
 	job          string
 	gaugeMetrics map[string]bool
+	labels       map[string]string
+	mrc          []*relabel.Config
 }
 
 type scrapeCounter struct {
@@ -88,18 +93,13 @@ type scrapeHistogramSeries struct {
 	bucket []float64
 }
 
-func RunScrape(sh *agent.Agent, h Handler) {
-	s := scrape{agent: sh, handler: h}
-	go s.run()
-}
-
-func (s *scrape) run() {
+func run(a *agent.Agent, h Handler) {
 	log.Println("scrape running")
 	var lastHash string
 	var backoffTimeout time.Duration
 	m := map[string]*scraper{} // URL key
 	for {
-		targets, hash, err := s.getTargets(lastHash)
+		targets, hash, err := getTargets(a, lastHash)
 		if err != nil && !data_model.SilentRPCError(err) {
 			// backoff then try again
 			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
@@ -109,15 +109,15 @@ func (s *scrape) run() {
 		if err == nil {
 			lastHash = hash
 			log.Println("scrape target count", len(targets))
-			s.update(m, targets)
+			update(h, m, targets)
 		}
 		backoffTimeout = 0
 		time.Sleep(data_model.JournalDDOSProtectionTimeout)
 	}
 }
 
-func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
-	targets, newHash, err := s.agent.LoadPromTargets(context.Background(), hash)
+func getTargets(a *agent.Agent, hash string) ([]scrapeTarget, string, error) {
+	targets, newHash, err := a.LoadPromTargets(context.Background(), hash)
 	if err != nil {
 		return nil, "", err
 	}
@@ -132,7 +132,14 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 	for _, v := range targets.Targets {
 		var namespace string
 		if v.Labels != nil {
-			namespace = v.Labels[format.ScrapeNamespaceTagName]
+			var ok bool
+			if namespace, ok = v.Labels[format.ScrapeNamespaceTagName]; ok {
+				delete(v.Labels, format.ScrapeNamespaceTagName)
+			}
+		}
+		var mrc []*relabel.Config
+		if v.MetricRelabelConfigs != "" {
+			_ = yaml.Unmarshal([]byte(v.MetricRelabelConfigs), &mrc)
 		}
 		res = append(res, scrapeTarget{
 			url: string(v.Url),
@@ -142,37 +149,44 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 				namespace:    namespace,
 				job:          v.JobName,
 				gaugeMetrics: gaugeMetrics,
+				labels:       v.Labels,
+				mrc:          mrc,
 			},
 		})
 	}
 	return res, newHash, nil
 }
 
-func (s *scrape) update(m map[string]*scraper, targets []scrapeTarget) {
-	for _, s := range m {
-		s.dead = true
+func update(h Handler, m map[string]*scraper, targets []scrapeTarget) {
+	for _, v := range m {
+		v.cancelled = true
 	}
 	for _, t := range targets {
 		if v := m[t.url]; v != nil {
 			v.mu.Lock()
 			v.options = t.opt
 			v.mu.Unlock()
-			v.dead = false
+			v.cancelled = false
 			log.Println("scrape update", t)
 		} else {
 			log.Println("scrape create", t)
-			m[t.url] = s.newScraper(t)
+			m[t.url] = newScraper(h, t)
+		}
+	}
+	for _, v := range m {
+		if v.cancelled {
+			v.shutdown()
 		}
 	}
 	for k, v := range m {
-		if v.dead {
-			v.cancel()
+		if v.cancelled {
+			v.exit.Wait()
 			delete(m, k)
 		}
 	}
 }
 
-func (s *scrape) newScraper(t scrapeTarget) *scraper {
+func newScraper(h Handler, t scrapeTarget) *scraper {
 	// configure HTTP client
 	req, err := http.NewRequest(http.MethodGet, t.url, nil)
 	if err != nil {
@@ -198,23 +212,28 @@ func (s *scrape) newScraper(t scrapeTarget) *scraper {
 	res := &scraper{
 		instance: instance,
 		options:  t.opt,
-		handler:  s.handler,
+		handler:  h,
 		ctx:      ctx,
-		cancel:   cancel,
+		shutdown: cancel,
 		request:  req,
 	}
+	res.exit.Add(1)
 	go res.run()
 	return res
 }
 
 func (s *scraper) run() {
+	log.Println("scrape start", s)
+	defer func() {
+		log.Println("scrape stop", s)
+		s.exit.Done()
+	}()
 	// get a resettable timer
 	timer := time.NewTimer(time.Hour)
 	if !timer.Stop() {
 		<-timer.C
 	}
-	log.Println("scrape start", s)
-scrape_loop:
+	// scrape loop
 	for s.ctx.Err() == nil {
 		// read options
 		var opt scrapeOptions
@@ -226,7 +245,7 @@ scrape_loop:
 		timer.Reset(now.Truncate(opt.interval).Add(opt.interval).Sub(now))
 		select {
 		case <-s.ctx.Done():
-			break scrape_loop
+			return
 		case start := <-timer.C:
 			// work
 			err := s.scrape(opt)
@@ -234,7 +253,6 @@ scrape_loop:
 			s.reportScrapeTime(opt.job, err, dur)
 		}
 	}
-	log.Println("scrape stop", s)
 }
 
 func (s *scraper) scrape(opt scrapeOptions) error {
@@ -266,6 +284,29 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			}
 			if entry == textparse.EntrySeries {
 				p.Metric(&l)
+				// add aggregator labels if present, assume honor_labels is set to "false"
+				if len(opt.labels) != 0 {
+					lb := labels.NewBuilder(l)
+					for k, v := range opt.labels {
+						lb.Set(k, v)
+					}
+					l = lb.Labels()
+				}
+				// relable
+				if len(opt.mrc) != 0 {
+					l = relabel.Process(l, opt.mrc...)
+				}
+				// drop service labels
+				if len(l) != 0 {
+					var n int
+					for i := range l {
+						if !strings.HasPrefix(l[i].Name, model.ReservedLabelPrefix) || l[i].Name == model.MetricNameLabel {
+							l[n] = l[i]
+							n++
+						}
+					}
+					l = l[:n]
+				}
 				break
 			}
 			if i == 0 {
@@ -289,7 +330,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 		if err == io.EOF {
 			break
 		}
-		if name == "" || metricType == "" {
+		if name == "" || metricType == "" || l == nil {
 			continue
 		}
 		_, _, v := p.Series()

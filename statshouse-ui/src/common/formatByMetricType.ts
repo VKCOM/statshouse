@@ -255,8 +255,8 @@ const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.dvUnique,
   QUERY_WHAT.dvUniqueNorm,
 ];
-export function getMetricType(whats: QueryWhat[], metricType?: string) {
-  if (whats.some((w) => excludeWhat.indexOf(w) > -1)) {
+export function getMetricType(whats?: QueryWhat[], metricType?: string) {
+  if (whats && whats.some((w) => excludeWhat.indexOf(w) > -1)) {
     return METRIC_TYPE.none;
   }
   return toMetricType(metricType, METRIC_TYPE.none);

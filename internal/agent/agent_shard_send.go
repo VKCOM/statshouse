@@ -24,61 +24,84 @@ import (
 	"pgregory.net/rand"
 )
 
-// If clients wish periodic measurements, they are advised to send them around the middle of calendar second
+// If clients want less jitter (they want), they should send data quickly after end pf calendar second.
+// Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
 func (s *Shard) flushBuckets(now time.Time) {
+	// called several times/sec only, but must still be fast, so we do not lock shard for too long
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	nowUnix := uint32(now.Unix())
+	if nowUnix := uint32(now.Unix()); nowUnix > s.addBuiltInsTime {
+		s.addBuiltInsTime = nowUnix
+		s.addBuiltInsLocked(nowUnix) // account to the current second. This is debatable.
+	}
+	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
-	if s.CurrentTime+s.MissedSeconds >= nowUnix { // fastpath
-		return
+	currentTime := uint32(now.Add(-data_model.AgentWindow).Unix())
+	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
+	if s.PreprocessingBuckets == nil && currentTime > wasCurrentBucketTime {
+		// if we cannot flush 1-second resolution, we cannot flush any higher resolution
+		// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
+		// 2. move next buckets into current buckets
+		// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
+		for r, bs := range s.CurrentBuckets {
+			if r != format.AllowedResolution(r) {
+				continue
+			}
+			currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
+			for sh, b := range bs {
+				if currentTimeRounded <= b.Time {
+					continue
+				}
+				if !b.Empty() {
+					// future queue pos is assigned without seams if missed seconds is 0
+					futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
+					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
+				}
+				s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
+				s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
+			}
+		}
+		// we put second into next second future queue position,
+		// same for higher resolutions, so first minute shard is sent togehter with 59-th normal second.
+		s.PreprocessingBuckets = s.FutureQueue[(wasCurrentBucketTime+1)%60]
+		s.FutureQueue[(wasCurrentBucketTime+1)%60] = nil
+
+		// Due to !b.Empty() optimization above, if no data is collected, nothing is in FutureQueue
+		// As we use PreprocessingBuckets as flag, it must be not nil so that processing and sending is performed
+		// for each contributor every second
+		if s.PreprocessingBuckets == nil {
+			s.PreprocessingBuckets = []*data_model.MetricsBucket{}
+		}
+
+		s.PreprocessingBucketTime = wasCurrentBucketTime
+
+		s.condPreprocess.Signal()
 	}
-	s.addBuiltInsLocked(nowUnix)
-	// We send missed seconds if timestamp "jumps", which are converted  by aggregator into contributors for previous seconds
-	// otherwise #contributors will fluctuate. For this reason we also send empty buckets
-	if s.PreprocessingBuckets != nil {
-		// s.client.Client.Logf("Zatup 1 %d replica %d (shard-replica %d) bucket.time %d nowUnix %d",
-		//	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
-		s.MissedSeconds = nowUnix - s.CurrentTime
-		// We continue aggregating if processing conveyor is stalled now
-		return
-	}
-	for r, bs := range s.CurrentBuckets {
+	// now after CurrentBuckets flushed, we want to move NextBuckets timestamp
+	// if conveyor is stuck, so that data from previous seconds is still kept there,
+	// but we considere this bucket to correspond to the unixNow point of time.
+	// this is important because we clamp future timestamps by content of NextBuckets timestamps
+	for r, bs := range s.NextBuckets {
 		if r != format.AllowedResolution(r) {
 			continue
 		}
-		nextT := (nowUnix / uint32(r)) * uint32(r)
-		for sh, b := range bs {
-			if nextT == b.Time {
+		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
+		for i, b := range bs {
+			if currentTimeRounded+uint32(r) <= b.Time {
 				continue
 			}
-			if b.Empty() { // optimize by only moving time forward
-				s.CurrentBuckets[r][sh].Time = nextT
-				continue
+			if r == 1 && i == 0 { // Add metric for missed second here only once
+				key := data_model.Key{
+					Timestamp: b.Time,
+					Metric:    format.BuiltinMetricIDTimingErrors,
+					Keys:      [16]int32{0, format.TagValueIDTimingMissedSecondsAgent},
+				}
+				mi := data_model.MapKeyItemMultiItem(&b.MultiItems, key, s.config.StringTopCapacity, nil, nil)
+				mi.Tail.AddValueCounterHost(float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
 			}
-			// future queue pos is assigned without seams if missed seconds is 0
-			futureQueuePos := (nextT + uint32(sh)) % 60
-			s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
-			s.CurrentBuckets[r][sh] = &data_model.MetricsBucket{Time: nextT}
+			b.Time = currentTimeRounded + uint32(r)
 		}
 	}
-	s.PreprocessingBuckets = s.FutureQueue[nowUnix%60]
-	s.FutureQueue[nowUnix%60] = nil
-
-	// Due to b.Empty() optimization above, if no data is collected, nothing is in FutureQueue
-	// As we use PreprocessingBuckets as flag, it must be not nil so that processing and sending is performed
-	// for each contributor every second
-	if s.PreprocessingBuckets == nil {
-		s.PreprocessingBuckets = []*data_model.MetricsBucket{}
-	}
-
-	s.PreprocessingMissedSeconds = s.MissedSeconds
-	s.MissedSeconds = 0
-
-	s.PreprocessingBucketTime = s.CurrentTime
-	s.CurrentTime = nowUnix
-
-	s.condPreprocess.Signal()
 }
 
 func addSizeByTypeMetric(sb *tlstatshouse.SourceBucket2, partKey int32, size int) {
@@ -183,16 +206,13 @@ func (s *Shard) goPreProcess() {
 		buckets := s.PreprocessingBuckets
 		s.PreprocessingBuckets = nil
 
-		missedSeconds := s.PreprocessingMissedSeconds
-		s.PreprocessingMissedSeconds = 0
-
 		bucket := &data_model.MetricsBucket{Time: s.PreprocessingBucketTime}
 		s.PreprocessingBucketTime = 0
 		s.mu.Unlock()
 
 		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
-		s.sendToSenders(bucket, missedSeconds, sampleFactors)
+		s.sendToSenders(bucket, sampleFactors)
 
 		s.mu.Lock()
 	}
@@ -227,7 +247,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		SampleKeys:       config.SampleKeys,
 		Meta:             s.agent.metricStorage,
 		Rand:             rnd,
-		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
+		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem, _ uint32) { delete(bucket.MultiItems, key) }, // remove from map
 	})
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
@@ -300,8 +320,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	return sampleFactors
 }
 
-func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) {
-	cbd, err := s.compressBucket(bucket, missedSeconds, sampleFactors)
+func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) {
+	cbd, err := s.compressBucket(bucket, sampleFactors)
 
 	if err != nil {
 		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
@@ -327,11 +347,10 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds ui
 	}
 }
 
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
+func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
 	cb := compressedBucketData{time: bucket.Time}
 
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)
-	sb.MissedSeconds = missedSeconds
 
 	w := sb.WriteBoxed(nil)
 	compressed := make([]byte, 4+lz4.CompressBlockBound(len(w))) // Framing - first 4 bytes is original size
@@ -384,6 +403,12 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 		}
 		return false
 	}
+	if resp != nil {
+		respS := string(resp)
+		if respS != "Dummy historic result" {
+			s.agent.logF("Send bucket returned: \"%s\"", respS)
+		}
+	}
 	shardReplica.stats.recentSendSuccess.Add(1)
 	return true
 }
@@ -411,11 +436,11 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
-			if s.agent.diskCache == nil {
+			if s.agent.diskBucketCache == nil {
 				s.agent.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
 				return // No data and no disk storage configured, alas
 			}
-			if cbd.data, err = s.agent.diskCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
+			if cbd.data, err = s.agent.diskBucketCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
 				s.agent.logF("Disk Error: diskCache.GetBucket returned error %v for shard %d bucket %d",
 					err, s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
@@ -456,7 +481,7 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 }
 
 func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
 	// Motivation - we want to set limit dynamically.
@@ -468,7 +493,7 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 	if maxHistoricDiskSize <= 0 {
 		return
 	}
-	if err := s.agent.diskCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
+	if err := s.agent.diskBucketCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
 		s.agent.logF("Disk Error: diskCache.PutBucket returned error %v for shard %d bucket %d",
 			err, s.ShardKey, cbd.time)
 		s.agent.statErrorsDiskWrite.AddValueCounter(0, 1)
@@ -476,10 +501,10 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 }
 
 func (s *Shard) diskCacheEraseWithLog(time uint32, place string) {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
-	if err := s.agent.diskCache.EraseBucket(s.ShardNum, time); err != nil {
+	if err := s.agent.diskBucketCache.EraseBucket(s.ShardNum, time); err != nil {
 		s.agent.logF("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s bucket %d",
 			err, s.ShardKey, place, time)
 		s.agent.statErrorsDiskErase.AddValueCounter(0, 1)
@@ -500,10 +525,10 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 }
 
 func (s *Shard) readHistoricSecondLocked() {
-	if s.agent.diskCache == nil {
+	if s.agent.diskBucketCache == nil {
 		return
 	}
-	sec, ok := s.agent.diskCache.ReadNextTailSecond(s.ShardNum)
+	sec, ok := s.agent.diskBucketCache.ReadNextTailSecond(s.ShardNum)
 	if !ok {
 		return
 	}

@@ -52,6 +52,7 @@ export const GET_PARAMS = {
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',
+  dashboardApiVersion: 'ver',
   dashboardName: 'dn',
   dashboardDescription: 'dd',
   dashboardVersion: 'dv',
@@ -335,3 +336,43 @@ export const PLOT_TYPE = {
 export type PlotType = Enum<typeof PLOT_TYPE>;
 export const isPlotType = isEnum<PlotType>(PLOT_TYPE);
 export const toPlotType = toEnum(isPlotType);
+
+export const TIME_RANGE_ABBREV = {
+  last5m: 'last-5m',
+  last15m: 'last-15m',
+  last1h: 'last-1h',
+  last2h: 'last-2h',
+  last6h: 'last-6h',
+  last12h: 'last-12h',
+  last1d: 'last-1d',
+  last2d: 'last-2d',
+  last3d: 'last-3d',
+  last7d: 'last-7d',
+  last14d: 'last-14d',
+  last30d: 'last-30d',
+  last90d: 'last-90d',
+  last180d: 'last-180d',
+  last1y: 'last-1y',
+  last2y: 'last-2y',
+};
+export type TimeRangeAbbrev = Enum<typeof TIME_RANGE_ABBREV>;
+export const isTimeRangeAbbrev = isEnum<TimeRangeAbbrev>(TIME_RANGE_ABBREV);
+export const toTimeRangeAbbrev = toEnum(isTimeRangeAbbrev);
+export const TIME_RANGE_ABBREV_DESCRIPTION: Record<TimeRangeAbbrev, string> = {
+  [TIME_RANGE_ABBREV.last5m]: 'Last 5 minutes',
+  [TIME_RANGE_ABBREV.last15m]: 'Last 15 minutes',
+  [TIME_RANGE_ABBREV.last1h]: 'Last hour',
+  [TIME_RANGE_ABBREV.last2h]: 'Last 2 hours',
+  [TIME_RANGE_ABBREV.last6h]: 'Last 6 hours',
+  [TIME_RANGE_ABBREV.last12h]: 'Last 12 hours',
+  [TIME_RANGE_ABBREV.last1d]: 'Last 24 hours',
+  [TIME_RANGE_ABBREV.last2d]: 'Last 48 hours',
+  [TIME_RANGE_ABBREV.last3d]: 'Last 72 hours',
+  [TIME_RANGE_ABBREV.last7d]: 'Last 7 days',
+  [TIME_RANGE_ABBREV.last14d]: 'Last 14 days',
+  [TIME_RANGE_ABBREV.last30d]: 'Last 30 days',
+  [TIME_RANGE_ABBREV.last90d]: 'Last 90 days',
+  [TIME_RANGE_ABBREV.last180d]: 'Last 180 days',
+  [TIME_RANGE_ABBREV.last1y]: 'Last year',
+  [TIME_RANGE_ABBREV.last2y]: 'Last 2 years',
+};

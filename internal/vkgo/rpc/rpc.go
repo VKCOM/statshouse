@@ -7,10 +7,14 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"strings"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
@@ -51,6 +55,16 @@ const (
 	// We optimize excess SetDeadline calls
 )
 
+type ReqResultExtra = tl.RpcReqResultExtra
+
+type InvokeReqExtra struct {
+	tl.RpcInvokeReqExtra
+
+	// Requests fail immediately when connection fails, so that switch to fallback is faster
+	// Here, because generated code calls GetRequest() so caller has no access to request
+	FailIfNoConnection bool
+}
+
 type UnencHeader = tlnetUdpPacket.UnencHeader // TODO - move to better place when UDP impl is ready
 type EncHeader = tlnetUdpPacket.EncHeader     // TODO - move to better place when UDP impl is ready
 
@@ -62,8 +76,57 @@ type Error struct {
 	Description string
 }
 
+type tagError struct {
+	tag string
+	msg string
+	err error
+}
+
 func (err Error) Error() string {
 	return fmt.Sprintf("RPC error %v: %v", err.Code, err.Description)
+}
+
+func ErrorTag(err error) string {
+	if err == nil {
+		return ""
+	}
+	if e, _ := err.(*tagError); e != nil {
+		s := [2]string{e.tag, ErrorTag(e.err)}
+		if s[1] == "" {
+			return s[0]
+		}
+		if s[0] == "" {
+			return s[1]
+		}
+		return strings.Join(s[:], ":")
+	}
+	if e, _ := err.(net.Error); e != nil && e.Timeout() {
+		return "timeout" // enough for tag value
+	}
+	if e := errors.Unwrap(err); e != nil {
+		return ErrorTag(e)
+	}
+	return err.Error()
+}
+
+func (err *tagError) Error() string {
+	if err == nil {
+		return "<nil>"
+	}
+	if len(err.msg) != 0 {
+		return err.msg
+	}
+	if err.err != nil {
+		return err.err.Error()
+	}
+	return ""
+}
+
+func (err *tagError) Unwrap() error {
+	if err == nil {
+		return nil
+	}
+	return err.err
 }
 
 type NetAddr struct {

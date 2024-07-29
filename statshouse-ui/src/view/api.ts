@@ -575,12 +575,15 @@ export function queryTableURL(
   return `/api/table?${strParams}`;
 }
 
-export function dashboardURL(id?: number): string {
+export function dashboardURL(id?: number, v?: number | null): string {
   if (!id) {
     return `/api/dashboard`;
   }
-
-  const strParams = new URLSearchParams([[GET_PARAMS.dashboardID, id.toString()]]).toString();
+  const p = [[GET_PARAMS.dashboardID, id.toString()]];
+  if (v != null) {
+    p.push([GET_PARAMS.dashboardApiVersion, v.toString()]);
+  }
+  const strParams = new URLSearchParams(p).toString();
   return `/api/dashboard?${strParams}`;
 }
 
@@ -645,7 +648,7 @@ export function formatFilterNotIn(tagID: string, tagValue: string): string {
   return `${freeKeyPrefix(tagID)}${filterNotInSep}${tagValue}`;
 }
 
-function filterParams(
+export function filterParams(
   filterIn: Record<string, readonly string[]>,
   filterNotIn: Record<string, readonly string[]>
 ): string[][] {

@@ -14,22 +14,20 @@ import (
 	"time"
 )
 
-type ServerHookState interface {
-	Reset()
-	BeforeCall(hctx *HandlerContext)
-	AfterCall(hctx *HandlerContext, err error)
-}
-
 type ServerOptions struct {
 	Logf                   LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	Hooks                  func() ServerHookState
 	SyncHandler            HandlerFunc
 	Handler                HandlerFunc
 	StatsHandler           StatsHandlerFunc
+	RecoverPanics          bool
 	VerbosityHandler       VerbosityHandlerFunc
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
 	SocketHijackHandler    func(conn *HijackConnection)
+	AcceptErrHandler       ErrHandlerFunc
+	ConnErrHandler         ErrHandlerFunc
+	RequestHandler         RequestHandlerFunc
+	ResponseHandler        ResponseHandlerFunc
 	TrustedSubnetGroupsSt  string // for stats
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
@@ -56,12 +54,6 @@ func (opts *ServerOptions) AddCryptoKey(key string) {
 }
 
 type ServerOptionsFunc func(*ServerOptions)
-
-func ServerWithHooks(hooks func() ServerHookState) ServerOptionsFunc {
-	return func(opts *ServerOptions) {
-		opts.Hooks = hooks
-	}
-}
 
 func ServerWithLogf(logf LoggerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
@@ -100,6 +92,12 @@ func ServerWithStatsHandler(handler StatsHandlerFunc) ServerOptionsFunc {
 func ServerWithVerbosityHandler(handler VerbosityHandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.VerbosityHandler = handler
+	}
+}
+
+func ServerWithRecoverPanics(recoverPanics bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.RecoverPanics = recoverPanics
 	}
 }
 
@@ -275,6 +273,30 @@ func ServerWithDisableTCPReuseAddr() ServerOptionsFunc {
 func ServerWithSocketHijackHandler(handler func(conn *HijackConnection)) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.SocketHijackHandler = handler
+	}
+}
+
+func ServerWithAcceptErrorHandler(fn ErrHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.AcceptErrHandler = fn
+	}
+}
+
+func ServerWithConnErrorHandler(fn ErrHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.ConnErrHandler = fn
+	}
+}
+
+func ServerWithRequestHandler(fn RequestHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.RequestHandler = fn
+	}
+}
+
+func ServerWithResponseHandler(fn ResponseHandlerFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.ResponseHandler = fn
 	}
 }
 

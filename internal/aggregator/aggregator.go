@@ -31,6 +31,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
@@ -97,7 +98,7 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		scrape     scrapeServer
+		scrape     *scrapeServer
 		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
@@ -201,6 +202,8 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if len(a.hostName) == 0 {
 		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
+	a.scrape = newScrapeServer()
 	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithMaxWorkers(-1),
@@ -212,10 +215,12 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
-		rpc.ServerWithRequestMemoryLimit(2<<33))
-
+		rpc.ServerWithRequestMemoryLimit(2<<33),
+		rpc.ServerWithStatsHandler(a.scrape.reportStats),
+		metrics.ServerWithMetrics,
+	)
+	defer metrics.Run(a.server)()
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	a.scrape = newScrapeServer(shardKey, replicaKey)
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(metadataClient, config.AutoCreateDefaultNamespace)
 		defer a.autoCreate.shutdown()
@@ -232,7 +237,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	// TODO - pass storage dir after design is fixed
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
+		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
 		return fmt.Errorf("built-in agent failed to start: %v", err)
 	}
@@ -333,8 +338,9 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 	}
 }
 
-func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
-	nowUnix := uint32(now.Unix())
+func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) {
+	a.scrape.reportConfigHash(nowUnix)
+
 	a.mu.Lock()
 	recentSenders := a.recentSenders
 	historicSends := a.historicSenders
@@ -352,7 +358,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	a.mu.Unlock()
 
 	writeWaiting := func(metricID int32, key4 int32, item *data_model.ItemValue) {
-		key := a.aggKey(0, metricID, [16]int32{0, 0, 0, 0, key4})
+		key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, key4})
 		a.sh2.MergeItemValue(key, item, nil)
 	}
 	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorOriginal, &original)
@@ -360,9 +366,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
 
-	key := a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
+	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
 	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
-	key = a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
+	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
 	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
@@ -500,7 +506,6 @@ func (a *Aggregator) goSend(senderID int) {
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
 		a.estimator.ReportHourCardinality(aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBucket, rnd, bodyStorage[:0], false)
 
 		recentContributors := aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter
 		historicContributors := 0.0
@@ -531,7 +536,7 @@ func (a *Aggregator) goSend(senderID int) {
 					delete(b.contributors, hctx)
 				}
 				b.mu.Unlock()
-				key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
+				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
 				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
@@ -541,7 +546,6 @@ func (a *Aggregator) goSend(senderID int) {
 
 			aggBuckets = append(aggBuckets, historicBucket)
 			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
-			bodyStorage = a.RowDataMarshalAppendPositions(historicBucket, rnd, bodyStorage, true)
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -551,6 +555,7 @@ func (a *Aggregator) goSend(senderID int) {
 				break
 			}
 		}
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0])
 
 		// Never empty, because adds value stats
 		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
@@ -675,7 +680,6 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
-		a.scrape.reportConfigHash()
 		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {

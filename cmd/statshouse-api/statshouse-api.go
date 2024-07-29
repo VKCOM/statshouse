@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"net"
 	"net/http"
 	_ "net/http/pprof" // pprof HTTP handlers
 	"os"
@@ -26,19 +25,16 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
-
 	"github.com/vkcom/statshouse-go"
-
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
@@ -388,6 +384,8 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandleInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandleRangeQuery)
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
+	m.Path("/prom/api/v1/series").Methods("GET").HandlerFunc(f.HandlePromSeriesQuery)
+	m.Path("/prom/api/v1/series").Methods("POST").HandlerFunc(f.HandlePromSeriesQuery)
 	m.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
@@ -455,6 +453,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		RawGetQueryPoint: hr.RawGetQueryPoint,
 	}
 	var hijackListener *rpc.HijackListener
+	metrics := util.NewRPCServerMetrics("statshouse_api")
 	srv := rpc.NewServer(
 		rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
 			hijackListener.AddConnection(conn)
@@ -462,7 +461,10 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
+		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
+		metrics.ServerWithMetrics,
+	)
+	defer metrics.Run(srv)()
 	defer func() { _ = srv.Close() }()
 
 	rpcLn, err := tf.Listen("tcp4", argv.listenRPCAddr)
@@ -482,12 +484,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		go func() { // serve pprof on RPC port
 			m := http.NewServeMux()
 			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
-				if err == nil && remoteAddr.IP.IsLoopback() {
-					http.DefaultServeMux.ServeHTTP(w, r)
-				} else {
-					w.WriteHeader(http.StatusUnauthorized)
-				}
+				http.DefaultServeMux.ServeHTTP(w, r)
 			})
 			log.Printf("serving Go pprof at %q", argv.listenRPCAddr)
 			s := http.Server{Handler: m}

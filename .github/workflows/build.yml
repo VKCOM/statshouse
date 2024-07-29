@@ -73,57 +73,29 @@ jobs:
       - run: build/makerpm.sh ${{matrix.image}}
       - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-pkg-rpm-${{needs.env.outputs.version}}${{strategy.job-index}}
+          name: statshouse-pkg-rpm-${{needs.env.outputs.version}}-${{strategy.job-index}}
           path: RPMS/*.rpm
-  debian:
-    if: ${{false}}
+  deb:
     strategy:
       matrix:
-        release: [buster, bullseye]
-    needs: [env, frontend]
-    uses: ./.github/workflows/build_deb.yml
-    with:
-      container_json: '{"image":"golang:1.22-${{matrix.release}}"}'
-      ref: ${{needs.env.outputs.ref}}
-      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
-      timestamp: ${{needs.env.outputs.timestamp}}
-      version: ${{needs.env.outputs.version}}
-      name: 'debian'
-      release: ${{matrix.release}}
-      frontend-artifact: ${{needs.frontend.outputs.artifact}}
-    secrets: inherit
-  ubuntu_jammy:
-    if: ${{false}}
-    needs: [env, frontend]
-    uses: ./.github/workflows/build_deb.yml
-    with:
-      runs-on: ubuntu-22.04
-      setup-go: true
-      ref: ${{needs.env.outputs.ref}}
-      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
-      timestamp: ${{needs.env.outputs.timestamp}}
-      version: ${{needs.env.outputs.version}}
-      name: ubuntu
-      release: jammy
-      frontend-artifact: ${{needs.frontend.outputs.artifact}}
-    secrets: inherit
-  ubuntu_focal:
-    needs: [env, frontend]
-    uses: ./.github/workflows/build_deb.yml
-    with:
-      runs-on: ubuntu-20.04
-      setup-go: true
-      ref: ${{needs.env.outputs.ref}}
-      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
-      timestamp: ${{needs.env.outputs.timestamp}}
-      version: ${{needs.env.outputs.version}}
-      name: ubuntu
-      release: focal
-      frontend-artifact: ${{needs.frontend.outputs.artifact}}
-    secrets: inherit
+        # release: [debian-bullseye, debian-bookworm, ubuntu-focal, ubuntu-jammy]
+        release: [ubuntu-focal]
+    needs: [env]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{needs.env.outputs.ref}}
+          fetch-depth: 0
+      - run: build/make-pkg.sh ${{matrix.release}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: statshouse-pkg-${{needs.env.outputs.version}}-${{github.run_number}}-${{matrix.release}}
+          path: target/${{matrix.release}}/*.deb
   draft_release:
     if: ${{ github.event.inputs.draft_release }}
-    needs: [env, rpm, ubuntu_focal]
+    needs: [env, rpm, deb]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

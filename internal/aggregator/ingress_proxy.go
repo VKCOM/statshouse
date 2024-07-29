@@ -20,15 +20,15 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type clientPool struct {
@@ -63,11 +63,12 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster           string
-	Network           string
-	ListenAddr        string
-	ExternalAddresses []string // exactly 3 comma-separated external ingress points
-	IngressKeys       []string
+	Cluster             string
+	Network             string
+	ListenAddr          string
+	ExternalAddresses   []string // exactly 3 comma-separated external ingress points
+	IngressKeys         []string
+	ResponseMemoryLimit int
 }
 
 func newClientPool(aesPwd string) *clientPool {
@@ -118,6 +119,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 			clientList: map[*rpc.HandlerContext]longpollClient{},
 		}
 	}
+	metrics := util.NewRPCServerMetrics("statshouse_proxy")
 	options := []rpc.ServerOptionsFunc{
 		rpc.ServerWithCryptoKeys(config.IngressKeys),
 		rpc.ServerWithHandler(proxy.handler),
@@ -132,6 +134,8 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
+		rpc.ServerWithResponseMemoryLimit(config.ResponseMemoryLimit),
+		metrics.ServerWithMetrics,
 	}
 	if hijack != nil {
 		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
@@ -139,6 +143,7 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		}))
 	}
 	proxy.server = rpc.NewServer(options...)
+	defer metrics.Run(proxy.server)()
 	log.Printf("Running ingress proxy listening %s with %d crypto keys", ln.Addr(), len(config.IngressKeys))
 	return proxy.server.Serve(ln)
 }
@@ -153,11 +158,14 @@ func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
 	}
 }
 
-func (ls *longpollShard) callback(client *rpc.Client, queryID int64, resp *rpc.Response, err error, userData any) {
+func (ls *longpollShard) callback(client *rpc.Client, resp *rpc.Response, err error) {
+	defer client.PutResponse(resp)
+	userData := resp.UserData()
 	hctx := userData.(*rpc.HandlerContext)
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	lpc, ok := ls.clientList[hctx]
+	queryID := resp.QueryID()
 	if !ok || lpc.queryID != queryID {
 		// server already cancelled longpoll call
 		// or hctx was cancelled and reused by server before client response arrived
@@ -201,12 +209,24 @@ func (proxy *IngressProxy) syncHandler(ctx context.Context, hctx *rpc.HandlerCon
 func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
 	requestLen := len(hctx.Request)
 	switch hctx.RequestTag() {
-	case constants.StatshouseGetTagMapping2,
-		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
-		constants.StatshouseTestConnection2, constants.StatshouseGetTargets2,
-		constants.StatshouseGetTagMappingBootstrap, constants.StatshouseGetMetrics3,
-		constants.StatshouseAutoCreate:
+	case constants.StatshouseGetTagMapping2:
+		hctx.RequestFunctionName = "statshouse.getTagMapping2"
+	case constants.StatshouseSendKeepAlive2:
+		hctx.RequestFunctionName = "statshouse.sendKeepAlive2"
+	case constants.StatshouseSendSourceBucket2:
+		hctx.RequestFunctionName = "statshouse.sendSourceBucket2"
+	case constants.StatshouseTestConnection2:
+		hctx.RequestFunctionName = "statshouse.testConnection2"
+	case constants.StatshouseGetTargets2:
+		hctx.RequestFunctionName = "statshouse.getTargets2"
+	case constants.StatshouseGetTagMappingBootstrap:
+		hctx.RequestFunctionName = "statshouse.getTagMappingBootstrap"
+	case constants.StatshouseGetMetrics3:
+		hctx.RequestFunctionName = "statshouse.getMetrics3"
+	case constants.StatshouseAutoCreate:
+		hctx.RequestFunctionName = "statshouse.autoCreate"
 	case constants.StatshouseGetConfig2:
+		hctx.RequestFunctionName = "statshouse.getConfig2"
 		return 0, rpc.ErrNoHandler // call SyncHandler in worker
 	default:
 		// we want fast reject of unknown requests in sync handler
@@ -216,7 +236,7 @@ func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.Handle
 	if err != nil {
 		return format.TagValueIDRPCRequestsStatusErrLocal, err
 	}
-
+	queryID := req.QueryID()
 	lockShardID := int(proxy.nextShardLock.Inc() % longPollShardsCount)
 	ls := proxy.longpollShards[lockShardID]
 	ls.mu.Lock() // to avoid race with longpoll cancellation, all code below must run under lock
@@ -224,7 +244,7 @@ func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.Handle
 	if _, err := client.DoCallback(ctx, proxy.config.Network, address, req, ls.callback, hctx); err != nil {
 		return format.TagValueIDRPCRequestsStatusErrLocal, err
 	}
-	ls.clientList[hctx] = longpollClient{queryID: req.QueryID(), requestLen: requestLen}
+	ls.clientList[hctx] = longpollClient{queryID: queryID, requestLen: requestLen}
 	return 0, hctx.HijackResponse(ls)
 }
 
@@ -326,7 +346,11 @@ func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client 
 		return client
 	}
 	log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
-	client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+	client = rpc.NewClient(
+		rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+		rpc.ClientWithLogf(log.Printf),
+		rpc.ClientWithCryptoKey(pool.aesPwd),
+		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	pool.clients[clientHost] = client
 	return client
 }

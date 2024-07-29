@@ -13,9 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
-	"go.uber.org/atomic"
 )
 
 const (
@@ -271,7 +272,8 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 		nextStartFrom := data_model.StepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
-			ret[ix] = cached.rows
+			ret[ix] = make([]tsSelectRow, len(cached.rows))
+			copy(ret[ix], cached.rows)
 			*rows += len(cached.rows)
 			hit++
 		} else {

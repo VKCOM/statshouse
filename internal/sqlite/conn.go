@@ -11,7 +11,7 @@ import (
 	"go4.org/mem"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 )
 
 type sqliteConn struct {
@@ -306,12 +306,6 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 		}
 	}
 
-	if !allowUnsafe && !si.isSafe {
-		return nil, errUnsafe
-	}
-	if isRO && !si.isSelect {
-		return nil, fmt.Errorf("use Exec instead of Query")
-	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()
 		if err != nil {
