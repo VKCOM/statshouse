@@ -71,17 +71,8 @@ func (s *Shard) flushBuckets(now time.Time) {
 				continue
 			}
 			if !b.Empty() {
-				// TODO: should be moved out of flushBuckets becase we want to keep it extremely fast
-				resolutionShards := partitionMultiItems(b.MultiItems, b.Resolution)
-				for rs := 0; rs < b.Resolution; rs++ {
-					if len(resolutionShards[rs]) == 0 {
-						break
-					}
-					// future queue pos is assigned without seams if missed seconds is 0
-					futureQueuePos := (b.Time + uint32(r) + uint32(rs)) % 60
-					fb := &data_model.MetricsBucket{Time: b.Time, Resolution: b.Resolution, MultiItems: resolutionShards[rs]}
-					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], fb)
-				}
+				futureQueuePos := (b.Time + uint32(r)) % 60
+				s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
 			}
 			s.CurrentBuckets[r] = s.NextBuckets[r]
 			s.NextBuckets[r] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
@@ -233,11 +224,44 @@ func (s *Shard) goPreProcess() {
 		s.PreprocessingBucketTime = 0
 		s.mu.Unlock()
 
+		// We uniformly split buckets with resolution > 1 into second buckets to process them fairly
+		// this is done outside of lock
+		carryBuckets := make([][]*data_model.MetricsBucket, 60)
+		for _, b := range buckets {
+			if b.Resolution == 1 {
+				continue
+			}
+			resolutionShards := partitionMultiItems(b.MultiItems, b.Resolution)
+			originalResolution := b.Resolution
+			for rs, items := range resolutionShards {
+				if len(items) == 0 {
+					continue
+				}
+				if rs == 0 {
+					b.Resolution = 1
+					b.MultiItems = items
+					continue
+				}
+				futureQueuePos := (b.Time + uint32(originalResolution) + uint32(rs)) % 60
+				carryBuckets[futureQueuePos] = append(carryBuckets[futureQueuePos], &data_model.MetricsBucket{
+					Time:       b.Time,
+					Resolution: 1,
+					MultiItems: items,
+				})
+			}
+		}
 		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, sampleFactors)
 
 		s.mu.Lock()
+		for rs, bs := range carryBuckets {
+			if len(bs) == 0 {
+				continue
+			}
+			s.FutureQueue[rs] = append(s.FutureQueue[rs], bs...)
+		}
+		carryBuckets = nil
 	}
 }
 
