@@ -414,15 +414,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
-	var valueQuery bool
-	var pointQuery bool
-	switch qry.Options.Mode {
-	case data_model.RangeQuery, data_model.InstantQuery:
-		valueQuery = true
-	case data_model.PointQuery:
-		pointQuery = true
-	}
-	if pointQuery {
+	if qry.Options.Mode == data_model.PointQuery {
 		for _, what := range qry.Whats {
 			switch what.Digest {
 			case data_model.DigestCount, data_model.DigestMin, data_model.DigestMax, data_model.DigestAvg,
@@ -454,7 +446,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	version := data_model.VersionOrDefault(qry.Options.Version)
 	var lods []data_model.LOD
-	if pointQuery {
+	if qry.Options.Mode == data_model.PointQuery {
 		lod0 := qry.Timescale.LODs[0]
 		start := qry.Timescale.Time[0]
 		metric := qry.Metric
@@ -486,7 +478,8 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	for _, args := range getHandlerArgs(qry, ai, step) {
 		var tx int // time index
 		for _, lod := range lods {
-			if pointQuery {
+			switch qry.Options.Mode {
+			case data_model.PointQuery:
 				data, err := h.pointsCache.get(ctx, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
@@ -541,7 +534,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					}
 				}
 				tx++
-			} else {
+			case data_model.RangeQuery, data_model.InstantQuery:
 				data, err := h.cache.Get(ctx, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
@@ -550,27 +543,25 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					for j := 0; j < len(data[i]); j++ {
 						x, ok := tagX[data[i][j].tsTags]
 						if !ok {
-							x = len(tagX)
+							x = len(res.Data)
 							tagX[data[i][j].tsTags] = x
-							if valueQuery {
-								for _, fn := range args.what {
-									v := h.Alloc(len(qry.Timescale.Time))
-									buffers = append(buffers, v)
-									for y := range *v {
-										(*v)[y] = promql.NilValue
-									}
-									var h [2][]int32
-									for z, qryHost := range qry.MinMaxHost {
-										if qryHost {
-											h[z] = make([]int32, len(qry.Timescale.Time))
-										}
-									}
-									res.Data = append(res.Data, promql.SeriesData{
-										Values:     v,
-										MinMaxHost: h,
-										What:       fn.sel,
-									})
+							for _, fn := range args.what {
+								v := h.Alloc(len(qry.Timescale.Time))
+								buffers = append(buffers, v)
+								for y := range *v {
+									(*v)[y] = promql.NilValue
 								}
+								var h [2][]int32
+								for z, qryHost := range qry.MinMaxHost {
+									if qryHost {
+										h[z] = make([]int32, len(qry.Timescale.Time))
+									}
+								}
+								res.Data = append(res.Data, promql.SeriesData{
+									Values:     v,
+									MinMaxHost: h,
+									What:       fn.sel,
+								})
 							}
 						}
 						k, err := lod.IndexOf(data[i][j].time)
@@ -578,23 +569,36 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							return promql.Series{}, nil, err
 						}
 						k += tx
-						if valueQuery {
-							for y, what := range args.what {
-								(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
-								for z, qryHost := range qry.MinMaxHost {
-									if qryHost {
-										res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
-									}
+						for y, what := range args.what {
+							(*res.Data[x+y].Values)[k] = selectTSValue(what.qry, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
+							for z, qryHost := range qry.MinMaxHost {
+								if qryHost {
+									res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
 								}
 							}
 						}
 					}
 				}
 				tx += len(data)
+			case data_model.TagsQuery:
+				data, err := h.cache.Get(ctx, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				if err != nil {
+					return promql.Series{}, nil, err
+				}
+				for i := 0; i < len(data); i++ {
+					for j := 0; j < len(data[i]); j++ {
+						if _, ok := tagX[data[i][j].tsTags]; !ok {
+							tagX[data[i][j].tsTags] = len(tagX)
+						}
+					}
+				}
+				tx += len(data)
+			default:
+				return promql.Series{}, func() {}, fmt.Errorf("query mode %v is not supported", qry.Options.Mode)
 			}
 		}
 		if qry.Options.Mode == data_model.TagsQuery {
-			res.Data = make([]promql.SeriesData, len(args.what)*len(tagX))
+			res.Data = make([]promql.SeriesData, len(tagX))
 		}
 		tagWhat := len(qry.Whats) > 1 || qry.Options.TagWhat
 		for i, what := range args.what {
@@ -633,6 +637,9 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						Value: int32(what.sel.Digest),
 					})
 				}
+			}
+			if qry.Options.Mode == data_model.TagsQuery {
+				break
 			}
 		}
 		tagX = make(map[tsTags]int, len(tagX))
