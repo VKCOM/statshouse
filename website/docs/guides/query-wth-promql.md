@@ -17,7 +17,7 @@ This section tells you about using PromQL with StatsHouse:
   * [`__what__` and `__by__`](#what-and-by)
   * [Applying dashboard variables](#applying-dashboard-variables)
   * [Range vectors and instant vectors](#range-vectors-and-instant-vectors)
-  * [`prefix_sum`](#prefixsum)
+  * [`prefix_sum`](#prefix-sum)
   * [`default`](#default)
 <!-- TOC -->
 
@@ -34,7 +34,7 @@ Find the original [PromQL documentation](https://prometheus.io/docs/prometheus/l
 ## How to switch to a PromQL query editor
 
 To switch to the PromQL query editor in StatsHouse, press the `< >` button near the _Metric name_ field.
-Find more about the [PromQL query editor in the UI](view-graph.md#18--query-with-promql).
+Find more about the [PromQL query editor in the UI](view-graph.md#18--promql-query-editor).
 
 ## What is specific about PromQL in StatsHouse?
 
@@ -42,23 +42,23 @@ If you have been using PromQL before, you may be confused with some PromQL imple
 Let's make them clear.
 
 * [The query result is an aggregate](#the-query-result-is-an-aggregate)—not an exact metric value per moment. 
-* You can [choose the aggregate components](#the-what-selector-choosing-the-aggregate-components) using the `__what__` selector.
+* You can [choose the aggregate components](#what-for-choosing-the-aggregate-components) using the `__what__` selector.
 * StatsHouse [histograms are _t-digests_](#histograms-are-t-digests).
 * StatsHouse [does not group data by default](#no-data-grouping-by-default).
 
 ### The query result is an aggregate
 
 Prometheus stores `timestamp—value` pairs. Instead, StatsHouse stores aggregated data per time intervals, or 
-[_aggregates_](../conceptual%20overview/concepts.md#aggregate).
+[_aggregates_](../overview/concepts.md#aggregate).
 
 So, the query result in StatsHouse is an aggregate, and it depends on
-* the [_minimal available aggregation interval_](../conceptual%20overview/concepts.md#minimal-available-aggregation-interval)
+* the [_minimal available aggregation interval_](../overview/concepts.md#minimal-available-aggregation-interval)
 (i.e., on the "age" of the data),
 * the [_requested aggregation interval_](view-graph.md#6--aggregation-interval),
-* the metric [_resolution_](../conceptual%20overview/concepts.md#resolution).
+* the metric [_resolution_](../overview/concepts.md#resolution).
 
-An [aggregate](../conceptual%20overview/concepts.md#aggregate) contains the _count_, _sum_, _min_, _max_ 
-statistics, and, optionally, the [_String top_](../conceptual%20overview/components.md#string-top-tag) tag (`tag_s`)
+An [aggregate](../overview/concepts.md#aggregate) contains the _count_, _sum_, _min_, _max_ 
+statistics, and, optionally, the [_String top_](../overview/components.md#string-top-tag) tag (`tag_s`)
 and [percentiles](edit-metrics.md#percentiles) (if enabled). 
 They are _aggregate components_:
 
@@ -66,9 +66,9 @@ They are _aggregate components_:
 |-----------|------------|-------|-------|-------|-------|-----|-----|-----|-------------|
 | 13:45:05  | toy_metric | ...   | ...   | ...   | ...   | ... | ... | ... | ...         |
 
-Read more about [aggregation](../conceptual%20overview/concepts.md#aggregation) in StatsHouse.
+Read more about [aggregation](../overview/concepts.md#aggregation) in StatsHouse.
 
-### `__what__` for choosing the aggregate components
+### ___what___ for choosing the aggregate components
 
 * In Prometheus, you can query the exact values. In Prometheus `timestamp—value` pairs, the 
 value is the floating-point number associated with a moment in time.
@@ -159,9 +159,9 @@ To group data by tags, specify the necessary ones using the `__by__` PromQL oper
 
 Find PromQL extensions implemented in StatsHouse.
 
-### `__what__` and `__by__`
+### ___what___ and ___by___
 
-The [`__what__`](#the-what-selector-choosing-the-aggregate-components) and [`__by__`](#no-data-grouping-by-default)
+The [`__what__`](#what-for-choosing-the-aggregate-components) and [`__by__`](#no-data-grouping-by-default)
 selectors help to express any standard query in StatsHouse.
 
 ### Applying dashboard variables
@@ -180,12 +180,12 @@ Find more about [setting up variables for PromQL-based graphs and dashboards](da
 
 Functions for the range vectors receive instant vectors too. But the converse is false.
 
-### `prefix_sum`
+### _Prefix sum_
 
 The `prefix_sum` function allows you to calculate a prefix sum. For example,
 for a `1, 2, 3, 4, 5, 6` sequence, it returns the following: `1, 3, 6, 10, 15, 21`.
 
-### `default`
+### _default_
 
 It is a binary operator. It has an array on the left, and an array or a literal on the right.
 * If it has the literal on the right, the `NaN` values on the left are replaced with the literal.

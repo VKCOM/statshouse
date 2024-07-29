@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 import EditStart from '../img/edit-start.png'
@@ -19,6 +19,7 @@ import RawValueComments from '../img/raw-value-comments.png'
 import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
+import DraftTags from '../img/draft-tags.png'
 
 # Edit a metric
 
@@ -36,6 +37,7 @@ Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options
     * [Value comments](#value-comments)
     * [Specifying formats for raw tag values](#specifying-formats-for-raw-tag-values)
   * [Set up _String top tag_](#set-up-string-top-tag)
+  * [Map the draft tag names to the tag IDs](#map-the-draft-tag-names-to-the-tag-ids)
 * [Disabling a metric](#disabling-a-metric)
 * [Admin settings](#admin-settings)
 <!-- TOC -->
@@ -91,14 +93,14 @@ You will not see percentiles for the previously written data.
 :::
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
-[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
+[sampling](../overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
 eye on your metric [cardinality](view-graph.md#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
 ## Resolution
 
 The highest available resolution of data to show on a graph depends on the currently available 
-[aggregate](../conceptual%20overview/concepts.md#aggregation):
+[aggregate](../overview/concepts.md#aggregation):
 * per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
@@ -107,15 +109,15 @@ So, you can get per-second data for the last two days, per-minute data for the l
 per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 
-to reduce [sampling](../conceptual%20overview/concepts.md#sampling), reduce your metric resolution. 
-For example, choose a custom resolution to make the [agent](../conceptual%20overview/components.md#agent) send data once 
+to reduce [sampling](../overview/concepts.md#sampling), reduce your metric resolution. 
+For example, choose a custom resolution to make the [agent](../overview/components.md#agent) send data once 
 per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
 Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
 in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../conceptual%20overview/concepts.md#resolution).
+[resolution](../overview/concepts.md#resolution).
 
 You see custom resolution near the metric name in a graph view:
 
@@ -173,7 +175,7 @@ Add tag descriptions to show in the UI:
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
 [_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
-[mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-mappings).
+[mapping flood](../overview/components.md#the-budget-for-creating-tag-values).
 
 To help yourself remember what they mean, specify a 
 [format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
@@ -204,9 +206,31 @@ StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI
 
 ### Set up _String top tag_
 
-To filter data with the [String top tag](design-metric.md#string-tag) on a graph, add a name or description to it:
+To filter data with the [String top tag](design-metric.md#string-top-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
+
+### Map the draft tag names to the tag IDs
+
+Draft tags appear when the data you send contains the tag names, but these names were not mapped to tag IDs, so they 
+are "unknown" to StatsHouse.
+
+The feature was implemented to support
+[migrating from Prometheus](../admin/migrating.md#how-to-migrate-from-prometheus). There may be more than 16 tags in 
+the scraped metrics, and StatsHouse cannot map them to the tag IDs randomly.
+
+StatsHouse extracts the "unknown" tag names from the scraped metric data and shows them as the _draft tags_. Users 
+can map these draft tag names with the tag IDs manually:
+
+<img src={DraftTags} width="700"/>
+
+:::tip
+Draft tags also appear when you refer to the tags in your code by the custom names, but you have not previously 
+specified these names in the UI. See more about [describing tags](#describe-tags). The draft tag feature may help 
+you to configure metric tags faster.
+:::
+
+Learn more about [designing tags for your metrics](design-metric.md#tags).
 
 ## Disabling a metric
 

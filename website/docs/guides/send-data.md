@@ -127,17 +127,17 @@ See the [Quick start](../quick-start.md#send-data-to-your-metric) for a context.
 :::important
 We strongly recommend using the [StatsHouse client libraries](#how-to-send-data-via-client-libraries).
 
-Client libraries [aggregate](../conceptual%20overview/concepts.md#aggregation) data before sending them to StatsHouse.
+Client libraries [aggregate](../overview/concepts.md#aggregation) data before sending them to StatsHouse.
 While it may sound counterintuitive, by aggregating, client libraries prevent you from losing data.
 Without a client library, you can create a socket, prepare a JSON file, and send your formatted data.
 This sounds simple, but only if you have not so much data.
 
-StatsHouse uses [UDP](../conceptual%20overview/components.md#receiving-data-via-udp).
+StatsHouse uses [UDP](../overview/components.md#receiving-data-via-udp).
 If you send a datagram per event, and there are too many of them,
 there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
 
 If you do not use the client library, the non-aggregated data will reach StatsHouse
-[agent](../conceptual%20overview/components.md#agent), and the agent will aggregate them anyway.
+[agent](../overview/components.md#agent), and the agent will aggregate them anyway.
 :::
 
 

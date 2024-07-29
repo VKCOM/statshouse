@@ -26,7 +26,7 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   plugins: [
-        ['docusaurus-plugin-yandex-metrica', {
+            ['docusaurus-plugin-yandex-metrica', {
               counterID: '96098475',
               webvisor: true,
             }],
@@ -53,7 +53,7 @@ const config = {
             indexPages: false,
 
             // language of your documentation, see next section
-            language: "en",
+            language: ["en", "ru"],
 
             // setting this to "none" will prevent the default CSS to be included. The default CSS
             // comes from autocomplete-theme-classic, which you can read more about here:
@@ -106,20 +106,20 @@ const config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-        locales: ['en'],
-//        path: 'i18n',
-//        localeConfigs: {
-//          en: {
-//            label: 'English',
-//            htmlLang: 'en-US',
-//            path: 'en',
-//          },
-//          ru: {
-//            label: 'Russian',
-//            htmlLang: 'ru-RU',
-//            path: 'ru',
-//          },
-//  },
+        locales: ['en', 'ru'],
+        path: 'i18n',
+        localeConfigs: {
+          en: {
+            label: 'English',
+            htmlLang: 'en-US',
+            path: 'en',
+          },
+          ru: {
+            label: 'Русский',
+            htmlLang: 'ru-RU',
+            path: 'ru',
+          },
+  },
   },
 
   presets: [
@@ -129,7 +129,7 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
-          sidebarCollapsed: false,
+          sidebarCollapsed: true,
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
 //          editUrl:
@@ -152,14 +152,14 @@ const config = {
           disableSwitch: true,
         },
 
-    announcementBar: {
-          id: 'test_version',
-          content:
-            'This documentation is currently in draft form, so it may be misleading. Please wait until the documentation is officially released.',
-          backgroundColor: '#ff4013',
-          textColor: '#ffffff',
-          isCloseable: false,
-        },
+//    announcementBar: {
+//          id: 'test_version',
+//          content:
+//            'This documentation is currently in draft form, so it may be misleading. Please wait until the documentation is officially released.',
+//          backgroundColor: '#ff4013',
+//          textColor: '#ffffff',
+//          isCloseable: false,
+//        },
 
       navbar: {
         title: 'StatsHouse Docs',
@@ -168,6 +168,7 @@ const config = {
           src: '/img/statshouse.jpeg',
         },
         items: [
+
 //          {
 //            type: 'docSidebar',
 //            sidebarId: 'tutorialSidebar',
@@ -180,22 +181,19 @@ const config = {
             label: 'GitHub',
             position: 'right',
           },
-
-//          {
-//            type: 'localeDropdown',
-//            position: 'left',
-//          },
+          {            type: 'localeDropdown',
+            position: 'left',
+          },
         ],
       },
       footer: {
         style: 'light',
 
-        copyright: `Copyright © ${new Date().getFullYear()} StatsHouse.`,
+        copyright: `Copyright © 2024 StatsHouse.`,
       },
-      prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
-      },
+        prism: {
+              theme: prismThemes.github,
+            },
     }),
 
 };

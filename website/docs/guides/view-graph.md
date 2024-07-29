@@ -44,7 +44,7 @@ import MetricTabDelete from '../img/metric-tab-delete.png'
 # View metric data
 
 Display data on a graph, in a [table](#10--table-view), or as a [CSV](#12--csv) file via the StatsHouse UI.
-For complicated scenarios, [query StatsHouse with PromQL](#18--query-with-promql).
+For complicated scenarios, [query StatsHouse with PromQL](#18--promql-query-editor).
 StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
@@ -150,7 +150,7 @@ Percentiles are available for _value_ metrics only.
 To get them, [enable percentiles](edit-metrics.md#percentiles) in the UI.
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased 
-[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an 
+[sampling](../overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an 
 eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution) 
 for writing metric data.
 
@@ -198,7 +198,7 @@ The larger aggregation interval you choose, the smoother look your graph has:
 ### _Auto_ and _Auto (low)_
 
 An _Auto_ interval uses the 
-[_minimal available interval_ for aggregation](../conceptual%20overview/concepts.md#minimal-available-aggregation-interval)
+[_minimal available interval_ for aggregation](../overview/concepts.md#minimal-available-aggregation-interval)
 to show data on a graph.
 This interval _varies_ depending on the currently available aggregation:
 * per-second aggregated data is stored for the first two days,
@@ -206,7 +206,7 @@ This interval _varies_ depending on the currently available aggregation:
 * per-hour aggregated data is available forever.
 
 The currently available aggregation is also related to
-a metric [resolution](../conceptual%20overview/concepts.md#resolution).
+a metric [resolution](../overview/concepts.md#resolution).
 
 The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
 even when you view data using the minimal available aggregation interval:
@@ -359,7 +359,7 @@ Here are some error examples:
 <img src={ReceiveStatus} width="300"/>
 
 For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/components.md#mapping-budget).
+indicate the slowdowns or errors of the [mapping mechanism](../overview/components.md#metadata).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
 
@@ -370,7 +370,8 @@ The `err_*_utf8` statuses store the original string values in `hex`.
 StatshHouse has two bottlenecks where it samples data: an agent and an aggregator. An agent is also referred 
 to as _source_ because it is the same machine the data come from.
 
-Sampling means that StatsHouse throws away pieces of data to reduce its overall amount. 
+[Sampling](../overview/concepts.md#sampling) means that StatsHouse throws away pieces of data to reduce its 
+overall amount. 
 To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
 sampling factor).
 
@@ -392,12 +393,14 @@ If the sampling coefficient for a metric is higher than 5, it is displayed with 
 
 The _count_ statistic for this metric shows the number of agents having set this coefficient in a particular second.
 
-Learn more about StatsHouse [agents](../conceptual%20overview/components.md#agent) and
-[aggregators](../conceptual%20overview/components.md#aggregator), and what [sampling](../conceptual%20overview/concepts.md#sampling) is.
+Learn more about StatsHouse [agents](../overview/components.md#agent) and
+[aggregators](../overview/components.md#aggregator), and what [sampling](../overview/concepts.md#sampling) is.
 
 ### Cardinality
 
-In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
+In StatsHouse, metric [cardinality](../overview/concepts.md#cardinality) is how many unique tag value combinations 
+you send 
+for a metric.
 
 The _Cardinality_ meta-metric redirects you to the `__agg_hour_cardinality` metric:
 
@@ -412,12 +415,12 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 ### Mapping status
 
 If you create too many tag values, which have not been 
-[mapped](../conceptual%20overview/components.md#mapping-budget) yet, the mapping flood errors appear:
+mapped yet, the [mapping](../overview/components.md#the-budget-for-creating-tag-values) flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
 Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
-Learn more about [mapping](../conceptual%20overview/components.md#mapping-budget) 
+Learn more about [mapping](../overview/components.md#metadata) 
 and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
