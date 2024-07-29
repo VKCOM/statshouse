@@ -6,12 +6,12 @@ if [ -z "$META_OFF" ]; then
 fi
 until clickhouse-client --query="SELECT 1"; do sleep 0.2; done
 if [ -z "$AGGREGATOR_OFF" ]; then
-  /bin/statshouse aggregator --cluster=test_shard_localhost --log-level=trace --agg-addr=':13336' --kh=127.0.0.1:8123 \
+  /bin/statshouse aggregator --cluster=local_test_cluster --log-level=trace --agg-addr=':13336' --kh=127.0.0.1:8123 \
     --auto-create --auto-create-default-namespace \
     --cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root &
 fi
 if [ -z "$AGENT_OFF" ]; then
-  /bin/statshouse agent --cluster=test_shard_localhost --log-level=trace --remote-write-enabled \
+  /bin/statshouse agent --cluster=local_test_cluster --log-level=trace --remote-write-enabled \
     --agg-addr='127.0.0.1:13336,127.0.0.1:13336,127.0.0.1:13336' --cache-dir=/var/lib/statshouse/cache/agent \
     -u=root -g=root &
 fi
