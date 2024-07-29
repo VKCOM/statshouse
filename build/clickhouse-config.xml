@@ -1,13 +1,13 @@
 <clickhouse>
     <remote_servers>
-        <test_shard_aggregator>
+        <local_test_cluster>
             <shard>
                 <replica>
                     <host>aggregator</host>
                     <port>9000</port>
                 </replica>
             </shard>
-        </test_shard_aggregator>
+        </local_test_cluster>
     </remote_servers>
     <prometheus>
         <endpoint>/metrics</endpoint>

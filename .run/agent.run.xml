@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="agent" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="statshouse" />
-    <working_directory value="$PROJECT_DIR$" />
+    <working_directory value="$PROJECT_DIR$/target/run" />
     <parameters value="-agent --hardware-metric-scrape-disable --cluster=local_test_cluster --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13336,127.0.0.1:13336 --cache-dir=cache/agent" />
     <kind value="DIRECTORY" />
     <package value="github.com/vkcom/statshouse/cmd/statshouse" />
