@@ -3,6 +3,7 @@ package receiver
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -216,6 +217,11 @@ func newScraper(h Handler, t scrapeTarget) *scraper {
 		ctx:      ctx,
 		shutdown: cancel,
 		request:  req,
+	}
+	res.client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
 	res.exit.Add(1)
 	go res.run()
