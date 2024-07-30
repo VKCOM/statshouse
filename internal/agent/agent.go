@@ -385,7 +385,21 @@ func (s *BuiltInItemValue) Merge(s2 *data_model.ItemValue) {
 	s.value.Merge(s2)
 }
 
-func (s *Agent) shardNumFromHash(hash uint64) int {
+func (s *Agent) shardNumFromKey(key data_model.Key) int {
+	if s.shardByMetric.Load() {
+		metricId := int(key.Metric)
+		// __badges and __src_ingestion_status are special cases
+		// they are sharded same way as metric they are used for
+		switch metricId {
+		case format.BuiltinMetricIDBadges:
+			metricId = int(key.Keys[2])
+		case format.BuiltinMetricIDIngestionStatus:
+			metricId = int(key.Keys[1])
+		}
+		return metricId % len(s.Shards)
+	}
+
+	hash := key.Hash()
 	numShards := s.NumShards()
 	skipShards := int(s.skipShards.Load())        // free on x86
 	if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
@@ -397,18 +411,7 @@ func (s *Agent) shardNumFromHash(hash uint64) int {
 }
 
 func (s *Agent) shardFromKey(key data_model.Key) *Shard {
-	if s.shardByMetric.Load() {
-		metricId := int(key.Metric)
-		if key.Metric == format.BuiltinMetricIDBadges {
-			// __badges is a special case because it's created by us, extremely heavy, and always requested with metric
-			// we shard it same way as metric it's used for
-			metricId = int(key.Keys[2])
-		}
-		shardNum := metricId % len(s.Shards)
-		return s.Shards[shardNum]
-	}
-	hash := key.Hash()
-	return s.Shards[s.shardNumFromHash(hash)]
+	return s.Shards[s.shardNumFromKey(key)]
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
