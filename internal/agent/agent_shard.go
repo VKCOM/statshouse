@@ -55,7 +55,8 @@ type (
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
 		PreprocessingBucketTime uint32
-		PreprocessingBuckets    []*data_model.MetricsBucket // current FutureQueue element is moved here
+		PreprocessingBuckets    []*data_model.MetricsBucket     // current FutureQueue element is moved here
+		carryBuckets            [60][]*data_model.MetricsBucket // only used from goPreProcess so accessed without lock
 		condPreprocess          *sync.Cond
 
 		// only used by single shard randomly selected for sending this infp
