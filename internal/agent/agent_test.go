@@ -15,6 +15,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -195,4 +196,144 @@ func Benchmark_sampleFactorDeterministic(b *testing.B) {
 			result++
 		}
 	}
+}
+
+func Test_AgentSharding(t *testing.T) {
+	config := Config{
+		ShardByMetric: true,
+	}
+	agent := &Agent{
+		config: config,
+		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
+	}
+	agent.shardByMetric.Store(config.ShardByMetric)
+	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
+	nowUnix := uint32(startTime.Unix())
+
+	agent.Shards = make([]*Shard, 5)
+	for i := range agent.Shards {
+		shard := &Shard{
+			ShardNum:        i,
+			config:          config,
+			agent:           agent,
+			addBuiltInsTime: nowUnix,
+		}
+		for r := range shard.CurrentBuckets {
+			if r != format.AllowedResolution(r) {
+				continue
+			}
+			ur := uint32(r)
+			bucketTime := (nowUnix / ur) * ur
+			for sh := 0; sh < r; sh++ {
+				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
+				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
+			}
+		}
+		shard.cond = sync.NewCond(&shard.mu)
+		shard.condPreprocess = sync.NewCond(&shard.mu)
+		agent.Shards[i] = shard
+	}
+
+	rng := rand.New()
+	for i := 0; i < 1000; i++ {
+		applyRandCountMetric(agent, rng, nowUnix)
+		applyRandValueMetric(agent, rng, nowUnix)
+		applyRandUniqueMetric(agent, rng, nowUnix)
+	}
+
+	totalCount := 0
+	for si, shard := range agent.Shards {
+		shardCount := 0
+		for _, b := range shard.CurrentBuckets {
+			if b == nil {
+				continue
+			}
+			for _, sh := range b {
+				if sh == nil {
+					continue
+				}
+				for key := range sh.MultiItems {
+					shardCount++
+					expectedShardNum := agent.shardNumFromKey(key)
+					if expectedShardNum != si {
+						t.Fatalf("failed for metric %v expected shard %d but got %d", key, expectedShardNum, si)
+					}
+				}
+			}
+		}
+		t.Log("shard", si, "count", shardCount)
+		totalCount += shardCount
+	}
+	// totalCount is twice as much because each metric is duplicated by __src_ingestion_status
+	if totalCount != 6000 {
+		t.Fatalf("expected to have 6000 metrics added to shards but got only %d", totalCount)
+	}
+}
+
+func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
+	key := data_model.Key{
+		Timestamp: ts,
+		Metric:    metricOffset + rng.Int31n(100_000),
+		Keys:      [16]int32{},
+	}
+	tagsN := rng.Int31n(16)
+	for t := 0; t < int(tagsN); t++ {
+		key.Keys[t] = rng.Int31n(100_000)
+	}
+	return key
+}
+
+func randResolution(rng *rand.Rand) int {
+	resolutions := []int{1, 5, 6, 10, 15, 20, 30, 60}
+	return resolutions[rng.Int31n(int32(len(resolutions)))]
+}
+
+func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32) {
+	m := tlstatshouse.MetricBytes{
+		Counter: float64(1 + rng.Int31n(100)),
+	}
+	h := data_model.MappedMetricHeader{
+		Key: randKey(rng, ts, 1),
+		MetricInfo: &format.MetricMetaValue{
+			EffectiveResolution: randResolution(rng),
+		},
+	}
+	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
+}
+
+func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32) {
+	count := 1 + rng.Int31n(100)
+	m := tlstatshouse.MetricBytes{
+		Counter: float64(count),
+		Value:   make([]float64, count),
+	}
+	for i := range m.Value {
+		m.Value[i] = rng.Float64()
+	}
+	h := data_model.MappedMetricHeader{
+		Key: randKey(rng, ts, 100_001),
+		MetricInfo: &format.MetricMetaValue{
+			EffectiveResolution: randResolution(rng),
+		},
+	}
+	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
+}
+
+func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32) {
+	count := 1 + rng.Int31n(10)
+	m := tlstatshouse.MetricBytes{
+		Counter: float64(count),
+		Unique:  make([]int64, count),
+	}
+	for i := range m.Unique {
+		m.Unique[i] = rng.Int63n(1000)
+	}
+	h := data_model.MappedMetricHeader{
+		Key: randKey(rng, ts, 200_001),
+		MetricInfo: &format.MetricMetaValue{
+			EffectiveResolution: randResolution(rng),
+			ShardUniqueValues:   true,
+		},
+	}
+	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
