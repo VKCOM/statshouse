@@ -387,7 +387,7 @@ func (s *BuiltInItemValue) Merge(s2 *data_model.ItemValue) {
 
 func (s *Agent) shardNumFromKey(key data_model.Key) int {
 	if s.shardByMetric.Load() {
-		metricId := int(key.Metric)
+		metricId := int(uint16(key.Metric))
 		// __badges and __src_ingestion_status are special cases
 		// they are sharded same way as metric they are used for
 		switch metricId {
@@ -396,7 +396,8 @@ func (s *Agent) shardNumFromKey(key data_model.Key) int {
 		case format.BuiltinMetricIDIngestionStatus:
 			metricId = int(key.Keys[1])
 		}
-		return metricId % len(s.Shards)
+		shardNum := metricId % s.NumShards()
+		return shardNum
 	}
 
 	hash := key.Hash()
