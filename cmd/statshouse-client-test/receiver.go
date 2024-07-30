@@ -5,7 +5,6 @@ import (
 	"log"
 	"slices"
 	"sort"
-	"sync"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -42,13 +41,12 @@ func listenUDP(args argv, ch chan series) (func(), error) {
 		return nil, err
 	}
 	log.Printf("listen UDP %s\n", addr)
-	var wg sync.WaitGroup
-	wg.Add(1)
+	syncCh := make(chan int, 1)
 	go func() {
-		defer wg.Done()
-		defer ln.Close()
+		defer close(syncCh)
 		res := make(series, args.m)
 		var n int
+		syncCh <- 1 // started
 		if err := ln.Serve(handler{func(b *tlstatshouse.MetricBytes) {
 			if bytes.Equal(b.Name, endOfIterationMarkBytes) {
 				n += int(b.Counter)
@@ -68,9 +66,10 @@ func listenUDP(args argv, ch chan series) (func(), error) {
 			log.Fatalln(err)
 		}
 	}()
+	<-syncCh // wait started
 	return func() {
 		ln.Close()
-		wg.Wait()
+		<-syncCh // wait closed
 	}, nil
 }
 

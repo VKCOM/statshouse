@@ -1,5 +1,7 @@
 package main
 
+import "path/filepath"
+
 type cpp struct{ client }
 
 func (*cpp) libMain() string {
@@ -15,6 +17,6 @@ func (*cpp) gitURL() string {
 }
 
 func (client *cpp) make() error {
-	client.binFile = "test"
+	client.binFile = filepath.Join(client.shell.dir, "test")
 	return client.exec("g++", "-I", client.library.rootDir, "-o", client.binFile, client.srcFile)
 }
