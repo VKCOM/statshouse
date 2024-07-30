@@ -168,9 +168,13 @@ func newClient(lib *library, args argv) (_ lib, cancel func(), err error) {
 		return nil, nil, err
 	}
 	var ok bool
-	cancel = func() {
-		log.Println("$ rm -rf", path)
-		os.RemoveAll(path)
+	if args.keepTemp {
+		cancel = func() {} // nop
+	} else {
+		cancel = func() {
+			log.Println("$ rm -rf", path)
+			os.RemoveAll(path)
+		}
 	}
 	defer func() {
 		if !ok {

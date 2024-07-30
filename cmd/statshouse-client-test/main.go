@@ -60,7 +60,10 @@ func testClient(args argv, lib *library, data any, expected series, actualC chan
 	var failCount int
 	for k, v := range testTemplates(lib) {
 		log.Printf("*** %s ***\n", k)
-		runClient(args, lib, v, data)
+		if err := runClient(args, lib, v, data); err != nil {
+			failCount += fail(err)
+			continue
+		}
 		select {
 		case actual := <-actualC:
 			if diff := compareSeries(expected, actual); !diff.empty() {
@@ -70,6 +73,7 @@ func testClient(args argv, lib *library, data any, expected series, actualC chan
 			}
 		case <-time.After(100 * time.Millisecond):
 			failCount += fail("TIMEOUT")
+
 		}
 	}
 	return failCount
