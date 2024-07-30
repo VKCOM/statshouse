@@ -290,11 +290,11 @@ func (s *Shard) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 }
 
 func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
-	minuteBucket := s.CurrentBuckets[1] // we aggregate built-ins locally into one second resolution
+	secondBucket := s.CurrentBuckets[1] // we aggregate built-ins locally into one second resolution
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Counter > 0 {
-			mi := data_model.MapKeyItemMultiItem(&minuteBucket.MultiItems, v.key, s.config.StringTopCapacity, nil, nil)
+			mi := data_model.MapKeyItemMultiItem(&secondBucket.MultiItems, v.key, s.config.StringTopCapacity, nil, nil)
 			mi.Tail.Value.Merge(&v.value)
 			v.value = data_model.ItemValue{} // Moving below 'if' would reset Counter if <0. Will complicate debugging, so no.
 		}
@@ -304,15 +304,15 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 		return
 	}
 	if s.agent.heartBeatEventType != format.TagValueIDHeartbeatEventHeartbeat { // first run
-		s.addBuiltInsHeartbeatsLocked(minuteBucket, nowUnix, 1) // send start event immediately
+		s.addBuiltInsHeartbeatsLocked(secondBucket, nowUnix, 1) // send start event immediately
 		s.agent.heartBeatEventType = format.TagValueIDHeartbeatEventHeartbeat
 	}
 	// this logic with currentJournalHashSeconds and currentJournalVersion ensures there is exactly 60 samples per minute,
 	// sending is once per minute when no changes, but immediate sending of journal version each second when it changed
 	// standard metrics do not allow this, but heartbeats are magic.
 	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
-		key := s.agent.AggKey(minuteBucket.Time, format.BuiltinMetricIDJournalVersions, [16]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
-		mi := data_model.MapKeyItemMultiItem(&minuteBucket.MultiItems, key, s.config.StringTopCapacity, nil, nil)
+		key := s.agent.AggKey(secondBucket.Time, format.BuiltinMetricIDJournalVersions, [16]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
+		mi := data_model.MapKeyItemMultiItem(&secondBucket.MultiItems, key, s.config.StringTopCapacity, nil, nil)
 		mi.MapStringTop(hash, count).AddCounterHost(count, 0)
 	}
 	if s.agent.metricStorage != nil { // nil only on ingress proxy for now
@@ -339,7 +339,7 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 		}
 	}
 
-	minuteBucket = s.CurrentBuckets[60]
+	minuteBucket := s.CurrentBuckets[60]
 
 	prevRUsage := s.agent.rUsage
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &s.agent.rUsage)
