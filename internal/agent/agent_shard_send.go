@@ -24,23 +24,6 @@ import (
 	"pgregory.net/rand"
 )
 
-func partitionMultiItems(items map[data_model.Key]*data_model.MultiItem, parts int) []map[data_model.Key]*data_model.MultiItem {
-	result := make([]map[data_model.Key]*data_model.MultiItem, parts)
-	if parts == 1 {
-		result[0] = items
-		return result
-	}
-	currentPartition := 0
-	for k, v := range items {
-		if result[currentPartition] == nil {
-			result[currentPartition] = make(map[data_model.Key]*data_model.MultiItem)
-		}
-		result[currentPartition][k] = v
-		currentPartition = (currentPartition + 1) % parts
-	}
-	return result
-}
-
 // If clients want less jitter (they want), they should send data quickly after end pf calendar second.
 // Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
 func (s *Shard) flushBuckets(now time.Time) {
@@ -226,42 +209,20 @@ func (s *Shard) goPreProcess() {
 
 		// We uniformly split buckets with resolution > 1 into second buckets to process them fairly
 		// this is done outside of lock
-		carryBuckets := make([][]*data_model.MetricsBucket, 60)
-		for _, b := range buckets {
-			if b.Resolution == 1 {
-				continue
-			}
-			resolutionShards := partitionMultiItems(b.MultiItems, b.Resolution)
-			originalResolution := b.Resolution
-			for rs, items := range resolutionShards {
-				if len(items) == 0 {
-					continue
-				}
-				if rs == 0 {
-					b.Resolution = 1
-					b.MultiItems = items
-					continue
-				}
-				futureQueuePos := (b.Time + uint32(originalResolution) + uint32(rs)) % 60
-				carryBuckets[futureQueuePos] = append(carryBuckets[futureQueuePos], &data_model.MetricsBucket{
-					Time:       b.Time,
-					Resolution: 1,
-					MultiItems: items,
-				})
-			}
-		}
+		buckets = s.partitionBucketsByResolution(buckets, bucket.Time)
+
 		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, sampleFactors)
 
 		s.mu.Lock()
-		for rs, bs := range carryBuckets {
+		for rs, bs := range s.carryBuckets {
 			if len(bs) == 0 {
 				continue
 			}
 			s.FutureQueue[rs] = append(s.FutureQueue[rs], bs...)
+			s.carryBuckets[rs] = bs[:0]
 		}
-		carryBuckets = nil
 	}
 }
 
@@ -663,6 +624,48 @@ func (s *Shard) goEraseHistoric() {
 		time.Sleep(60 * time.Second) // rare, because only  fail-safe against all goSendHistoric blocking in infinite sends
 		s.mu.Lock()
 	}
+}
+
+func (s *Shard) partitionBucketsByResolution(buckets []*data_model.MetricsBucket, originalTime uint32) []*data_model.MetricsBucket {
+	for i := range buckets {
+		if buckets[i].Resolution <= 1 {
+			continue
+		}
+		allMultiItems := buckets[i].MultiItems
+		multiItemsParts := partitionMultiItems(allMultiItems, buckets[i].Resolution)
+		for p := range multiItemsParts {
+			if p == 0 {
+				buckets[i].Resolution = 1
+				buckets[i].MultiItems = multiItemsParts[p]
+				continue
+			}
+
+			futureQueuePos := (originalTime + uint32(buckets[i].Resolution) + uint32(p)) % 60
+			s.carryBuckets[futureQueuePos] = append(s.carryBuckets[futureQueuePos], &data_model.MetricsBucket{
+				Time:       buckets[i].Time,
+				Resolution: 1,
+				MultiItems: multiItemsParts[p],
+			})
+		}
+	}
+	return buckets
+}
+
+func partitionMultiItems(multiItems map[data_model.Key]*data_model.MultiItem, parts int) []map[data_model.Key]*data_model.MultiItem {
+	result := make([]map[data_model.Key]*data_model.MultiItem, 0, parts)
+	if parts == 1 {
+		result = append(result, multiItems)
+		return result
+	}
+	p := 0
+	for k, v := range multiItems {
+		if len(result) <= p {
+			result = append(result, make(map[data_model.Key]*data_model.MultiItem))
+		}
+		result[p][k] = v
+		p = (p + 1) % parts
+	}
+	return result
 }
 
 func isShardDeadError(err error) bool {
