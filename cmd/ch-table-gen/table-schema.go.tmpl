@@ -1,0 +1,35 @@
+(
+    `metric` Int32,
+    {{if .Prekey -}}
+    -- prekey value equal to one of the tags (assume that prekey always has mapping)
+    `prekey` Int32,
+    {{- end}}
+    {{if .PrekeySet -}}
+    -- 0 write only to basic table
+    -- 1 write to both basic and prekey tables
+    -- 2 write only to prekey table
+    `prekey_set` UInt8,
+    {{- end}}
+    `time` DateTime,
+    {{if .HostTag}}
+    -- optional field that can be enabled by a toggle for a metric
+    `host` String,
+	{{- end}}
+	{{range $i := .RawTags }}
+    `rkey{{$i}}` Int64,
+	{{- end}}
+	{{range $t := .BasicTags }}
+    `key{{$t.Index}}` Int32, 
+    {{if $t.StringValue -}} `skey{{$t.Index}}` String, {{- end}}
+	{{- end}}
+    `skey` String,
+    `count` SimpleAggregateFunction(sum, Float64),
+    `min` SimpleAggregateFunction(min, Float64),
+    `max` SimpleAggregateFunction(max, Float64),
+    `sum` SimpleAggregateFunction(sum, Float64),
+    `sumsquare` SimpleAggregateFunction(sum, Float64),
+    `min_host` AggregateFunction(argMin, Int32, Float32),
+    `max_host` AggregateFunction(argMax, Int32, Float32),
+    `percentiles` AggregateFunction(quantilesTDigest(0.5), Float32),
+    `uniq_state` AggregateFunction(uniq, Int64)
+)
