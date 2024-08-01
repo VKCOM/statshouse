@@ -13,42 +13,16 @@ import (
 	"fmt"
 	"time"
 
-	"go4.org/mem"
-	"pgregory.net/rand"
-
 	"github.com/pierrec/lz4"
-
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"go4.org/mem"
+	"pgregory.net/rand"
 )
-
-type userData struct {
-	sendSourceBucket2 tlstatshouse.SendSourceBucket2Bytes
-	sourceBucket2     tlstatshouse.SourceBucket2Bytes
-	sendKeepAlive2    tlstatshouse.SendKeepAlive2Bytes
-	getMetrics3       tlstatshouse.GetMetrics3
-	getTagMapping2    tlstatshouse.GetTagMapping2Bytes
-	getTagBoostrap    tlstatshouse.GetTagMappingBootstrapBytes
-	getConfig2        tlstatshouse.GetConfig2
-	testConneection2  tlstatshouse.TestConnection2Bytes
-	getTargets2       tlstatshouse.GetTargets2Bytes
-	autoCreate        tlstatshouse.AutoCreateBytes
-	uncompressed      []byte
-}
-
-func getUserData(hctx *rpc.HandlerContext) *userData {
-	ud, ok := hctx.UserData.(*userData)
-	if !ok {
-		ud = &userData{}
-		hctx.UserData = ud
-	}
-	return ud
-}
 
 func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext) error {
 	tag, _ := basictl.NatPeekTag(hctx.Request)
@@ -57,7 +31,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	protocol := int32(hctx.ProtocolVersion())
 	requestLen := len(hctx.Request) // impl will release hctx
 	key := a.aggKey(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol})
-	err := a.handleClientImpl(ctx, hctx)
+	err := a.h.Handle(ctx, hctx)
 	if err == rpc.ErrNoHandler {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if rpc.IsHijackedResponse(err) {
@@ -67,139 +41,6 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	}
 	a.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
 	return err
-}
-
-// TODO - use generatedd handler
-func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerContext) error {
-	var tag uint32
-	tag, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
-	switch tag {
-	case constants.StatshouseGetConfig2:
-		hctx.RequestFunctionName = "statshouse.getConfig2"
-		ud := getUserData(hctx)
-		_, err := ud.getConfig2.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
-		}
-		return a.handleGetConfig2(ctx, hctx, ud.getConfig2)
-	case constants.StatshouseGetMetrics3:
-		hctx.RequestFunctionName = "statshouse.getMetrics3"
-		ud := getUserData(hctx)
-		_, err := ud.getMetrics3.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
-		}
-		return a.metricStorage.Journal().HandleGetMetrics3(ctx, hctx, ud.getMetrics3)
-	case constants.StatshouseGetTagMapping2:
-		hctx.RequestFunctionName = "statshouse.getTagMapping2"
-		ud := getUserData(hctx)
-		_, err := ud.getTagMapping2.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getTagMapping2 request: %w", err)
-		}
-		return a.tagsMapper.handleCreateTagMapping(ctx, hctx, ud.getTagMapping2)
-	case constants.StatshouseGetTagMappingBootstrap:
-		hctx.RequestFunctionName = "statshouse.getTagMappingBootstrap"
-		ud := getUserData(hctx)
-		_, err := ud.getTagBoostrap.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getTagMappingBootstrap request: %w", err)
-		}
-		hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
-		return nil
-	case constants.StatshouseSendKeepAlive2:
-		hctx.RequestFunctionName = "statshouse.sendKeepAlive2"
-		{
-			ud := getUserData(hctx)
-			_, err := ud.sendKeepAlive2.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
-			}
-			return a.handleKeepAlive2(ctx, hctx, ud.sendKeepAlive2)
-		}
-	case constants.StatshouseSendSourceBucket2:
-		hctx.RequestFunctionName = "statshouse.sendSourceBucket2"
-		{
-			ud := getUserData(hctx)
-			rawSize := len(hctx.Request)
-			_, err := ud.sendSourceBucket2.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket2 request: %w", err)
-			}
-			var readFrom []byte
-			if int(ud.sendSourceBucket2.OriginalSize) != len(ud.sendSourceBucket2.CompressedData) {
-				if ud.sendSourceBucket2.OriginalSize > data_model.MaxUncompressedBucketSize {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket - uncompressed size %d too big", ud.sendSourceBucket2.OriginalSize)
-				}
-				ud.uncompressed = append(ud.uncompressed[:0], make([]byte, int(ud.sendSourceBucket2.OriginalSize))...)
-				s, err := lz4.UncompressBlock(ud.sendSourceBucket2.CompressedData, ud.uncompressed)
-				if err != nil {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket: %w", err)
-				}
-				if s != int(ud.sendSourceBucket2.OriginalSize) {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket request: expected size %d actual %d", ud.sendSourceBucket2.OriginalSize, s)
-				}
-				// uncomment if you add fields to the TL
-				ud.uncompressed = append(ud.uncompressed, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
-				readFrom = ud.uncompressed
-			} else {
-				// uncomment if you add fields to the TL
-				ud.sendSourceBucket2.CompressedData = append(ud.sendSourceBucket2.CompressedData, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
-				readFrom = ud.sendSourceBucket2.CompressedData
-			}
-			// Uncomment if you change compressed bucket format
-			// tag, _ := basictl.NatPeekTag(readFrom)
-			// if tag == constants.StatshouseSourceBucket {
-			//	_, err = ud.sourceBucket.ReadBoxed(readFrom)
-			//	if err != nil {
-			//		return fmt.Errorf("failed to deserialize statshouse.sourceBucket: %w", err)
-			//	}
-			//	return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket, ud.sourceBucket, rawSize)
-			// }
-			_, err = ud.sourceBucket2.ReadBoxed(readFrom)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
-			}
-			return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket2, true, ud.sourceBucket2, rawSize)
-		}
-	case constants.StatshouseTestConnection2:
-		hctx.RequestFunctionName = "statshouse.testConnection2"
-		{
-			ud := getUserData(hctx)
-			_, err := ud.testConneection2.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
-			}
-			return a.testConnection.handleTestConnection(ctx, hctx, ud.testConneection2)
-		}
-	case constants.StatshouseGetTargets2:
-		hctx.RequestFunctionName = "statshouse.getTargets2"
-		{
-			ud := getUserData(hctx)
-			_, err := ud.getTargets2.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.getTargets2 request: %w", err)
-			}
-			return a.scrape.handleGetTargets(ctx, hctx, ud.getTargets2)
-		}
-	case constants.StatshouseAutoCreate:
-		hctx.RequestFunctionName = "statshouse.autoCreate"
-		{
-			if a.autoCreate == nil {
-				return rpc.Error{
-					Code:        data_model.RPCErrorNoAutoCreate,
-					Description: "aggregator not configured for auto-create",
-				}
-			}
-			ud := getUserData(hctx)
-			_, err := ud.autoCreate.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.autoCreate request: %w", err)
-			}
-			return a.autoCreate.handleAutoCreate(ctx, hctx, ud.autoCreate)
-		}
-	}
-	return rpc.ErrNoHandler
 }
 
 func (a *Aggregator) getConfigResult() tlstatshouse.GetConfigResult {
@@ -222,7 +63,7 @@ func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) data_mod
 	return data_model.AggKey(t, m, k, a.aggregatorHost, a.shardKey, a.replicaKey)
 }
 
-func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetConfig2) (err error) {
+func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetConfig2) (tlstatshouse.GetConfigResult, error) {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	host := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricNameBudgetHost, false)
@@ -237,18 +78,52 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContex
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, host, nil)
-		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
+		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
 	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 	a.sh2.AddCounterHost(key, 1, host, nil)
-
-	ret := a.getConfigResult()
-	hctx.Response, err = args.WriteResult(hctx.Response, ret)
-	return err
+	return a.getConfigResult(), nil
 }
 
-func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, setShardReplica bool, bucket tlstatshouse.SourceBucket2Bytes, rawSize int) (err error) {
+func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.SendSourceBucket2Bytes
+	if _, err := args.Read(hctx.Request); err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket2 request: %w", err)
+	}
+	var bucketBytes []byte
+	if int(args.OriginalSize) != len(args.CompressedData) {
+		if args.OriginalSize > data_model.MaxUncompressedBucketSize {
+			return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket - uncompressed size %d too big", args.OriginalSize)
+		}
+		bucketBytes = make([]byte, int(args.OriginalSize))
+		s, err := lz4.UncompressBlock(args.CompressedData, bucketBytes)
+		if err != nil {
+			return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket: %w", err)
+		}
+		if s != int(args.OriginalSize) {
+			return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket request: expected size %d actual %d", args.OriginalSize, s)
+		}
+		// uncomment if you add fields to the TL
+		bucketBytes = append(bucketBytes, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
+	} else {
+		// uncomment if you add fields to the TL
+		args.CompressedData = append(args.CompressedData, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
+		bucketBytes = args.CompressedData
+	}
+	// Uncomment if you change compressed bucket format
+	// tag, _ := basictl.NatPeekTag(readFrom)
+	// if tag == constants.StatshouseSourceBucket {
+	//	_, err = ud.sourceBucket.ReadBoxed(readFrom)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to deserialize statshouse.sourceBucket: %w", err)
+	//	}
+	//	return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket, ud.sourceBucket, rawSize)
+	// }
+	var bucket tlstatshouse.SourceBucket2Bytes
+	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
+	}
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
@@ -295,14 +170,12 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 
 	var aggBucket *aggregatorBucket
 	a.mu.Lock()
-	if setShardReplica { // Skip old versions not yet updated
-		if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
-			a.mu.Unlock()
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
-			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(key, 1, host, nil)
-			return err // TODO - return code so clients will print into log and discard data
-		}
+	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
+		a.mu.Unlock()
+		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
+		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(key, 1, host, nil)
+		return err // TODO - return code so clients will print into log and discard data
 	}
 
 	oldestTime := a.recentBuckets[0].time
@@ -486,7 +359,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		return data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil, nil)
 	}
-	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(rawSize), 1, host)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(len(hctx.Request)), 1, host)
 
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(args.OriginalSize), 1, host)
 	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}).Tail.AddValueCounterHost(receiveDelay, 1, host)
@@ -556,7 +429,11 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	return errHijack
 }
 
-func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive2Bytes) error {
+func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.SendKeepAlive2Bytes
+	if _, err := args.Read(hctx.Request); err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
+	}
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	host := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
