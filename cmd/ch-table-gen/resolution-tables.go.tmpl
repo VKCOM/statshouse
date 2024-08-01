@@ -1,0 +1,47 @@
+CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_dist ON CLUSTER {{.Cluster}}
+{{template "table-schema.go.tmpl" .Schema -}}
+ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}');
+
+CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}} ON CLUSTER {{.Cluster}}
+{{template "table-schema.go.tmpl" .Schema -}}
+ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{replica}')
+PARTITION BY toStartOfInterval(time, toIntervalHour(6))
+{{template "table-order.go.tmpl" .Schema -}}
+TTL time + toIntervalHour(52)
+SETTINGS ttl_only_drop_parts = 1, index_granularity = 8192, max_bytes_to_merge_at_max_space_in_pool = 16106127360
+;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_matview ON CLUSTER {{.Cluster}} TO {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}
+{{template "table-schema.go.tmpl" .Schema -}}
+AS SELECT
+    `metric`,
+    {{if .Schema.Prekey -}}
+    `prekey`,
+    {{- end}}
+    `time`,
+    {{if .Schema.HostTag}}
+    `host`,
+	{{- end}}
+	{{range $i := .Schema.RawTags }}
+    `rkey{{$i}}`,
+	{{- end}}
+	{{range $t := .Schema.BasicTags }}
+    `key{{$t.Index}}` ,
+    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
+	{{- end}}
+    `skey`,
+    `count`,
+    `min`,
+    `max`,
+    `sum`,
+    `sumsquare`,
+    `min_host`,
+    `max_host`,
+    `percentiles`,
+    `uniq_state`
+FROM {{.SelectFrom}}
+WHERE (toDate(time) >= (today() - 3)) AND 
+    (toDate(time) <= (today() + 1)) AND 
+    (prekey_set != 2)
+;
+

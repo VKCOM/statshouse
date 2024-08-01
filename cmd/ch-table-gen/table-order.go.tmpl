@@ -1,0 +1,18 @@
+ORDER BY (
+    `metric`,
+    {{if .Prekey -}}
+    `prekey`,
+    {{- end}}
+    `time`,
+    {{if .HostTag}}
+    `host`,
+	{{- end}}
+	{{range $i := .RawTags }}
+    `rkey{{$i}}`,
+	{{- end}}
+	{{range $t := .BasicTags }}
+    `key{{$t.Index}}`, 
+    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
+	{{- end}}
+    `skey`
+)
