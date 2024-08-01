@@ -8,6 +8,7 @@ package aggregator
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -164,7 +165,12 @@ func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args 
 	return err
 }
 
-func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes) error {
+func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.GetTagMapping2Bytes
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.getTagMapping2 request: %w", err)
+	}
 	now := time.Now()
 	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
 	agentEnv := ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))

@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"sort"
@@ -479,7 +480,12 @@ func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
 	resp.Events = cpyArr
 }
 
-func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetMetrics3) error {
+func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.GetMetrics3
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
+	}
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	if ms.metricsDead {

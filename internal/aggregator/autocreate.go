@@ -100,7 +100,12 @@ func (ac *autoCreate) CancelHijack(hctx *rpc.HandlerContext) {
 	// TODO - must remove from queue here, otherwise the same hctx will be reused and added to map, and we'll break rpc.Server internal invariants
 }
 
-func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.AutoCreateBytes) error {
+func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.AutoCreateBytes
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.autoCreate request: %w", err)
+	}
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ac.queue = append(ac.queue, hctx)

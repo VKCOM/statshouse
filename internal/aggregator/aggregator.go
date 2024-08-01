@@ -62,6 +62,7 @@ type (
 		contributorsSimulatedErrors map[*rpc.HandlerContext]struct{} // put into most future bucket, so receive error after >7 seconds
 	}
 	Aggregator struct {
+		h               tlstatshouse.Handler
 		recentBuckets   []*aggregatorBucket          // We collect into several buckets before sending
 		historicBuckets map[uint32]*aggregatorBucket // timestamp->bucket. Each agent sends not more than X historic buckets, so size is limited.
 		bucketsToSend   chan *aggregatorBucket
@@ -198,6 +199,30 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
+	}
+	a.h = tlstatshouse.Handler{
+		GetConfig2: a.handleGetConfig2,
+		RawGetMetrics3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.metricStorage.Journal().HandleGetMetrics3(ctx, hctx)
+		},
+		RawGetTagMapping2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.tagsMapper.handleCreateTagMapping(ctx, hctx)
+		},
+		RawGetTagMappingBootstrap: func(_ context.Context, hctx *rpc.HandlerContext) error {
+			hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
+			return nil
+		},
+		RawSendKeepAlive2:    a.handleSendKeepAlive2,
+		RawSendSourceBucket2: a.handleSendSourceBucket2,
+		RawTestConnection2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.testConnection.handleTestConnection(ctx, hctx)
+		},
+		RawGetTargets2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.scrape.handleGetTargets(ctx, hctx)
+		},
+		RawAutoCreate: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.autoCreate.handleAutoCreate(ctx, hctx)
+		},
 	}
 	if len(a.hostName) == 0 {
 		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")

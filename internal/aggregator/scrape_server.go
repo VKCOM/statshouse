@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/netip"
@@ -270,7 +271,12 @@ func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 		nil, 1, 0, nil)
 }
 
-func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTargets2Bytes) error {
+func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.GetTargets2Bytes
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.getTargets2 request: %w", err)
+	}
 	ipp, err := netip.ParseAddrPort(hctx.RemoteAddr().String())
 	if err != nil {
 		return rpc.Error{

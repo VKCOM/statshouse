@@ -69,7 +69,12 @@ func (ms *TestConnection) broadcastResponses() {
 	}
 }
 
-func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) error {
+func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.TestConnection2Bytes
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
+	}
 	if args.ResponseSize > MaxTestResponseSize {
 		return fmt.Errorf("max supported response_size is %d", MaxTestResponseSize)
 	}
