@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}} ON C
 ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{replica}')
 PARTITION BY toStartOfInterval(time, toIntervalHour(6))
 {{template "table-order.go.tmpl" .Schema -}}
-TTL time + toIntervalHour(52)
-SETTINGS ttl_only_drop_parts = 1, index_granularity = 8192, max_bytes_to_merge_at_max_space_in_pool = 16106127360
+{{.TTL}}
+{{.Settings}}
 ;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_matview ON CLUSTER {{.Cluster}} TO {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}
@@ -18,7 +18,13 @@ AS SELECT
     {{if .Schema.Prekey -}}
     `prekey`,
     {{- end}}
+    {{if eq .Resolution "1s" -}}
     `time`,
+    {{- else if eq .Resolution "1m" -}}
+    toStartOfInterval(time, toIntervalMinute(1)) AS `time`,
+    {{- else if eq .Resolution "1h" -}}
+    toStartOfInterval(time, toIntervalHour(1)) AS `time`,
+    {{- end}}
     {{if .Schema.HostTag}}
     `host`,
 	{{- end}}
@@ -42,6 +48,10 @@ AS SELECT
 FROM {{.SelectFrom}}
 WHERE (toDate(time) >= (today() - 3)) AND 
     (toDate(time) <= (today() + 1)) AND 
+    {{if .Schema.Prekey -}}
+    (prekey_set > 0)
+    {{else}}
     (prekey_set != 2)
+    {{- end}}
 ;
 

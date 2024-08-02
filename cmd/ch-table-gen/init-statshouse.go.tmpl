@@ -1,3 +1,7 @@
+CREATE TABLE {{.IncomingTable.NamePrefix}}_{{.IncomingTable.NamePostfix}} ON CLUSTER {{.IncomingTable.Cluster}}
+{{template "table-schema.go.tmpl" .IncomingTable.Schema -}}
+ENGINE = Null;
+
 {{range $table := .Tables }}
 {{template "resolution-tables.go.tmpl" $table }}
 {{end}}
