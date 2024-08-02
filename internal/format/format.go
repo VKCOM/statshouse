@@ -578,6 +578,7 @@ func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
 	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
+// '@' is reserved by api access.Do not use it here
 func ValidMetricName(s mem.RO) bool {
 	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
 		return false
