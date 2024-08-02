@@ -5,7 +5,7 @@ ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}_{{.Resolution}}
 CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}} ON CLUSTER {{.Cluster}}
 {{template "table-schema.go.tmpl" .Schema -}}
 ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{replica}')
-PARTITION BY toStartOfInterval(time, toIntervalHour(6))
+{{.Partition}}
 {{template "table-order.go.tmpl" .Schema -}}
 {{.TTL}}
 {{.Settings}}
