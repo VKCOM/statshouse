@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -102,10 +103,6 @@ type IncomingTableParams struct {
 type Params struct {
 	IncomingTable IncomingTableParams
 	Tables        []TableParams
-}
-
-func (p TableParams) tableName() string {
-	return p.NamePrefix + "_" + p.Resolution + "_" + p.NamePostfix
 }
 
 func parseParams() (params Params) {
@@ -245,10 +242,13 @@ func parseParams() (params Params) {
 	return params
 }
 
+//go:embed init-statshouse.go.tmpl resolution-tables.go.tmpl table-schema.go.tmpl table-order.go.tmpl
+var embedTemplates embed.FS
+
 func main() {
 	params := parseParams()
 
-	tmpl, err := template.ParseFiles("init-statshouse.go.tmpl", "resolution-tables.go.tmpl", "table-schema.go.tmpl", "table-order.go.tmpl")
+	tmpl, err := template.ParseFS(embedTemplates, "*.go.tmpl")
 	if err != nil {
 		log.Fatal("failed to parse template file table.go.tmpl:", err)
 	}
