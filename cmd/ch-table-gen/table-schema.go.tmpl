@@ -11,16 +11,16 @@
     `prekey_set` UInt8,
     {{- end}}
     `time` DateTime,
-    {{if .HostTag}}
-    -- optional field that can be enabled by a toggle for a metric
-    `host` String,
+	{{range $t := .BasicTags }}
+    `key{{$t.Index}}` Int32, 
+    {{if $t.StringValue -}} `skey{{$t.Index}}` String, {{- end}}
 	{{- end}}
 	{{range $i := .RawTags }}
     `rkey{{$i}}` Int64,
 	{{- end}}
-	{{range $t := .BasicTags }}
-    `key{{$t.Index}}` Int32, 
-    {{if $t.StringValue -}} `skey{{$t.Index}}` String, {{- end}}
+    {{if .HostTag}}
+    -- optional field that can be enabled by a toggle for a metric
+    `host` String,
 	{{- end}}
     `skey` String,
     `count` SimpleAggregateFunction(sum, Float64),

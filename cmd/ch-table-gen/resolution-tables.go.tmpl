@@ -25,15 +25,15 @@ AS SELECT
     {{- else if eq .Resolution "1h" -}}
     toStartOfInterval(time, toIntervalHour(1)) AS `time`,
     {{- end}}
-    {{if .Schema.HostTag}}
-    `host`,
+	{{range $t := .Schema.BasicTags }}
+    `key{{$t.Index}}` ,
+    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
 	{{- end}}
 	{{range $i := .Schema.RawTags }}
     `rkey{{$i}}`,
 	{{- end}}
-	{{range $t := .Schema.BasicTags }}
-    `key{{$t.Index}}` ,
-    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
+    {{if .Schema.HostTag}}
+    `host`,
 	{{- end}}
     `skey`,
     `count`,
