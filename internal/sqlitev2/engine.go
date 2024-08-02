@@ -547,6 +547,7 @@ func (e *Engine) DoTx(ctx context.Context, queryName string, do func(c Conn, cac
 	if err != nil {
 		return res, fmt.Errorf("binlog Append return error: %w", err)
 	}
+	e.rw.binlogCache = bytes[:0]
 	err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
 	return DoTxResult{
 		DBOffset: offsetAfterWrite,
