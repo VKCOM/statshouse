@@ -131,7 +131,7 @@ func parseParams() (params Params) {
 	var rawTagsN int
 	var stringTags bool
 	var cluster string
-	flag.IntVar(&basicTagsN, "basic-tags", 32, "number of basic tags")
+	flag.IntVar(&basicTagsN, "basic-tags", 64, "number of basic tags")
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
 	flag.IntVar(&rawTagsN, "raw-tags", 4, "number of raw tags")
 	flag.BoolVar(&schemaParams.HostTag, "host-tag", true, "special host tag")
