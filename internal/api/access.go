@@ -79,13 +79,13 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 		case b == "edit_default":
 			ai.bitEditDefault = true
 		case strings.HasPrefix(b, "view_prefix."):
-			ai.bitViewPrefix[b[len("view_prefix."):]] = true
+			ai.bitViewPrefix[extractNamespace(b[len("view_prefix."):])] = true
 		case strings.HasPrefix(b, "edit_prefix."):
-			ai.bitEditPrefix[b[len("edit_prefix."):]] = true
+			ai.bitEditPrefix[extractNamespace(b[len("edit_prefix."):])] = true
 		case strings.HasPrefix(b, "view_metric."):
-			ai.bitViewMetric[b[len("view_metric."):]] = true
+			ai.bitViewMetric[extractNamespace(b[len("view_metric."):])] = true
 		case strings.HasPrefix(b, "edit_metric."):
-			ai.bitEditMetric[b[len("edit_metric."):]] = true
+			ai.bitEditMetric[extractNamespace(b[len("edit_metric."):])] = true
 		// use another bit, because vkuth token can't contain ':'
 		case strings.HasPrefix(b, "view_namespace."):
 			ai.bitViewPrefix[b[len("view_namespace."):]+":"] = true
@@ -95,6 +95,11 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	}
 
 	return ai, nil
+}
+
+// ':' is reserved by vkuth. We use '@' as namespace separator in bits
+func extractNamespace(bit string) string {
+	return strings.Replace(bit, "@", ":", 1)
 }
 
 func (ai *accessInfo) toMetadata() string {
