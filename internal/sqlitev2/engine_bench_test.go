@@ -107,9 +107,14 @@ func BenchmarkReadNumbers(b *testing.B) {
 		return c.Query("select", "SELECT n FROM numbers WHERE n = $n", r[i%len(r)])
 	})
 }
+
 func BenchmarkWrite(b *testing.B) {
 	const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"
 	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", true)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
 	var bytes [32]byte
 	for i := 0; i < b.N; i++ {
 		_, err := eng.DoTx(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
@@ -120,7 +125,7 @@ func BenchmarkWrite(b *testing.B) {
 			panic(err)
 		}
 	}
-	fmt.Println("CLOSE")
+
 	err := eng.Close()
 	if err != nil {
 		panic(err)
