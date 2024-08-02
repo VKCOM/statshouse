@@ -82,6 +82,25 @@ func (t TableSettings) String() string {
 	return r
 }
 
+type TablePartition struct {
+	month bool
+	day   bool
+	hours int
+}
+
+func (t TablePartition) String() string {
+	if t.month {
+		return "PARTITION BY toYYYYMM(time)"
+	}
+	if t.day {
+		return "PARTITION BY toDate(time)"
+	}
+	if t.hours > 0 {
+		return fmt.Sprintf("PARTITION BY toStartOfInterval(time, toIntervalHour(%d))", t.hours)
+	}
+	return ""
+}
+
 type TableParams struct {
 	NamePrefix  string
 	NamePostfix string
@@ -90,6 +109,7 @@ type TableParams struct {
 	Schema      SchemaParams
 	SelectFrom  string
 	TTL         TableTTL
+	Partition   TablePartition
 	Settings    TableSettings
 }
 
@@ -172,6 +192,9 @@ func parseParams() (params Params) {
 				TTL: TableTTL{
 					Hours: 52,
 				},
+				Partition: TablePartition{
+					hours: 12,
+				},
 				Settings: secSettings,
 			},
 			{
@@ -184,6 +207,9 @@ func parseParams() (params Params) {
 				TTL: TableTTL{
 					Hours: 52,
 				},
+				Partition: TablePartition{
+					hours: 12,
+				},
 				Settings: secSettings,
 			},
 			{
@@ -198,6 +224,9 @@ func parseParams() (params Params) {
 					DiskName:   "default",
 					Days:       33,
 				},
+				Partition: TablePartition{
+					day: true,
+				},
 				Settings: commonSettings,
 			},
 			{
@@ -212,6 +241,9 @@ func parseParams() (params Params) {
 					DiskName:   "default",
 					Days:       33,
 				},
+				Partition: TablePartition{
+					day: true,
+				},
 				Settings: commonSettings,
 			},
 			{
@@ -225,6 +257,9 @@ func parseParams() (params Params) {
 					DaysToDisk: 4,
 					DiskName:   "default",
 				},
+				Partition: TablePartition{
+					month: true,
+				},
 				Settings: commonSettings,
 			},
 			{
@@ -234,7 +269,14 @@ func parseParams() (params Params) {
 				Cluster:     cluster,
 				Schema:      prekeySchemaParams,
 				SelectFrom:  "statshouse_value_incoming_str",
-				Settings:    commonSettings,
+				TTL: TableTTL{
+					DaysToDisk: 4,
+					DiskName:   "default",
+				},
+				Partition: TablePartition{
+					month: true,
+				},
+				Settings: commonSettings,
 			},
 		},
 	}
