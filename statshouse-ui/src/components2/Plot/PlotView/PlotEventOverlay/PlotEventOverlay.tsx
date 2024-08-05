@@ -87,22 +87,19 @@ export type PlotEventOverlayProps = {
   flagHeight?: number;
   compact?: boolean;
 };
-
 export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
-  const { params, plot, plotsData } = useStatsHouseShallow(({ params, plotsData }) => ({
+  const { params, plotEvents, plotsData } = useStatsHouseShallow(({ params, plotsData }) => ({
     params,
-    plot: params.plots[plotKey],
+    plotEvents: params.plots[plotKey]?.events,
     plotsData,
   }));
-  const plotEvents = plot?.events;
   // const params = useStore(selectorParams);
   // const plot = params.plots[indexPlot];
   // const eventsData = useStore(selectorPlotsData);
   const [plotWidth, setPlotWidth] = useState(width);
-
   const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
 
@@ -142,42 +139,45 @@ export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: P
   useEffect(() => {
     update();
   }, [update, width, height]);
+
   return (
     <div ref={uRefDiv} className={css.overlay}>
-      <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-        <defs>
-          <path
-            id="flagPath"
-            d={`M0,0 h${flagWidth} l-${flagHeight / 2},${flagHeight / 2} l${flagHeight / 2},${
-              flagHeight / 2
-            } h-${flagWidth} z`}
-          />
-          <path id="flagPath2" d={`M0,0 l${flagWidth},${flagHeight / 2} l${-flagWidth},${flagHeight / 2} z`} />
-          <clipPath id="flag">
-            <use href="#flagPath" />
-          </clipPath>
-        </defs>
-        <g stroke="gray" strokeWidth="0.5" fill="gray">
-          {lines.map((r) => (
-            <PlotEventFlag
-              plots={params.plots}
-              plotWidth={plotWidth}
-              range={r.range}
-              agg={r.agg}
-              width={width}
-              key={r.key}
-              index={r.idx}
-              flagWidth={flagWidth}
-              flagHeight={flagHeight}
-              height={height}
-              x={r.x}
-              opacity={r.opacity}
-              groups={r.groups}
-              small={compact}
+      {plotEvents && plotEvents.length > 0 && (
+        <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+          <defs>
+            <path
+              id="flagPath"
+              d={`M0,0 h${flagWidth} l-${flagHeight / 2},${flagHeight / 2} l${flagHeight / 2},${
+                flagHeight / 2
+              } h-${flagWidth} z`}
             />
-          ))}
-        </g>
-      </svg>
+            <path id="flagPath2" d={`M0,0 l${flagWidth},${flagHeight / 2} l${-flagWidth},${flagHeight / 2} z`} />
+            <clipPath id="flag">
+              <use href="#flagPath" />
+            </clipPath>
+          </defs>
+          <g stroke="gray" strokeWidth="0.5" fill="gray">
+            {lines.map((r) => (
+              <PlotEventFlag
+                plots={params.plots}
+                plotWidth={plotWidth}
+                range={r.range}
+                agg={r.agg}
+                width={width}
+                key={r.key}
+                index={r.idx}
+                flagWidth={flagWidth}
+                flagHeight={flagHeight}
+                height={height}
+                x={r.x}
+                opacity={r.opacity}
+                groups={r.groups}
+                small={compact}
+              />
+            ))}
+          </g>
+        </svg>
+      )}
     </div>
   );
 }

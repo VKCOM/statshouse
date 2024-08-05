@@ -146,16 +146,13 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
     },
     queryStart(plotKey) {
       setState((state) => {
-        const plotData = (state.plotsData[plotKey] ??= getEmptyPlotData());
-        if (plotData) {
-          plotData.numQueries += 1;
-        }
+        state.plotsData[plotKey] ??= getEmptyPlotData();
+        state.plotsData[plotKey]!.numQueries++;
       });
       return () => {
         setState((state) => {
-          const plotData = state.plotsData[plotKey];
-          if (plotData) {
-            plotData.numQueries -= 1;
+          if (state.plotsData[plotKey]) {
+            state.plotsData[plotKey]!.numQueries--;
           }
         });
       };
@@ -177,18 +174,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           }
         }
       });
-      //setState((state) => {
-      //         if (single) {
-      //           const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
-      //             indexSeries === idx ? false : _show
-      //           );
-      //           state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
-      //             indexSeries === idx ? true : !otherShow
-      //           );
-      //         } else {
-      //           state.plotsData[indexPlot].seriesShow[idx] = show ?? !state.plotsData[indexPlot].seriesShow[idx];
-      //         }
-      //       });
     },
   };
 };

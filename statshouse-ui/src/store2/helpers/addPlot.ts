@@ -4,33 +4,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewPlotIndex, type GroupKey, type PlotParams, type QueryParams } from 'url2';
+import { type GroupKey, type PlotParams, type QueryParams } from 'url2';
 import { produce } from 'immer';
-import { updateGroupInfo } from '../plotsInfoStore/updateGroupInfo';
-import { updateGroupsPlot } from './updateGroupsPlot';
+import { getNextPlotKey, updateQueryParamsPlotStruct } from '../urlStore/updateParamsPlotStruct';
 
 export function addPlot(
   plot: PlotParams,
   params: QueryParams,
-  group?: GroupKey,
+  groupKey?: GroupKey,
   activeInsert: boolean = true
 ): QueryParams {
-  return produce(params, (p) => {
-    const tabNum = p.plots[p.tabNum] ? p.tabNum : p.orderPlot.slice(-1)[0];
-    const groupPlotMap = updateGroupInfo(p);
-    const activeGroup = group ?? groupPlotMap.plotToGroupMap[tabNum] ?? p.orderGroup.slice(-1)[0];
-    const newTabNum = getNewPlotIndex(p);
-    p.plots[newTabNum] = { ...plot, id: newTabNum };
-    const { groups, orderPlot } = updateGroupsPlot(
-      produce(groupPlotMap, (gpm) => {
-        gpm.groupPlots[activeGroup]?.push(newTabNum);
-      }),
-      p
-    );
-    p.orderPlot = orderPlot;
-    p.groups = groups;
-    if (activeInsert) {
-      p.tabNum = newTabNum;
-    }
-  });
+  const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
+  const nextId = getNextPlotKey(params);
+  return produce<QueryParams>(
+    { ...params, tabNum: activeInsert ? nextId : params.tabNum },
+    updateQueryParamsPlotStruct((plotStruct) => {
+      groupKey ??= plotStruct.mapPlotToGroup[tabNum]!;
+      const groupIndex = plotStruct.mapGroupIndex[groupKey]!;
+      if (plotStruct.groups[groupIndex]) {
+        plotStruct.groups[groupIndex].plots.push({
+          plotInfo: { ...plot, id: nextId },
+          variableLinks: [],
+        });
+      }
+    })
+  );
 }

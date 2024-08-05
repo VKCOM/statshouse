@@ -5,7 +5,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { produce } from 'immer';
-import { getDefaultParams, type GroupKey, type PlotKey, type PlotParams, type QueryParams } from 'url2';
+import {
+  getDefaultParams,
+  getNewGroup,
+  GroupInfo,
+  type GroupKey,
+  type PlotKey,
+  type PlotParams,
+  type QueryParams,
+} from 'url2';
 import { type StoreSlice } from '../createStore';
 import { appHistory } from 'common/appHistory';
 import { getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
@@ -26,7 +34,7 @@ import {
 } from './timeRangeNavigate';
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
-import { updateRemovePlot } from './updateRemovePlot';
+import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 
 export type UrlStore = {
   params: QueryParams;
@@ -48,6 +56,11 @@ export type UrlStore = {
   timeRangeZoomOut(): void;
   toggleGroupShow(groupKey: GroupKey): void;
   setDashboardLayoutEdit(status: boolean): void;
+  moveDashboardGroup(groupKey: GroupKey, direction: -1 | 1): void;
+  addDashboardGroup(groupKey: GroupKey): void;
+  removeDashboardGroup(groupKey: GroupKey): void;
+  setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
+  moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
   saveDashboard(): Promise<void>;
 };
 
@@ -73,6 +86,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     const nextState = produce(getState(), next);
     const search = getUrl(nextState);
     if (prevSearch !== search) {
+      // prevSearch = search;
       if (replace) {
         appHistory.replace({ search });
       } else {
@@ -84,7 +98,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   appHistory.listen(({ location }) => {
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
-      if (isValidPath(prevLocation)) {
+      if (isValidPath(prevLocation) && prevSearch !== prevLocation.search) {
         prevSearch = prevLocation.search;
         updateUrlState();
       }
@@ -121,7 +135,15 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setUrlStore(updateResetZoom(plotKey));
     },
     removePlot(plotKey: PlotKey) {
-      setUrlStore(updateRemovePlot(plotKey));
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          const sourceGroupIndex = plotStruct.mapGroupIndex[plotStruct.mapPlotToGroup[plotKey] ?? ''];
+          const sourceIndex = plotStruct.mapPlotIndex[plotKey];
+          if (sourceGroupIndex != null && sourceIndex != null) {
+            plotStruct.groups[sourceGroupIndex].plots.splice(sourceIndex, 1);
+          }
+        })
+      );
     },
     timeRangePanLeft() {
       setUrlStore(timeRangePanLeft());
@@ -143,8 +165,79 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         s.dashboardLayoutEdit = status;
       });
     },
+    moveDashboardGroup(groupKey, direction) {
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
+          if (sourceIndex != null) {
+            const targetIndex = Math.max(0, Math.min(plotStruct.groups.length - 1, sourceIndex + direction));
+            const targetGroup = plotStruct.groups[targetIndex];
+            plotStruct.groups[targetIndex] = plotStruct.groups[sourceIndex];
+            plotStruct.groups[sourceIndex] = targetGroup;
+          }
+        })
+      );
+    },
+    addDashboardGroup(groupKey) {
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
+          const nextGroup = { groupInfo: getNewGroup(), plots: [] };
+          if (sourceIndex != null) {
+            plotStruct.groups.splice(sourceIndex, 0, nextGroup);
+          } else {
+            plotStruct.groups.push(nextGroup);
+          }
+        })
+      );
+    },
+    removeDashboardGroup(groupKey) {
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
+          if (sourceIndex != null) {
+            plotStruct.groups.splice(sourceIndex, 1);
+          }
+        })
+      );
+    },
+    setDashboardGroup(groupKey, next) {
+      setUrlStore(updateGroup(groupKey, next));
+    },
+    moveDashboardPlot(plotKey, plotKeyTarget, groupKey) {
+      // console.log({ plotKey, plotKeyTarget, groupKey });
+      if (plotKey != null) {
+        setUrlStore(
+          updateParamsPlotStruct((plotStruct) => {
+            const sourceGroupKey = plotStruct.mapPlotToGroup[plotKey] ?? '';
+            const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
+            const sourcePlotIndex = plotStruct.mapPlotIndex[plotKey];
+            const targetGroupIndex = plotStruct.mapGroupIndex[groupKey ?? sourceGroupKey];
+            const targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
+            if (
+              sourceGroupIndex != null &&
+              sourcePlotIndex != null &&
+              targetGroupIndex != null &&
+              targetPlotIndex != null
+            ) {
+              const sourcePlots = plotStruct.groups[sourceGroupIndex].plots.splice(sourcePlotIndex, 1);
+              plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
+            }
+          })
+        );
+      }
+    },
     async saveDashboard() {
       //todo: save dash
     },
   };
 };
+
+export function updateGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): ProduceUpdate<StatsHouseStore> {
+  return (s) => {
+    const group = s.params.groups[groupKey];
+    if (group) {
+      s.params.groups[groupKey] = produce(group, next);
+    }
+  };
+}
