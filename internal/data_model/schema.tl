@@ -152,7 +152,10 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     queue_size_disk_unsent:fields_mask.3?int
     queue_size_disk_sum_unsent:fields_mask.3?int
     original_size:#
-    compressed_data:string = String;
+    compressed_data:string
+    // 0 - shard by 16 mapped tags
+    // 1 - shard by metric id
+    sharding:fields_mask.5?int = String;
 
 @readwrite statshouse.sendKeepAlive2#4285ff53
     fields_mask:#
