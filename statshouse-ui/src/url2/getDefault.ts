@@ -1,6 +1,6 @@
-import type { GroupInfo, PlotKey, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
+import type { GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
 import { METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
-import { deepClone, toNumber } from 'common/helpers';
+import { deepClone } from 'common/helpers';
 import { globalSettings } from 'common/settings';
 
 export function getDefaultParams(): QueryParams {
@@ -104,12 +104,4 @@ export function getNewVariableSource(): VariableParamsSource {
     filterIn: {},
     filterNotIn: {},
   };
-}
-
-export function getNewPlotIndex(params: QueryParams): PlotKey {
-  let n = toNumber(Object.keys(params.plots).slice(-1)[0], -1) + 1;
-  while (params.plots[n]) {
-    n++;
-  }
-  return n.toString();
 }

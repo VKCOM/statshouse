@@ -5,15 +5,20 @@ import { PlotControlTo } from '../Plot/PlotControl/PlotControlTo';
 import { PlotControlGlobalTimeShifts } from '../Plot/PlotControl/PlotControlGlobalTimeShifts';
 import { useStatsHouseShallow, viewPath } from 'store2';
 import { NavLink } from 'react-router-dom';
-import { Button } from 'components';
+import { Button, ToggleButton } from 'components';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
+import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ButtonToggleTvMode } from '../TvMode';
 
 export function _DashboardHeader() {
-  const { isSaveDashboard, dashboardId } = useStatsHouseShallow(({ params: { dashboardId } }) => ({
-    isSaveDashboard: dashboardId != null,
-    dashboardId,
-  }));
+  const { isSaveDashboard, dashboardId, dashboardLayoutEdit, setDashboardLayoutEdit } = useStatsHouseShallow(
+    ({ params: { dashboardId }, dashboardLayoutEdit, setDashboardLayoutEdit }) => ({
+      isSaveDashboard: dashboardId != null,
+      dashboardId,
+      dashboardLayoutEdit,
+      setDashboardLayoutEdit,
+    })
+  );
   // const onToggleEnableTVMode = useCallback(() => {
   //   setTVMode({ enable: !tvModeEnabled });
   // }, [setTVMode, tvModeEnabled]);
@@ -89,14 +94,14 @@ export function _DashboardHeader() {
           {/*<PlotControlTimeShifts />*/}
         </div>
         <div className="ms-3 mb-2">
-          {/*<ToggleButton*/}
-          {/*  className="btn btn-outline-primary btn-sm"*/}
-          {/*  checked={dashboardLayoutEdit}*/}
-          {/*  onChange={setDashboardLayoutEdit}*/}
-          {/*  title="Edit dashboard"*/}
-          {/*>*/}
-          {/*  <SVGGearFill />*/}
-          {/*</ToggleButton>*/}
+          <ToggleButton
+            className="btn btn-outline-primary btn-sm"
+            checked={dashboardLayoutEdit}
+            onChange={setDashboardLayoutEdit}
+            title="Edit dashboard"
+          >
+            <SVGGearFill />
+          </ToggleButton>
         </div>
         {!!isSaveDashboard && (
           <div className="ms-2 mb-2">

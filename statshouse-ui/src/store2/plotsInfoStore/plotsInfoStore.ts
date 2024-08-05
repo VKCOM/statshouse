@@ -49,40 +49,33 @@ export type PlotsInfoStore = {
   setBaseRange(r: TimeRangeAbbrev): void;
 };
 
-export const plotsInfoStore: StoreSlice<StatsHouseStore, PlotsInfoStore> = (setState, getState, store) => {
-  store.subscribe((state, prevState) => {
-    if (state.params !== prevState.params || state.saveParams !== prevState.saveParams) {
-      // getState().updatePlotsInfo();
-    }
-  });
-  return {
-    links: {
-      plotsLink: {},
-      dashboardLink: '',
-      dashboardOuterLink: '',
-      dashboardSettingLink: '',
-      addLink: '',
-    },
-    baseRange: defaultBaseRange,
-    viewOrderPlot: [],
-    plotToGroupMap: {},
-    plotVariablesLink: {},
-    groupPlots: {},
-    setBaseRange(r: TimeRangeAbbrev) {
-      setState((s) => {
-        s.baseRange = r;
-      });
-    },
-    updatePlotsInfo() {
-      setState((s) => {
-        s.links = mergeLeft(s.links, updatePlotsLink(s.params, s.saveParams));
-        const { groupPlots, plotToGroupMap, viewOrderPlot } = updateGroupInfo(s.params);
-        s.groupPlots = mergeLeft(s.groupPlots, groupPlots);
-        s.plotToGroupMap = mergeLeft(s.plotToGroupMap, plotToGroupMap);
-        s.viewOrderPlot = mergeLeft(s.viewOrderPlot, viewOrderPlot);
-        s.plotVariablesLink = mergeLeft(s.plotVariablesLink, updatePlotVariablesLink(s.params));
-      });
-      getState().updatePlotsData();
-    },
-  };
-};
+export const plotsInfoStore: StoreSlice<StatsHouseStore, PlotsInfoStore> = (setState, getState) => ({
+  links: {
+    plotsLink: {},
+    dashboardLink: '',
+    dashboardOuterLink: '',
+    dashboardSettingLink: '',
+    addLink: '',
+  },
+  baseRange: defaultBaseRange,
+  viewOrderPlot: [],
+  plotToGroupMap: {},
+  plotVariablesLink: {},
+  groupPlots: {},
+  setBaseRange(r: TimeRangeAbbrev) {
+    setState((s) => {
+      s.baseRange = r;
+    });
+  },
+  updatePlotsInfo() {
+    setState((s) => {
+      s.links = mergeLeft(s.links, updatePlotsLink(s.params, s.saveParams));
+      const { groupPlots, plotToGroupMap, viewOrderPlot } = updateGroupInfo(s.params);
+      s.groupPlots = mergeLeft(s.groupPlots, groupPlots);
+      s.plotToGroupMap = mergeLeft(s.plotToGroupMap, plotToGroupMap);
+      s.viewOrderPlot = mergeLeft(s.viewOrderPlot, viewOrderPlot);
+      s.plotVariablesLink = mergeLeft(s.plotVariablesLink, updatePlotVariablesLink(s.params));
+    });
+    getState().updatePlotsData();
+  },
+});

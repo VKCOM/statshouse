@@ -1,0 +1,123 @@
+import { produce } from 'immer';
+import type { ProduceUpdate } from '../helpers';
+import type { GroupInfo, GroupKey, PlotKey, PlotParams, QueryParams, VariableKey, VariableParams } from 'url2';
+import type { StatsHouseStore } from '../statsHouseStore';
+import type { TagKey } from 'api/enum';
+import { deepClone, isNotNil, toNumberM } from 'common/helpers';
+
+export type VariableLinks = { variableKey: VariableKey; tag: TagKey };
+
+export type PlotStruct = {
+  variables: {
+    variableInfo: VariableParams;
+  }[];
+  groups: {
+    groupInfo: GroupInfo;
+    plots: { plotInfo: PlotParams; variableLinks: VariableLinks[] }[];
+  }[];
+  mapGroupIndex: Partial<Record<GroupKey, number>>;
+  mapVariableIndex: Partial<Record<VariableKey, number>>;
+  mapPlotIndex: Partial<Record<PlotKey, number>>;
+  mapPlotToGroup: Partial<Record<PlotKey, GroupKey>>;
+};
+
+export function getPlotStruct(params: QueryParams): PlotStruct {
+  const orderPlots = [...params.orderPlot];
+  const mapGroupIndex: Partial<Record<GroupKey, number>> = {};
+  const mapVariableIndex: Partial<Record<VariableKey, number>> = {};
+  const mapPlotIndex: Partial<Record<PlotKey, number>> = {};
+  const mapPlotToGroup: Partial<Record<PlotKey, GroupKey>> = {};
+  const variableLinks: Partial<Record<PlotKey, VariableLinks[]>> = {};
+  const variables = params.orderVariables.map((variableKey, variableIndex) => {
+    mapVariableIndex[variableKey] = variableIndex;
+    params.variables[variableKey]!.link.forEach(([pKey, tag]) => {
+      (variableLinks[pKey] ??= []).push({ variableKey, tag });
+    });
+    return { variableInfo: deepClone(params.variables[variableKey]!) };
+  });
+  return {
+    variables,
+    groups: params.orderGroup.map((groupKey, groupIndex) => {
+      mapGroupIndex[groupKey] = groupIndex;
+      return {
+        groupInfo: deepClone(params.groups[groupKey]!),
+        plots: orderPlots.splice(0, params.groups[groupKey]!.count).map((plotKey, plotIndex) => {
+          mapPlotIndex[plotKey] = plotIndex;
+          mapPlotToGroup[plotKey] = groupKey;
+          return {
+            plotInfo: deepClone(params.plots[plotKey]!),
+            variableLinks: variableLinks[plotKey]?.map(({ variableKey, tag }) => ({ variableKey, tag })) ?? [],
+          };
+        }),
+      };
+    }),
+    mapGroupIndex,
+    mapVariableIndex,
+    mapPlotIndex,
+    mapPlotToGroup,
+  };
+}
+
+export function updateParamsByPlotStruct(
+  params: QueryParams,
+  plotStruct: Pick<PlotStruct, 'groups' | 'variables'>
+): QueryParams {
+  const variables: Partial<Record<VariableKey, VariableParams>> = {};
+  const plots: Partial<Record<PlotKey, PlotParams>> = {};
+  const groups: Partial<Record<GroupKey, GroupInfo>> = {};
+  const orderVariables = plotStruct.variables.map((v) => {
+    const id = v.variableInfo.id || getNextVariableKey(params);
+    variables[id] = { ...v.variableInfo, id, link: [] };
+    return id;
+  });
+  const orderPlot: PlotKey[] = [];
+  const orderGroup: GroupKey[] = plotStruct.groups.map((g) => {
+    const groupId = g.groupInfo.id || getNextGroupKey(params);
+    orderPlot.push(
+      ...g.plots.map((p) => {
+        const id = p.plotInfo.id || getNextPlotKey(params);
+        plots[id] = { ...p.plotInfo, id };
+        p.variableLinks.forEach((vl) => {
+          variables[vl.variableKey]?.link.push([id, vl.tag]);
+        });
+        return id;
+      })
+    );
+    groups[groupId] = { ...g.groupInfo, id: groupId, count: g.plots.length };
+    return groupId;
+  });
+  return {
+    ...params,
+    orderVariables,
+    variables,
+    orderPlot,
+    plots,
+    orderGroup,
+    groups,
+  };
+}
+
+export function updateParamsPlotStruct(next: ProduceUpdate<PlotStruct>): ProduceUpdate<StatsHouseStore> {
+  return (s) => {
+    const plotStruct = getPlotStruct(s.params);
+    s.params = updateParamsByPlotStruct(s.params, produce(plotStruct, next));
+  };
+}
+export function updateQueryParamsPlotStruct(next: ProduceUpdate<PlotStruct>): ProduceUpdate<QueryParams> {
+  return (p) => {
+    const plotStruct = getPlotStruct(p);
+    return updateParamsByPlotStruct(p, produce(plotStruct, next));
+  };
+}
+
+export function getNextVariableKey(params: QueryParams): VariableKey {
+  return (Math.max(...params.orderVariables.map(toNumberM).filter(isNotNil)) + 1).toString();
+}
+
+export function getNextGroupKey(params: QueryParams): GroupKey {
+  return (Math.max(...params.orderGroup.map(toNumberM).filter(isNotNil)) + 1).toString();
+}
+
+export function getNextPlotKey(params: QueryParams): GroupKey {
+  return (Math.max(...params.orderPlot.map(toNumberM).filter(isNotNil)) + 1).toString();
+}
