@@ -2032,6 +2032,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 		BuiltinMetricIDPromQLEngineTime:           true,
+		BuiltinMetricIDAPICacheHit:                true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
