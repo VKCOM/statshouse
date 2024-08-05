@@ -31,6 +31,7 @@ type StatshouseSendSourceBucket2 struct {
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
 	OriginalSize           uint32
 	CompressedData         string
+	Sharding               int32 // Conditional: item.FieldsMask.5
 }
 
 func (StatshouseSendSourceBucket2) TLName() string { return "statshouse.sendSourceBucket2" }
@@ -112,6 +113,16 @@ func (item StatshouseSendSourceBucket2) IsSetQueueSizeDiskSumUnsent() bool {
 	return item.FieldsMask&(1<<3) != 0
 }
 
+func (item *StatshouseSendSourceBucket2) SetSharding(v int32) {
+	item.Sharding = v
+	item.FieldsMask |= 1 << 5
+}
+func (item *StatshouseSendSourceBucket2) ClearSharding() {
+	item.Sharding = 0
+	item.FieldsMask &^= 1 << 5
+}
+func (item StatshouseSendSourceBucket2) IsSetSharding() bool { return item.FieldsMask&(1<<5) != 0 }
+
 func (item *StatshouseSendSourceBucket2) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
@@ -128,6 +139,7 @@ func (item *StatshouseSendSourceBucket2) Reset() {
 	item.QueueSizeDiskSumUnsent = 0
 	item.OriginalSize = 0
 	item.CompressedData = ""
+	item.Sharding = 0
 }
 
 func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
@@ -193,7 +205,17 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.CompressedData)
+	if w, err = basictl.StringRead(w, &item.CompressedData); err != nil {
+		return w, err
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		if w, err = basictl.IntRead(w, &item.Sharding); err != nil {
+			return w, err
+		}
+	} else {
+		item.Sharding = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -227,6 +249,9 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	}
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.IntWrite(w, item.Sharding)
+	}
 	return w
 }
 
@@ -328,6 +353,7 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	var propQueueSizeDiskSumUnsentPresented bool
 	var propOriginalSizePresented bool
 	var propCompressedDataPresented bool
+	var propShardingPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -474,6 +500,14 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 					return err
 				}
 				propCompressedDataPresented = true
+			case "sharding":
+				if propShardingPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "sharding")
+				}
+				if err := Json2ReadInt32(in, &item.Sharding); err != nil {
+					return err
+				}
+				propShardingPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", key)
 			}
@@ -526,6 +560,9 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	if !propCompressedDataPresented {
 		item.CompressedData = ""
 	}
+	if !propShardingPresented {
+		item.Sharding = 0
+	}
 	if propOwnerPresented {
 		item.FieldsMask |= 1 << 4
 	}
@@ -550,6 +587,9 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 	}
 	if propQueueSizeDiskSumUnsentPresented {
 		item.FieldsMask |= 1 << 3
+	}
+	if propShardingPresented {
+		item.FieldsMask |= 1 << 5
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -680,6 +720,11 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
 	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"sharding":`...)
+		w = basictl.JSONWriteInt32(w, item.Sharding)
+	}
 	return append(w, '}')
 }
 
@@ -712,6 +757,7 @@ type StatshouseSendSourceBucket2Bytes struct {
 	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
 	OriginalSize           uint32
 	CompressedData         []byte
+	Sharding               int32 // Conditional: item.FieldsMask.5
 }
 
 func (StatshouseSendSourceBucket2Bytes) TLName() string { return "statshouse.sendSourceBucket2" }
@@ -793,6 +839,16 @@ func (item StatshouseSendSourceBucket2Bytes) IsSetQueueSizeDiskSumUnsent() bool 
 	return item.FieldsMask&(1<<3) != 0
 }
 
+func (item *StatshouseSendSourceBucket2Bytes) SetSharding(v int32) {
+	item.Sharding = v
+	item.FieldsMask |= 1 << 5
+}
+func (item *StatshouseSendSourceBucket2Bytes) ClearSharding() {
+	item.Sharding = 0
+	item.FieldsMask &^= 1 << 5
+}
+func (item StatshouseSendSourceBucket2Bytes) IsSetSharding() bool { return item.FieldsMask&(1<<5) != 0 }
+
 func (item *StatshouseSendSourceBucket2Bytes) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
@@ -809,6 +865,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Reset() {
 	item.QueueSizeDiskSumUnsent = 0
 	item.OriginalSize = 0
 	item.CompressedData = item.CompressedData[:0]
+	item.Sharding = 0
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err error) {
@@ -874,7 +931,17 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.CompressedData)
+	if w, err = basictl.StringReadBytes(w, &item.CompressedData); err != nil {
+		return w, err
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		if w, err = basictl.IntRead(w, &item.Sharding); err != nil {
+			return w, err
+		}
+	} else {
+		item.Sharding = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -908,6 +975,9 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	}
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.IntWrite(w, item.Sharding)
+	}
 	return w
 }
 
@@ -1009,6 +1079,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	var propQueueSizeDiskSumUnsentPresented bool
 	var propOriginalSizePresented bool
 	var propCompressedDataPresented bool
+	var propShardingPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -1155,6 +1226,14 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 					return err
 				}
 				propCompressedDataPresented = true
+			case "sharding":
+				if propShardingPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "sharding")
+				}
+				if err := Json2ReadInt32(in, &item.Sharding); err != nil {
+					return err
+				}
+				propShardingPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket2", key)
 			}
@@ -1207,6 +1286,9 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	if !propCompressedDataPresented {
 		item.CompressedData = item.CompressedData[:0]
 	}
+	if !propShardingPresented {
+		item.Sharding = 0
+	}
 	if propOwnerPresented {
 		item.FieldsMask |= 1 << 4
 	}
@@ -1231,6 +1313,9 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 	}
 	if propQueueSizeDiskSumUnsentPresented {
 		item.FieldsMask |= 1 << 3
+	}
+	if propShardingPresented {
+		item.FieldsMask |= 1 << 5
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -1360,6 +1445,11 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	w = basictl.JSONWriteStringBytes(w, item.CompressedData)
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"sharding":`...)
+		w = basictl.JSONWriteInt32(w, item.Sharding)
 	}
 	return append(w, '}')
 }
