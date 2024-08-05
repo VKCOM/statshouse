@@ -14,14 +14,15 @@ import (
 	"time"
 
 	"github.com/pierrec/lz4"
+	"go4.org/mem"
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"go4.org/mem"
-	"pgregory.net/rand"
 )
 
 func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext) error {
@@ -403,6 +404,9 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(float64(v.Value), 1, host)
 	}
+
+	getMultiItem(args.Time, format.BuiltinMetricIDAggAgentSharding, [16]int32{0, 0, 0, 0, args.Sharding, host}).Tail.AddCounterHost(1, host)
+
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
 		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(float64(value), host)
 	}

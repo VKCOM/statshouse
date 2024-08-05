@@ -118,6 +118,7 @@ const (
 	BuiltinMetricIDAggSamplingTime            = -95
 	BuiltinMetricIDAgentDiskCacheSize         = -96
 	BuiltinMetricIDAggContributors            = -97
+	BuiltinMetricIDAggAgentSharding           = -98
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -157,6 +158,7 @@ const (
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 	BuiltinMetricNameIDUIErrors                 = "__ui_errors"
+	BuiltinMetricNameAggAgentSharding           = "__agg_agent_sharding"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -206,6 +208,9 @@ const (
 
 	TagValueIDSecondReal    = 1
 	TagValueIDSecondPhantom = 2 // We do not add phantom seconds anymore
+
+	TagValueIDSharingByMappedTags = 0
+	TagValueIDSharingByMetricId   = 1
 
 	TagValueIDInsertTimeOK    = 1
 	TagValueIDInsertTimeError = 2
@@ -412,6 +417,27 @@ Set by aggregator.`,
 				}),
 			}, {
 				Description: "-",
+			}},
+		},
+		BuiltinMetricIDAggAgentSharding: {
+			Name:        BuiltinMetricNameAggAgentSharding,
+			Kind:        MetricKindCounter,
+			Description: `# of agents with specific sharding scheme. Set by aggregator.`,
+			MetricType:  MetricSecond,
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "sharding_by",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSharingByMappedTags: "mapped_tags",
+					TagValueIDSharingByMetricId:   "metric_id",
+				}),
+			}, {
+				Description: "host",
 			}},
 		},
 		BuiltinMetricIDAggInsertSize: {
