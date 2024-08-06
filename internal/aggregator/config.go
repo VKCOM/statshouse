@@ -22,6 +22,7 @@ type ConfigAggregatorRemote struct {
 	SampleKeys           bool
 	DenyOldAgents        bool
 	MirrorChWrite        bool
+	StringTagProb        float64
 }
 
 type ConfigAggregator struct {
@@ -75,6 +76,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			SampleKeys:           false,
 			DenyOldAgents:        true,
 			MirrorChWrite:        true,
+			StringTagProb:        0,
 		},
 	}
 }
@@ -88,6 +90,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
 		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both new and old tables")
+		f.Float64Var(&c.StringTagProb, "string-tag-prob", d.StringTagProb, "0 - only mapped tags, 0.01 means replace 1% of mapped tags with fake string")
 	}
 }
 
