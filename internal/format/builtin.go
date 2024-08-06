@@ -119,6 +119,14 @@ const (
 	BuiltinMetricIDAgentDiskCacheSize         = -96
 	BuiltinMetricIDAggContributors            = -97
 	BuiltinMetricIDAggAgentSharding           = -98
+	BuiltinMetricIDAPICacheBytesAlloc         = -99
+	BuiltinMetricIDAPICacheBytesFree          = -100
+	BuiltinMetricIDAPICacheBytesTotal         = -101
+	BuiltinMetricIDAPICacheAgeEvict           = -102
+	BuiltinMetricIDAPICacheAgeTotal           = -103
+	BuiltinMetricIDAPIBufferBytesAlloc        = -104
+	BuiltinMetricIDAPIBufferBytesFree         = -105
+	BuiltinMetricIDAPIBufferBytesTotal        = -106
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -159,6 +167,14 @@ const (
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 	BuiltinMetricNameIDUIErrors                 = "__ui_errors"
 	BuiltinMetricNameAggAgentSharding           = "__agg_agent_sharding"
+	BuiltinMetricAPICacheBytesAlloc             = "__api_cache_bytes_alloc"
+	BuiltinMetricAPICacheBytesFree              = "__api_cache_bytes_free"
+	BuiltinMetricAPICacheBytesTotal             = "__api_cache_bytes_total"
+	BuiltinMetricAPICacheAgeTotal               = "__api_cache_age_total"
+	BuiltinMetricAPICacheAgeEvict               = "__api_cache_age_evict"
+	BuiltinMetricAPIBufferBytesAlloc            = "__api_buffer_bytes_alloc"
+	BuiltinMetricAPIBufferBytesFree             = "__api_buffer_bytes_free"
+	BuiltinMetricAPIBufferBytesTotal            = "__api_buffer_bytes_total"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -2003,6 +2019,120 @@ Value is delta between second value and time it was inserted.`,
 				Description: "-",
 			}},
 		},
+		BuiltinMetricIDAPICacheBytesAlloc: {
+			Name:        BuiltinMetricAPICacheBytesAlloc,
+			Kind:        MetricKindValue,
+			Description: "API cache memory allocation in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "version",
+				ValueComments: versionToValue,
+			}, {
+				Description:   "step",
+				ValueComments: secondsToValue,
+			}},
+		},
+		BuiltinMetricIDAPICacheBytesFree: {
+			Name:        BuiltinMetricAPICacheBytesFree,
+			Kind:        MetricKindValue,
+			Description: "API cache memory deallocation in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "version",
+				ValueComments: versionToValue,
+			}, {
+				Description:   "step",
+				ValueComments: secondsToValue,
+			}, {
+				Description:   "reason",
+				ValueComments: apiCacheEvictionReason,
+			}},
+		},
+		BuiltinMetricIDAPICacheBytesTotal: {
+			Name:        BuiltinMetricAPICacheBytesTotal,
+			Kind:        MetricKindValue,
+			Description: "API cache size in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "version",
+				ValueComments: versionToValue,
+			}, {
+				Description:   "step",
+				ValueComments: secondsToValue,
+			}},
+		},
+		BuiltinMetricIDAPICacheAgeEvict: {
+			Name:        BuiltinMetricAPICacheAgeEvict,
+			Kind:        MetricKindValue,
+			Description: "API cache entry age when evicted in seconds.",
+			MetricType:  MetricSecond,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "version",
+				ValueComments: versionToValue,
+			}, {
+				Description:   "step",
+				ValueComments: secondsToValue,
+			}, {
+				Description:   "reason",
+				ValueComments: apiCacheEvictionReason,
+			}},
+		},
+		BuiltinMetricIDAPICacheAgeTotal: {
+			Name:        BuiltinMetricAPICacheAgeTotal,
+			Kind:        MetricKindValue,
+			Description: "API cache age in seconds.",
+			MetricType:  MetricSecond,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "version",
+				ValueComments: versionToValue,
+			}, {
+				Description:   "step",
+				ValueComments: secondsToValue,
+			}},
+		},
+		BuiltinMetricIDAPIBufferBytesAlloc: {
+			Name:        BuiltinMetricAPIBufferBytesAlloc,
+			Kind:        MetricKindValue,
+			Description: "API buffer allocation in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "kind",
+				ValueComments: apiBufferKind,
+			}},
+		},
+		BuiltinMetricIDAPIBufferBytesFree: {
+			Name:        BuiltinMetricAPIBufferBytesFree,
+			Kind:        MetricKindValue,
+			Description: "API buffer deallocation in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description:   "kind",
+				ValueComments: apiBufferKind,
+			}},
+		},
+		BuiltinMetricIDAPIBufferBytesTotal: {
+			Name:        BuiltinMetricAPIBufferBytesTotal,
+			Kind:        MetricKindValue,
+			Description: "API buffer pool size in bytes.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2033,6 +2163,14 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDStatsHouseErrors:           true,
 		BuiltinMetricIDPromQLEngineTime:           true,
 		BuiltinMetricIDAPICacheHit:                true,
+		BuiltinMetricIDAPICacheBytesAlloc:         true,
+		BuiltinMetricIDAPICacheBytesFree:          true,
+		BuiltinMetricIDAPICacheBytesTotal:         true,
+		BuiltinMetricIDAPICacheAgeEvict:           true,
+		BuiltinMetricIDAPICacheAgeTotal:           true,
+		BuiltinMetricIDAPIBufferBytesAlloc:        true,
+		BuiltinMetricIDAPIBufferBytesFree:         true,
+		BuiltinMetricIDAPIBufferBytesTotal:        true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2137,6 +2275,14 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 		BuiltinMetricIDPromQLEngineTime:           true,
+		BuiltinMetricIDAPICacheBytesAlloc:         true,
+		BuiltinMetricIDAPICacheBytesFree:          true,
+		BuiltinMetricIDAPICacheBytesTotal:         true,
+		BuiltinMetricIDAPICacheAgeEvict:           true,
+		BuiltinMetricIDAPICacheAgeTotal:           true,
+		BuiltinMetricIDAPIBufferBytesAlloc:        true,
+		BuiltinMetricIDAPIBufferBytesFree:         true,
+		BuiltinMetricIDAPIBufferBytesTotal:        true,
 	}
 
 	insertKindToValue = map[int32]string{
@@ -2215,6 +2361,36 @@ Value is delta between second value and time it was inserted.`,
 			Name:   "__default",
 			Weight: 1,
 		},
+	}
+
+	versionToValue = map[string]string{
+		" 1": "v1",
+		" 2": "v2",
+	}
+
+	secondsToValue = map[string]string{
+		" 1":       "1s",
+		" 5":       "5s",
+		" 15":      "15s",
+		" 60":      "1m",
+		" 300":     "5m",
+		" 900":     "15m",
+		" 3600":    "1h",
+		" 14400":   "4h",
+		" 86400":   "24h",
+		" 604800":  "7d",
+		" 2678400": "1M",
+	}
+
+	apiCacheEvictionReason = map[string]string{
+		" 1": "stale",  // known to be stale
+		" 2": "LRU",    // evicted to free up memory
+		" 3": "update", // evicted by more recent load
+	}
+
+	apiBufferKind = map[string]string{
+		" 1": "pool", // "sync.Pool", allocated buffer is subject for reuse (good)
+		" 2": "heap", // large buffer won't be reused (bad, should not happen)
 	}
 )
 

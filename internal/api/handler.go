@@ -27,6 +27,7 @@ import (
 	ttemplate "text/template"
 	"time"
 
+	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -180,6 +181,7 @@ type (
 		cache                 *tsCacheGroup
 		pointsCache           *pointsCache
 		pointFloatsPool       sync.Pool
+		pointFloatsPoolSize   atomic.Int64
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
 		metadataLoader        *metajournal.MetricMetaLoader
@@ -189,6 +191,11 @@ type (
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
 		promEngine            promql.Engine
+		bufferBytesAlloc      *statshouse.MetricRef
+		bufferBytesFree       *statshouse.MetricRef
+		bufferPoolBytesAlloc  *statshouse.MetricRef
+		bufferPoolBytesFree   *statshouse.MetricRef
+		bufferPoolBytesTotal  *statshouse.MetricRef
 	}
 
 	//easyjson:json
@@ -579,6 +586,11 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		jwtHelper:             jwtHelper,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
+		bufferBytesAlloc:      statshouse.Metric(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferBytesFree:       statshouse.Metric(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferPoolBytesAlloc:  statshouse.Metric(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesFree:   statshouse.Metric(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesTotal:  statshouse.Metric(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -624,6 +636,10 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		}
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
+		h.cache.reportStats()
+		if n := h.pointFloatsPoolSize.Load(); n != 0 {
+			h.bufferPoolBytesTotal.Value(float64(n))
+		}
 	})
 	h.promEngine = promql.NewEngine(h, h.location, h.utcOffset)
 	return h, nil
@@ -2600,8 +2616,11 @@ func getDashboardMetaInfo(d *format.DashboardMeta) DashboardMetaInfo {
 }
 
 func (h *Handler) getFloatsSlice(n int) *[]float64 {
+	sizeInBytes := n * 8
 	if n > data_model.MaxSlice {
 		s := make([]float64, n)
+		h.bufferBytesAlloc.Value(float64(sizeInBytes))
+		h.pointFloatsPoolSize.Add(int64(sizeInBytes))
 		return &s // should not happen: we should never return more than maxSlice points
 	}
 
@@ -2612,16 +2631,22 @@ func (h *Handler) getFloatsSlice(n int) *[]float64 {
 	}
 	ret := v.(*[]float64)
 	*ret = (*ret)[:n]
-
+	h.bufferPoolBytesAlloc.Value(float64(sizeInBytes))
+	h.pointFloatsPoolSize.Add(int64(sizeInBytes))
 	return ret
 }
 
 func (h *Handler) putFloatsSlice(s *[]float64) {
+	sizeInBytes := len(*s) * 8
 	*s = (*s)[:0]
 
 	if cap(*s) <= data_model.MaxSlice {
 		h.pointFloatsPool.Put(s)
+		h.bufferPoolBytesFree.Value(float64(sizeInBytes))
+	} else {
+		h.bufferBytesFree.Value(float64(sizeInBytes))
 	}
+	h.pointFloatsPoolSize.Sub(int64(sizeInBytes))
 }
 
 func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tagValueID int32) bool {

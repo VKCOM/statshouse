@@ -1,4 +1,4 @@
-FROM golang:1.21-bullseye AS DELVE
+FROM golang:1.21-bullseye AS delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 RUN cp $(which dlv) /bin/dlv
 
@@ -26,4 +26,4 @@ RUN make build-sh build-sh-api build-sh-metadata
 RUN mv target/statshouse /bin/statshouse
 RUN mv target/statshouse-api /bin/statshouse-api
 RUN mv target/statshouse-metadata /bin/statshouse-metadata
-COPY --from=DELVE /bin/dlv /bin/dlv
+COPY --from=delve /bin/dlv /bin/dlv
