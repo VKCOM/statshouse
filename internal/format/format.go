@@ -28,6 +28,7 @@ import (
 
 const (
 	MaxTags      = 16
+	NewMaxTags   = 64
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
