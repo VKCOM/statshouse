@@ -580,7 +580,7 @@ func (a *Aggregator) goSend(senderID int) {
 				break
 			}
 		}
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], format.MaxTags, false)
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], false)
 
 		// Never empty, because adds value stats
 		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
@@ -626,7 +626,7 @@ func (a *Aggregator) goSend(senderID int) {
 		a.configMu.RUnlock()
 		if mirrorChWrite {
 			log.Println("Writing to second table")
-			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], format.NewMaxTags, true)
+			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], true)
 			status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getNewTableDesc(), bodyStorage)
 			numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
 			if sendErr != nil {
