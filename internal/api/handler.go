@@ -1723,7 +1723,7 @@ type selectRow struct {
 
 type tagValuesSelectCols struct {
 	meta  tagValuesQueryMeta
-	valID proto.ColInt32
+	valID proto.ColInt64
 	val   proto.ColStr
 	cnt   proto.ColFloat64
 	res   proto.Results
@@ -1747,7 +1747,7 @@ func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 		pos := c.val.Pos[i]
 		row.val = string(c.val.Buf[pos.Start:pos.End])
 	} else {
-		row.valID = c.valID[i]
+		row.valID = int32(c.valID[i])
 	}
 	return row
 }
@@ -2669,7 +2669,7 @@ type pointsSelectCols struct {
 	step         proto.ColInt64
 	cnt          proto.ColFloat64
 	val          []proto.ColFloat64
-	tag          []proto.ColInt32
+	tag          []proto.ColUInt64
 	tagIx        []int
 	tagStr       proto.ColStr
 	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
@@ -2682,7 +2682,7 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &pointsSelectCols{
 		val:   make([]proto.ColFloat64, meta.vals),
-		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
+		tag:   make([]proto.ColUInt64, 0, len(meta.tags)),
 		tagIx: make([]int, 0, len(meta.tags)),
 	}
 	if useTime {
@@ -2698,7 +2698,7 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 		case format.ShardTagID:
 			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
 		default:
-			c.tag = append(c.tag, proto.ColInt32{})
+			c.tag = append(c.tag, proto.ColUInt64{})
 			c.res = append(c.res, proto.ResultColumn{Name: "key" + id, Data: &c.tag[len(c.tag)-1]})
 			c.tagIx = append(c.tagIx, format.TagIndex(id))
 		}
@@ -2729,7 +2729,7 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 		row.val[j] = c.val[j][i]
 	}
 	for j := range c.tag {
-		row.tag[c.tagIx[j]] = c.tag[j][i]
+		row.tag[c.tagIx[j]] = int32(c.tag[j][i])
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
@@ -2754,7 +2754,7 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 		row.val[j] = c.val[j][i]
 	}
 	for j := range c.tag {
-		row.tag[c.tagIx[j]] = c.tag[j][i]
+		row.tag[c.tagIx[j]] = int32(c.tag[j][i])
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
