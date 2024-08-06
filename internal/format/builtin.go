@@ -870,6 +870,12 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description: "clickhouse_exception",
 				Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
+			}, {
+				Description: "experiment",
+				ValueComments: convertToValueComments(map[int32]string{
+					0: "main",
+					1: "experiment",
+				}),
 			}},
 		},
 		BuiltinMetricIDAgentHistoricQueueSize: {
@@ -957,6 +963,12 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description: "clickhouse_exception",
 				Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
+			}, {
+				Description: "experiment",
+				ValueComments: convertToValueComments(map[int32]string{
+					0: "main",
+					1: "experiment",
+				}),
 			}},
 		},
 		BuiltinMetricIDAgentPerMetricSampleBudget: {

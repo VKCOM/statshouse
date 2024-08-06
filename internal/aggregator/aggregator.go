@@ -580,10 +580,11 @@ func (a *Aggregator) goSend(senderID int) {
 				break
 			}
 		}
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0])
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], format.MaxTags, false)
 
 		// Never empty, because adds value stats
 		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
+
 		a.mu.Lock()
 		if willInsertHistoric {
 			a.historicSenders--
@@ -619,6 +620,27 @@ func (a *Aggregator) goSend(senderID int) {
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
 		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0)
 		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0)
+
+		a.configMu.RLock()
+		mirrorChWrite := a.configR.MirrorChWrite
+		a.configMu.RUnlock()
+		if mirrorChWrite {
+			log.Println("Writing to second table")
+			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], format.NewMaxTags, true)
+			status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getNewTableDesc(), bodyStorage)
+			numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
+			if sendErr != nil {
+				comment := fmt.Sprintf("time=%d (delta = %d), contributors %d Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), numContributors, senderID)
+				a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
+				log.Print(sendErr)
+				sendErr = rpc.Error{
+					Code:        data_model.RPCErrorInsert,
+					Description: sendErr.Error(),
+				}
+			}
+			a.sh2.AddValueCounterHost(a.reportExpInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0)
+			a.sh2.AddValueCounterHost(a.reportExpInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0)
+		}
 
 		sendErr = fmt.Errorf("simulated error")
 		aggBucket.mu.Lock()
