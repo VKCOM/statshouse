@@ -690,7 +690,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				break
 			}
 		}
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], format.MaxTags, false)
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], false, 0)
 
 		// Never empty, because adds value stats
 		ctx, cancel := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -738,6 +738,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		a.configMu.RLock()
 		mirrorChWrite := a.configR.MirrorChWrite
+		stringTagProb := a.configR.StringTagProb
 		a.configMu.RUnlock()
 		if mirrorChWrite {
 			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], true, stringTagProb)
