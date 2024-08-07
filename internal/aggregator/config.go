@@ -16,7 +16,6 @@ import (
 
 type ConfigAggregatorRemote struct {
 	InsertBudget         int // for single replica, in bytes per contributor, when many contributors
-	InsertBudget100      int // for single replica, in bytes per contributor, when 100 contributors
 	StringTopCountInsert int
 	SampleNamespaces     bool
 	SampleGroups         bool
@@ -69,7 +68,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 
 		ConfigAggregatorRemote: ConfigAggregatorRemote{
 			InsertBudget:         400,
-			InsertBudget100:      2500,
 			StringTopCountInsert: 20,
 			SampleNamespaces:     false,
 			SampleGroups:         false,
@@ -81,7 +79,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
-	f.IntVar(&c.InsertBudget100, "insert-budget-100", d.InsertBudget100, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # ~ 100.")
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 	if !legacyVerb {
 		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
@@ -125,9 +122,6 @@ func ValidateConfigAggregator(c ConfigAggregator) error {
 func (c *ConfigAggregatorRemote) Validate() error {
 	if c.InsertBudget < 1 {
 		return fmt.Errorf("insert-budget (%d) must be >= 1", c.InsertBudget)
-	}
-	if c.InsertBudget100 < 1 {
-		return fmt.Errorf("insert-budget-100 (%d) must be >= 1", c.InsertBudget100)
 	}
 	if c.StringTopCountInsert < data_model.MinStringTopInsert {
 		return fmt.Errorf("--string-top-insert (%d) must be >= %d", c.StringTopCountInsert, data_model.MinStringTopInsert)
