@@ -452,8 +452,6 @@ Set by aggregator.`,
 					TagValueIDSharingByMappedTags: "mapped_tags",
 					TagValueIDSharingByMetricId:   "metric_id",
 				}),
-			}, {
-				Description: "host",
 			}},
 		},
 		BuiltinMetricIDAggInsertSize: {
