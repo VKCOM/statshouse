@@ -1925,18 +1925,17 @@ Value is delta between second value and time it was inserted.`,
 			Name:        BuiltinMetricNameAPICacheHit,
 			Kind:        MetricKindValue,
 			Description: `API cache hit rate`,
-			Tags: []MetricMetaTag{
-				{Description: "environment"}, {
-					Description: "source",
-				}, {
-					Description: "metric",
-					IsMetric:    true,
-					Raw:         true,
-				}, {
-					Description: "table",
-				}, {
-					Description: "kind",
-				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+			Tags: []MetricMetaTag{{
+				Description: "source",
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+				Raw:         true,
+			}, {
+				Description: "table",
+			}, {
+				Description: "kind",
+			}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 		BuiltinMetricIDAggScrapeTargetDispatch: {
 			Name:                 "__agg_scrape_target_dispatch",
