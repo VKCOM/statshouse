@@ -161,7 +161,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		// ensure that it's not bigger then aggregator ts in order to write BuiltinMetricIDAggOutdatedAgents metric
 		effectiveLeastAllowedAgentCommitTs := int32(min(format.LeastAllowedAgentCommitTs, build.CommitTimestamp()))
 		if args.BuildCommitTs < effectiveLeastAllowedAgentCommitTs {
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, host, int32(addrIPV4)})
+			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, 0, int32(addrIPV4)})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddCounterHost(key, 1, host, nil)
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("agent is too old please update"))
@@ -405,7 +405,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(float64(v.Value), 1, host)
 	}
 
-	getMultiItem(args.Time, format.BuiltinMetricIDAggAgentSharding, [16]int32{0, 0, 0, 0, args.Sharding, host}).Tail.AddCounterHost(1, host)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggAgentSharding, [16]int32{0, 0, 0, 0, args.Sharding}).Tail.AddCounterHost(1, host)
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
 		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(float64(value), host)
