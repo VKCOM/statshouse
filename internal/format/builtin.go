@@ -438,6 +438,7 @@ Set by aggregator.`,
 		BuiltinMetricIDAggAgentSharding: {
 			Name:        BuiltinMetricNameAggAgentSharding,
 			Kind:        MetricKindCounter,
+			Resolution:  60,
 			Description: `# of agents with specific sharding scheme. Set by aggregator.`,
 			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
@@ -452,6 +453,8 @@ Set by aggregator.`,
 					TagValueIDSharingByMappedTags: "mapped_tags",
 					TagValueIDSharingByMetricId:   "metric_id",
 				}),
+			}, {
+				Description: "host",
 			}},
 		},
 		BuiltinMetricIDAggInsertSize: {
@@ -734,6 +737,7 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 		BuiltinMetricIDAggOutdatedAgents: {
 			Name:        "__agg_outdated_agents",
 			Kind:        MetricKindCounter,
+			Resolution:  60,
 			Description: "Number of outdated agents.",
 			Tags: []MetricMetaTag{{
 				Description: "-",
