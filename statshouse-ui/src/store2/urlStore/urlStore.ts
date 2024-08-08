@@ -205,23 +205,36 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setUrlStore(updateGroup(groupKey, next));
     },
     moveDashboardPlot(plotKey, plotKeyTarget, groupKey) {
-      // console.log({ plotKey, plotKeyTarget, groupKey });
-      if (plotKey != null) {
+      if (plotKey != null && groupKey != null) {
         setUrlStore(
           updateParamsPlotStruct((plotStruct) => {
             const sourceGroupKey = plotStruct.mapPlotToGroup[plotKey] ?? '';
             const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
             const sourcePlotIndex = plotStruct.mapPlotIndex[plotKey];
             const targetGroupIndex = plotStruct.mapGroupIndex[groupKey ?? sourceGroupKey];
-            const targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
-            if (
-              sourceGroupIndex != null &&
-              sourcePlotIndex != null &&
-              targetGroupIndex != null &&
-              targetPlotIndex != null
-            ) {
+            let targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
+            if (sourceGroupIndex != null && sourcePlotIndex != null) {
               const sourcePlots = plotStruct.groups[sourceGroupIndex].plots.splice(sourcePlotIndex, 1);
-              plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
+              if (targetGroupIndex == null) {
+                plotStruct.groups.push({
+                  plots: [...sourcePlots],
+                  groupInfo: {
+                    ...getNewGroup(),
+                    id: groupKey,
+                  },
+                });
+              } else {
+                if (targetPlotIndex) {
+                  if (sourceGroupIndex === targetGroupIndex) {
+                    targetPlotIndex = plotStruct.groups[targetGroupIndex].plots.findIndex(
+                      ({ plotInfo }) => plotInfo.id === plotKeyTarget
+                    );
+                  }
+                  plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
+                } else {
+                  plotStruct.groups[targetGroupIndex].plots.push(...sourcePlots);
+                }
+              }
             }
           })
         );

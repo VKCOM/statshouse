@@ -110,14 +110,14 @@ export function updateQueryParamsPlotStruct(next: ProduceUpdate<PlotStruct>): Pr
   };
 }
 
-export function getNextVariableKey(params: QueryParams): VariableKey {
-  return (Math.max(...params.orderVariables.map(toNumberM).filter(isNotNil)) + 1).toString();
+export function getNextVariableKey(params: Pick<QueryParams, 'orderVariables'>): VariableKey {
+  return (Math.max(-1, ...params.orderVariables.map(toNumberM).filter(isNotNil)) + 1).toString();
 }
 
-export function getNextGroupKey(params: QueryParams): GroupKey {
-  return (Math.max(...params.orderGroup.map(toNumberM).filter(isNotNil)) + 1).toString();
+export function getNextGroupKey(params: Pick<QueryParams, 'orderGroup'>): GroupKey {
+  return (Math.max(-1, ...params.orderGroup.map(toNumberM).filter(isNotNil)) + 1).toString();
 }
 
-export function getNextPlotKey(params: QueryParams): GroupKey {
-  return (Math.max(...params.orderPlot.map(toNumberM).filter(isNotNil)) + 1).toString();
+export function getNextPlotKey(params: Pick<QueryParams, 'orderPlot'>): GroupKey {
+  return (Math.max(-1, ...params.orderPlot.map(toNumberM).filter(isNotNil)) + 1).toString();
 }

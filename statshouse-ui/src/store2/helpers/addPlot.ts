@@ -19,7 +19,7 @@ export function addPlot(
   return produce<QueryParams>(
     { ...params, tabNum: activeInsert ? nextId : params.tabNum },
     updateQueryParamsPlotStruct((plotStruct) => {
-      groupKey ??= plotStruct.mapPlotToGroup[tabNum]!;
+      groupKey ??= plotStruct.mapPlotToGroup[tabNum] ?? '0';
       const groupIndex = plotStruct.mapGroupIndex[groupKey]!;
       if (plotStruct.groups[groupIndex]) {
         plotStruct.groups[groupIndex].plots.push({
