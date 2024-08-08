@@ -190,7 +190,6 @@ type (
 		plotTemplate          *ttemplate.Template
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
-		rmIDCache             int
 		promEngine            promql.Engine
 		bufferBytesAlloc      *statshouse.MetricRef
 		bufferBytesFree       *statshouse.MetricRef
@@ -641,16 +640,13 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			h.bufferPoolBytesTotal.Value(float64(n))
 		}
 	})
-	h.rmIDCache = statshouse.StartRegularMeasurement(func(*statshouse.Client) {
-		h.cache.reportStats()
-	})
 	h.promEngine = promql.NewEngine(h, h.location, h.utcOffset)
 	return h, nil
 }
 
 func (h *Handler) Close() error {
 	statshouse.StopRegularMeasurement(h.rmID)
-	statshouse.StopRegularMeasurement(h.rmIDCache)
+	h.cache.shutdown()
 	h.cacheInvalidateTicker.Stop()
 
 	ch := make(chan struct{})

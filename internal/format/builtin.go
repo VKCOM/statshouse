@@ -2056,6 +2056,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPICacheBytesTotal: {
 			Name:        BuiltinMetricAPICacheBytesTotal,
 			Kind:        MetricKindValue,
+			Resolution:  15,
 			Description: "API cache size in bytes.",
 			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
@@ -2089,6 +2090,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPICacheAgeTotal: {
 			Name:        BuiltinMetricAPICacheAgeTotal,
 			Kind:        MetricKindValue,
+			Resolution:  15,
 			Description: "API cache age in seconds.",
 			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
