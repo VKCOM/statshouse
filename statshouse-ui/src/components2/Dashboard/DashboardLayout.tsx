@@ -1,16 +1,18 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isNotNil, toNumber, toNumberM } from 'common/helpers';
+import { toNumber } from 'common/helpers';
 import css from './style.module.css';
 import cn from 'classnames';
 import { useResizeObserver } from 'view/utils';
 import { useStatsHouseShallow } from 'store2';
-import { GroupKey, PlotKey } from 'url2';
+import { GroupKey, PlotKey, QueryParams } from 'url2';
 import { Button } from 'components';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 import { PlotView } from '../Plot';
-import { toPlotKey } from '../../url/queryParams';
+import { toPlotKey } from 'url/queryParams';
 import { DashboardGroup } from './DashboardGroup';
+import { produce } from 'immer';
+import { getNextGroupKey } from 'store2/urlStore/updateParamsPlotStruct';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -64,30 +66,43 @@ function getGroupStyle(width: number, size?: string): React.CSSProperties {
   } as React.CSSProperties;
 }
 
+function prepareItemsGroup({
+  orderGroup,
+  orderPlot,
+  groups,
+}: Pick<QueryParams, 'orderGroup' | 'orderPlot' | 'groups'>) {
+  const orderP = [...orderPlot];
+  return orderGroup.map((groupKey) => {
+    let plots = orderP.splice(0, groups[groupKey]?.count ?? 0);
+    return {
+      groupKey,
+      plots,
+    };
+  });
+}
+
 export type DashboardLayoutProps = {
   className?: string;
 };
 export function _DashboardLayout({ className }: DashboardLayoutProps) {
-  const { groups, orderGroup, dashboardLayoutEdit, isEmbed, groupPlots, addDashboardGroup, moveDashboardPlot } =
+  const { groups, orderGroup, orderPlot, dashboardLayoutEdit, isEmbed, addDashboardGroup, moveDashboardPlot } =
     useStatsHouseShallow(
       ({
-        params: { groups, orderGroup },
+        params: { groups, orderGroup, orderPlot },
         dashboardLayoutEdit,
         isEmbed,
-        groupPlots,
         addDashboardGroup,
         moveDashboardPlot,
       }) => ({
         groups,
         orderGroup,
+        orderPlot,
         dashboardLayoutEdit,
         isEmbed,
-        groupPlots,
         addDashboardGroup,
         moveDashboardPlot,
       })
     );
-  //   const moveAndResortPlot = useStore(selectorMoveAndResortPlot);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const { width: zoneWidth } = useResizeObserver(zone);
@@ -95,79 +110,41 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
   const [selectTarget, setSelectTarget] = useState<PlotKey | null>(null);
   const [selectTargetGroup, setSelectTargetGroup] = useState<GroupKey | null>(null);
   const [stylePreview, setStylePreview] = useState<React.CSSProperties>({});
-  //
-  const itemsGroup = useMemo(
-    () =>
-      orderGroup.map((groupKey) => ({
-        groupKey,
-        plots: groupPlots[groupKey] ?? [],
-      })),
-    // const plots = params.orderPlot.map((plotKey) => ({ plot: params.plots[plotKey]!, plotKey }));
-    // const indexPlotMap = new Map<
-    //   PlotKey,
-    //   {
-    //     plot: PlotParams;
-    //     plotKey: PlotKey;
-    //     groupKey: GroupKey;
-    //     selected: boolean;
-    //     // gpoupKeyInGroup: PlotKey;
-    //   }
-    // >();
-    // const groups = params.orderGroup.map((groupKey) => ({ groupKey, group: params.groups[groupKey]! }));
-    // let indexStart: number = 0;
-    // const itemsG = groups.map(({ group, groupKey }) => {
-    //   const r = {
-    //     group,
-    //     groupKey,
-    //     plots: plots
-    //       .slice(indexStart, indexStart + group.count)
-    //       .map(({ plot, plotKey }) => ({ plot, plotKey, selected: select === plotKey })),
-    //   };
-    //   r.plots.forEach(({ plot, plotKey, selected }) => {
-    //     indexPlotMap.set(plotKey, { plot, plotKey, selected, groupKey });
-    //   });
-    //   indexStart += group.count;
-    //   return r;
-    // });
-    // if (selectTargetGroup != null && !itemsG[selectTargetGroup]) {
-    //   itemsG[selectTargetGroup] = {
-    //     group: { name: '', size: '2', show: true, count: 1, description: '' },
-    //     indexGroup: selectTargetGroup,
-    //     plots: [],
-    //   };
-    // }
-    // if (select != null) {
-    //   let drop = indexPlotMap.get(select);
-    //   if (drop != null && selectTargetGroup != null && itemsG[selectTargetGroup] && itemsG[drop.indexGroup]) {
-    //     const moveItem = itemsG[drop.indexGroup].plots.splice(drop.indexPlotInGroup, 1)[0];
-    //     if (selectTarget != null) {
-    //       let dropTarget = indexPlotMap.get(selectTarget);
-    //       if (dropTarget?.indexGroup !== selectTargetGroup) {
-    //         itemsG[selectTargetGroup].plots.push(moveItem);
-    //       } else {
-    //         itemsG[selectTargetGroup].plots.splice(
-    //           select < selectTarget && drop.indexGroup === selectTargetGroup
-    //             ? Math.max(0, dropTarget.indexPlotInGroup - 1)
-    //             : dropTarget.indexPlotInGroup,
-    //           0,
-    //           moveItem
-    //         );
-    //       }
-    //     } else {
-    //       itemsG[selectTargetGroup].plots.push(moveItem);
-    //     }
-    //   }
-    // }
-    // return itemsG;
-    [groupPlots, orderGroup]
-  );
+  const [itemsGroup, setItemsGroup] = useState(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+  useEffect(() => {
+    setItemsGroup(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+  }, [groups, orderGroup, orderPlot]);
+  useEffect(() => {
+    setItemsGroup(
+      produce((ig) => {
+        if (selectTargetGroup != null && select != null && selectTarget !== select) {
+          ig.forEach((g) => {
+            if (g.groupKey !== selectTargetGroup) {
+              g.plots = g.plots.filter((p) => p !== select);
+            }
+          });
+          let groupIndex = ig.findIndex(({ groupKey }) => groupKey === selectTargetGroup);
+          if (groupIndex === -1) {
+            ig.push({ plots: [select], groupKey: selectTargetGroup });
+          } else {
+            const selectIndex = ig[groupIndex].plots.indexOf(select);
+            ig[groupIndex].plots = ig[groupIndex].plots.filter((p) => p !== select);
+            let selectTargetIndex = ig[groupIndex].plots.indexOf(selectTarget!);
+            if (selectTargetIndex > -1 && selectIndex > -1 && selectTargetIndex >= selectIndex) {
+              selectTargetIndex++;
+            }
+            if (selectTargetIndex > -1) {
+              ig[groupIndex].plots.splice(selectTargetIndex, 0, select);
+            } else {
+              ig[groupIndex].plots.push(select);
+            }
+          }
+        }
+      })
+    );
+  }, [select, selectTarget, selectTargetGroup]);
 
-  const maxGroup = useMemo<GroupKey>(
-    () => Math.max(...orderGroup.map(toNumberM).filter(isNotNil)).toString(),
-    [orderGroup]
-  );
-
-  const nextGroupKey = useMemo(() => (+maxGroup + 1).toString(), [maxGroup]);
+  const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
 
   const save = useCallback(
     (index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null) => {
@@ -188,9 +165,11 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
       if (preview.current) {
         preview.current.style.transform = `matrix(1,0,0,1,${e.clientX},${e.clientY})`;
       }
+      const dropElement = document.elementsFromPoint(e.clientX, e.clientY);
       let index = toPlotKey(target.getAttribute('data-index'));
       let indexTarget: PlotKey | null = index;
-      let indexGroup: GroupKey | null = null;
+      let indexGroup: GroupKey | null =
+        dropElement.find((e) => e.getAttribute('data-group'))?.getAttribute('data-group') ?? null;
 
       setSelect(index);
       setSelectTarget(indexTarget);
@@ -203,14 +182,6 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
         if (elem) {
           indexTarget = toPlotKey(elem.getAttribute('data-index'), '0');
           setSelectTarget(indexTarget);
-          //   if (indexT !== index) {
-          //     if (indexT < (indexTarget ?? 0)) {
-          //       indexTarget = Math.max(0, indexT);
-          //     } else {
-          //       indexTarget = Math.max(0, indexT + 1);
-          //     }
-          //     // setSelectTarget(indexTarget);
-          //   }
         } else {
           indexTarget = null;
           setSelectTarget(indexTarget);
@@ -281,7 +252,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
       <div
         className={cn(
           select !== null ? css.cursorDrag : css.cursorDefault,
-          // dashboardLayoutEdit && 'dashboard-edit',
+          dashboardLayoutEdit && 'dashboard-edit',
           className
         )}
         ref={zone}
