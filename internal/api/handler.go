@@ -1477,7 +1477,7 @@ func (h *Handler) handleGetDashboard(ctx context.Context, ai accessInfo, id int3
 }
 
 func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*GetDashboardListResp, time.Duration, error) {
-	dashs := h.metricsStorage.GetDashboardList()
+	dashs := h.metricsStorage.GetDashboardList(showInvisible)
 	for _, meta := range format.BuiltinDashboardByID {
 		dashs = append(dashs, meta)
 	}
