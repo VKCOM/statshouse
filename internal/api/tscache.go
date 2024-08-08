@@ -51,6 +51,7 @@ type tsValues struct {
 
 type tsCacheGroup struct {
 	pointCaches map[string]map[int64]*tsCache // by version, step
+	shutdown    func()
 }
 
 func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, utcOffset int64, loader tsLoadFunc, dropEvery time.Duration) *tsCacheGroup {
@@ -107,6 +108,24 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 		}
 	}
 
+	var ctx context.Context
+	ctx, g.shutdown = context.WithCancel(context.Background())
+	go func() {
+		timer := time.NewTimer(time.Hour)
+		if !timer.Stop() {
+			<-timer.C
+		}
+		for interval := time.Duration(15 * time.Second); ; {
+			now := time.Now()
+			timer.Reset(now.Truncate(interval).Add(interval).Sub(now))
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				g.reportStats()
+			}
+		}
+	}()
 	return g
 }
 
