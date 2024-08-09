@@ -133,7 +133,7 @@ func parseParams() (params Params) {
 	var cluster string
 	flag.IntVar(&basicTagsN, "basic-tags", 64, "number of basic tags")
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
-	flag.IntVar(&rawTagsN, "raw-tags", 4, "number of raw tags")
+	flag.IntVar(&rawTagsN, "raw-tags", 0, "number of raw tags")
 	flag.BoolVar(&schemaParams.HostTag, "host-tag", true, "special host tag")
 	flag.StringVar(&cluster, "cluster", "statlogs2", "clickhouse cluster name")
 	flag.Parse()
@@ -176,19 +176,19 @@ func parseParams() (params Params) {
 
 	params = Params{
 		IncomingTable: IncomingTableParams{
-			NamePrefix:  "statshouse_value",
+			NamePrefix:  "statshouse_exp",
 			NamePostfix: "incoming_str",
 			Cluster:     cluster,
 			Schema:      incomingSchemaParams,
 		},
 		Tables: []TableParams{
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_basic",
 				Resolution:  "1s",
 				Cluster:     cluster,
 				Schema:      schemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					Hours: 52,
 				},
@@ -198,12 +198,12 @@ func parseParams() (params Params) {
 				Settings: secSettings,
 			},
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_prekey",
 				Resolution:  "1s",
 				Cluster:     cluster,
 				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					Hours: 52,
 				},
@@ -213,12 +213,12 @@ func parseParams() (params Params) {
 				Settings: secSettings,
 			},
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_basic",
 				Resolution:  "1m",
 				Cluster:     cluster,
 				Schema:      schemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",
@@ -230,12 +230,12 @@ func parseParams() (params Params) {
 				Settings: commonSettings,
 			},
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_prekey",
 				Resolution:  "1m",
 				Cluster:     cluster,
 				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",
@@ -247,12 +247,12 @@ func parseParams() (params Params) {
 				Settings: commonSettings,
 			},
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_basic",
 				Resolution:  "1h",
 				Cluster:     cluster,
 				Schema:      schemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",
@@ -263,12 +263,12 @@ func parseParams() (params Params) {
 				Settings: commonSettings,
 			},
 			{
-				NamePrefix:  "statshouse_value",
+				NamePrefix:  "statshouse_exp",
 				NamePostfix: "str_prekey",
 				Resolution:  "1h",
 				Cluster:     cluster,
 				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_value_incoming_str",
+				SelectFrom:  "statshouse_exp_incoming_str",
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",
