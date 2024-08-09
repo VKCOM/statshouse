@@ -262,12 +262,14 @@ func (s *scraper) run() {
 }
 
 func (s *scraper) scrape(opt scrapeOptions) error {
-	buf, contentType, err := s.readBytes(opt.timeout)
+	buf, contentType, err := s.getScrapeData(opt.timeout)
 	if err != nil {
+		log.Printf("scrape failed to get metrics: %v\n", err)
 		return err
 	}
 	p, err := textparse.New(buf, contentType)
 	if err != nil {
+		log.Printf("scrape failed to parse metrics: %v\n", err)
 		return err
 	}
 	var name string
@@ -279,6 +281,13 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 	}
 	var histograms map[string]*histogram
 	var counters map[uint64]float64
+	stat := struct {
+		seen, sent       int
+		droppedZeroCount int
+		droppedRelable   int
+		droppedUnnamed   int
+		droppedUntyped   int
+	}{}
 	b := s.metric
 	for {
 		var l labels.Labels
@@ -331,12 +340,22 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 				if metricType == textparse.MetricTypeCounter && opt.gaugeMetrics[name] {
 					metricType = textparse.MetricTypeGauge
 				}
+				stat.seen++
 			}
 		}
 		if err == io.EOF {
 			break
 		}
-		if name == "" || metricType == "" || l == nil {
+		if name == "" {
+			stat.droppedUnnamed++
+			continue
+		}
+		if metricType == "" {
+			stat.droppedUntyped++
+			continue
+		}
+		if l == nil {
+			stat.droppedRelable++
 			continue
 		}
 		_, _, v := p.Series()
@@ -411,6 +430,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			hashSum := s.hash.Sum64()
 			s.hash.Reset()
 			if fullName == "" || len(fullName) == len(name) {
+				stat.droppedUnnamed++
 				continue // should not happen
 			}
 			if s.histograms == nil {
@@ -491,6 +511,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 					Description:    prev.description,
 					ScrapeInterval: int(opt.interval.Seconds()),
 				})
+				stat.sent++
 			}
 			prev.value = currValue
 		}
@@ -546,6 +567,9 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 							Description:    metric.descriptionB,
 							ScrapeInterval: int(opt.interval.Seconds()),
 						})
+						stat.sent++
+					} else {
+						stat.droppedZeroCount++
 					}
 				}
 			}
@@ -563,15 +587,21 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 					Description:    metric.descriptionS,
 					ScrapeInterval: int(opt.interval.Seconds()),
 				})
+				stat.sent++
+			} else {
+				stat.droppedZeroCount++
 			}
 			metric.series[hashSum] = curr
 		}
 	}
 	s.metric = b
+	log.Printf(
+		"scrape statistics: seen %d, sent %d, dropped (zero_count %d, relable %d, unnamed %d, untyped %d)\n",
+		stat.seen, stat.sent, stat.droppedZeroCount, stat.droppedRelable, stat.droppedUnnamed, stat.droppedUntyped)
 	return nil
 }
 
-func (s *scraper) readBytes(timeout time.Duration) ([]byte, string, error) {
+func (s *scraper) getScrapeData(timeout time.Duration) ([]byte, string, error) {
 	// set timeout
 	s.request.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", strconv.FormatFloat(timeout.Seconds(), 'f', -1, 64))
 	s.client.Timeout = timeout
