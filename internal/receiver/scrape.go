@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -152,18 +153,20 @@ func getTargets(a *agent.Agent, hash string) ([]scrapeTarget, string, error) {
 		if v.MetricRelabelConfigs != "" {
 			_ = yaml.Unmarshal([]byte(v.MetricRelabelConfigs), &mrc)
 		}
-		res = append(res, scrapeTarget{
-			url: string(v.Url),
-			opt: scrapeOptions{
-				interval:     time.Duration(v.ScrapeInterval),
-				timeout:      time.Duration(v.ScrapeTimeout),
-				namespace:    namespace,
-				job:          v.JobName,
-				gaugeMetrics: gaugeMetrics,
-				labels:       v.Labels,
-				mrc:          mrc,
-			},
-		})
+		t := scrapeTarget{opt: scrapeOptions{
+			interval:     time.Duration(v.ScrapeInterval),
+			timeout:      time.Duration(v.ScrapeTimeout),
+			namespace:    namespace,
+			job:          v.JobName,
+			gaugeMetrics: gaugeMetrics,
+			labels:       v.Labels,
+			mrc:          mrc,
+		}}
+		if t.url, err = url.PathUnescape(v.Url); err != nil {
+			log.Printf("unescape %s: %v\n", v.Url, err)
+			t.url = v.Url
+		}
+		res = append(res, t)
 	}
 	return res, newHash, nil
 }
@@ -274,12 +277,12 @@ func (s *scraper) run() {
 func (s *scraper) scrape(opt scrapeOptions) error {
 	buf, contentType, err := s.getScrapeData(opt.timeout)
 	if err != nil {
-		log.Printf("scrape failed to get metrics: %v\n", err)
+		log.Printf("scrape failed to get metrics %s: %v\n", s.request.URL.Path, err)
 		return err
 	}
 	p, err := textparse.New(buf, contentType)
 	if err != nil {
-		log.Printf("scrape failed to parse metrics: %v\n", err)
+		log.Printf("scrape failed to parse metrics %s: %v\n", s.request.URL.Path, err)
 		return err
 	}
 	var name string
@@ -600,8 +603,8 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 	}
 	s.metric = b
 	if s.stat != stat {
-		log.Printf("scrape metrics: seen %d, dropped %d\n", stat.metricsSeen, stat.metricsDropped)
-		log.Printf("scrape series: sent %d, dropped (unnamed %d, untyped %d, zero_count %d)\n", stat.seriesSent, stat.seriesDroppedUnnamed, stat.seriesDroppedUntyped, stat.seriesDroppedZeroCount)
+		log.Printf("scrape metrics %s: seen %d, dropped %d\n", s.request.URL.Path, stat.metricsSeen, stat.metricsDropped)
+		log.Printf("scrape series  %s: sent %d, dropped (unnamed %d, untyped %d, zero_count %d)\n", s.request.URL.Path, stat.seriesSent, stat.seriesDroppedUnnamed, stat.seriesDroppedUntyped, stat.seriesDroppedZeroCount)
 		s.stat = stat
 	}
 	return nil
