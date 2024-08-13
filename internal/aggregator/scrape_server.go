@@ -348,18 +348,18 @@ func (s *scrapeServer) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 func (job *scrapeJobConfig) toPromTargetBytes(addr string, labels []tl.DictionaryFieldStringBytes) tlstatshouse.PromTargetBytes {
-	url := url.URL{
-		Scheme: job.Scheme,
-		Host:   addr,
-		Path:   job.MetricsPath,
+	var err error
+	u := url.URL{Scheme: job.Scheme, Host: addr}
+	if u.Path, err = url.QueryUnescape(job.MetricsPath); err != nil {
+		u.Path = job.MetricsPath
 	}
-	metricRelabelConfigs, _ := json.Marshal(job.MetricRelabelConfigs)
+	mrc, _ := json.Marshal(job.MetricRelabelConfigs)
 	return tlstatshouse.PromTargetBytes{
 		JobName:              []byte(job.JobName),
-		Url:                  []byte(url.String()),
+		Url:                  []byte(u.String()),
 		Labels:               labels,
 		ScrapeInterval:       int64(job.ScrapeInterval),
 		ScrapeTimeout:        int64(job.ScrapeTimeout),
-		MetricRelabelConfigs: metricRelabelConfigs,
+		MetricRelabelConfigs: mrc,
 	}
 }
