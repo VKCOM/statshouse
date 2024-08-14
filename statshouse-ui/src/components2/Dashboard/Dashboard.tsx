@@ -76,7 +76,7 @@ export function _Dashboard({ className }: DashboardProps) {
           </li>
           <li className="nav-item">
             <Link className={cn('nav-link', tabNum === '-2' && 'active')} to={dashboardSettingLink}>
-              Layout
+              Setting
             </Link>
           </li>
 

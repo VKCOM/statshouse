@@ -62,6 +62,7 @@ export type UrlStore = {
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
   moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
   saveDashboard(): Promise<void>;
+  removeDashboard(): Promise<void>;
 };
 
 export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState) => {
@@ -242,6 +243,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     async saveDashboard() {
       //todo: save dash
+    },
+    async removeDashboard() {
+      //todo: remove dash
     },
   };
 };
