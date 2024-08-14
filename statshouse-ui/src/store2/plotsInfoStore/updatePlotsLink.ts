@@ -12,8 +12,8 @@ import { PlotLink, PlotsInfoLinks } from './plotsInfoStore';
 
 export function updatePlotsLink(params: QueryParams, saveParams?: QueryParams): PlotsInfoLinks {
   const dashboardLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
-  const dashboardOuterLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
-  const dashboardSettingLink = { pathname: viewPath[0], search: getPlotLink('-1', params, saveParams) };
+  const dashboardOuterLink = { pathname: viewPath[0], search: getPlotLink('-1', params) };
+  const dashboardSettingLink = { pathname: viewPath[0], search: getPlotLink('-2', params, saveParams) };
   const addLink = { pathname: viewPath[0], search: getAddPlotLink(params, saveParams) };
   const plotsLink = Object.fromEntries(
     Object.entries(params.plots)
