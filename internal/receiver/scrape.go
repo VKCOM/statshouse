@@ -285,223 +285,207 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 		log.Printf("scrape failed to parse metrics %s: %v\n", s.request.URL.Path, err)
 		return err
 	}
-	var name string
-	var description string
-	var metricType textparse.MetricType
+	type seriesMeta struct {
+		help       string
+		metricName string
+		metricType textparse.MetricType
+		name       string
+	}
 	type histogram struct {
 		buckets []string
 		series  map[uint64]*scrapeHistogramSeries // tags hash -> bucket values
 	}
-	var histograms map[string]*histogram
-	var counters map[uint64]float64
+	var meta seriesMeta
 	var stat scrapeStatistics
+	var prev, curr textparse.Entry
+	var counters map[uint64]float64
+	var histograms map[string]*histogram
 	b := s.metric
-	for {
-		var l labels.Labels
-		for i := 0; ; i++ {
-			var entry textparse.Entry
-			entry, err = p.Next()
-			if err == io.EOF {
-				break
-			}
-			if entry == textparse.EntrySeries {
-				p.Metric(&l)
-				// add aggregator labels if present, assume honor_labels is set to "false"
-				if len(opt.labels) != 0 {
-					lb := labels.NewBuilder(l)
-					for k, v := range opt.labels {
-						lb.Set(k, v)
-					}
-					l = lb.Labels()
-				}
-				// relable
-				if len(opt.mrc) != 0 {
-					l = relabel.Process(l, opt.mrc...)
-				}
-				// drop service labels
-				if len(l) != 0 {
-					var n int
-					for i := range l {
-						if !strings.HasPrefix(l[i].Name, model.ReservedLabelPrefix) || l[i].Name == model.MetricNameLabel {
-							l[n] = l[i]
-							n++
-						}
-					}
-					l = l[:n]
-				}
-				break
-			}
-			if i == 0 {
-				name = ""
-				description = ""
-				metricType = ""
-			}
-			switch entry {
-			case textparse.EntryHelp:
-				_, v := p.Help()
-				description = string(v)
-			case textparse.EntryType:
-				var metricNameB []byte
-				metricNameB, metricType = p.Type()
-				name = string(metricNameB)
-				if metricType == textparse.MetricTypeCounter && opt.gaugeMetrics[name] {
-					metricType = textparse.MetricTypeGauge
-				}
-				stat.metricsSeen++
-			}
-		}
+	for prev = textparse.EntryInvalid; ; prev = curr {
+		curr, err = p.Next()
 		if err == io.EOF {
 			break
 		}
-		if name == "" {
-			stat.seriesDroppedUnnamed++
-			continue
-		}
-		if metricType == "" {
-			stat.seriesDroppedUntyped++
-			continue
-		}
-		if l == nil {
-			stat.metricsDropped++
-			continue
-		}
-		_, _, v := p.Series()
-		switch metricType {
-		case textparse.MetricTypeGauge:
-			s.resetMetric(&b, opt.job, len(l))
-			setMetricName(&b, opt.namespace, name)
-			for _, v := range l {
-				if v.Name != labels.MetricName {
+		switch curr {
+		case textparse.EntryHelp:
+			if prev == textparse.EntrySeries {
+				meta = seriesMeta{}
+			}
+			_, v := p.Help()
+			meta.help = string(v)
+		case textparse.EntryType:
+			if prev == textparse.EntrySeries {
+				meta = seriesMeta{}
+			}
+			var metricNameB []byte
+			metricNameB, meta.metricType = p.Type()
+			meta.metricName = string(metricNameB)
+			if meta.metricType == textparse.MetricTypeCounter && opt.gaugeMetrics[meta.metricName] {
+				meta.metricType = textparse.MetricTypeGauge
+			}
+			stat.metricsSeen++
+		case textparse.EntrySeries:
+			var l labels.Labels
+			p.Metric(&l)
+			// add aggregator labels if present, assume honor_labels is set to "false"
+			if len(opt.labels) != 0 {
+				lb := labels.NewBuilder(l)
+				for k, v := range opt.labels {
+					lb.Set(k, v)
+				}
+				l = lb.Labels()
+			}
+			// relable
+			if l = relabel.Process(l, opt.mrc...); l == nil {
+				stat.metricsDropped++
+				continue
+			}
+			// get metric name & drop service labels
+			var n int
+			meta.name = ""
+			for i := range l {
+				if l[i].Name == model.MetricNameLabel {
+					if meta.metricName != "" && strings.HasPrefix(l[i].Value, meta.metricName) {
+						meta.name = l[i].Value
+					} else {
+						meta = seriesMeta{
+							name:       l[i].Value,
+							metricType: textparse.MetricTypeGauge,
+						}
+					}
+				} else if !strings.HasPrefix(l[i].Name, model.ReservedLabelPrefix) {
+					l[n] = l[i]
+					n++
+				}
+			}
+			if meta.name == "" {
+				stat.seriesDroppedUnnamed++
+				continue
+			}
+			l = l[:n]
+			// process series data
+			_, _, v := p.Series()
+			switch meta.metricType {
+			case textparse.MetricTypeGauge:
+				s.resetMetric(&b, opt.job, len(l))
+				setMetricName(&b, opt.namespace, meta.name)
+				for _, v := range l {
 					b.Tags = appendTag(b.Tags, v.Name, v.Value)
 				}
-			}
-			setMetricValue(&b, v)
-			s.handler.HandleMetrics(data_model.HandlerArgs{
-				MetricBytes:    &b,
-				Description:    description,
-				ScrapeInterval: int(opt.interval.Seconds()),
-			})
-		case textparse.MetricTypeCounter:
-			if s.hash == nil {
-				s.hash = fnv.New64()
-			}
-			for _, v := range l {
-				s.hash.Write([]byte(v.Name))
-				s.hash.Write([]byte(v.Value))
-			}
-			hashSum := s.hash.Sum64()
-			s.hash.Reset()
-			if s.counters == nil {
-				s.counters = make(map[uint64]*scrapeCounter)
-			}
-			if metric := s.counters[hashSum]; metric == nil {
-				// initialize counter
-				metric = &scrapeCounter{
-					description: description,
-					tags:        make([]labels.Label, 0, len(l)),
-					value:       v,
+				setMetricValue(&b, v)
+				s.handler.HandleMetrics(data_model.HandlerArgs{
+					MetricBytes:    &b,
+					Description:    meta.help,
+					ScrapeInterval: int(opt.interval.Seconds()),
+				})
+			case textparse.MetricTypeCounter:
+				if s.hash == nil {
+					s.hash = fnv.New64()
 				}
-				if opt.namespace != "" {
-					metric.name = opt.namespace + format.NamespaceSeparator + name
-				} else {
-					metric.name = name
-				}
+				s.hash.Write([]byte(model.MetricNameLabel))
+				s.hash.Write([]byte(meta.name))
 				for _, v := range l {
-					if v.Name != labels.MetricName {
-						metric.tags = append(metric.tags, v)
-					}
-				}
-				s.counters[hashSum] = metric
-			}
-			if counters == nil {
-				counters = map[uint64]float64{hashSum: v}
-			} else {
-				counters[hashSum] = v
-			}
-		case textparse.MetricTypeHistogram:
-			if s.hash == nil {
-				s.hash = fnv.New64()
-			}
-			var fullName string
-			for _, v := range l {
-				switch v.Name {
-				case labels.MetricName:
-					fullName = v.Value
-				case labels.BucketLabel:
-					// skip
-				default:
 					s.hash.Write([]byte(v.Name))
 					s.hash.Write([]byte(v.Value))
 				}
-			}
-			hashSum := s.hash.Sum64()
-			s.hash.Reset()
-			if fullName == "" || len(fullName) == len(name) {
-				stat.seriesDroppedUnnamed++
-				continue // should not happen
-			}
-			if s.histograms == nil {
-				s.histograms = make(map[string]*scrapeHistogram)
-			}
-			metric := s.histograms[name]
-			if metric == nil {
-				// initialize histogram
-				metric = &scrapeHistogram{
-					tags:         make([]labels.Label, 0, len(l)),
-					series:       make(map[uint64]*scrapeHistogramSeries),
-					descriptionS: description,
+				hashSum := s.hash.Sum64()
+				s.hash.Reset()
+				if s.counters == nil {
+					s.counters = make(map[uint64]*scrapeCounter)
 				}
-				if opt.namespace != "" {
-					metric.nameB = opt.namespace + format.NamespaceSeparator + name + "_bucket"
-					metric.nameS = opt.namespace + format.NamespaceSeparator + name + "_sum"
-				} else {
-					metric.nameB = name + "_bucket"
-					metric.nameS = name + "_sum"
-				}
-				for _, v := range l {
-					switch v.Name {
-					case labels.MetricName, labels.BucketLabel:
-						// skip
-					default:
+				if metric := s.counters[hashSum]; metric == nil {
+					// initialize counter
+					metric = &scrapeCounter{
+						description: meta.help,
+						tags:        make([]labels.Label, 0, len(l)),
+						value:       v,
+					}
+					if opt.namespace != "" {
+						metric.name = opt.namespace + format.NamespaceSeparator + meta.name
+					} else {
+						metric.name = meta.name
+					}
+					for _, v := range l {
 						metric.tags = append(metric.tags, v)
 					}
+					s.counters[hashSum] = metric
 				}
-				s.histograms[name] = metric
-			}
-			// append series value
-			if histograms == nil {
-				histograms = make(map[string]*histogram)
-			}
-			curr := histograms[name]
-			if curr == nil {
-				curr = &histogram{
-					series: make(map[uint64]*scrapeHistogramSeries),
+				if counters == nil {
+					counters = map[uint64]float64{hashSum: v}
+				} else {
+					counters[hashSum] = v
 				}
-				histograms[name] = curr
-			}
-			series := curr.series[hashSum]
-			if series == nil {
-				series = &scrapeHistogramSeries{}
-				curr.series[hashSum] = series
-			}
-			switch {
-			case strings.HasSuffix(fullName, "_bucket"):
-				series.bucket = append(series.bucket, v)
-				// remember buckets if histogram does not yet exist
-				if len(metric.buckets) == 0 && len(curr.series) == 1 {
-					for _, v := range l {
-						if v.Name == labels.BucketLabel {
-							curr.buckets = append(curr.buckets, v.Value)
-							break
-						}
+			case textparse.MetricTypeHistogram:
+				if s.hash == nil {
+					s.hash = fnv.New64()
+				}
+				var bucketLabel labels.Label
+				for i := range l {
+					if l[i].Name != labels.BucketLabel {
+						s.hash.Write([]byte(l[i].Name))
+						s.hash.Write([]byte(l[i].Value))
+					} else {
+						bucketLabel = l[i]
 					}
 				}
-			case strings.HasSuffix(fullName, "_sum"):
-				series.sum = v
-			case strings.HasSuffix(fullName, "_count"):
-				series.count = v
+				hashSum := s.hash.Sum64()
+				s.hash.Reset()
+				if s.histograms == nil {
+					s.histograms = make(map[string]*scrapeHistogram)
+				}
+				metric := s.histograms[meta.metricName]
+				if metric == nil {
+					// initialize histogram
+					metric = &scrapeHistogram{
+						tags:         make([]labels.Label, 0, len(l)),
+						series:       make(map[uint64]*scrapeHistogramSeries),
+						descriptionS: meta.help,
+					}
+					if opt.namespace != "" {
+						metric.nameB = opt.namespace + format.NamespaceSeparator + meta.metricName + "_bucket"
+						metric.nameS = opt.namespace + format.NamespaceSeparator + meta.metricName + "_sum"
+					} else {
+						metric.nameB = meta.metricName + "_bucket"
+						metric.nameS = meta.metricName + "_sum"
+					}
+					for i := range l {
+						if l[i].Name != labels.BucketLabel {
+							metric.tags = append(metric.tags, l[i])
+						}
+					}
+					s.histograms[meta.metricName] = metric
+				}
+				// append series value
+				if histograms == nil {
+					histograms = make(map[string]*histogram)
+				}
+				curr := histograms[meta.metricName]
+				if curr == nil {
+					curr = &histogram{
+						series: make(map[uint64]*scrapeHistogramSeries),
+					}
+					histograms[meta.metricName] = curr
+				}
+				series := curr.series[hashSum]
+				if series == nil {
+					series = &scrapeHistogramSeries{}
+					curr.series[hashSum] = series
+				}
+				switch {
+				case strings.HasSuffix(meta.name, "_bucket"):
+					series.bucket = append(series.bucket, v)
+					// remember buckets if histogram does not yet exist
+					if len(metric.buckets) == 0 && len(curr.series) == 1 {
+						curr.buckets = append(curr.buckets, bucketLabel.Value)
+					}
+				case strings.HasSuffix(meta.name, "_sum"):
+					series.sum = v
+				case strings.HasSuffix(meta.name, "_count"):
+					series.count = v
+				}
 			}
 		}
+		prev = curr
 	}
 	for hashSum, currValue := range counters {
 		if prev := s.counters[hashSum]; prev != nil {
