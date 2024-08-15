@@ -34,11 +34,7 @@ export type VariableCardProps = {
   variableKey: VariableKey;
   variable?: VariableParams;
   setVariable?: (variableKey: VariableKey, value?: ProduceUpdate<VariableParams>) => void;
-  // plots: PlotParams[];
-  // plotsData: PlotData[];
-  // metricsMeta: Record<string, MetricMetaValue>;
 };
-// const ai = currentAccessInfo();
 export function VariableCard({ variableKey, variable, setVariable }: VariableCardProps) {
   const [open, setOpen] = useState(false);
   const [valid, setValid] = useState(true);

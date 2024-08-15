@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,20 +16,20 @@ import { VariableCard } from './VariableCard';
 import { Button } from 'components';
 import { useStatsHouseShallow } from 'store2';
 import { getNewVariable, VariableKey, VariableParams } from 'url2';
-import { ProduceUpdate } from '../../../store2/helpers';
-import { GET_PARAMS } from '../../../api/enum';
-import { getNextVariableKey } from '../../../store2/urlStore/updateParamsPlotStruct';
+import { ProduceUpdate } from 'store2/helpers';
+import { GET_PARAMS } from 'api/enum';
+import { getNextVariableKey } from 'store2/urlStore/updateParamsPlotStruct';
 
 export type DashboardVariableProps = {};
 export function DashboardVariable() {
-  const { variables, orderVariables, setParams } = useStatsHouseShallow(
-    ({ params: { variables, orderVariables }, setParams }) => ({
+  const { variables, orderVariables, setParams, autoSearchVariable } = useStatsHouseShallow(
+    ({ params: { variables, orderVariables }, setParams, autoSearchVariable }) => ({
       variables,
       orderVariables,
       setParams,
+      autoSearchVariable,
     })
   );
-  // const { variables, plots, plotsData, metricsMeta } = useStore(selector, shallow);
   const [localVariable, setLocalVariable] = useState({ variables, orderVariables });
 
   const [autoLoader, setAutoLoader] = useState(false);
@@ -79,50 +79,35 @@ export function DashboardVariable() {
       })
     );
   }, []);
-  //
+
   const apply = useCallback(() => {
     setParams((p) => {
       p.variables = localVariable.variables;
       p.orderVariables = localVariable.orderVariables;
     });
   }, [localVariable.orderVariables, localVariable.variables, setParams]);
-  //
+
   const reset = useCallback(() => {
     setLocalVariable({ variables, orderVariables });
   }, [orderVariables, variables]);
-  //
+
   const autoSearch = useCallback(async () => {
     setAutoLoader(true);
-    // todo: auto search variable
-
-    //   const addVariable = await getAutoSearchSyncFilter(getAutoNamStartIndex(localVariable));
-    //   setLocalVariable((v) => {
-    //     const filterName = v.map(({ name }) => name);
-    //     return [...v, ...addVariable.filter(({ name }) => filterName.indexOf(name) < 0)];
-    //   });
+    const next = await autoSearchVariable();
+    setLocalVariable(next);
     setAutoLoader(false);
-  }, []);
-  //
-  // useEffect(() => {
-  //   plots.forEach(({ metricName }) => {
-  //     loadMetricsMeta(metricName);
-  //   });
-  // }, [metricsMeta, plots]);
+  }, [autoSearchVariable]);
 
   return (
     <div className="card border-0">
       <div className="card-body p-2">
         <h5 className="card-title">Variables</h5>
         <div className="card-text d-flex flex-column flex-wrap gap-1">
-          {orderVariables.map((variableKey) => (
+          {localVariable.orderVariables.map((variableKey) => (
             <VariableCard
               variableKey={variableKey}
               key={variableKey}
               variable={localVariable.variables[variableKey]}
-              // variable={variable}
-              // plots={plots}
-              // plotsData={plotsData}
-              // metricsMeta={metricsMeta}
               setVariable={setVariableByIndex}
             />
           ))}
