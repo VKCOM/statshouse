@@ -39,12 +39,6 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
       setParams,
     })
   );
-  // const params = useStore(selectorParams);
-  // const setParams = useStore(selectorSetParams);
-  // const removeServerParams = useStore(selectorRemoveServerParams);
-  // const isServer = useStore(selectorIsServer);
-  // const numQueries = useStore(selectorGlobalNumQueriesPlot);
-  // const setDashboardLayoutEdit = useStore(selectorSetDashboardLayoutEdit);
 
   const navigate = useNavigate();
 

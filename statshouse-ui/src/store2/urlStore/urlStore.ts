@@ -35,6 +35,7 @@ import {
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
+import { getAutoSearchVariable } from './getAutoSearchVariable';
 
 export type UrlStore = {
   params: QueryParams;
@@ -61,6 +62,7 @@ export type UrlStore = {
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
   moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
+  autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
   removeDashboard(): Promise<void>;
 };
@@ -240,6 +242,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
           })
         );
       }
+    },
+    async autoSearchVariable() {
+      return getAutoSearchVariable(getState);
     },
     async saveDashboard() {
       //todo: save dash

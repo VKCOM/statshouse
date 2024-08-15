@@ -1,3 +1,9 @@
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 export const incrs = [
   1e-16, 2e-16, 2.5e-16, 5e-16, 1e-15, 2e-15, 2.5e-15, 5e-15, 1e-14, 2e-14, 2.5e-14, 5e-14, 1e-13, 2e-13, 2.5e-13,
   5e-13, 1e-12, 2e-12, 2.5e-12, 5e-12, 1e-11, 2e-11, 2.5e-11, 5e-11, 1e-10, 2e-10, 2.5e-10, 5e-10, 1e-9, 2e-9, 2.5e-9,
