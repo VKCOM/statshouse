@@ -823,8 +823,6 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 				queryWhat = data_model.DigestSumRaw
 			case data_model.DigestCardinality:
 				queryWhat = data_model.DigestCardinalityRaw
-			case data_model.DigestUnique:
-				queryWhat = data_model.DigestUniqueRaw
 			}
 		}
 		kind := queryWhat.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])

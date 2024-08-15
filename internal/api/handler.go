@@ -3009,8 +3009,6 @@ func selectTSValue(what data_model.DigestWhat, maxHost bool, desiredStepMul int6
 		return row.val[6]
 	case data_model.DigestUnique:
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
-	case data_model.DigestUniqueRaw:
-		return row.val[0]
 	case data_model.DigestUniqueSec:
 		return row.val[0] / float64(row.stepSec)
 	default:
