@@ -38,7 +38,6 @@ const (
 	DigestCardinalityRaw
 	DigestUnique
 	DigestUniqueSec
-	DigestUniqueRaw
 )
 
 const (
@@ -66,7 +65,7 @@ func (d DigestWhat) Kind(maxhost bool) DigestKind {
 		return DigestKindPercentilesLow
 	case DigestP25, DigestP50, DigestP75, DigestP90, DigestP95, DigestP99, DigestP999:
 		return DigestKindPercentiles
-	case DigestUnique, DigestUniqueSec, DigestUniqueRaw:
+	case DigestUnique, DigestUniqueSec:
 		return DigestKindUnique
 	default:
 		return DigestKindUnspecified

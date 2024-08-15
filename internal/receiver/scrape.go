@@ -485,6 +485,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 				}
 			}
 		}
+		prev = curr
 	}
 	for hashSum, currValue := range counters {
 		if prev := s.counters[hashSum]; prev != nil {
