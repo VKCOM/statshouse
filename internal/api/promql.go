@@ -510,7 +510,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							v = row.countNorm
 						case data_model.DigestMin,
 							data_model.DigestP0_1, data_model.DigestP25,
-							data_model.DigestUnique, data_model.DigestUniqueSec,
+							data_model.DigestUnique, data_model.DigestUniqueRaw, data_model.DigestUniqueSec,
 							data_model.DigestCardinality, data_model.DigestCardinalityRaw, data_model.DigestCardinalitySec:
 							v = row.val[0]
 						case data_model.DigestMax, data_model.DigestP1, data_model.DigestP50:
@@ -823,6 +823,8 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 				queryWhat = data_model.DigestSumRaw
 			case data_model.DigestCardinality:
 				queryWhat = data_model.DigestCardinalityRaw
+			case data_model.DigestUnique:
+				queryWhat = data_model.DigestUniqueRaw
 			}
 		}
 		kind := queryWhat.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
