@@ -110,9 +110,22 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     updatePlotsData() {
-      getState().viewOrderPlot.forEach((plotKey) => {
-        getState().loadPlotData(plotKey);
-      });
+      //todo: optimize load data
+      const {
+        params: { orderPlot, tabNum },
+        plotVisibilityList,
+        plotPreviewList,
+      } = getState();
+
+      if (+tabNum > -1) {
+        getState().loadMetricMetaByPlotKey(tabNum).then();
+        getState().loadPlotData(tabNum);
+      }
+      orderPlot
+        .filter((plotKey) => plotKey !== tabNum && (plotVisibilityList[plotKey] || plotPreviewList[plotKey]))
+        .forEach((plotKey) => {
+          getState().loadPlotData(plotKey);
+        });
     },
     loadPlotData(plotKey) {
       const queryEnd = getState().queryStart(plotKey);
@@ -123,7 +136,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         }
       });
       const plot = getState().params.plots[plotKey];
-      if (plot?.type === PLOT_TYPE.Event) {
+      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum) {
         const { params } = getState();
         const from =
           params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom

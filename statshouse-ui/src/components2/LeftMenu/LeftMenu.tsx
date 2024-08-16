@@ -31,6 +31,9 @@ import { MetricName } from '../Plot';
 import { useStatsHouseShallow } from 'store2';
 import { addPlotByUrl } from '../../store2/helpers';
 import { produce } from 'immer';
+import { useLinkPlot } from '../../hooks/useLinkPlot';
+import { useAddLinkPlot } from '../../hooks/useAddLinkPlot';
+import { LeftMenuPlotItem } from './LeftMenuPlotItem';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -54,10 +57,10 @@ export function LeftMenu({ className }: LeftMenuProps) {
     setUrlStore,
     user,
     paramsTheme,
-    dashboardLink,
+    // dashboardLink,
     orderPlot,
-    addLink,
-    plotsLink,
+    // addLink,
+    // plotsLink,
     plotsData,
     promqltestfailed,
   } = useStatsHouseShallow(
@@ -66,16 +69,16 @@ export function LeftMenu({ className }: LeftMenuProps) {
       plotsData,
       setUrlStore,
       user,
-      links: { dashboardLink, addLink, plotsLink },
+      // links: { dashboardLink, addLink, plotsLink },
     }) => ({
       tabNum,
       setUrlStore,
       user,
       paramsTheme: theme,
-      dashboardLink,
+      // dashboardLink,
       orderPlot,
-      addLink,
-      plotsLink,
+      // addLink,
+      // plotsLink,
       plotsData,
       promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
     })
@@ -90,6 +93,9 @@ export function LeftMenu({ className }: LeftMenuProps) {
     }
   }, []);
   const refListMenuItemPlot = useRef<HTMLUListElement>(null);
+
+  const dashboardLink = useLinkPlot('-1', true);
+  const addLink = useAddLinkPlot(true);
 
   useEffect(() => {
     setTimeout(() => {
@@ -243,15 +249,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
       <li className={cn(css.scrollStyle, css.plotMenu)}>
         <ul ref={refListMenuItemPlot} className={cn(css.plotNav)}>
           {orderPlot.map((plotKey) => (
-            <LeftMenuItem
-              key={plotKey}
-              icon={SVGGraphUp}
-              to={plotsLink[plotKey]?.link}
-              active={isView && tabNum === plotKey}
-              title={
-                <MetricName metricName={plotsData[plotKey]?.metricName} metricWhat={plotsData[plotKey]?.metricWhat} />
-              }
-            />
+            <LeftMenuPlotItem key={plotKey} plotKey={plotKey} active={isView && tabNum === plotKey} />
           ))}
         </ul>
       </li>

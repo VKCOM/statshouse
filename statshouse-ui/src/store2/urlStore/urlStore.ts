@@ -78,6 +78,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
           s.isEmbed = isEmbedPath(prevLocation);
           s.params = mergeLeft(s.params, res.params);
           s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+          if (s.params.tabNum === '-2') {
+            s.dashboardLayoutEdit = true;
+          }
         });
       })
       .finally(() => {
@@ -167,6 +170,13 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setState((s) => {
         s.dashboardLayoutEdit = status;
       });
+      if (!status) {
+        setUrlStore((s) => {
+          if (s.params.tabNum === '-2') {
+            s.params.tabNum = '-1';
+          }
+        });
+      }
     },
     moveDashboardGroup(groupKey, direction) {
       setUrlStore(

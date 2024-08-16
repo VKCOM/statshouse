@@ -21,8 +21,12 @@ export function updatePlotsLink(params: QueryParams, saveParams?: QueryParams): 
         if (!plot) {
           return undefined;
         }
-        const link = { pathname: viewPath[0], search: getPlotLink(plot.id, params, saveParams) };
-        const singleLink = { pathname: viewPath[0], search: getSinglePlotLink(plot.id, params) };
+        const link = {
+          /*pathname: viewPath[0], search: getPlotLink(plot.id, params, saveParams)*/
+        };
+        const singleLink = {
+          /*pathname: viewPath[0], search: getSinglePlotLink(plot.id, params)*/
+        };
         return [plotKey, { link, singleLink }];
       })
       .filter(isNotNil)
