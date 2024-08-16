@@ -4,97 +4,94 @@ sidebar_position: 3
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'
 
-# Create a metric
+# Как создать метрику
 
-In this section, you will find:
 <!-- TOC -->
-* [How to create a metric in the UI](#how-to-create-a-metric-in-the-ui)
-* [FAQs about creating metrics](#faqs-about-creating-metrics)
-    * ["Can I skip creating a metric and start sending data to it right away?"](#can-i-skip-creating-a-metric-and-start-sending-data-to-it-right-away)
-    * ["Can I automate creating metrics?"](#can-i-automate-creating-metrics)
-    * ["How many metrics can I create?"](#how-many-metrics-can-i-create)
-    * ["What if I send too much data? Can I overload StatsHouse or spoil other metrics?"](#what-if-i-send-too-much-data-can-i-overload-statshouse-or-spoil-other-metrics)
-    * ["Can I rename a metric?"](#can-i-rename-a-metric)
-    * ["I want to re-design my metric. Should I refactor it or create a new one?"](#i-want-to-re-design-my-metric-should-i-refactor-it-or-create-a-new-one)
-    * ["Can I delete a metric?"](#can-i-delete-a-metric)
+* [Как создать метрику в интерфейсе StatsHouse](#как-создать-метрику-в-интерфейсе-statshouse)
+* [Часто задаваемые вопросы о создании метрик](#часто-задаваемые-вопросы-о-создании-метрик)
+    * ["Можно ли не создавать метрику вручную, а просто отправить в неё данные?"](#можно-ли-не-создавать-метрику-вручную-а-просто-отправить-в-неё-данные)
+    * ["Можно ли автоматизировать создание метрик?"](#можно-ли-автоматизировать-создание-метрик)
+    * ["Сколько метрик можно создать?"](#сколько-метрик-можно-создать)
+    * ["А если я отправлю слишком много данных? Могу ли я перегрузить StatsHouse или испортить другие метрики?"](#а-если-я-отправлю-слишком-много-данных-могу-ли-я-перегрузить-statshouse-или-испортить-другие-метрики)
+    * ["Можно ли переименовать метрику?"](#можно-ли-переименовать-метрику)
+    * ["Я хочу спроектировать метрику заново. Что лучше: изменить старую или создать новую?"](#я-хочу-спроектировать-метрику-заново-что-лучше-изменить-старую-или-создать-новую)
+    * ["Можно ли удалить метрику?"](#можно-ли-удалить-метрику)
 <!-- TOC -->
 
-## How to create a metric in the UI
+## Как создать метрику в интерфейсе StatsHouse
 
-To create a metric, give it a name.
+Чтобы создать метрику, дайте ей имя.
 
-In the StatsHouse UI, go to the main **⚡** menu in the upper-left corner and select **Create metric**:
+В интерфейсе StatsHouse перейдите в главное меню (со значком **⚡**) в левом верхнем углу и выберите **Create metric**:
 
 <img src={CreateMetric} width="300"/>
 
-Please avoid creating "one big metric" for the whole system. 
-Instead, create several metrics, named consistently. For such a group of metrics, related to a particular system (a 
-product or a service), use prefixes or other specifications:
+Не создавайте "одну большую метрику" для всей системы сразу.
+Лучше создайте несколько метрик и назовите их единообразно. Чтобы упорядочить названия метрик, относящихся к 
+конкретной системе (продукту или сервису), используйте префиксы или другую структуру, например:
 
 <img src={NameMetric} width="600"/>
 
-Please use these characters:
-* Latin alphabet
-* integers
-* underscores
+Какие символы можно использовать в названии метрики:
+* латинский алфавит,
+* целые числа,
+* подчеркивание.
 
 :::note
-Do not start metric names with underscores. They are for StatsHouse internal use only.
+Не начинайте названия метрик с подчёркивания. Такие названия используются для служебных метрик StatsHouse.
 :::
 
-As soon as your metric has a name, you can start [sending data](send-data.md).
+Как только у метрики появится имя, вы можете [отправлять в неё данные](send-data.md).
 
-## FAQs about creating metrics
+## Часто задаваемые вопросы о создании метрик
 
-Before you get your first metric in StatsHouse, you may have questions:
+При создании метрик часто возникают такие вопросы.
 
-#### "Can I skip creating a metric and start sending data to it right away?"
+#### "Можно ли не создавать метрику вручную, а просто отправить в неё данные?"
 
-Yes, but... you will not be able to see your data! _Before_ sending data to a metric, you have to create a metric 
-_manually via 
-the StatsHouse UI_.
+Да, но... вы не увидите свои данные! Прежде чем отправлять данные в метрику, нужно создать её
+вручную в интерфейсе StatsHouse.
 
-#### "Can I automate creating metrics?"
+#### "Можно ли автоматизировать создание метрик?"
 
-No. You cannot automate creating metrics. We want each metric in StatsHouse to have its owner and to be created 
-deliberately.
+Нет. Автоматизировать создание метрик нельзя. Важно, чтобы у каждой метрики в StatsHouse был свой владелец и чтобы 
+он контролировал создание метрик. Не отправляйте в StatsHouse ненужные или испорченные данные.
 
-#### "How many metrics can I create?"
+#### "Сколько метрик можно создать?"
 
-You can create as many metrics as you wish as soon as you do it manually via the StatsHouse UI.
+Вы можете создать сколько угодно метрик, если сделаете это вручную в интерфейсе StatsHouse.
 
-#### "What if I send too much data? Can I overload StatsHouse or spoil other metrics?"
+#### "А если я отправлю слишком много данных? Могу ли я перегрузить StatsHouse или испортить другие метрики?"
 
-Most likely, you cannot do anything wrong to StatsHouse or other users with your metrics. It is almost
-impossible to overload StatsHouse due to [aggregation](../overview/concepts.md#агрегация)
-and [sampling](../overview/concepts.md#семплирование).
-StatsHouse provides users with [fair resource sharing](../overview/concepts.md#справедливое-распределение-ресурсов),
-so no metric can steal budget from the other one.
+Скорее всего, своими метриками вы не сможете навредить системе StatsHouse или другим пользователям. Благодаря 
+[агрегации](../overview/concepts.md#агрегация) и [семплированию](../overview/concepts.md#семплирование) StatsHouse
+практически невозможно перегрузить.
+StatsHouse предоставляет пользователям [справедливое распределение ресурсов](../overview/concepts.md#справедливое-распределение-ресурсов),
+так что метрики не могут отнимать бюджет друг у друга.
 
 :::info
-To learn more about mechanisms that make StatsHouse highly available and scalable, and how they may affect the
-resulting data, refer to the [conceptual overview](../overview/concepts.md).
+Познакомьтесь с [основными понятиями](../overview/concepts.md) и узнайте, какие механизмы обеспечивают высокую 
+доступность и масштабируемость StatsHouse и как они могут повлиять на данные.
 :::
 
-The rare case of losing or spoiling metric data is related to 
-[UDP socket buffer overflow](send-data.md#how-to-send-data-without-client-libraries). 
-Most likely, you should not worry about it.
+Потерять или испортить данные метрик можно в крайне редких случаях, связанных с
+[переполнением буфера UDP-сокета](send-data.md#без-использования-клиентских-библиотек).
+Вероятнее всего, вам не стоит об этом беспокоиться.
 
-#### "Can I rename a metric?"
+#### "Можно ли переименовать метрику?"
 
-You cannot rename an existing metric, so please create a new one with the name you want. You can
-[edit the graph name](view-graph.md#2--graph-name) so that the metric name remains the same.
-[Disable](edit-metrics.md#disabling-a-metric) an unused metric.
+Вы не можете переименовать созданную метрику. Создайте новую метрику с нужным названием. Также можно
+[изменить название графика](view-graph.md#2--название-графика), а название метрики останется прежним.
+Неиспользуемую метрику можно [отключить](edit-metrics.md#disabling-a-metric).
 
-#### "I want to re-design my metric. Should I refactor it or create a new one?"
+#### "Я хочу спроектировать метрику заново. Что лучше: изменить старую или создать новую?"
 
-If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
-become confusing or uninformative.
+Если вы вносите изменения в существующую метрику, например меняете её тип, вам может быть сложно понять смысл данных 
+в дельнейшем.
 
-If you create a new metric, please note that you cannot reuse the name of
-an existing (even disabled) metric.
+Обратите внимание: при создании нельзя использовать название метрики повторно — даже если старая метрика уже отключена.
 
-#### "Can I delete a metric?"
+#### "Можно ли удалить метрику?"
 
-No, but you can disable it. Disabling a metric stops writing data for it and removes it from the metric list.
-See [how to disable or enable a metric](edit-metrics.md#disabling-a-metric).
+Нет, но её можно отключить. Данные перестанут записываться в неё, и StatsHouse удалит её из списка метрик.
+Узнайте, [как включить и выключить метрику](edit-metrics.md#disabling-a-metric).

@@ -4,28 +4,27 @@ sidebar_position: 3
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Send metric data
+# Как отправлять данные
 
-In this section, you will find:
 <!-- TOC -->
-* [How to send data via client libraries](#how-to-send-data-via-client-libraries)
-    * ["What if there is no client library for a programming language I need?](#what-if-there-is-no-client-library-for-a-programming-language-i-need)
-    * ["What if the existing library does not have the required functionality?"](#what-if-the-existing-library-does-not-have-the-required-functionality)
-* [How to send data without client libraries](#how-to-send-data-without-client-libraries)
+* [С использованием клиентских библиотек](#с-использованием-клиентских-библиотек)
+  * ["Что делать, если нет библиотеки для нужного мне языка?"](#что-делать-если-нет-библиотеки-для-нужного-мне-языка)
+  * ["Что делать, если нативная библиотека не предоставляет необходимую функциональность?"](#что-делать-если-нативная-библиотека-не-предоставляет-необходимую-функциональность)
+* [Без использования клиентских библиотек](#без-использования-клиентских-библиотек)
 <!-- TOC -->
 
 :::important
-Before sending data, [create a metric](create-metric.md) manually via the UI.
+Прежде чем отправлять данные, [создайте метрику](create-metric.md) вручную в интерфейсе StatsHouse.
 :::
 
 :::warning
-Do not send data to someone else's metric as you can spoil the metric data.
+Не отправляйте данные в чужие метрики — вы можете испортить чьи-то данные.
 :::
 
-## How to send data via client libraries
+## С использованием клиентских библиотек
 
-StatsHouse client libraries help to instrument your application code
-so that you can send properly formatted data for your metric:
+Мы рекомендуем инструментировать код приложений с помощью клиентских библиотек StatsHouse — они 
+помогают отправлять данные в правильном формате. Вот репозитории готовых библиотек:
 
 - [Go](https://github.com/VKCOM/statshouse-go)
 - [PHP](https://github.com/VKCOM/statshouse-php)
@@ -33,11 +32,10 @@ so that you can send properly formatted data for your metric:
 - [Java](https://github.com/VKCOM/statshouse-java)
 - [Python](https://github.com/VKCOM/statshouse-py)
 
-There is also a special module for using StatsHouse with [nginx](https://github.com/VKCOM/nginx-statshouse-module).
+Для использования StatsHouse с _nginx_ есть [отдельный модуль](https://github.com/VKCOM/nginx-statshouse-module).
 
-Below are the simple code examples using some of these libraries. 
-Prior to copying and pasting the code, install the library you need using recommendations 
-from the corresponding README file.
+Ниже показаны примеры кода.
+Чтобы установить нужную библиотеку, следуйте рекомендациям из соответствующего файла README.
 
 <Tabs>
 
@@ -78,66 +76,64 @@ statshouse.value("my_value_metric", {"subsystem": "foo", "protocol": "bar"}, 42.
 
 <TabItem value="go" label="Go">
 ```go
-TEST
+To be provided later
 ```
 </TabItem>
 <TabItem value="php" label="PHP">
 ```php
-TEST
+To be provided later
 ```
 </TabItem>
 <TabItem value="java" label="Java">
 ```java
-TEST
+To be provided later
 ```
 </TabItem>
 
 </Tabs>
 
-As soon as there are only five native client libraries in StatsHouse, you may have questions:
+#### "Что делать, если нет библиотеки для нужного мне языка?"
 
-#### "What if there is no client library for a programming language I need?
+Лучше всего отправить нам [запрос](https://github.com/VKCOM/statshouse/issues) на GitHub.
 
-The preferred way is to file a [feature request](https://github.com/VKCOM/statshouse/issues) for us on GitHub.
+Вы можете самостоятельно разработать библиотеку для нужного вам языка.
+Однако в этом случае мы не сможем отвечать за её качество и обеспечить полноценную поддержку.
 
-You can contribute to StatsHouse by creating a library for the language you need.
-Though, we do not recommend doing this as we won't be able to provide guarantees and support.
+Если вы всё же решили это сделать, используйте одну из готовых библиотек StatsHouse
+в качестве модели — изучите [модель данных StatsHouse](design-metric.md).
 
-If you are sure about creating a library,
-please use one of the existing StatsHouse libraries as a model for your own one—pay
-your attention to the StatsHouse [data model](design-metric.md).
+#### "Что делать, если нативная библиотека не предоставляет необходимую функциональность?"
 
-#### "What if the existing library does not have the required functionality?"
+Лучше всего отправить нам [запрос](https://github.com/VKCOM/statshouse/issues) на GitHub.
 
-The preferred way is to file a [feature request](https://github.com/VKCOM/statshouse/issues) for us on GitHub.
+Вы также можете подготовить JSON-файл и отправить данные в StatsHouse, но
+мы не рекомендуем так делать. Вы не сможете использовать агрегацию и другие встроенные функции 
+StatsHouse.
 
-Alternatively, you can prepare a JSON file and send your formatted data to StatsHouse,
-but we do not recommend doing this as you won't benefit from aggregation and other native StatsHouse features.
+## Без использования клиентских библиотек
 
-## How to send data without client libraries
-
-For a toy example or testing purposes, you may send data using [Netcat](https://netcat.sourceforge.net):
+Чтобы проверить, как работает отправка данных, можно использовать [Netcat](https://netcat.sourceforge.net):
 
 ```bash
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-See the [Quick start](../quick-start.md#отправьте-данные-в-свою-метрику) for a context.
+Пример такого использования приведён в [Кратком руководстве](../quick-start.md#отправьте-данные-в-свою-метрику).
 
 :::important
-We strongly recommend using the [StatsHouse client libraries](#how-to-send-data-via-client-libraries).
+Мы настоятельно рекомендуем использовать [клиентские библиотеки StatsHouse](#с-использованием-клиентских-библиотек).
 
-Client libraries [aggregate](../overview/concepts.md#агрегация) data before sending them to StatsHouse.
-While it may sound counterintuitive, by aggregating, client libraries prevent you from losing data.
-Without a client library, you can create a socket, prepare a JSON file, and send your formatted data.
-This sounds simple, but only if you have not so much data.
+Клиентские библиотеки [агрегируют](../overview/concepts.md#агрегация) данные перед отправкой.
+Агрегация предотвращает потерю данных.
+Можно не использовать библиотеку, а просто создать сокет, подготовить JSON-файл и отправить данные —
+но только если у вас не очень много данных.
 
-StatsHouse uses [UDP](../overview/components.md#получение-данных-по-udp).
-If you send a datagram per event, and there are too many of them,
-there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
+StatsHouse отправляет даные по [UDP](../overview/components.md#получение-данных-по-udp).
+Если отправлять датаграмму на каждое событие, а событий слишком много, буфер UDP-сокета может переполниться,
+и никто этого не заметит.
 
-If you do not use the client library, the non-aggregated data will reach StatsHouse
-[agent](../overview/components.md#агент), and the agent will aggregate them anyway.
+Если вы не используете клиентскую библиотеку, ваши неагрегированные данные будут поступать в
+[агент](../overview/components.md#агент), и он всё равно будет их агрегировать.
 :::
 
 

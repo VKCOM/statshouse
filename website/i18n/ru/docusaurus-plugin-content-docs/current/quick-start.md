@@ -108,7 +108,7 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 ### Название метрики
 
 Найти метрику можно по названию. Узнайте больше о том, 
-[как найти нужную метрику и как не испортить чужую метрику](guides/view-graph.md#1--metric-name). 
+[как найти нужную метрику и как не испортить чужую метрику](guides/view-graph.md#1--название-метрики). 
 
 ### Описательные статистики
 
@@ -120,7 +120,7 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 * _standard deviation_,
 * _minimum_ и _maximum_.
 
-Описательных статистик в StatsHouse [довольно много](guides/view-graph.md#3--descriptive-statistics).
+Описательных статистик в StatsHouse [довольно много](guides/view-graph.md#3--описательные-статистики).
 Можно ли применять их к данным вашей метрики?
 [Зависит от типа метрики.](guides/design-metric.md#типы-метрик)
 Например, статистика _percentiles_ (_перцентили_) применима только к типу _value_.
@@ -138,7 +138,7 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 Вы получите нормализованные данные, которые не зависят от интервала агрегации.
 :::
 
-Узнайте больше об [описательных статистиках](guides/view-graph.md#3--descriptive-statistics).
+Узнайте больше об [описательных статистиках](guides/view-graph.md#3--описательные-статистики).
 
 ### Период времени
 
@@ -163,8 +163,6 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 :::
 
 Чтобы просматривать данные в режиме реального времени, используйте [Live mode](guides/view-graph.md#5--live-mode).
-
-Узнайте больше о выборе [периода времени](guides/view-graph.md#4--time-period).
 
 ### Интервал агрегации
 
@@ -207,7 +205,7 @@ echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 
 [о них подробнее](guides/design-metric.md#сколько-значений-тегов-можно-использовать).
 :::
 
-Узнайте больше о том, [как фильтровать данные с помощью тегов](guides/view-graph.md#7--tags),
+Узнайте больше о том, [как фильтровать данные с помощью тегов](guides/view-graph.md#7--теги),
 [как их настраивать](guides/design-metric.md#теги) 
 и [редактировать](guides/edit-metrics.md#tags), а также о том, что такое 
 [кардинальность](overview/concepts.md#кардинальность).

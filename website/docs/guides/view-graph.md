@@ -70,7 +70,9 @@ Host metric names begin with `host_`.
 :::
 
 Find the full list of host metrics and their implementation 
-on [GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+on 
+[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37). 
+For more details, see the [Administrator guide](../admin/host-metrics.md).
 
 ### Service metrics
 
@@ -85,14 +87,15 @@ You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
 engines, services, microservices, proxies, etc. in the organization.
 
-#### "How can I find the metrics author?"
+### "How can I find the metrics author?"
 
 There is no mechanism for checking a metrics author in StatsHouse, but sometimes authors mention how to find them 
 in the metric description section. Otherwise, use your organization's internal communication channels.
 
-#### "How can I display several metrics on a graph?"
+### "How can I display several metrics on a graph?"
 
-[Create a dashboard](dashboards.md) or [query StatsHouse with PromQL](query-wth-promql.md). To find relationships 
+[Йuery StatsHouse with PromQL](query-wth-promql.md).
+To compare metrics, [create a dashboard](dashboards.md). To find relationships 
 between the metrics or events, use [Event overlay](#11--event-overlay).
 
 ## 2 — Graph name
@@ -101,8 +104,7 @@ You can edit the graph name so that the metric name remains the same.
 
 <img src={RenameGraph} width="800"/>
 
-These changed graph names are not saved for later.
-If you re-open your metric, the graph will have the initial name, not the new one.
+This changed graph name is saved in URL only.
 
 ## 3 — Descriptive statistics
 

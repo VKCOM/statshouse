@@ -52,7 +52,7 @@ Choose an existing dashboard from a list:
 ## Create a dashboard
 
 StatsHouse opens a dashboard for a currently viewed metric graph automatically.
-To add more graphs on a dashboard, create a new [metric tab](view-graph.md#19--metric-tabs) 
+To add more graphs on a dashboard, create a new [metric tab](view-graph.md#19--вкладки-метрик) 
 and choose the other necessary metric:
 
 <img src={DashOpen} width="400"/>

@@ -34,7 +34,7 @@ Find the original [PromQL documentation](https://prometheus.io/docs/prometheus/l
 ## How to switch to a PromQL query editor
 
 To switch to the PromQL query editor in StatsHouse, press the `< >` button near the _Metric name_ field.
-Find more about the [PromQL query editor in the UI](view-graph.md#18--promql-query-editor).
+Find more about the [PromQL query editor in the UI](view-graph.md#18--редактор-promql-запросов).
 
 ## What is specific about PromQL in StatsHouse?
 
@@ -54,7 +54,7 @@ Prometheus stores `timestamp—value` pairs. Instead, StatsHouse stores aggregat
 So, the query result in StatsHouse is an aggregate, and it depends on
 * the [_minimal available aggregation interval_](../overview/concepts.md#минимальный-интервал-агрегации-из-доступных)
 (i.e., on the "age" of the data),
-* the [_requested aggregation interval_](view-graph.md#6--aggregation-interval),
+* the [_requested aggregation interval_](view-graph.md#6--интервал-агрегации),
 * the metric [_resolution_](../overview/concepts.md#разрешение).
 
 An [aggregate](../overview/concepts.md#агрегат) contains the _count_, _sum_, _min_, _max_ 
@@ -98,7 +98,7 @@ To query the aggregate components, use the  `__what__` selector. The possible va
 "uniquesec"
 ```
 
-They are the [descriptive statistics](view-graph.md#3--descriptive-statistics) you see in the StatsHouse UI.
+They are the [descriptive statistics](view-graph.md#3--описательные-статистики) you see in the StatsHouse UI.
 The "sec" postfix means that the value is normalized—divided by the aggregation interval in seconds.
 
 For example, this selector returns the counter for the `api_methods` metric associated with the aggregation interval:

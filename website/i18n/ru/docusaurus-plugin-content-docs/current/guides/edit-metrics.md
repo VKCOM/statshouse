@@ -63,13 +63,13 @@ Add a metric description on one or multiple lines to show in the UI. No formatti
 
 <img src={Description} width="800"/>
 
-You can [edit the graph name](view-graph.md#2--graph-name) to customize the look of the dashboard or the graph view 
-without changing the name of the metric itself. You [cannot rename a metric](create-metric.md#can-i-rename-a-metric).
+You can [edit the graph name](view-graph.md#2--название-графика) to customize the look of the dashboard or the graph view 
+without changing the name of the metric itself. You [cannot rename a metric](create-metric.md#можно-ли-переименовать-метрику).
 
 ## Aggregation
 
 Basically, a [metric type](design-metric.md#типы-метрик) affects the range of descriptive statistics 
-that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--descriptive-statistics) 
+that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--описательные-статистики) 
 dropdown menu, you can see statistics, which may be not relevant for your metric type.
 If you pick them, you will see 0 values for them on a graph. For example, you cannot view the cumulative graph 
 for _unique_ metrics. 
@@ -126,7 +126,7 @@ You see custom resolution near the metric name in a graph view:
 :::important
 Setting up resolution affects processing data—not showing data in the UI.
 For a metric with custom resolution, it is impossible to display data on a graph with 
-the smaller [aggregation interval](view-graph.md#6--aggregation-interval): 
+the smaller [aggregation interval](view-graph.md#6--интервал-агрегации): 
 you cannot show per-second data if the resolution is set to 5 seconds.
 :::
 
