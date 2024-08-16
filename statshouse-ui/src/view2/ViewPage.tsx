@@ -36,7 +36,7 @@ export function ViewPage() {
       <div className="flex-grow-1">
         {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
         <div className="position-relative">
-          {+tabNum < 0 && <Dashboard />}
+          <Dashboard />
           {+tabNum >= 0 && <PlotLayout className="py-3" />}
           {/*{params.tabNum >= 0 && (*/}
           {/*  <div className={`container-xl tab-pane show active ${params.tabNum >= 0 ? '' : 'hidden-dashboard'}`}>*/}

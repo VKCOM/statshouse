@@ -61,6 +61,15 @@
   color: var(--bs-primary);
 }
 
+.preview {
+  padding: 0;
+  height: 35px;
+  width: 60px;
+}
+.bigPreview {
+  width: 300px;
+}
+
 .icon {
   display: block;
   width: 24px;

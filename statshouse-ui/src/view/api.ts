@@ -26,7 +26,13 @@ import {
   toIndexTag,
 } from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
+import {
+  GET_PARAMS,
+  METRIC_VALUE_BACKEND_VERSION,
+  type QueryWhat,
+  type QueryWhatSelector,
+  type TagKey,
+} from 'api/enum';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -573,18 +579,6 @@ export function queryTableURL(
 
   const strParams = new URLSearchParams(params).toString();
   return `/api/table?${strParams}`;
-}
-
-export function dashboardURL(id?: number, v?: number | null): string {
-  if (!id) {
-    return `/api/dashboard`;
-  }
-  const p = [[GET_PARAMS.dashboardID, id.toString()]];
-  if (v != null) {
-    p.push([GET_PARAMS.dashboardApiVersion, v.toString()]);
-  }
-  const strParams = new URLSearchParams(p).toString();
-  return `/api/dashboard?${strParams}`;
 }
 
 export function metricsGroupListURL(): string {
