@@ -11,7 +11,6 @@ import { dequal } from 'dequal/lite';
 
 import {
   DashboardInfo,
-  dashboardURL,
   metaToBaseLabel,
   metaToLabel,
   MetricsGroup,
@@ -66,7 +65,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, type QueryWhat, TAG_KEY, type TagKey } from 'api/enum';
 import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -94,6 +93,7 @@ import { createStoreWithEqualityFn } from './createStore';
 import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
 import { addStatus, removePlotHeals, resortPlotHeals, skipRequestPlot, usePlotHealsStore } from './plot/plotHealsStore';
 import { formatByMetricType, getMetricType } from '../common/formatByMetricType';
+import { dashboardURL } from '../view/dashboardURL';
 
 export type PlotStore = {
   nameMetric: string;

@@ -19,7 +19,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
-import { useOnClickOutside } from 'hooks';
+import { useIntersectionObserver, useLinkPlot, useOnClickOutside, useSingleLinkPlot } from 'hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { PlotName } from './PlotName';
 import { Link } from 'react-router-dom';
@@ -31,14 +31,16 @@ const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
+const threshold = [0, 1]; //buildThresholdList(1);
+
 export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
   const {
     plot,
     plotData,
     metricName,
     what,
-    singleLink,
-    link,
+    // singleLink,
+    // link,
     meta,
     isEmbed,
     isDashboard,
@@ -46,6 +48,7 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
     canRemove,
     setPlot,
     removePlot,
+    visible,
   } = useStatsHouseShallow(
     ({
       plotsData,
@@ -55,7 +58,8 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
       dashboardLayoutEdit,
       setPlot,
       removePlot,
-      links: { plotsLink },
+      plotVisibilityList,
+      // links: { plotsLink },
     }) => ({
       plot: plots[plotKey],
       plotData: plotsData[plotKey],
@@ -70,14 +74,15 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
         (plots[plotKey]?.metricName !== promQLMetric ? plots[plotKey]?.metricName : plotsData[plotKey]?.metricName) ??
           ''
       ],
-      singleLink: plotsLink[plotKey]?.singleLink ?? '',
-      link: plotsLink[plotKey]?.link ?? '',
+      // singleLink: plotsLink[plotKey]?.singleLink ?? '',
+      // link: plotsLink[plotKey]?.link ?? '',
       isEmbed,
       isDashboard: +tabNum < 0,
       dashboardLayoutEdit,
       canRemove: orderPlot.length > 1,
       setPlot,
       removePlot,
+      visible: !!plotVisibilityList[plotKey],
     })
   );
   const compact = isDashboard || isEmbed;
@@ -90,6 +95,8 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
     setShowTags((s) => !s);
   }, []);
 
+  // const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
+  // const visible = useIntersectionObserver(visibleRef, threshold, undefined, 0);
   const formRef = useRef(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formTextAreaRef = useRef(null);
@@ -112,6 +119,8 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
     },
     [metricFullName, plotKey, setPlot]
   );
+  const link = useLinkPlot(plotKey);
+  const singleLink = useSingleLinkPlot(plotKey);
 
   useEffect(() => {
     setLocalCustomName(plot?.customName || metricFullName);

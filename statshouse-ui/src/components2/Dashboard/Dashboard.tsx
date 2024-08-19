@@ -15,6 +15,7 @@ import cn from 'classnames';
 import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
 import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
+import { useLinkPlot } from '../../hooks/useLinkPlot';
 
 export type DashboardProps = {
   className?: string;
@@ -30,8 +31,8 @@ export function _Dashboard({ className }: DashboardProps) {
     variablesLength,
     dashboardLayoutEdit,
     setDashboardLayoutEdit,
-    dashboardLink,
-    dashboardSettingLink,
+    // dashboardLink,
+    // dashboardSettingLink,
     isDashboard,
     globalLoadQueries,
     saveDashboard,
@@ -42,7 +43,7 @@ export function _Dashboard({ className }: DashboardProps) {
       tvMode: { enable },
       dashboardLayoutEdit,
       setDashboardLayoutEdit,
-      links: { dashboardLink, dashboardSettingLink },
+      // links: { dashboardLink, dashboardSettingLink },
       globalNumQueries,
       saveDashboard,
     }) => ({
@@ -54,8 +55,8 @@ export function _Dashboard({ className }: DashboardProps) {
       variablesLength: orderVariables.length,
       dashboardLayoutEdit,
       setDashboardLayoutEdit,
-      dashboardLink,
-      dashboardSettingLink,
+      // dashboardLink,
+      // dashboardSettingLink,
       isDashboard: dashboardId != null,
       globalLoadQueries: globalNumQueries > 0,
       saveDashboard,
@@ -68,10 +69,15 @@ export function _Dashboard({ className }: DashboardProps) {
     });
   }, [saveDashboard, setDashboardLayoutEdit]);
 
+  const dashboardLink = useLinkPlot('-1', true);
+  const dashboardSettingLink = useLinkPlot('-2', true);
+
+  const isPlot = +tabNum > -1;
+
   return (
     <div className={className}>
       {!!dashboardName && !isEmbed && !tvModeEnable && <DashboardName />}
-      {plotsLength > 0 && !isEmbed && !tvModeEnable && <DashboardHeader />}
+      {!isPlot && plotsLength > 0 && !isEmbed && !tvModeEnable && <DashboardHeader />}
       <ErrorMessages />
       {dashboardLayoutEdit && (
         <ul className="nav nav-tabs mb-4 container-xl">

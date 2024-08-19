@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters } from 'url2';
-import { apiQueryFetch, type ApiQueryGet } from 'api/query';
+import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, urlEncodeVariables } from 'url2';
+import { apiQueryFetch, type ApiQueryGet, ApiQueryVariableGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
 import { type ProduceUpdate } from '../helpers';
@@ -14,6 +14,7 @@ import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { autoLowAgg, autoAgg } from '../constants';
 import { replaceVariable } from '../helpers/replaceVariable';
+import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -46,6 +47,12 @@ export function getLoadPlotUrlParams(
   }
   if (plot.promQL || plot.metricName === promQLMetric) {
     urlParams[GET_PARAMS.metricPromQL] = plot.promQL;
+    urlEncodeVariables(params).forEach(([key, value]) => {
+      // @ts-ignore
+      urlParams[key] ??= [];
+      // @ts-ignore
+      urlParams[key].push(value);
+    });
   }
   if (plot.maxHost) {
     urlParams[GET_PARAMS.metricMaxHost] = '1';
@@ -82,8 +89,15 @@ export async function loadPlotData(
   }
   if (response) {
     const data = normalizePlotData(response.data, plot, params);
+    const metricMeta: MetricMeta = {
+      ...response.data.metric,
+      ...tagsArrToObject(response.data.metric.tags),
+    };
     return (state) => {
       state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
+      if (metricMeta?.name) {
+        state.metricMeta[metricMeta.name] = metricMeta;
+      }
     };
   }
   return null;

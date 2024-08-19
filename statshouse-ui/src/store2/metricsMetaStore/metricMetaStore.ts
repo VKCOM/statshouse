@@ -8,7 +8,7 @@ import { type StoreSlice } from '../createStore';
 import { apiMetricFetch, type MetricMetaTag, type MetricMetaValue } from 'api/metric';
 import { GET_PARAMS, type TagKey, toTagKey } from 'api/enum';
 import { type StatsHouseStore } from '../statsHouseStore';
-import { promQLMetric } from 'url2';
+import { type PlotKey, promQLMetric } from 'url2';
 import { useErrorStore } from 'store';
 import { debug } from 'common/debug';
 import { promiseRun } from 'common/promiseRun';
@@ -22,17 +22,18 @@ export type MetricMeta = MetricMetaValue & {
 export type MetricMetaStore = {
   metricMeta: Partial<Record<string, MetricMeta>>;
   loadMetricMeta(metricName: string): Promise<null | MetricMeta>;
+  loadMetricMetaByPlotKey(plotKey: PlotKey): Promise<null | MetricMeta>;
   clearMetricMeta(metricName: string): void;
 };
 
 export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (setState, getState, store) => {
   store.subscribe((state, prevState) => {
     if (state.params.plots !== prevState.params.plots) {
-      Object.values(state.params.plots).forEach((p) => {
-        getState()
-          .loadMetricMeta(p?.metricName ?? '')
-          .then();
-      });
+      // Object.values(state.params.plots).forEach((p) => {
+      //   getState()
+      //     .loadMetricMeta(p?.metricName ?? '')
+      //     .then();
+      // });
     }
   });
   return {
@@ -73,6 +74,15 @@ export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (se
       }
 
       return getState().metricMeta[metricName] ?? null;
+    },
+    async loadMetricMetaByPlotKey(plotKey) {
+      const {
+        plotsData,
+        params: { plots },
+        loadMetricMeta,
+      } = getState();
+      const plotName = plotsData[plotKey]?.metricName ?? plots[plotKey]?.metricName ?? '';
+      return loadMetricMeta(plotName);
     },
     clearMetricMeta(metricName) {
       setState(updateMetricMeta(metricName, null));
