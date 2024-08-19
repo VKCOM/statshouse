@@ -28,47 +28,46 @@ const (
 	BuiltinNamespaceIDDefault = -5
 	BuiltinNamespaceIDMissing = -6 // indicates missing metadata while running sampling, should not happen
 
-	BuiltinMetricIDAgentSamplingFactor        = -1
-	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
-	BuiltinMetricIDAggInsertSize              = -3 // If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
-	BuiltinMetricIDTLByteSizePerInflightType  = -4
-	BuiltinMetricIDAggKeepAlive               = -5 // How many keep-alive were among contributors
-	BuiltinMetricIDAggSizeCompressed          = -6
-	BuiltinMetricIDAggSizeUncompressed        = -7
-	BuiltinMetricIDAggAdditionsToEstimator    = -8 // How many new tags were inserted into bucket
-	BuiltinMetricIDAggHourCardinality         = -9
-	BuiltinMetricIDAggSamplingFactor          = -10
-	BuiltinMetricIDIngestionStatus            = -11
-	BuiltinMetricIDAggInsertTime              = -12
-	BuiltinMetricIDAggHistoricBucketsWaiting  = -13
-	BuiltinMetricIDAggBucketAggregateTimeSec  = -14
-	BuiltinMetricIDAggActiveSenders           = -15
-	BuiltinMetricIDAggOutdatedAgents          = -16
-	BuiltinMetricIDAgentDiskCacheErrors       = -18
-	BuiltinMetricIDTimingErrors               = -20
-	BuiltinMetricIDAgentReceivedBatchSize     = -21
-	BuiltinMetricIDAggMapping                 = -23
-	BuiltinMetricIDAggInsertTimeReal          = -24
-	BuiltinMetricIDAgentHistoricQueueSize     = -25
-	BuiltinMetricIDAggHistoricSecondsWaiting  = -26
-	BuiltinMetricIDAggInsertSizeReal          = -27
-	BuiltinMetricIDAgentPerMetricSampleBudget = -29 // Not informative - TODO improve or remove
-	BuiltinMetricIDAgentMapping               = -30
-	BuiltinMetricIDAgentReceivedPacketSize    = -31
-	BuiltinMetricIDAggMappingCreated          = -33
-	BuiltinMetricIDVersions                   = -34
-	BuiltinMetricIDBadges                     = -35 // copy of some other metrics for efficient show of errors and warnings
-	BuiltinMetricIDAutoConfig                 = -36
-	BuiltinMetricIDJournalVersions            = -37 // has smart custom sending logic
-	BuiltinMetricIDPromScrapeTime             = -38
-	BuiltinMetricIDAgentHeartbeatVersion      = -41 // TODO - remove
-	BuiltinMetricIDAgentHeartbeatArgs         = -42 // TODO - remove, this metric was writing larger than allowed strings to DB in the past
-	BuiltinMetricIDUsageMemory                = -43
-	BuiltinMetricIDUsageCPU                   = -44
-	BuiltinMetricIDGeneratorConstCounter      = -45
-	BuiltinMetricIDGeneratorSinCounter        = -46
-	BuiltinMetricIDHeartbeatVersion           = -47
-	BuiltinMetricIDHeartbeatArgs              = -48 // this metric was writing larger than allowed strings to DB in the past
+	BuiltinMetricIDAgentSamplingFactor       = -1
+	BuiltinMetricIDAggBucketReceiveDelaySec  = -2 // Also approximates insert delay, interesting for historic buckets
+	BuiltinMetricIDAggInsertSize             = -3 // If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
+	BuiltinMetricIDTLByteSizePerInflightType = -4
+	BuiltinMetricIDAggKeepAlive              = -5 // How many keep-alive were among contributors
+	BuiltinMetricIDAggSizeCompressed         = -6
+	BuiltinMetricIDAggSizeUncompressed       = -7
+	BuiltinMetricIDAggAdditionsToEstimator   = -8 // How many new tags were inserted into bucket
+	BuiltinMetricIDAggHourCardinality        = -9
+	BuiltinMetricIDAggSamplingFactor         = -10
+	BuiltinMetricIDIngestionStatus           = -11
+	BuiltinMetricIDAggInsertTime             = -12
+	BuiltinMetricIDAggHistoricBucketsWaiting = -13
+	BuiltinMetricIDAggBucketAggregateTimeSec = -14
+	BuiltinMetricIDAggActiveSenders          = -15
+	BuiltinMetricIDAggOutdatedAgents         = -16
+	BuiltinMetricIDAgentDiskCacheErrors      = -18
+	BuiltinMetricIDTimingErrors              = -20
+	BuiltinMetricIDAgentReceivedBatchSize    = -21
+	BuiltinMetricIDAggMapping                = -23
+	BuiltinMetricIDAggInsertTimeReal         = -24
+	BuiltinMetricIDAgentHistoricQueueSize    = -25
+	BuiltinMetricIDAggHistoricSecondsWaiting = -26
+	BuiltinMetricIDAggInsertSizeReal         = -27
+	BuiltinMetricIDAgentMapping              = -30
+	BuiltinMetricIDAgentReceivedPacketSize   = -31
+	BuiltinMetricIDAggMappingCreated         = -33
+	BuiltinMetricIDVersions                  = -34
+	BuiltinMetricIDBadges                    = -35 // copy of some other metrics for efficient show of errors and warnings
+	BuiltinMetricIDAutoConfig                = -36
+	BuiltinMetricIDJournalVersions           = -37 // has smart custom sending logic
+	BuiltinMetricIDPromScrapeTime            = -38
+	BuiltinMetricIDAgentHeartbeatVersion     = -41 // TODO - remove
+	BuiltinMetricIDAgentHeartbeatArgs        = -42 // TODO - remove, this metric was writing larger than allowed strings to DB in the past
+	BuiltinMetricIDUsageMemory               = -43
+	BuiltinMetricIDUsageCPU                  = -44
+	BuiltinMetricIDGeneratorConstCounter     = -45
+	BuiltinMetricIDGeneratorSinCounter       = -46
+	BuiltinMetricIDHeartbeatVersion          = -47
+	BuiltinMetricIDHeartbeatArgs             = -48 // this metric was writing larger than allowed strings to DB in the past
 	// BuiltinMetricIDAPIRPCServiceTime       = -49 // deprecated, replaced by "__api_service_time"
 	BuiltinMetricIDAPIBRS = -50
 	// BuiltinMetricIDAPIEndpointResponseTime = -51 // deprecated, replaced by "__api_response_time"
@@ -957,19 +956,6 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description: "clickhouse_exception",
 				Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
-			}},
-		},
-		BuiltinMetricIDAgentPerMetricSampleBudget: {
-			Name:        "__src_per_metric_sample_budget_bytes",
-			Kind:        MetricKindValue,
-			Description: "Agent sampling budget per sampled metric, or remaining budget if none were sampled.",
-			MetricType:  MetricByte,
-			Tags: []MetricMetaTag{{
-				Description: "status",
-				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAgentFirstSampledMetricBudgetPerMetric: "per_metric",
-					TagValueIDAgentFirstSampledMetricBudgetUnused:    "remaining",
-				}),
 			}},
 		},
 		BuiltinMetricIDAgentMapping: {
@@ -2212,38 +2198,37 @@ Value is delta between second value and time it was inserted.`,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
-		BuiltinMetricIDAgentDiskCacheErrors:       true,
-		BuiltinMetricIDTimingErrors:               true,
-		BuiltinMetricIDAgentMapping:               true,
-		BuiltinMetricIDAutoConfig:                 true, // also passed through ingress proxies
-		BuiltinMetricIDJournalVersions:            true,
-		BuiltinMetricIDTLByteSizePerInflightType:  true,
-		BuiltinMetricIDIngestionStatus:            true,
-		BuiltinMetricIDAgentPerMetricSampleBudget: true,
-		BuiltinMetricIDAgentReceivedBatchSize:     true,
-		BuiltinMetricIDAgentReceivedPacketSize:    true,
-		BuiltinMetricIDAggSizeCompressed:          true,
-		BuiltinMetricIDAggSizeUncompressed:        true,
-		BuiltinMetricIDAggBucketReceiveDelaySec:   true,
-		BuiltinMetricIDAggBucketAggregateTimeSec:  true,
-		BuiltinMetricIDAggAdditionsToEstimator:    true,
-		BuiltinMetricIDAgentHistoricQueueSize:     true,
-		BuiltinMetricIDVersions:                   true,
-		BuiltinMetricIDAggKeepAlive:               true,
-		BuiltinMetricIDAggMappingCreated:          true,
-		BuiltinMetricIDUsageMemory:                true,
-		BuiltinMetricIDUsageCPU:                   true,
-		BuiltinMetricIDHeartbeatVersion:           true,
-		BuiltinMetricIDHeartbeatArgs:              true,
-		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
-		BuiltinMetricIDAgentDiskCacheSize:         true,
-		BuiltinMetricIDSrcTestConnection:          true,
-		BuiltinMetricIDAgentAggregatorTimeDiff:    true,
-		BuiltinMetricIDSrcSamplingMetricCount:     true,
-		BuiltinMetricIDSrcSamplingSizeBytes:       true,
-		BuiltinMetricIDStatsHouseErrors:           true,
-		BuiltinMetricIDSrcSamplingBudget:          true,
-		BuiltinMetricIDSrcSamplingGroupBudget:     true,
+		BuiltinMetricIDAgentDiskCacheErrors:      true,
+		BuiltinMetricIDTimingErrors:              true,
+		BuiltinMetricIDAgentMapping:              true,
+		BuiltinMetricIDAutoConfig:                true, // also passed through ingress proxies
+		BuiltinMetricIDJournalVersions:           true,
+		BuiltinMetricIDTLByteSizePerInflightType: true,
+		BuiltinMetricIDIngestionStatus:           true,
+		BuiltinMetricIDAgentReceivedBatchSize:    true,
+		BuiltinMetricIDAgentReceivedPacketSize:   true,
+		BuiltinMetricIDAggSizeCompressed:         true,
+		BuiltinMetricIDAggSizeUncompressed:       true,
+		BuiltinMetricIDAggBucketReceiveDelaySec:  true,
+		BuiltinMetricIDAggBucketAggregateTimeSec: true,
+		BuiltinMetricIDAggAdditionsToEstimator:   true,
+		BuiltinMetricIDAgentHistoricQueueSize:    true,
+		BuiltinMetricIDVersions:                  true,
+		BuiltinMetricIDAggKeepAlive:              true,
+		BuiltinMetricIDAggMappingCreated:         true,
+		BuiltinMetricIDUsageMemory:               true,
+		BuiltinMetricIDUsageCPU:                  true,
+		BuiltinMetricIDHeartbeatVersion:          true,
+		BuiltinMetricIDHeartbeatArgs:             true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize: true,
+		BuiltinMetricIDAgentDiskCacheSize:        true,
+		BuiltinMetricIDSrcTestConnection:         true,
+		BuiltinMetricIDAgentAggregatorTimeDiff:   true,
+		BuiltinMetricIDSrcSamplingMetricCount:    true,
+		BuiltinMetricIDSrcSamplingSizeBytes:      true,
+		BuiltinMetricIDStatsHouseErrors:          true,
+		BuiltinMetricIDSrcSamplingBudget:         true,
+		BuiltinMetricIDSrcSamplingGroupBudget:    true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -2251,7 +2236,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDIngestionStatus:            true,
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDAgentReceivedBatchSize:     true,
-		BuiltinMetricIDAgentPerMetricSampleBudget: true,
 		BuiltinMetricIDAgentMapping:               true,
 		BuiltinMetricIDAgentReceivedPacketSize:    true,
 		BuiltinMetricIDBadges:                     true,

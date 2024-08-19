@@ -68,10 +68,7 @@ type (
 	}
 
 	SamplerStep struct {
-		Groups    []SamplerGroup // sorted by SumSize/Weight ratio ascending
-		Budget    int64          // groups starting from StartPos were sampled to fit the Budget
-		StartPos  int            // groups left of StartPos were not sampled
-		SumWeight int64          // summary weight of groups starting from StartPos
+		Groups []SamplerGroup // sorted by SumSize/Weight ratio ascending
 	}
 
 	SamplerStatistics struct {
@@ -195,7 +192,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *
 		}
 		if g.MetricID == 0 {
 			// namespace or group budget
-			g.statBudget(h, stat, bxw, sumWeight)
+			g.statBudget(stat, bxw, sumWeight)
 		}
 		g.keep(h, stat)
 		budget -= g.sumSize
@@ -212,14 +209,14 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *
 		if g.noSampleAgent && h.config.ModeAgent {
 			if g.MetricID == 0 {
 				// namespace or group budget
-				g.statBudget(h, stat, bxw, sumWeight)
+				g.statBudget(stat, bxw, sumWeight)
 			}
 			g.keep(h, stat)
 		} else if depth < len(h.partF)-1 {
 			b := int64(h.config.RoundF(float64(bxw)/float64(sumWeight), h.config.Rand))
 			if g.MetricID == 0 && (g.groupID != 0 || !h.config.SampleGroups) {
 				// namespace or group budget
-				g.statBudget(h, stat, b, 1)
+				g.statBudget(stat, b, 1)
 			}
 			h.run(g.items, depth+1, b, stat)
 		} else {
@@ -233,10 +230,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *
 	if n != 0 {
 		stat.Count += n
 		stat.Steps = append(stat.Steps, SamplerStep{
-			Groups:    groups,
-			Budget:    budget,
-			StartPos:  i,
-			SumWeight: sumWeight,
+			Groups: groups,
 		})
 	}
 }
@@ -247,7 +241,7 @@ func (g *SamplerGroup) keep(h *Sampler, stat *SamplerStatistics) {
 	}
 }
 
-func (g *SamplerGroup) statBudget(h *Sampler, stat *SamplerStatistics, budgetNum, budgetDenom int64) {
+func (g *SamplerGroup) statBudget(stat *SamplerStatistics, budgetNum, budgetDenom int64) {
 	k := [2]int32{g.namespaceID, g.groupID}
 	var b float64
 	if budgetDenom != 0 {
