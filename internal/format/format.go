@@ -29,11 +29,10 @@ const (
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
-	tagValueCodePrefix      = " " // regular tag values can't start with whitespace
-	TagValueCodeZero        = tagValueCodePrefix + "0"
-	TagValueIDUnspecified   = 0
-	TagValueIDMappingFlood  = -1
-	FairKeyIndexUnspecified = -1
+	tagValueCodePrefix     = " " // regular tag values can't start with whitespace
+	TagValueCodeZero       = tagValueCodePrefix + "0"
+	TagValueIDUnspecified  = 0
+	TagValueIDMappingFlood = -1
 
 	EffectiveWeightOne          = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight          = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
@@ -229,13 +228,13 @@ type MetricMetaValue struct {
 	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type"`
-	FairKeyTagID         string                   `json:"fair_key_tag_id,omitempty"`
+	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
 	EffectiveResolution int                      `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex         int                      `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
-	FairKeyIndex        int                      `json:"-"`
+	FairKey             []int                    `json:"-"`
 	EffectiveWeight     int64                    `json:"-"`
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
@@ -369,7 +368,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.Tags[0].Name = ""
 	}
 	m.PreKeyIndex = -1
-	m.FairKeyIndex = FairKeyIndexUnspecified
 	tags := m.Tags
 	if len(tags) > MaxTags { // prevent index out of range during mapping
 		tags = tags[:MaxTags]
@@ -392,9 +390,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 				m.PreKeyTagID = tagID // fix legacy name
 			}
 		}
-		if m.FairKeyTagID == tagID { // restore fair key index
-			m.FairKeyIndex = i
-		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
@@ -405,9 +400,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if m.PreKeyOnly && m.PreKeyIndex == -1 {
 		m.PreKeyOnly = false
 		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
-	}
-	if m.FairKeyIndex == FairKeyIndexUnspecified && m.FairKeyTagID != "" {
-		err = multierr.Append(err, fmt.Errorf("invalid fair_key_tag_id: %q", m.FairKeyTagID))
 	}
 	for i := range tags {
 		tag := &tags[i]
@@ -492,6 +484,15 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
 		m.NamespaceID = BuiltinNamespaceIDDefault
 		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
+	}
+	// restore fair key index
+	if len(m.FairKeyTagIDs) != 0 {
+		m.FairKey = make([]int, 0, len(m.FairKeyTagIDs))
+		for _, v := range m.FairKeyTagIDs {
+			if tag, ok := m.Name2Tag[v]; ok {
+				m.FairKey = append(m.FairKey, tag.Index)
+			}
+		}
 	}
 	return err
 }
