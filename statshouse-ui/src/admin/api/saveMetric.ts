@@ -43,6 +43,7 @@ export function saveMetric(metric: IMetric) {
     metric_type: metric.metric_type,
     version: metric.version,
     group_id: metric.group_id,
+    fair_key_tag_ids: metric.fair_key_tag_ids,
   };
 
   return fetch(`/api/metric${metric.id ? `?s=${metric.name}` : ''}`, {
