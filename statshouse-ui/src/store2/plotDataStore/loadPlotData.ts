@@ -77,6 +77,7 @@ export async function loadPlotData(
   }
   // todo:
   // loadMetricMeta(plot.metricName).then();
+  // console.log(`loadPlotData_${plotKey}`);
   const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
 
   if (error) {

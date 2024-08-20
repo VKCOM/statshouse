@@ -354,7 +354,7 @@ export const TIME_RANGE_ABBREV = {
   last180d: 'last-180d',
   last1y: 'last-1y',
   last2y: 'last-2y',
-};
+} as const;
 export type TimeRangeAbbrev = Enum<typeof TIME_RANGE_ABBREV>;
 export const isTimeRangeAbbrev = isEnum<TimeRangeAbbrev>(TIME_RANGE_ABBREV);
 export const toTimeRangeAbbrev = toEnum(isTimeRangeAbbrev);

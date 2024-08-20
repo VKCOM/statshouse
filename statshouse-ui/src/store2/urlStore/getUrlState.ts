@@ -13,17 +13,17 @@ import { ProduceUpdate } from '../helpers';
 
 export async function getUrlState(
   prevParam: QueryParams,
-  location: Location,
-  setUrlStore: (next: ProduceUpdate<UrlStore>, replace?: boolean) => void
-): Promise<Pick<UrlStore, 'params' | 'saveParams'>> {
+  location: Location
+): Promise<Pick<UrlStore, 'params' | 'saveParams'> & { reset: boolean }> {
   const urlSearchArray = [...new URLSearchParams(location.search)];
   const urlObject = arrToObj(urlSearchArray);
   const urlTree = toTreeObj(urlObject);
   const saveParams = await loadDashboard(prevParam, urlTree, getDefaultParams());
   const params = urlDecode(urlTree, saveParams);
-  resetDefaultParams(params, setUrlStore);
+  const resetParams = resetDefaultParams(params);
   return {
-    params,
+    params: resetParams ?? params,
     saveParams,
+    reset: !!resetParams,
   };
 }

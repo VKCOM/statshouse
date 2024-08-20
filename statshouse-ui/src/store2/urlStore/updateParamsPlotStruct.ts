@@ -86,6 +86,9 @@ export function updateParamsByPlotStruct(
     groups[groupId] = { ...g.groupInfo, id: groupId, count: g.plots.length };
     return groupId;
   });
+  orderVariables.forEach((vId) => {
+    variables[vId]?.link.sort((a, b) => +a[0] - +b[0]);
+  });
   return {
     ...params,
     orderVariables,
