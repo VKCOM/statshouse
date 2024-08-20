@@ -400,7 +400,8 @@ export function urlDecodeVariable(
         const [p, t] = s.split('.', 2);
         return [p, toTagKey(t)];
       })
-      .filter(isNotNilVariableLink) ?? defaultVariable.link;
+      .filter(isNotNilVariableLink) ?? defaultVariable.link.map((l) => [...l]);
+  link.sort((a, b) => +a[0] - +b[0]);
   return {
     id: variableKey,
     name,

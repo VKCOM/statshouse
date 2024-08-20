@@ -24,7 +24,7 @@ export async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas): Promi
   });
 }
 export function createCanvas(width: number, height: number): HTMLCanvasElement | OffscreenCanvas {
-  if (typeof window.OffscreenCanvas === 'function') {
+  if (typeof window.OffscreenCanvas === 'function' && width > 0 && height > 0) {
     return new window.OffscreenCanvas(width, height);
   }
   const ext = document.createElement('canvas');

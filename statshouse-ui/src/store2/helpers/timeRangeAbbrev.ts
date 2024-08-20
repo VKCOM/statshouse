@@ -48,11 +48,10 @@ export function timeRangeAbbrevExpand(abbr: TimeRangeAbbrev): number {
 
 export function getAbbrev(timeRange: TimeRange): TimeRangeAbbrev | '' {
   const tolerance = 60;
-  for (const abbrKey in TIME_RANGE_ABBREV) {
-    const rr = timeRangeAbbrevExpand(abbrKey);
-    if (Math.abs(rr - timeRange.from) <= tolerance && Math.abs(timeRange.to - timeRange.now) <= tolerance) {
-      return abbrKey;
-    }
-  }
-  return '';
+  return (
+    Object.values(TIME_RANGE_ABBREV).find((abbrKey) => {
+      const rr = timeRangeAbbrevExpand(abbrKey);
+      return Math.abs(rr - timeRange.from) <= tolerance && Math.abs(timeRange.to - timeRange.now) <= tolerance;
+    }) ?? ''
+  );
 }

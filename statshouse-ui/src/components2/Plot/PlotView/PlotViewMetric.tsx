@@ -14,7 +14,13 @@ import { yAxisSize } from 'common/settings';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import { PlotHeader } from './PlotHeader';
 import { PlotSubMenu } from './PlotSubMenu';
-import { LegendItem, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from 'components';
+import {
+  LegendItem,
+  UPlotPluginPortal,
+  UPlotWrapper,
+  UPlotWrapperPropsOpts,
+  UPlotWrapperPropsScales,
+} from 'components';
 import { PlotLegend } from '../PlotLegend';
 import { dateRangeFormat } from './dateRangeFormat';
 import { dataIdxNearest } from 'common/dataIdxNearest';
@@ -50,7 +56,9 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     topInfo,
     data,
     series,
-    scales,
+    timeRangeTo,
+    timeRangeFrom,
+    // scales,
     seriesShow,
     plotWhat,
     plotDataWhat,
@@ -68,7 +76,7 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
   } = useStatsHouseShallow(
     ({
       plotsData,
-      params: { plots, tabNum },
+      params: { plots, tabNum, timeRange },
       metricMeta,
       isEmbed,
       baseRange,
@@ -87,13 +95,15 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         plotDataWhat: plotData?.whats,
         topInfo: plotData?.topInfo,
         yLock: plot?.yLock,
+        timeRangeTo: timeRange.to,
+        timeRangeFrom: timeRange.from,
         numSeries: plot?.numSeries ?? 0,
         error403: plotData?.error403 ?? '',
         metricUnit: plot?.metricUnit,
         metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
         data: plotData?.data,
         series: plotData?.series,
-        scales: plotData?.scales,
+        // scales: plotData?.scales,
         seriesShow: plotData?.seriesShow,
         legendNameWidth: plotData?.legendNameWidth,
         legendValueWidth: plotData?.legendValueWidth,
@@ -264,6 +274,14 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     },
     [createPlotPreview, plotKey]
   );
+  const scales = useMemo<UPlotWrapperPropsScales>(() => {
+    const res: UPlotWrapperPropsScales = {};
+    res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
+    if (yLock && (yLock.min !== 0 || yLock.max !== 0)) {
+      res.y = { ...yLock };
+    }
+    return res;
+  }, [timeRangeFrom, timeRangeTo, yLock]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);

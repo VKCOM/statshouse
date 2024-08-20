@@ -150,7 +150,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   let prevSearch = prevLocation.search;
 
   function updateUrlState() {
-    getUrlState(getState().saveParams, prevLocation, getState().setUrlStore).then((res) => {
+    getUrlState(getState().saveParams, prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
         s.params = mergeLeft(s.params, res.params);
@@ -159,16 +159,24 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
           s.dashboardLayoutEdit = true;
         }
       });
-      // console.log('updateUrlState');
+      if (res.reset) {
+        updateHistory(
+          produce(getState(), (p) => {
+            p.params = res.params;
+          }),
+          true
+        );
+      }
+      getState().updatePlotsData();
+      // console.log('updateUrlState', getState().params, getState().saveParams);
     });
     // .finally(() => {
     //   getState().updatePlotsInfo();
     // });
   }
 
-  function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
-    const nextState = produce(getState(), next);
-    const search = '?' + getUrl(nextState);
+  function updateHistory(state: StatsHouseStore, replace: boolean = false) {
+    const search = '?' + getUrl(state);
     if (prevSearch !== search) {
       prevSearch = search;
       if (replace) {
@@ -177,10 +185,12 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         appHistory.push({ search });
       }
       // console.log('setUrlStore');
-    } //else if (!nextState.params.timeRange.absolute) {
-    // updateUrlState();
-    //}
-    // console.log('setUrlStore');
+    }
+  }
+
+  function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
+    const nextState = produce(getState(), next);
+    updateHistory(nextState, replace);
     setState(nextState);
   }
 
@@ -236,12 +246,14 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     setPlotType(plotKey, nextType, replace) {
       setUrlStore(updatePlotType(plotKey, nextType), replace);
+      getState().loadPlotData(plotKey);
     },
     setPlotYLock(plotKey, status, yLock?: { min: number; max: number }) {
       setUrlStore(updatePlotYLock(plotKey, status, yLock));
     },
     resetZoom(plotKey: PlotKey) {
       setUrlStore(updateResetZoom(plotKey));
+      getState().updatePlotsData();
     },
     removePlot(plotKey: PlotKey) {
       setUrlStore(

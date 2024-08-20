@@ -321,7 +321,9 @@ export function urlEncodeVariable(
   }
 
   if (!dequal(defaultVariable.link, variable.link)) {
-    paramArr.push([prefix + GET_PARAMS.variableLinkPlot, variable.link.map((s) => s.join('.')).join('-')]);
+    const link = [...variable.link];
+    link.sort((a, b) => +a[0] - +b[0]);
+    paramArr.push([prefix + GET_PARAMS.variableLinkPlot, link.map((s) => s.join('.')).join('-')]);
   }
 
   Object.values(variable.source).forEach((p) => {

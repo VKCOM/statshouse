@@ -136,18 +136,21 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     loadPlotData(plotKey, force = false) {
+      // console.log('loadPlotData', plotKey);
       const plot = getState().params.plots[plotKey];
       const prevPlotData = getState().plotsData[plotKey];
       const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
       if (!force) {
-        const liveSkip = getState().liveMode && !!prevPlotData?.numQueries;
+        const liveSkip = getState().liveMode.status && !!prevPlotData?.numQueries;
         const visible = getState().plotVisibilityList[plotKey] || getState().plotPreviewList[plotKey];
         if (liveSkip || !visible) {
+          // console.log('skip', plotKey, { liveSkip, visible });
           return;
         }
       }
       const changeMetricName = plot?.metricName !== prevPlot?.metricName;
       if (!changeMetricName && prevPlotData?.error403) {
+        // console.log('exit 1', plotKey);
         return;
       }
       if (getState().params.tabNum === plotKey) {
@@ -167,7 +170,16 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       // console.log({ plotKey, changePlotParam, changeTime, changeNowTime });
       let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts;
       if (update || force) {
+        // console.log('loadPlotData run', plotKey);
         // console.log({ update });
+        // setState((state) => {
+        //   const scales: UPlotWrapperPropsScales = {};
+        //   scales.x = { min: state.params.timeRange.to + state.params.timeRange.from, max: state.params.timeRange.to };
+        //   if (state.params.plots[plotKey]?.yLock.min !== 0 || state.params.plots[plotKey]?.yLock.max !== 0) {
+        //     scales.y = { ...lastPlotParams.yLock };
+        //   }
+        //   state.plotsData[index].scales = scales;
+        // });
         const queryEnd = getState().queryStart(plotKey);
         loadPlotData(plotKey, getState().params).then((updatePlotData) => {
           if (updatePlotData) {
