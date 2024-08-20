@@ -4,6 +4,7 @@ import { Dashboard, TvModePanel } from 'components2';
 import { useEmbedMessage } from 'hooks/useEmbedMessage';
 import { ErrorMessages } from '../components';
 import { PlotLayout } from '../components2/Plot/PlotLayout';
+import { useErrorStore } from '../store';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
@@ -12,6 +13,7 @@ export function ViewPage() {
       tvModeEnable: enable,
       isEmbed,
       plotsLength: orderPlot.length,
+
       tabNum,
     })
   );
@@ -29,7 +31,11 @@ export function ViewPage() {
   // }, [params.tabNum]);
 
   if (plotsLength === 0) {
-    return <ErrorMessages />;
+    return (
+      <div className="w-100 p-2">
+        <ErrorMessages />
+      </div>
+    );
   }
   return (
     <div ref={setRefPage} className="d-flex flex-column flex-md-row dashLayout w-100">
