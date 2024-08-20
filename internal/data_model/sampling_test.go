@@ -217,6 +217,98 @@ func TestNormalDistributionPreserved(t *testing.T) {
 	})
 }
 
+func TestFairKeySampling(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		// generate series
+		b := newSamplingTestBucket()
+		m := Key{Metric: 1}
+		n := rapid.IntRange(1, 16).Draw(t, "fair key value count")
+		for i, v := 1, 1; i <= n; i, v = i+1, v*2 {
+			m.Keys[0] = int32(i)
+			for j := 1; j <= v; j++ {
+				m.Keys[1] = int32(j)
+				v := &MultiItem{}
+				v.Tail.Value.AddValueCounter(0, 1)
+				b.series[m] = v
+				b.sumSize += int64(m.TLSizeEstimate(m.Timestamp) + v.TLSizeEstimate())
+			}
+		}
+		// run sampling with budget enouph to store single value for each fair key
+		keepCount := make(map[Key]int)
+		sampler := NewSampler(len(b.series), SamplerConfig{
+			SampleKeys: true,
+			Meta: metaStorageMock{
+				getMetaMetric: func(metricID int32) *format.MetricMetaValue {
+					return &format.MetricMetaValue{
+						FairKey: []int{0},
+					}
+				},
+			},
+			RoundF: func(sf float64, _ *rand.Rand) float64 {
+				require.Equal(t, sf, math.Floor(sf))
+				return sf
+			},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				require.Equal(t, sf, math.Floor(sf))
+				return int(float64(len(s)) / sf)
+			},
+			KeepF: func(k Key, mi *MultiItem, u uint32) {
+				keepCount[k]++
+			},
+		})
+		budget := b.sumSize * int64(n) / int64(len(b.series))
+		b.run(&sampler, budget)
+		// sampler should keep single value for each fair key
+		require.Equal(t, n, len(keepCount))
+		for _, v := range keepCount {
+			require.Equal(t, 1, v)
+		}
+	})
+}
+
+type metaStorageMock struct {
+	version             func() int64
+	stateHash           func() string
+	getMetaMetric       func(metricID int32) *format.MetricMetaValue
+	getMetaMetricByName func(metricName string) *format.MetricMetaValue
+	getGroup            func(id int32) *format.MetricsGroup
+	getNamespace        func(id int32) *format.NamespaceMeta
+	getNamespaceByName  func(name string) *format.NamespaceMeta
+	getGroupByName      func(name string) *format.MetricsGroup
+}
+
+func (m metaStorageMock) Version() int64 {
+	return m.version()
+}
+
+func (m metaStorageMock) StateHash() string {
+	return m.stateHash()
+}
+
+func (m metaStorageMock) GetMetaMetric(metricID int32) *format.MetricMetaValue {
+	return m.getMetaMetric(metricID)
+}
+
+func (m metaStorageMock) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
+	return m.getMetaMetricByName(metricName)
+}
+
+func (m metaStorageMock) GetGroup(id int32) *format.MetricsGroup {
+	return m.getGroup(id)
+}
+
+func (m metaStorageMock) GetNamespace(id int32) *format.NamespaceMeta {
+	return m.getNamespace(id)
+}
+
+func (m metaStorageMock) GetNamespaceByName(name string) *format.NamespaceMeta {
+	return m.getNamespaceByName(name)
+}
+
+func (m metaStorageMock) GetGroupByName(name string) *format.MetricsGroup {
+	return m.getGroupByName(name)
+}
+
 func TestCompareSampleFactors(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		b := newSamplingTestBucket()
