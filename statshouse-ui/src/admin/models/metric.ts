@@ -51,6 +51,7 @@ export interface IMetric extends IShortMetric {
   readonly metric_type?: string;
   readonly version?: number;
   readonly group_id?: number;
+  readonly fair_key_tag_ids?: string[];
 }
 
 export interface IBackendMetric {
@@ -74,4 +75,5 @@ export interface IBackendMetric {
   readonly metric_type?: string;
   readonly version?: number;
   readonly group_id?: number;
+  readonly fair_key_tag_ids?: string[];
 }
