@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -34,6 +34,7 @@ import { produce } from 'immer';
 import { useLinkPlot } from '../../hooks/useLinkPlot';
 import { useAddLinkPlot } from '../../hooks/useAddLinkPlot';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
+import { prepareItemsGroup } from '../../common/prepareItemsGroup';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -52,36 +53,26 @@ export function LeftMenu({ className }: LeftMenuProps) {
   const location = useLocation();
   const devEnabled = useStoreDev((s) => s.enabled);
   const theme = useThemeStore((s) => s.theme);
-  const {
-    tabNum,
-    setUrlStore,
-    user,
-    paramsTheme,
-    // dashboardLink,
-    orderPlot,
-    // addLink,
-    // plotsLink,
-    plotsData,
-    promqltestfailed,
-  } = useStatsHouseShallow(
-    ({
-      params: { theme, tabNum, orderPlot },
-      plotsData,
-      setUrlStore,
-      user,
-      // links: { dashboardLink, addLink, plotsLink },
-    }) => ({
-      tabNum,
-      setUrlStore,
-      user,
-      paramsTheme: theme,
-      // dashboardLink,
-      orderPlot,
-      // addLink,
-      // plotsLink,
-      plotsData,
-      promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
-    })
+  const { tabNum, setUrlStore, user, paramsTheme, orderPlot, groups, orderGroup, plotsData, promqltestfailed } =
+    useStatsHouseShallow(
+      ({ params: { theme, tabNum, orderPlot, groups, orderGroup }, plotsData, setUrlStore, user }) => ({
+        tabNum,
+        setUrlStore,
+        user,
+        paramsTheme: theme,
+        orderPlot,
+        groups,
+        orderGroup,
+        plotsData,
+        promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
+      })
+    );
+  const viewPlots = useMemo(
+    () =>
+      prepareItemsGroup({ groups, orderGroup, orderPlot }).flatMap(({ plots, groupKey }) =>
+        groups[groupKey]?.show ? plots : []
+      ),
+    [groups, orderGroup, orderPlot]
   );
   const isView = location.pathname.indexOf('view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
@@ -248,7 +239,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
       ></LeftMenuItem>
       <li className={cn(css.scrollStyle, css.plotMenu)}>
         <ul ref={refListMenuItemPlot} className={cn(css.plotNav)}>
-          {orderPlot.map((plotKey) => (
+          {viewPlots.map((plotKey) => (
             <LeftMenuPlotItem key={plotKey} plotKey={plotKey} active={isView && tabNum === plotKey} />
           ))}
         </ul>

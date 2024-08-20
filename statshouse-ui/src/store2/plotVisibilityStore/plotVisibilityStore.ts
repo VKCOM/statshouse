@@ -27,11 +27,6 @@ export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStor
       if (!getState().plotsData[plotKey]?.numQueries) {
         getState().loadPlotData(plotKey);
       }
-      getState().params.plots[plotKey]?.events.forEach((iPlot) => {
-        if (!getState().plotsData[iPlot]?.numQueries) {
-          getState().loadPlotData(iPlot);
-        }
-      });
     }
     // todo:
     // if (toggle) {

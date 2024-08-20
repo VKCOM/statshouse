@@ -20,6 +20,7 @@ import { filterPoints } from '../../common/filterPoints';
 import { dequal } from 'dequal/lite';
 import { calcYRange2 } from '../../common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
+import { deepClone } from '../../common/helpers';
 
 export function normalizePlotData(
   response: SeriesResponse,
@@ -300,6 +301,8 @@ export function normalizePlotData(
       plotData.scales.y = { min: 0, max: 0 };
     }
     plotData.promQL = response.promql;
+    plotData.lastPlotParams = deepClone(plot);
+    plotData.lastTimeRange = deepClone(timeRange);
 
     const maxLengthValue = plotData.series.reduce(
       (res, s, indexSeries) => {

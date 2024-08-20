@@ -23,8 +23,12 @@ export function timeRangePanLeft(): ProduceUpdate<StatsHouseStore> {
 export function timeRangePanRight(): ProduceUpdate<StatsHouseStore> {
   return (state) => {
     const r = state.params.timeRange;
-    const delta = Math.floor(-r.from / 4);
-    state.params.timeRange = readTimeRange(r.from, Math.min(r.to + delta, getNow()));
+    if (r.absolute) {
+      const delta = Math.floor(-r.from / 4);
+      state.params.timeRange = readTimeRange(r.from, Math.min(r.to + delta, getNow()));
+    } else {
+      state.params.timeRange = readTimeRange(r.from, r.urlTo);
+    }
   };
 }
 

@@ -37,7 +37,6 @@ export function getLoadPlotUrlParams(
     [GET_PARAMS.version]: plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
     [GET_PARAMS.metricFilter]: urlEncodePlotFilters('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: plot.groupBy,
-    // [GET_PARAMS.metricAgg]: plot.customAgg.toString(),
     [GET_PARAMS.metricTimeShifts]: params.timeShifts.map((t) => t.toString()),
     [GET_PARAMS.excessPoints]: '1',
     [GET_PARAMS.metricVerbose]: fetchBadges ? '1' : '0',
@@ -47,6 +46,7 @@ export function getLoadPlotUrlParams(
   }
   if (plot.promQL || plot.metricName === promQLMetric) {
     urlParams[GET_PARAMS.metricPromQL] = plot.promQL;
+    //add variable params for PromQL
     urlEncodeVariables(params).forEach(([key, value]) => {
       // @ts-ignore
       urlParams[key] ??= [];
@@ -60,10 +60,6 @@ export function getLoadPlotUrlParams(
   if (priority) {
     urlParams[GET_PARAMS.priority] = priority.toString();
   }
-  // if (allParams) {
-  //   urlParams.push(...encodeVariableValues(allParams));
-  //   urlParams.push(...encodeVariableConfig(allParams));
-  // }
 
   return urlParams;
 }
@@ -85,6 +81,29 @@ export async function loadPlotData(
 
   if (error) {
     if (status === 403) {
+      return (state) => {
+        state.plotsData[plotKey] = {
+          ...getEmptyPlotData(),
+          error403: error.toString(),
+        };
+      };
+    } else if (error.name !== 'AbortError') {
+      return (state) => {
+        if (state.plotsData[plotKey]) {
+          state.plotsData[plotKey]!.error = error.toString();
+          state.setPlotHeal(plotKey, false);
+        }
+        //if (resetCache) {
+        //                   state.plotsData[index] = {
+        //                     ...getEmptyPlotData(),
+        //                     error: error.toString(),
+        //                   };
+        //                 } else {
+        //                   state.plotsData[index].error = error.toString();
+        //                 }
+        //
+        //                 addStatus(index.toString(), false);
+      };
     }
   }
   if (response) {

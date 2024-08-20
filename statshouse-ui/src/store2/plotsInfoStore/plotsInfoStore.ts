@@ -68,14 +68,14 @@ export const plotsInfoStore: StoreSlice<StatsHouseStore, PlotsInfoStore> = (setS
     });
   },
   updatePlotsInfo() {
-    setState((s) => {
-      // s.links = mergeLeft(s.links, updatePlotsLink(s.params, s.saveParams));
-      // const { groupPlots, plotToGroupMap, viewOrderPlot } = updateGroupInfo(s.params);
-      // s.groupPlots = mergeLeft(s.groupPlots, groupPlots);
-      // s.plotToGroupMap = mergeLeft(s.plotToGroupMap, plotToGroupMap);
-      // s.viewOrderPlot = mergeLeft(s.viewOrderPlot, viewOrderPlot);
-      // s.plotVariablesLink = mergeLeft(s.plotVariablesLink, updatePlotVariablesLink(s.params));
-    });
-    getState().updatePlotsData();
+    // setState((s) => {
+    //   s.links = mergeLeft(s.links, updatePlotsLink(s.params, s.saveParams));
+    // const { groupPlots, plotToGroupMap, viewOrderPlot } = updateGroupInfo(s.params);
+    // s.groupPlots = mergeLeft(s.groupPlots, groupPlots);
+    // s.plotToGroupMap = mergeLeft(s.plotToGroupMap, plotToGroupMap);
+    // s.viewOrderPlot = mergeLeft(s.viewOrderPlot, viewOrderPlot);
+    // s.plotVariablesLink = mergeLeft(s.plotVariablesLink, updatePlotVariablesLink(s.params));
+    // });
+    // getState().updatePlotsData();
   },
 });
