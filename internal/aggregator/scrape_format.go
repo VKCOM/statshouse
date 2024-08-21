@@ -19,6 +19,8 @@ type ScrapeConfig struct {
 type scrapeOptions struct {
 	Namespace    string   `json:"namespace"`
 	GaugeMetrics []string `json:"gauge_metrics,omitempty"`
+
+	NamespaceID int32 `json:"-"`
 }
 
 type scrapeGlobalConfig struct {
@@ -73,7 +75,8 @@ func DeserializeScrapeConfig(b []byte, m format.MetaStorageInterface) ([]ScrapeC
 			return nil, err
 		}
 	}
-	for _, c := range res {
+	for i := range res {
+		c := &res[i]
 		if c.Options.Namespace == "" {
 			return nil, fmt.Errorf("scrape namespace not set")
 		}
@@ -85,6 +88,7 @@ func DeserializeScrapeConfig(b []byte, m format.MetaStorageInterface) ([]ScrapeC
 			if namespace.ID == format.BuiltinNamespaceIDDefault {
 				return nil, fmt.Errorf("scrape namespace can not be __default")
 			}
+			c.Options.NamespaceID = namespace.ID
 		}
 		if c.GlobalConfig.ScrapeInterval == 0 {
 			c.GlobalConfig.ScrapeInterval = config.DefaultGlobalConfig.ScrapeInterval
