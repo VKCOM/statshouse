@@ -126,6 +126,7 @@ const (
 	BuiltinMetricIDAPIBufferBytesAlloc        = -104
 	BuiltinMetricIDAPIBufferBytesFree         = -105
 	BuiltinMetricIDAPIBufferBytesTotal        = -106
+	BuiltinMetricIDAutoCreateMetric           = -107
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -2122,6 +2123,25 @@ Value is delta between second value and time it was inserted.`,
 				Description: "host",
 			}},
 		},
+		BuiltinMetricIDAutoCreateMetric: {
+			Name:        "__agg_autocreate_metric",
+			Kind:        MetricKindCounter,
+			Description: "Number of automatically created metrics.",
+			MetricType:  MetricByte,
+			Tags: []MetricMetaTag{{
+				Description: "action",
+				ValueComments: map[string]string{
+					" 1": "create",
+					" 2": "edit",
+				},
+			}, {
+				Description: "status",
+				ValueComments: map[string]string{
+					" 1": "success",
+					" 2": "failure",
+				},
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2160,6 +2180,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesAlloc:        true,
 		BuiltinMetricIDAPIBufferBytesFree:         true,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
+		BuiltinMetricIDAutoCreateMetric:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{

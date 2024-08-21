@@ -23,6 +23,7 @@ import (
 )
 
 type autoCreate struct {
+	agg        *Aggregator
 	client     *tlmetadata.Client
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
@@ -52,8 +53,9 @@ type KnownTagsJSON struct {
 	Groups    map[string]map[string]string `json:"groups,omitempty"`     // group name -> tag name -> tag ID
 }
 
-func newAutoCreate(client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
+func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
 	ac := &autoCreate{
+		agg:                     a,
 		client:                  client,
 		args:                    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
 		defaultNamespaceAllowed: defaultNamespaceAllowed,
@@ -273,16 +275,26 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			Data:      string(data),
 		},
 	}
-	edit.SetCreate(!metricExists)
+	var tags [16]int32
+	if metricExists {
+		tags[1] = 2 // edit
+	} else {
+		tags[1] = 1 // create
+		edit.SetCreate(true)
+	}
 	// issue RPC call
 	var ret tlmetadata.Event
 	ctx, cancel := context.WithTimeout(ac.ctx, time.Minute)
 	defer cancel()
 	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)
 	if err != nil {
+		tags[2] = 2 // failure
+		ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 		return fmt.Errorf("failed to create or update metric: %w", err)
 	}
 	// succeeded, wait a bit until changes applied locally
+	tags[2] = 1 // success
+	ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
 	_ = ac.storage.Journal().WaitVersion(ctx, ret.Version)
