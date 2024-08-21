@@ -2126,7 +2126,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAutoCreateMetric: {
 			Name:        "__agg_autocreate_metric",
 			Kind:        MetricKindCounter,
-			Description: "Number of automatically created metrics.",
+			Description: "Event of automatically created metrics.",
 			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "action",
