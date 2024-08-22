@@ -3,10 +3,6 @@ package main
 import (
 	"crypto/sha1"
 	"flag"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/receiver"
-	"go.uber.org/atomic"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +12,12 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/receiver"
+
+	"go.uber.org/atomic"
 )
 
 // mode0 - multiple goroutines reading N independent sockets created with REUSE_PORT
