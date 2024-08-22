@@ -5,12 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PlotKey, promQLMetric } from 'url2';
+import { PlotKey } from 'url2';
 import { Button, InputText, TextArea, Tooltip } from 'components';
 import { useStatsHouseShallow } from 'store2';
 import { PlotNavigate } from '../PlotNavigate';
 import cn from 'classnames';
-import { whatToWhatDesc } from 'view/api';
 import css from './style.module.css';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
@@ -19,72 +18,47 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
-import { useIntersectionObserver, useLinkPlot, useOnClickOutside, useSingleLinkPlot } from 'hooks';
+import { useLinkPlot, useOnClickOutside, useSingleLinkPlot } from 'hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { PlotName } from './PlotName';
 import { Link } from 'react-router-dom';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
+import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
 
-export type PlotHeaderProps = { className?: string; plotKey: PlotKey };
+export type PlotHeaderProps = { plotKey: PlotKey };
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
-const threshold = [0, 1]; //buildThresholdList(1);
-
-export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
-  const {
-    plot,
-    plotData,
-    metricName,
-    what,
-    // singleLink,
-    // link,
-    meta,
-    isEmbed,
-    isDashboard,
-    dashboardLayoutEdit,
-    canRemove,
-    setPlot,
-    removePlot,
-    visible,
-  } = useStatsHouseShallow(
-    ({
-      plotsData,
-      params: { plots, orderPlot, tabNum },
-      metricMeta,
-      isEmbed,
-      dashboardLayoutEdit,
-      setPlot,
-      removePlot,
-      plotVisibilityList,
-      // links: { plotsLink },
-    }) => ({
-      plot: plots[plotKey],
-      plotData: plotsData[plotKey],
-      metricName:
-        (plots[plotKey]?.metricName !== promQLMetric ? plots[plotKey]?.metricName : plotsData[plotKey]?.metricName) ??
-        '',
-      what:
-        (plots[plotKey]?.metricName === promQLMetric
-          ? plotsData[plotKey]?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
-          : plots[plotKey]?.what.map((qw) => whatToWhatDesc(qw)).join(', ')) ?? '',
-      meta: metricMeta[
-        (plots[plotKey]?.metricName !== promQLMetric ? plots[plotKey]?.metricName : plotsData[plotKey]?.metricName) ??
-          ''
-      ],
-      // singleLink: plotsLink[plotKey]?.singleLink ?? '',
-      // link: plotsLink[plotKey]?.link ?? '',
-      isEmbed,
-      isDashboard: +tabNum < 0,
-      dashboardLayoutEdit,
-      canRemove: orderPlot.length > 1,
-      setPlot,
-      removePlot,
-      visible: !!plotVisibilityList[plotKey],
-    })
-  );
+export function _PlotHeader({ plotKey }: PlotHeaderProps) {
+  const { plot, metricName, what, meta, isEmbed, isDashboard, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
+    useStatsHouseShallow(
+      ({
+        plotsData,
+        params: { plots, orderPlot, tabNum },
+        metricMeta,
+        isEmbed,
+        dashboardLayoutEdit,
+        setPlot,
+        removePlot,
+      }) => {
+        const plot = plots[plotKey];
+        const plotData = plotsData[plotKey];
+        return {
+          plot,
+          metricName: getMetricName(plot, plotData),
+          what: getMetricWhat(plot, plotData),
+          meta: getMetricMeta(metricMeta, plot, plotData),
+          isEmbed,
+          isDashboard: +tabNum < 0,
+          dashboardLayoutEdit,
+          canRemove: orderPlot.length > 1,
+          setPlot,
+          removePlot,
+        };
+      }
+    );
   const compact = isDashboard || isEmbed;
   const id = useId();
 
@@ -95,15 +69,13 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
     setShowTags((s) => !s);
   }, []);
 
-  // const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
-  // const visible = useIntersectionObserver(visibleRef, threshold, undefined, 0);
   const formRef = useRef(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formTextAreaRef = useRef(null);
   const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
 
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
-  //
+
   const [localCustomName, setLocalCustomName] = useState(plot?.customName || metricFullName);
   const [localCustomDescription, setLocalCustomDescription] = useState(plot?.customDescription ?? '');
   const autoSaveTimer = useRef<NodeJS.Timeout>();
@@ -167,8 +139,8 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
 
   const plotTooltip = useMemo(() => {
     const desc = plot?.customDescription || meta?.description || '';
-    return <PlotHeaderTooltipContent name={<PlotName plot={plot} plotData={plotData} />} description={desc} />;
-  }, [meta?.description, plot, plotData]);
+    return <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={desc} />;
+  }, [meta?.description, plot?.customDescription, plotKey]);
 
   if (isDashboard) {
     return (
@@ -211,7 +183,7 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
                   title={plotTooltip}
                 >
                   <Link className="text-decoration-none" to={link} target={isEmbed ? '_blank' : '_self'}>
-                    <PlotName plot={plot} plotData={plotData} />
+                    <PlotName plotKey={plotKey} />
                   </Link>
                 </Tooltip>
                 {!isEmbed && (
@@ -269,7 +241,7 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
         >
           <Tooltip hover title={plotTooltip}>
             <Link to={link} className="text-secondary text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
-              <PlotName plot={plot} plotData={plotData} />
+              <PlotName plotKey={plotKey} />
             </Link>
           </Tooltip>
           <PlotHeaderBadges plotKey={plotKey} compact={compact} dashboard={isDashboard} />
@@ -306,7 +278,7 @@ export function _PlotHeader({ className, plotKey }: PlotHeaderProps) {
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
                   <span className="text-secondary text-decoration-none">
-                    <PlotName plot={plot} plotData={plotData} />
+                    <PlotName plotKey={plotKey} />
                   </span>
                   <Link to={singleLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />

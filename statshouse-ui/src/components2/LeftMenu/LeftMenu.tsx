@@ -16,7 +16,6 @@ import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-s
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
 import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
-import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
 // import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 // import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 // import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
@@ -26,15 +25,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { globalSettings } from 'common/settings';
 import cn from 'classnames';
 import { setDevEnabled, setTheme, THEMES, toTheme, useStore, useStoreDev, useThemeStore } from 'store';
-import { getClipboard } from '../../common/helpers';
-import { MetricName } from '../Plot';
+import { getClipboard } from 'common/helpers';
 import { useStatsHouseShallow } from 'store2';
-import { addPlotByUrl } from '../../store2/helpers';
+import { addPlotByUrl } from 'store2/helpers';
 import { produce } from 'immer';
-import { useLinkPlot } from '../../hooks/useLinkPlot';
-import { useAddLinkPlot } from '../../hooks/useAddLinkPlot';
+import { useAddLinkPlot, useLinkPlot } from 'hooks';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
-import { prepareItemsGroup } from '../../common/prepareItemsGroup';
+import { prepareItemsGroup } from 'common/prepareItemsGroup';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -53,7 +50,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
   const location = useLocation();
   const devEnabled = useStoreDev((s) => s.enabled);
   const theme = useThemeStore((s) => s.theme);
-  const { tabNum, setUrlStore, user, paramsTheme, orderPlot, groups, orderGroup, plotsData, promqltestfailed } =
+  const { tabNum, setUrlStore, user, paramsTheme, orderPlot, groups, orderGroup, promqltestfailed } =
     useStatsHouseShallow(
       ({ params: { theme, tabNum, orderPlot, groups, orderGroup }, plotsData, setUrlStore, user }) => ({
         tabNum,
@@ -63,7 +60,6 @@ export function LeftMenu({ className }: LeftMenuProps) {
         orderPlot,
         groups,
         orderGroup,
-        plotsData,
         promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
       })
     );
