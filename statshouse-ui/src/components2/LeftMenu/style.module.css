@@ -61,6 +61,10 @@
   color: var(--bs-primary);
 }
 
+.sub .link {
+  width: 300px;
+}
+
 .preview {
   padding: 0;
   height: 35px;

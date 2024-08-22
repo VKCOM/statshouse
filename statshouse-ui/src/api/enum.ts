@@ -104,6 +104,7 @@ export type GetBoolean = Enum<typeof GET_BOOLEAN>;
 export const QUERY_WHAT = {
   count: 'count',
   countNorm: 'count_norm',
+  countSec: 'countsec',
   cuCount: 'cu_count',
   cardinality: 'cardinality',
   cardinalityNorm: 'cardinality_norm',

@@ -1,13 +1,8 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { MetricName } from '../Plot';
-import { type PlotKey, promQLMetric } from 'url2';
-
-import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
-import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
+import { type PlotKey } from 'url2';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import { useStatsHouseShallow } from 'store2';
-import { whatToWhatDesc } from 'view/api';
 
 import {
   buildThresholdList,
@@ -21,8 +16,9 @@ import cn from 'classnames';
 import css from './style.module.css';
 import { Link } from 'react-router-dom';
 import { Popper } from 'components';
-import { getMetricFullName, getMetricName, getMetricWhat } from 'store2/helpers';
+import { getMetricFullName } from 'store2/helpers';
 import { PLOT_TYPE } from 'api/enum';
+import { PlotName } from '../Plot/PlotView/PlotName';
 
 const threshold = buildThresholdList(1);
 
@@ -50,27 +46,16 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
     [openRef, setOpen]
   );
   const visible = useIntersectionObserver(visibleRef, threshold, undefined, 0);
-  const {
-    metricName,
-    what,
-    metricFullName,
-    setPlotPreviewVisibility,
-    error403,
-    error,
-    plotPreviewUrl,
-    numQueries,
-    plotType,
-  } = useStatsHouseShallow(({ params: { plots }, plotsData, setPlotPreviewVisibility, plotPreviewUrlList }) => ({
-    metricName: getMetricName(plots[plotKey]!, plotsData[plotKey]),
-    what: getMetricWhat(plots[plotKey]!, plotsData[plotKey]),
-    setPlotPreviewVisibility,
-    metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
-    error403: plotsData[plotKey]?.error403,
-    error: plotsData[plotKey]?.error,
-    plotPreviewUrl: plotPreviewUrlList[plotKey],
-    numQueries: plotsData[plotKey]?.numQueries ?? 0,
-    plotType: plots[plotKey]?.type,
-  }));
+  const { metricFullName, setPlotPreviewVisibility, error403, error, plotPreviewUrl, numQueries, plotType } =
+    useStatsHouseShallow(({ params: { plots }, plotsData, setPlotPreviewVisibility, plotPreviewUrlList }) => ({
+      setPlotPreviewVisibility,
+      metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
+      error403: plotsData[plotKey]?.error403,
+      error: plotsData[plotKey]?.error,
+      plotPreviewUrl: plotPreviewUrlList[plotKey],
+      numQueries: plotsData[plotKey]?.numQueries ?? 0,
+      plotType: plots[plotKey]?.type,
+    }));
   const link = useLinkPlot(plotKey, visible > 0);
 
   useEffect(() => {
@@ -108,9 +93,9 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
       </Link>
       <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
         <ul className={css.sub} ref={sub}>
-          <li className={css.subItem}>
+          <li className={cn(css.subItem, 'font-monospace fw-bold text-center')}>
             <Link className={css.link} to={link}>
-              <MetricName metricName={metricName} metricWhat={what} />
+              <PlotName plotKey={plotKey} />
             </Link>
           </li>
           {!!plotPreviewUrl && !error403 && (

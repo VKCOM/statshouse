@@ -243,6 +243,7 @@ export function splitByMetricType(metricType: MetricType) {
 const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.count,
   QUERY_WHAT.countNorm,
+  QUERY_WHAT.countSec,
   QUERY_WHAT.cuCount,
   QUERY_WHAT.dvCount,
   QUERY_WHAT.dvCountNorm,

@@ -200,6 +200,7 @@ export function metaToLabel(meta: querySeriesMeta, uniqueWhatLength: number): st
 }
 
 export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
+  //todo: change on constant enum QUERY_WHAT
   switch (kind) {
     case 'counter':
       return [
@@ -393,6 +394,8 @@ export function whatToWhatDesc(what: QueryWhat | string): string {
     case 'p999':
       return 'p99.9';
     case 'count_norm':
+      return 'count/sec';
+    case 'countsec':
       return 'count/sec';
     case 'cu_count':
       return 'count (cumul)';
