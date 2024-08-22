@@ -61,6 +61,8 @@ func reopenLog() {
 	logErr.SetOutput(logFd)
 }
 
+var globalStart = time.Now() // TODO - remove
+
 func main() {
 	os.Exit(runMain())
 }
@@ -383,6 +385,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			}
 		}(u)
 	}
+	log.Printf("agent finished loading in %v", time.Since(globalStart))
 
 	// Open port
 	listeners := make([]net.Listener, 0, 2)

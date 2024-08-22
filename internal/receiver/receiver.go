@@ -69,7 +69,6 @@ type UDP struct {
 	rawConn   syscall.RawConn
 	logPacket func(format string, args ...interface{})
 
-	ag                   *agent.Agent
 	batchSizeTLOK        *agent.BuiltInItemValue
 	batchSizeTLErr       *agent.BuiltInItemValue
 	batchSizeMsgPackOK   *agent.BuiltInItemValue
@@ -127,7 +126,6 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, b
 		conn:                  conn,
 		rawConn:               rawConn,
 		logPacket:             logPacket,
-		ag:                    bm,
 		batchSizeTLOK:         createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusOK),
 		batchSizeTLErr:        createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusError),
 		batchSizeMsgPackOK:    createBatchSizeValue(bm, format.TagValueIDPacketFormatMsgPack, format.TagValueIDAgentReceiveStatusOK),
@@ -147,6 +145,25 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, b
 		packetSizeLegacyErr:   createPacketSizeValue(bm, format.TagValueIDPacketFormatLegacy, format.TagValueIDAgentReceiveStatusError),
 		packetSizeEmptyErr:    createPacketSizeValue(bm, format.TagValueIDPacketFormatEmpty, format.TagValueIDAgentReceiveStatusError),
 	}, nil
+}
+
+func (u *UDP) Duplicate() (*UDP, error) {
+	result := *u // copy all fields
+	cf, err := u.conn.(*net.UDPConn).File()
+	if err != nil {
+		return nil, err
+	}
+	defer cf.Close() // File() and FileConn() both dup FD
+	result.conn, err = net.FileConn(cf)
+	if err != nil {
+		return nil, err
+	}
+	scConn := result.conn.(syscall.Conn)
+	result.rawConn, err = scConn.SyscallConn()
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (u *UDP) Close() error {
