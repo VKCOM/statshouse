@@ -266,11 +266,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
-	envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
-	if err != nil {
-		logErr.Printf("failed to start listen env file: %s", err.Error())
-	}
-	defer closeF()
+	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
+
 	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,

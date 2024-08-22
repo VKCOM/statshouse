@@ -19,11 +19,7 @@ func main() {
 		panic(err)
 	}
 	envPath := dir + "/statshouse_env.yml"
-	envLoader, close, err := env.ListenEnvFile(envPath)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	defer close()
+	envLoader, _ := env.ListenEnvFile(envPath)
 	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second, HostName: host}, nil, envLoader, log.New(os.Stderr, "[collector]", 0))
 	if err != nil {
 		log.Panic(err)
