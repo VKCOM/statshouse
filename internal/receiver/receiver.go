@@ -14,12 +14,12 @@ import (
 	"net"
 	"syscall"
 
-	"go.uber.org/atomic"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+
+	"go.uber.org/atomic"
 	"golang.org/x/sys/unix"
 )
 
