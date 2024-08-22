@@ -10,8 +10,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net"
+	"os"
 	"syscall"
 
 	"github.com/vkcom/statshouse/internal/agent"
@@ -149,7 +151,15 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, b
 
 func (u *UDP) Duplicate() (*UDP, error) {
 	result := *u // copy all fields
-	cf, err := u.conn.(*net.UDPConn).File()
+	var cf *os.File
+	var err error
+	if udpConn, ok := u.conn.(*net.UDPConn); ok {
+		cf, err = udpConn.File()
+	} else if unixConn, ok := u.conn.(*net.UnixConn); ok {
+		cf, err = unixConn.File()
+	} else {
+		return nil, fmt.Errorf("must be UDP or Unix connection")
+	}
 	if err != nil {
 		return nil, err
 	}

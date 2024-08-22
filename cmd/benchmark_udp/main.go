@@ -24,6 +24,7 @@ import (
 // mode1 - multiple goroutines reading FD dup of single socket
 // mode2 - multiple goroutines reading single net.Conn
 
+// UDP (unix dgram has similar performance)
 // packet_size cores_udp mode0 mode1 mode2 (MB/sec)
 // --------------------------------------
 // 400         1         252   249   234
@@ -79,11 +80,13 @@ func receiveBenchmark() int {
 	var coresUDP int
 	var maxCores int
 	var bufferSizeUDP int
+	var network string
 	var listenAddr string
 	var coresSend int
 	var packetSize int
 	var mode int
-	flag.StringVar(&listenAddr, "p", "127.0.0.1:13337", "RAW UDP listen address")
+	flag.StringVar(&network, "network", "udp4", "UDP listen network (udp4, udp5, unixgram)")
+	flag.StringVar(&listenAddr, "p", "127.0.0.1:13337", "UDP listen address")
 	flag.IntVar(&coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
 	flag.IntVar(&maxCores, "cores", -1, "CPU cores usage limit. 0 all available, <0 use (cores-udp*3/2 + 1)")
@@ -103,8 +106,6 @@ func receiveBenchmark() int {
 		runtime.GOMAXPROCS(maxCores)
 	}
 
-	addr := "127.0.0.1:13337"
-
 	var (
 		receiversUDP []*receiver.UDP
 	)
@@ -112,17 +113,18 @@ func receiveBenchmark() int {
 	for i := 0; i < coresUDP; i++ {
 		var u *receiver.UDP
 		var err error
+		action := "created"
 		if mode == 1 && i != 0 {
 			u, err = receiversUDP[0].Duplicate()
-			log.Printf("UDP Listener duplicated: %d", i)
+			action = "duplicated"
 		} else {
-			u, err = receiver.ListenUDP("udp", addr, 10000000, coresUDP > 1 && mode == 0, nil, nil)
-			log.Printf("UDP Listener created: %d", i)
+			u, err = receiver.ListenUDP(network, listenAddr, 10000000, coresUDP > 1 && mode == 0, nil, nil)
 		}
 		if err != nil {
 			log.Printf("ListenUDP: %v", err)
 			return 1
 		}
+		log.Printf("UDP Listener %d %s, buffer size %d", i, action, u.ReceiveBufferSize())
 		defer func() { _ = u.Close() }()
 		receiversUDP = append(receiversUDP, u)
 		if mode != 0 && mode != 1 {
@@ -205,7 +207,7 @@ func receiveBenchmark() int {
 	sender := func(i int) {
 		var conns []net.Conn
 		for i := 0; i < 32; i++ {
-			conn, err := net.Dial("udp", addr)
+			conn, err := net.Dial(network, listenAddr)
 			if err != nil {
 				log.Fatalf("failed to dial statshouse: %v", err)
 			}
