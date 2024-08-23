@@ -13,7 +13,11 @@ export function isUrlSearchArray(item: unknown): item is [string, string][] {
 
 export function normalizeDashboard(data: unknown, defaultParams: QueryParams): QueryParams {
   if (isObject(data) && isUrlSearchArray(data.searchParams)) {
-    return urlDecode(toTreeObj(arrToObj(data.searchParams)), defaultParams);
+    const dashboardParam = urlDecode(toTreeObj(arrToObj(data.searchParams)), defaultParams);
+    //fix save page
+    dashboardParam.tabNum = '-1';
+
+    return dashboardParam;
   }
   return defaultParams;
 }

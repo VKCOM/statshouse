@@ -20,29 +20,33 @@ export type ApiQuery = {
 /**
  * Get params endpoint api/query
  */
-export type ApiQueryGet = {
-  [GET_PARAMS.metricName]?: string;
-  [GET_PARAMS.numResults]: string;
-  [GET_PARAMS.metricWhat]: QueryWhat[];
-  [GET_PARAMS.toTime]: string;
-  [GET_PARAMS.fromTime]: string;
-  [GET_PARAMS.width]: string;
-  [GET_PARAMS.version]?: MetricValueBackendVersion;
-  [GET_PARAMS.metricFilter]?: string[];
-  [GET_PARAMS.metricGroupBy]?: string[];
-  [GET_PARAMS.metricAgg]?: string;
-  [GET_PARAMS.metricPromQL]?: string;
-  [GET_PARAMS.metricTimeShifts]?: string[];
-  [GET_PARAMS.metricMaxHost]?: typeof GET_BOOLEAN.true;
-  [GET_PARAMS.metricVerbose]?: typeof GET_BOOLEAN.true | typeof GET_BOOLEAN.false;
-  [GET_PARAMS.dataFormat]?: string;
-  [GET_PARAMS.avoidCache]?: string;
-  [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
-  [GET_PARAMS.priority]?: string;
-  // [GetParams.metricFromEnd]?:string;
-  // [GetParams.metricFromRow]?:string;
-  // [GetParams.metricToRow]?:string;
-};
+export type ApiQueryGet =
+  | {
+      [GET_PARAMS.metricName]?: string;
+      [GET_PARAMS.numResults]: string;
+      [GET_PARAMS.metricWhat]: QueryWhat[];
+      [GET_PARAMS.toTime]: string;
+      [GET_PARAMS.fromTime]: string;
+      [GET_PARAMS.width]: string;
+      [GET_PARAMS.version]?: MetricValueBackendVersion;
+      [GET_PARAMS.metricFilter]?: string[];
+      [GET_PARAMS.metricGroupBy]?: string[];
+      [GET_PARAMS.metricAgg]?: string;
+      [GET_PARAMS.metricPromQL]?: string;
+      [GET_PARAMS.metricTimeShifts]?: string[];
+      [GET_PARAMS.metricMaxHost]?: typeof GET_BOOLEAN.true;
+      [GET_PARAMS.metricVerbose]?: typeof GET_BOOLEAN.true | typeof GET_BOOLEAN.false;
+      [GET_PARAMS.dataFormat]?: string;
+      [GET_PARAMS.avoidCache]?: string;
+      [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
+      [GET_PARAMS.priority]?: string;
+      // [GetParams.metricFromEnd]?:string;
+      // [GetParams.metricFromRow]?:string;
+      // [GetParams.metricToRow]?:string;
+    }
+  | Partial<Record<string, string | string[]>>;
+
+export type ApiQueryVariableGet = Partial<Record<string, string>>;
 
 /**
  * Post params endpoint api/query

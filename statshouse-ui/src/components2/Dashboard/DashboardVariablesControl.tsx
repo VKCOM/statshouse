@@ -1,10 +1,32 @@
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import React, { memo } from 'react';
+import { useStatsHouseShallow } from '../../store2';
+import { PlotControlFilterVariable } from '../Plot/PlotControl/PlotControlFilterVariable';
+import cn from 'classnames';
 
 export type DashboardVariablesControlProps = {
   className?: string;
 };
 
 export function _DashboardVariablesControl({ className }: DashboardVariablesControlProps) {
-  return <></>;
+  const { orderVariables } = useStatsHouseShallow(({ params: { orderVariables } }) => ({ orderVariables }));
+  return (
+    <div className={cn(className)}>
+      <div className="row">
+        {orderVariables.map((variableKey) => (
+          <PlotControlFilterVariable
+            className={'col-12 col-lg-3 col-md-6 mb-2'}
+            key={variableKey}
+            variableKey={variableKey}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 export const DashboardVariablesControl = memo(_DashboardVariablesControl);

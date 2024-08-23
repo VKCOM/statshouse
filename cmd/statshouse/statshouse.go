@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -45,8 +46,6 @@ var (
 	logOk  *log.Logger
 	logErr *log.Logger
 	logFd  *os.File
-
-	sigLogRotate = syscall.SIGUSR1
 )
 
 func reopenLog() {
@@ -60,6 +59,8 @@ func reopenLog() {
 	logOk.SetOutput(logFd)
 	logErr.SetOutput(logFd)
 }
+
+var globalStart = time.Now() // TODO - remove
 
 func main() {
 	os.Exit(runMain())
@@ -266,11 +267,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
-	envLoader, closeF, err := env.ListenEnvFile(argv.envFilePath)
-	if err != nil {
-		logErr.Printf("failed to start listen env file: %s", err.Error())
-	}
-	defer closeF()
+	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
+
 	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
@@ -314,34 +312,36 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--log-level should be either 'trace', 'info' or empty (which is synonym for 'info')")
 		return 1
 	}
-	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
-		if err != nil {
-			logErr.Printf("ListenUDP: %v", err)
-			return 1
+	listenUDP := func(network string, addr string) error {
+		if argv.coresUDP == 0 || addr == "" {
+			return nil
 		}
-		defer func() { _ = u.Close() }()
+		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, false, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("listen %q failed: %v", network, err)
+			return err
+		}
 		receiversUDP = append(receiversUDP, u)
-		if argv.listenAddrIPv6 != "" {
-			ipv6u, err := receiver.ListenUDP("udp", argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		for i := 1; i < argv.coresUDP; i++ {
+			dup, err := u.Duplicate()
 			if err != nil {
-				logErr.Printf("ListenUDP IPv6: %v", err)
-				return 1
+				logErr.Printf("duplicate listen socket failed: %v", err)
+				return err
 			}
-			defer func() { _ = ipv6u.Close() }()
-			receiversUDP = append(receiversUDP, ipv6u)
+			receiversUDP = append(receiversUDP, dup)
 		}
+		logOk.Printf("listen %q addr %q by %d cores", network, addr, argv.coresUDP)
+		return nil
 	}
-	if argv.listenAddrUnix != "" {
-		u, err := receiver.ListenUDP("unixgram", argv.listenAddrUnix, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
-		if err != nil {
-			logErr.Printf("ListenUDP Unix: %v", err)
-			return 1
-		}
-		defer func() { _ = u.Close() }()
-		receiversUDP = append(receiversUDP, u)
+	if err := listenUDP("udp4", argv.listenAddr); err != nil {
+		return 1
 	}
-	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
+	if err := listenUDP("udp6", argv.listenAddrIPv6); err != nil {
+		return 1
+	}
+	if err := listenUDP("unixgram", argv.listenAddrUnix); err != nil {
+		return 1
+	}
 	sh2.Run(0, 0, 0)
 	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
 
@@ -378,14 +378,19 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 	}
 
-	for _, u := range receiversUDP {
-		go func(u *receiver.UDP) {
+	receiversWG := sync.WaitGroup{}
+	for i, u := range receiversUDP {
+		receiversWG.Add(1)
+		go func(u *receiver.UDP, num int) {
 			err := u.Serve(w)
 			if err != nil {
 				logErr.Fatalf("Serve: %v", err)
 			}
-		}(u)
+			log.Printf("UDP listener %d finished", num)
+			receiversWG.Done()
+		}(u, i)
 	}
+	log.Printf("agent finished loading in %v", time.Since(globalStart))
 
 	// Open port
 	listeners := make([]net.Listener, 0, 2)
@@ -446,23 +451,32 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 	}
 	chSignal := make(chan os.Signal, 1)
-	signal.Notify(chSignal, syscall.SIGINT, sigLogRotate)
+	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGUSR1)
 
 loop:
 	for {
 		sig := <-chSignal
 		switch sig {
 		case syscall.SIGINT:
-			logOk.Printf("Shutting down...")
-			w.wait()
 			break loop
-
-		case sigLogRotate:
+		case syscall.SIGUSR1:
 			logOk.Printf("Logrotate")
 			reopenLog()
 		}
 	}
-
+	logOk.Printf("Shutting down...")
+	// 1. shutdown recent and historic sender goroutines
+	// 2. wait until all sender goroutines quit or 10 seconds
+	// 3. shutdown receivers and wait them finish
+	for _, u := range receiversUDP {
+		_ = u.Close()
+	}
+	receiversWG.Wait()
+	logOk.Printf("UDP receivers finished...")
+	// 4. stop mapping queues, all events there will be lost
+	// 5. flush Current and Next buckets into future queue, and future queue to compressor until finished
+	// 6. wait compressor to finish
+	// 7. write to disk all HistoricBucketsToSend
 	logOk.Printf("Bye")
 	return 0
 }

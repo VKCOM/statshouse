@@ -31,7 +31,7 @@ func Queue_Race(t *testing.T, q *Queue, max, perClient int) {
 			for i := 0; i < loops; i++ {
 				err := q.Acquire(context.Background(), token)
 				if err != nil {
-					t.Errorf(err.Error())
+					t.Error(err.Error())
 				}
 				currentActive.Add(1)
 				require.LessOrEqual(t, currentActive.Load(), int64(max))

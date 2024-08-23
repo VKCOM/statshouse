@@ -1,5 +1,11 @@
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import React, { memo, useCallback } from 'react';
-import { VariableControl } from '../../../components';
+import { VariableControl } from 'components';
 import { setUpdatedVariable, useVariableListStore } from 'store2/variableList';
 import { VariableKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
@@ -57,6 +63,15 @@ export function _PlotControlFilterVariable({ className, variableKey }: PlotContr
     [setParams]
   );
 
+  const onSetUpdatedVariable = useCallback(
+    (variableKey: VariableKey | undefined, value: boolean) => {
+      if (variable?.name) {
+        setUpdatedVariable(variable?.name, value);
+      }
+    },
+    [variable?.name]
+  );
+
   return (
     <VariableControl<VariableKey>
       target={variableKey}
@@ -74,7 +89,7 @@ export function _PlotControlFilterVariable({ className, variableKey }: PlotContr
       values={!variable?.negative ? variable?.values : undefined}
       notValues={variable?.negative ? variable?.values : undefined}
       onChange={setValuesVariable}
-      setOpen={setUpdatedVariable}
+      setOpen={onSetUpdatedVariable}
     />
   );
 }

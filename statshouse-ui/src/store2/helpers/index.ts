@@ -11,7 +11,6 @@ export * from './lib';
 export * from './produceUpdate';
 export { getUrl } from './getUrl';
 export { addPlot } from './addPlot';
-export { removePlot } from './removePlot';
 export { addPlotByUrl } from './addPlotByUrl';
 export { getAddPlotLink } from './getAddPlotLink';
 export { getSinglePlotLink } from './getSinglePlotLink';

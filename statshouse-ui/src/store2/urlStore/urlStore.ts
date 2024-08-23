@@ -35,6 +35,8 @@ import {
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
+import { getAutoSearchVariable } from './getAutoSearchVariable';
+import { updateTitle } from './updateTitle';
 
 export type UrlStore = {
   params: QueryParams;
@@ -61,38 +63,136 @@ export type UrlStore = {
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
   moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
+  autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
+  removeDashboard(): Promise<void>;
+  updateTitle(): void;
 };
 
-export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState) => {
+/*export function checkUpdatePlot(plotKey: PlotKey, store: StatsHouseStore, prevStore: StatsHouseStore): boolean {
+  if (store.liveMode && store.plotsData[plotKey]?.numQueries) {
+    return false;
+  }
+  const plot = store.params.plots[plotKey];
+  const prevPlot = prevStore.params.plots[plotKey];
+  const dataPlot = store.plotsData[plotKey]?.lastPlotParams;
+  if (plot) {
+    if (!prevPlot || !dataPlot) {
+      return true;
+    }
+    if (
+      plot.filterIn !== prevPlot.filterIn ||
+      plot.filterNotIn !== prevPlot.filterNotIn ||
+      plot.groupBy !== prevPlot.groupBy ||
+      plot.numSeries !== prevPlot.numSeries ||
+      plot.what !== prevPlot.what ||
+      plot.promQL !== prevPlot.promQL ||
+      plot.customAgg !== prevPlot.customAgg ||
+      plot.maxHost !== prevPlot.maxHost ||
+      plot.useV2 !== prevPlot.useV2 ||
+      plot.type !== prevPlot.type ||
+      plot.filterIn !== dataPlot.filterIn ||
+      plot.filterNotIn !== dataPlot.filterNotIn ||
+      plot.groupBy !== dataPlot.groupBy ||
+      plot.numSeries !== dataPlot.numSeries ||
+      plot.what !== dataPlot.what ||
+      plot.promQL !== dataPlot.promQL ||
+      plot.customAgg !== dataPlot.customAgg ||
+      plot.maxHost !== dataPlot.maxHost ||
+      plot.useV2 !== dataPlot.useV2 ||
+      plot.type !== dataPlot.type
+    ) {
+      return true;
+    }
+  }
+
+  // change plot param
+  // if (!dequal(store.params.plots[plotKey], prevStore.params.plots[plotKey])) {
+  //   return true;
+  // }
+  // change plot param
+  // if (
+  //   !dequal(store.params.plots[plotKey], store.plotsData[plotKey]?.lastPlotParams) &&
+  //   !store.plotsData[plotKey]?.numQueries
+  // ) {
+  //   return true;
+  // }
+
+  return false;
+}
+
+export function updatePlotList(store: StatsHouseStore, prevStore: StatsHouseStore): PlotKey[] {
+  const first: PlotKey[] = [];
+  const second: PlotKey[] = [];
+  const third: PlotKey[] = [];
+
+  store.params.orderPlot.forEach((pK) => {
+    if (pK === store.params.tabNum && checkUpdatePlot(pK, store, prevStore)) {
+      first.push(pK);
+    } else if (store.plotVisibilityList[pK] && checkUpdatePlot(pK, store, prevStore)) {
+      second.push(pK);
+    } else if (store.plotPreviewList[pK] && checkUpdatePlot(pK, store, prevStore)) {
+      third.push(pK);
+    }
+  });
+
+  const plotsKeyUpdate = [...first, ...second, ...third];
+  if (plotsKeyUpdate.length) {
+    console.log('plotsKeyUpdate', { first, second, third, plotsKeyUpdate });
+  } else {
+    console.log('plotsKeyUpdate skip');
+  }
+  // console.log('list', list);
+  return plotsKeyUpdate;
+}*/
+
+export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState, store) => {
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
 
   function updateUrlState() {
-    getUrlState(getState().saveParams, prevLocation, getState().setUrlStore)
-      .then((res) => {
-        setState((s) => {
-          s.isEmbed = isEmbedPath(prevLocation);
-          s.params = mergeLeft(s.params, res.params);
-          s.saveParams = mergeLeft(s.saveParams, res.saveParams);
-        });
-      })
-      .finally(() => {
-        getState().updatePlotsInfo();
+    getUrlState(getState().saveParams, prevLocation).then((res) => {
+      setState((s) => {
+        s.isEmbed = isEmbedPath(prevLocation);
+        s.params = mergeLeft(s.params, res.params);
+        s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+        if (s.params.tabNum === '-2') {
+          s.dashboardLayoutEdit = true;
+        }
       });
+      if (res.reset) {
+        updateHistory(
+          produce(getState(), (p) => {
+            p.params = res.params;
+          }),
+          true
+        );
+      }
+      getState().updatePlotsData();
+      // console.log('updateUrlState', getState().params, getState().saveParams);
+    });
+    // .finally(() => {
+    //   getState().updatePlotsInfo();
+    // });
   }
 
-  function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
-    const nextState = produce(getState(), next);
-    const search = getUrl(nextState);
+  function updateHistory(state: StatsHouseStore, replace: boolean = false) {
+    const search = '?' + getUrl(state);
     if (prevSearch !== search) {
-      // prevSearch = search;
+      prevSearch = search;
       if (replace) {
         appHistory.replace({ search });
       } else {
         appHistory.push({ search });
       }
+      // console.log('setUrlStore');
     }
+  }
+
+  function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
+    const nextState = produce(getState(), next);
+    updateHistory(nextState, replace);
+    setState(nextState);
   }
 
   appHistory.listen(({ location }) => {
@@ -100,9 +200,39 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       prevLocation = location;
       if (isValidPath(prevLocation) && prevSearch !== prevLocation.search) {
         prevSearch = prevLocation.search;
+        // console.log('appHistory.listen');
         updateUrlState();
       }
     }
+  });
+
+  store.subscribe((state, prevState) => {
+    const {
+      params: { tabNum, plots, dashboardName },
+      plotsData,
+    } = state;
+    const {
+      params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName },
+      plotsData: prevPlotsData,
+    } = prevState;
+    if (
+      tabNum !== prevTabNum ||
+      plots[tabNum] !== prevPlots[prevTabNum] ||
+      plotsData[tabNum] !== prevPlotsData[prevTabNum] ||
+      dashboardName !== prevDashboardName
+    ) {
+      getState().updateTitle();
+    }
+    //   if (
+    //     state.params !== prevState.params ||
+    //     state.plotVisibilityList !== prevState.plotVisibilityList ||
+    //     state.plotPreviewList !== prevState.plotPreviewList
+    //   ) {
+    //     console.time('store.subscribe');
+    //     const plots = updatePlotList(state, prevState);
+    //     console.timeEnd('store.subscribe');
+    //     plots.forEach(state.loadPlotData);
+    //   }
   });
 
   const saveParams = getDefaultParams();
@@ -117,22 +247,30 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setUrlStore,
     dashboardLayoutEdit: false,
     setParams(next: ProduceUpdate<QueryParams>, replace) {
+      // console.log('setParams');
       setUrlStore(updateParams(next), replace);
+      getState().updatePlotsData();
     },
     setTimeRange({ from, to }, replace) {
+      // console.log('setTimeRange');
       setUrlStore(updateTimeRange(from, to), replace);
+      getState().updatePlotsData();
     },
     setPlot(plotKey, next, replace) {
+      // console.log('setPlots');
       setUrlStore(updatePlot(plotKey, next), replace);
+      getState().loadPlotData(plotKey);
     },
     setPlotType(plotKey, nextType, replace) {
       setUrlStore(updatePlotType(plotKey, nextType), replace);
+      getState().loadPlotData(plotKey);
     },
     setPlotYLock(plotKey, status, yLock?: { min: number; max: number }) {
       setUrlStore(updatePlotYLock(plotKey, status, yLock));
     },
     resetZoom(plotKey: PlotKey) {
       setUrlStore(updateResetZoom(plotKey));
+      getState().updatePlotsData();
     },
     removePlot(plotKey: PlotKey) {
       setUrlStore(
@@ -147,15 +285,19 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     timeRangePanLeft() {
       setUrlStore(timeRangePanLeft());
+      getState().updatePlotsData();
     },
     timeRangePanRight() {
       setUrlStore(timeRangePanRight());
+      getState().updatePlotsData();
     },
     timeRangeZoomIn() {
       setUrlStore(timeRangeZoomIn());
+      getState().updatePlotsData();
     },
     timeRangeZoomOut() {
       setUrlStore(timeRangeZoomOut());
+      getState().updatePlotsData();
     },
     toggleGroupShow(groupKey) {
       setUrlStore(toggleGroupShow(groupKey));
@@ -164,6 +306,13 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setState((s) => {
         s.dashboardLayoutEdit = status;
       });
+      if (!status) {
+        setUrlStore((s) => {
+          if (s.params.tabNum === '-2') {
+            s.params.tabNum = '-1';
+          }
+        });
+      }
     },
     moveDashboardGroup(groupKey, direction) {
       setUrlStore(
@@ -240,8 +389,17 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         );
       }
     },
+    async autoSearchVariable() {
+      return getAutoSearchVariable(getState);
+    },
     async saveDashboard() {
       //todo: save dash
+    },
+    async removeDashboard() {
+      //todo: remove dash
+    },
+    updateTitle() {
+      updateTitle(getState());
     },
   };
 };

@@ -86,6 +86,9 @@ export function updateParamsByPlotStruct(
     groups[groupId] = { ...g.groupInfo, id: groupId, count: g.plots.length };
     return groupId;
   });
+  orderVariables.forEach((vId) => {
+    variables[vId]?.link.sort((a, b) => +a[0] - +b[0]);
+  });
   return {
     ...params,
     orderVariables,
@@ -120,4 +123,8 @@ export function getNextGroupKey(params: Pick<QueryParams, 'orderGroup'>): GroupK
 
 export function getNextPlotKey(params: Pick<QueryParams, 'orderPlot'>): GroupKey {
   return (Math.max(-1, ...params.orderPlot.map(toNumberM).filter(isNotNil)) + 1).toString();
+}
+
+export function getNextVariableSourceKey(params: Pick<VariableParams, 'sourceOrder'>): VariableKey {
+  return (Math.max(-1, ...params.sourceOrder.map(toNumberM).filter(isNotNil)) + 1).toString();
 }

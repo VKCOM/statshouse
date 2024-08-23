@@ -23,6 +23,7 @@ import (
 )
 
 type autoCreate struct {
+	agg        *Aggregator
 	client     *tlmetadata.Client
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
@@ -32,9 +33,10 @@ type autoCreate struct {
 	ctx        context.Context
 	shutdownFn func()
 
-	defaultNamespaceAllowed bool
-	knownTags               KnownTags
-	knownTagsMu             sync.RWMutex
+	defaultNamespaceAllowed bool      // never changes
+	knownTags               KnownTags // protected by "configMu"
+	scrapeNamespaces        []int32   // protected by "configMu"
+	configMu                sync.RWMutex
 
 	running bool // guard against double "run"
 }
@@ -51,8 +53,9 @@ type KnownTagsJSON struct {
 	Groups    map[string]map[string]string `json:"groups,omitempty"`     // group name -> tag name -> tag ID
 }
 
-func newAutoCreate(client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
+func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
 	ac := &autoCreate{
+		agg:                     a,
 		client:                  client,
 		args:                    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
 		defaultNamespaceAllowed: defaultNamespaceAllowed,
@@ -72,16 +75,33 @@ func (ac *autoCreate) run(storage *metajournal.MetricsStorage) {
 }
 
 func (ac *autoCreate) applyConfig(configID int32, configS string) {
-	if configID != format.KnownTagsConfigID {
-		return
+	switch configID {
+	case format.KnownTagsConfigID:
+		if v, err := ParseKnownTags([]byte(configS), ac.storage); err == nil {
+			ac.configMu.Lock()
+			ac.knownTags = v
+			ac.configMu.Unlock()
+		}
+	case format.PrometheusConfigID:
+		if s, err := DeserializeScrapeConfig([]byte(configS), ac.storage); err == nil {
+			var scrapeNamespaces []int32
+			if len(s) != 0 {
+				scrapeNamespaces = make([]int32, 0, len(s))
+				for i := range s {
+					namespaceID := s[i].Options.NamespaceID
+					switch namespaceID {
+					case 0, format.BuiltinNamespaceIDDefault:
+						// autocreate disabled for metrics without namespace
+					default:
+						scrapeNamespaces = append(scrapeNamespaces, namespaceID)
+					}
+				}
+			}
+			ac.configMu.Lock()
+			ac.scrapeNamespaces = scrapeNamespaces
+			ac.configMu.Unlock()
+		}
 	}
-	knownTags, err := ParseKnownTags([]byte(configS), ac.storage)
-	if err != nil {
-		return
-	}
-	ac.knownTagsMu.Lock()
-	ac.knownTags = knownTags
-	ac.knownTagsMu.Unlock()
 }
 
 func (ac *autoCreate) shutdown() {
@@ -201,9 +221,8 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			return fmt.Errorf("RestoreCachedInfo failed: %w", err)
 		}
 	}
-	defaultNamespace := value.NamespaceID == 0 || value.NamespaceID == format.BuiltinNamespaceIDDefault
-	if defaultNamespace && !ac.defaultNamespaceAllowed {
-		return nil // autocreation disabled for metrics without namespace
+	if !ac.namespaceAllowed(value.NamespaceID) {
+		return nil // autocreate disabled for this namespace
 	}
 	// map tags
 	var newTagDraftCount int
@@ -256,16 +275,26 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			Data:      string(data),
 		},
 	}
-	edit.SetCreate(!metricExists)
+	var tags [16]int32
+	if metricExists {
+		tags[1] = 2 // edit
+	} else {
+		tags[1] = 1 // create
+		edit.SetCreate(true)
+	}
 	// issue RPC call
 	var ret tlmetadata.Event
 	ctx, cancel := context.WithTimeout(ac.ctx, time.Minute)
 	defer cancel()
 	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)
 	if err != nil {
+		tags[2] = 2 // failure
+		ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 		return fmt.Errorf("failed to create or update metric: %w", err)
 	}
 	// succeeded, wait a bit until changes applied locally
+	tags[2] = 1 // success
+	ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
 	_ = ac.storage.Journal().WaitVersion(ctx, ret.Version)
@@ -273,12 +302,27 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 }
 
 func (ac *autoCreate) publishDraftTags(meta *format.MetricMetaValue) int {
-	ac.knownTagsMu.RLock()
-	defer ac.knownTagsMu.RUnlock()
+	ac.configMu.RLock()
+	defer ac.configMu.RUnlock()
 	if len(ac.knownTags) == 0 {
 		return 0
 	}
 	return ac.knownTags.PublishDraftTags(meta)
+}
+
+func (ac *autoCreate) namespaceAllowed(namespaceID int32) bool {
+	defaultNamespace := namespaceID == 0 || namespaceID == format.BuiltinNamespaceIDDefault
+	if defaultNamespace {
+		return ac.defaultNamespaceAllowed
+	}
+	ac.configMu.RLock()
+	defer ac.configMu.RUnlock()
+	for _, v := range ac.scrapeNamespaces {
+		if v == namespaceID {
+			return true
+		}
+	}
+	return false
 }
 
 func (ac *autoCreate) done() bool {

@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"gopkg.in/yaml.v2"
 )
 
@@ -44,43 +43,34 @@ func (l *Loader) Load() Env {
 	return l.env
 }
 
+func getStamps(path string) (time.Time, int64) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}, 0
+	}
+	return fi.ModTime(), fi.Size()
+}
+
 // if error return empty Env
-func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
+func ListenEnvFile(filePath string) (*Loader, error) {
 	l := &Loader{}
-	emptyFunc := func() {}
 	if filePath == "" {
-		return l, emptyFunc, nil
+		return l, nil
 	}
-	l.env, _ = ReadEnvFile(filePath)
-	log.Printf("read env file: %+v", l.env)
-	w, err := fsnotify.NewWatcher()
-	if err != nil {
-		return l, emptyFunc, err
-	}
-	err = w.Add(filePath)
-	if err != nil {
-		return l, emptyFunc, err
-	}
+
+	lastTime, lastSize := getStamps(filePath)
+	l.env, _ = ReadEnvFileWithLog(filePath)
+
 	go func() {
 		for {
-			var ok bool
-			var err error
-			select {
-			case _, ok = <-w.Events:
-			case err, ok = <-w.Errors:
-			}
-			if err != nil {
-				log.Println("env watching error:", err.Error())
-				time.Sleep(10 * time.Second)
+			time.Sleep(time.Second)
+			t, s := getStamps(filePath)
+			if lastTime == t && lastSize == s {
 				continue
 			}
-			if !ok {
-				break
-			}
-			envYaml, err := ReadEnvFile(filePath)
+			lastTime, lastSize = t, s
+			envYaml, err := ReadEnvFileWithLog(filePath)
 			if err != nil {
-				log.Println("env reading error:", err.Error())
-				time.Sleep(10 * time.Second)
 				continue
 			}
 			l.mx.Lock()
@@ -88,9 +78,17 @@ func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
 			l.mx.Unlock()
 		}
 	}()
-	return l, func() {
-		_ = w.Close()
-	}, nil
+	return l, nil
+}
+
+func ReadEnvFileWithLog(filePath string) (Env, error) {
+	env, err := ReadEnvFile(filePath)
+	if err != nil {
+		log.Printf("env reading error: %v", err)
+	} else {
+		log.Printf("read env file: %+v", env)
+	}
+	return env, err
 }
 
 func ReadEnvFile(filePath string) (Env, error) {

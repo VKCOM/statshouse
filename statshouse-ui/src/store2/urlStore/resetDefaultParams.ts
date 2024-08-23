@@ -8,14 +8,10 @@ import { getHomePlot, QueryParams, readTimeRange } from 'url2';
 import { produce } from 'immer';
 import { globalSettings } from 'common/settings';
 import { TIME_RANGE_KEYS_TO } from '../../api/enum';
-import { addPlot, ProduceUpdate, timeRangeAbbrevExpand } from '../helpers';
+import { addPlot, timeRangeAbbrevExpand } from '../helpers';
 import { defaultBaseRange } from '../constants';
-import { UrlStore } from './urlStore';
 
-export function resetDefaultParams(
-  params: QueryParams,
-  setUrlStore: (next: ProduceUpdate<UrlStore>, replace?: boolean) => void
-) {
+export function resetDefaultParams(params: QueryParams) {
   let reset = false;
   if (Object.keys(params.plots).length === 0) {
     params = addPlot(getHomePlot(), params);
@@ -48,8 +44,6 @@ export function resetDefaultParams(
     }
   });
   if (reset && params.dashboardId == null) {
-    setUrlStore((p) => {
-      p.params = params;
-    }, true);
+    return params;
   }
 }

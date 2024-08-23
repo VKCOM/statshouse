@@ -322,7 +322,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	promConfigGeneratedData := ""
 	knownTagsSet := false
 	knownTagsData := ""
-	ms.mu.Lock()
+
 	for _, e := range newEntries {
 		switch e.EventType {
 		case format.MetricEvent:
@@ -338,6 +338,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.MetricID = int32(e.Id) // TODO - beware!
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo()
+			ms.mu.Lock()
 			valueOld, ok := ms.metricsByID[value.MetricID]
 			if ok && valueOld.Name != value.Name {
 				delete(ms.metricsByName, valueOld.Name)
@@ -345,6 +346,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.updateMetric(value)
 			ms.calcGroupForMetricLocked(value)
 			ms.calcNamespaceForMetricLocked(value)
+			ms.mu.Unlock()
 		case format.DashboardEvent:
 			m := map[string]interface{}{}
 			err := json.Unmarshal([]byte(e.Data), &m)
@@ -359,7 +361,10 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				JSONData:    m,
 				DeleteTime:  e.Unused,
 			}
+
+			ms.mu.Lock()
 			ms.dashboardByID[dash.DashboardID] = dash
+			ms.mu.Unlock()
 		case format.MetricsGroupEvent:
 			value := &format.MetricsGroup{}
 			err := json.Unmarshal([]byte(e.Data), value)
@@ -373,6 +378,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.NamespaceID = int32(e.NamespaceId)
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo(value.ID < 0)
+			ms.mu.Lock()
 			var old *format.MetricsGroup
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]
@@ -385,7 +391,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			}
 			ms.calcGroupForMetricsLocked(old, value)
 			ms.calcGroupNamesMapLocked()
+			ms.mu.Unlock()
 		case format.PromConfigEvent:
+			ms.mu.Lock()
 			switch e.Id {
 			case format.PrometheusConfigID:
 				ms.promConfig = e
@@ -400,6 +408,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				knownTagsSet = true
 				knownTagsData = e.Data
 			}
+			ms.mu.Unlock()
 		case format.NamespaceEvent:
 			value := &format.NamespaceMeta{}
 			err := json.Unmarshal([]byte(e.Data), value)
@@ -412,6 +421,8 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.Version = e.Version
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo(value.ID < 0)
+
+			ms.mu.Lock()
 			if value.ID >= 0 {
 				if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
 					delete(ms.namespaceByName, oldNamespace.Name)
@@ -424,9 +435,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			}
 			ms.calcNamespaceForMetricsAndGroupsLocked(value)
 			ms.calcGroupNamesMapLocked()
+			ms.mu.Unlock()
 		}
 	}
-	ms.mu.Unlock()
 	if ms.applyPromConfig != nil {
 		// outside of lock, once
 		if promConfigSet {

@@ -23,7 +23,11 @@ export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStor
     setState((state) => {
       state.plotVisibilityList[plotKey] = state.params.tabNum === plotKey || toggle;
     });
-
+    if (toggle) {
+      if (!getState().plotsData[plotKey]?.numQueries) {
+        getState().loadPlotData(plotKey);
+      }
+    }
     // todo:
     // if (toggle) {
     //   if (!useUrlStore.getState().numQueriesPlot[plotKey]) {
@@ -40,11 +44,11 @@ export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStor
     setState((state) => {
       state.plotPreviewList[plotKey] = state.params.tabNum === plotKey || toggle;
     });
-
-    // todo:
-    // if (toggle && !useUrlStore.getState().numQueriesPlot[plotKey]) {
-    //   useUrlStore.getState().loadPlot(plotKey);
-    // }
+    if (toggle) {
+      if (!getState().plotsData[plotKey]?.numQueries) {
+        getState().loadPlotData(plotKey);
+      }
+    }
   },
   clearPlotVisibility(plotKey) {
     setState((state) => {

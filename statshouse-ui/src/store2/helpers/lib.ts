@@ -7,12 +7,19 @@
 import { type PlotParams, promQLMetric } from 'url2';
 import { type PlotData } from '../plotDataStore';
 import { whatToWhatDesc } from '../../view/api';
+import { MetricMeta } from '../metricsMetaStore';
 
-export function getMetricName(plot: PlotParams, plotData?: PlotData) {
+export function getMetricName(plot?: PlotParams, plotData?: PlotData) {
+  if (!plot) {
+    return '';
+  }
   return (plot.metricName !== promQLMetric ? plot.metricName : plotData?.metricName) || `plot#${plot.id}`;
 }
 
-export function getMetricWhat(plot: PlotParams, plotData?: PlotData) {
+export function getMetricWhat(plot?: PlotParams, plotData?: PlotData) {
+  if (!plot) {
+    return '';
+  }
   return (
     (plot.metricName === promQLMetric
       ? plotData?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
@@ -20,11 +27,21 @@ export function getMetricWhat(plot: PlotParams, plotData?: PlotData) {
   );
 }
 
-export function getMetricFullName(plot: PlotParams, plotData?: PlotData) {
+export function getMetricFullName(plot?: PlotParams, plotData?: PlotData) {
+  if (!plot) {
+    return '';
+  }
   if (plot.customName) {
     return plot.customName;
   }
   const metricName = getMetricName(plot, plotData);
   const metricWhat = getMetricWhat(plot, plotData);
   return metricName ? `${metricName}${!!metricWhat ? ': ' + metricWhat : ''}` : '';
+}
+
+export function getMetricMeta(metricMeta: Partial<Record<string, MetricMeta>>, plot?: PlotParams, plotData?: PlotData) {
+  if (!plot) {
+    return;
+  }
+  return metricMeta[(plot.metricName !== promQLMetric ? plot.metricName : plotData?.metricName) || ''];
 }

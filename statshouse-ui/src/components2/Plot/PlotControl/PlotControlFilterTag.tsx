@@ -15,6 +15,7 @@ import cn from 'classnames';
 import { setUpdatedTag, useVariableListStore } from 'store2/variableList';
 import { type PlotKey, QueryParams } from 'url2';
 import { useStatsHouseShallow } from 'store2';
+import { useVariableLink } from 'hooks/useVariableLink';
 
 export type PlotControlFilterTagProps = {
   plotKey: PlotKey;
@@ -23,16 +24,18 @@ export type PlotControlFilterTagProps = {
 };
 
 export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotControlFilterTagProps) {
-  const { filterIn, filterNotIn, groupBy, variables, variableInfo, meta, setParams } = useStatsHouseShallow((s) => ({
+  const { filterIn, filterNotIn, groupBy, variables, meta, setParams } = useStatsHouseShallow((s) => ({
     // metricName: s.params.plots[plotKey]?.metricName ?? '',
     filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
     filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
     groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
     variables: s.params.variables,
-    variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
+    // variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
     meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
     setParams: s.setParams,
   }));
+
+  const variableInfo = useVariableLink(plotKey, tagKey);
   const variable = (variableInfo?.variableKey && variables[variableInfo.variableKey]) || undefined;
   // const meta = useMetricsStore((s) => s.meta[metricName]);
   const tagList = useVariableListStore((s) => s.tags[plotKey]?.[tagKey]);

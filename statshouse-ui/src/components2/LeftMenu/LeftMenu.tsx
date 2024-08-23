@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -10,7 +16,6 @@ import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-s
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
 import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
-import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
 // import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 // import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 // import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
@@ -20,11 +25,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { globalSettings } from 'common/settings';
 import cn from 'classnames';
 import { setDevEnabled, setTheme, THEMES, toTheme, useStore, useStoreDev, useThemeStore } from 'store';
-import { getClipboard } from '../../common/helpers';
-import { MetricName } from '../Plot';
+import { getClipboard } from 'common/helpers';
 import { useStatsHouseShallow } from 'store2';
-import { addPlotByUrl } from '../../store2/helpers';
+import { addPlotByUrl } from 'store2/helpers';
 import { produce } from 'immer';
+import { useAddLinkPlot, useLinkPlot } from 'hooks';
+import { LeftMenuPlotItem } from './LeftMenuPlotItem';
+import { prepareItemsGroup } from 'common/prepareItemsGroup';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -43,36 +50,25 @@ export function LeftMenu({ className }: LeftMenuProps) {
   const location = useLocation();
   const devEnabled = useStoreDev((s) => s.enabled);
   const theme = useThemeStore((s) => s.theme);
-  const {
-    tabNum,
-    setUrlStore,
-    user,
-    paramsTheme,
-    dashboardLink,
-    orderPlot,
-    addLink,
-    plotsLink,
-    plotsData,
-    promqltestfailed,
-  } = useStatsHouseShallow(
-    ({
-      params: { theme, tabNum, orderPlot },
-      plotsData,
-      setUrlStore,
-      user,
-      links: { dashboardLink, addLink, plotsLink },
-    }) => ({
-      tabNum,
-      setUrlStore,
-      user,
-      paramsTheme: theme,
-      dashboardLink,
-      orderPlot,
-      addLink,
-      plotsLink,
-      plotsData,
-      promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
-    })
+  const { tabNum, setUrlStore, user, paramsTheme, orderPlot, groups, orderGroup, promqltestfailed } =
+    useStatsHouseShallow(
+      ({ params: { theme, tabNum, orderPlot, groups, orderGroup }, plotsData, setUrlStore, user }) => ({
+        tabNum,
+        setUrlStore,
+        user,
+        paramsTheme: theme,
+        orderPlot,
+        groups,
+        orderGroup,
+        promqltestfailed: Object.values(plotsData).some((d) => d?.promqltestfailed),
+      })
+    );
+  const viewPlots = useMemo(
+    () =>
+      prepareItemsGroup({ groups, orderGroup, orderPlot }).flatMap(({ plots, groupKey }) =>
+        groups[groupKey]?.show ? plots : []
+      ),
+    [groups, orderGroup, orderPlot]
   );
   const isView = location.pathname.indexOf('view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
@@ -84,6 +80,9 @@ export function LeftMenu({ className }: LeftMenuProps) {
     }
   }, []);
   const refListMenuItemPlot = useRef<HTMLUListElement>(null);
+
+  const dashboardLink = useLinkPlot('-1', true);
+  const addLink = useAddLinkPlot(true);
 
   useEffect(() => {
     setTimeout(() => {
@@ -236,16 +235,8 @@ export function LeftMenu({ className }: LeftMenuProps) {
       ></LeftMenuItem>
       <li className={cn(css.scrollStyle, css.plotMenu)}>
         <ul ref={refListMenuItemPlot} className={cn(css.plotNav)}>
-          {orderPlot.map((plotKey) => (
-            <LeftMenuItem
-              key={plotKey}
-              icon={SVGGraphUp}
-              to={plotsLink[plotKey]?.link}
-              active={isView && tabNum === plotKey}
-              title={
-                <MetricName metricName={plotsData[plotKey]?.metricName} metricWhat={plotsData[plotKey]?.metricWhat} />
-              }
-            />
+          {viewPlots.map((plotKey) => (
+            <LeftMenuPlotItem key={plotKey} plotKey={plotKey} active={isView && tabNum === plotKey} />
           ))}
         </ul>
       </li>

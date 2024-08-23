@@ -10,16 +10,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net"
+	"os"
 	"syscall"
-
-	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+
+	"go.uber.org/atomic"
 	"golang.org/x/sys/unix"
 )
 
@@ -69,7 +71,6 @@ type UDP struct {
 	rawConn   syscall.RawConn
 	logPacket func(format string, args ...interface{})
 
-	ag                   *agent.Agent
 	batchSizeTLOK        *agent.BuiltInItemValue
 	batchSizeTLErr       *agent.BuiltInItemValue
 	batchSizeMsgPackOK   *agent.BuiltInItemValue
@@ -127,7 +128,6 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, b
 		conn:                  conn,
 		rawConn:               rawConn,
 		logPacket:             logPacket,
-		ag:                    bm,
 		batchSizeTLOK:         createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusOK),
 		batchSizeTLErr:        createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusError),
 		batchSizeMsgPackOK:    createBatchSizeValue(bm, format.TagValueIDPacketFormatMsgPack, format.TagValueIDAgentReceiveStatusOK),
@@ -147,6 +147,33 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, b
 		packetSizeLegacyErr:   createPacketSizeValue(bm, format.TagValueIDPacketFormatLegacy, format.TagValueIDAgentReceiveStatusError),
 		packetSizeEmptyErr:    createPacketSizeValue(bm, format.TagValueIDPacketFormatEmpty, format.TagValueIDAgentReceiveStatusError),
 	}, nil
+}
+
+func (u *UDP) Duplicate() (*UDP, error) {
+	result := *u // copy all fields
+	var cf *os.File
+	var err error
+	if udpConn, ok := u.conn.(*net.UDPConn); ok {
+		cf, err = udpConn.File()
+	} else if unixConn, ok := u.conn.(*net.UnixConn); ok {
+		cf, err = unixConn.File()
+	} else {
+		return nil, fmt.Errorf("must be UDP or Unix connection")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer cf.Close() // File() and FileConn() both dup FD
+	result.conn, err = net.FileConn(cf)
+	if err != nil {
+		return nil, err
+	}
+	scConn := result.conn.(syscall.Conn)
+	result.rawConn, err = scConn.SyscallConn()
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (u *UDP) Close() error {

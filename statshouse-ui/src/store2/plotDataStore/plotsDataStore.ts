@@ -15,6 +15,8 @@ import { loadPlotData } from './loadPlotData';
 import { getClearPlotsData } from './getClearPlotsData';
 import { updateClearPlotError } from './updateClearPlotError';
 import { getEmptyPlotData } from './getEmptyPlotData';
+import { dequal } from 'dequal/lite';
+import { changePlotParamForData } from './changePlotParamForData';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -82,7 +84,7 @@ export type PlotsDataStore = {
   globalNumQueries: number;
   togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
   updatePlotsData(): void;
-  loadPlotData(plotKey: PlotKey): void;
+  loadPlotData(plotKey: PlotKey, force?: boolean): void;
   globalQueryStart(): () => void;
   queryStart(plotKey: PlotKey): () => void;
   clearPlotError(plotKey: PlotKey): void;
@@ -110,20 +112,97 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     updatePlotsData() {
-      getState().viewOrderPlot.forEach((plotKey) => {
+      //todo: optimize load data
+
+      // console.log('updatePlotsData');
+      // const {
+      //   params: { orderPlot, tabNum },
+      //   plotVisibilityList,
+      //   plotPreviewList,
+      // } = getState();
+      //
+      // if (+tabNum > -1) {
+      //   getState().loadMetricMetaByPlotKey(tabNum).then();
+      //   getState().loadPlotData(tabNum);
+      // }
+      // orderPlot
+      //   .filter((plotKey) => plotKey !== tabNum && (plotVisibilityList[plotKey] || plotPreviewList[plotKey]))
+      //   .forEach((plotKey) => {
+      //     getState().loadPlotData(plotKey);
+      //   });
+
+      getState().params.orderPlot.forEach((plotKey) => {
         getState().loadPlotData(plotKey);
       });
     },
-    loadPlotData(plotKey) {
-      const queryEnd = getState().queryStart(plotKey);
-      loadPlotData(plotKey, getState().params).then((updatePlotData) => {
-        if (updatePlotData) {
-          queryEnd();
-          setState(updatePlotData);
+    loadPlotData(plotKey, force = false) {
+      // console.log('loadPlotData', plotKey);
+      const plot = getState().params.plots[plotKey];
+      const prevPlotData = getState().plotsData[plotKey];
+      const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
+      if (!force) {
+        const liveSkip = getState().liveMode.status && !!prevPlotData?.numQueries;
+        const visible = getState().plotVisibilityList[plotKey] || getState().plotPreviewList[plotKey];
+        if (liveSkip || !visible) {
+          // console.log('skip', plotKey, { liveSkip, visible });
+          return;
+        }
+      }
+      const changeMetricName = plot?.metricName !== prevPlot?.metricName;
+      if (!changeMetricName && prevPlotData?.error403) {
+        // console.log('exit 1', plotKey);
+        return;
+      }
+      if (getState().params.tabNum === plotKey) {
+        getState().loadMetricMetaByPlotKey(plotKey).then();
+      }
+      const changePlotParam = changePlotParamForData(
+        getState().params.plots[plotKey],
+        getState().plotsData[plotKey]?.lastPlotParams
+      );
+      const changeTime =
+        getState().params.timeRange.urlTo !== getState().plotsData[plotKey]?.lastTimeRange?.urlTo ||
+        getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
+      const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
+      const changeTimeShifts = dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
+      // console.log('-====-');
+      // console.log({ to: getState().params.timeRange.to, to_last: getState().plotsData[plotKey]?.lastTimeRange?.to });
+      // console.log({ plotKey, changePlotParam, changeTime, changeNowTime });
+      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts;
+      if (update || force) {
+        // console.log('loadPlotData run', plotKey);
+        // console.log({ update });
+        // setState((state) => {
+        //   const scales: UPlotWrapperPropsScales = {};
+        //   scales.x = { min: state.params.timeRange.to + state.params.timeRange.from, max: state.params.timeRange.to };
+        //   if (state.params.plots[plotKey]?.yLock.min !== 0 || state.params.plots[plotKey]?.yLock.max !== 0) {
+        //     scales.y = { ...lastPlotParams.yLock };
+        //   }
+        //   state.plotsData[index].scales = scales;
+        // });
+        const queryEnd = getState().queryStart(plotKey);
+        loadPlotData(plotKey, getState().params)
+          .then((updatePlotData) => {
+            if (updatePlotData) {
+              setState(updatePlotData);
+            }
+          })
+          .finally(() => {
+            queryEnd();
+          });
+      }
+
+      // getState().params.plots[plotKey]?.events.forEach((iPlot) => {
+      //   if (!getState().plotsData[iPlot]?.numQueries) {
+      //     getState().loadPlotData(iPlot, true);
+      //   }
+      // });
+      plot?.events.forEach((iPlot) => {
+        if (!getState().plotsData[iPlot]?.numQueries) {
+          getState().loadPlotData(iPlot, true);
         }
       });
-      const plot = getState().params.plots[plotKey];
-      if (plot?.type === PLOT_TYPE.Event) {
+      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum) {
         const { params } = getState();
         const from =
           params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom
@@ -149,12 +228,16 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         state.plotsData[plotKey] ??= getEmptyPlotData();
         state.plotsData[plotKey]!.numQueries++;
       });
+      let start = true;
       return () => {
-        setState((state) => {
-          if (state.plotsData[plotKey]) {
-            state.plotsData[plotKey]!.numQueries--;
-          }
-        });
+        if (start) {
+          start = false;
+          setState((state) => {
+            if (state.plotsData[plotKey]) {
+              state.plotsData[plotKey]!.numQueries--;
+            }
+          });
+        }
       };
     },
     clearPlotError(plotKey) {

@@ -1,10 +1,16 @@
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toNumber } from 'common/helpers';
 import css from './style.module.css';
 import cn from 'classnames';
 import { useResizeObserver } from 'view/utils';
 import { useStatsHouseShallow } from 'store2';
-import { GroupKey, PlotKey, QueryParams } from 'url2';
+import { GroupKey, PlotKey } from 'url2';
 import { Button } from 'components';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
@@ -13,6 +19,7 @@ import { toPlotKey } from 'url/queryParams';
 import { DashboardGroup } from './DashboardGroup';
 import { produce } from 'immer';
 import { getNextGroupKey } from 'store2/urlStore/updateParamsPlotStruct';
+import { prepareItemsGroup } from 'common/prepareItemsGroup';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -64,21 +71,6 @@ function getGroupStyle(width: number, size?: string): React.CSSProperties {
     '--base-cols': cols,
     '--max-cols': maxCols,
   } as React.CSSProperties;
-}
-
-function prepareItemsGroup({
-  orderGroup,
-  orderPlot,
-  groups,
-}: Pick<QueryParams, 'orderGroup' | 'orderPlot' | 'groups'>) {
-  const orderP = [...orderPlot];
-  return orderGroup.map((groupKey) => {
-    let plots = orderP.splice(0, groups[groupKey]?.count ?? 0);
-    return {
-      groupKey,
-      plots,
-    };
-  });
 }
 
 export type DashboardLayoutProps = {

@@ -34,7 +34,8 @@ export type IActions =
   | { type: 'customMapping'; tag: number; pos: number; from?: string; to?: string }
   | { type: 'preSortKey'; key: string }
   | { type: 'group_id'; key: string }
-  | { type: 'move_draft'; pos: number; tag: Partial<ITag>; tag_key: string };
+  | { type: 'move_draft'; pos: number; tag: Partial<ITag>; tag_key: string }
+  | { type: 'fair_key_tag_ids'; value?: string[] | null };
 
 export function reducer(state: IMetric, data: IActions): IMetric {
   if (!('type' in data)) {
@@ -117,6 +118,12 @@ export function reducer(state: IMetric, data: IActions): IMetric {
       newState.tags[data.pos] = { ...newState.tags[data.pos], ...data.tag };
       return newState;
     }
+  }
+  if (data.type === 'fair_key_tag_ids') {
+    return {
+      ...state,
+      fair_key_tag_ids: Array.isArray(data.value) ? data.value : undefined,
+    };
   }
   return state;
 }

@@ -863,6 +863,12 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/MetricMetaTag"
             }
+          },
+          "fair_key_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

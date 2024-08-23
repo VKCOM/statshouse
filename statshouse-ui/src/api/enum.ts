@@ -104,9 +104,11 @@ export type GetBoolean = Enum<typeof GET_BOOLEAN>;
 export const QUERY_WHAT = {
   count: 'count',
   countNorm: 'count_norm',
+  countSec: 'countsec',
   cuCount: 'cu_count',
   cardinality: 'cardinality',
   cardinalityNorm: 'cardinality_norm',
+  cardinalitySec: 'cardinalitysec',
   cuCardinality: 'cu_cardinality',
   min: 'min',
   max: 'max',
@@ -114,6 +116,7 @@ export const QUERY_WHAT = {
   cuAvg: 'cu_avg',
   sum: 'sum',
   sumNorm: 'sum_norm',
+  sumSec: 'sumsec',
   cuSum: 'cu_sum',
   stddev: 'stddev',
   maxHost: 'max_host',
@@ -131,6 +134,7 @@ export const QUERY_WHAT = {
   p999: 'p999',
   unique: 'unique',
   uniqueNorm: 'unique_norm',
+  uniqueSec: 'uniquesec',
   dvCount: 'dv_count',
   dvCountNorm: 'dv_count_norm',
   dvSum: 'dv_sum',
@@ -354,7 +358,7 @@ export const TIME_RANGE_ABBREV = {
   last180d: 'last-180d',
   last1y: 'last-1y',
   last2y: 'last-2y',
-};
+} as const;
 export type TimeRangeAbbrev = Enum<typeof TIME_RANGE_ABBREV>;
 export const isTimeRangeAbbrev = isEnum<TimeRangeAbbrev>(TIME_RANGE_ABBREV);
 export const toTimeRangeAbbrev = toEnum(isTimeRangeAbbrev);

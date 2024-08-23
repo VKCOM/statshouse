@@ -20,6 +20,7 @@ import { filterPoints } from '../../common/filterPoints';
 import { dequal } from 'dequal/lite';
 import { calcYRange2 } from '../../common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
+import { deepClone } from '../../common/helpers';
 
 export function normalizePlotData(
   response: SeriesResponse,
@@ -37,7 +38,7 @@ export function normalizePlotData(
     plotData.promqltestfailed = response.promqltestfailed;
 
     const uniqueWhat: Set<QueryWhat> = new Set();
-    const uniqueName = new Set();
+    const uniqueName: Set<string> = new Set();
     const uniqueMetricType: Set<string> = new Set();
     let series_meta = [...response.series.series_meta];
     let series_data = [...response.series.series_data];
@@ -92,6 +93,12 @@ export function normalizePlotData(
     // const currentPrevSeries = getState().plotsData[index].series.map((s) => ({ ...s, values: undefined }));
     if (uniqueName.size === 0 && currentPrevLastPlotParams && currentPrevLastPlotParams.metricName !== promQLMetric) {
       uniqueName.add(currentPrevLastPlotParams.metricName);
+    }
+    plotData.metricName = uniqueName.size === 1 ? [...uniqueName.keys()][0] : '';
+    const whats = uniqueName.size === 1 ? [...uniqueWhat.keys()] : [];
+
+    if (!dequal(plotData.whats, whats)) {
+      plotData.whats = whats;
     }
     plotData.metricUnit =
       uniqueMetricType.size === 1 ? toMetricType([...uniqueMetricType.keys()][0], METRIC_TYPE.none) : METRIC_TYPE.none;
@@ -300,6 +307,8 @@ export function normalizePlotData(
       plotData.scales.y = { min: 0, max: 0 };
     }
     plotData.promQL = response.promql;
+    plotData.lastPlotParams = deepClone(plot);
+    plotData.lastTimeRange = deepClone(timeRange);
 
     const maxLengthValue = plotData.series.reduce(
       (res, s, indexSeries) => {

@@ -247,7 +247,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	defer metrics.Run(a.server)()
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(metadataClient, config.AutoCreateDefaultNamespace)
+		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
 		defer a.autoCreate.shutdown()
 	}
 	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, func(configID int32, configS string) {

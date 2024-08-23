@@ -18,7 +18,7 @@ import { RawValueKind } from '../../view/api';
 import { freeKeyPrefix } from '../../url/queryParams';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '../../api/enum';
 import { maxTagsSize } from '../../common/settings';
-import { Button } from '../../components';
+import { Button, Select } from '../../components';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
 import { isNotNil, toNumber } from '../../common/helpers';
@@ -72,6 +72,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
           metric_type: metric.metric_type,
           version: metric.version,
           group_id: metric.group_id,
+          fair_key_tag_ids: metric.fair_key_tag_ids,
         });
       });
   }, [metricName]);
@@ -573,6 +574,48 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
         </div>
         <div id="skip_sum_squareHelpBlock" className="form-text"></div>
       </div>
+      <div className="row align-items-baseline mb-3">
+        <label htmlFor="fair_key_tag_ids" className="col-sm-2 col-form-label">
+          Fair key tags
+        </label>
+        <div className="col-sm-auto pt-1">
+          {adminMode && (
+            <Select
+              className="sh-select form-control"
+              classNameList="dropdown-menu"
+              multiple
+              options={values.tags.map((_, tI) => ({ value: tI.toString(), name: `tag ${tI}` }))}
+              value={values.fair_key_tag_ids ?? []}
+              onChange={(values) => {
+                if (adminMode) {
+                  dispatch({ type: 'fair_key_tag_ids', value: Array.isArray(values) ? values : [] });
+                }
+              }}
+            />
+          )}
+          <div className="d-flex gap-1 mt-2">
+            {!values.fair_key_tag_ids?.length && <span className="text-body-tertiary">disabled</span>}
+            {(values.fair_key_tag_ids ?? []).map((tId) => (
+              <span
+                key={tId}
+                className="badge bg-success"
+                role="button"
+                onClick={() => {
+                  if (adminMode) {
+                    dispatch({
+                      type: 'fair_key_tag_ids',
+                      value: (values.fair_key_tag_ids ?? []).filter((tI) => tI !== tId),
+                    });
+                  }
+                }}
+              >
+                tag {tId}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div id="fair_key_tag_idsHelpBlock" className="form-text"></div>
+      </div>
 
       <div>
         <button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>
@@ -591,6 +634,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
     </form>
   );
 }
+
 type SortCustomMappingItem = {
   mapping: { from: string; to: string };
   index: number;

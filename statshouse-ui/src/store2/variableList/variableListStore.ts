@@ -4,7 +4,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getTagDescription, isTagEnabled, isValidVariableName } from '../../view/utils';
 import { apiMetricTagValuesFetch, type MetricTagValueInfo } from '../../api/metricTagValues';
 import {
   GET_PARAMS,
@@ -12,9 +11,7 @@ import {
   METRIC_VALUE_BACKEND_VERSION,
   QUERY_WHAT,
   type QueryWhat,
-  TAG_KEY,
   type TagKey,
-  toTagKey,
 } from '../../api/enum';
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
@@ -25,14 +22,7 @@ import { createStore } from '../createStore';
 import { produce } from 'immer';
 import { useErrorStore } from '../../store';
 import { replaceVariable } from './replaceVariable';
-import {
-  getNewVariable,
-  type PlotKey,
-  promQLMetric,
-  type VariableParams,
-  type VariableParamsLink,
-  type VariableParamsSource,
-} from '../../url2';
+import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '../../url2';
 import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
 
 // export function getEmptyVariable(): VariableItem {
@@ -319,8 +309,6 @@ export async function loadValuableList(variableParam: VariableParams) {
 }
 
 export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 25000) {
-  // const indexPlot = toNumber(plotKey);
-  // const indexTag = toIndexTag(tagKey);
   const store = useStatsHouse.getState();
   if (!store.params.plots[plotKey] || store.params.plots[plotKey]?.metricName === promQLMetric) {
     return undefined;
@@ -456,59 +444,6 @@ export function setUpdatedVariable(nameVariable: string | undefined, toggle: boo
     })
   );
   updateVariables(useStatsHouse.getState());
-}
-
-export async function getAutoSearchSyncFilter(startIndex: number = 0) {
-  const { params, loadMetricMeta } = useStatsHouse.getState();
-  // await loadAllMeta(params, loadMetricsMeta);
-  await Promise.all(
-    params.orderPlot.map((plotKey) => {
-      const metricName = params.plots[plotKey]?.metricName;
-      if (metricName && metricName !== promQLMetric) {
-        return loadMetricMeta(metricName);
-      }
-      return Promise.resolve();
-    })
-  );
-  const { metricMeta } = useStatsHouse.getState();
-  const variablesLink: Record<string, VariableParamsLink[]> = {};
-  params.orderPlot.forEach((plotKey) => {
-    const plot = params.plots[plotKey];
-    if (!plot || plot.metricName === promQLMetric) {
-      return;
-    }
-    const meta = metricMeta[plot.metricName];
-    if (!meta) {
-      return;
-    }
-    meta.tags?.forEach((tag, indexTag) => {
-      const tagKey = toTagKey(indexTag);
-      if (tagKey && isTagEnabled(meta, tagKey)) {
-        const tagName = getTagDescription(meta, indexTag);
-        variablesLink[tagName] ??= [];
-        variablesLink[tagName].push([plotKey, tagKey]);
-      }
-    });
-    if (isTagEnabled(meta, TAG_KEY._s)) {
-      const tagName = getTagDescription(meta, TAG_KEY._s);
-      variablesLink[tagName] ??= [];
-      variablesLink[tagName].push([plotKey, TAG_KEY._s]);
-    }
-  });
-  const addVariables: VariableParams[] = Object.entries(variablesLink)
-    .filter(([, link]) => link.length > 1)
-    .map(([description, link], index) => {
-      const name = isValidVariableName(description)
-        ? description
-        : `${GET_PARAMS.variableNamePrefix}${startIndex + index}`;
-      return {
-        ...getNewVariable(),
-        name,
-        description: description === name ? '' : description,
-        link,
-      };
-    });
-  return addVariables;
 }
 
 updateVariables(useStatsHouse.getState());

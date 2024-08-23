@@ -1,29 +1,32 @@
-import React, { useMemo } from 'react';
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import React, { memo } from 'react';
 import cn from 'classnames';
-import { type PlotParams, promQLMetric } from 'url2';
-import { type PlotData } from 'store2/plotDataStore';
-import { whatToWhatDesc } from 'view/api';
+import { PlotKey } from 'url2';
+import { useStatsHouseShallow } from 'store2';
+import { getMetricName, getMetricWhat } from 'store2/helpers';
 
 export type PlotNameProps = {
-  plot?: PlotParams;
-  plotData?: PlotData;
+  plotKey: PlotKey;
   className?: string;
 };
-export function PlotName({ plot, plotData, className }: PlotNameProps) {
-  const metricName = useMemo(
-    () => (plot?.metricName !== promQLMetric ? plot?.metricName : plotData?.metricName),
-    [plot?.metricName, plotData?.metricName]
-  );
-  const what = useMemo(
-    () =>
-      plot?.metricName === promQLMetric
-        ? plotData?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
-        : plot?.what.map((qw) => whatToWhatDesc(qw)).join(', '),
-    [plot?.metricName, plot?.what, plotData?.whats]
-  );
+export function _PlotName({ plotKey, className }: PlotNameProps) {
+  const { customName, metricName, what } = useStatsHouseShallow(({ params: { plots }, plotsData }) => {
+    const plot = plots[plotKey];
+    const plotData = plotsData[plotKey];
+    return {
+      customName: plot?.customName,
+      metricName: getMetricName(plot, plotData),
+      what: getMetricWhat(plot, plotData),
+    };
+  });
 
-  if (plot?.customName) {
-    return <span className={cn(className, 'text-body text-truncate')}>{plot?.customName}</span>;
+  if (customName) {
+    return <span className={cn(className, 'text-body text-truncate')}>{customName}</span>;
   }
   if (metricName) {
     return (
@@ -35,3 +38,5 @@ export function PlotName({ plot, plotData, className }: PlotNameProps) {
   }
   return <span className={cn(className)}>&nbsp;</span>;
 }
+
+export const PlotName = memo(_PlotName);

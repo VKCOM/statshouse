@@ -282,16 +282,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	sampler.Run(remainingBudget, &samplerStat)
 	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
 	for _, s := range samplerStat.Steps {
-		if s.StartPos < len(s.Groups) {
-			value := float64(s.Budget) / float64(s.SumWeight)
-			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-			mi.Tail.Value.AddValueCounterHost(value, 1, 0)
-		} else {
-			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-			mi.Tail.Value.AddValueCounterHost(float64(s.Budget), 1, 0)
-		}
 		sampleFactors = s.GetSampleFactors(sampleFactors)
 	}
 	for k, v := range samplerStat.Items {

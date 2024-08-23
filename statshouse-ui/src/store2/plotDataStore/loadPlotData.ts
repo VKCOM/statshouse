@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters } from 'url2';
+import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, urlEncodeVariables } from 'url2';
 import { apiQueryFetch, type ApiQueryGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
@@ -12,8 +12,9 @@ import { type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
-import { autoLowAgg, autoAgg } from '../constants';
+import { autoAgg, autoLowAgg } from '../constants';
 import { replaceVariable } from '../helpers/replaceVariable';
+import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -36,7 +37,6 @@ export function getLoadPlotUrlParams(
     [GET_PARAMS.version]: plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
     [GET_PARAMS.metricFilter]: urlEncodePlotFilters('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: plot.groupBy,
-    // [GET_PARAMS.metricAgg]: plot.customAgg.toString(),
     [GET_PARAMS.metricTimeShifts]: params.timeShifts.map((t) => t.toString()),
     [GET_PARAMS.excessPoints]: '1',
     [GET_PARAMS.metricVerbose]: fetchBadges ? '1' : '0',
@@ -46,6 +46,13 @@ export function getLoadPlotUrlParams(
   }
   if (plot.promQL || plot.metricName === promQLMetric) {
     urlParams[GET_PARAMS.metricPromQL] = plot.promQL;
+    //add variable params for PromQL
+    urlEncodeVariables(params).forEach(([key, value]) => {
+      // @ts-ignore
+      urlParams[key] ??= [];
+      // @ts-ignore
+      urlParams[key].push(value);
+    });
   }
   if (plot.maxHost) {
     urlParams[GET_PARAMS.metricMaxHost] = '1';
@@ -53,10 +60,6 @@ export function getLoadPlotUrlParams(
   if (priority) {
     urlParams[GET_PARAMS.priority] = priority.toString();
   }
-  // if (allParams) {
-  //   urlParams.push(...encodeVariableValues(allParams));
-  //   urlParams.push(...encodeVariableConfig(allParams));
-  // }
 
   return urlParams;
 }
@@ -74,16 +77,46 @@ export async function loadPlotData(
   }
   // todo:
   // loadMetricMeta(plot.metricName).then();
-  const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
 
+  const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
   if (error) {
     if (status === 403) {
+      return (state) => {
+        state.plotsData[plotKey] = {
+          ...getEmptyPlotData(),
+          error403: error.toString(),
+        };
+      };
+    } else if (error.name !== 'AbortError') {
+      return (state) => {
+        if (state.plotsData[plotKey]) {
+          state.plotsData[plotKey]!.error = error.toString();
+          state.setPlotHeal(plotKey, false);
+        }
+        //if (resetCache) {
+        //                   state.plotsData[index] = {
+        //                     ...getEmptyPlotData(),
+        //                     error: error.toString(),
+        //                   };
+        //                 } else {
+        //                   state.plotsData[index].error = error.toString();
+        //                 }
+        //
+        //                 addStatus(index.toString(), false);
+      };
     }
   }
   if (response) {
     const data = normalizePlotData(response.data, plot, params);
+    const metricMeta: MetricMeta = {
+      ...response.data.metric,
+      ...tagsArrToObject(response.data.metric.tags),
+    };
     return (state) => {
       state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
+      if (metricMeta?.name) {
+        state.metricMeta[metricMeta.name] = metricMeta;
+      }
     };
   }
   return null;
