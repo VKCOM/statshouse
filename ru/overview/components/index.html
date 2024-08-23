@@ -8,7 +8,7 @@
 <noscript>
                             <div><img src="https://mc.yandex.ru/watch/96098475" style="position:absolute; left:-9999px;" alt=""></div>
                         </noscript><link rel="stylesheet" href="/statshouse/ru/assets/css/styles.a17eb7a5.css">
-<script src="/statshouse/ru/assets/js/runtime~main.0da8fe48.js" defer="defer"></script>
+<script src="/statshouse/ru/assets/js/runtime~main.b70db809.js" defer="defer"></script>
 <script src="/statshouse/ru/assets/js/main.c3dc9a8c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard" data-theme="light">
@@ -141,7 +141,7 @@ StatsHouse записывает данные ровно в три реплики
 <p>В базе данных <a href="https://clickhouse.com" target="_blank" rel="noopener noreferrer">ClickHouse</a> хранятся <a href="/statshouse/ru/overview/concepts#%D0%B0%D0%B3%D1%80%D0%B5%D0%B3%D0%B0%D1%86%D0%B8%D1%8F">агрегированные</a> данные метрик.</p>
 <p>StatsHouse вставляет данные в таблицу ClickHouse, которая определяется следущим образом:</p>
 <div class="codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">CREATE TABLE statshouse2_value_1s (</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `time`           DateTime,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `metric`         Int32,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `tag0`           Int32,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `tag1`           Int32,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">...</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `tag15`          Int32,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `stag`           String,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `count`          SimpleAggregateFunction(sum, Float64),</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `min`            SimpleAggregateFunction(min, Float64),</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `max`            SimpleAggregateFunction(max, Float64),</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `sum`            SimpleAggregateFunction(sum, Float64),</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `max_host`       AggregateFunction(argMax, Int32, Float32), </span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `percentiles`    AggregateFunction(quantilesTDigest(0.5), Float32),</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    `uniq_state`     AggregateFunction(uniq, Int64)</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">) ENGINE = *MergeTree</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">PARTITION BY toDate(time) ORDER BY (metric, time,tag0,tag1, ...,tag15, stag);</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Скопировать в буфер обмена" title="Скопировать" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
-<p>Если для метрики не включена запись <a href="/statshouse/ru/guides/edit-metrics#percentiles">перцентилей</a> или метрика не имеет тип
+<p>Если для метрики не включена запись <a href="/statshouse/ru/guides/edit-metrics#%D0%BF%D0%B5%D1%80%D1%86%D0%B5%D0%BD%D1%82%D0%B8%D0%BB%D0%B8-percentiles">перцентилей</a> или метрика не имеет тип
 <a href="/statshouse/ru/guides/design-metric#%D1%81%D1%87%D1%91%D1%82%D1%87%D0%B8%D0%BA%D0%B8-%D1%83%D0%BD%D0%B8%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D1%82%D0%B8%D0%BF-unique"><em>unique counter</em></a>, соответствующие столбцы таблицы (<code>percentiles</code> или
 <code>uniq_state</code>) будут пустыми.</p>
 <p>Если метрика представляет собой простой <a href="/statshouse/ru/guides/design-metric#%D1%81%D1%87%D1%91%D1%82%D1%87%D0%B8%D0%BA%D0%B8-%D1%82%D0%B8%D0%BF-counter">счётчик</a>, все столбцы будут пустыми,
@@ -150,7 +150,7 @@ StatsHouse записывает данные ровно в три реплики
 <p>Чтобы получить данные за интервал, превышающий секунду, StatsHouse агрегирует данные и создает поминутные
 и часовые агрегаты.</p>
 <details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Подробнее</summary><div><div class="collapsibleContent_i85q"><p>Данные распределяются между шардами ClickHouse с помощью хэша <code>metric, key0, ... , key15</code>.
-Если в метрике используется несколько тегов, то данные, относящиеся к конкретному тегу (наприме р, <code>&quot;protocol&quot;:  &quot;tcp&quot;</code>), обычно хранятся на разных шардах. Чтобы получить полную статистику, всегда нужно делать <em>распределённые
+Если в метрике используется несколько тегов, то данные, относя щиеся к конкретному тегу (например, <code>&quot;protocol&quot;:  &quot;tcp&quot;</code>), обычно хранятся на разных шардах. Чтобы получить полную статистику, всегда нужно делать <em>распределённые
 запросы</em> ко всему набору шардов.</p><p>Почему это так?
 Набор значений тегов имеет определенную кардинальность: существует конечное число возможных комбинаций значений тегов для
 метрики. Если мы достигаем предела кардинальности, то есть отправляем все эти комбинации значений тегов,
@@ -159,7 +159,7 @@ StatsHouse записывает данные ровно в три реплики
 комбинаций значений тегов для метрики, а не долю, пропорциональную числу шардов.</p><p>StatsHouse не использует буферные таблицы: каждый агрегатор вставляет данные раз в секунду в
 incoming-таблицу. Данные фильтруются по <code>time</code> в пределах окна приёма (48 часов) и копируются через
 материализованное представление. Это защищает StatsHouse от вставки &quot;мусорных&quot; данных. В противном случае
-ClickHouse должен был бы читать данные не из одного или двух шардов, а из всех.</p><p>Шард до лжен иметь три или более реплик. Агрегаторы вставляют данные в первые три реплики.
+ClickHouse должен был бы читать данные не из одного или двух шардов, а из всех.</p><p>Шард должен иметь три или более реплик. Агрегаторы вставляют данные в первые три реплики.
 Остальные являются read-only репликами — их можно использовать, чтобы масштабировать нагрузку на чтение.</p><p>Количество шардов может быть любым. Для предотвращения неправильной конфигурации и непоследовательного
 шардирования, которое может привести к резкому увеличению объёма данных из-за слабой агрегации, агенты отправляют
 агрегатору номер реплики шарда. Если агрегатор &quot;видит&quot;, что данные предназначаются не ему, то отвечает ошибкой.
@@ -169,7 +169,7 @@ ClickHouse должен был бы читать данные не из одно
 <p>Тонкий API-клиент позволяет StatsHouse отправлять эффективные запросы к базе данных.
 Сервис кэширует данные, чтобы минимизировать нагрузку на базу данных. Мы ограничиваем получение данных
 непосредственно из ClickHouse, поскольку неэффективные запросы могут негативно повлиять на кластер ClickHouse.</p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="пользовате льский-интерфейс-ui">Пользовательский интерфейс (UI)<a href="#пользовательский-интерфейс-ui" class="hash-link" aria-label="Прямая ссылка на Пользовательский интерфейс (UI)" title="Прямая ссылка на Пользовательский интерфейс (UI)">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="пользовательский-интерфейс-ui">Пользовательский интерфейс (UI)<a href="#пользовательский-интерфейс-ui" class="hash-link" aria-label="Прямая ссылка на Пользовательский интерфейс (UI)" title="Прямая ссылка на Пользовательский интерфейс (UI)">​</a></h2>
 <p>Пользовательский интерфейс получает данные из StatsHouse API и отображает данные метрик в виде графика.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="прокси">Прокси<a href="#прокси" class="hash-link" aria-label="Прямая ссылка на Прокси" title="Прямая ссылка на Прокси">​</a></h2>
 <p>Прокси получает данные от агентов, которые находятся за пределами защищённого периметра
@@ -200,7 +200,7 @@ ClickHouse должен был бы читать данные не из одно
 <li><code>-ingress-addr</code> — параметр для управления интерфейсами, на которые подключаются агенты;</li>
 <li><code>-aes-pwd-file</code> — внутренний криптоключ для отправки данных агрегаторам;</li>
 <li><code>-ingress-pwd-dir</code> — набор внешних ключей для агентов с удаленных площадок.</li><p></p><p>Параметр <code>-ingress-addr</code> обычно имеет значение <code>:8128</code>, что равнозначно <code>0.0.0.0:8128</code>.
-Он также может содержать адрес подсети сетевого адаптера, чтобы разрешить подключение только чере з него. Порт в
+Он также может содержать адрес подсети сетевого адаптера, чтобы ра зрешить подключение только через него. Порт в
 параметре <code>-ingress-addr</code> должен совпадать с одним из портов в параметре <code>-ingress-external-addr</code>. &quot;Внешняя&quot; часть
 входящего прокси должна быть доступна агентам через эти порты.</p><p>Каждый из этих файлов содержит криптоключ; имя файла игнорируется и считается комментарием. Ключи имеют
 произвольную длину — не менее четырех байт. Первые четыре байта служат для идентификации ключа, поэтому
@@ -210,7 +210,7 @@ ClickHouse должен был бы читать данные не из одно
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="сервис-метаданных">Сервис метаданных<a href="#сервис-метаданных" class="hash-link" aria-label="Прямая ссылка на Сервис метаданных" title="Прямая ссылка на Сервис метаданных">​</a></h2>
 <p>Сервис метаданных хранит глобальный маппинг <code>string</code>↔<code>int32</code>: именно здесь имена метрик и значения тегов,
 которые являются строками, отображаются в целые числа.</p>
-<p>StatsHouse предоставляет данные в режиме реального времени. Чтобы гарантировать минимальную
+<p>StatsHouse предоставляет  данные в режиме реального времени. Чтобы гарантировать минимальную
 задержку, StatsHouse отображает строковые значения тегов (а также названия метрик) в <code>int32</code>:</p>
 <div class="codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">    &#x27;iphone&#x27; &lt;=&gt; 12</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    &#x27;null&#x27; &lt;=&gt; 26</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Скопировать в буфер обмена" title="Скопировать" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
 <p>Этот огромный маппинг общий для всех метрик. Элементы маппинга никогда не удаляются.</p>
@@ -220,7 +220,7 @@ ClickHouse должен был бы читать данные не из одно
 <p>Чтобы предотвратить неконтролируемый рост маппинга <code>string</code>↔<code>int32</code>, мы ограничиваем бюджет на создание значений
 тегов до 300 в день. Если бюджет исчерпан, новые строки (значения тегов) можно добавлять в маппинг дважды в час
 (правило настраивается).</p>
-<p>При превышении бюджета возникают ошибки типа <strong>Mapping flood</strong>. Когда бюджет исчерпан и добавлять новые строки в
+<p>При превышении бюджета возникают ошибки типа &quot;mapping flood&quot;. Когда бюджет исчерпан и добавлять новые строки в
 маппинг нельзя, StatsHouse вставляет значение <code>mapping flood</code> в колонку тега, чтобы не потерять событие целиком.</p>
 <p>Чтобы создавать <a href="/statshouse/ru/guides/design-metric#%D1%81%D0%BA%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D1%82%D0%B5%D0%B3%D0%BE%D0%B2-%D0%BC%D0%BE%D0%B6%D0%BD%D0%BE-%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D1%8C">теги с большим количеством разных значений</a>, но
 избежать ошибок <code>mapping flood</code>, можно использовать тег
@@ -247,7 +247,7 @@ ClickHouse должен был бы читать данные не из одно
 Механизм <em>String top</em> выбирает значение тега с наименьшим счётчиком (<code>b</code> — менее популярный) и превращает его в
 <em>empty</em>:</p>
 <table><thead><tr><th>timestamp</th><th>metric</th><th>tag_1</th><th>tag_2</th><th><text class="orange-text">tag_s</text></th><th>counter</th><th>sum</th><th>min</th><th>max</th></tr></thead><tbody><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>a</td><td>100</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td><strong>b</strong> → <em>empty string</em></td><td><strong>3</strong></td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>c</td><td>100</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>d</td><td>88</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td><strong>e</strong></td><td><strong>55</strong></td><td>...</td><td>...</td><td>...</td></tr></tbody></table>
-<p>Затем добавляется строка со значением <code>f</code> в теге и счётчиком, равным <code>2</code>.</p>
+<p>Затем добавля ется строка со значением <code>f</code> в теге и счётчиком, равным <code>2</code>.</p>
 <table><thead><tr><th>timestamp</th><th>metric</th><th>tag_1</th><th>tag_2</th><th><text class="orange-text">tag_s</text></th><th>counter</th><th>sum</th><th>min</th><th>max</th></tr></thead><tbody><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>a</td><td>100</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td><em>empty string</em></td><td>3</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>c</td><td>100</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>d</td><td>88</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td>e</td><td>55</td><td>...</td><td>...</td><td>...</td></tr><tr><td>13:45:05</td><td>toy_metric</td><td>...</td><td>...</td><td><strong>f</strong> → <em>empty string</em></td><td><strong>2</strong></td><td>...</td><td>...</td><td>...</td></tr></tbody></table>
 <p>Поскольку значение <code>f</code> используется редко (значение счётчика меньше, чем у других), оно тоже превращается в
 <em>empty</em> и агрегируется с предыдущей пустой строкой:</p>
@@ -257,7 +257,7 @@ ClickHouse должен был бы читать данные не из одно
 чтобы избежать переполнения маппинга.
 Такие значения тегов (<em>Raw</em>) StatsHouse будет воспринимать как <code>(u)int32</code> (возможные значения: <code>-2^31..2^32-1</code>)
 и вставлять в базу ClickHouse, не добавляя в маппинг.
-Узнайте, как <a href="/statshouse/ru/guides/edit-metrics#set-up-raw-tags">настроить &quot;сырые&quot; (<em>Raw</em>) теги</a>.</p>
+Узнайте, как <a href="/statshouse/ru/guides/edit-metrics#%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0-%D1%81%D1%8B%D1%80%D1%8B%D1%85-raw-%D1%82%D0%B5%D0%B3%D0%BE%D0%B2">настроить &quot;сырые&quot; (<em>Raw</em>) теги</a>.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="бюджет-на-создание-метрик">Бюджет на создание метрик<a href="#бюджет-на-создание-метрик" class="hash-link" aria-label="Прямая ссылка на Бюджет на создание метрик" title="Прямая ссылка на Бюджет на создание метрик">​</a></h3>
 <p>Пользователи могут создавать сколько угодно метрик — вручную через пользовательский интерфейс StatsHouse.
 Как правило, автоматизировать создание метрик нельзя.</p>
@@ -266,7 +266,7 @@ ClickHouse должен был бы читать данные не из одно
 <div class="theme-admonition theme-admonition-tip admonition_xJq3 alert alert--success"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M6.5 0C3.48 0 1 2.19 1 5c0 .92.55 2.25 1 3 1.34 2.25 1.78 2.78 2 4v1h5v-1c.22-1.22.66-1.75 2-4 .45-.75 1-2.08 1-3 0-2.81-2.48-5-5.5-5zm3.64 7.48c-.25.44-.47.8-.67 1.11-.86 1.41-1.25 2.06-1.45 3.23-.02.05-.02.11-.02.17H5c0-.06 0-.13-.02-.17-.2-1.17-.59-1.83-1.45-3.23-.2-.31-.42-.67-.67-1.11C2.44 6.78 2 5.65 2 5c0-2.2 2.02-4 4.5-4 1.22 0 2.36.42 3.22 1.19C10.55 2.94 11 3.94 11 5c0 .66-.44 1.78-.86 2.48zM4 14h5c-.23 1.14-1.3 2-2.5 2s-2.27-.86-2.5-2z"></path></svg></span>tip</div><div class="admonitionContent_BuS1"><p>Если вы переходите на StatsHouse с другой системы мониторинга, обратитесь к администраторам StatsHouse в вашей
 организации, чтобы включить режим автосоздания (по завершении миграции его нужно отключить).</p></div></div>
 <details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Подробнее</summary><div><div class="collapsibleContent_i85q"><p><strong>Получение свойств метрики из сервиса метаданных</strong></p><p>Агрегаторы получают содержание маппинга непосредственно от сервиса метаданных. Агенты работают с маппингом через
-агрегаторы. И агенты, и агрегаторы кэшируют содержимое маппинга в памяти или файле и хранят в течение месяца.</p><p>При первом запуске агенты испол ьзуют специальный bootstrap-запрос, чтобы получить 100 000 наиболее часто
+агрегаторы. И агенты, и агрегаторы кэшируют содержимое м аппинга в памяти или файле и хранят в течение месяца.</p><p>При первом запуске агенты используют специальный bootstrap-запрос, чтобы получить 100 000 наиболее часто
 используемых строк из маппинга. В противном случае при развертывании большого количества агентов
 StatsHouse должен был бы загрузить огромное чилос значений одно за другим. Это заняло бы много времени, в течение
 которого StatsHouse не мог бы записывать данные.</p><p>Агрегаторы используют TL/RPC long polling для получения информации о метриках из сервиса метаданных. Агенты

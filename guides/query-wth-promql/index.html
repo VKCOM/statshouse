@@ -8,7 +8,7 @@
 <noscript>
                             <div><img src="https://mc.yandex.ru/watch/96098475" style="position:absolute; left:-9999px;" alt=""></div>
                         </noscript><link rel="stylesheet" href="/statshouse/assets/css/styles.a17eb7a5.css">
-<script src="/statshouse/assets/js/runtime~main.acfa4396.js" defer="defer"></script>
+<script src="/statshouse/assets/js/runtime~main.8a62bba1.js" defer="defer"></script>
 <script src="/statshouse/assets/js/main.1b6b9d86.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard" data-theme="light">
@@ -89,7 +89,10 @@ query:</p>
 <p>If StatsHouse fails to guess, it returns the counter for the <a href="/statshouse/guides/design-metric#counters"><em>counter</em> metrics</a>
 and the average (the sum divided by the counter) for the <a href="/statshouse/guides/design-metric#value-metrics"><em>value</em> metrics</a>.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="histograms-are-t-digests">Histograms are <em>t-digests</em><a href="#histograms-are-t-digests" class="hash-link" aria-label="Direct link to histograms-are-t-digests" title="Direct link to histograms-are-t-digests">​</a></h3>
-<p>Prometheus provides you with &quot;traditional&quot; and &quot;native&quot; histograms. StatsHouse now supports only the &quot;traditional&quot; ones.</p>
+<p>Prometheus provides you with &quot;traditional&quot; and &quot;native&quot; histograms. StatsHouse will soon support the
+&quot;traditional&quot; ones. More details will be provided when the
+<a href="/statshouse/admin/migrating#how-to-migrate-from-prometheus">scraping</a> feature is implemented. Now it is recommended to
+use StatsHouse histograms.</p>
 <p>StatsHouse stores histograms in the <em>t-digest</em> structure but does not provide them by default—you should
 <a href="/statshouse/guides/edit-metrics#percentiles">enable writing percentiles</a>.</p>
 <p>To get access to percentiles (if enabled), specify the necessary one in the <code>__what__</code> selector:</p>
