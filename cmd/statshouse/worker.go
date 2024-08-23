@@ -44,9 +44,9 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pm
 	return w
 }
 
-func (w *worker) wait() {
-	w.mapper.Stop()
-}
+// func (w *worker) wait() {
+//	w.mapper.Stop()
+// }
 
 func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	if w.logPackets != nil {
