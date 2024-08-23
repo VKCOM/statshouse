@@ -1774,9 +1774,6 @@ Value is delta between second value and time it was inserted.`,
 					BuiltinGroupIDHost:    "host",
 					BuiltinGroupIDMissing: "missing",
 				}),
-			}, {
-				Name:          "metric_kind",
-				ValueComments: convertToValueComments(insertKindToValue),
 			}},
 		},
 		BuiltinMetricIDAggSamplingSizeBytes: {
@@ -1809,9 +1806,6 @@ Value is delta between second value and time it was inserted.`,
 					BuiltinGroupIDHost:    "host",
 					BuiltinGroupIDMissing: "missing",
 				}),
-			}, {
-				Name:          "metric_kind",
-				ValueComments: convertToValueComments(insertKindToValue),
 			}},
 		},
 		BuiltinMetricIDSrcSamplingBudget: {

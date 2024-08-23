@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
-
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 func TestSampling(t *testing.T) {
@@ -77,19 +77,16 @@ func TestSampling(t *testing.T) {
 		}
 		budget := rapid.Int64Range(20, 20+b.sumSize*2).Draw(t, "budget")
 		metricCount := len(b.series)
-		samplerStat := b.run(&s, budget)
+		b.run(&s, budget)
 		require.LessOrEqual(t, keepSumSize, budget)
-		require.Equal(t, samplerStat.Count, len(samplerStat.GetSampleFactors(nil)))
 		require.Equal(t, metricCount, keepN+discardN, "some series were neither keeped nor discarded")
 		if b.sumSize <= budget {
 			require.Zero(t, discardN)
-			require.Zero(t, samplerStat.Count)
 			require.Equal(t, metricCount, keepN)
 		} else {
 			require.NotZero(t, discardN)
-			require.NotZero(t, samplerStat.Count)
 		}
-		for _, v := range samplerStat.GetSampleFactors(nil) {
+		for _, v := range s.SampleFactors {
 			stat := m[v.Metric]
 			require.Less(t, float32(1), v.Value, "SF less or equal one should not be reported")
 			require.LessOrEqualf(t, v.Value, stat.minSF, "Reported SF shouldn't take whales into account")
@@ -140,13 +137,7 @@ func TestSamplingWithNilKeepF(t *testing.T) {
 			},
 		})
 		budget := rapid.Int64Range(20, 20+b.sumSize*2).Draw(t, "budget")
-		samplerStat := b.run(&s, budget)
-		require.Equal(t, samplerStat.Count, len(samplerStat.GetSampleFactors(nil)))
-		if b.sumSize <= budget {
-			require.Zero(t, samplerStat.Count)
-		} else {
-			require.NotZero(t, samplerStat.Count)
-		}
+		b.run(&s, budget)
 		m := map[int32]float64{}
 		for k, v := range b.series {
 			require.Less(t, 0., v.SF)
@@ -154,7 +145,7 @@ func TestSamplingWithNilKeepF(t *testing.T) {
 				m[k.Metric] = v.SF
 			}
 		}
-		for _, v := range samplerStat.GetSampleFactors(nil) {
+		for _, v := range s.SampleFactors {
 			if sf, ok := m[v.Metric]; ok {
 				require.Truef(t, v.Value == float32(sf), "Item SF %v, metric SF %v", sf, v.Value)
 				delete(m, v.Metric)
@@ -181,9 +172,9 @@ func TestNoSamplingWhenFitBudget(t *testing.T) {
 				},
 			})
 		)
-		res := b.run(&s, b.sumSize)
+		b.run(&s, b.sumSize)
 		require.Empty(t, b.series, "missing keep")
-		require.Empty(t, res.GetSampleFactors(nil), "sample factors aren't empty")
+		require.Empty(t, s.SampleFactors, "sample factors aren't empty")
 	})
 }
 
@@ -342,7 +333,16 @@ func TestCompareSampleFactors(t *testing.T) {
 			sizeSumLegacy[int(k.Metric)] += samplingTestSizeOf(k, v)
 		}
 		sfLegacy := sampleBucketLegacy(&bucket, config)
-		require.Equalf(t, sfLegacy, sf, "Sample factors mistmatch!")
+		normSF := func(s []tlstatshouse.SampleFactor) []tlstatshouse.SampleFactor {
+			if s == nil {
+				return make([]tlstatshouse.SampleFactor, 0)
+			}
+			sort.Slice(s, func(i, j int) bool {
+				return s[i].Metric < s[j].Metric
+			})
+			return s
+		}
+		require.Equalf(t, normSF(sfLegacy), normSF(sf), "Sample factors mistmatch!")
 		require.Equalf(t, sizeSumLegacy, sizeSum, "Size sum mistmatch!")
 	})
 }
@@ -457,7 +457,7 @@ func (b *samplingTestBucket) generateNormValues(r *rand.Rand) {
 	}
 }
 
-func (b *samplingTestBucket) run(s *Sampler, budget int64) SamplerStatistics {
+func (b *samplingTestBucket) run(s *sampler, budget int64) {
 	for k, v := range b.series {
 		s.Add(SamplingMultiItemPair{
 			Key:         k,
@@ -467,9 +467,7 @@ func (b *samplingTestBucket) run(s *Sampler, budget int64) SamplerStatistics {
 			MetricID:    k.Metric,
 		})
 	}
-	var stat SamplerStatistics
-	s.Run(budget, &stat)
-	return stat
+	s.Run(budget)
 }
 
 func samplingTestSizeOf(k Key, item *MultiItem) int {
@@ -517,12 +515,20 @@ func BenchmarkSampleBucket(b *testing.B) {
 	}
 }
 
-func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx) map[int32]float32) {
+func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx) []tlstatshouse.SampleFactor) {
 	var (
 		metricCount = 2000
 		seriesCount = 2000
 		bucket      = MetricsBucket{MultiItems: make(map[Key]*MultiItem)}
-		r           = rand.New()
+		config      = samplerConfigEx{
+			SamplerConfig: SamplerConfig{
+				SampleFactorF: func(int32, float64) {},
+				Rand:          rand.New(),
+			},
+			stringTopCountSend: 20,
+			numShards:          1,
+			sampleBudget:       10,
+		}
 	)
 	for i := 0; i < metricCount; i++ {
 		metricID := int32(i + 1)
@@ -537,16 +543,11 @@ func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx)
 	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		f(&bucket, samplerConfigEx{
-			SamplerConfig:      SamplerConfig{Rand: r},
-			stringTopCountSend: 20,
-			numShards:          1,
-			sampleBudget:       10,
-		})
+		f(&bucket, config)
 	}
 }
 
-func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) map[int32]float32 {
+func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) []tlstatshouse.SampleFactor {
 	sampler := NewSampler(len(bucket.MultiItems), config.SamplerConfig)
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.stringTopCountSend) // all excess items are baked into Tail
@@ -574,16 +575,11 @@ func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) map[int32]float
 	}
 	numShards := config.numShards
 	remainingBudget := int64((config.sampleBudget + numShards - 1) / numShards)
-	var samplerStat SamplerStatistics
-	sampler.Run(remainingBudget, &samplerStat)
-	sampleFactors := map[int32]float32{}
-	for _, v := range samplerStat.GetSampleFactors(nil) {
-		sampleFactors[v.Metric] = v.Value
-	}
-	return sampleFactors
+	sampler.Run(remainingBudget)
+	return sampler.SampleFactors
 }
 
-func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32]float32 {
+func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstatshouse.SampleFactor {
 	// Same algorithm as in aggregator, but instead of inserting selected, we remove items which were not selected by sampling algorithm
 	metricsMap := map[int32]*samplingMetric{}
 	var metricsList []*samplingMetric
@@ -644,7 +640,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 	if remainingBudget > MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = MaxUncompressedBucketSize / 2
 	}
-	sampleFactors := map[int32]float32{}
+	var sampleFactors []tlstatshouse.SampleFactor
 	pos := 0
 	for ; pos < len(metricsList) && metricsList[pos].sumSize*remainingWeight <= remainingBudget*metricsList[pos].metricWeight; pos++ { // statIdCount <= totalBudget/remainedStats
 		samplingMetric := metricsList[pos]
@@ -680,7 +676,10 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 				continue
 			}
 		}
-		sampleFactors[samplingMetric.metricID] = float32(sf)
+		sampleFactors = append(sampleFactors, tlstatshouse.SampleFactor{
+			Metric: samplingMetric.metricID,
+			Value:  float32(sf),
+		})
 		whalesAllowed := int64(0)
 		if samplingMetric.sumSize*remainingWeight > 0 { // should be never but check is cheap
 			whalesAllowed = int64(len(samplingMetric.items)) * (samplingMetric.metricWeight * remainingBudget) / (samplingMetric.sumSize * remainingWeight) / 2 // len(items) / sf / 2
