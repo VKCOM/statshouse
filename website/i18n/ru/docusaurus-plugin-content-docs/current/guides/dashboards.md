@@ -21,180 +21,180 @@ import PqlDash2 from '../img/pql-dash-2.png'
 import PqlDash3 from '../img/pql-dash-3.png'
 import PqlDash4 from '../img/pql-dash-4.png'
 
-# Create and view dashboards
+# Как пользоваться дашбордами
 
-A dashboard is a graphical report of data relevant to a particular system (a product or a service):
+Дашбоорд — это графический отчёт о данных, относящихся к конкретной системе (продукту или сервису):
 
 <img src={Dash} width="900"/>
 
-In this section, you will find information on how to:
+Следующие разделы помогут эффективно работать с дашбордами:
 <!-- TOC -->
-* [Refer to existing dashboards](#refer-to-existing-dashboards)
-* [Create a dashboard](#create-a-dashboard)
-* [Edit a dashboard](#edit-a-dashboard)
-  * [Settings](#settings)
-    * [Dashboard info](#dashboard-info)
-    * [Variables](#variables)
-  * [Layout](#layout)
-    * [Graph width](#graph-width)
-    * [Graph groups](#graph-groups)
-* [View a dashboard](#view-a-dashboard)
-* [Remove a dashboard](#remove-a-dashboard)
-* [Set up PromQL-based dashboards](#set-up-promql-based-dashboards)
+* [Поиск по дашбордам](#поиск-по-дашбордам)
+* [Создание дашборда](#создание-дашборда)
+* [Редактирование дашборда](#редактирование-дашборда)
+  * [Настройки](#настройки)
+    * [Информация о дашборде](#информация-о-дашборде)
+    * [Переменные](#переменные)
+  * [Расположение элементов](#расположение-элементов)
+    * [Размер графика](#размер-графика)
+    * [Группы графиков](#группы-графиков)
+* [Просмотр дашборда](#просмотр-дашборда)
+* [Удаление дашборда](#удаление-дашборда)
+* [Настройка дашборда с использованием PromQL-графиков](#настройка-дашборда-с-использованием-promql-графиков)
 <!-- TOC -->
 
-## Refer to existing dashboards
+## Поиск по дашбордам
 
-Choose an existing dashboard from a list:
+Выберите нужный дашборд из списка:
 
 <img src={DashList} width="700"/>
 
-## Create a dashboard
+## Создание дашборда
 
-StatsHouse opens a dashboard for a currently viewed metric graph automatically.
-To add more graphs on a dashboard, create a new [metric tab](view-graph.md#19--metric-tabs) 
-and choose the other necessary metric:
+StatsHouse автоматически помещает открытый график на дашборд.
+Чтобы добавить график на этот дашборд, создайте новую [вкладку](view-graph.md#19--вкладки-метрик)
+и выберите нужную метрику:
 
 <img src={DashOpen} width="400"/>
 
-To finish creating the dashboard, [add a name and description](#dashboard-info) to it 
-so that it appears in the dashboard list.
+Чтобы дашборд можно было найти в общем списке, [добавьте название и описание](#информация-о-дашборде).
 
-## Edit a dashboard
+## Редактирование дашборда
 
-Edit a dashboard to customize its name, description, layout, 
-and behavior—press the button with the "gear" icon:
+Чтобы отредактировать название, описание, расположение и размер элементов дашборда, нажмите кнопку-"шестерёнку".
 
 <img src={DashEdit} width="800"/>
 
-Upon editing, please remember to save your changes.
+Обязательно сохраните изменения.
 
-### Settings
+### Настройки
 
-In the _Setting_ section, set up the key dashboard characteristics, such as [general info](#dashboard-info) 
-or [variables](#variables).
+В разделе _Setting_ можно настроить основные параметры дашборда, например [общую информацию](#информация-о-дашборде) 
+и [переменные](#переменные).
 
-#### Dashboard info
+#### Информация о дашборде
 
-Go to the _Setting_ section to set up a name and description for your dashboard:
+В разделе _Setting_ можно указать название дашборда и добавить более подробное описание:
 
 <img src={DashName} width="800"/>
 
-To finish creating the dashboard, press the _Create_ button. The button becomes active only when you add
-a dashboard name.
+Чтобы завершить создание дашборда, нажмите кнопку _Create_. Кнопка активна только тогда, когда у дашборда есть название.
 
 :::note
-Please note that you cannot reuse the name of the [removed dashboard](#remove-a-dashboard).
+Обратите внимание: нельзя повторно использовать название [удалённого дашборда](#удаление-дашборда)
 :::
 
-#### Variables
+#### Переменные
 
-With variables, you can apply the same tag filters to several metrics simultaneously.
-A variable binds the tags of two metrics together even if the sets of values for the tags do not 
-intersect. It is also useful if the same tag has different names such as `production` or `prod` in different metrics.
+С помощью переменных можно фильтровать несколько графиков одновременно.
+Переменная связывает теги метрик вместе, даже если наборы значений для тегов не пересекаются. 
+Переменные также работают, если один и тот же тег в разных метриках называется по-разному, например `production` или 
+`prod`.
 
-Imagine you want to view two metrics on a dashboard. Each metric has the `environment` tag. What if you would like to 
-bind these tags together to filter data for both metrics simultaneously?
+Представьте: вам нужно просматривать две метрики на дашборде. У каждой метрики есть тег `environment`. Как связать эти 
+теги вместе, чтобы фильтровать данные по обеим метрикам одновременно?
 
-The first metric's `environment` tag has two values (`production`, `dev`):
+В первой метрике у тега `environment` два значения (`production`, `dev`):
 
 <img src={DashVar1} width="900"/>
 
-The second metric's `environment` tag has three values (`production`, `staging`, `testing`):
+Во второй метрике у тега `environment` три значения (`production`, `staging`, `testing`):
 
 <img src={DashVar2} width="900"/>
 
-In the _Setting_ section, _Add variable_ manually (remember to _Save_ changes):
+В разделе _Setting_ нажмите кнопку _Add variable_ (обязательно сохраните изменения, нажав кнопку _Save_):
 
 <img src={DashAddVariables} width="800"/>
 
-Bind the `environment` tags from two metrics to the `env` variable (remember to _Apply_ changes):
+Привяжите теги `environment`, принадлежащие двум разным метрикам, к переменной `env` (обязательно нажмите кнопку 
+_Apply_, чтобы применить изменения):
 
 <img src={DashVar3} width="900"/>
 
-In the _Layout_ section, see the option to filter data with the `environment` tag for both metrics simultaneously—with 
-the full list of tag values
-(`production`, `staging`, `testing`, `dev`):
+В разделе _Layout_ появится переменная. Теперь можно фильтровать данные сразу двух метрик по тегу `environment`, 
+используя объединённый список значений (`production`, `staging`, `testing`, `dev`):
 
 <img src={DashVar4} width="900"/>
 
-If two metrics have tags with the same names (such as the `environment` tag in our example), 
-use the _Autofilter_ option to generate variables for them automatically.
+Если теги в разных метриках называются одинаково (как тег `environment` в нашем примере), можно использовать опцию 
+_Autofilter_. Она автоматически создаст переменные для тегов с одинаковыми названиями.
 
-### Layout
+### Расположение элементов
 
-In the _Layout_ section, set up options to filter, sort, or group data by default for all the metrics on a dashboard:
+В разделе _Layout_ можно выбрать, как будут отфильтрованы, отсортированы и сгруппированы данные всех метрик на дашборде:
 
 <img src={DashGroupByDefault} width="900"/>
 
-Customize the layout so that the dashboard could help you recognize the meaningful patterns in data:
+Расположите графики на дашборде так, что удобнее было распознавать значимые паттерны в данных:
 
 <img src={DashLayout} width="900"/>
 
-#### Graph width
+#### Размер графика
 
-_S_, _M_, _L_ options are fixed graph widths, which are _small_, _medium_, and _large_ ones.
-_Autowidth_ and the number of graphs _per row_ are the ways to arrange graphs in a group horizontally.
+_S_, _M_, _L_ — это фиксированные размеры графиков: маленький, средний и большой.
+Вариант _autowidth_ позволяет заполнить графиками всю ширину экрана (для всей группы), а _per row_ — задать 
+количество графиков в ряду (тоже для всей группы).
 
-Play with these options to arrange the compared graphs one above or near the other.
+Расположите связанные по смыслу графики так, чтобы было удобно их сопоставлять: один над другим или рядом.
 
-#### Graph groups
+#### Группы графиков
 
-Group the graphs by subcategories, describe and sort the groups for your convenience:
+Вы можете сгруппировать графики, добавить описания групп и расположить их так, чтобы было удобно:
 
-* In the _Layout_ editing mode, drag and drop graphs to move them on the dashboard.
-* Add a group before or after the current one. 
-* Collapse the infrequently used groups to save resources: the collapsed graphs are not updated upon 
-  refreshing or opening the page.
+* В режиме редактирования _Layout_ можно перетаскивать графики.
+* Новую группу можно расположить выше или ниже текущей.
+* Редко используемые группы можно свернуть для экономии ресурсов: свёрнутые графики не обновляются, когда вы 
+  обновляете или открываете страницу.
 
-## View a dashboard
+## Просмотр дашборда
 
-Use the same [viewing options](view-graph.md) as for the graphs. Reset to a saved state, if necessary:
+[Параметры просмотра и фильтрации](view-graph.md) для дашборда примерно такие же, как для отдельного графика. Если 
+нужно, можно их сбросить и вернуться к сохранённому состоянию дашборда.
 
 <img src={DashView} width="800"/>
 
-## Remove a dashboard
+## Удаление дашборда
 
-To get rid of an unused dashboard, proceed to [editing](#edit-a-dashboard) the dashboard. In the _Setting_ section, 
-press the _Remove_ button:
+Чтобы убрать неиспользуемые дашборды, перейдите в режим [редактирования дашборда](#редактирование-дашборда). В разделе 
+_Setting_ нажмите кнопку _Remove_:
 
 <img src={DashRemove} width="800"/>
 
 :::note
-The removed dashboard disappears from the dashboard list but still exists, so you cannot use the same dashboard name
-later.
+Удалённый дашборд исчезнет из списка, но всё ещё будет существовать: название этого дашборда нельзя будет
+использовать повторно.
 :::
 
-## Set up PromQL-based dashboards
+## Настройка дашборда с использованием PromQL-графиков
 
-To filter data with tags for a PromQL-based graph, [create variables](#variables).
+Чтобы фильтровать данные на дашборде, который содержит PromQL-графики, [создайте переменные](#переменные).
 
-Imagine you have a PromQL-based graph with tags:
+Представьте, что у вас есть PromQL-график с тегами:
 
 <img src={PqlDash1} width="1000"/>
 
-While creating the [variable](#variables) for the PromQL-based graph (`new_var` in our example), you will not see tag 
-names:
+При создании [переменной](#переменные) для PromQL-графика (`new_var` в нашем примере) названия тегов отображаться не 
+будут:
 
 <img src={PqlDash2} width="1000"/>
 
-To enable filtering or grouping, get back to the graph view and use the PromQL editor. Bind the tag to the previously 
-created variable in your PromQL query and press _Run_:
+Чтобы получить возможность фильтровать или группировать данные такого графика, перейдите в режим просмотра 
+отдельного графика, включите редактор PromQL-запросов и нажмите _Run_:
 
 <img src={PqlDash3} width="1000"/>
 
-In this example, the initial query was:
+В нашем примере первоначальный запрос выглядел так:
 
-`topk(5,metric{@what="countsec"})`, 
+`topk(5,metric{@what="countsec"})`
 
-and we bound the `0` tag (that means `environment`) with the `new_var` variable: 
+Мы связали тег `0` (он означает `environment`) с переменной `new_var`:
 
-`topk(5,metric{@what="countsec",0:$new_var})`.
+`topk(5,metric{@what="countsec",0:$new_var})`
 
-Then the filtering controls appear in the _Layout_ section and in the _Dashboard_ view.
-To filter data with the particular tag value, enter the value name manually:
+В разделе _Layout_ при просмотре основной страницы _Dashboard_ появится фильтр-переменная. Чтобы отфильтровать 
+данные по конкретному значению тега, введите его вручную:
 
 <img src={PqlDash4} width="1000"/>
 
-When adding more PromQL-based graphs to a dashboard, make sure you bind the necessary tags to the corresponding 
-variables for each graph.
+При добавлении следующих PromQL-графиков на дашборд убедитесь, что вы привязали нужные теги к соответствующим 
+переменным для каждого графика.

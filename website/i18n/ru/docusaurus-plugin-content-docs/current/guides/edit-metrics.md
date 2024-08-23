@@ -21,232 +21,236 @@ import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
 import DraftTags from '../img/draft-tags.png'
 
-# Edit a metric
+# Как отредактировать метрику
 
-Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options are:
+Узнайте, [какие параметры метрики можно редактировать](#какие-параметры-метрики-можно-редактировать):
+
 <!-- TOC -->
-* [Description](#description)
-* [Aggregation](#aggregation)
-  * [Percentiles](#percentiles)
-* [Resolution](#resolution)
-* [Unit](#unit)
-* [Tags](#tags)
-  * [Hide the unnecessary tags](#hide-the-unnecessary-tags)
-  * [Describe tags](#describe-tags)
-  * [Set up _Raw tags_](#set-up-raw-tags)
-    * [Value comments](#value-comments)
-    * [Specifying formats for raw tag values](#specifying-formats-for-raw-tag-values)
-  * [Set up _String top tag_](#set-up-string-top-tag)
-  * [Map the draft tag names to the tag IDs](#map-the-draft-tag-names-to-the-tag-ids)
-* [Disabling a metric](#disabling-a-metric)
-* [Admin settings](#admin-settings)
+* [Описание (description)](#описание-description)
+* [Тип метрики (aggregation)](#тип-метрики-aggregation)
+  * [Перцентили (percentiles)](#перцентили-percentiles)
+* [Разрешение (resolution)](#разрешение-resolution)
+* [Единицы измерения (unit)](#единицы-измерения-unit)
+* [Теги](#теги)
+  * [Настройка отображения тегов](#настройка-отображения-тегов)
+  * [Описание тегов](#описание-тегов)
+  * [Настройка "сырых" (_Raw_) тегов](#настройка-сырых-raw-тегов)
+    * [Комментарии](#комментарии)
+    * [Формат "сырых" значений тегов](#формат-сырых-значений-тегов)
+  * [Настройка тега _String top_](#настройка-тега-string-top)
+  * [Драфт-теги](#драфт-теги)
+* [Отключение метрики](#отключение-метрики)
+* [Настройки для администраторов](#настройки-для-администраторов)
 <!-- TOC -->
 
-## How to edit a metric
+## Какие параметры метрики можно редактировать
 
-If you have started sending metric data, you have already set up the essential metric characteristics.
-With the editing options, try more settings or change the look of your metric in the UI:
+Если вы уже отправляете данные в метрику, значит, необходимые параметры метрики настроены. Вы можете 
+отредактировать дополнительные параметры метрики и настроить её отображение в интерфейсе:
 
 <img src={EditStart} width="700"/>
 
-As soon as you have set up the necessary options, scroll down to the bottom of the page to save your settings:
+Когда вы настроите всё, что хотели, прокрутите страницу вниз и сохраните изменения:
 
 <img src={EditSave} width="800"/>
 
-Then scroll back to the top of the page to view your metric with the changes applied:
+Чтобы просмотреть отредактированную метрику, вернитесь наверх:
 
 <img src={EditView} width="800"/>
 
-## Description
+## Описание (description)
 
-Add a metric description on one or multiple lines to show in the UI. No formatting is supported.
+Метрику можно дополнить описанием в одну или несколько строк — оно отобразится в интерфейсе. Форматирование пока не 
+поддерживается.
 
 <img src={Description} width="800"/>
 
-You can [edit the graph name](view-graph.md#2--graph-name) to customize the look of the dashboard or the graph view 
-without changing the name of the metric itself. You [cannot rename a metric](create-metric.md#can-i-rename-a-metric).
+[Название графика](view-graph.md#2--название-графика) можно отредактировать на странице просмотра графика — оно 
+отобразится и на дашборде. При этом название исходной метрики не меняется. 
+[Переименовать саму метрику нельзя](create-metric.md#можно-ли-переименовать-метрику).
 
-## Aggregation
+## Тип метрики (aggregation)
 
-Basically, a [metric type](design-metric.md#типы-метрик) affects the range of descriptive statistics 
-that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--descriptive-statistics) 
-dropdown menu, you can see statistics, which may be not relevant for your metric type.
-If you pick them, you will see 0 values for them on a graph. For example, you cannot view the cumulative graph 
-for _unique_ metrics. 
+[Тип метрики](design-metric.md#типы-метрик) влияет на то, какие описательные статистики доступны и имеют смысл для 
+метрики. В [меню](view-graph.md#3--описательные-статистики) могут отображаться статистики, не соответствующие типу 
+вашей метрики. Если выбрать нерелевантную статистику, значения на графике будут равны нулю.
+Например, накопленные значения нельзя посмотреть для типа _unique_.
 
-To switch off showing irrelevant statistics in the UI, specify the type of your metric:
+Чтобы в меню не отображались такие статистики, укажите тип метрики:
 
 <img src={AggregationEdit} width="500"/>
 
-The _Mixed_ type allows you to display all the statistics (even irrelevant ones) in the UI.
-See more on [changing or combining metric types](design-metric.md#как-сочетаются-типы-метрик).
+Тип _Mixed_ позволяет отображать в интерфейсе все виды статистик (даже нерелевантные).
+Узнайте больше о том, [как сочатаются типы метрик](design-metric.md#как-сочетаются-типы-метрик).
 
-### Percentiles
+### Перцентили (percentiles)
 
-Percentiles are available for _value_ metrics only:
+Перцентили доступны только для _value_-метрик:
 
 <img src={EnablePercentiles} width="500"/>
 
 :::note
-You start writing percentiles for a metric only upon switching the _Enable percentiles_ toggle on.
-You will not see percentiles for the previously written data.
+Перцентили для метрики начинают записываться только после включения _Enable percentiles_.
+Для ранее записанных данных перцентили не отображаются.
 :::
 
-Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
-[sampling](../overview/concepts.md#семплирование). If it is important for you to have the lower sampling factor, keep an
-eye on your metric [cardinality](view-graph.md#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
-for writing metric data.
+Обратите внимание: запись перцентилей увеличивает объём данных — это может привести к 
+усилению [семплирования](../overview/concepts.md#семплирование).
+Если для вас важно минимизировать семплирование, следите за тем, чтобы [кардинальность](view-graph.md#cardinality) 
+вашей метрики была минимальной, или уменьшите её [разрешение](edit-metrics.md#разрешение-resolution).
 
-## Resolution
+## Разрешение (resolution)
 
-The highest available resolution of data to show on a graph depends on the currently available 
-[aggregate](../overview/concepts.md#агрегация):
-* per-second aggregated data is stored for the first two days,
-* per-minute aggregated data is stored for a month,
-* per-hour aggregated data is available forever.
+Максимальное разрешение, с которым можно отобразить данные на графике, зависит от того, какие
+[агрегаты](../overview/concepts.md#агрегация) доступны в данные момент:
+* данные, агрегированные по секундам, хранятся в течение первых двух дней,
+* данные, агрегированные по минутам, хранятся в течение месяца,
+* данные, агрегированные по часам, хранятся как угодно долго (или до тех пор, пока их не удалят вручную).
 
-So, you can get per-second data for the last two days, per-minute data for the last month, and you can get 
-per-hour data for any period you want.
+Так, посекундные данные можно получить в течение двух последних дней,
+поминутные данные доступны за последний месяц, часовые данные — за любой период.
 
-If getting the highest available resolution is not crucial for you, but it is important for you 
-to reduce [sampling](../overview/concepts.md#семплирование), reduce your metric resolution. 
-For example, choose a custom resolution to make the [agent](../overview/components.md#агент) send data once 
-per 15 seconds instead of sending per-second data:
+Если для вас не так важно получать данные с максимальным разрешением, однако важно минимизировать 
+[семплирование](../overview/concepts.md#семплирование), уменьшите разрешение метрики.
+Например, вы можете выбрать такое разрешение, чтобы [агент](../overview/components.md#агент) отправлял данные раз в 15 
+секунд, а не раз в секунду:
 
 <img src={ResolutionEdit} width="400"/>
 
-Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
-in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../overview/concepts.md#разрешение).
+Разрешение, равное 1, 5, 15 или 60 секундам, помечено как "нативное". Рекомендуем использовать эти значения, чтобы 
+избежать дрожания на графике (они соответствуют уровням детализации (LOD) в интерфейсе). Узнайте больше о 
+[разрешении](../overview/concepts.md#разрешение).
 
-You see custom resolution near the metric name in a graph view:
+Пользовательское разрешение отображается рядом с названием метрики:
 
 <img src={ResolutionView} width="600"/>
 
 :::important
-Setting up resolution affects processing data—not showing data in the UI.
-For a metric with custom resolution, it is impossible to display data on a graph with 
-the smaller [aggregation interval](view-graph.md#6--aggregation-interval): 
-you cannot show per-second data if the resolution is set to 5 seconds.
+Настройка разрешения влияет на обработку данных, а не на их отображение в интерфейсе.
+Невозможно отобразить данные с [интервалом агрегации](view-graph.md#6--интервал-агрегации) меньшим, чем пользовательское разрешение:
+вы не сможете посмотреть посекундные данные, если разрешение равно 5 секундам.
 :::
 
-## Unit
+## Единицы измерения (unit)
 
-Set up measurement units for the _value_ metric data you send to StatsHouse. 
-With this unit information, StatsHouse generates the Y-axis label for a graph.
+Для _value_-метрики можно указать единицы измерения. Они появятся на подписи к оси Y.
 
-For example, if you set up _milliseconds_ for your metric, you can see _seconds_, _minutes_, or even _days_ as the 
-Y-axis label on the graph:
+Например, если вы установите _milliseconds_ (миллисекунды) для метрики, на оси Y можно будет увидеть секунды, минуты 
+и даже дни:
 
 <img src={Milliseconds} width="900"/>
 
 :::note
-If you have a _counter_ metric or view the _count_ and _count/sec_ statistics, you should not set a particular 
-unit. A counter means the "number of times," so choose the _no unit_ option.
+Если вы просматриваете метрику-счётчик (_counter_) или выбираете статистики _count_ и _count/sec_, не 
+указывайте единицы измерения. Счётчик подразумевает подсчёт числа событий, т.е. отвечает на вопрос "сколько?". Нужно 
+оставить вариант _no unit_.
 :::
 
-## Tags
+## Теги
 
-Customize your metric tags: their look in the UI, and their behavior while sending data. 
+Вы можете настроить то, как теги будут отображаться в интерфейсе и как будут обрабатываться данные, к которым эти теги 
+относятся.
 
-### Hide the unnecessary tags
+### Настройка отображения тегов
 
-Hide the unnecessary tags in the UI if you have less than 16 tags for your metric:
+Ненужные теги можно скрыть, если, например, вы используете менее 16 тегов в метрике:
 
 <img src={TagsN} width="250"/>
 
-To hide only one tag in the middle, enter a hyphen (-) in the _Tag description_ field:
+Чтобы скрыть один из тегов в середине списка, поставьте дефис (-) в поле описания (_Tag description_) этого тега:
 
 <img src={TagsDash} width="500"/>
 
-### Describe tags
+### Описание тегов
 
-While sending data, you refer to a tag by its ID or a name.
-Before you start referring to a tag by the custom name in your sending requests, 
-specify these names here, in the UI:
+Отправляя данные, вы ссылаетесь на теги, используя идентификаторы либо системные или пользовательские имена тегов 
+(алиасы). Прежде чем упоминать алиас при отправке данных, настройте его:
 
 <img src={TagName} width="170"/>
 
-Add tag descriptions to show in the UI:
+Можно дополнить тег описанием, которое будет отображаться в интерфейсе:
 
 <img src={TagDesc} width="600"/>
 
-### Set up _Raw tags_
+### Настройка "сырых" (_Raw_) тегов
 
-If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-[_Raw_ tag values](design-metric.md#сырые-raw-теги) to avoid the 
+Если вам нужны теги с большим количеством значений, которые являются 32-битными числами (например, тег `user_ID`), 
+используйте [_Raw_ теги](design-metric.md#сырые-raw-теги), чтобы избежать ошибок 
 [mapping flood](../overview/components.md#бюджет-на-создание-значений-тегов).
 
-To help yourself remember what they mean, specify a 
-[format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
-and add [value comments](#value-comments).
+Чтобы не забыть, что означают "сырые" значения тегов, укажите [формат](#формат-сырых-значений-тегов), 
+который будет отображаться в интерфейсе, и добавьте [комментарии](#комментарии).
 
-#### Value comments
+#### Комментарии
 
-Add value comments to remember what your raw tag values mean:
+Комментарии помогают вспомнить, что означают "сырые" значения тегов:
 
 <img src={RawValueComments} width="1000"/>
 
 :::note
-Value comments are stored as meta-information, so they do not expend the mapping budget.
+Комментарии хранятся как метаинформация, поэтому не расходуют бюджет маппинга.
 :::
 
-#### Specifying formats for raw tag values
+#### Формат "сырых" значений тегов
 
-When you send tag values as raw ones, you send 32-bit integer values. For example, you send integers that are 
-timestamps. To make such raw tag values more readable in the UI, choose the format for them: 
+"Сырые" значения тегов отправляются как 32-битные целочисленные значения. 
+Например, вы отправляете целые числа, которые являются метками времени. Чтобы сделать отображение таких значений более 
+понятным, выберите для них формат:
 
 <img src={RawFormat} width="1000"/>
 
 :::note
-Please note that you send only 32-bit integer values as raw tag values. If you send IP-addresses, they look like 
-`1234567890` but not `12.345.67.890` as the latter would be a string. When you choose an _ip_ option as the format, 
-StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI.
+Обратите внимание: в качестве "сырых" значений нужно отправлять только 32-битные целочисленные значения. Если вам 
+нужно отправлять IP-адреса, отправляйте `1234567890`, а не `12.345.67.890` (такой адрес отправится как строка).
+Если в качестве формате выбрать _ip_, StatsHouse отобразит "сырое" значение, например `1234567890`, как `12.345.67.
+890`, т.е. IP-адрес.
 :::
 
-### Set up _String top tag_
+### Настройка тега _String top_
 
-To filter data with the [String top tag](design-metric.md#тег-string-top-топ-строк) on a graph, add a name or description to it:
+Чтобы отфильтровать данные на графике с помощью тега [String top](design-metric.md#тег-string-top-топ-строк), 
+дайте ему имя или добавьте описание:
 
 <img src={StringTag} width="600"/>
 
-### Map the draft tag names to the tag IDs
+### Драфт-теги
 
-Draft tags appear when the data you send contains the tag names, but these names were not mapped to tag IDs, so they 
-are "unknown" to StatsHouse.
+Система создаёт драфт-теги, когда в отправляемых вами данных содержатся названия тегов, которые 
+ещё не были сопоставлены с идентификаторами, и поэтому система о них "не знает".
 
-The feature was implemented to support
-[migrating from Prometheus](../admin/migrating.md#как-перейти-с-prometheus). There may be more than 16 tags in 
-the scraped metrics, and StatsHouse cannot map them to the tag IDs randomly.
+Эта функциональность помогает при [переходе с Prometheus](../admin/migrating.md#как-перейти-с-prometheus).
+При скрейпинге метрик теги извлекаются автоматически. В полученной Prometheus-метрике может быть более 16 тегов
+(т. е. названий тегов), и StatsHouse "не знает", как сопоставить их с идентификаторами.
 
-StatsHouse extracts the "unknown" tag names from the scraped metric data and shows them as the _draft tags_. Users 
-can map these draft tag names with the tag IDs manually:
+StatsHouse извлекает "неизвестные" названия тегов из метрик и отображает их как драфт-теги. Пользователь может вручную 
+сопоставить их с идентификаторами:
 
 <img src={DraftTags} width="700"/>
 
 :::tip
-Draft tags also appear when you refer to the tags in your code by the custom names, but you have not previously 
-specified these names in the UI. See more about [describing tags](#describe-tags). The draft tag feature may help 
-you to configure metric tags faster.
+Драфт-теги также создаются, когда вы ссылаетесь на теги в коде, используя алиасы, хотя предварительно 
+не [настраивали их в интерфейсе](#описание-тегов). Функциональность драфт-тегов помогает быстрее 
+настраивать теги.
 :::
 
-Learn more about [designing tags for your metrics](design-metric.md#теги).
+Узнайте больше о том, [как спроектировать теги для метрики](design-metric.md#теги).
 
-## Disabling a metric
+## Отключение метрики
 
-You cannot delete a metric, but you can disable it:
+Метрику нельзя удалить, но можно отключить:
 
 <img src={Disable} width="250"/>
 
-Disabling a metric stops writing data for it and removes it from the metric list.
+Если метрика отключена, запись данных в неё прекращается.
+Эта метрика перестаёт отображаться в общем списке.
 
 :::important
-To enable a metric again, you need a direct link to it.
+Чтобы включить метрику обратно, необходима прямая ссылка на неё.
 :::
 
-## Admin settings
+## Настройки для администраторов
 
-These settings are for administrators only:
+Следующие настройки предназначены только для администраторов:
 
 * _Weight_
 * _Mapping Flood Counter_

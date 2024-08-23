@@ -41,223 +41,220 @@ import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
 
-# View metric data
+# Как просматривать данные
 
-Display data on a graph, in a [table](#10--table-view), or as a [CSV](#12--csv) file via the StatsHouse UI.
-For complicated scenarios, [query StatsHouse with PromQL](#18--promql-query-editor).
-StatsHouse does not support viewing data via third-party applications.
+В StatsHouse данные можно представить в виде графика или [таблицы](#10--таблица), а также скачать как файл
+[CSV](#12--csv).
+Для сложных сценариев можно использовать [PromQL-запросы](#18--редактор-promql-запросов).
+StatsHouse не позволяет просматривать данные через сторонние приложения.
 
-To learn more about viewing options, refer to the picture below and the navigation bar.
+Узнайте, как просматривать данные в StatsHouse: основные возможности обозначены на рисунке внизу, а описания можно 
+найти через панель навигации.
 
 <img src={HomeLabeled} width="1000"/>
 
-## 1 — Metric name
+## 1 — Название метрики
 
-Choose a metric name to refer to existing metrics.
+Созданные метрики можно найти по названию.
 
 :::warning
-Do not commit configuration changes or send data to someone else's metric as you can spoil the metric or the related data.
+Не вносите изменения и не отправляйте данные в чужие метрики — вы можете испортить чьи-то данные.
 :::
 
-### Host metrics
+### Метрики хостов
 
-Some popular host metrics are built-in such as CPU or disk usage, and more:
+Часто используемые метрики хостов, например _загрузка процессора_ или _использование диска_, встроены в StatsHouse:
 
 <img src={HostMetrics} width="300"/>
 
 :::tip
-Host metric names begin with `host_`.
+Названия метрик хостов начинаются с префикса `host_`.
 :::
 
-Find the full list of host metrics and their implementation 
-on [GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+Список метрик хостов и их реализацию можно найти на 
+[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+Более подробное описание приведено в [руководстве для администраторов](../admin/host-metrics.md).
 
-### Service metrics
+### Служебные метрики
 
-Metrics having two underscores in the beginning are for StatsHouse internal use only, for example:
+Метрики, названия которых начинаются с двух подчёркиваний, — это служебные метрики StatsHouse, например:
 
 <img src={ServiceMetrics} width="300"/>
 
-You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
+Их нельзя редактировать. Смотрите также раздел [Метаметрики](#13--метаметрики).
 
-### Common metrics
+### Общие метрики
 
-If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
-engines, services, microservices, proxies, etc. in the organization.
+На уровне организации можно договориться о наборе метрик, которые будут общими для всех подсистем, сервисов, 
+микросервисов, прокси и т. д.
 
-#### "How can I find the metrics author?"
+### "Как найти создателя метрики?"
 
-There is no mechanism for checking a metrics author in StatsHouse, but sometimes authors mention how to find them 
-in the metric description section. Otherwise, use your organization's internal communication channels.
+В StatsHouse нет отдельного способа, который помог бы узнать, кто создал метрику. 
+Иногда эту информацию можно найти в описании метрики. Если её нет, обратитесь к коллегам лично.
 
-#### "How can I display several metrics on a graph?"
+### "Как отобразить несколько метрик на графике?"
 
-[Create a dashboard](dashboards.md) or [query StatsHouse with PromQL](query-wth-promql.md). To find relationships 
-between the metrics or events, use [Event overlay](#11--event-overlay).
+[Используйте PromQL-запрос](query-wth-promql.md). Чтобы сопоставить метрики, можно [создать дашборд](dashboards.md).
+Чтобы изучить взаимосвязи между метриками или событиями, используйте [Наложение событий](#11--наложение-событий).
 
-## 2 — Graph name
+## 2 — Название графика
 
-You can edit the graph name so that the metric name remains the same.
+Вы можете изменить название графика, не меняя название метрики.
 
 <img src={RenameGraph} width="800"/>
 
-These changed graph names are not saved for later.
-If you re-open your metric, the graph will have the initial name, not the new one.
+Изменённое название графика сохраняется только в URL.
 
-## 3 — Descriptive statistics
+## 3 — Описательные статистики
 
-They are statistical functions that quantitatively describe or summarize metric data:
-* _count_ and _count/sec_
-* _sum_ and _sum/sec_
-* _average_
-* _stddev_ (standard deviation)
-* _minimum_ and _maximum_
-* _unique_ and _unique/sec_
-* [cumulative functions](#cumulative-functions)
-* [derivative functions](#derivative-functions)
-* [percentiles](#percentiles)
+Это статистические функции, которые количественно описывают или обобщают данные:
+* _count_ и _count/sec_,
+* _sum_ и _sum/sec_,
+* _average_,
+* _stddev_ (standard deviation),
+* _minimum_ и _maximum_,
+* _unique_ и _unique/sec_
+* [кумулятивные функции](#кумулятивные-функции),
+* [производные](#производные),
+* [перцентили](#перцентили).
 
-In this dropdown menu, you can see statistics, which may be not relevant for your metric type. If you pick them, you
-will see 0 values for them on a graph. To switch off showing irrelevant statistics in this dropdown menu,
-[specify the metric type in the UI](edit-metrics.md#aggregation).
+В меню могут отображаться статистики, не соответствующие типу вашей метрики. Если выбрать нерелевантную
+статистику, значения на графике будут равны нулю. Чтобы в меню не отображались такие статистики,
+[укажите тип метрики в разделе редактирования метрики](edit-metrics.md#тип-метрики-aggregation).
 
 :::tip
-If you choose to show _count_ or _sum_ as a descriptive statistic,
-while an [aggregation interval](#6--aggregation-interval) is set to _Auto_, the resulting graph may look difficult to
-grasp.
+Если вы выбрали _count_ или _sum_ в качестве статистики, а для интервала агрегации установлено значение _Auto_, 
+график может быть сложно интерпретировать.
 
-Instead, choose the _count/sec_ and _sum/sec_ statistics.
-These are normalized data, which are independent of an aggregation interval.
+Лучше выбрать _count/sec_ и _sum/sec_. Вы получите нормализованные данные, которые не зависят от интервала агрегации.
 :::
 
-#### "Why do I see a non-integer number for a _count_ statistic?"
+#### "Почему для счётчика отображается нецелое число??"
 
-[Sampling coefficients](#sampling) should sometimes be non-integer to keep aggregates and statistics the same.
-This leads to non-integer values for the _count_ statistic, which is an integer number at its core.
+Системе иногда приходится выбирать нецелые коэффициенты [семплирования](#sampling), чтобы сохранить значения агрегатов и 
+статистик. Из-за этого счётчики могут принимать нецелые значения, хотя каждый счётчик по сути является целым числом.
 
-#### Cumulative functions
+#### Кумулятивные функции
 
-Cumulative functions are not meaningful for _unique_ metrics.
+Накопленные значения нельзя посмотреть для типа _unique_.
 
-#### Derivative functions
+#### Производные
 
-A derivative function shows the rate of change for the initial function, i.e., the difference between the two nearest 
-function values.
+Производная показывает скорость изменения исходной функции, то есть разность между двумя ближайшими
+значениями функции.
 
-#### Percentiles
+#### Перцентили
 
-Percentiles are available for _value_ metrics only.
-To get them, [enable percentiles](edit-metrics.md#percentiles) in the UI.
+Перцентили доступны только для _value_-метрик.
+Включить запись перцентилей можно в [разделе редактирования метрики](edit-metrics.md#перцентили-percentiles).
 
-Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased 
-[sampling](../overview/concepts.md#семплирование). If it is important for you to have the lower sampling factor, keep an 
-eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution) 
-for writing metric data.
+Обратите внимание, что объём данных для метрики с перцентилями увеличивается, — это может 
+привести к усилению [семплирования](../overview/concepts.md#семплирование). Чтобы минимизировать коэффициент 
+семплирования, следите за [кардинальностью](#cardinality) метрики или уменьшите её 
+[разрешение](edit-metrics.md#разрешение-resolution).
 
-## 4 — Time period
+## 4 — Период времени
 
-Display data for a specific time period: the last five minutes, last hour, last week,
-and more—even for the last two years.
+Просматривайте данные за конкретный период времени: последние пять минут, последний час, последнюю неделю. 
+Даже за последние два года.
 
-Choose a particular date and particular time. And you can combine the controls:
-for example, you can display the last-hour data for the previous day:
+Можно выбрать конкретную дату и время. А ещё настройки можно комбинировать: например, 
+так отобразятся данные за последний час для предыдущего дня:
 
 <img src={TimePeriod} width="500"/>
 
-Compare the data for a chosen time period with the data for the same period in the past: a day, a
-week, a year ago.
+Данные за определённый период времени можно сравнить с данными за аналогичный период в прошлом: на день, неделю или год раньше.
 
 <img src={TimeAgo} width="300"/>
 
-When choosing time periods, please be aware of a chosen [aggregation interval](#6--aggregation-interval).
+Настраивая период времени, обращайте внимание на то, какой [интервал агрегации](#6--интервал-агрегации)у вас выбран.
 
 :::tip
-Make sure the chosen time period is larger than the aggregation interval.
-For example, choose a 7-day time period and a 24-hour aggregation interval.
+Убедитесь, что период времени больше, чем интервал агрегации: например, период времени равен семи дням, 
+а интервал агрегации — 24 часам.
 :::
 
-For real-time monitoring, use [Live mode](#5--live-mode).
+Чтобы просматривать данные в режиме реального времени, используйте [Live mode](#5--live-mode).
 
 ## 5 — Live mode
 
-Enable _Live mode_ to view data in real time.
+Используйте _Live mode_, чтобы просматривать данные в режиме реального времени.
 
-By default, the metric URL does not contain the _Live mode_ parameter.
+По умолчанию параметр _Live mode_ не содержится в URL графика.
 
 :::tip
-To share the link to real-time metric data, add the `live=1` query string to the metric URL.
+Чтобы отправить ссылку на график с включенным параметром _Live mode_, добавьте строку `live=1` в URL графика.
 :::
 
-## 6 — Aggregation interval
+## 6 — Интервал агрегации
 
-Aggregation interval is a kind of resolution for your metric data.
-The larger aggregation interval you choose, the smoother look your graph has:
+Интервал агрегации — это что-то вроде степени детализации для вашей метрики. 
+Чем больше интервал агрегации, тем более сглаженным выглядит график:
 
 <img src={AggregationInterval} width="600"/>
 
-### _Auto_ and _Auto (low)_
+### _Auto_ и _Auto (low)_
 
-An _Auto_ interval uses the 
-[_minimal available interval_ for aggregation](../overview/concepts.md#минимальный-интервал-агрегации-из-доступных)
-to show data on a graph.
-This interval _varies_ depending on the currently available aggregation:
-* per-second aggregated data is stored for the first two days,
-* per-minute aggregated data is stored for a month,
-* per-hour aggregated data is available forever.
+Если выбрать значение _Auto_, для отображения данных на графике будет использоваться минимальный интервал 
+агрегации из доступных. Он изменчив, поскольку зависит от того, какие данные доступны в данный момент:
+* данные, агрегированные по секундам, хранятся в течение первых двух дней,
+* данные, агрегированные по минутам, хранятся в течение месяца,
+* данные, агрегированные по часам, хранятся как угодно долго.
 
-The currently available aggregation is also related to
-a metric [resolution](../overview/concepts.md#разрешение).
+Доступный интервал агрегации также связан с [разрешением](../overview/concepts.md#разрешение) метрики.
 
-The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
-even when you view data using the minimal available aggregation interval:
+Интервал агрегации _Auto (low)_ уменьшает отображаемое разрешение на постоянную величину. Он делает график более 
+гладким даже при просмотре данных с минимальным интервалом агрегации:
 
 <img src={Auto} width="1000"/>
 
-## 7 — Tags
+## 7 — Теги
 
-Filter or group data on a graph using tags.
+С помощью тегов можно фильтровать и группировать данные.
 
-In the dropdown menu for each tag, choose the required tag values to show on a graph.
+Чтобы отобразить на графике нужные значения тега, выберите их в выпадающем меню.
 
 <img src={FilterByTag} width="400"/>
 
 :::tip
-[Hide](edit-metrics.md#tags) the unnecessary tags in the UI, e.g., if you have less than 16 tags for your metric.
+Если у вашей метрики меньше 16 тегов, ненужные теги можно [скрыть](edit-metrics.md#теги).
 :::
 
-### Group by tags
+### Группировка по тегам
 
-Group data by a single tag or multiple tags.
+Данные можно сгруппировать по одному или нескольким тегам.
 
-If there are many tag values or their combinations, use the [Top N](#8--top-n) option to specify the number of groups 
-shown.
+Если у тегов много значений или они образуют много комбинаций, используйте параметр [Top N](#8--top-n): 
+укажите, сколько комбинаций с максимальными значениями нужно показать на графике.
 
 <img src={GroupByChoose} width="400"/>
 
-For example, see the data grouped by the tag `protocol` with the _Top 3_ tag values shown:
+Например, вот как выглядят данные, сгруппированные по тегу `protocol`, если для параметра _Top N_
+выбрано значение _Top 3_.
 
 <img src={GroupByGraph} width="600"/>
 
 :::note
-The default UI behavior is to use no grouping. There is no way to set up default grouping for a metric. 
+По умолчанию данные отображаются на графике без группировки. Задать группировку по умолчанию для метрики нельзя.
 :::
 
-### Sort alphabetically
+### Сортировка по алфавиту
 
-Sort tag values in the dropdown menu alphabetically to get quicker access:
+Значения тегов в выпадающем меню можно отсортировать в алфавитном порядке — так можно быстрее найти нужное значение:
 
 <img src={Sort} width="400"/>
 
-### Negate next selection
+### Отмена следующего выбора
 
-Choose the tag value to _exclude_ data from graph:
+Выберите значение тега, чтобы _исключить_ данные из графика:
 
 <img src={Negate} width="400"/>
 
 ## 8 — Top N
 
-When grouping data by one or more tags, e.g., by `environment` and `platform`,
-you may find that there are a lot of tag value combinations:
+Когда вы группируете данные по одному или нескольким тегам, например, по _environment_ и _platform_, 
+значения тегов могут образовывать много комбинаций:
 
 | Environment × Platform | `web` | `iphone` | `android` |
 |:----------------------:|:-----:|:--------:|:--------:|
@@ -265,240 +262,246 @@ you may find that there are a lot of tag value combinations:
 |       `staging`        |  ✔️   |    ✔️    |    ✔️    |
 |       `testing`        |  ✔️   |    ✔️    |    ✔️    |
 
-If there are too many of them, use the _Top N_ option to choose the number of combinations
-with the highest values to show on a graph.
+Если комбинаций слишком много, используйте параметр _Top N_: укажите, сколько комбинаций с максимальными значениями 
+нужно показать на графике.
 
-So, if you choose _Top 3_, you will get, for example:
+Если выбрать значение _Top 3_ для этого параметра в нашем примере, получится вот что:
 
 <img src={TopN} width="900"/>
 
-To get the lowest values, choose one of the _Bottom N_ options in the same dropdown menu:
+Чтобы выбрать комбинации с минимальными значениями, выберите один из вариантов _Bottom N_ в том же меню:
 
 <img src={BottomN} width="150"/>
 
 ## 9 — Max host
 
-Enable the [Max host](design-metric.md#имя-хоста-как-тег) option to find the host 
-that sends the maximum value for your metric:
+Чтобы найти хост, который отправляет максимальное значение для конкретной метрики, используйте параметр 
+[Max host](design-metric.md#имя-хоста-как-тег).
 
 <img src={MaxHostEnable} width="100"/>
 
-View the list of all hosts sorted by the maximum value or copy the list to clipboard:
+Просмотрите список всех хостов, отсортированных по максимальному значению, или скопируйте список в буфер обмена:
 
 <img src={MaxHostRes} width="600"/>
 
-The idea of the maximum value is valid only with respect to the chosen time interval.
+Понятие максимального значения имеет смысл только для выбранного периода времени.
 
-If you enable the _Max host_ option and view the whole graph, you see the host that sends the 
-value, which is the maximum in the whole [time period](#4--time-period)—the _Last 24 hours_ in the example below:
+Если включить _Max host_ и просматривать график целиком, отобразится хост, ответственный за отправку 
+значения, которое является максимальным за весь [период времени](#4--период-времени) — _Last 24 hours_ в примере ниже:
 
 <img src={MaxHost1} width="900"/>
 
-When you move the cursor over the graph, you see the resulting _Max host_ changing. It now shows you 
-the host that sends the value, which is the maximum for the available 
-[aggregation interval](#6--aggregation-interval)—in the example below, for the minute you are pointing at:
+Если навести курсор на график, результирующее значение _Max host_ будет меняться. Будет отображаться
+хост, который отправил значение, максимальное для доступного [интервала агрегации](#6--интервал-агрегации).
+В приведённом ниже примере будет показано максимальное значение для минуты, на которую вы указываете:
 
 <img src={MaxHost2} width="900"/>
 
-## 10 — Table view
+## 10 — Таблица
 
-View the metric events in a table, for example:
+События метрики можно отображать в виде таблицы:
 
 <img src={TableView} width="900"/>
 
-Choose the tags to show or hide as columns (an "eye" symbol), or to group by (a "checkmark" sign):
+Столбцы с тегами можно показать или скрыть (значок "глаз") или сгруппировать по ним ("галочка"):
 
 <img src={TableChoose} width="500"/>
 
-## 11 — Event overlay
+## 11 — Наложение событий
 
-Overlay a metric with the events of the other metric to find correlations.
+Чтобы найти корреляции в данных, можно наложить события одной метрики на данные другой.
 
-1. Choose the metric you want to overlay with events. Add the new [metric tab](#19--metric-tabs):
+1. Выберите метрику, на которую нужно наложить события. Откройте новую [вкладку метрики](#19--вкладки-метрик):
 
 <img src={Overlay1} width="900"/>
 
-2. On the new metric tab, choose the second metric you are interested in. Enable the table view for this metric:
+2. На новой вкладке выберите вторую метрику — ту, события которой вас интересуют. Отобразите эту метрику в виде 
+[таблицы](#10--таблица):
 
 <img src={Overlay2} width="900"/>
 
-3. Get back to the first metric. In the _Event overlay_ dropdown menu, choose your second metric of interest. The 
-   event flags appear on a graph:
+3. Вернитесь к первой метрике. В выпадающем меню _Event overlay_ выберите открытую ранее вторую метрику.
+Флажки событий отобразятся на графике:
 
 <img src={Overlay3} width="900"/>
 
 ## 12 — CSV
 
-Export metric data for a chosen time period to a CSV file:
+Данные метрики за выбранный период времени можно экспортировать в виде файла CSV:
 
 <img src={CSV} width="800"/>
 
-## 13 — Meta-metrics
+## 13 — Метаметрики
 
-Metrics having two underscores in the beginning are meta-metrics. The most important ones are shown in the UI:
+Метрики с двумя подчёркиваниями в начале — это метаметрики. Самые важные из них отображаются в интерфейсе:
+
 * [Receive status](#receive-status)
 * [Sampling](#sampling)
 * [Cardinality](#cardinality)
 * [Mapping status](#mapping-status)
 
-Some of these metrics may be not sampled at all. The _Receive status_ and _Sampling_ metrics
-are sent in a special compact form to save traffic.
+Некоторые из этих метрик вообще не семплируются. Метрики _Receive status_ и _Sampling_
+отправляются в специальной компактной форме для экономии трафика.
 
 ### Receive status
 
-This meta-metric redirects you to the `__src_ingestion_status` metric.
-It shows if there are errors when receiving metrics: whether data are formatted properly, 
-or a counter has a negative value, or a `NaN` value has been sent.
+Эта метаметрика перенаправляет вас на метрику `__src_ingestion_status`.
+Она показывает, есть ли ошибки при получении метрик: правильно ли отформатированы данные,
+не имеет ли счётчик отрицательного значения, не отправлено ли значение `NaN`.
 
-The red alert informs you about the errors:
+Красный значок метаматрики сообщает о наличии ошибок:
 
 <img src={ReceiveErrorAlert} width="800"/>
 
-Here are some error examples:
+Вот примеры ошибок:
 
 <img src={ReceiveStatus} width="300"/>
 
-For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../overview/components.md#сервис-метаданных).
+К примеру, теги `err_map_per_metric_queue_overload`, `err_map_tag_value` или `err_map_tag_value_cached` 
+указывают на замедление или ошибки в работе [маппинга](../overview/components.md#сервис-метаданных).
 
-This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
+Эта метрика использует бюджет той метрики, к которой относится, поэтому большое количество ошибок не может повлиять на 
+другие метрики.
 
-The `err_*_utf8` statuses store the original string values in `hex`.
+Статусы `err_*_utf8` хранят исходные значения строк в формате `hex`.
 
 ### Sampling
 
-StatshHouse has two bottlenecks where it samples data: an agent and an aggregator. An agent is also referred 
-to as _source_ because it is the same machine the data come from.
+В StatsHouse есть два узких места: отправка данных от агентов к агрегаторам и вставка данных в базу ClickHouse.
+Агент также называют _source (источник)_, потому что это та машина, с которой поступают данные.
 
-[Sampling](../overview/concepts.md#семплирование) means that StatsHouse throws away pieces of data to reduce its 
-overall amount. 
-To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
-sampling factor).
+[Семплирование](../overview/concepts.md#семплирование) означает, что StatsHouse выбрасывает часть данных, 
+чтобы уменьшить их общий объём. Чтобы сохранить значения агрегатов и статистик, StatsHouse домножает оставшиеся 
+данные на коэффициент семплирования.
 
-The _Sampling source/aggregator_ meta-metric redirects you to the sampling coefficient information for the agent and 
-aggregation levels:
-* to `__src_sampling_factor` for the agent (source),
-* to `__agg_sampling_factor` for the aggregator.
+Метаметрика _Sampling source/aggregator_ даёт информацию о коэффициентах семплирования на уровне агента и агрегатора:
+* `__src_sampling_factor` — для агента,
+* `__agg_sampling_factor` — для агрегатора.
 
-The non-integer sampling coefficients may lead to 
-[non-integer values for the _count_ statistic](#why-do-i-see-a-non-integer-number-for-a-count-statistic).
+Из-за нецелых коэффициентов семплирования могут появляться 
+[нецелые значения счётчиков](#почему-для-счётчика-отображается-нецелое-число).
 
-If the sampling coefficient for a metric is higher than 1, it is displayed with a yellow alert.
+Если коэффициент семплирования больше 1, появляется жёлтый значок.
 
 <img src={SamplingYellowAlert} width="800"/>
 
-If the sampling coefficient for a metric is higher than 5, it is displayed with a red alert.
+Если коэффициент семплирования больше 5, появляется красный значок.
 
 <img src={SamplingSrcAggr} width="810"/>
 
-The _count_ statistic for this metric shows the number of agents having set this coefficient in a particular second.
+Статистика _count_ для этой метрики показывает количество агентов, на которых такой коэффициент был установлен в 
+конкретную секунду.
 
-Learn more about StatsHouse [agents](../overview/components.md#агент) and
-[aggregators](../overview/components.md#агрегатор), and what [sampling](../overview/concepts.md#семплирование) is.
+Узнайте больше об [агентах](../overview/components.md#агент) и
+[агрегаторах](../overview/components.md#агрегатор) StatsHouse, а также о том, что такое 
+[семплирование](../overview/concepts.md#семплирование).
 
 ### Cardinality
 
-In StatsHouse, metric [cardinality](../overview/concepts.md#кардинальность) is how many unique tag value combinations 
-you send 
-for a metric.
+[Кардинальность](../overview/concepts.md#кардинальность) — это количество уникальных комбинаций значений тегов, которые вы отправляете для метрики.
 
-The _Cardinality_ meta-metric redirects you to the `__agg_hour_cardinality` metric:
+Метаметрика _Cardinality_ перенаправляет вас на метрику `__agg_hour_cardinality`:
 
 <img src={HourCardinality} width="600"/>
 
-It shows the estimated hour cardinality for a metric.
-Estimation means linear interpolation between cardinality values for the nearest hours.
+Эта метрика отражает общую часовую кардинальность для конкретной метрики.
+Под общей часовой кардинальностью понимается линейная интерполяция между значениями кардинальности для соседних часов.
 
-This cardinality estimation is based on data from all the aggregators and their shards. 
-So an _avg_ statistic for this metric shows full cardinality, which may be grouped by aggregator.
+Оценка кардинальности основана на данных от всех агрегаторов и их шардов.
+Статистика _avg_ для этой метрики показывает полную кардинальность — данные можно сгруппировать по агрегаторам.
 
 ### Mapping status
 
-If you create too many tag values, which have not been 
-mapped yet, the [mapping](../overview/components.md#бюджет-на-создание-значений-тегов) flood errors appear:
+Если вы создаёте теги с большим числом значений, которые ещё не были добавлены в маппинг, возникают ошибки 
+переполнения [маппинга](../overview/components.md#бюджет-на-создание-значений-тегов):
 
 <img src={MappingFlood} width="800"/>
 
-Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
-Learn more about [mapping](../overview/components.md#сервис-метаданных) 
-and [how many tag values](design-metric.md#сколько-значений-тегов-можно-использовать) to create per metric.
+Ошибки переполнения маппинга указывают на то, что количество новых значений тегов превышает 
+[соответствующий дневной бюджет](../overview/components.md#бюджет-на-создание-значений-тегов).
+Узнайте больше о [маппинге](../overview/components.md#сервис-метаданных)
+и о том, [сколько значений тегов можно использовать](design-metric.md#сколько-значений-тегов-можно-использовать).
 
-## 14 — Lock Y-axis
+## 14 — Фиксированная ось Y
 
-By default, the Y-axis is self-scaling—it adjusts itself to a data amplitude.
-You may need to lock it.
+По умолчанию ось Y масштабируется автоматически — сама подстраивается под амплитуду данных.
+Возможно, вам понадобится зафиксировать её масштаб.
 
-For example, your data normally vary in a range of 1–100, and you may see peaks sometimes.
-With the _Lock Y-axis_ feature, you switch autoscaling off to view your data within a given range of values 
-regardless of peaks.
-For data with daily variations, you may want to zoom in without Y-axis autoscaling:
+Предствьте, например: данные варьируются в диапазоне от 1 до 100. Иногда появляются пики. StatsHouse обычно 
+подстраивает масштаб оси Y под размер пика. Это бывает не очень удобно, когда вас интересуют не пики, а остальные данные.
+
+Фиксируя ось Y, вы отключаете автомасштабирование и можете просматривать данные в заданном диапазоне значений
+независимо от пиков.
 
 <img src={LockY} width="1000"/>
 
-## 15 — Copy link to clipboard
+## 15 — Копирование ссылки в буфер обмена
 
-Adjust the viewing options in the UI—group or filter your data by tags—and share the link with these options included.
+Если вы настроили параметры графика (например, сгруппировали или отфильтровали данные по тегам),
+вы можете поделиться ссылкой — параметры сохранятся в URL.
 
-Please note that the only viewing option not included in the link is _Live mode_.
-Check the [tip](#5--live-mode) for sharing data with the _Live mode_ option included.
+Обратите внимание: единственный параметр, который не включается в ссылку, — это _Live mode_.
+Узнайте, [как отправить ссылку на график с включенным параметром _Live mode_](#5--live-mode).
 
-If you have several [metric tabs](#19--metric-tabs) opened, 
-the _Copy link to clipboard_ option copies the link to the current metric tab only.
+Если у вас открыто несколько [вкладок с метриками](#19--вкладки-метрик),
+скопируется только ссылка на текущую вкладку.
 
-See also the [_Open in a new browser tab_](#20--open-in-a-new-browser-tab) option.
+Также посмотрите, как [открыть ссылку на график в новой вкладке браузера](#20--график-в-новой-вкладке-браузера).
 
-## 16 — Zoom options
+## 16 — Масштабирование
 
-Move back and forth, zoom in or out for both X- and Y-axes.
+Перемещайтесь по шкале времени, увеличивайте или уменьшайте масштаб по осям X и Y.
 
-To get back to the initial view, _Reset zoom_:
+Чтобы вернуться к исходному виду, сбросьте масштабирование (_Reset zoom_):
 
 <img src={Zoom} width="300"/>
 
-Switch off autoscaling Y-axis with the [_Lock Y-axis_](#14--lock-y-axis) feature.
+Отключите автомасштабирование оси Y, [зафиксировав её](#14--фиксированная-ось-y).
 
-## 17 — Switch database
+## 17 — Переключение базы данных
 
-Previously, StatsHouse used a slower database that still stores useful historical data.
-In most cases, you should not switch to this slow database—you will probably see no data and a warning:
+Когда-то в StatsHouse использовалась более медленная база данных. В большинстве случаев не нужно переключаться на 
+неё. Вы не увидите данных, но появится предупреждение:
 
 <img src={SwitchDb} width="800"/>
 
-## 18 — PromQL query editor
+Эта функциональность будет отключена позже.
 
-To broaden the range of operations available when viewing data, we supported PromQL, 
-or [Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+## 18 — Редактор PromQL-запросов
 
-Switch to PromQL query editor for complex viewing scenarios:
+Чтобы расширить возможности работы с данными, мы поддержали PromQL 
+([Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/basics/)).
+
+Переключитесь в режим редактирования PromQL-запросов, чтобы реализовать более сложные сценарии просмотра данных:
 
 <img src={Prom} width="300"/>
 
-You will get an autogenerated PromQL query describing the current graph view. 
+StatsHouse автоматически сгенерирует для вашего графика PromQL-запрос, описывающий текущее состояние графика.
+Выполнить запрос можно в самом редакторе.
 
-Use the PromQL editor to run your queries.
-To switch back to graph mode, press _Filter_:
+Чтобы переключиться обратно в "кнопочный" режим настройки графика, нажмите _Filter_:
 
 <img src={PromQuery} width="300"/>
 
-Learn how to [query with PromQL](query-wth-promql.md) in detail.
+Узнайте больше о том, как [работать с PromQL-запросами](query-wth-promql.md).
 
-## 19 — Metric tabs
+## 19 — Вкладки метрик
 
-Use _Metric tabs_ to [create dashboards](dashboards.md) or to [overlay metric events](#11--event-overlay).
-Duplicate the current graph view to a new tab and choose the other metric, 
-or copy the graph's URL and paste it to a new metric tab:
+Вкладки метрик помогают [создавать дашборды](dashboards.md) и 
+[накладывать события одной метрики на данные другой](#11--наложение-событий).
+Скопируйте текущий график на новую вкладку и выберите другую метрику.
+Также можно скопировать URL графика и вставить его на новую вкладку метрики:
 
 <img src={MetricTabs} width="400"/>
 
-Remove the tab if necessary:
+При необходимости вкладку можно удалить:
 
 <img src={MetricTabDelete} width="400"/>
 
-## 20 — Open in a new browser tab
+## 20 — График в новой вкладке браузера
 
-This option implements the same behavior as 
-the [_Copy link to clipboard_](#15--copy-link-to-clipboard) 
-but instead of copying the link it opens it in the new browser tab.
+Вместо того чтобы [_копировать ссылку на график в буфер обмена_](#15--копирование-ссылки-в-буфер-обмена), можно открыть её в новой 
+вкладке браузера.
 
-All the [_Copy link to clipboard_](#15--copy-link-to-clipboard) limitations apply:
-only the current metric tab is opened, and _Live mode_ is not included.
+Как и при [копировании ссылки](#15--копирование-ссылки-в-буфер-обмена), в новой вкладке открывается только текущая вкладка 
+метрики, а режим _Live mode_ не включается автоматически.

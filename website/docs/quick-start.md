@@ -160,8 +160,6 @@ For example, choose a 7-day time period and a 24-hour aggregation interval.
 
 For real-time monitoring, use [Live mode](guides/view-graph.md#5--live-mode).
 
-Read more about choosing the [time period](guides/view-graph.md#4--time-period).
-
 ### Aggregation interval
 
 [Aggregation](overview/concepts.md#aggregation) interval is a kind of resolution for your metric data.

@@ -125,7 +125,10 @@ and the average (the sum divided by the counter) for the [_value_ metrics](desig
 
 ### Histograms are _t-digests_
 
-Prometheus provides you with "traditional" and "native" histograms. StatsHouse now supports only the "traditional" ones.
+Prometheus provides you with "traditional" and "native" histograms. StatsHouse will soon support the 
+"traditional" ones. More details will be provided when the 
+[scraping](../admin/migrating.md#how-to-migrate-from-prometheus) feature is implemented. Now it is recommended to 
+use StatsHouse histograms.
 
 StatsHouse stores histograms in the _t-digest_ structure but does not provide them by default—you should 
 [enable writing percentiles](edit-metrics.md#percentiles).

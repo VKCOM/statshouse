@@ -196,13 +196,13 @@ statshouse agent --agg-addr=XX.XXX.XXX.XXX:XXXX,YY.YYY.YYY.YYY:YYYY,ZZ.ZZZ.ZZZ.Z
 4. Проверьте, отображается ли контрольный сигнал от хоста.
 
 Также проверьте, может ли агент отправлять реальные данные: попробуйте
-[отправить тестовые данные](../guides/send-data.md#how-to-send-data-without-client-libraries).
+[отправить тестовые данные](../guides/send-data.md#без-использования-клиентских-библиотек).
 
 ## API/UI
 
 Пользовательский интерфейс (UI) StatsHouse входит в состав [API-компонента](../overview/components.md#api).
 Сразу после установки API/UI можно просматривать
-[служебные метрики](../guides/view-graph.md#service-metrics) — они отражают состояние StatsHouse.
+[служебные метрики](../guides/view-graph.md#служебные-метрики) — они отражают состояние StatsHouse.
 
 API-компонент можно установить на любой машине.
 
