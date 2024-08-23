@@ -288,36 +288,30 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}
-	var samplerStat data_model.SamplerStatistics
-	sampler.Run(remainingBudget, &samplerStat)
-	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
-	for _, s := range samplerStat.Steps {
-		sampleFactors = s.GetSampleFactors(sampleFactors)
-	}
-	for k, v := range samplerStat.Items {
+	sampler.Run(remainingBudget)
+	for _, v := range sampler.MetricGroups {
 		// keep bytes
-		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}}
+		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
 		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(&v.SumSizeKeep)
 		// discard bytes
-		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}}
+		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
 		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(&v.SumSizeDiscard)
+		// budget
+		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Keys: [16]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
+		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		item.Tail.Value.AddValue(v.Budget())
 	}
 	// report budget used
 	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Keys: [16]int32{0, s.agent.componentTag}}
 	budgetItem := data_model.MapKeyItemMultiItem(&bucket.MultiItems, budgetKey, config.StringTopCapacity, nil, nil)
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
-	for k, v := range samplerStat.Budget {
-		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Keys: [16]int32{0, s.agent.componentTag, k[0], k[1]}}
-		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-		item.Tail.Value.AddValue(v)
-	}
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Keys: [16]int32{0, s.agent.componentTag}}
 	mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-	mi.Tail.Value.AddValueCounterHost(float64(len(samplerStat.Metrics)), 1, 0)
-	return sampleFactors
+	mi.Tail.Value.AddValueCounterHost(float64(sampler.MetricCount), 1, 0)
+	return sampler.SampleFactors
 }
 
 func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) {
