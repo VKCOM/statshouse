@@ -249,10 +249,12 @@ const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.dvCountNorm,
   QUERY_WHAT.cardinality,
   QUERY_WHAT.cardinalityNorm,
+  QUERY_WHAT.cardinalitySec,
   QUERY_WHAT.cuCardinality,
   QUERY_WHAT.maxCountHost,
   QUERY_WHAT.unique,
   QUERY_WHAT.uniqueNorm,
+  QUERY_WHAT.uniqueSec,
   QUERY_WHAT.dvUnique,
   QUERY_WHAT.dvUniqueNorm,
 ];

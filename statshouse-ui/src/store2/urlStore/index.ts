@@ -6,3 +6,4 @@
 
 export * from './urlStore';
 export { toggleGroupShow } from './toggleGroupShow';
+export { updateTitle } from './updateTitle';

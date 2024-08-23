@@ -17,7 +17,7 @@ import {
 import { type StoreSlice } from '../createStore';
 import { appHistory } from 'common/appHistory';
 import { getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
-import { deepClone, mergeLeft } from 'common/helpers';
+import { mergeLeft } from 'common/helpers';
 import { getUrlState } from './getUrlState';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { type PlotType, type TimeRangeKeysTo } from 'api/enum';
@@ -36,7 +36,7 @@ import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
-import { dequal } from 'dequal/lite';
+import { updateTitle } from './updateTitle';
 
 export type UrlStore = {
   params: QueryParams;
@@ -66,6 +66,7 @@ export type UrlStore = {
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
   removeDashboard(): Promise<void>;
+  updateTitle(): void;
 };
 
 /*export function checkUpdatePlot(plotKey: PlotKey, store: StatsHouseStore, prevStore: StatsHouseStore): boolean {
@@ -205,18 +206,34 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     }
   });
 
-  // store.subscribe((state, prevState) => {
-  //   if (
-  //     state.params !== prevState.params ||
-  //     state.plotVisibilityList !== prevState.plotVisibilityList ||
-  //     state.plotPreviewList !== prevState.plotPreviewList
-  //   ) {
-  //     console.time('store.subscribe');
-  //     const plots = updatePlotList(state, prevState);
-  //     console.timeEnd('store.subscribe');
-  //     plots.forEach(state.loadPlotData);
-  //   }
-  // });
+  store.subscribe((state, prevState) => {
+    const {
+      params: { tabNum, plots, dashboardName },
+      plotsData,
+    } = state;
+    const {
+      params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName },
+      plotsData: prevPlotsData,
+    } = prevState;
+    if (
+      tabNum !== prevTabNum ||
+      plots[tabNum] !== prevPlots[prevTabNum] ||
+      plotsData[tabNum] !== prevPlotsData[prevTabNum] ||
+      dashboardName !== prevDashboardName
+    ) {
+      getState().updateTitle();
+    }
+    //   if (
+    //     state.params !== prevState.params ||
+    //     state.plotVisibilityList !== prevState.plotVisibilityList ||
+    //     state.plotPreviewList !== prevState.plotPreviewList
+    //   ) {
+    //     console.time('store.subscribe');
+    //     const plots = updatePlotList(state, prevState);
+    //     console.timeEnd('store.subscribe');
+    //     plots.forEach(state.loadPlotData);
+    //   }
+  });
 
   const saveParams = getDefaultParams();
   if (isValidPath(prevLocation)) {
@@ -380,6 +397,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     async removeDashboard() {
       //todo: remove dash
+    },
+    updateTitle() {
+      updateTitle(getState());
     },
   };
 };
