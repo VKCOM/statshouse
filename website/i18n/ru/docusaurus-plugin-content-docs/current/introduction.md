@@ -64,9 +64,9 @@ StatsHouse не сломается из-за слишком
 * [Как просматривать данные](guides/view-graph.md) <text className="orange-text">← _здесь есть подробное описание 
   интерфейса_</text>
 * [Как пользоваться дашбордами](guides/dashboards.md)
-* [Как редактировать метрику](guides/edit-metrics.md)
+* [Как отредактировать метрику](guides/edit-metrics.md)
 * [Как работать с PromQL](guides/query-wth-promql.md)
-* [Где найти спецификацию OpenAPI](guides/openapi.md)
+* [Как найти спецификацию OpenAPI](guides/openapi.md)
 
 ### [Администраторам](admin/sys-req.md)
 
