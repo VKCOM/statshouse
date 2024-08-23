@@ -21,6 +21,8 @@ import (
 	"go.uber.org/multierr"
 	"go4.org/mem"
 
+	"github.com/mailru/easyjson/opt"
+
 	"github.com/vkcom/statshouse-go"
 )
 
@@ -204,6 +206,19 @@ type MetricsGroup struct {
 	Namespace       *NamespaceMeta `json:"-"`
 }
 
+// possible sharding strategies
+const (
+	MappedTags = "mapped_tags"
+	FixedShard = "fixed_shard"
+	Tag        = "tag"
+)
+
+type MetricSharding struct {
+	Strategy string     `json:"strategy"`         // possible values: mapped_tags, fixed_shard, tag
+	Shard    opt.Uint32 `json:"shard,omitempty"`  // only for "fixed_shard" strategy
+	TagId    opt.Uint32 `json:"tag_id,omitempty"` // only for "tag" strategy
+}
+
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id"`
@@ -229,6 +244,7 @@ type MetricMetaValue struct {
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
+	Sharding             MetricSharding           `json:"sharding,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -494,6 +510,13 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			}
 		}
 	}
+	// default strategy if it's not configured
+	if m.Sharding.Strategy == "" {
+		m.Sharding.Strategy = MappedTags
+	}
+	if validationErr := ValidSharding(m.Sharding); validationErr != nil {
+		err = multierr.Append(err, validationErr)
+	}
 	return err
 }
 
@@ -669,6 +692,33 @@ func ValidRawKind(s string) bool {
 		return true
 	}
 	return false
+}
+
+func ValidSharding(sharding MetricSharding) error {
+	switch sharding.Strategy {
+	case MappedTags:
+		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
+			return fmt.Errorf("%s strategy is incompative with shard or tag_id", MappedTags)
+		}
+		return nil
+	case FixedShard:
+		if !sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
+			return fmt.Errorf("%s strategy requires shard to be set", FixedShard)
+		}
+		if sharding.TagId.IsDefined() {
+			return fmt.Errorf("%s strategy is incompative with tag_id", FixedShard)
+		}
+		return nil
+	case Tag:
+		if !sharding.TagId.IsDefined() {
+			return fmt.Errorf("%s strategy requires tag_id to be set", Tag)
+		}
+		if sharding.Shard.IsDefined() {
+			return fmt.Errorf("%s strategy is incompative with shard", Tag)
+		}
+		return nil
+	}
+	return fmt.Errorf("unknown strategy %s", sharding.Strategy)
 }
 
 func TagIndex(tagID string) int { // inverse of 'TagID'
