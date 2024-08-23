@@ -5,14 +5,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, urlEncodeVariables } from 'url2';
-import { apiQueryFetch, type ApiQueryGet, ApiQueryVariableGet } from 'api/query';
+import { apiQueryFetch, type ApiQueryGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
 import { type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
-import { autoLowAgg, autoAgg } from '../constants';
+import { autoAgg, autoLowAgg } from '../constants';
 import { replaceVariable } from '../helpers/replaceVariable';
 import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
 
@@ -77,9 +77,8 @@ export async function loadPlotData(
   }
   // todo:
   // loadMetricMeta(plot.metricName).then();
-  // console.log(`loadPlotData_${plotKey}`);
-  const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
 
+  const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
   if (error) {
     if (status === 403) {
       return (state) => {

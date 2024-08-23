@@ -181,12 +181,15 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         //   state.plotsData[index].scales = scales;
         // });
         const queryEnd = getState().queryStart(plotKey);
-        loadPlotData(plotKey, getState().params).then((updatePlotData) => {
-          if (updatePlotData) {
+        loadPlotData(plotKey, getState().params)
+          .then((updatePlotData) => {
+            if (updatePlotData) {
+              setState(updatePlotData);
+            }
+          })
+          .finally(() => {
             queryEnd();
-            setState(updatePlotData);
-          }
-        });
+          });
       }
 
       // getState().params.plots[plotKey]?.events.forEach((iPlot) => {
@@ -225,12 +228,16 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         state.plotsData[plotKey] ??= getEmptyPlotData();
         state.plotsData[plotKey]!.numQueries++;
       });
+      let start = true;
       return () => {
-        setState((state) => {
-          if (state.plotsData[plotKey]) {
-            state.plotsData[plotKey]!.numQueries--;
-          }
-        });
+        if (start) {
+          start = false;
+          setState((state) => {
+            if (state.plotsData[plotKey]) {
+              state.plotsData[plotKey]!.numQueries--;
+            }
+          });
+        }
       };
     },
     clearPlotError(plotKey) {

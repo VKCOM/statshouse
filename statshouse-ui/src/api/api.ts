@@ -87,7 +87,9 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
       result.error = new Error('Fetch error');
     }
   }
-  abortControllers.delete(keyRequest);
+  if (result.status !== -2) {
+    abortControllers.delete(keyRequest);
+  }
   return result;
 }
 

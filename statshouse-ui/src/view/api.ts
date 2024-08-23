@@ -29,6 +29,7 @@ import { MetricMetaValue } from '../api/metric';
 import {
   GET_PARAMS,
   METRIC_VALUE_BACKEND_VERSION,
+  QUERY_WHAT,
   type QueryWhat,
   type QueryWhatSelector,
   type TagKey,
@@ -204,234 +205,236 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
   switch (kind) {
     case 'counter':
       return [
-        'count_norm',
-        'count',
-        'cu_count',
-        'max_count_host',
-        'dv_count',
-        'dv_count_norm',
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
+        QUERY_WHAT.cuCount,
+        QUERY_WHAT.maxCountHost,
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     case 'value':
       return [
-        'avg',
-        'min',
-        'max',
-        'sum_norm',
-        'sum',
-        'stddev',
-        'count_norm',
-        'count',
+        QUERY_WHAT.avg,
+        QUERY_WHAT.min,
+        QUERY_WHAT.max,
+        QUERY_WHAT.sumNorm,
+        QUERY_WHAT.sum,
+        QUERY_WHAT.stddev,
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
         '-',
-        'cu_avg',
-        'cu_sum',
-        'cu_count',
+        QUERY_WHAT.cuAvg,
+        QUERY_WHAT.cuSum,
+        QUERY_WHAT.cuCount,
         '-',
-        'dv_count',
-        'dv_count_norm',
-        'dv_sum',
-        'dv_sum_norm',
-        'dv_avg',
-        'dv_min',
-        'dv_max',
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
+        QUERY_WHAT.dvSum,
+        QUERY_WHAT.dvSumNorm,
+        QUERY_WHAT.dvAvg,
+        QUERY_WHAT.dvMin,
+        QUERY_WHAT.dvMax,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     case 'value_p':
       return [
-        'avg',
-        'min',
-        'max',
-        'sum_norm',
-        'sum',
-        'stddev',
-        'count_norm',
-        'count',
+        QUERY_WHAT.avg,
+        QUERY_WHAT.min,
+        QUERY_WHAT.max,
+        QUERY_WHAT.sumNorm,
+        QUERY_WHAT.sum,
+        QUERY_WHAT.stddev,
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
         '-',
-        'cu_avg',
-        'cu_sum',
-        'cu_count',
+        QUERY_WHAT.cuAvg,
+        QUERY_WHAT.cuSum,
+        QUERY_WHAT.cuCount,
         '-',
-        'p0_1',
-        'p1',
-        'p5',
-        'p10',
-        'p25',
-        'p50',
-        'p75',
-        'p90',
-        'p95',
-        'p99',
-        'p999',
+        QUERY_WHAT.p0_1,
+        QUERY_WHAT.p1,
+        QUERY_WHAT.p5,
+        QUERY_WHAT.p10,
+        QUERY_WHAT.p25,
+        QUERY_WHAT.p50,
+        QUERY_WHAT.p75,
+        QUERY_WHAT.p90,
+        QUERY_WHAT.p95,
+        QUERY_WHAT.p99,
+        QUERY_WHAT.p999,
         '-',
-        'dv_count',
-        'dv_count_norm',
-        'dv_sum',
-        'dv_sum_norm',
-        'dv_avg',
-        'dv_min',
-        'dv_max',
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
+        QUERY_WHAT.dvSum,
+        QUERY_WHAT.dvSumNorm,
+        QUERY_WHAT.dvAvg,
+        QUERY_WHAT.dvMin,
+        QUERY_WHAT.dvMax,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     case 'unique':
       return [
-        'unique_norm',
-        'unique',
-        'count_norm',
-        'count',
+        QUERY_WHAT.uniqueNorm,
+        QUERY_WHAT.unique,
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
         '-',
-        'cu_count',
+        QUERY_WHAT.cuCount,
         '-',
-        'avg',
-        'min',
-        'max',
-        'stddev',
+        QUERY_WHAT.avg,
+        QUERY_WHAT.min,
+        QUERY_WHAT.max,
+        QUERY_WHAT.stddev,
         '-',
-        'dv_count',
-        'dv_count_norm',
-        'dv_avg',
-        'dv_min',
-        'dv_max',
-        'dv_unique',
-        'dv_unique_norm',
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
+        QUERY_WHAT.dvAvg,
+        QUERY_WHAT.dvMin,
+        QUERY_WHAT.dvMax,
+        QUERY_WHAT.dvUnique,
+        QUERY_WHAT.dvUniqueNorm,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     case 'mixed':
       return [
-        'count_norm',
-        'count',
-        'avg',
-        'min',
-        'max',
-        'sum_norm',
-        'sum',
-        'stddev',
-        'unique_norm',
-        'unique',
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
+        QUERY_WHAT.avg,
+        QUERY_WHAT.min,
+        QUERY_WHAT.max,
+        QUERY_WHAT.sumNorm,
+        QUERY_WHAT.sum,
+        QUERY_WHAT.stddev,
+        QUERY_WHAT.uniqueNorm,
+        QUERY_WHAT.unique,
         '-',
-        'cu_count',
-        'cu_avg',
-        'cu_sum',
+        QUERY_WHAT.cuAvg,
+        QUERY_WHAT.cuSum,
+        QUERY_WHAT.cuCount,
         '-',
-        'dv_count',
-        'dv_count_norm',
-        'dv_sum',
-        'dv_sum_norm',
-        'dv_avg',
-        'dv_unique',
-        'dv_unique_norm',
-        'dv_min',
-        'dv_max',
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
+        QUERY_WHAT.dvSum,
+        QUERY_WHAT.dvSumNorm,
+        QUERY_WHAT.dvAvg,
+        QUERY_WHAT.dvMin,
+        QUERY_WHAT.dvMax,
+        QUERY_WHAT.dvUnique,
+        QUERY_WHAT.dvUniqueNorm,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     case 'mixed_p':
       return [
-        'count_norm',
-        'count',
-        'avg',
-        'min',
-        'max',
-        'sum_norm',
-        'sum',
-        'stddev',
-        'unique_norm',
-        'unique',
+        QUERY_WHAT.countNorm,
+        QUERY_WHAT.count,
+        QUERY_WHAT.avg,
+        QUERY_WHAT.min,
+        QUERY_WHAT.max,
+        QUERY_WHAT.sumNorm,
+        QUERY_WHAT.sum,
+        QUERY_WHAT.stddev,
+        QUERY_WHAT.uniqueNorm,
+        QUERY_WHAT.unique,
         '-',
-        'cu_count',
-        'cu_avg',
-        'cu_sum',
+        QUERY_WHAT.cuAvg,
+        QUERY_WHAT.cuSum,
+        QUERY_WHAT.cuCount,
         '-',
-        'p0_1',
-        'p1',
-        'p5',
-        'p10',
-        'p25',
-        'p50',
-        'p75',
-        'p90',
-        'p95',
-        'p99',
-        'p999',
+        QUERY_WHAT.p0_1,
+        QUERY_WHAT.p1,
+        QUERY_WHAT.p5,
+        QUERY_WHAT.p10,
+        QUERY_WHAT.p25,
+        QUERY_WHAT.p50,
+        QUERY_WHAT.p75,
+        QUERY_WHAT.p90,
+        QUERY_WHAT.p95,
+        QUERY_WHAT.p99,
+        QUERY_WHAT.p999,
         '-',
-        'dv_count',
-        'dv_count_norm',
-        'dv_sum',
-        'dv_sum_norm',
-        'dv_avg',
-        'dv_min',
-        'dv_max',
-        'dv_unique',
-        'dv_unique_norm',
+        QUERY_WHAT.dvCount,
+        QUERY_WHAT.dvCountNorm,
+        QUERY_WHAT.dvSum,
+        QUERY_WHAT.dvSumNorm,
+        QUERY_WHAT.dvAvg,
+        QUERY_WHAT.dvMin,
+        QUERY_WHAT.dvMax,
+        QUERY_WHAT.dvUnique,
+        QUERY_WHAT.dvUniqueNorm,
         '-',
-        'cardinality_norm',
-        'cardinality',
-        'cu_cardinality',
+        QUERY_WHAT.cardinalityNorm,
+        QUERY_WHAT.cardinality,
+        QUERY_WHAT.cuCardinality,
       ];
     default:
-      return ['count_norm'];
+      return [QUERY_WHAT.countNorm];
   }
 }
 
 // XXX: keep in sync with Go
 export function whatToWhatDesc(what: QueryWhat | string): string {
   switch (what) {
-    case 'p0_1':
+    case QUERY_WHAT.p0_1:
       return 'p0.1';
-    case 'p999':
+    case QUERY_WHAT.p999:
       return 'p99.9';
-    case 'count_norm':
+    case QUERY_WHAT.countNorm:
+    case QUERY_WHAT.countSec:
       return 'count/sec';
-    case 'countsec':
-      return 'count/sec';
-    case 'cu_count':
+    case QUERY_WHAT.cuCount:
       return 'count (cumul)';
-    case 'cardinality_norm':
+    case QUERY_WHAT.cardinalityNorm:
+    case QUERY_WHAT.cardinalitySec:
       return 'cardinality/sec';
-    case 'cu_cardinality':
+    case QUERY_WHAT.cuCardinality:
       return 'cardinality (cumul)';
-    case 'cu_avg':
+    case QUERY_WHAT.cuAvg:
       return 'avg (cumul)';
-    case 'sum_norm':
+    case QUERY_WHAT.sumNorm:
+    case QUERY_WHAT.sumSec:
       return 'sum/sec';
-    case 'cu_sum':
+    case QUERY_WHAT.cuSum:
       return 'sum (cumul)';
-    case 'unique_norm':
+    case QUERY_WHAT.uniqueNorm:
+    case QUERY_WHAT.uniqueSec:
       return 'unique/sec';
-    case 'max_count_host':
+    case QUERY_WHAT.maxCountHost:
       return 'max(count)@host';
-    case 'max_host':
+    case QUERY_WHAT.maxHost:
       return 'max(value)@host';
-    case 'dv_count':
+    case QUERY_WHAT.dvCount:
       return 'count (derivative)';
-    case 'dv_sum':
+    case QUERY_WHAT.dvSum:
       return 'sum (derivative)';
-    case 'dv_avg':
+    case QUERY_WHAT.dvAvg:
       return 'avg (derivative)';
-    case 'dv_count_norm':
+    case QUERY_WHAT.dvCountNorm:
       return 'count/sec (derivative)';
-    case 'dv_sum_norm':
+    case QUERY_WHAT.dvSumNorm:
       return 'sum/sec (derivative)';
-    case 'dv_min':
+    case QUERY_WHAT.dvMin:
       return 'min (derivative)';
-    case 'dv_max':
+    case QUERY_WHAT.dvMax:
       return 'max (derivative)';
-    case 'dv_unique':
+    case QUERY_WHAT.dvUnique:
       return 'unique (derivative)';
-    case 'dv_unique_norm':
+    case QUERY_WHAT.dvUniqueNorm:
       return 'unique/sec (derivative)';
     default:
       return what as string;

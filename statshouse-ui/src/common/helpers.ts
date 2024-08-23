@@ -96,6 +96,18 @@ export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
 }
 
+export function uniqueSortArray(arr: string[]): string[] {
+  return Object.keys(
+    arr.reduce(
+      (res, s) => {
+        res[s] = true;
+        return res;
+      },
+      {} as Record<string, boolean>
+    )
+  );
+}
+
 export function sumArray(arr: number[]) {
   return arr.reduce((res, i) => res + i, 0);
 }
