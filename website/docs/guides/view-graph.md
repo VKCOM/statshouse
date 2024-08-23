@@ -94,7 +94,7 @@ in the metric description section. Otherwise, use your organization's internal c
 
 ### "How can I display several metrics on a graph?"
 
-[Йuery StatsHouse with PromQL](query-wth-promql.md).
+[Query StatsHouse with PromQL](query-wth-promql.md).
 To compare metrics, [create a dashboard](dashboards.md). To find relationships 
 between the metrics or events, use [Event overlay](#11--event-overlay).
 
