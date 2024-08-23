@@ -327,7 +327,7 @@ statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5
 [разрешение](edit-metrics.md#resolution).
 
 :::tip
-Если вам нужны теги с большим количеством значений, которые являются 32-битными числами, (например, тег `user_ID`),
+Если вам нужны теги с большим количеством значений, которые являются 32-битными числами (например, тег `user_ID`),
 используйте [_Raw_](#сырые-raw-теги) теги, чтобы избежать ошибок `mapping flood`.
 
 Если вам нужен тег с разнообразными строковыми значениями (например, тег `search_request`), используйте
@@ -343,7 +343,7 @@ statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5
 и вставлять в базу ClickHouse, не добавляя в маппинг.
 
 Чтобы не забыть, что означают "сырые" значения тегов, укажите
-[формат](edit-metrics.md#specifying-formats-for-raw-tag-values), который будет отображаться в иннтерфейсе, и добавьте
+[формат](edit-metrics.md#specifying-formats-for-raw-tag-values), который будет отображаться в интерфейсе, и добавьте
 [комментарии](edit-metrics.md#value-comments).
 
 ### Тег _String top_ (Топ строк)

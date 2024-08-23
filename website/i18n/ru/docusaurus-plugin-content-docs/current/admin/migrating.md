@@ -71,7 +71,7 @@ title: Переход с других систем
 При скрейпинге метрик теги извлекаются _автоматически_. В полученной Prometheus-метрике может быть более 16 тегов (т.
 е. названий тегов), и StatsHouse "не знает", как сопоставить их с идентификаторами.
 
-Эти извлечённые теги появляются в качестве "черновых" тегов — см. раздел [Edit](../guides/edit-metrics.md) для 
+Эти извлечённые теги появляются в качестве драфт-тегов — см. раздел [Edit](../guides/edit-metrics.md) для 
 конкретной метрики. Узнайте, как вручную
 [сопоставить извлечённые названия тегов с идентификаторами тегов в StatsHouse](../guides/edit-metrics.md#map-the-draft-tag-names-to-the-tag-ids).
 
@@ -81,10 +81,10 @@ title: Переход с других систем
 [типы метрик в StatsHouse](../guides/design-metric.md#типы-метрик) также различаются. Мы
 сопоставили их таким образом:
 
-| Prometheus                                                                              | StatsHouse                                                                                                |
-|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| counter →<br/>([cumulative](https://prometheus.io/docs/concepts/metric_types/#counter))  | counter<br/>([an <br/><br/>aggregate per time interval](../guides/design-metric.md#счётчики-тип-counter)) |
-| gauge                                                                                 → | value                                                                                                     |
-| histogram                                                                             → | histogram (_experimental_)                                                                                |
+| Prometheus                                                                              | StatsHouse                                                                                      |
+|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| counter →<br/>([cumulative](https://prometheus.io/docs/concepts/metric_types/#counter))  | counter<br/>([an aggregate per time interval](../guides/design-metric.md#счётчики-тип-counter)) |
+| gauge                                                                                 → | value                                                                                           |
+| histogram                                                                             → | histogram (_experimental_)                                                                      |
 
 Более подробную информацию о скрейпинге метрик мы предоставим позже.

@@ -59,14 +59,14 @@ StatsHouse не сломается из-за слишком
 * [Как получить доступ](guides/access-cluster.md)
 * [Как спроектировать метрику](guides/design-metric.md) <text className="orange-text">← _подумайте, как вы будете 
   пользоваться метрикой_</text>
-* [Create a metric](guides/create-metric.md)
-* [Send metric data](guides/send-data.md)
-* [View data on a graph](guides/view-graph.md) <text className="orange-text">← _здесь есть подробное описание 
+* [Как создать метрику](guides/create-metric.md)
+* [Как отправлять данные](guides/send-data.md)
+* [Как просматривать данные](guides/view-graph.md) <text className="orange-text">← _здесь есть подробное описание 
   интерфейса_</text>
-* [Edit a metric](guides/edit-metrics.md)
-* [Create and view dashboards](guides/dashboards.md)
-* [Query with PromQL](guides/query-wth-promql.md)
-* [Find OpenAPI specification](guides/openapi.md)
+* [Как пользоваться дашбордами](guides/dashboards.md)
+* [Как редактировать метрику](guides/edit-metrics.md)
+* [Как работать с PromQL](guides/query-wth-promql.md)
+* [Где найти спецификацию OpenAPI](guides/openapi.md)
 
 ### [Администраторам](admin/sys-req.md)
 

@@ -2,9 +2,9 @@
 sidebar_position: 7
 ---
 
-# Query with PromQL
+# Как работать с PromQL
 
-This section tells you about using PromQL with StatsHouse:
+В этом разделе можно узнать об особенностях поддержки PromQL в StatsHouse:
 <!-- TOC -->
 * [What is PromQL?](#what-is-promql)
 * [How to switch to a PromQL query editor](#how-to-switch-to-a-promql-query-editor)
@@ -21,60 +21,61 @@ This section tells you about using PromQL with StatsHouse:
   * [`default`](#default)
 <!-- TOC -->
 
-## What is PromQL?
+## Что такое PromQL?
 
-PromQL is the Prometheus Query Language that lets the user select time series data. 
+PromQL (Prometheus Query Language) — это язык запросов для работы с временными рядами в системе Prometheus.
 
-Why have we decided to support querying with PromQL in StatsHouse? 
-We wanted to broaden the range of things the users could do with data in StatsHouse.
-PromQL provides users with the necessary operations, it is widely used and well-documented.
+Мы решили поддержать PromQL, чтобы расширить возможности работы с данными в StatsHouse.
+PromQL предоставляет нужную функциональность, широко используется и хорошо документирован.
 
-Find the original [PromQL documentation](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+Познакомьтесь с [оригинальной документацией PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
-## How to switch to a PromQL query editor
+## Редактор PromQL-запросов
 
-To switch to the PromQL query editor in StatsHouse, press the `< >` button near the _Metric name_ field.
-Find more about the [PromQL query editor in the UI](view-graph.md#18--редактор-promql-запросов).
+Чтобы открыть редактор PromQL-запросов, нажмите кнопку `< >` рядом с полем выбора метрики.
+Узнайте больше о [редакторе PromQL-запросов](view-graph.md#18--редактор-promql-запросов).
 
-## What is specific about PromQL in StatsHouse?
+## Особенности поддержки PromQL в StatsHouse
 
-If you have been using PromQL before, you may be confused with some PromQL implementation details in StatsHouse. 
-Let's make them clear.
+Если у вас уже есть опыт работы с PromQL, вам важно знать, чем отличается поддержка PromQL в StatsHouse от 
+привычного вам PromQL в системе Prometheus:
 
-* [The query result is an aggregate](#the-query-result-is-an-aggregate)—not an exact metric value per moment. 
-* You can [choose the aggregate components](#what-for-choosing-the-aggregate-components) using the `__what__` selector.
-* StatsHouse [histograms are _t-digests_](#histograms-are-t-digests).
-* StatsHouse [does not group data by default](#no-data-grouping-by-default).
+* [Результат выполнения запроса — это агрегат](#the-query-result-is-an-aggregate), а не точное значение метрики в 
+  каждый момент времени.
+* Выбрать [компоненты агрегата](#what-for-choosing-the-aggregate-components) можно с помощью селектора `__what__`.
+* Гистограммы в StatsHouse [представляют собой структуры _t-digest_](#histograms-are-t-digests).
+* В StatsHouse [не выполняется группировка по умолчанию](#no-data-grouping-by-default).
 
-### The query result is an aggregate
+### Результат выполнения запроса — это агрегат
 
-Prometheus stores `timestamp—value` pairs. Instead, StatsHouse stores aggregated data per time intervals, or 
-[_aggregates_](../overview/concepts.md#агрегат).
+Система Prometheus хранит пары `временная метка-значение`. В отличие от Prometheus, StatsHouse хранит агрегированные 
+данные, относящие ко временным интервалам, или [_агрегаты_](../overview/concepts.md#агрегат).
 
-So, the query result in StatsHouse is an aggregate, and it depends on
-* the [_minimal available aggregation interval_](../overview/concepts.md#минимальный-интервал-агрегации-из-доступных)
-(i.e., on the "age" of the data),
-* the [_requested aggregation interval_](view-graph.md#6--интервал-агрегации),
-* the metric [_resolution_](../overview/concepts.md#разрешение).
+Результат выполнения PromQL-запроса в StatsHouse зависит от
+* [_минимального доступного интервала агрегации_](../overview/concepts.md#минимальный-интервал-агрегации-из-доступных)
+  (т.е. от «возраста» данных),
+* [_запрашиваемого интервала агрегации_](view-graph.md#6--интервал-агрегации),
+* [_разрешения_](../overview/concepts.md#разрешение) метрики.
 
-An [aggregate](../overview/concepts.md#агрегат) contains the _count_, _sum_, _min_, _max_ 
-statistics, and, optionally, the [_String top_](../overview/components.md#тег-string-top-топ-строк) tag (`tag_s`)
-and [percentiles](edit-metrics.md#percentiles) (if enabled). 
-They are _aggregate components_:
+[Агрегат](../overview/concepts.md#агрегат) содержит статистики _count_, _sum_, _min_, _max_, а также иногда тег 
+[_String top_](../overview/components.md#тег-string-top-топ-строк) (`tag_s`)
+и [перцентили](edit-metrics.md#percentiles) (при условии, что их запись включена).
+Они являются _компонентами агрегата_:
 
 | timestamp | metric     | tag_1 | tag_2 | tag_s | count | sum | min | max | percentiles |
 |-----------|------------|-------|-------|-------|-------|-----|-----|-----|-------------|
 | 13:45:05  | toy_metric | ...   | ...   | ...   | ...   | ... | ... | ... | ...         |
 
-Read more about [aggregation](../overview/concepts.md#агрегация) in StatsHouse.
+Узнайте больше об [агрегации](../overview/concepts.md#агрегация) в StatsHouse.
 
-### ___what___ for choosing the aggregate components
+### Выбор компонентов агрегата с помощью селектора __what__
 
-* In Prometheus, you can query the exact values. In Prometheus `timestamp—value` pairs, the 
-value is the floating-point number associated with a moment in time.
-* In StatsHouse, you can query the aggregates associated with time intervals.
+* В системе Prometheus можно запрашивать точные значения. Prometheus хранит пары `временная метка-значение`, 
+  где значение — число с плавающей точкой, привязанное к конкретному моменту времени.
+* В StatsHouse можно запрашивать только агрегаты, относящиеся к временному интервалу.
 
-To query the aggregate components, use the  `__what__` selector. The possible values are:
+Чтобы получить компонент агрегата в StatsHouse, используйте селектор `__what__`. Вот список возможных значений:
+
 ```
 "avg"
 "count"
@@ -98,39 +99,43 @@ To query the aggregate components, use the  `__what__` selector. The possible va
 "uniquesec"
 ```
 
-They are the [descriptive statistics](view-graph.md#3--описательные-статистики) you see in the StatsHouse UI.
-The "sec" postfix means that the value is normalized—divided by the aggregation interval in seconds.
+Это те же самые [описательные статистики](view-graph.md#3--описательные-статистики), которые можно выбирать в 
+"кнопочном" интерфейсе StatsHouse. Постфикс "sec" означает, что значение нормализовано (поделено на интервал 
+агрегации в секундах).
 
-For example, this selector returns the counter for the `api_methods` metric associated with the aggregation interval:
+Например, этот селектор возвращает счётчик для метрики `api_methods`, привязанный к интервалу агрегации:
 ```
 api_methods{__what__="count"}
 ```
 
-If the  `__what__` selector is not specified, StatsHouse tries to guess based on the PromQL functions you use in your 
-query:
+Если в селекторе `__what__` не указано значение, StatsHouse попытается "угадать" нужную вам статистику, основываясь на 
+функциях PromQL, которые вы используете в своем запросе:
 
 | PromQL functions                                                         | StatsHouse interpretation |
 |--------------------------------------------------------------------------|---------------------------|
 | "increase"<br/>"irate"<br/>"rate"<br/>"resets"                           | `__what__="count"`        |
 | "delta"<br/>"deriv"<br/>"holt_winters"<br/>"idelta"<br/>"predict_linear" | `__what__="avg"`          |
 
-For example, this query returns the `api_methods` metric's counter rate for five minutes:
-
+Например, этот запрос возвращает `rate` счётчика метрики `api_methods` за пять минут:
 ```
 rate(api_methods[5m])
 ```
 
-If StatsHouse fails to guess, it returns the counter for the [_counter_ metrics](design-metric.md#счётчики-тип-counter) 
-and the average (the sum divided by the counter) for the [_value_ metrics](design-metric.md#значения-тип-value).
+Если "угадать" статистику не удаётся, StatsHouse возвращает счётчик для [_counter_-метрик](design-metric.md#счётчики-тип-счетчика)
+и среднее значение (сумма, делённая на счётчик) для [_value_-метрик](design-metric.md#значения-тип-значения).
 
-### Histograms are _t-digests_
+### Гистограммы в StatsHouse — это структуры _t-digest_
 
-Prometheus provides you with "traditional" and "native" histograms. StatsHouse now supports only the "traditional" ones.
+В Prometheus есть «обычные» и «нативные» гистограммы. Скоро StatsHouse сможет поддержать «обычные». Больше 
+информации о поддержке гистограмм появится, когда будет полностью реализована функциональность 
+[скрейпинга](../admin/migrating.md#как-перейти-с-prometheus).
+Сейчас рекомендуется использовать гистограммы StatsHouse.
 
-StatsHouse stores histograms in the _t-digest_ structure but does not provide them by default—you should 
-[enable writing percentiles](edit-metrics.md#percentiles).
+StatsHouse хранит гистограммы как _t-digest_. По умолчанию гистограммы для метрики не строятся — нужно
+[включить запись перцентилей](edit-metrics.md#percentiles) вручную.
 
-To get access to percentiles (if enabled), specify the necessary one in the `__what__` selector:
+Указать необходимый перцентиль нужно в селекторе `__what__`:
+
 ```
 "p25"
 "p50"
@@ -141,53 +146,54 @@ To get access to percentiles (if enabled), specify the necessary one in the `__w
 "p999"
 ```
 
-For example, this expression returns the 99th percentile:
+Например, следующее выражение вернет 99-й перцентиль:
 
 ```
 api_methods{__what__="p99"}
 ```
 
-### No data grouping by default
+### По умолчанию группировка не выполняется
 
-If you query data in Prometheus by a metric name, it returns all the data rows for this metric—all label combinations.
+Если запросить данные в Prometheus по имени метрики, система вернёт все ряды данных для этой метрики —— все 
+комбинации тегов.
 
-On the contrary, StatsHouse returns the result of aggregation. For example, in StatsHouse, the "api_methods" query 
-returns the single row.
-To group data by tags, specify the necessary ones using the `__by__` PromQL operator.
+В отличие от Prometheus, StatsHouse вернёт результат агрегирования. Например, запрос метрики "api_methods" в StatsHouse
+возвращает одну строку. Чтобы сгруппировать данные по тегам, укажите нужные теги, используя оператор `__by__`.
 
-## PromQL extensions in StatsHouse
+## Расширения PromQL в StatsHouse
 
-Find PromQL extensions implemented in StatsHouse.
+Поддержка PromQL в StatsHouse включает в себя ряд расширений.
 
-### ___what___ and ___by___
+### ___what___ и ___by___
 
-The [`__what__`](#what-for-choosing-the-aggregate-components) and [`__by__`](#no-data-grouping-by-default)
-selectors help to express any standard query in StatsHouse.
+Селекторы [`__what__`](#what-for-choosing-the-aggregate-components) и [`__by__`](#no-data-grouping-by-default) 
+помогают выразить стандартные запросы.
 
-### Applying dashboard variables
+### Привязывание переменных на дашборде
 
-To bind the tag to the previously created variable in your PromQL query, use the following syntax:
+Чтобы привязать тег к созданной ранее переменной, используйте следующий синтаксис в PromQL-запросе:
 
 `tag_name:$variable_name`
 
-The resulting query may look like this:
+В результате запрос может выглядеть примерно так:
 
 `topk(5,api_methods{@what="countsec",0:$env})`
 
-Find more about [setting up variables for PromQL-based graphs and dashboards](dashboards.md#set-up-promql-based-dashboards).
+Узнайте больше о 
+[настройке переменных на дашборде с использованием PromQL-графиков](dashboards.md#set-up-promql-based-dashboards).
 
-### Range vectors and instant vectors
+### Range vector и instant vector
 
-Functions for the range vectors receive instant vectors too. But the converse is false.
+Функции над `range vector` также принимают `instant vector`, но не наоборот.
 
 ### _Prefix sum_
 
-The `prefix_sum` function allows you to calculate a prefix sum. For example,
-for a `1, 2, 3, 4, 5, 6` sequence, it returns the following: `1, 3, 6, 10, 15, 21`.
+Функция `prefix_sum` вычисляет префиксную сумму. Например, для последовательности `1, 2, 3, 4, 5, 6` вернёт `1, 3, 6, 
+10, 15, 21`.
 
 ### _default_
 
-It is a binary operator. It has an array on the left, and an array or a literal on the right.
-* If it has the literal on the right, the `NaN` values on the left are replaced with the literal.
-* If it has the array on the right, the logic of mapping the arrays is the same as for the `or` operator. The `NaN` 
-  values on the left are replaced with the corresponding values on the right.
+Это бинарный оператор. Слева он принимает ряд, а справа — ряд или литерал.
+* Если справа находится литерал, то значения `NaN` слева будут заменены на значение литерала справа.
+* Если справа находится ряд, то логика сопоставления рядов такая же, как и для оператора `or`. Значения `NaN`
+  слева заменяются соответствующими значениями справа.
