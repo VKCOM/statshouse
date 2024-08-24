@@ -67,6 +67,7 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hos
 			logF("Configuration: failed autoconfiguration from all addresses (%q), will retry after %v delay",
 				strings.Join(addresses, ","), backoffTimeout)
 			time.Sleep(backoffTimeout)
+			// This sleep will not affect shutdown time
 		}
 	}
 }

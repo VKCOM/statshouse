@@ -429,7 +429,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	}
 	srv := rpc.NewServer(options...)
 	defer metrics.Run(srv)()
-	defer func() { _ = srv.Close() }()
 	for _, ln := range listeners {
 		go serveRPC(ln, srv)
 	}
@@ -465,18 +464,26 @@ loop:
 		}
 	}
 	logOk.Printf("Shutting down...")
-	// 1. shutdown recent and historic sender goroutines
-	// 2. wait until all sender goroutines quit or 10 seconds
-	// 3. shutdown receivers and wait them finish
+	logOk.Printf("1. Disabling sending new data to aggregators...")
+	sh2.DisableNewSends()
+	logOk.Printf("2. Waiting recent senders to finish sending data...")
+	sh2.WaitRecentSenders(time.Second * data_model.InsertDelay)
+	logOk.Printf("3. Closing UDP/unixdgram/RPC server and flusher...")
 	for _, u := range receiversUDP {
 		_ = u.Close()
 	}
+	sh2.ShutdownFlusher()
+	srv.Shutdown()
 	receiversWG.Wait()
-	logOk.Printf("UDP receivers finished...")
-	// 4. stop mapping queues, all events there will be lost
-	// 5. flush Current and Next buckets into future queue, and future queue to compressor until finished
-	// 6. wait compressor to finish
-	// 7. write to disk all HistoricBucketsToSend
+	logOk.Printf("4. All UDP readers finished...")
+	/// TODO - we receive almost no metrics via RPC, we do not want risk waiting here for the long time
+	/// _ = srv.Close()
+	/// logOk.Printf("5. RPC server stopped...")
+	sh2.WaitFlusher()
+	logOk.Printf("6. Flusher stopped, flushing remainig data to preprocessors...")
+	nonEmpty := sh2.FlushAllData()
+	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
+	sh2.WaitPreprocessor()
 	logOk.Printf("Bye")
 	return 0
 }
