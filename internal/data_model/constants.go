@@ -69,6 +69,8 @@ const (
 
 	MaxConveyorDelay = MaxShortWindow + FutureWindow + InsertDelay + AgentAggregatorDelay
 
+	MaxFutureSecondsOnDisk = 122 // With tiny margin. Do not change this unless you change rules around CurrentBuckets/FutureQueue
+
 	AgentMappingTimeout1 = 10 * time.Second
 	AgentMappingTimeout2 = 30 * time.Second
 	AutoConfigTimeout    = 30 * time.Second

@@ -80,6 +80,7 @@ type Agent struct {
 	statErrorsDiskCompressFailed    *BuiltInItemValue
 	statLongWindowOverflow          *BuiltInItemValue
 	statDiskOverflow                *BuiltInItemValue
+	statMemoryOverflow              *BuiltInItemValue
 
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
@@ -153,14 +154,15 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
 		shard := &Shard{
-			config:          config,
-			agent:           result,
-			ShardNum:        i,
-			ShardKey:        int32(i) + 1,
-			timeSpreadDelta: 3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			addBuiltInsTime: nowUnix,
-			BucketsToSend:   make(chan compressedBucketDataOnDisk),
-			perm:            rnd.Perm(data_model.AggregationShardsPerSecond),
+			config:              config,
+			agent:               result,
+			ShardNum:            i,
+			ShardKey:            int32(i) + 1,
+			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			addBuiltInsTime:     nowUnix,
+			BucketsToSend:       make(chan compressedBucketData),
+			BucketsToPreprocess: make(chan preprocessorBucketData, 1), // length of preprocessor queue
+			perm:                rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		for r := range shard.CurrentBuckets {
@@ -175,12 +177,11 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
-		shard.condPreprocess = sync.NewCond(&shard.mu)
 		result.Shards = append(result.Shards, shard)
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
-		// TODO - make historic queue strict queue instead
+		// TODO - make historic queue strict queue instead (?)
 		for j := 0; j < data_model.MaxConveyorDelay*2; j++ {
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
@@ -220,6 +221,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}})
 	result.statLongWindowOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
 	result.statDiskOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
+	result.statMemoryOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingThrownDueToMemory}})
 
 	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil

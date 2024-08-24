@@ -217,7 +217,8 @@ const (
 	TagValueIDTimingMissedSeconds                   = 6 // TODO - remove after everyone uses TagValueIDTimingMissedSecondsAgents
 	TagValueIDTimingLongWindowThrownAggregatorLater = 7
 	TagValueIDTimingDiskOverflowThrownAgent         = 8
-	TagValueIDTimingMissedSecondsAgent              = 9 // separate to prevent mix of old and new way to write missed seconds
+	TagValueIDTimingMissedSecondsAgent              = 9  // separate to prevent mix of old and new way to write missed seconds
+	TagValueIDTimingThrownDueToMemory               = 10 // if second could not be saved to disk, but later thrown out due to memory pressure
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
@@ -786,6 +787,7 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
 					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
 					TagValueIDTimingMissedSecondsAgent:              "missed_seconds_agent",
+					TagValueIDTimingThrownDueToMemory:               "out_of_memory_space_agent",
 				}),
 			}, {
 				Description: "-",

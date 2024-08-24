@@ -38,48 +38,13 @@ func (s *Shard) flushBuckets(now time.Time) {
 
 	currentTime := uint32(now.Add(-data_model.AgentWindow).Unix())
 	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
-	if s.PreprocessingBuckets == nil && currentTime > wasCurrentBucketTime {
+	if len(s.BucketsToPreprocess) == 0 && currentTime > wasCurrentBucketTime {
 		// if we cannot flush 1-second resolution, we cannot flush any higher resolution
-		// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
-		// 2. move next buckets into current buckets
-		// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
-		for r, bs := range s.CurrentBuckets {
-			if r != format.AllowedResolution(r) {
-				continue
-			}
-			currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
-			for sh, b := range bs {
-				if currentTimeRounded <= b.Time {
-					continue
-				}
-				if !b.Empty() {
-					// future queue pos is assigned without seams if missed seconds is 0
-					futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
-					s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
-				}
-				s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
-				s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
-			}
-		}
-		// we put second into next second future queue position,
-		// same for higher resolutions, so first minute shard is sent togehter with 59-th normal second.
-		s.PreprocessingBuckets = s.FutureQueue[(wasCurrentBucketTime+1)%60]
-		s.FutureQueue[(wasCurrentBucketTime+1)%60] = nil
-
-		// Due to !b.Empty() optimization above, if no data is collected, nothing is in FutureQueue
-		// As we use PreprocessingBuckets as flag, it must be not nil so that processing and sending is performed
-		// for each contributor every second
-		if s.PreprocessingBuckets == nil {
-			s.PreprocessingBuckets = []*data_model.MetricsBucket{}
-		}
-
-		s.PreprocessingBucketTime = wasCurrentBucketTime
-
-		s.condPreprocess.Signal()
+		_ = s.flushSingleStep(wasCurrentBucketTime, currentTime, true)
 	}
 	// now after CurrentBuckets flushed, we want to move NextBuckets timestamp
 	// if conveyor is stuck, so that data from previous seconds is still kept there,
-	// but we considere this bucket to correspond to the unixNow point of time.
+	// but we consider this bucket to correspond to the unixNow point of time.
 	// this is important because we clamp future timestamps by content of NextBuckets timestamps
 	for r, bs := range s.NextBuckets {
 		if r != format.AllowedResolution(r) {
@@ -102,6 +67,40 @@ func (s *Shard) flushBuckets(now time.Time) {
 			b.Time = currentTimeRounded + uint32(r)
 		}
 	}
+}
+
+func (s *Shard) flushSingleStep(wasCurrentBucketTime uint32, currentTime uint32, sendEmpty bool) int {
+	// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
+	// 2. move next buckets into current buckets
+	// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
+	for r, bs := range s.CurrentBuckets {
+		if r != format.AllowedResolution(r) {
+			continue
+		}
+		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
+		for sh, b := range bs {
+			if currentTimeRounded <= b.Time {
+				continue
+			}
+			if !b.Empty() {
+				// future queue pos is assigned without seams if missed seconds is 0
+				futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
+				s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
+			}
+			s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
+			s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
+		}
+	}
+	// we put second into next second future queue position,
+	// same for higher resolutions, so first minute shard is sent together with 59-th normal second.
+	fq := s.FutureQueue[(wasCurrentBucketTime+1)%60]
+	s.FutureQueue[(wasCurrentBucketTime+1)%60] = nil
+	if !sendEmpty && len(fq) == 0 {
+		return 0 // empty
+	}
+	// we wait here only when shutting dowm. During normal work we check len(chan) before calling this func
+	s.BucketsToPreprocess <- preprocessorBucketData{time: wasCurrentBucketTime, buckets: fq}
+	return 1 // non-empty
 }
 
 func addSizeByTypeMetric(sb *tlstatshouse.SourceBucket2, partKey int32, size int) {
@@ -196,25 +195,15 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 func (s *Shard) goPreProcess() {
 	rnd := rand.New() // We use distinct rand so that we can use it without locking
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for {
-		if s.PreprocessingBuckets == nil {
-			s.condPreprocess.Wait()
-			continue
-		}
-		buckets := s.PreprocessingBuckets
-		s.PreprocessingBuckets = nil
+	for pbd := range s.BucketsToPreprocess {
+		bucket := &data_model.MetricsBucket{Time: pbd.time}
+		// Due to !b.Empty() optimization during flushing into future queue, if no data is collected,
+		// nothing is in FutureQueue. If pbd.buckets is empty, we must still do processing and sending
+		// for each contributor every second.
 
-		bucket := &data_model.MetricsBucket{Time: s.PreprocessingBucketTime}
-		s.PreprocessingBucketTime = 0
-		s.mu.Unlock()
-
-		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
+		s.mergeBuckets(bucket, pbd.buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, sampleFactors)
-
-		s.mu.Lock()
 	}
 }
 
@@ -311,51 +300,46 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 }
 
 func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) {
-	cbd, err := s.compressBucket(bucket, sampleFactors)
-
+	data, err := s.compressBucket(bucket, sampleFactors)
+	cbd := compressedBucketData{time: bucket.Time, data: data} // No id as not saved to disk yet
 	if err != nil {
 		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
 		s.agent.logF("Internal Error: Failed to compress bucket %v for shard %d bucket %d",
 			err, s.ShardKey, bucket.Time)
 		return
 	}
-	s.mu.Lock()
-	saveSecondsImmediately := s.config.SaveSecondsImmediately
-	s.mu.Unlock()
-	if saveSecondsImmediately {
-		s.diskCachePutWithLog(cbd) // Continue sending anyway on error
-	}
-	select {
-	case s.BucketsToSend <- compressedBucketDataOnDisk{compressedBucketData: cbd, onDisk: saveSecondsImmediately}:
-	default:
-		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d replica %d (shard-replica %d). Moving bucket %d to Historic Conveyor",
-		// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
-		if !saveSecondsImmediately {
-			s.diskCachePutWithLog(cbd)
+	s.mu.Lock() // must send under lock, otherwise s.BucketsToSend might be closed
+	if s.BucketsToSend != nil {
+		select {
+		case s.BucketsToSend <- cbd:
+			s.mu.Unlock() // now goSendRecent is responsible for saving/sending/etc.
+			return
+		default:
+			break
 		}
-		s.appendHistoricBucketsToSend(cbd)
 	}
+	s.mu.Unlock()
+	// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d replica %d (shard-replica %d). Moving bucket %d to Historic Conveyor",
+	// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+	cbd = s.diskCachePutWithLog(cbd) // assigns id
+	s.appendHistoricBucketsToSend(cbd)
 }
 
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
-	cb := compressedBucketData{time: bucket.Time}
-
+func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) ([]byte, error) {
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)
 
 	w := sb.WriteBoxed(nil)
 	compressed := make([]byte, 4+lz4.CompressBlockBound(len(w))) // Framing - first 4 bytes is original size
 	cs, err := lz4.CompressBlockHC(w, compressed[4:], 0)
 	if err != nil {
-		return cb, fmt.Errorf("CompressBlockHC failed: %w", err)
+		return nil, fmt.Errorf("CompressBlockHC failed: %w", err)
 	}
 	binary.LittleEndian.PutUint32(compressed, uint32(len(w)))
 	if cs >= len(w) { // does not compress (rare for large buckets, so copy is not a problem)
 		compressed = append(compressed[:4], w...)
-		cb.data = compressed
-	} else {
-		cb.data = compressed[:4+cs]
+		return compressed, nil
 	}
-	return cb, nil
+	return compressed[:4+cs], nil
 }
 
 func (s *Shard) sendRecent(cbd compressedBucketData) bool {
@@ -405,13 +389,17 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 
 func (s *Shard) goSendRecent() {
 	for cbd := range s.BucketsToSend {
-		if s.sendRecent(cbd.compressedBucketData) {
-			s.diskCacheEraseWithLog(cbd.time, "after sending")
+		s.mu.Lock()
+		saveSecondsImmediately := s.config.SaveSecondsImmediately
+		s.mu.Unlock()
+		if saveSecondsImmediately {
+			cbd = s.diskCachePutWithLog(cbd) // save before sending. assigns id
+		}
+		if s.sendRecent(cbd) {
+			s.diskCacheEraseWithLog(cbd.id, "after sending")
 		} else {
-			if !cbd.onDisk {
-				s.diskCachePutWithLog(cbd.compressedBucketData)
-			}
-			s.appendHistoricBucketsToSend(cbd.compressedBucketData)
+			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
+			s.appendHistoricBucketsToSend(cbd)
 		}
 	}
 }
@@ -421,8 +409,8 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 
 	for {
 		nowUnix := uint32(time.Now().Unix())
-		if s.checkOutOfWindow(nowUnix, cbd.time) { // should check in for because time passes with attempts
-			s.HistoricOutOfWindowDropped.Add(1)
+		if s.checkOutOfWindow(nowUnix, cbd) { // should check in for because time passes with attempts
+			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
@@ -430,17 +418,17 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 				s.agent.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
 				return // No data and no disk storage configured, alas
 			}
-			if cbd.data, err = s.agent.diskBucketCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
+			if cbd.data, err = s.agent.diskBucketCache.GetBucket(s.ShardNum, cbd.id, cbd.time, scratchPad); err != nil {
 				s.agent.logF("Disk Error: diskCache.GetBucket returned error %v for shard %d bucket %d",
 					err, s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				return
 			}
-			if len(cbd.data) < 4 {
+			if len(cbd.data) < 4 { // we store original size of compressed data in first 4 bytes
 				s.agent.logF("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d bucket %d",
 					len(cbd.data), s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
-				s.diskCacheEraseWithLog(cbd.time, "after reading tiny")
+				s.diskCacheEraseWithLog(cbd.id, "after reading tiny")
 				return
 			}
 		}
@@ -465,14 +453,17 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			continue
 		}
 		shardReplica.stats.historicSendSuccess.Add(1)
-		s.diskCacheEraseWithLog(cbd.time, "after sending historic")
+		s.diskCacheEraseWithLog(cbd.id, "after sending historic")
 		break
 	}
 }
 
-func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
+func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) compressedBucketData {
 	if s.agent.diskBucketCache == nil {
-		return
+		return cbd
+	}
+	if cbd.id != 0 {
+		return cbd // already saved
 	}
 	// Motivation - we want to set limit dynamically.
 	// Also, if limit is set to 0, we want to gradually erase all seconds.
@@ -481,22 +472,26 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 	maxHistoricDiskSize := s.config.MaxHistoricDiskSize
 	s.mu.Unlock()
 	if maxHistoricDiskSize <= 0 {
-		return
+		return cbd
 	}
-	if err := s.agent.diskBucketCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
+	id, err := s.agent.diskBucketCache.PutBucket(s.ShardNum, cbd.time, cbd.data)
+	if err != nil {
 		s.agent.logF("Disk Error: diskCache.PutBucket returned error %v for shard %d bucket %d",
 			err, s.ShardKey, cbd.time)
 		s.agent.statErrorsDiskWrite.AddValueCounter(0, 1)
+		return cbd
 	}
+	cbd.id = id
+	return cbd
 }
 
-func (s *Shard) diskCacheEraseWithLog(time uint32, place string) {
+func (s *Shard) diskCacheEraseWithLog(id int64, place string) {
 	if s.agent.diskBucketCache == nil {
 		return
 	}
-	if err := s.agent.diskBucketCache.EraseBucket(s.ShardNum, time); err != nil {
-		s.agent.logF("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s bucket %d",
-			err, s.ShardKey, place, time)
+	if err := s.agent.diskBucketCache.EraseBucket(s.ShardNum, id); err != nil {
+		s.agent.logF("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s id %d",
+			err, s.ShardKey, place, id)
 		s.agent.statErrorsDiskErase.AddValueCounter(0, 1)
 	}
 }
@@ -506,6 +501,13 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	defer s.mu.Unlock()
 	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
 		cbd.data = nil
+		if cbd.id == 0 {
+			// bucket is lost due to inability to save to disk and memory limit
+			s.agent.logF("appendHistoricBucketsToSend: data bucket %d which is not saved to disk is thrown out due to memory limit in shard %d",
+				cbd.time, s.ShardKey)
+			s.agent.statMemoryOverflow.AddValueCounter(float64(time.Now().Unix())-float64(cbd.time), 1)
+			return
+		}
 	} else {
 		s.HistoricBucketsDataSize += len(cbd.data)
 		s.agent.historicBucketsDataSize.Add(int64(len(cbd.data)))
@@ -518,24 +520,39 @@ func (s *Shard) readHistoricSecondLocked() {
 	if s.agent.diskBucketCache == nil {
 		return
 	}
-	sec, ok := s.agent.diskBucketCache.ReadNextTailSecond(s.ShardNum)
-	if !ok {
+	sec, id := s.agent.diskBucketCache.ReadNextTailBucket(s.ShardNum)
+	if id == 0 { // disk queue finished, all second are in s.HistoricBucketsToSend
 		return
 	}
-	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{time: sec}) // HistoricBucketsDataSize does not change
+	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{id: id, time: sec}) // HistoricBucketsDataSize does not change
 }
 
-func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
+func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucketData, ok bool) {
+	if len(s.HistoricBucketsToSend) == 0 {
+		return compressedBucketData{}, false
+	}
 	// Sending the oldest known historic buckets is very important for "herding" strategy
 	// Even tiny imperfectness in sorting explodes number of inserts aggregator makes
-	pos := 0
+	oldestPos := 0
 	for i, e := range s.HistoricBucketsToSend {
-		if e.time < s.HistoricBucketsToSend[pos].time {
-			pos = i
+		if e.time < s.HistoricBucketsToSend[oldestPos].time {
+			oldestPos = i
 		}
 	}
-	cbd := s.HistoricBucketsToSend[pos]
-	s.HistoricBucketsToSend[pos] = s.HistoricBucketsToSend[len(s.HistoricBucketsToSend)-1]
+	cbd := s.HistoricBucketsToSend[oldestPos]
+	if cbd.time >= nowUnix && cbd.time <= nowUnix+data_model.MaxFutureSecondsOnDisk {
+		// When agent shuts down, it will save future queue with up to 2 minutes in the future.
+		// Later when agent starts again, those will go to historic conveyor and historic senders will wait
+		// until they can send to aggregator without it discarding due to data in the future.
+		//
+		// second condition is for the following case:
+		// as historic senders now wait while oldest second is in the future,
+		// we must protect against seconds in the far future, otherwise when agent clock
+		// jumps, our conveyor might be stuck forever
+		return compressedBucketData{}, false
+	}
+
+	s.HistoricBucketsToSend[oldestPos] = s.HistoricBucketsToSend[len(s.HistoricBucketsToSend)-1]
 	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:len(s.HistoricBucketsToSend)-1]
 
 	s.HistoricBucketsDataSize -= len(cbd.data)
@@ -543,19 +560,21 @@ func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
 	if s.HistoricBucketsDataSize < 0 {
 		panic("HistoricBucketsDataSize < 0")
 	}
-	return cbd
+	s.readHistoricSecondLocked() // we've just removed item, add item if exist on disk
+	return cbd, true
 }
 
-func (s *Shard) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
-	if nowUnix >= data_model.MaxHistoricWindow && timestamp < nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
-		s.agent.logF("Send Disaster: Bucket %d for shard %d does not fit into full admission window (now is %d), throwing out",
-			timestamp, s.ShardKey, nowUnix)
-		s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(timestamp), 1)
-
-		s.diskCacheEraseWithLog(timestamp, "after throwing out historic")
-		return true
+func (s *Shard) checkOutOfWindow(nowUnix uint32, cbd compressedBucketData) bool {
+	if nowUnix < data_model.MaxHistoricWindow || cbd.time >= nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
+		return false
 	}
-	return false
+	s.agent.logF("Send Disaster: Bucket %d for shard %d does not fit into full admission window (now is %d), throwing out",
+		cbd.time, s.ShardKey, nowUnix)
+	s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
+	s.HistoricOutOfWindowDropped.Add(1)
+
+	s.diskCacheEraseWithLog(cbd.id, "after throwing out historic")
+	return true
 }
 
 func (s *Shard) goSendHistoric() {
@@ -563,12 +582,12 @@ func (s *Shard) goSendHistoric() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for {
-		s.readHistoricSecondLocked() // if there were unread seconds from disk cache tail, reads one last historic second
-		for len(s.HistoricBucketsToSend) == 0 {
+		nowUnix := uint32(time.Now().Unix())
+		cbd, ok := s.popOldestHistoricSecondLocked(nowUnix)
+		if !ok {
 			s.cond.Wait()
+			continue
 		}
-		cbd := s.popOldestHistoricSecondLocked()
-
 		s.mu.Unlock()
 		s.sendHistoric(cbd, &scratchPad)
 		s.mu.Lock()
@@ -580,16 +599,21 @@ func (s *Shard) goEraseHistoric() {
 	// Also, we delete buckets when disk limit is reached. We cannot promise strict limit, because disk cache design is very loose.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShards())
 	for {
-		s.readHistoricSecondLocked() // if there were unread seconds from disk cache tail, reads one last historic second
-		for len(s.HistoricBucketsToSend) == 0 {
+		nowUnix := uint32(time.Now().Unix())
+		cbd, ok := s.popOldestHistoricSecondLocked(nowUnix)
+		if !ok {
 			s.cond.Wait()
+			continue
 		}
-		cbd := s.popOldestHistoricSecondLocked()
+		diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShards())
 		s.mu.Unlock()
 
-		nowUnix := uint32(time.Now().Unix())
+		if s.checkOutOfWindow(nowUnix, cbd) { // should check, because time passes with attempts
+			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			s.mu.Lock()
+			continue
+		}
 
 		diskUsed, _ := s.HistoricBucketsDataSizeDisk()
 		// diskUsed is sum of file size, and will not shrink until all seconds in a file are deleted
@@ -600,13 +624,8 @@ func (s *Shard) goEraseHistoric() {
 				cbd.time, s.ShardKey, nowUnix, diskLimit, diskUsed)
 			s.agent.statDiskOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
-			s.diskCacheEraseWithLog(cbd.time, "after throwing out historic, due to disk limit")
+			s.diskCacheEraseWithLog(cbd.id, "after throwing out historic, due to disk limit")
 			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
-			s.mu.Lock()
-			continue
-		}
-
-		if s.checkOutOfWindow(nowUnix, cbd.time) { // should check, because time passes with attempts
 			s.mu.Lock()
 			continue
 		}

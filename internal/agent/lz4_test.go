@@ -8,35 +8,35 @@ import (
 )
 
 func Benchmark_LZ4(b *testing.B) {
-	cs := lz4.CompressBlockBound(len(data))
+	cs := lz4.CompressBlockBound(len(lz4TestData))
 	compressed := make([]byte, cs)
 	for i := 0; i < b.N; i++ {
-		cs, _ = lz4.CompressBlock(data, compressed, nil)
+		cs, _ = lz4.CompressBlock(lz4TestData, compressed, nil)
 	}
-	log.Printf("Compress %d -> %d", len(data), cs)
+	log.Printf("Compress %d -> %d", len(lz4TestData), cs)
 }
 
 func Benchmark_LZ4_HC_4(b *testing.B) {
-	cs := lz4.CompressBlockBound(len(data))
+	cs := lz4.CompressBlockBound(len(lz4TestData))
 	compressed := make([]byte, cs)
 
 	for i := 0; i < b.N; i++ {
-		cs, _ = lz4.CompressBlockHC(data, compressed, 4)
+		cs, _ = lz4.CompressBlockHC(lz4TestData, compressed, 4)
 	}
-	log.Printf("Compress %d -> %d", len(data), cs)
+	log.Printf("Compress %d -> %d", len(lz4TestData), cs)
 }
 
 func Benchmark_LZ4_HC_0(b *testing.B) {
-	cs := lz4.CompressBlockBound(len(data))
+	cs := lz4.CompressBlockBound(len(lz4TestData))
 	compressed := make([]byte, cs)
 
 	for i := 0; i < b.N; i++ {
-		cs, _ = lz4.CompressBlockHC(data, compressed, 0)
+		cs, _ = lz4.CompressBlockHC(lz4TestData, compressed, 0)
 	}
-	log.Printf("Compress %d -> %d", len(data), cs)
+	log.Printf("Compress %d -> %d", len(lz4TestData), cs)
 }
 
-var data = []byte(`/*
+var lz4TestData = []byte(`/*
    LZ4 - Fast LZ compression algorithm
    Copyright (C) 2011-2015, Yann Collet.
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
