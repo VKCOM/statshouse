@@ -513,7 +513,7 @@ func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) compressedBucketDa
 	s.mu.Lock()
 	maxHistoricDiskSize := s.config.MaxHistoricDiskSize
 	s.mu.Unlock()
-	if maxHistoricDiskSize <= 0 {
+	if maxHistoricDiskSize <= 0 { // if we want to disable disk cache in runtime, we cannot set s.agent.diskBucketCache == nil
 		return cbd
 	}
 	id, err := s.agent.diskBucketCache.PutBucket(s.ShardNum, cbd.time, cbd.data)
