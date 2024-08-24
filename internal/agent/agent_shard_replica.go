@@ -165,6 +165,7 @@ func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.
 	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
 }
 
+// We see no reason to carefully stop/wait this loop at shutdown
 func (s *ShardReplica) goTestConnectionLoop() {
 	calcHalfOfMinute := func() time.Duration {
 		n := time.Now()

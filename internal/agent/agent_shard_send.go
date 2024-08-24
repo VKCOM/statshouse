@@ -11,10 +11,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/pierrec/lz4"
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -101,6 +104,22 @@ func (s *Shard) flushSingleStep(wasCurrentBucketTime uint32, currentTime uint32,
 	// we wait here only when shutting dowm. During normal work we check len(chan) before calling this func
 	s.BucketsToPreprocess <- preprocessorBucketData{time: wasCurrentBucketTime, buckets: fq}
 	return 1 // non-empty
+}
+
+func (s *Shard) FlushAllDataSingleStep() int {
+	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
+	currentTime := wasCurrentBucketTime + 1
+	return s.flushSingleStep(wasCurrentBucketTime, currentTime, false)
+}
+
+func (s *Shard) StopReceivingIncomingData() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stopReceivingIncomingData = true
+}
+
+func (s *Shard) StopPreprocessor() {
+	close(s.BucketsToPreprocess)
 }
 
 func addSizeByTypeMetric(sb *tlstatshouse.SourceBucket2, partKey int32, size int) {
@@ -192,7 +211,8 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	return sb
 }
 
-func (s *Shard) goPreProcess() {
+func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
+	defer wg.Done()
 	rnd := rand.New() // We use distinct rand so that we can use it without locking
 
 	for pbd := range s.BucketsToPreprocess {
@@ -205,6 +225,7 @@ func (s *Shard) goPreProcess() {
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, sampleFactors)
 	}
+	log.Printf("Preprocessor quit")
 }
 
 func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
@@ -342,20 +363,21 @@ func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors [
 	return compressed[:4+cs], nil
 }
 
-func (s *Shard) sendRecent(cbd compressedBucketData) bool {
+func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) bool {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	if cbd.time+data_model.MaxShortWindow+data_model.FutureWindow < nowUnix { // Not bother sending, will receive error anyway
 		return false
 	}
-	// bucket.time 12 is finished when now() is 13, if spread delay is 0.2 sec, we will not send it earlier than 13.2
-	spreadDelay := now.Add(s.timeSpreadDelta).Sub(time.Unix(int64(cbd.time+1), 0))
-	if spreadDelay > 0 {
-		time.Sleep(spreadDelay)
-	}
+	// We have large delay between stopping new recent sends
+	// and waiting all recent senders to finish.
+	// timeSpreadDelta is way smaller than typical wait time (aggregator recent window).
+	// so will not affect how long shutdown takes.
+	// We keep this simple Sleep, without timer and context
+	time.Sleep(s.timeSpreadDelta)
 	var resp []byte
 	// Motivation - can save sending request, as rpc.Client checks for timeout before sending
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Second*(data_model.MaxConveyorDelay+data_model.AgentAggregatorDelay)))
+	ctx, cancel := context.WithDeadline(cancelCtx, now.Add(time.Second*data_model.MaxConveyorDelay))
 	defer cancel()
 	var err error
 
@@ -387,24 +409,29 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 	return true
 }
 
-func (s *Shard) goSendRecent() {
-	for cbd := range s.BucketsToSend {
+func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *semaphore.Weighted, cancelCtx context.Context, bucketsToSend chan compressedBucketData) {
+	defer wg.Done()
+	defer recentSendersSema.Release(1)
+	for cbd := range bucketsToSend {
 		s.mu.Lock()
 		saveSecondsImmediately := s.config.SaveSecondsImmediately
 		s.mu.Unlock()
 		if saveSecondsImmediately {
 			cbd = s.diskCachePutWithLog(cbd) // save before sending. assigns id
 		}
-		if s.sendRecent(cbd) {
+		// log.Printf("goSendRecent.sendRecent %d start", num)
+		if s.sendRecent(cancelCtx, cbd) {
 			s.diskCacheEraseWithLog(cbd.id, "after sending")
 		} else {
 			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
 			s.appendHistoricBucketsToSend(cbd)
 		}
+		// log.Printf("goSendRecent.sendRecent %d finish", num)
 	}
+	log.Printf("goSendRecent.sendRecent %d quit", num)
 }
 
-func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
+func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData, scratchPad *[]byte) {
 	var err error
 
 	for {
@@ -436,20 +463,33 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 
 		shardReplica, spare := s.agent.getShardReplicaForSeccnd(s.ShardNum, cbd.time)
 		if shardReplica == nil {
-			time.Sleep(10 * time.Second) // TODO - better idea?
+			select {
+			case <-cancelCtx.Done():
+				return
+			case <-time.After(10 * time.Second):
+				break
+			}
 			s.agent.logF("both historic shards are dead, shard %d, time %d, %v", s.ShardKey, cbd.time, err)
 			continue
 		}
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
-		err = shardReplica.sendSourceBucketCompressed(context.Background(), cbd, true, spare, &resp, s)
+		err = shardReplica.sendSourceBucketCompressed(cancelCtx, cbd, true, spare, &resp, s)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			if !data_model.SilentRPCError(err) {
 				shardReplica.stats.historicSendFailed.Add(1)
 			} else {
 				shardReplica.stats.historicSendSkip.Add(1)
 			}
-			time.Sleep(time.Second) // TODO - better idea?
+			select {
+			case <-cancelCtx.Done():
+				return
+			case <-time.After(time.Second):
+				break
+			}
 			continue
 		}
 		shardReplica.stats.historicSendSuccess.Add(1)
@@ -577,7 +617,8 @@ func (s *Shard) checkOutOfWindow(nowUnix uint32, cbd compressedBucketData) bool 
 	return true
 }
 
-func (s *Shard) goSendHistoric() {
+func (s *Shard) goSendHistoric(wg *sync.WaitGroup, cancelSendsCtx context.Context) {
+	defer wg.Done()
 	var scratchPad []byte
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -589,12 +630,13 @@ func (s *Shard) goSendHistoric() {
 			continue
 		}
 		s.mu.Unlock()
-		s.sendHistoric(cbd, &scratchPad)
+		s.sendHistoric(cancelSendsCtx, cbd, &scratchPad)
 		s.mu.Lock()
 	}
 }
 
-func (s *Shard) goEraseHistoric() {
+func (s *Shard) goEraseHistoric(wg *sync.WaitGroup, cancelCtx context.Context) {
+	wg.Done()
 	// When all senders are in infinite wait, buckets must still be erased
 	// Also, we delete buckets when disk limit is reached. We cannot promise strict limit, because disk cache design is very loose.
 	s.mu.Lock()
@@ -625,16 +667,30 @@ func (s *Shard) goEraseHistoric() {
 			s.agent.statDiskOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
 			s.diskCacheEraseWithLog(cbd.id, "after throwing out historic, due to disk limit")
-			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			time.Sleep(200 * time.Millisecond)
+			// Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			// This sleep will not affect shutdown time, so we keep it simple without timer+context.
 			s.mu.Lock()
 			continue
 		}
 
 		s.appendHistoricBucketsToSend(cbd) // As we consumed cond state, signal inside that func is required
 
-		time.Sleep(60 * time.Second) // rare, because only  fail-safe against all goSendHistoric blocking in infinite sends
+		select {
+		case <-cancelCtx.Done():
+			return
+		case <-time.After(60 * time.Second): // rare, because only  fail-safe against all goSendHistoric blocking in infinite sends
+		}
 		s.mu.Lock()
 	}
+}
+
+func (s *Shard) DisableNewSends() {
+	s.mu.Lock()
+	close(s.BucketsToSend)
+	s.BucketsToSend = nil
+	s.mu.Unlock()
+	s.cond.Broadcast()
 }
 
 func isShardDeadError(err error) bool {
