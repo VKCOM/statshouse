@@ -437,7 +437,9 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 	for {
 		nowUnix := uint32(time.Now().Unix())
 		if s.checkOutOfWindow(nowUnix, cbd) { // should check in for because time passes with attempts
-			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			time.Sleep(200 * time.Millisecond)
+			// Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			// This sleep will not affect shutdown time, so we keep it simple without timer+context.
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
@@ -652,7 +654,9 @@ func (s *Shard) goEraseHistoric(wg *sync.WaitGroup, cancelCtx context.Context) {
 		s.mu.Unlock()
 
 		if s.checkOutOfWindow(nowUnix, cbd) { // should check, because time passes with attempts
-			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			time.Sleep(200 * time.Millisecond)
+			// Deleting 5 seconds per second is good for us, and does not spin CPU too much
+			// This sleep will not affect shutdown time, so we keep it simple without timer+context.
 			s.mu.Lock()
 			continue
 		}
