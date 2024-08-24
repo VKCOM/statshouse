@@ -92,7 +92,7 @@ func Test_AgentQueue(t *testing.T) {
 		}
 	}
 	shard.cond = sync.NewCond(&shard.mu)
-	shard.condPreprocess = sync.NewCond(&shard.mu)
+	shard.BucketsToPreprocess = make(chan preprocessorBucketData, 1)
 	agent.Shards = append(agent.Shards, shard)
 
 	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1}
@@ -108,7 +108,6 @@ func Test_AgentQueue(t *testing.T) {
 	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
 	agent.goFlushIteration(startTime.Add(time.Second + data_model.AgentWindow))
 	testEnsureFlush(t, shard, nowUnix)
-	shard.PreprocessingBuckets = nil
 	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
 	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
 	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, 0, metric1sec)
@@ -118,24 +117,28 @@ func Test_AgentQueue(t *testing.T) {
 	for i := 1; i < 12; i++ { // wait until 5-seconds metrics flushed
 		agent.goFlushIteration(startTime.Add(time.Duration(i+1)*time.Second + data_model.AgentWindow))
 		testEnsureFlush(t, shard, nowUnix+uint32(i))
-		shard.PreprocessingBuckets = nil
 	}
 }
 
 func testEnsureNoFlush(t *testing.T, shard *Shard) {
-	if shard.PreprocessingBuckets != nil {
+	select {
+	case <-shard.BucketsToPreprocess:
 		t.Fatalf("testEnsureNoFlush")
+	default:
 	}
 }
 
 func testEnsureFlush(t *testing.T, shard *Shard, time uint32) {
-	if shard.PreprocessingBuckets == nil {
+	var cbd preprocessorBucketData
+	select {
+	case cbd = <-shard.BucketsToPreprocess:
+	default:
 		t.Fatalf("testEnsureFlush no flush")
 	}
-	if shard.PreprocessingBucketTime != time {
+	if cbd.time != time {
 		t.Fatalf("wrong PreprocessingBucketTime")
 	}
-	for _, b := range shard.PreprocessingBuckets {
+	for _, b := range cbd.buckets {
 		mustBeTime := (time + 1 - uint32(b.Resolution)) / uint32(b.Resolution) * uint32(b.Resolution)
 		if b.Time != mustBeTime {
 			t.Fatalf("wrong bucket time")

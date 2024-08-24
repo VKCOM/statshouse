@@ -1,15 +1,12 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="agent" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="statshouse" />
-    <working_directory value="$PROJECT_DIR$/target/run" />
-    <parameters value="-agent --hardware-metric-scrape-disable --cluster=local_test_cluster --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13336,127.0.0.1:13336 --cache-dir=cache/agent" />
-    <kind value="DIRECTORY" />
+    <working_directory value="$PROJECT_DIR$/localdebug" />
+    <parameters value="-agent --hardware-metric-scrape-disable --cluster=default --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356 --cache-dir=cache/agent" />
+    <kind value="PACKAGE" />
     <package value="github.com/vkcom/statshouse/cmd/statshouse" />
-    <directory value="$PROJECT_DIR$/cmd/statshouse" />
+    <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/cmd/statshouse/statshouse.go" />
-    <output_directory value="$PROJECT_DIR$/target" />
-    <method v="2">
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="reset-cache" run_configuration_type="ShConfigurationType" />
-    </method>
+    <method v="2" />
   </configuration>
 </component>

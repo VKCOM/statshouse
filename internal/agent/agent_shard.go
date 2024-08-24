@@ -51,12 +51,10 @@ type (
 		// Next buckets are simply buckets with timestamp + resolution, when current buckets are moved
 		// into future queue, next buckets become current buckets and new next buckets are added
 
-		BucketsToSend     chan compressedBucketDataOnDisk
+		BucketsToSend     chan compressedBucketData
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
-		PreprocessingBucketTime uint32
-		PreprocessingBuckets    []*data_model.MetricsBucket // current FutureQueue element is moved here
-		condPreprocess          *sync.Cond
+		BucketsToPreprocess chan preprocessorBucketData
 
 		// only used by single shard randomly selected for sending this infp
 		currentJournalVersion     int64
@@ -64,7 +62,7 @@ type (
 		currentJournalHashTag     int32
 		currentJournalHashSeconds float64 // for how many seconds currentJournalHash did not change and was not added to metrics. This saves tons of traffic
 
-		HistoricBucketsToSend   []compressedBucketData // Slightly out of order here
+		HistoricBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
 		HistoricBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
 		cond                    *sync.Cond
 
@@ -81,12 +79,14 @@ type (
 	}
 
 	compressedBucketData struct {
+		id   int64 // in disk queue, or 0 if working without disk
 		time uint32
 		data []byte // first 4 bytes are uncompressed size, rest is compressed data
 	}
-	compressedBucketDataOnDisk struct {
-		compressedBucketData
-		onDisk bool // config.SaveSecondsImmediately can change while in flight
+
+	preprocessorBucketData struct {
+		time    uint32
+		buckets []*data_model.MetricsBucket // contains a bunch of various resolution and timestamp items from future queue
 	}
 )
 
