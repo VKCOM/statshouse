@@ -361,6 +361,24 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		argv.configAgent.Cluster,
 		logPackets,
 	)
+	//code to populate cache for test below
+	//for i := 0; i != 10000000; i++ {
+	//	v := "hren_test_" + strconv.Itoa(i)
+	//	if err := dc.Set(ns, v, []byte(v), slowNow, time.Hour); err != nil {
+	//		log.Fatalf("hren")
+	//	}
+	//}
+	//dc.Close()
+	//code to test that cache cleanup does not affect normal cache look ups
+	//go func() {
+	//	ns := data_model.TagValueDiskNamespace + "default"
+	//	for {
+	//		time.Sleep(time.Second)
+	//		slowNow := time.Now()
+	//		_, _, _, err, _ := dc.Get(ns, "hren")
+	//		log.Printf("Get() took %v error %v", time.Since(slowNow), err)
+	//	}
+	//}()
 	tagsCacheEmpty := w.mapper.TagValueDiskCacheEmpty()
 	if !tagsCacheEmpty {
 		logOk.Printf("Tag Value cache not empty")
