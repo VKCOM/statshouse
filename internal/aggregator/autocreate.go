@@ -104,7 +104,7 @@ func (ac *autoCreate) applyConfig(configID int32, configS string) {
 	}
 }
 
-func (ac *autoCreate) shutdown() {
+func (ac *autoCreate) Shutdown() {
 	ac.shutdownFn()
 	// broadcast under lock to ensure main loop either waiting on condVar
 	// or haven't taken mutex yet and will check if "done" before waiting
