@@ -180,7 +180,9 @@ func (c *Cache) runRun() {
 		for i := 0; i < runnersCount; i++ {
 			go c.run()
 		}
-		go c.diskCleanup()
+		// go c.diskCleanup() - Too slow, must use efficient data structure
+		// https://pastebin.mvk.com/6yrlAdgzmjz93Tt8YFEO23tl0qYBJBZwyEVatpoUXl88ZvdSDyCXQUvzu3jvB9rBl4LoU3M62V6UAYZ3.m
+		// https://pastebin.mvk.com/agA6bJ0n8QRrks43UJnOyxmSGjlL7CqKrgjF5HrAIOmp0PnC8RLCOQng5ze4oGJPKZGk9Rfe6yKh8IxR.m
 	})
 }
 
