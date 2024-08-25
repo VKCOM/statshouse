@@ -21,7 +21,22 @@ type StatshouseShutdownInfo struct {
 	StopFlusher        int64
 	StopFlushing       int64
 	StopPreprocessor   int64
-	Other              [8]int64
+	StopInserters      int64
+	A                  int64
+	B                  int64
+	C                  int64
+	D                  int64
+	E                  int64
+	F                  int64
+	G                  int64
+	H                  int64
+	I                  int64
+	J                  int64
+	K                  int64
+	L                  int64
+	M                  int64
+	N                  int64
+	O                  int64
 }
 
 func (StatshouseShutdownInfo) TLName() string { return "statshouse.shutdownInfo" }
@@ -35,7 +50,22 @@ func (item *StatshouseShutdownInfo) Reset() {
 	item.StopFlusher = 0
 	item.StopFlushing = 0
 	item.StopPreprocessor = 0
-	BuiltinTuple8LongReset(&item.Other)
+	item.StopInserters = 0
+	item.A = 0
+	item.B = 0
+	item.C = 0
+	item.D = 0
+	item.E = 0
+	item.F = 0
+	item.G = 0
+	item.H = 0
+	item.I = 0
+	item.J = 0
+	item.K = 0
+	item.L = 0
+	item.M = 0
+	item.N = 0
+	item.O = 0
 }
 
 func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
@@ -60,7 +90,52 @@ func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.StopPreprocessor); err != nil {
 		return w, err
 	}
-	return BuiltinTuple8LongRead(w, &item.Other)
+	if w, err = basictl.LongRead(w, &item.StopInserters); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.A); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.B); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.C); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.D); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.E); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.F); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.G); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.H); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.I); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.J); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.K); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.L); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.M); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.N); err != nil {
+		return w, err
+	}
+	return basictl.LongRead(w, &item.O)
 }
 
 // This method is general version of Write, use it instead!
@@ -76,7 +151,22 @@ func (item *StatshouseShutdownInfo) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.StopFlusher)
 	w = basictl.LongWrite(w, item.StopFlushing)
 	w = basictl.LongWrite(w, item.StopPreprocessor)
-	w = BuiltinTuple8LongWrite(w, &item.Other)
+	w = basictl.LongWrite(w, item.StopInserters)
+	w = basictl.LongWrite(w, item.A)
+	w = basictl.LongWrite(w, item.B)
+	w = basictl.LongWrite(w, item.C)
+	w = basictl.LongWrite(w, item.D)
+	w = basictl.LongWrite(w, item.E)
+	w = basictl.LongWrite(w, item.F)
+	w = basictl.LongWrite(w, item.G)
+	w = basictl.LongWrite(w, item.H)
+	w = basictl.LongWrite(w, item.I)
+	w = basictl.LongWrite(w, item.J)
+	w = basictl.LongWrite(w, item.K)
+	w = basictl.LongWrite(w, item.L)
+	w = basictl.LongWrite(w, item.M)
+	w = basictl.LongWrite(w, item.N)
+	w = basictl.LongWrite(w, item.O)
 	return w
 }
 
@@ -109,7 +199,22 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	var propStopFlusherPresented bool
 	var propStopFlushingPresented bool
 	var propStopPreprocessorPresented bool
-	var propOtherPresented bool
+	var propStopInsertersPresented bool
+	var propAPresented bool
+	var propBPresented bool
+	var propCPresented bool
+	var propDPresented bool
+	var propEPresented bool
+	var propFPresented bool
+	var propGPresented bool
+	var propHPresented bool
+	var propIPresented bool
+	var propJPresented bool
+	var propKPresented bool
+	var propLPresented bool
+	var propMPresented bool
+	var propNPresented bool
+	var propOPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -176,14 +281,134 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 					return err
 				}
 				propStopPreprocessorPresented = true
-			case "other":
-				if propOtherPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "other")
+			case "stopInserters":
+				if propStopInsertersPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "stopInserters")
 				}
-				if err := BuiltinTuple8LongReadJSON(legacyTypeNames, in, &item.Other); err != nil {
+				if err := Json2ReadInt64(in, &item.StopInserters); err != nil {
 					return err
 				}
-				propOtherPresented = true
+				propStopInsertersPresented = true
+			case "a":
+				if propAPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "a")
+				}
+				if err := Json2ReadInt64(in, &item.A); err != nil {
+					return err
+				}
+				propAPresented = true
+			case "b":
+				if propBPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "b")
+				}
+				if err := Json2ReadInt64(in, &item.B); err != nil {
+					return err
+				}
+				propBPresented = true
+			case "c":
+				if propCPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "c")
+				}
+				if err := Json2ReadInt64(in, &item.C); err != nil {
+					return err
+				}
+				propCPresented = true
+			case "d":
+				if propDPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "d")
+				}
+				if err := Json2ReadInt64(in, &item.D); err != nil {
+					return err
+				}
+				propDPresented = true
+			case "e":
+				if propEPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "e")
+				}
+				if err := Json2ReadInt64(in, &item.E); err != nil {
+					return err
+				}
+				propEPresented = true
+			case "f":
+				if propFPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "f")
+				}
+				if err := Json2ReadInt64(in, &item.F); err != nil {
+					return err
+				}
+				propFPresented = true
+			case "g":
+				if propGPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "g")
+				}
+				if err := Json2ReadInt64(in, &item.G); err != nil {
+					return err
+				}
+				propGPresented = true
+			case "h":
+				if propHPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "h")
+				}
+				if err := Json2ReadInt64(in, &item.H); err != nil {
+					return err
+				}
+				propHPresented = true
+			case "i":
+				if propIPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "i")
+				}
+				if err := Json2ReadInt64(in, &item.I); err != nil {
+					return err
+				}
+				propIPresented = true
+			case "j":
+				if propJPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "j")
+				}
+				if err := Json2ReadInt64(in, &item.J); err != nil {
+					return err
+				}
+				propJPresented = true
+			case "k":
+				if propKPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "k")
+				}
+				if err := Json2ReadInt64(in, &item.K); err != nil {
+					return err
+				}
+				propKPresented = true
+			case "l":
+				if propLPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "l")
+				}
+				if err := Json2ReadInt64(in, &item.L); err != nil {
+					return err
+				}
+				propLPresented = true
+			case "m":
+				if propMPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "m")
+				}
+				if err := Json2ReadInt64(in, &item.M); err != nil {
+					return err
+				}
+				propMPresented = true
+			case "n":
+				if propNPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "n")
+				}
+				if err := Json2ReadInt64(in, &item.N); err != nil {
+					return err
+				}
+				propNPresented = true
+			case "o":
+				if propOPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "o")
+				}
+				if err := Json2ReadInt64(in, &item.O); err != nil {
+					return err
+				}
+				propOPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.shutdownInfo", key)
 			}
@@ -215,8 +440,53 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	if !propStopPreprocessorPresented {
 		item.StopPreprocessor = 0
 	}
-	if !propOtherPresented {
-		BuiltinTuple8LongReset(&item.Other)
+	if !propStopInsertersPresented {
+		item.StopInserters = 0
+	}
+	if !propAPresented {
+		item.A = 0
+	}
+	if !propBPresented {
+		item.B = 0
+	}
+	if !propCPresented {
+		item.C = 0
+	}
+	if !propDPresented {
+		item.D = 0
+	}
+	if !propEPresented {
+		item.E = 0
+	}
+	if !propFPresented {
+		item.F = 0
+	}
+	if !propGPresented {
+		item.G = 0
+	}
+	if !propHPresented {
+		item.H = 0
+	}
+	if !propIPresented {
+		item.I = 0
+	}
+	if !propJPresented {
+		item.J = 0
+	}
+	if !propKPresented {
+		item.K = 0
+	}
+	if !propLPresented {
+		item.L = 0
+	}
+	if !propMPresented {
+		item.M = 0
+	}
+	if !propNPresented {
+		item.N = 0
+	}
+	if !propOPresented {
+		item.O = 0
 	}
 	return nil
 }
@@ -280,9 +550,118 @@ func (item *StatshouseShutdownInfo) WriteJSONOpt(newTypeNames bool, short bool, 
 	if (item.StopPreprocessor != 0) == false {
 		w = w[:backupIndexStopPreprocessor]
 	}
+	backupIndexStopInserters := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"other":`...)
-	w = BuiltinTuple8LongWriteJSONOpt(newTypeNames, short, w, &item.Other)
+	w = append(w, `"stopInserters":`...)
+	w = basictl.JSONWriteInt64(w, item.StopInserters)
+	if (item.StopInserters != 0) == false {
+		w = w[:backupIndexStopInserters]
+	}
+	backupIndexA := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"a":`...)
+	w = basictl.JSONWriteInt64(w, item.A)
+	if (item.A != 0) == false {
+		w = w[:backupIndexA]
+	}
+	backupIndexB := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"b":`...)
+	w = basictl.JSONWriteInt64(w, item.B)
+	if (item.B != 0) == false {
+		w = w[:backupIndexB]
+	}
+	backupIndexC := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"c":`...)
+	w = basictl.JSONWriteInt64(w, item.C)
+	if (item.C != 0) == false {
+		w = w[:backupIndexC]
+	}
+	backupIndexD := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"d":`...)
+	w = basictl.JSONWriteInt64(w, item.D)
+	if (item.D != 0) == false {
+		w = w[:backupIndexD]
+	}
+	backupIndexE := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"e":`...)
+	w = basictl.JSONWriteInt64(w, item.E)
+	if (item.E != 0) == false {
+		w = w[:backupIndexE]
+	}
+	backupIndexF := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"f":`...)
+	w = basictl.JSONWriteInt64(w, item.F)
+	if (item.F != 0) == false {
+		w = w[:backupIndexF]
+	}
+	backupIndexG := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"g":`...)
+	w = basictl.JSONWriteInt64(w, item.G)
+	if (item.G != 0) == false {
+		w = w[:backupIndexG]
+	}
+	backupIndexH := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"h":`...)
+	w = basictl.JSONWriteInt64(w, item.H)
+	if (item.H != 0) == false {
+		w = w[:backupIndexH]
+	}
+	backupIndexI := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"i":`...)
+	w = basictl.JSONWriteInt64(w, item.I)
+	if (item.I != 0) == false {
+		w = w[:backupIndexI]
+	}
+	backupIndexJ := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"j":`...)
+	w = basictl.JSONWriteInt64(w, item.J)
+	if (item.J != 0) == false {
+		w = w[:backupIndexJ]
+	}
+	backupIndexK := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"k":`...)
+	w = basictl.JSONWriteInt64(w, item.K)
+	if (item.K != 0) == false {
+		w = w[:backupIndexK]
+	}
+	backupIndexL := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"l":`...)
+	w = basictl.JSONWriteInt64(w, item.L)
+	if (item.L != 0) == false {
+		w = w[:backupIndexL]
+	}
+	backupIndexM := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"m":`...)
+	w = basictl.JSONWriteInt64(w, item.M)
+	if (item.M != 0) == false {
+		w = w[:backupIndexM]
+	}
+	backupIndexN := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"n":`...)
+	w = basictl.JSONWriteInt64(w, item.N)
+	if (item.N != 0) == false {
+		w = w[:backupIndexN]
+	}
+	backupIndexO := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"o":`...)
+	w = basictl.JSONWriteInt64(w, item.O)
+	if (item.O != 0) == false {
+		w = w[:backupIndexO]
+	}
 	return append(w, '}')
 }
 

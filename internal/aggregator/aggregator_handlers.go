@@ -179,6 +179,15 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		return err // TODO - return code so clients will print into log and discard data
 	}
 
+	if a.bucketsToSend == nil {
+		a.mu.Unlock()
+		// We are in shutdown, recentBuckets stopped moving. We must be very careful
+		// to prevent sending agents responses that will make them erase historic data.
+		// Also, if we reply with errors, agents will resend data.
+		// So we've simply chosen to hijack all responses and do not respond at all.
+		return hctx.HijackResponse(aggBucket) // must be under bucket lock
+	}
+
 	oldestTime := a.recentBuckets[0].time
 	newestTime := a.recentBuckets[len(a.recentBuckets)-1].time
 

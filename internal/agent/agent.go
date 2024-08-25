@@ -304,11 +304,6 @@ func (s *Agent) WaitRecentSenders(timeout time.Duration) {
 	// either timeout passes or all recent senders quit
 }
 
-func (s *Agent) CancelAndWaitAllSenders() {
-	s.cancelSendsFunc()
-	s.sendersWG.Wait()
-}
-
 func (s *Agent) ShutdownFlusher() {
 	s.cancelFlushFunc()
 	for _, shard := range s.Shards {

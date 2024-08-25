@@ -8,6 +8,7 @@ package aggregator
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -522,19 +523,18 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	return res
 }
 
-func makeHTTPClient(timeout time.Duration) *http.Client {
+func makeHTTPClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: srvfunc.CachingDialer,
 		},
-		Timeout: timeout,
 	}
 }
 
-func sendToClickhouse(httpClient *http.Client, khAddr string, table string, body []byte) (status int, exception int, elapsed float64, err error) {
+func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte) (status int, exception int, elapsed float64, err error) {
 	queryPrefix := url.PathEscape(fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", table))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
-	req, err := http.NewRequest("POST", URL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(body))
 	if err != nil {
 		return 0, 0, 0, err
 	}

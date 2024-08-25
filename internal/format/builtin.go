@@ -383,13 +383,14 @@ const (
 	TagValueIDRestartTimingsPhaseInactive          = 1
 	TagValueIDRestartTimingsPhaseStartDiskCache    = 2
 	TagValueIDRestartTimingsPhaseStartReceivers    = 3
-	TagValueIDRestartTimingsPhaseStartAgent        = 4
+	TagValueIDRestartTimingsPhaseStartService      = 4
 	TagValueIDRestartTimingsPhaseTotal             = 100 // we want average of sum
 	TagValueIDRestartTimingsPhaseStopRecentSenders = 101
 	TagValueIDRestartTimingsPhaseStopReceivers     = 102
 	TagValueIDRestartTimingsPhaseStopFlusher       = 103
 	TagValueIDRestartTimingsPhaseStopFlushing      = 104
 	TagValueIDRestartTimingsPhaseStopPreprocessor  = 105
+	TagValueIDRestartTimingsPhaseStopInserters     = 106
 )
 
 var (
@@ -2170,13 +2171,14 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDRestartTimingsPhaseInactive:          "inactive",
 					TagValueIDRestartTimingsPhaseStartDiskCache:    "start_disk_cache",
 					TagValueIDRestartTimingsPhaseStartReceivers:    "start_receivers",
-					TagValueIDRestartTimingsPhaseStartAgent:        "start_agent",
+					TagValueIDRestartTimingsPhaseStartService:      "start_service",
 					TagValueIDRestartTimingsPhaseTotal:             "total",
 					TagValueIDRestartTimingsPhaseStopRecentSenders: "stop_recent_senders",
 					TagValueIDRestartTimingsPhaseStopReceivers:     "stop_receivers",
 					TagValueIDRestartTimingsPhaseStopFlusher:       "stop_flusher",
 					TagValueIDRestartTimingsPhaseStopFlushing:      "stop_flushing",
 					TagValueIDRestartTimingsPhaseStopPreprocessor:  "stop_preprocessor",
+					TagValueIDRestartTimingsPhaseStopInserters:     "stop_inserters",
 				}),
 			}, {
 				Description: "-",
