@@ -78,9 +78,10 @@ const (
 	MaxJournalItemsSent = 1000 // TODO - increase, but limit response size in bytes
 	MaxJournalBytesSent = 800 * 1024
 
-	ClickHouseTimeoutConfig = time.Second * 10 // either quickly autoconfig or quickly exit
-	ClickhouseConfigRetries = 5
-	ClickHouseTimeout       = 5 * time.Minute // reduces chance of duplicates
+	ClickHouseTimeoutConfig   = time.Second * 10 // either quickly autoconfig or quickly exit
+	ClickhouseConfigRetries   = 5
+	ClickHouseTimeoutInsert   = 5 * time.Minute  // reduces chance of duplicates
+	ClickHouseTimeoutShutdown = 30 * time.Second // we do not delay aggregator shutdown by more than this time
 
 	KeepAliveMaxBackoff          = 30 * time.Second // for cases when aggregators quickly return error
 	JournalDDOSProtectionTimeout = 50 * time.Millisecond

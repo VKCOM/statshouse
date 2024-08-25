@@ -13,67 +13,6 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinTuple8LongReset(vec *[8]int64) {
-	for i := range *vec {
-		(*vec)[i] = 0
-	}
-}
-
-func BuiltinTuple8LongRead(w []byte, vec *[8]int64) (_ []byte, err error) {
-	for i := range *vec {
-		if w, err = basictl.LongRead(w, &(*vec)[i]); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func BuiltinTuple8LongWrite(w []byte, vec *[8]int64) []byte {
-	for _, elem := range *vec {
-		w = basictl.LongWrite(w, elem)
-	}
-	return w
-}
-
-func BuiltinTuple8LongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]int64) error {
-	index := 0
-	if in != nil {
-		in.Delim('[')
-		if !in.Ok() {
-			return ErrorInvalidJSON("[8]int64", "expected json array")
-		}
-		for ; !in.IsDelim(']'); index++ {
-			if index == 8 {
-				return ErrorWrongSequenceLength("[8]int64", index+1, 8)
-			}
-			if err := Json2ReadInt64(in, &(*vec)[index]); err != nil {
-				return err
-			}
-			in.WantComma()
-		}
-		in.Delim(']')
-		if !in.Ok() {
-			return ErrorInvalidJSON("[8]int64", "expected json array's end")
-		}
-	}
-	if index != 8 {
-		return ErrorWrongSequenceLength("[8]int64", index+1, 8)
-	}
-	return nil
-}
-
-func BuiltinTuple8LongWriteJSON(w []byte, vec *[8]int64) []byte {
-	return BuiltinTuple8LongWriteJSONOpt(true, false, w, vec)
-}
-func BuiltinTuple8LongWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]int64) []byte {
-	w = append(w, '[')
-	for _, elem := range *vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteInt64(w, elem)
-	}
-	return append(w, ']')
-}
-
 func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {

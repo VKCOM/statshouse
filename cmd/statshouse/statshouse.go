@@ -410,7 +410,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			receiversWG.Done()
 		}(u, i)
 	}
-	shutdownInfoReport(sh2, argv.cacheDir, startDiscCacheTime)
+	// UDP receivers are receiving data, so we consider agent started (not losing UDP packets already)
+	shutdownInfoReport(sh2, format.TagValueIDComponentAgent, argv.cacheDir, startDiscCacheTime)
 
 	// Open TCP ports
 	listeners := make([]net.Listener, 0, 2)
@@ -520,6 +521,7 @@ loop:
 }
 
 func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
+	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	if err := aggregator.ValidateConfigAggregator(argv.configAggregator); err != nil {
 		logErr.Printf("%s", err)
 		return 1
@@ -531,10 +533,39 @@ func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--agg-addr to listen must be specified")
 		return 1
 	}
-	if err := aggregator.RunAggregator(dc, argv.cacheDir, argv.aggAddr, aesPwd, argv.configAggregator, argv.customHostName, argv.logLevel == "trace"); err != nil {
+	agg, err := aggregator.MakeAggregator(dc, argv.cacheDir, argv.aggAddr, aesPwd, argv.configAggregator, argv.customHostName, argv.logLevel == "trace")
+	if err != nil {
 		logErr.Printf("%v", err)
 		return 1
 	}
+	shutdownInfoReport(agg.Agent(), format.TagValueIDComponentAggregator, argv.cacheDir, startDiscCacheTime)
+
+	chSignal := make(chan os.Signal, 1)
+	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGUSR1)
+
+loop:
+	for {
+		sig := <-chSignal
+		switch sig {
+		case syscall.SIGINT:
+			break loop
+		case syscall.SIGUSR1:
+			logOk.Printf("Aggregators do not support log rotation") // admin might expect rotation, tell them.
+		}
+	}
+	shutdownInfo := tlstatshouse.ShutdownInfo{}
+	now := time.Now()
+	shutdownInfo.StartShutdownTime = now.UnixNano()
+
+	logOk.Printf("Shutting down...")
+	logOk.Printf("1. Disabling inserting new data to clickhouses...")
+	agg.DisableNewInsert()
+	logOk.Printf("2. Waiting all inserts to finish...")
+	agg.WaitInsertsFinish(data_model.ClickHouseTimeoutShutdown)
+	shutdownInfo.StopInserters = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.FinishShutdownTime = now.UnixNano()
+	shutdownInfoSave(argv.cacheDir, shutdownInfo)
+	logOk.Printf("Bye")
 	return 0
 }
 

@@ -11,58 +11,67 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func shutdownInfoReport(sh2 *agent.Agent, storageDir string, startDiscCache time.Time) {
+const shutdownInfoFileName = "shutdown_stats.tmp"
+
+// actual metrics reported depend on contents of .tmp file
+func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string, startDiscCache time.Time) {
 	si := tlstatshouse.ShutdownInfo{}
 	if storageDir != "" {
-		fn := filepath.Join(storageDir, "shutdown.tl")
+		fn := filepath.Join(storageDir, shutdownInfoFileName)
 		data, err := os.ReadFile(fn)
 		if err != nil {
 			logErr.Printf("error reading %q, no shutdown metrics will be written", fn)
 		} else if _, err := si.ReadBoxed(data); err != nil {
 			logErr.Printf("error parsing %q, no shutdown metrics will be written", fn)
 		}
+		_ = os.Remove(fn) // We do not want duplicates. If we crash before saving metrics, we better lose them.
 	}
 	finishShutdownTime := time.Unix(0, si.FinishShutdownTime)
 	if dur := globalStartTime.Sub(finishShutdownTime); si.FinishShutdownTime > 0 && dur > 0 && dur < time.Hour {
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseInactive}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseInactive}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := time.Duration(si.StopRecentSenders); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStopRecentSenders}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRecentSenders}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := time.Duration(si.StopReceivers); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStopReceivers}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopReceivers}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := time.Duration(si.StopFlusher); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStopFlusher}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlusher}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := time.Duration(si.StopFlushing); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStopFlushing}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlushing}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := time.Duration(si.StopPreprocessor); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStopPreprocessor}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopPreprocessor}},
+			dur.Seconds(), 1, nil)
+	}
+	if dur := time.Duration(si.StopInserters); dur > 0 {
+		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopInserters}},
 			dur.Seconds(), 1, nil)
 	}
 	finishLoadingTime := time.Now()
 	if dur := startDiscCache.Sub(globalStartTime); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStartDiskCache}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartDiskCache}},
 			dur.Seconds(), 1, nil)
 	}
 	if dur := finishLoadingTime.Sub(startDiscCache); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseStartReceivers}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartService}},
 			dur.Seconds(), 1, nil)
 	}
 
@@ -70,17 +79,17 @@ func shutdownInfoReport(sh2 *agent.Agent, storageDir string, startDiscCache time
 	if dur := finishLoadingTime.Sub(startShutdownTime); si.StartShutdownTime > 0 && dur > 0 && dur < time.Hour {
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Keys: [16]int32{0, format.TagValueIDComponentAgent, format.TagValueIDRestartTimingsPhaseTotal}},
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseTotal}},
 			dur.Seconds(), 1, nil)
-		logOk.Printf("agent finished restart in %v", dur)
+		logOk.Printf("restart finished in %v (since shutdown start time recorded by previous instance)", dur)
 	} else {
-		logOk.Printf("agent finished loading in %v", time.Since(globalStartTime))
+		logOk.Printf("start finished in %v (since this main() launched)", time.Since(globalStartTime))
 	}
 }
 
 func shutdownInfoSave(storageDir string, si tlstatshouse.ShutdownInfo) {
 	if storageDir != "" {
-		_ = os.WriteFile(filepath.Join(argv.cacheDir, "shutdown.tl"), si.WriteBoxed(nil), os.ModePerm)
+		_ = os.WriteFile(filepath.Join(argv.cacheDir, shutdownInfoFileName), si.WriteBoxed(nil), os.ModePerm)
 	}
 }
 
