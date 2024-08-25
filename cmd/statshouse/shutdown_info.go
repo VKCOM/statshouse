@@ -63,6 +63,11 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopInserters}},
 			dur.Seconds(), 1, nil)
 	}
+	if dur := time.Duration(si.StopRPCServer); dur > 0 {
+		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
+			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRPCServer}},
+			dur.Seconds(), 1, nil)
+	}
 	finishLoadingTime := time.Now()
 	if dur := startDiscCache.Sub(globalStartTime); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,

@@ -22,6 +22,7 @@ type StatshouseShutdownInfo struct {
 	StopFlushing       int64
 	StopPreprocessor   int64
 	StopInserters      int64
+	StopRPCServer      int64
 	A                  int64
 	B                  int64
 	C                  int64
@@ -36,7 +37,6 @@ type StatshouseShutdownInfo struct {
 	L                  int64
 	M                  int64
 	N                  int64
-	O                  int64
 }
 
 func (StatshouseShutdownInfo) TLName() string { return "statshouse.shutdownInfo" }
@@ -51,6 +51,7 @@ func (item *StatshouseShutdownInfo) Reset() {
 	item.StopFlushing = 0
 	item.StopPreprocessor = 0
 	item.StopInserters = 0
+	item.StopRPCServer = 0
 	item.A = 0
 	item.B = 0
 	item.C = 0
@@ -65,7 +66,6 @@ func (item *StatshouseShutdownInfo) Reset() {
 	item.L = 0
 	item.M = 0
 	item.N = 0
-	item.O = 0
 }
 
 func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
@@ -91,6 +91,9 @@ func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.StopInserters); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.StopRPCServer); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.A); err != nil {
@@ -132,10 +135,7 @@ func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.M); err != nil {
 		return w, err
 	}
-	if w, err = basictl.LongRead(w, &item.N); err != nil {
-		return w, err
-	}
-	return basictl.LongRead(w, &item.O)
+	return basictl.LongRead(w, &item.N)
 }
 
 // This method is general version of Write, use it instead!
@@ -152,6 +152,7 @@ func (item *StatshouseShutdownInfo) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.StopFlushing)
 	w = basictl.LongWrite(w, item.StopPreprocessor)
 	w = basictl.LongWrite(w, item.StopInserters)
+	w = basictl.LongWrite(w, item.StopRPCServer)
 	w = basictl.LongWrite(w, item.A)
 	w = basictl.LongWrite(w, item.B)
 	w = basictl.LongWrite(w, item.C)
@@ -166,7 +167,6 @@ func (item *StatshouseShutdownInfo) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.L)
 	w = basictl.LongWrite(w, item.M)
 	w = basictl.LongWrite(w, item.N)
-	w = basictl.LongWrite(w, item.O)
 	return w
 }
 
@@ -200,6 +200,7 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	var propStopFlushingPresented bool
 	var propStopPreprocessorPresented bool
 	var propStopInsertersPresented bool
+	var propStopRPCServerPresented bool
 	var propAPresented bool
 	var propBPresented bool
 	var propCPresented bool
@@ -214,7 +215,6 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	var propLPresented bool
 	var propMPresented bool
 	var propNPresented bool
-	var propOPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -289,6 +289,14 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 					return err
 				}
 				propStopInsertersPresented = true
+			case "stopRPCServer":
+				if propStopRPCServerPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "stopRPCServer")
+				}
+				if err := Json2ReadInt64(in, &item.StopRPCServer); err != nil {
+					return err
+				}
+				propStopRPCServerPresented = true
 			case "a":
 				if propAPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "a")
@@ -401,14 +409,6 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 					return err
 				}
 				propNPresented = true
-			case "o":
-				if propOPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.shutdownInfo", "o")
-				}
-				if err := Json2ReadInt64(in, &item.O); err != nil {
-					return err
-				}
-				propOPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.shutdownInfo", key)
 			}
@@ -442,6 +442,9 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	}
 	if !propStopInsertersPresented {
 		item.StopInserters = 0
+	}
+	if !propStopRPCServerPresented {
+		item.StopRPCServer = 0
 	}
 	if !propAPresented {
 		item.A = 0
@@ -484,9 +487,6 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 	}
 	if !propNPresented {
 		item.N = 0
-	}
-	if !propOPresented {
-		item.O = 0
 	}
 	return nil
 }
@@ -556,6 +556,13 @@ func (item *StatshouseShutdownInfo) WriteJSONOpt(newTypeNames bool, short bool, 
 	w = basictl.JSONWriteInt64(w, item.StopInserters)
 	if (item.StopInserters != 0) == false {
 		w = w[:backupIndexStopInserters]
+	}
+	backupIndexStopRPCServer := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"stopRPCServer":`...)
+	w = basictl.JSONWriteInt64(w, item.StopRPCServer)
+	if (item.StopRPCServer != 0) == false {
+		w = w[:backupIndexStopRPCServer]
 	}
 	backupIndexA := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -654,13 +661,6 @@ func (item *StatshouseShutdownInfo) WriteJSONOpt(newTypeNames bool, short bool, 
 	w = basictl.JSONWriteInt64(w, item.N)
 	if (item.N != 0) == false {
 		w = w[:backupIndexN]
-	}
-	backupIndexO := len(w)
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"o":`...)
-	w = basictl.JSONWriteInt64(w, item.O)
-	if (item.O != 0) == false {
-		w = w[:backupIndexO]
 	}
 	return append(w, '}')
 }

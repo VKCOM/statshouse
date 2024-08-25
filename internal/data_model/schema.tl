@@ -130,8 +130,9 @@ statshouse.shutdownInfo#4124cf9c
     stopFlushing:long
     stopPreprocessor:long
     stopInserters:long // for aggregator
+    stopRPCServer:long // for aggregator
     // we might want more timeouts later without changing format, so we reserve some space
-    a:long b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long o:long
+    a:long b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
 = statshouse.ShutdownInfo;
 
 ---functions---

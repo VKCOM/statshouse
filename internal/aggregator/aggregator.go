@@ -335,6 +335,18 @@ func (a *Aggregator) WaitInsertsFinish(timeout time.Duration) {
 	// either timeout passes or all recent senders quit
 }
 
+func (a *Aggregator) ShutdownRPCServer() {
+	a.server.Shutdown()
+}
+
+func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err := a.server.CloseWait(ctx); err != nil {
+		log.Printf("WaitRPCServer timeout after %v: %v", timeout, err)
+	}
+}
+
 func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()

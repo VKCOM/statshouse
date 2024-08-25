@@ -563,6 +563,13 @@ loop:
 	logOk.Printf("2. Waiting all inserts to finish...")
 	agg.WaitInsertsFinish(data_model.ClickHouseTimeoutShutdown)
 	shutdownInfo.StopInserters = shutdownInfoDuration(&now).Nanoseconds()
+	// Now when inserts are finished and responses are in send queues of RPC connections,
+	// we can initiate shutdown by sending LetsFIN packets and waiting to actual FINs.
+	logOk.Printf("3. Starting gracefull RPC shutdown...")
+	agg.ShutdownRPCServer()
+	logOk.Printf("4. Waiting RPC clients to receive responses and disconnect...")
+	agg.WaitRPCServer(10 * time.Second)
+	shutdownInfo.StopRPCServer = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
