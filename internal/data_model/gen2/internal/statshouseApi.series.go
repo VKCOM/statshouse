@@ -20,7 +20,7 @@ type StatshouseApiSeries struct {
 }
 
 func (StatshouseApiSeries) TLName() string { return "statshouseApi.series" }
-func (StatshouseApiSeries) TLTag() uint32  { return 0x7a3e919 }
+func (StatshouseApiSeries) TLTag() uint32  { return 0x07a3e919 }
 
 func (item *StatshouseApiSeries) Reset() {
 	item.FieldsMask = 0
@@ -51,7 +51,7 @@ func (item *StatshouseApiSeries) Write(w []byte) []byte {
 }
 
 func (item *StatshouseApiSeries) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x7a3e919); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x07a3e919); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -63,7 +63,7 @@ func (item *StatshouseApiSeries) WriteBoxedGeneral(w []byte) (_ []byte, err erro
 }
 
 func (item *StatshouseApiSeries) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x7a3e919)
+	w = basictl.NatWrite(w, 0x07a3e919)
 	return item.Write(w)
 }
 

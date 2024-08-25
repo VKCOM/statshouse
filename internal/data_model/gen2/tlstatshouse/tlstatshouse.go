@@ -59,6 +59,7 @@ type (
 	SendKeepAlive2Bytes               = internal.StatshouseSendKeepAlive2Bytes
 	SendSourceBucket2                 = internal.StatshouseSendSourceBucket2
 	SendSourceBucket2Bytes            = internal.StatshouseSendSourceBucket2Bytes
+	ShutdownInfo                      = internal.StatshouseShutdownInfo
 	SourceBucket2                     = internal.StatshouseSourceBucket2
 	SourceBucket2Bytes                = internal.StatshouseSourceBucket2Bytes
 	TestConnection2                   = internal.StatshouseTestConnection2

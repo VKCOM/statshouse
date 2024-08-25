@@ -20,7 +20,7 @@ var _EngineReindexStatus = [7]UnionElement{
 	{TLTag: 0x10533721, TLName: "engine.reindexStatusFailed", TLString: "engine.reindexStatusFailed#10533721"},
 	{TLTag: 0x756e878b, TLName: "engine.reindexStatusSignaled", TLString: "engine.reindexStatusSignaled#756e878b"},
 	{TLTag: 0xafdbd505, TLName: "engine.reindexStatusDoneOld", TLString: "engine.reindexStatusDoneOld#afdbd505"},
-	{TLTag: 0xf67569a, TLName: "engine.reindexStatusDone", TLString: "engine.reindexStatusDone#0f67569a"},
+	{TLTag: 0x0f67569a, TLName: "engine.reindexStatusDone", TLString: "engine.reindexStatusDone#0f67569a"},
 }
 
 type EngineReindexStatus struct {
@@ -179,7 +179,7 @@ func (item *EngineReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	case 0xafdbd505:
 		item.index = 5
 		return item.valueDoneOld.Read(w)
-	case 0xf67569a:
+	case 0x0f67569a:
 		item.index = 6
 		return item.valueDone.Read(w)
 	default:
@@ -411,7 +411,7 @@ type EngineReindexStatusDone struct {
 }
 
 func (EngineReindexStatusDone) TLName() string { return "engine.reindexStatusDone" }
-func (EngineReindexStatusDone) TLTag() uint32  { return 0xf67569a }
+func (EngineReindexStatusDone) TLTag() uint32  { return 0x0f67569a }
 
 func (item *EngineReindexStatusDone) Reset() {
 	item.FinishTime = 0
@@ -437,7 +437,7 @@ func (item *EngineReindexStatusDone) Write(w []byte) []byte {
 }
 
 func (item *EngineReindexStatusDone) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xf67569a); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0f67569a); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -449,7 +449,7 @@ func (item *EngineReindexStatusDone) WriteBoxedGeneral(w []byte) (_ []byte, err 
 }
 
 func (item *EngineReindexStatusDone) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xf67569a)
+	w = basictl.NatWrite(w, 0x0f67569a)
 	return item.Write(w)
 }
 

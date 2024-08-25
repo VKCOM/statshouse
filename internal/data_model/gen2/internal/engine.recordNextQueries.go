@@ -20,7 +20,7 @@ type EngineRecordNextQueries struct {
 }
 
 func (EngineRecordNextQueries) TLName() string { return "engine.recordNextQueries" }
-func (EngineRecordNextQueries) TLTag() uint32  { return 0x1e9d6 }
+func (EngineRecordNextQueries) TLTag() uint32  { return 0x0001e9d6 }
 
 func (item *EngineRecordNextQueries) Reset() {
 	item.Binlogname = ""
@@ -51,7 +51,7 @@ func (item *EngineRecordNextQueries) Write(w []byte) []byte {
 }
 
 func (item *EngineRecordNextQueries) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1e9d6); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0001e9d6); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -63,7 +63,7 @@ func (item *EngineRecordNextQueries) WriteBoxedGeneral(w []byte) (_ []byte, err 
 }
 
 func (item *EngineRecordNextQueries) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x1e9d6)
+	w = basictl.NatWrite(w, 0x0001e9d6)
 	return item.Write(w)
 }
 

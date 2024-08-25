@@ -127,6 +127,7 @@ const (
 	BuiltinMetricIDAPIBufferBytesFree         = -105
 	BuiltinMetricIDAPIBufferBytesTotal        = -106
 	BuiltinMetricIDAutoCreateMetric           = -107
+	BuiltinMetricIDRestartTimings             = -108
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -378,6 +379,17 @@ const (
 
 	TagValueIDDMESGParseError = 1
 	TagValueIDAPIPanicError   = 2
+
+	TagValueIDRestartTimingsPhaseInactive          = 1
+	TagValueIDRestartTimingsPhaseStartDiskCache    = 2
+	TagValueIDRestartTimingsPhaseStartReceivers    = 3
+	TagValueIDRestartTimingsPhaseStartAgent        = 4
+	TagValueIDRestartTimingsPhaseTotal             = 100 // we want average of sum
+	TagValueIDRestartTimingsPhaseStopRecentSenders = 101
+	TagValueIDRestartTimingsPhaseStopReceivers     = 102
+	TagValueIDRestartTimingsPhaseStopFlusher       = 103
+	TagValueIDRestartTimingsPhaseStopFlushing      = 104
+	TagValueIDRestartTimingsPhaseStopPreprocessor  = 105
 )
 
 var (
@@ -2144,6 +2156,34 @@ Value is delta between second value and time it was inserted.`,
 				},
 			}},
 		},
+		BuiltinMetricIDRestartTimings: {
+			Name:        "__src_restart_timings",
+			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
+			Description: "Time of various restart phases (inactive is time between process stop and start)",
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "phase",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDRestartTimingsPhaseInactive:          "inactive",
+					TagValueIDRestartTimingsPhaseStartDiskCache:    "start_disk_cache",
+					TagValueIDRestartTimingsPhaseStartReceivers:    "start_receivers",
+					TagValueIDRestartTimingsPhaseStartAgent:        "start_agent",
+					TagValueIDRestartTimingsPhaseTotal:             "total",
+					TagValueIDRestartTimingsPhaseStopRecentSenders: "stop_recent_senders",
+					TagValueIDRestartTimingsPhaseStopReceivers:     "stop_receivers",
+					TagValueIDRestartTimingsPhaseStopFlusher:       "stop_flusher",
+					TagValueIDRestartTimingsPhaseStopFlushing:      "stop_flushing",
+					TagValueIDRestartTimingsPhaseStopPreprocessor:  "stop_preprocessor",
+				}),
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2252,6 +2292,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDStatsHouseErrors:          true,
 		BuiltinMetricIDSrcSamplingBudget:         true,
 		BuiltinMetricIDSrcSamplingGroupBudget:    true,
+		BuiltinMetricIDRestartTimings:            true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -2293,6 +2334,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesAlloc:        true,
 		BuiltinMetricIDAPIBufferBytesFree:         true,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
+		BuiltinMetricIDRestartTimings:             true,
 	}
 
 	insertKindToValue = map[int32]string{

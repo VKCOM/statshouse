@@ -233,7 +233,7 @@ func (dc *DiskCache) ListKeys(ns string, limit, offset int) ([]ListKeysResult, e
 	}
 }
 
-func (dc *DiskCache) Count(ns string) (int, error) {
+func (dc *DiskCache) VerySlowCountDoNotUse(ns string) (int, error) {
 	ch := make(chan countResult)
 	select {
 	case dc.c <- diskCount{ns: ns, ret: ch}:

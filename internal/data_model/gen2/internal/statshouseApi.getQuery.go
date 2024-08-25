@@ -20,7 +20,7 @@ type StatshouseApiGetQuery struct {
 }
 
 func (StatshouseApiGetQuery) TLName() string { return "statshouseApi.getQuery" }
-func (StatshouseApiGetQuery) TLTag() uint32  { return 0xc7349bb }
+func (StatshouseApiGetQuery) TLTag() uint32  { return 0x0c7349bb }
 
 func (item *StatshouseApiGetQuery) Reset() {
 	item.FieldsMask = 0
@@ -51,7 +51,7 @@ func (item *StatshouseApiGetQuery) Write(w []byte) []byte {
 }
 
 func (item *StatshouseApiGetQuery) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc7349bb); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c7349bb); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -63,7 +63,7 @@ func (item *StatshouseApiGetQuery) WriteBoxedGeneral(w []byte) (_ []byte, err er
 }
 
 func (item *StatshouseApiGetQuery) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc7349bb)
+	w = basictl.NatWrite(w, 0x0c7349bb)
 	return item.Write(w)
 }
 

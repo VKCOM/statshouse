@@ -90,13 +90,46 @@ func CreateObjectFromName(name string) Object {
 	return nil
 }
 
+func CreateFunctionBytes(tag uint32) Function {
+	if item := FactoryItemByTLTagBytes(tag); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+func CreateObjectBytes(tag uint32) Object {
+	if item := FactoryItemByTLTagBytes(tag); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateFunctionFromNameBytes(name string) Function {
+	if item := FactoryItemByTLNameBytes(name); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateObjectFromNameBytes(name string) Object {
+	if item := FactoryItemByTLNameBytes(name); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
 type TLItem struct {
-	tag                uint32
-	annotations        uint32
-	tlName             string
-	createFunction     func() Function
-	createFunctionLong func() Function
-	createObject       func() Object
+	tag                     uint32
+	annotations             uint32
+	tlName                  string
+	createFunction          func() Function
+	createFunctionLong      func() Function
+	createObject            func() Object
+	createFunctionBytes     func() Function
+	createFunctionLongBytes func() Function
+	createObjectBytes       func() Object
 }
 
 func (item TLItem) TLTag() uint32            { return item.tag }
@@ -168,9 +201,21 @@ func FactoryItemByTLName(name string) *TLItem {
 	return itemsByName[name]
 }
 
+func FactoryItemByTLTagBytes(tag uint32) *TLItem {
+	return itemsBytesByTag[tag]
+}
+
+func FactoryItemByTLNameBytes(name string) *TLItem {
+	return itemsBytesByName[name]
+}
+
 var itemsByTag = map[uint32]*TLItem{}
 
 var itemsByName = map[string]*TLItem{}
+
+var itemsBytesByTag = map[uint32]*TLItem{}
+
+var itemsBytesByName = map[string]*TLItem{}
 
 func SetGlobalFactoryCreateForFunction(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
 	item := itemsByTag[itemTag]
@@ -198,6 +243,40 @@ func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item.createObject = func() Object { return item }
 }
 
+func SetGlobalFactoryCreateForFunctionBytes(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
+	item := itemsBytesByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+	item.createFunctionBytes = createFunction
+	item.createFunctionLongBytes = createFunctionLong
+}
+
+func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Object) {
+	item := itemsBytesByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForEnumElementBytes(itemTag uint32) {
+	item := itemsBytesByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = func() Object { return item }
+}
+
+func pleaseImportFactoryBytesObject() Object {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
+func pleaseImportFactoryBytesFunction() Function {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
 func pleaseImportFactoryObject() Object {
 	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory' instead of 'gen/meta'.")
 }
@@ -211,7 +290,12 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	itemsByName[item.tlName] = item
 	itemsByName[n1] = item
 	itemsByName[n2] = item
+	itemsBytesByTag[item.tag] = item
+	itemsBytesByName[item.tlName] = item
+	itemsBytesByName[n1] = item
+	itemsBytesByName[n2] = item
 	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
 	// code below is as fast, but allocates some extra strings which are already in binary const segment due to JSON code
 	// itemsByName[fmt.Sprintf("%s#%08x", item.tlName, item.tag)] = item
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
@@ -220,6 +304,7 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
+	item.createFunctionBytes = pleaseImportFactoryBytesFunction
 }
 
 func init() {
@@ -236,7 +321,7 @@ func init() {
 	fillObject("engine.failedToSwitchMode#17418662", "#17418662", &TLItem{tag: 0x17418662, annotations: 0x0, tlName: "engine.failedToSwitchMode"})
 	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat"})
 	fillFunction("engine.getBinlogPrefixes#ef14db93", "#ef14db93", &TLItem{tag: 0xef14db93, annotations: 0x3, tlName: "engine.getBinlogPrefixes"})
-	fillFunction("engine.getExpectedMetafilesStats#0342f391", "#0342f391", &TLItem{tag: 0x342f391, annotations: 0x3, tlName: "engine.getExpectedMetafilesStats"})
+	fillFunction("engine.getExpectedMetafilesStats#0342f391", "#0342f391", &TLItem{tag: 0x0342f391, annotations: 0x3, tlName: "engine.getExpectedMetafilesStats"})
 	fillFunction("engine.getReadWriteMode#61b3f593", "#61b3f593", &TLItem{tag: 0x61b3f593, annotations: 0x1, tlName: "engine.getReadWriteMode"})
 	fillFunction("engine.getReindexStatus#f492042e", "#f492042e", &TLItem{tag: 0xf492042e, annotations: 0x3, tlName: "engine.getReindexStatus"})
 	fillObject("engine.httpQuery#58300321", "#58300321", &TLItem{tag: 0x58300321, annotations: 0x0, tlName: "engine.httpQuery"})
@@ -252,9 +337,9 @@ func init() {
 	fillObject("engine.queryResultAio#ee2879b0", "#ee2879b0", &TLItem{tag: 0xee2879b0, annotations: 0x0, tlName: "engine.queryResultAio"})
 	fillObject("engine.queryResultError#2b4dd0ba", "#2b4dd0ba", &TLItem{tag: 0x2b4dd0ba, annotations: 0x0, tlName: "engine.queryResultError"})
 	fillFunction("engine.readNop#9d2b841f", "#9d2b841f", &TLItem{tag: 0x9d2b841f, annotations: 0x4, tlName: "engine.readNop"})
-	fillFunction("engine.recordNextQueries#0001e9d6", "#0001e9d6", &TLItem{tag: 0x1e9d6, annotations: 0x3, tlName: "engine.recordNextQueries"})
+	fillFunction("engine.recordNextQueries#0001e9d6", "#0001e9d6", &TLItem{tag: 0x0001e9d6, annotations: 0x3, tlName: "engine.recordNextQueries"})
 	fillFunction("engine.registerDynamicLib#2f86f276", "#2f86f276", &TLItem{tag: 0x2f86f276, annotations: 0x8, tlName: "engine.registerDynamicLib"})
-	fillObject("engine.reindexStatusDone#0f67569a", "#0f67569a", &TLItem{tag: 0xf67569a, annotations: 0x0, tlName: "engine.reindexStatusDone"})
+	fillObject("engine.reindexStatusDone#0f67569a", "#0f67569a", &TLItem{tag: 0x0f67569a, annotations: 0x0, tlName: "engine.reindexStatusDone"})
 	fillObject("engine.reindexStatusDoneOld#afdbd505", "#afdbd505", &TLItem{tag: 0xafdbd505, annotations: 0x0, tlName: "engine.reindexStatusDoneOld"})
 	fillObject("engine.reindexStatusFailed#10533721", "#10533721", &TLItem{tag: 0x10533721, annotations: 0x0, tlName: "engine.reindexStatusFailed"})
 	fillObject("engine.reindexStatusNever#7f6a89b9", "#7f6a89b9", &TLItem{tag: 0x7f6a89b9, annotations: 0x0, tlName: "engine.reindexStatusNever"})
@@ -262,7 +347,7 @@ func init() {
 	fillObject("engine.reindexStatusRunningOld#ac530b46", "#ac530b46", &TLItem{tag: 0xac530b46, annotations: 0x0, tlName: "engine.reindexStatusRunningOld"})
 	fillObject("engine.reindexStatusSignaled#756e878b", "#756e878b", &TLItem{tag: 0x756e878b, annotations: 0x0, tlName: "engine.reindexStatusSignaled"})
 	fillFunction("engine.reloadDynamicLib#602d62c1", "#602d62c1", &TLItem{tag: 0x602d62c1, annotations: 0x8, tlName: "engine.reloadDynamicLib"})
-	fillObject("engine.reloadDynamicLibOptions#0f3d0fb1", "#0f3d0fb1", &TLItem{tag: 0xf3d0fb1, annotations: 0x0, tlName: "engine.reloadDynamicLibOptions"})
+	fillObject("engine.reloadDynamicLibOptions#0f3d0fb1", "#0f3d0fb1", &TLItem{tag: 0x0f3d0fb1, annotations: 0x0, tlName: "engine.reloadDynamicLibOptions"})
 	fillFunction("engine.replaceConfigServer#5fcd8e77", "#5fcd8e77", &TLItem{tag: 0x5fcd8e77, annotations: 0x3, tlName: "engine.replaceConfigServer"})
 	fillFunction("engine.sendSignal#1a7708a3", "#1a7708a3", &TLItem{tag: 0x1a7708a3, annotations: 0x3, tlName: "engine.sendSignal"})
 	fillFunction("engine.setFsyncInterval#665d2ab7", "#665d2ab7", &TLItem{tag: 0x665d2ab7, annotations: 0x12, tlName: "engine.setFsyncInterval"})
@@ -340,7 +425,7 @@ func init() {
 	fillObject("statshouseApi.fnP25#cf9ad7bf", "#cf9ad7bf", &TLItem{tag: 0xcf9ad7bf, annotations: 0x0, tlName: "statshouseApi.fnP25"})
 	fillObject("statshouseApi.fnP5#bcdeae3a", "#bcdeae3a", &TLItem{tag: 0xbcdeae3a, annotations: 0x0, tlName: "statshouseApi.fnP5"})
 	fillObject("statshouseApi.fnP50#77c5de5c", "#77c5de5c", &TLItem{tag: 0x77c5de5c, annotations: 0x0, tlName: "statshouseApi.fnP50"})
-	fillObject("statshouseApi.fnP75#0e674272", "#0e674272", &TLItem{tag: 0xe674272, annotations: 0x0, tlName: "statshouseApi.fnP75"})
+	fillObject("statshouseApi.fnP75#0e674272", "#0e674272", &TLItem{tag: 0x0e674272, annotations: 0x0, tlName: "statshouseApi.fnP75"})
 	fillObject("statshouseApi.fnP90#d4c8c793", "#d4c8c793", &TLItem{tag: 0xd4c8c793, annotations: 0x0, tlName: "statshouseApi.fnP90"})
 	fillObject("statshouseApi.fnP95#9a92b76f", "#9a92b76f", &TLItem{tag: 0x9a92b76f, annotations: 0x0, tlName: "statshouseApi.fnP95"})
 	fillObject("statshouseApi.fnP99#71992e9a", "#71992e9a", &TLItem{tag: 0x71992e9a, annotations: 0x0, tlName: "statshouseApi.fnP99"})
@@ -352,21 +437,21 @@ func init() {
 	fillObject("statshouseApi.fnUniqueNorm#9ceb6f68", "#9ceb6f68", &TLItem{tag: 0x9ceb6f68, annotations: 0x0, tlName: "statshouseApi.fnUniqueNorm"})
 	fillFunction("statshouseApi.getChunk#52721884", "#52721884", &TLItem{tag: 0x52721884, annotations: 0x4, tlName: "statshouseApi.getChunk"})
 	fillObject("statshouseApi.chunkResponse#63928b42", "#63928b42", &TLItem{tag: 0x63928b42, annotations: 0x0, tlName: "statshouseApi.chunkResponse"})
-	fillFunction("statshouseApi.getQuery#0c7349bb", "#0c7349bb", &TLItem{tag: 0xc7349bb, annotations: 0x8, tlName: "statshouseApi.getQuery"})
-	fillFunction("statshouseApi.getQueryPoint#0c7348bb", "#0c7348bb", &TLItem{tag: 0xc7348bb, annotations: 0x4, tlName: "statshouseApi.getQueryPoint"})
+	fillFunction("statshouseApi.getQuery#0c7349bb", "#0c7349bb", &TLItem{tag: 0x0c7349bb, annotations: 0x8, tlName: "statshouseApi.getQuery"})
+	fillFunction("statshouseApi.getQueryPoint#0c7348bb", "#0c7348bb", &TLItem{tag: 0x0c7348bb, annotations: 0x4, tlName: "statshouseApi.getQueryPoint"})
 	fillObject("statshouseApi.queryPointResponse#4487e41a", "#4487e41a", &TLItem{tag: 0x4487e41a, annotations: 0x0, tlName: "statshouseApi.queryPointResponse"})
 	fillObject("statshouseApi.pointMeta#5c2bf296", "#5c2bf296", &TLItem{tag: 0x5c2bf296, annotations: 0x0, tlName: "statshouseApi.pointMeta"})
 	fillObject("statshouseApi.query#c9951bb9", "#c9951bb9", &TLItem{tag: 0xc9951bb9, annotations: 0x0, tlName: "statshouseApi.query"})
 	fillObject("statshouseApi.queryPoint#c9951bbb", "#c9951bbb", &TLItem{tag: 0xc9951bbb, annotations: 0x0, tlName: "statshouseApi.queryPoint"})
 	fillFunction("statshouseApi.releaseChunks#62adc773", "#62adc773", &TLItem{tag: 0x62adc773, annotations: 0x10, tlName: "statshouseApi.releaseChunks"})
 	fillObject("statshouseApi.releaseChunksResponse#d12dc2bd", "#d12dc2bd", &TLItem{tag: 0xd12dc2bd, annotations: 0x0, tlName: "statshouseApi.releaseChunksResponse"})
-	fillObject("statshouseApi.series#07a3e919", "#07a3e919", &TLItem{tag: 0x7a3e919, annotations: 0x0, tlName: "statshouseApi.series"})
+	fillObject("statshouseApi.series#07a3e919", "#07a3e919", &TLItem{tag: 0x07a3e919, annotations: 0x0, tlName: "statshouseApi.series"})
 	fillObject("statshouseApi.tagValue#43eeb763", "#43eeb763", &TLItem{tag: 0x43eeb763, annotations: 0x0, tlName: "statshouseApi.tagValue"})
 	fillFunction("statshouse.autoCreate#28bea524", "#28bea524", &TLItem{tag: 0x28bea524, annotations: 0x8, tlName: "statshouse.autoCreate"})
 	fillObject("statshouse.centroid#73fd01e0", "#73fd01e0", &TLItem{tag: 0x73fd01e0, annotations: 0x0, tlName: "statshouse.centroid"})
 	fillFunction("statshouse.getConfig2#4285ff57", "#4285ff57", &TLItem{tag: 0x4285ff57, annotations: 0x8, tlName: "statshouse.getConfig2"})
 	fillFunction("statshouse.getMetrics3#42855554", "#42855554", &TLItem{tag: 0x42855554, annotations: 0x8, tlName: "statshouse.getMetrics3"})
-	fillObject("statshouse.getMetricsResult#0c803d05", "#0c803d05", &TLItem{tag: 0xc803d05, annotations: 0x0, tlName: "statshouse.getMetricsResult"})
+	fillObject("statshouse.getMetricsResult#0c803d05", "#0c803d05", &TLItem{tag: 0x0c803d05, annotations: 0x0, tlName: "statshouse.getMetricsResult"})
 	fillFunction("statshouse.getTagMapping2#4285ff56", "#4285ff56", &TLItem{tag: 0x4285ff56, annotations: 0x8, tlName: "statshouse.getTagMapping2"})
 	fillFunction("statshouse.getTagMappingBootstrap#75a7f68e", "#75a7f68e", &TLItem{tag: 0x75a7f68e, annotations: 0x8, tlName: "statshouse.getTagMappingBootstrap"})
 	fillObject("statshouse.getTagMappingBootstrapResult#486a40de", "#486a40de", &TLItem{tag: 0x486a40de, annotations: 0x0, tlName: "statshouse.getTagMappingBootstrapResult"})
@@ -375,11 +460,12 @@ func init() {
 	fillObject("statshouse.ingestion_status2#2e17a6d3", "#2e17a6d3", &TLItem{tag: 0x2e17a6d3, annotations: 0x0, tlName: "statshouse.ingestion_status2"})
 	fillObject("statshouse.mapping#bf401d4b", "#bf401d4b", &TLItem{tag: 0xbf401d4b, annotations: 0x0, tlName: "statshouse.mapping"})
 	fillObject("statshouse.metric#3325d884", "#3325d884", &TLItem{tag: 0x3325d884, annotations: 0x0, tlName: "statshouse.metric"})
-	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0xc803e07, annotations: 0x0, tlName: "statshouse.multi_item"})
+	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0x0c803e07, annotations: 0x0, tlName: "statshouse.multi_item"})
 	fillObject("statshouse.putTagMappingBootstrapResult#486affde", "#486affde", &TLItem{tag: 0x486affde, annotations: 0x0, tlName: "statshouse.putTagMappingBootstrapResult"})
 	fillObject("statshouse.sample_factor#4f7b7822", "#4f7b7822", &TLItem{tag: 0x4f7b7822, annotations: 0x0, tlName: "statshouse.sample_factor"})
 	fillFunction("statshouse.sendKeepAlive2#4285ff53", "#4285ff53", &TLItem{tag: 0x4285ff53, annotations: 0x8, tlName: "statshouse.sendKeepAlive2"})
 	fillFunction("statshouse.sendSourceBucket2#44575940", "#44575940", &TLItem{tag: 0x44575940, annotations: 0x8, tlName: "statshouse.sendSourceBucket2"})
+	fillObject("statshouse.shutdownInfo#4124cf9c", "#4124cf9c", &TLItem{tag: 0x4124cf9c, annotations: 0x0, tlName: "statshouse.shutdownInfo"})
 	fillObject("statshouse.sourceBucket2#3af6e822", "#3af6e822", &TLItem{tag: 0x3af6e822, annotations: 0x0, tlName: "statshouse.sourceBucket2"})
 	fillFunction("statshouse.testConnection2#4285ff58", "#4285ff58", &TLItem{tag: 0x4285ff58, annotations: 0x8, tlName: "statshouse.testConnection2"})
 	fillObject("statshouse.top_element#9ffdea42", "#9ffdea42", &TLItem{tag: 0x9ffdea42, annotations: 0x0, tlName: "statshouse.top_element"})
