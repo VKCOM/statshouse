@@ -391,6 +391,7 @@ const (
 	TagValueIDRestartTimingsPhaseStopFlushing      = 104
 	TagValueIDRestartTimingsPhaseStopPreprocessor  = 105
 	TagValueIDRestartTimingsPhaseStopInserters     = 106
+	TagValueIDRestartTimingsPhaseStopRPCServer     = 107
 )
 
 var (
@@ -2179,6 +2180,7 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDRestartTimingsPhaseStopFlushing:      "stop_flushing",
 					TagValueIDRestartTimingsPhaseStopPreprocessor:  "stop_preprocessor",
 					TagValueIDRestartTimingsPhaseStopInserters:     "stop_inserters",
+					TagValueIDRestartTimingsPhaseStopRPCServer:     "stop_rpc_server",
 				}),
 			}, {
 				Description: "-",
