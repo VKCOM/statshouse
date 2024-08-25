@@ -29,7 +29,7 @@ type StatshouseMultiValue struct {
 }
 
 func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
-func (StatshouseMultiValue) TLTag() uint32  { return 0xc803e06 }
+func (StatshouseMultiValue) TLTag() uint32  { return 0x0c803e06 }
 
 func (item *StatshouseMultiValue) SetCounter(v float64, nat_fields_mask *uint32) {
 	item.Counter = v
@@ -344,7 +344,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) []byte
 }
 
 func (item *StatshouseMultiValue) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803e06); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803e06); err != nil {
 		return w, err
 	}
 	return item.Read(w, nat_fields_mask)
@@ -356,7 +356,7 @@ func (item *StatshouseMultiValue) WriteBoxedGeneral(w []byte, nat_fields_mask ui
 }
 
 func (item *StatshouseMultiValue) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
-	w = basictl.NatWrite(w, 0xc803e06)
+	w = basictl.NatWrite(w, 0x0c803e06)
 	return item.Write(w, nat_fields_mask)
 }
 
@@ -617,7 +617,7 @@ type StatshouseMultiValueBytes struct {
 }
 
 func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
-func (StatshouseMultiValueBytes) TLTag() uint32  { return 0xc803e06 }
+func (StatshouseMultiValueBytes) TLTag() uint32  { return 0x0c803e06 }
 
 func (item *StatshouseMultiValueBytes) SetCounter(v float64, nat_fields_mask *uint32) {
 	item.Counter = v
@@ -932,7 +932,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) [
 }
 
 func (item *StatshouseMultiValueBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803e06); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803e06); err != nil {
 		return w, err
 	}
 	return item.Read(w, nat_fields_mask)
@@ -944,7 +944,7 @@ func (item *StatshouseMultiValueBytes) WriteBoxedGeneral(w []byte, nat_fields_ma
 }
 
 func (item *StatshouseMultiValueBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
-	w = basictl.NatWrite(w, 0xc803e06)
+	w = basictl.NatWrite(w, 0x0c803e06)
 	return item.Write(w, nat_fields_mask)
 }
 

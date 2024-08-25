@@ -120,6 +120,18 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     gauge_metrics:fields_mask.0?(vector string)
 = statshouse.GetTargetsResult fields_mask;
 
+// saved between agent invocations. All values nanoseconds.
+statshouse.shutdownInfo#4124cf9c
+    startShutdownTime:long
+    finishShutdownTime:long
+    stopRecentSenders:long
+    stopReceivers:long
+    stopFlusher:long
+    stopFlushing:long
+    stopPreprocessor:long
+    other:16*[long] // we might need more timeouts without changing format
+= statshouse.ShutdownInfo;
+
 ---functions---
 
 @readwrite statshouse.getConfig2#4285ff57

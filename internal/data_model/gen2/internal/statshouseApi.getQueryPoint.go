@@ -20,7 +20,7 @@ type StatshouseApiGetQueryPoint struct {
 }
 
 func (StatshouseApiGetQueryPoint) TLName() string { return "statshouseApi.getQueryPoint" }
-func (StatshouseApiGetQueryPoint) TLTag() uint32  { return 0xc7348bb }
+func (StatshouseApiGetQueryPoint) TLTag() uint32  { return 0x0c7348bb }
 
 func (item *StatshouseApiGetQueryPoint) Reset() {
 	item.FieldsMask = 0
@@ -51,7 +51,7 @@ func (item *StatshouseApiGetQueryPoint) Write(w []byte) []byte {
 }
 
 func (item *StatshouseApiGetQueryPoint) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc7348bb); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c7348bb); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -63,7 +63,7 @@ func (item *StatshouseApiGetQueryPoint) WriteBoxedGeneral(w []byte) (_ []byte, e
 }
 
 func (item *StatshouseApiGetQueryPoint) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc7348bb)
+	w = basictl.NatWrite(w, 0x0c7348bb)
 	return item.Write(w)
 }
 

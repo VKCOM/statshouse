@@ -162,7 +162,7 @@ type StatshouseMultiItem struct {
 }
 
 func (StatshouseMultiItem) TLName() string { return "statshouse.multi_item" }
-func (StatshouseMultiItem) TLTag() uint32  { return 0xc803e07 }
+func (StatshouseMultiItem) TLTag() uint32  { return 0x0c803e07 }
 
 func (item *StatshouseMultiItem) SetSkeys(v []string) {
 	item.Skeys = v
@@ -264,7 +264,7 @@ func (item *StatshouseMultiItem) Write(w []byte) []byte {
 }
 
 func (item *StatshouseMultiItem) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803e07); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803e07); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -276,7 +276,7 @@ func (item *StatshouseMultiItem) WriteBoxedGeneral(w []byte) (_ []byte, err erro
 }
 
 func (item *StatshouseMultiItem) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc803e07)
+	w = basictl.NatWrite(w, 0x0c803e07)
 	return item.Write(w)
 }
 
@@ -481,7 +481,7 @@ type StatshouseMultiItemBytes struct {
 }
 
 func (StatshouseMultiItemBytes) TLName() string { return "statshouse.multi_item" }
-func (StatshouseMultiItemBytes) TLTag() uint32  { return 0xc803e07 }
+func (StatshouseMultiItemBytes) TLTag() uint32  { return 0x0c803e07 }
 
 func (item *StatshouseMultiItemBytes) SetSkeys(v [][]byte) {
 	item.Skeys = v
@@ -583,7 +583,7 @@ func (item *StatshouseMultiItemBytes) Write(w []byte) []byte {
 }
 
 func (item *StatshouseMultiItemBytes) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803e07); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803e07); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -595,7 +595,7 @@ func (item *StatshouseMultiItemBytes) WriteBoxedGeneral(w []byte) (_ []byte, err
 }
 
 func (item *StatshouseMultiItemBytes) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc803e07)
+	w = basictl.NatWrite(w, 0x0c803e07)
 	return item.Write(w)
 }
 

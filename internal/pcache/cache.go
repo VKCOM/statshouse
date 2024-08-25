@@ -121,12 +121,12 @@ func (c *Cache) startWorkLocked(key string, e *entry, extra interface{}) {
 	c.workCond.Signal()
 }
 
-func (c *Cache) DiskCacheSize() int {
+func (c *Cache) DiskCacheEmpty() bool {
 	if c.DiskCache == nil {
-		return 0
+		return true
 	}
-	cacheSize, _ := c.DiskCache.Count(c.DiskCacheNamespace) // ignore errors
-	return cacheSize
+	keys, _ := c.DiskCache.ListKeys(c.DiskCacheNamespace, 1, 0) // ignore errors
+	return len(keys) == 0
 }
 
 func (c *Cache) SetBootstrapValue(now time.Time, key string, v Value, ttl time.Duration) error {
@@ -235,7 +235,7 @@ func (c *Cache) diskCleanup() {
 		}
 		c.workMu.Unlock()
 
-		diskCacheSize, _ := c.DiskCache.Count(c.DiskCacheNamespace)
+		diskCacheSize, _ := c.DiskCache.VerySlowCountDoNotUse(c.DiskCacheNamespace)
 		if diskCacheSize <= c.MaxDiskCacheSize {
 			time.Sleep(10 * time.Second)
 			continue

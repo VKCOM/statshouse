@@ -60,7 +60,7 @@ func reopenLog() {
 	logErr.SetOutput(logFd)
 }
 
-var globalStart = time.Now() // TODO - remove
+var globalStartTime = time.Now() // good enough for us
 
 func main() {
 	os.Exit(runMain())
@@ -206,11 +206,12 @@ func runMain() int {
 			logErr.Printf("failed to open disk cache: %v", err)
 			return 1
 		}
-		defer func() {
-			if err := dc.Close(); err != nil {
-				logErr.Printf("failed to close disk cache: %v", err)
-			}
-		}()
+		// we do not want to delay shutdown for saving cache
+		// defer func() {
+		//	if err := dc.Close(); err != nil {
+		//		logErr.Printf("failed to close disk cache: %v", err)
+		//	}
+		// }()
 	}
 
 	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
@@ -246,6 +247,7 @@ func runMain() int {
 }
 
 func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
+	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	argv.configAgent.Cluster = argv.cluster
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
 		logErr.Printf("%s", err)
@@ -359,9 +361,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		argv.configAgent.Cluster,
 		logPackets,
 	)
-	tagsCacheSize := w.mapper.TagValueDiskCacheSize()
-	if tagsCacheSize != 0 {
-		logOk.Printf("Tag Value cache size %d", tagsCacheSize)
+	tagsCacheEmpty := w.mapper.TagValueDiskCacheEmpty()
+	if !tagsCacheEmpty {
+		logOk.Printf("Tag Value cache not empty")
 	} else {
 		logOk.Printf("Tag Value cache empty, loading boostrap...")
 		mappings, ttl, err := sh2.GetTagMappingBootstrap(context.Background())
@@ -390,9 +392,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			receiversWG.Done()
 		}(u, i)
 	}
-	log.Printf("agent finished loading in %v", time.Since(globalStart))
+	shutdownInfoReport(sh2, argv.cacheDir, startDiscCacheTime)
 
-	// Open port
+	// Open TCP ports
 	listeners := make([]net.Listener, 0, 2)
 	listeners = append(listeners, listen("tcp4", argv.listenAddr))
 	if argv.listenAddrIPv6 != "" {
@@ -463,11 +465,16 @@ loop:
 			reopenLog()
 		}
 	}
+	shutdownInfo := tlstatshouse.ShutdownInfo{}
+	now := time.Now()
+	shutdownInfo.StartShutdownTime = now.UnixNano()
+
 	logOk.Printf("Shutting down...")
 	logOk.Printf("1. Disabling sending new data to aggregators...")
 	sh2.DisableNewSends()
 	logOk.Printf("2. Waiting recent senders to finish sending data...")
 	sh2.WaitRecentSenders(time.Second * data_model.InsertDelay)
+	shutdownInfo.StopRecentSenders = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("3. Closing UDP/unixdgram/RPC server and flusher...")
 	for _, u := range receiversUDP {
 		_ = u.Close()
@@ -475,15 +482,21 @@ loop:
 	sh2.ShutdownFlusher()
 	srv.Shutdown()
 	receiversWG.Wait()
+	shutdownInfo.StopReceivers = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("4. All UDP readers finished...")
 	/// TODO - we receive almost no metrics via RPC, we do not want risk waiting here for the long time
 	/// _ = srv.Close()
 	/// logOk.Printf("5. RPC server stopped...")
 	sh2.WaitFlusher()
+	shutdownInfo.StopFlusher = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("6. Flusher stopped, flushing remainig data to preprocessors...")
 	nonEmpty := sh2.FlushAllData()
+	shutdownInfo.StopFlushing = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
 	sh2.WaitPreprocessor()
+	shutdownInfo.StopPreprocessor = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.FinishShutdownTime = now.UnixNano()
+	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
 	return 0
 }
