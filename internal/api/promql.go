@@ -897,7 +897,7 @@ func (h *Handler) getPromQuery(req seriesRequest) (string, error) {
 	// filtering and grouping
 	var filterGroupBy []string
 	var m [1]*format.MetricMetaValue
-	matcher := labels.Matcher{Type: labels.MatchEqual, Value: req.metricWithNamespace}
+	matcher := labels.Matcher{Type: labels.MatchEqual, Value: req.metricName}
 	copy(m[:], h.metricsStorage.MatchMetrics(&matcher, "", h.showInvisible, m[:0]))
 	if len(req.by) != 0 {
 		by, err := promqlGetBy(req.by, m[0])
@@ -950,7 +950,7 @@ func (h *Handler) getPromQuery(req seriesRequest) (string, error) {
 		}
 		expr := fmt.Sprintf("@what=%q", sb.String())
 		expr = strings.Join(append([]string{expr}, filterGroupBy...), ",")
-		expr = fmt.Sprintf("%s{%s}", req.metricWithNamespace, expr)
+		expr = fmt.Sprintf("%s{%s}", req.metricName, expr)
 		switch i {
 		case cum:
 			expr = fmt.Sprintf("prefix_sum(%s)", expr)

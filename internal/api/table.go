@@ -51,7 +51,7 @@ func getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams
 	for qIndex, q := range tableReqParams.req.what {
 		rowsCount := 0
 		kind := q.What.Kind(req.maxHost)
-		qs := normalizedQueryString(req.metricWithNamespace, kind, req.by, req.filterIn, req.filterNotIn, true)
+		qs := normalizedQueryString(req.metricName, kind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
 			user:        tableReqParams.user,
 			version:     req.version,
