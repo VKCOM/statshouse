@@ -37,6 +37,15 @@ func TestProtobuf(t *testing.T) {
 				Value:   rapid.SliceOf(rapid.Float64()).Draw(t, "value"),
 				Unique:  rapid.SliceOf(rapid.Int64()).Draw(t, "unique"),
 			}
+			numHistogram := rapid.IntRange(0, 3).Draw(t, "num_histogram")
+			for j := 0; j < numHistogram; j++ {
+				centroid := &pb.Centroid{
+					Value: rapid.Float64().Draw(t, "centroid_value"),
+					Count: rapid.Float64().Draw(t, "centroid_counter"),
+				}
+				metric.Histogram = append(metric.Histogram, centroid)
+			}
+
 			numTags := rapid.IntRange(0, 20).Draw(t, "num_tags")
 			for j := 0; j < numTags; j++ {
 				metric.Tags[rapid.String().Draw(t, "key")] = rapid.String().Draw(t, "value")
@@ -57,6 +66,11 @@ func TestProtobuf(t *testing.T) {
 			require.Equal(t, src.Metrics[i].Ts, dst.Metrics[i].Ts)
 			require.True(t, cmp.Equal(src.Metrics[i].Value, dst.Metrics[i].Value, cmpopts.EquateEmpty()))
 			require.True(t, cmp.Equal(src.Metrics[i].Unique, dst.Metrics[i].Unique, cmpopts.EquateEmpty()))
+			for j, s := range src.Metrics[i].Histogram {
+				d := dst.Metrics[i].Histogram[j]
+				require.Equal(t, s.Value, d.Value)
+				require.Equal(t, s.Count, d.Count)
+			}
 
 			dict := map[string]string{}
 			for _, e := range dst.Metrics[i].Tags {
