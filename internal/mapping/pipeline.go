@@ -208,11 +208,11 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		}
 	}
 	for i, v := range metric.Histogram {
-		if metric.Histogram[i].Count, errorTag = format.ClampCounter(v.Count); errorTag != 0 {
+		if metric.Histogram[i][0], errorTag = format.ClampValue(v[0]); errorTag != 0 {
 			h.IngestionStatus = errorTag
 			return true
 		}
-		if metric.Histogram[i].Value, errorTag = format.ClampValue(v.Value); errorTag != 0 {
+		if metric.Histogram[i][1], errorTag = format.ClampCounter(v[1]); errorTag != 0 {
 			h.IngestionStatus = errorTag
 			return true
 		}

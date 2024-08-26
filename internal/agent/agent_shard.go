@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -205,7 +204,7 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 	mi.MapStringTopBytes(str, totalCount).ApplyUnique(hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, histogram []tlstatshouse.Centroid, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
@@ -215,7 +214,7 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, hist
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
-		totalCount += kv.Count // all counts are validated to be >= 0
+		totalCount += kv[1] // all counts are validated to be >= 0
 	}
 	if count == 0 {
 		count = totalCount

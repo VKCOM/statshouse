@@ -13,7 +13,6 @@ import (
 	"sort"
 	"unsafe"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"pgregory.net/rand"
 
 	"github.com/dchest/siphash"
@@ -359,7 +358,7 @@ func (s *MultiValue) AddValueArrayHostPercentile(values []float64, mult float64,
 	}
 }
 
-func (s *MultiValue) ApplyValues(histogram []tlstatshouse.Centroid, values []float64, count float64, totalCount float64, hostTag int32, compression float64, hasPercentiles bool) {
+func (s *MultiValue) ApplyValues(histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag int32, compression float64, hasPercentiles bool) {
 	if totalCount == 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
@@ -389,11 +388,12 @@ func (s *MultiValue) ApplyValues(histogram []tlstatshouse.Centroid, values []flo
 		s.Value.ValueSet = true
 	}
 	for _, kv := range histogram {
-		fv := kv.Value
+		fv := kv[0]
+		cc := kv[1]
 		if hasPercentiles {
-			s.ValueTDigest.Add(fv, mult*kv.Count)
+			s.ValueTDigest.Add(fv, mult*cc)
 		}
-		fvc := fv * kv.Count
+		fvc := fv * cc
 		sumDiff += fvc
 		sumSquareDiff += fvc * fvc
 		if !s.Value.ValueSet || fv < s.Value.ValueMin {

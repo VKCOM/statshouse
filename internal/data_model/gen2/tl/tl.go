@@ -24,6 +24,7 @@ type (
 	String                                        = internal.String
 	StringBytes                                   = internal.StringBytes
 	True                                          = internal.True
+	TupleDouble2                                  = internal.TupleDouble2
 	VectorDictionaryFieldEngineMetafilesStatBoxed = internal.VectorDictionaryFieldEngineMetafilesStatBoxed
 	VectorDictionaryFieldString                   = internal.VectorDictionaryFieldString
 	VectorDictionaryFieldStringBytes              = internal.VectorDictionaryFieldStringBytes
@@ -41,7 +42,6 @@ type (
 	VectorStatshouseApiPointMeta                  = internal.VectorStatshouseApiPointMeta
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue
-	VectorStatshouseCentroid                      = internal.VectorStatshouseCentroid
 	VectorStatshouseCentroidFloat                 = internal.VectorStatshouseCentroidFloat
 	VectorStatshouseIngestionStatus2              = internal.VectorStatshouseIngestionStatus2
 	VectorStatshouseMapping                       = internal.VectorStatshouseMapping
@@ -57,6 +57,7 @@ type (
 	VectorStatshouseTopElementBytes               = internal.VectorStatshouseTopElementBytes
 	VectorString                                  = internal.VectorString
 	VectorStringBytes                             = internal.VectorStringBytes
+	VectorTupleDouble2                            = internal.VectorTupleDouble2
 	VectorVectorDouble                            = internal.VectorVectorDouble
 )
 

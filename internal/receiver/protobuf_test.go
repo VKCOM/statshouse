@@ -68,8 +68,8 @@ func TestProtobuf(t *testing.T) {
 			require.True(t, cmp.Equal(src.Metrics[i].Unique, dst.Metrics[i].Unique, cmpopts.EquateEmpty()))
 			for j, s := range src.Metrics[i].Histogram {
 				d := dst.Metrics[i].Histogram[j]
-				require.Equal(t, s.Value, d.Value)
-				require.Equal(t, s.Count, d.Count)
+				require.Equal(t, s.Value, d[0])
+				require.Equal(t, s.Count, d[1])
 			}
 
 			dict := map[string]string{}
