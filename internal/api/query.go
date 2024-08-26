@@ -401,7 +401,7 @@ func (fn *QueryFunc) UnmarshalEasyJSON(w *jlexer.Lexer) {
 }
 
 func normalizedQueryString(
-	metricWithNamespace string,
+	metricName string,
 	kind data_model.DigestKind,
 	by []string,
 	filterIn map[string][]string,
@@ -427,7 +427,7 @@ func normalizedQueryString(
 	var buf strings.Builder
 	buf.WriteString(ParamMetric)
 	buf.WriteByte('=')
-	buf.WriteString(url.QueryEscape(metricWithNamespace))
+	buf.WriteString(url.QueryEscape(metricName))
 	buf.WriteByte('&')
 	buf.WriteString(ParamQueryWhat)
 	buf.WriteByte('=')

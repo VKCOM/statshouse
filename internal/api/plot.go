@@ -368,7 +368,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 		if len(legend) > legendMaxLen {
 			legend = data[i].Series.SeriesMeta[:legendMaxLen]
 		}
-		effectiveName := metric[i].metricWithNamespace
+		effectiveName := metric[i].metricName
 		if len(metric[i].customMetricName) > 0 {
 			effectiveName = metric[i].customMetricName
 		}

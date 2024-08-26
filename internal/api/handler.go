@@ -317,15 +317,15 @@ type (
 	DashboardTimeShifts []string
 
 	getMetricTagValuesReq struct {
-		ai                  accessInfo
-		version             string
-		numResults          string
-		metricWithNamespace string
-		tagID               string
-		from                string
-		to                  string
-		what                string
-		filter              []string
+		ai         accessInfo
+		version    string
+		numResults string
+		metricName string
+		tagID      string
+		from       string
+		to         string
+		what       string
+		filter     []string
 	}
 
 	//easyjson:json
@@ -340,28 +340,28 @@ type (
 	}
 
 	seriesRequest struct {
-		ai                  accessInfo
-		version             string
-		numResults          int
-		metricWithNamespace string
-		customMetricName    string
-		from                time.Time
-		to                  time.Time
-		step                int64
-		screenWidth         int64
-		promQL              string
-		shifts              []time.Duration
-		what                []QueryFunc
-		by                  []string
-		filterIn            map[string][]string
-		filterNotIn         map[string][]string
-		vars                map[string]promql.Variable
-		maxHost             bool
-		avoidCache          bool
-		verbose             bool
-		excessPoints        bool
-		format              string
-		yl, yh              string // Y scale range
+		ai               accessInfo
+		version          string
+		numResults       int
+		metricName       string
+		customMetricName string
+		from             time.Time
+		to               time.Time
+		step             int64
+		screenWidth      int64
+		promQL           string
+		shifts           []time.Duration
+		what             []QueryFunc
+		by               []string
+		filterIn         map[string][]string
+		filterNotIn      map[string][]string
+		vars             map[string]promql.Variable
+		maxHost          bool
+		avoidCache       bool
+		verbose          bool
+		excessPoints     bool
+		format           string
+		yl, yh           string // Y scale range
 
 		// table query
 		fromEnd bool
@@ -794,11 +794,11 @@ func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
 	return v.Name, nil
 }
 
-func (h *Handler) getMetricID(ai accessInfo, metricWithNamespace string) (int32, error) {
-	if metricWithNamespace == format.CodeTagValue(format.TagValueIDUnspecified) {
+func (h *Handler) getMetricID(ai accessInfo, metricName string) (int32, error) {
+	if metricName == format.CodeTagValue(format.TagValueIDUnspecified) {
 		return format.TagValueIDUnspecified, nil
 	}
-	meta, err := h.getMetricMeta(ai, metricWithNamespace)
+	meta, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
 		return 0, err
 	}
@@ -806,16 +806,16 @@ func (h *Handler) getMetricID(ai accessInfo, metricWithNamespace string) (int32,
 }
 
 // getMetricMeta only checks view access
-func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*format.MetricMetaValue, error) {
-	if m, ok := format.BuiltinMetricByName[metricWithNamespace]; ok {
+func (h *Handler) getMetricMeta(ai accessInfo, metricName string) (*format.MetricMetaValue, error) {
+	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m, nil
 	}
-	v := h.metricsStorage.GetMetaMetricByName(metricWithNamespace)
+	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
-		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricWithNamespace))
+		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricName))
 	}
 	if !ai.CanViewMetric(*v) { // We are OK with sharing this bit of information with clients
-		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricWithNamespace))
+		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricName))
 	}
 	return v, nil
 }
@@ -833,11 +833,11 @@ func (h *Handler) getMetricNameByID(metricID int32) string {
 }
 
 // For stats
-func (h *Handler) getMetricIDForStat(metricWithNamespace string) int32 {
-	if m, ok := format.BuiltinMetricByName[metricWithNamespace]; ok {
+func (h *Handler) getMetricIDForStat(metricName string) int32 {
+	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m.MetricID
 	}
-	v := h.metricsStorage.GetMetaMetricByName(metricWithNamespace)
+	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
 		return 0
 	}
@@ -1700,15 +1700,15 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 	resp, immutable, err := h.handleGetMetricTagValues(
 		ctx,
 		getMetricTagValuesReq{
-			ai:                  ai,
-			version:             r.FormValue(ParamVersion),
-			numResults:          r.FormValue(ParamNumResults),
-			metricWithNamespace: formValueParamMetric(r),
-			tagID:               r.FormValue(ParamTagID),
-			from:                r.FormValue(ParamFromTime),
-			to:                  r.FormValue(ParamToTime),
-			what:                r.FormValue(ParamQueryWhat),
-			filter:              r.Form[ParamQueryFilter],
+			ai:         ai,
+			version:    r.FormValue(ParamVersion),
+			numResults: r.FormValue(ParamNumResults),
+			metricName: formValueParamMetric(r),
+			tagID:      r.FormValue(ParamTagID),
+			from:       r.FormValue(ParamFromTime),
+			to:         r.FormValue(ParamToTime),
+			what:       r.FormValue(ParamQueryWhat),
+			filter:     r.Form[ParamQueryFilter],
 		})
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
@@ -1765,7 +1765,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	metricMeta, err := h.getMetricMeta(req.ai, req.metricWithNamespace)
+	metricMeta, err := h.getMetricMeta(req.ai, req.metricName)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1948,7 +1948,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	switch {
 	case r.FormValue(paramDataFormat) == dataFormatCSV:
-		exportCSV(w, h.buildSeriesResponse(s...), req.metricWithNamespace, sl)
+		exportCSV(w, h.buildSeriesResponse(s...), req.metricName, sl)
 	default:
 		res := h.buildSeriesResponse(s...)
 		cache, cacheStale := queryClientCacheDuration(res.immutable)
@@ -2194,7 +2194,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 		start := time.Now()
 		v, cancel, err := h.handleSeriesRequest(withEndpointStat(ctx, es), r, seriesRequestOptions{
 			metricCallback: func(meta *format.MetricMetaValue) {
-				req.seriesRequest[i].metricWithNamespace = meta.Name
+				req.seriesRequest[i].metricName = meta.Name
 			},
 			strBucketLabel: true,
 		})
@@ -2239,7 +2239,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 }
 
 func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
-	metricMeta, err := h.getMetricMeta(ai, req.metricWithNamespace)
+	metricMeta, err := h.getMetricMeta(ai, req.metricName)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2344,7 +2344,7 @@ func (h *Handler) handleSeriesRequestS(ctx context.Context, req seriesRequest, e
 			s[0], freeRes, err = h.handleSeriesRequest(withEndpointStat(ctx, es), req, seriesRequestOptions{
 				trace: true,
 				metricCallback: func(meta *format.MetricMetaValue) {
-					req.metricWithNamespace = meta.Name
+					req.metricName = meta.Name
 					if meta.MetricID != format.BuiltinMetricIDBadges {
 						g.Go(func() (err error) {
 							s[1], freeBadges, err = h.queryBadges(ctx, req, meta)
@@ -3208,7 +3208,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			tab.version = Version1
 		}
 		tab.numResults = v.NumSeries
-		tab.metricWithNamespace = v.MetricName
+		tab.metricName = v.MetricName
 		tab.customMetricName = v.CustomName
 		if v.Width > 0 {
 			tab.strWidth = fmt.Sprintf("%ds", v.Width)
@@ -3446,7 +3446,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 				name = "__" + name[len(formerBuiltin):]
 			}
 			ns := r.FormValue(ParamNamespace)
-			t.metricWithNamespace = mergeMetricNamespace(ns, name)
+			t.metricName = mergeMetricNamespace(ns, name)
 		case ParamNumResults:
 			t.strNumResults = first(v)
 		case ParamQueryBy:
@@ -3626,7 +3626,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		if t.strType == "1" {
 			continue
 		}
-		if len(t.metricWithNamespace) != 0 || len(t.promQL) != 0 {
+		if len(t.metricName) != 0 || len(t.promQL) != 0 {
 			res = append(res, t.seriesRequest)
 		}
 	}

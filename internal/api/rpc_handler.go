@@ -332,13 +332,13 @@ func (h *RPCHandler) getPointQuery(hctx *rpc.HandlerContext) (tlstatshouseApi.Ge
 
 func (q *seriesRequestRPC) toSeriesRequest(h *RPCHandler) (seriesRequest, error) {
 	req := seriesRequest{
-		version:             strconv.FormatInt(int64(q.version), 10),
-		numResults:          int(q.topN),
-		metricWithNamespace: q.metricName,
-		from:                time.Unix(q.timeFrom, 0),
-		to:                  time.Unix(q.timeTo, 0),
-		by:                  q.groupBy,
-		promQL:              q.promQL,
+		version:    strconv.FormatInt(int64(q.version), 10),
+		numResults: int(q.topN),
+		metricName: q.metricName,
+		from:       time.Unix(q.timeFrom, 0),
+		to:         time.Unix(q.timeTo, 0),
+		by:         q.groupBy,
+		promQL:     q.promQL,
 	}
 	var err error
 	req.ai, err = h.parseAccessToken(q.accessToken)
