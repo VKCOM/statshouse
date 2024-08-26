@@ -756,6 +756,26 @@ func ClampFloatValue(f float64) float64 {
 	return f
 }
 
+func ClampCounter(f float64) (_ float64, errorTag int32) {
+	if !ValidFloatValue(f) {
+		return f, TagValueIDSrcIngestionStatusErrNanInfCounter
+	}
+	if f < 0 {
+		return f, TagValueIDSrcIngestionStatusErrNegativeCounter
+	}
+	if f > math.MaxFloat32 {
+		return math.MaxFloat32, 0
+	}
+	return f, 0
+}
+
+func ClampValue(f float64) (_ float64, errorTag int32) {
+	if !ValidFloatValue(f) {
+		return f, TagValueIDSrcIngestionStatusErrNanInfValue
+	}
+	return ClampFloatValue(f), 0
+}
+
 // Legacy rules replaced non-printables including whitespaces (except ASCII space) into roadsigns
 // This was found to be not ideal set of rules, so they were changed
 func ValidStringValueLegacy(s mem.RO) bool {

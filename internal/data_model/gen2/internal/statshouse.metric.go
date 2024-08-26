@@ -155,10 +155,11 @@ type StatshouseMetric struct {
 	FieldsMask uint32
 	Name       string
 	Tags       map[string]string
-	Counter    float64   // Conditional: item.FieldsMask.0
-	Ts         uint32    // Conditional: item.FieldsMask.4
-	Value      []float64 // Conditional: item.FieldsMask.1
-	Unique     []int64   // Conditional: item.FieldsMask.2
+	Counter    float64              // Conditional: item.FieldsMask.0
+	Ts         uint32               // Conditional: item.FieldsMask.4
+	Value      []float64            // Conditional: item.FieldsMask.1
+	Unique     []int64              // Conditional: item.FieldsMask.2
+	Histogram  []StatshouseCentroid // Conditional: item.FieldsMask.3
 }
 
 func (StatshouseMetric) TLName() string { return "statshouse.metric" }
@@ -204,6 +205,16 @@ func (item *StatshouseMetric) ClearUnique() {
 }
 func (item StatshouseMetric) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
+func (item *StatshouseMetric) SetHistogram(v []StatshouseCentroid) {
+	item.Histogram = v
+	item.FieldsMask |= 1 << 3
+}
+func (item *StatshouseMetric) ClearHistogram() {
+	item.Histogram = item.Histogram[:0]
+	item.FieldsMask &^= 1 << 3
+}
+func (item StatshouseMetric) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
+
 func (item *StatshouseMetric) Reset() {
 	item.FieldsMask = 0
 	item.Name = ""
@@ -212,6 +223,7 @@ func (item *StatshouseMetric) Reset() {
 	item.Ts = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
+	item.Histogram = item.Histogram[:0]
 }
 
 func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
@@ -252,6 +264,13 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.Unique = item.Unique[:0]
 	}
+	if item.FieldsMask&(1<<3) != 0 {
+		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Histogram); err != nil {
+			return w, err
+		}
+	} else {
+		item.Histogram = item.Histogram[:0]
+	}
 	return w, nil
 }
 
@@ -275,6 +294,9 @@ func (item *StatshouseMetric) Write(w []byte) []byte {
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = BuiltinVectorLongWrite(w, item.Unique)
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		w = BuiltinVectorStatshouseCentroidWrite(w, item.Histogram)
 	}
 	return w
 }
@@ -308,6 +330,7 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	var propTsPresented bool
 	var propValuePresented bool
 	var propUniquePresented bool
+	var propHistogramPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -374,6 +397,14 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 					return err
 				}
 				propUniquePresented = true
+			case "histogram":
+				if propHistogramPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "histogram")
+				}
+				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Histogram); err != nil {
+					return err
+				}
+				propHistogramPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.metric", key)
 			}
@@ -405,6 +436,9 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	if !propUniquePresented {
 		item.Unique = item.Unique[:0]
 	}
+	if !propHistogramPresented {
+		item.Histogram = item.Histogram[:0]
+	}
 	if propCounterPresented {
 		item.FieldsMask |= 1 << 0
 	}
@@ -416,6 +450,9 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	}
 	if propUniquePresented {
 		item.FieldsMask |= 1 << 2
+	}
+	if propHistogramPresented {
+		item.FieldsMask |= 1 << 3
 	}
 	return nil
 }
@@ -471,6 +508,11 @@ func (item *StatshouseMetric) WriteJSONOpt(newTypeNames bool, short bool, w []by
 		w = append(w, `"unique":`...)
 		w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Unique)
 	}
+	if item.FieldsMask&(1<<3) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"histogram":`...)
+		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Histogram)
+	}
 	return append(w, '}')
 }
 
@@ -489,10 +531,11 @@ type StatshouseMetricBytes struct {
 	FieldsMask uint32
 	Name       []byte
 	Tags       []DictionaryFieldStringBytes
-	Counter    float64   // Conditional: item.FieldsMask.0
-	Ts         uint32    // Conditional: item.FieldsMask.4
-	Value      []float64 // Conditional: item.FieldsMask.1
-	Unique     []int64   // Conditional: item.FieldsMask.2
+	Counter    float64              // Conditional: item.FieldsMask.0
+	Ts         uint32               // Conditional: item.FieldsMask.4
+	Value      []float64            // Conditional: item.FieldsMask.1
+	Unique     []int64              // Conditional: item.FieldsMask.2
+	Histogram  []StatshouseCentroid // Conditional: item.FieldsMask.3
 }
 
 func (StatshouseMetricBytes) TLName() string { return "statshouse.metric" }
@@ -538,6 +581,16 @@ func (item *StatshouseMetricBytes) ClearUnique() {
 }
 func (item StatshouseMetricBytes) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
+func (item *StatshouseMetricBytes) SetHistogram(v []StatshouseCentroid) {
+	item.Histogram = v
+	item.FieldsMask |= 1 << 3
+}
+func (item *StatshouseMetricBytes) ClearHistogram() {
+	item.Histogram = item.Histogram[:0]
+	item.FieldsMask &^= 1 << 3
+}
+func (item StatshouseMetricBytes) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
+
 func (item *StatshouseMetricBytes) Reset() {
 	item.FieldsMask = 0
 	item.Name = item.Name[:0]
@@ -546,6 +599,7 @@ func (item *StatshouseMetricBytes) Reset() {
 	item.Ts = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
+	item.Histogram = item.Histogram[:0]
 }
 
 func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
@@ -586,6 +640,13 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.Unique = item.Unique[:0]
 	}
+	if item.FieldsMask&(1<<3) != 0 {
+		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Histogram); err != nil {
+			return w, err
+		}
+	} else {
+		item.Histogram = item.Histogram[:0]
+	}
 	return w, nil
 }
 
@@ -609,6 +670,9 @@ func (item *StatshouseMetricBytes) Write(w []byte) []byte {
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = BuiltinVectorLongWrite(w, item.Unique)
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		w = BuiltinVectorStatshouseCentroidWrite(w, item.Histogram)
 	}
 	return w
 }
@@ -642,6 +706,7 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	var propTsPresented bool
 	var propValuePresented bool
 	var propUniquePresented bool
+	var propHistogramPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -708,6 +773,14 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 					return err
 				}
 				propUniquePresented = true
+			case "histogram":
+				if propHistogramPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "histogram")
+				}
+				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Histogram); err != nil {
+					return err
+				}
+				propHistogramPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.metric", key)
 			}
@@ -739,6 +812,9 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	if !propUniquePresented {
 		item.Unique = item.Unique[:0]
 	}
+	if !propHistogramPresented {
+		item.Histogram = item.Histogram[:0]
+	}
 	if propCounterPresented {
 		item.FieldsMask |= 1 << 0
 	}
@@ -750,6 +826,9 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	}
 	if propUniquePresented {
 		item.FieldsMask |= 1 << 2
+	}
+	if propHistogramPresented {
+		item.FieldsMask |= 1 << 3
 	}
 	return nil
 }
@@ -804,6 +883,11 @@ func (item *StatshouseMetricBytes) WriteJSONOpt(newTypeNames bool, short bool, w
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"unique":`...)
 		w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Unique)
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"histogram":`...)
+		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Histogram)
 	}
 	return append(w, '}')
 }

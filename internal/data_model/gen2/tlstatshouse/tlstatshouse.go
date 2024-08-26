@@ -21,6 +21,7 @@ type (
 	AutoCreate                        = internal.StatshouseAutoCreate
 	AutoCreateBytes                   = internal.StatshouseAutoCreateBytes
 	Centroid                          = internal.StatshouseCentroid
+	CentroidFloat                     = internal.StatshouseCentroidFloat
 	CommonProxyHeader                 = internal.StatshouseCommonProxyHeader
 	CommonProxyHeaderBytes            = internal.StatshouseCommonProxyHeaderBytes
 	GetConfig2                        = internal.StatshouseGetConfig2

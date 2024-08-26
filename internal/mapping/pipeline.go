@@ -192,25 +192,30 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		return true
 	}
 	h.ValuesChecked = true
-	if len(metric.Value) != 0 && len(metric.Unique) != 0 {
+	if len(metric.Value)+len(metric.Histogram) != 0 && len(metric.Unique) != 0 {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet
 		return true
 	}
-	if metric.Counter < 0 {
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrNegativeCounter
+	var errorTag int32
+	if metric.Counter, errorTag = format.ClampCounter(metric.Counter); errorTag != 0 {
+		h.IngestionStatus = errorTag
 		return true
 	}
-	if !format.ValidFloatValue(metric.Counter) {
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrNanInfCounter
-		return true
-	}
-	metric.Counter = format.ClampFloatValue(metric.Counter)
 	for i, v := range metric.Value {
-		if !format.ValidFloatValue(v) {
-			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrNanInfValue
+		if metric.Value[i], errorTag = format.ClampValue(v); errorTag != 0 {
+			h.IngestionStatus = errorTag
 			return true
 		}
-		metric.Value[i] = format.ClampFloatValue(v)
+	}
+	for i, v := range metric.Histogram {
+		if metric.Histogram[i].Count, errorTag = format.ClampCounter(v.Count); errorTag != 0 {
+			h.IngestionStatus = errorTag
+			return true
+		}
+		if metric.Histogram[i].Value, errorTag = format.ClampValue(v.Value); errorTag != 0 {
+			h.IngestionStatus = errorTag
+			return true
+		}
 	}
 	return true
 }

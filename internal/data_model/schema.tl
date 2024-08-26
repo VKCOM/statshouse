@@ -11,7 +11,7 @@ statshouse.sample_factor metric:int value:float = statshouse.SampleFactor;
 
 statshouse.ingestion_status2 env:int metric:int value:float = statshouse.IngestionStatus2;
 
-statshouse.centroid value:float weight:float = statshouse.Centroid;
+statshouse.centroidFloat#73fd01e0 value:float count:float = statshouse.CentroidFloat;
 
 statshouse.mapping str:string value:int = statshouse.Mapping;
 
@@ -28,7 +28,7 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
 
     uniques: fields_mask.5?string // serialized HLL
 
-    centroids: fields_mask.6?(vector statshouse.centroid)
+    centroids: fields_mask.6?(vector statshouse.centroidFloat)
 
     // we need hosts to pass through agent sending on behalf of aggregator. Or from clients using _h tag
     max_host_tag: fields_mask.7?int
