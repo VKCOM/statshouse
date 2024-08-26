@@ -140,9 +140,8 @@ func protobufUnmarshalFieldEntry(buf []byte, m *tl.DictionaryFieldStringBytes) (
 	return buf, nil
 }
 
-func protobufUnmarshalCentroid(buf []byte, m *tlstatshouse.Centroid) ([]byte, error) {
-	m.Value = 0
-	m.Count = 0
+func protobufUnmarshalCentroid(buf []byte, m *[2]float64) ([]byte, error) {
+	*m = [2]float64{}
 	var f protowire.Number
 	var t protowire.Type
 	var err error
@@ -152,13 +151,13 @@ func protobufUnmarshalCentroid(buf []byte, m *tlstatshouse.Centroid) ([]byte, er
 			return buf, err
 		}
 		if f == 1 && t == 1 {
-			if buf, err = protoReadFloat64(buf, &m.Value); err != nil {
+			if buf, err = protoReadFloat64(buf, &m[0]); err != nil {
 				return buf, err
 			}
 			continue
 		}
 		if f == 2 && t == 1 {
-			if buf, err = protoReadFloat64(buf, &m.Count); err != nil {
+			if buf, err = protoReadFloat64(buf, &m[1]); err != nil {
 				return buf, err
 			}
 			continue
@@ -289,7 +288,7 @@ func protobufUnmarshalStatshouseMetric(buf []byte, m *tlstatshouse.MetricBytes) 
 			if cap(m.Histogram) > len(m.Histogram) {
 				m.Histogram = m.Histogram[:len(m.Histogram)+1]
 			} else {
-				m.Histogram = append(m.Histogram, tlstatshouse.Centroid{})
+				m.Histogram = append(m.Histogram, [2]float64{})
 			}
 			buf = buf[n:]
 			if _, err = protobufUnmarshalCentroid(data, &m.Histogram[len(m.Histogram)-1]); err != nil {

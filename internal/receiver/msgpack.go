@@ -35,13 +35,13 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 		case "name":
 			m.Name, buf, err = msgp.ReadStringAsBytes(buf, m.Name)
 			if err != nil {
-				return nil, msgp.WrapError(err, "Name")
+				return nil, msgp.WrapError(err, "name")
 			}
 		case "tags":
 			var numTags uint32
 			numTags, buf, err = msgp.ReadMapHeaderBytes(buf)
 			if err != nil {
-				return nil, msgp.WrapError(err, "Tags")
+				return nil, msgp.WrapError(err, "tags")
 			}
 			if cap(m.Tags) >= int(numTags) {
 				m.Tags = m.Tags[:numTags]
@@ -51,32 +51,32 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 			for i := range m.Tags {
 				m.Tags[i].Key, buf, err = msgp.ReadStringAsBytes(buf, m.Tags[i].Key)
 				if err != nil {
-					return nil, msgp.WrapError(err, "Tags")
+					return nil, msgp.WrapError(err, "tags")
 				}
 				m.Tags[i].Value, buf, err = msgp.ReadStringAsBytes(buf, m.Tags[i].Value)
 				if err != nil {
-					return nil, msgp.WrapError(err, "Tags", m.Tags[i].Key)
+					return nil, msgp.WrapError(err, "tags", m.Tags[i].Key)
 				}
 			}
 		case "counter":
 			var value float64
 			value, buf, err = msgp.ReadFloat64Bytes(buf)
 			if err != nil {
-				return nil, msgp.WrapError(err, "Counter")
+				return nil, msgp.WrapError(err, "counter")
 			}
 			m.SetCounter(value)
 		case "ts":
 			var value uint32
 			value, buf, err = msgp.ReadUint32Bytes(buf)
 			if err != nil {
-				return nil, msgp.WrapError(err, "Ts")
+				return nil, msgp.WrapError(err, "ts")
 			}
 			m.SetTs(value)
 		case "value":
 			var numValues uint32
 			numValues, buf, err = msgp.ReadArrayHeaderBytes(buf)
 			if err != nil {
-				return nil, msgp.WrapError(err, "Value")
+				return nil, msgp.WrapError(err, "value")
 			}
 			value := m.Value
 			if cap(value) >= int(numValues) {
@@ -87,7 +87,7 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 			for i := range value {
 				value[i], buf, err = msgp.ReadFloat64Bytes(buf)
 				if err != nil {
-					return nil, msgp.WrapError(err, "Value", i)
+					return nil, msgp.WrapError(err, "value", i)
 				}
 			}
 			m.SetValue(value)
@@ -106,10 +106,41 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 			for i := range value {
 				value[i], buf, err = msgp.ReadInt64Bytes(buf)
 				if err != nil {
-					return nil, msgp.WrapError(err, "Unique", i)
+					return nil, msgp.WrapError(err, "unique", i)
 				}
 			}
 			m.SetUnique(value)
+		case "histogram":
+			var numValues uint32
+			numValues, buf, err = msgp.ReadArrayHeaderBytes(buf)
+			if err != nil {
+				return nil, msgp.WrapError(err, "histogram")
+			}
+			value := m.Histogram
+			if cap(value) >= int(numValues) {
+				value = value[:numValues]
+			} else {
+				value = make([][2]float64, numValues)
+			}
+			for i := range value {
+				var numValues2 uint32
+				numValues2, buf, err = msgp.ReadArrayHeaderBytes(buf)
+				if err != nil {
+					return nil, msgp.WrapError(err, "histogram")
+				}
+				if numValues2 != 2 {
+					return nil, msgp.WrapError(err, "histogram", i)
+				}
+				value[i][0], buf, err = msgp.ReadFloat64Bytes(buf)
+				if err != nil {
+					return nil, msgp.WrapError(err, "histogram_value", i, 0)
+				}
+				value[i][1], buf, err = msgp.ReadFloat64Bytes(buf)
+				if err != nil {
+					return nil, msgp.WrapError(err, "histogram_count", i, 1)
+				}
+			}
+			m.SetHistogram(value)
 		default:
 			buf, err = msgp.Skip(buf)
 			if err != nil {
