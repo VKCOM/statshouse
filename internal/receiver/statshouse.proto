@@ -3,13 +3,19 @@ package statshouse;
 
 option go_package = "github.com/vkcom/statshouse/internal/receiver/pb";
 
+message Centroid {
+  double value   = 1;
+  double count   = 2;
+}
+
 message Metric {
-    string              name    = 1;
-    map<string, string> tags    = 2;
-    double              counter = 3;
-    uint32              ts      = 4;  // UNIX seconds UTC
-    repeated double     value   = 5;
-    repeated int64      unique  = 6;
+    string              name      = 1;
+    map<string, string> tags      = 2;
+    double              counter   = 3;
+    uint32              ts        = 4;  // UNIX seconds UTC
+    repeated double     value     = 5;
+    repeated int64      unique    = 6;
+    repeated Centroid   histogram = 7;
 }
 
 message MetricBatch {

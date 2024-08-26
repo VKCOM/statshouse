@@ -140,6 +140,36 @@ func protobufUnmarshalFieldEntry(buf []byte, m *tl.DictionaryFieldStringBytes) (
 	return buf, nil
 }
 
+func protobufUnmarshalCentroid(buf []byte, m *tlstatshouse.Centroid) ([]byte, error) {
+	m.Value = 0
+	m.Count = 0
+	var f protowire.Number
+	var t protowire.Type
+	var err error
+	for len(buf) != 0 {
+		f, t, buf, err = protoReadTag(buf)
+		if err != nil {
+			return buf, err
+		}
+		if f == 1 && t == 1 {
+			if buf, err = protoReadFloat64(buf, &m.Value); err != nil {
+				return buf, err
+			}
+			continue
+		}
+		if f == 2 && t == 1 {
+			if buf, err = protoReadFloat64(buf, &m.Count); err != nil {
+				return buf, err
+			}
+			continue
+		}
+		if buf, err = protoSkipField(buf, f, t); err != nil {
+			return buf, err
+		}
+	}
+	return buf, nil
+}
+
 // void read(::statshouse::Metric & v, iterator s, iterator e){
 //	while(s != e){
 //		auto m = read_varint(&s, e);
@@ -207,6 +237,17 @@ func protobufUnmarshalStatshouseMetric(buf []byte, m *tlstatshouse.MetricBytes) 
 			m.SetCounter(value)
 			continue
 		}
+		if f == 4 && t == 0 {
+			var ts int64
+			if buf, err = protoReadInt64(buf, &ts); err != nil {
+				return buf, err
+			}
+			if ts < 0 || ts > math.MaxUint32 {
+				return buf, errorTsOverflow
+			}
+			m.SetTs(uint32(ts))
+			continue
+		}
 		if f == 5 && t == 2 {
 			value := m.Value
 			if buf, err = protoReadPackedFixedFloat64(buf, &value); err != nil {
@@ -239,15 +280,22 @@ func protobufUnmarshalStatshouseMetric(buf []byte, m *tlstatshouse.MetricBytes) 
 			m.SetUnique(append(m.Unique, val))
 			continue
 		}
-		if f == 4 && t == 0 {
-			var ts int64
-			if buf, err = protoReadInt64(buf, &ts); err != nil {
+		if f == 7 && t == 2 {
+			data, n := protowire.ConsumeBytes(buf)
+			if n < 0 {
+				return buf, protobufError(n)
+			}
+
+			if cap(m.Histogram) > len(m.Histogram) {
+				m.Histogram = m.Histogram[:len(m.Histogram)+1]
+			} else {
+				m.Histogram = append(m.Histogram, tlstatshouse.Centroid{})
+			}
+			buf = buf[n:]
+			if _, err = protobufUnmarshalCentroid(data, &m.Histogram[len(m.Histogram)-1]); err != nil {
 				return buf, err
 			}
-			if ts < 0 || ts > math.MaxUint32 {
-				return buf, errorTsOverflow
-			}
-			m.SetTs(uint32(ts))
+			m.SetHistogram(m.Histogram)
 			continue
 		}
 		if buf, err = protoSkipField(buf, f, t); err != nil {
