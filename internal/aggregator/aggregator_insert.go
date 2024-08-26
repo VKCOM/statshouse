@@ -537,7 +537,6 @@ func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr strin
 	resp, err := httpClient.Do(req)
 	dur := time.Since(start)
 	dur = dur / time.Millisecond * time.Millisecond
-	// TODO - use ParseExceptionFromResponseBody
 	if err != nil {
 		return 0, 0, dur.Seconds(), err
 	}
@@ -556,7 +555,7 @@ func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr strin
 	_, _ = io.Copy(io.Discard, resp.Body) // keepalive
 	_ = resp.Body.Close()
 
-	clickhouseExceptionText := resp.Header.Get("X-ClickHouse-Exception-Code")
+	clickhouseExceptionText := resp.Header.Get("X-ClickHouse-Exception-Code") // recent clickhouses always send this header in case of error
 	ce, _ := strconv.Atoi(clickhouseExceptionText)
 	err = fmt.Errorf("could not post to clickhouse (HTTP code %d, X-ClickHouse-Exception-Code: %s): %s, inserting %x", resp.StatusCode, clickhouseExceptionText, partialMessage[:partialMessageLen], partialBody)
 	return resp.StatusCode, ce, dur.Seconds(), err

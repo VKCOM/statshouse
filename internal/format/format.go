@@ -364,7 +364,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if len(m.Tags) != 0 {
 		// for mast metrics in database, this name is set to "env". We do not want to continue using it.
 		// We want mapEnvironment() to work even when metric is not found, so we must not allow users to
-		// set their environment tag name. They must use canincal "0" name instead.
+		// set their environment tag name. They must use canonical "0" name instead.
 		m.Tags[0].Name = ""
 	}
 	m.PreKeyIndex = -1
@@ -1003,10 +1003,6 @@ func HasRawValuePrefix(s string) bool {
 
 func AddRawValuePrefix(s string) string {
 	return tagValueCodePrefix + s
-}
-
-func IsValueCodeZero(s string) bool {
-	return TagValueCodeZero == s
 }
 
 // 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
