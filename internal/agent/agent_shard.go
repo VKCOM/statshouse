@@ -220,7 +220,7 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, hist
 	if count == 0 {
 		count = totalCount
 	}
-	mi.MapStringTopBytes(str, totalCount).ApplyValues(values, histogram, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
+	mi.MapStringTopBytes(str, totalCount).ApplyValues(histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
 func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
