@@ -490,9 +490,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
-		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Keys: [16]int32{0, int32(t)}}
+		key := a.aggKey(insertTimeUnix, format.BuiltinMetricIDContributorsLog, [16]int32{0, int32(t)})
 		res = appendSimpleValueStat(res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil)
-		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Keys: [16]int32{0, int32(insertTimeUnix)}}
+		key = a.aggKey(t, format.BuiltinMetricIDContributorsLogRev, [16]int32{0, int32(insertTimeUnix)})
 		res = appendSimpleValueStat(res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil)
 	}
 	dur := time.Since(startTime)
