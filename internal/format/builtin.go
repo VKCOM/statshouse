@@ -127,6 +127,7 @@ const (
 	BuiltinMetricIDAPIBufferBytesFree         = -105
 	BuiltinMetricIDAPIBufferBytesTotal        = -106
 	BuiltinMetricIDAutoCreateMetric           = -107
+	BuiltinMetricIDRestartTimings             = -108
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -217,7 +218,8 @@ const (
 	TagValueIDTimingMissedSeconds                   = 6 // TODO - remove after everyone uses TagValueIDTimingMissedSecondsAgents
 	TagValueIDTimingLongWindowThrownAggregatorLater = 7
 	TagValueIDTimingDiskOverflowThrownAgent         = 8
-	TagValueIDTimingMissedSecondsAgent              = 9 // separate to prevent mix of old and new way to write missed seconds
+	TagValueIDTimingMissedSecondsAgent              = 9  // separate to prevent mix of old and new way to write missed seconds
+	TagValueIDTimingThrownDueToMemory               = 10 // if second could not be saved to disk, but later thrown out due to memory pressure
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
@@ -377,6 +379,19 @@ const (
 
 	TagValueIDDMESGParseError = 1
 	TagValueIDAPIPanicError   = 2
+
+	TagValueIDRestartTimingsPhaseInactive          = 1
+	TagValueIDRestartTimingsPhaseStartDiskCache    = 2
+	TagValueIDRestartTimingsPhaseStartReceivers    = 3
+	TagValueIDRestartTimingsPhaseStartService      = 4
+	TagValueIDRestartTimingsPhaseTotal             = 100 // we want average of sum
+	TagValueIDRestartTimingsPhaseStopRecentSenders = 101
+	TagValueIDRestartTimingsPhaseStopReceivers     = 102
+	TagValueIDRestartTimingsPhaseStopFlusher       = 103
+	TagValueIDRestartTimingsPhaseStopFlushing      = 104
+	TagValueIDRestartTimingsPhaseStopPreprocessor  = 105
+	TagValueIDRestartTimingsPhaseStopInserters     = 106
+	TagValueIDRestartTimingsPhaseStopRPCServer     = 107
 )
 
 var (
@@ -786,6 +801,7 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
 					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
 					TagValueIDTimingMissedSecondsAgent:              "missed_seconds_agent",
+					TagValueIDTimingThrownDueToMemory:               "out_of_memory_space_agent",
 				}),
 			}, {
 				Description: "-",
@@ -2136,6 +2152,36 @@ Value is delta between second value and time it was inserted.`,
 				},
 			}},
 		},
+		BuiltinMetricIDRestartTimings: {
+			Name:        "__src_restart_timings",
+			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
+			Description: "Time of various restart phases (inactive is time between process stop and start)",
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "phase",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDRestartTimingsPhaseInactive:          "inactive",
+					TagValueIDRestartTimingsPhaseStartDiskCache:    "start_disk_cache",
+					TagValueIDRestartTimingsPhaseStartReceivers:    "start_receivers",
+					TagValueIDRestartTimingsPhaseStartService:      "start_service",
+					TagValueIDRestartTimingsPhaseTotal:             "total",
+					TagValueIDRestartTimingsPhaseStopRecentSenders: "stop_recent_senders",
+					TagValueIDRestartTimingsPhaseStopReceivers:     "stop_receivers",
+					TagValueIDRestartTimingsPhaseStopFlusher:       "stop_flusher",
+					TagValueIDRestartTimingsPhaseStopFlushing:      "stop_flushing",
+					TagValueIDRestartTimingsPhaseStopPreprocessor:  "stop_preprocessor",
+					TagValueIDRestartTimingsPhaseStopInserters:     "stop_inserters",
+					TagValueIDRestartTimingsPhaseStopRPCServer:     "stop_rpc_server",
+				}),
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2244,6 +2290,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDStatsHouseErrors:          true,
 		BuiltinMetricIDSrcSamplingBudget:         true,
 		BuiltinMetricIDSrcSamplingGroupBudget:    true,
+		BuiltinMetricIDRestartTimings:            true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -2285,6 +2332,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesAlloc:        true,
 		BuiltinMetricIDAPIBufferBytesFree:         true,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
+		BuiltinMetricIDRestartTimings:             true,
 	}
 
 	insertKindToValue = map[int32]string{

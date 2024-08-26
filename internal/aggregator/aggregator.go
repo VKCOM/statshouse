@@ -22,8 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"pgregory.net/rand"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -34,6 +32,8 @@ import (
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"pgregory.net/rand"
 )
 
 type (
@@ -77,6 +77,11 @@ type (
 		startTimestamp  uint32
 		addresses       []string
 
+		cancelInsertsFunc context.CancelFunc
+		cancelInsertsCtx  context.Context
+		insertsSema       *semaphore.Weighted
+		insertsSemaSize   int64 // configured value might change
+
 		tagMappingBootstrapResponse []byte // sending large responses to thousands of clients at once, so must be very efficient
 
 		sh2 *agent.Agent // set to not nil some time after launching aggregator
@@ -118,24 +123,25 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	delete(b.contributorsSimulatedErrors, hctx)
 }
 
-func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) error {
+// aggregator is also run in this method
+func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
-		return fmt.Errorf("aggregator cannot run without -cache-dir for now")
+		return nil, fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
 	localAddresses := strings.Split(listenAddr, ",")
 	if len(localAddresses) != 1 {
 		if len(localAddresses) != 3 {
-			return fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
+			return nil, fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
 		}
 		if config.LocalReplica < 1 || config.LocalReplica > 3 {
-			return fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
+			return nil, fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
 		}
 		listenAddr = localAddresses[config.LocalReplica-1]
 	}
 
 	_, listenPort, err := net.SplitHostPort(listenAddr)
 	if err != nil {
-		return fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
+		return nil, fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
 	}
 	if config.ExternalPort == "" {
 		config.ExternalPort = listenPort
@@ -146,7 +152,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if config.KHAddr != "" {
 		shardKey, replicaKey, addresses, err = selectShardReplica(config.KHAddr, config.Cluster, config.ExternalPort)
 		if err != nil {
-			return fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+			return nil, fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 		}
 	}
 	withoutCluster := false
@@ -162,7 +168,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		}
 	}
 	if len(addresses)%3 != 0 {
-		return fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 	}
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
@@ -181,13 +187,17 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		if !withoutCluster {
 			// in prod, running without bootstrap is dangerous and can leave large gap in all metrics
 			// if agent disk caches are erased
-			return fmt.Errorf("failed to load mapping bootstrap: %v", err)
+			return nil, fmt.Errorf("failed to load mapping bootstrap: %v", err)
 		}
 		// ok, empty bootstrap is good for us for running locally
 		tagMappingBootstrapResponse, _ = (&tlmetadata.GetTagMappingBootstrap{}).WriteResult(nil, tlstatshouse.GetTagMappingBootstrapResult{})
 	}
 
+	cancelInsertCtx, cancelInsertFunc := context.WithCancel(context.Background())
+
 	a := &Aggregator{
+		cancelInsertsCtx:            cancelInsertCtx,
+		cancelInsertsFunc:           cancelInsertFunc,
 		bucketsToSend:               make(chan *aggregatorBucket),
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		config:                      config,
@@ -225,7 +235,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		},
 	}
 	if len(a.hostName) == 0 {
-		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
+		return nil, fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
 	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
 	a.scrape = newScrapeServer()
@@ -244,11 +254,12 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithStatsHandler(a.scrape.reportStats),
 		metrics.ServerWithMetrics,
 	)
-	defer metrics.Run(a.server)()
+	// 1. we do not bother to stop collection
+	// 2. we must not use statshouse lib in aggregator, there is nobody listening 13337
+	// _ = metrics.Run(a.server)
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
-		defer a.autoCreate.shutdown()
 	}
 	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, func(configID int32, configS string) {
 		a.scrape.applyConfig(configID, configS)
@@ -260,11 +271,10 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
-	// TODO - pass storage dir after design is fixed
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
 		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
-		return fmt.Errorf("built-in agent failed to start: %v", err)
+		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
 	}
 	a.sh2 = sh2
 	a.scrape.run(a.metricStorage, metricMetaLoader, sh2)
@@ -285,15 +295,56 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
 	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(addresses, ","), "", "Started")
 
+	a.insertsSemaSize = int64(a.config.RecentInserters)
+	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
+	_ = a.insertsSema.Acquire(context.Background(), a.insertsSemaSize)
+
 	go a.goTicker()
 	for i := 0; i < a.config.RecentInserters; i++ {
-		go a.goSend(i)
+		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
 	go a.goInternalLog()
 
 	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
 
-	return a.server.ListenAndServe("tcp4", listenAddr)
+	go func() {
+		_ = a.server.ListenAndServe("tcp4", listenAddr)
+	}()
+	return a, nil
+}
+
+func (a *Aggregator) Agent() *agent.Agent {
+	return a.sh2
+}
+
+// Also effectively disables all incoming data
+func (a *Aggregator) DisableNewInsert() {
+	a.mu.Lock()
+	close(a.bucketsToSend)
+	a.bucketsToSend = nil
+	a.mu.Unlock()
+}
+
+func (a *Aggregator) WaitInsertsFinish(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := a.insertsSema.Acquire(ctx, a.insertsSemaSize); err != nil {
+		log.Printf("WaitInsertsFinish timeout after %v: %v", timeout, err)
+	}
+	// either timeout passes or all recent senders quit
+}
+
+func (a *Aggregator) ShutdownRPCServer() {
+	a.server.Shutdown()
+}
+
+func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err := a.server.CloseWait(ctx); err != nil {
+		log.Printf("WaitRPCServer timeout after %v: %v", timeout, err)
+	}
 }
 
 func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
@@ -436,7 +487,7 @@ func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTot
 
 func selectShardReplica(khAddr string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {
 	log.Printf("[debug] starting autoconfiguration by making SELECT to clickhouse address %q", khAddr)
-	httpClient := makeHTTPClient(data_model.ClickHouseTimeoutConfig)
+	httpClient := makeHTTPClient()
 	backoffTimeout := time.Duration(0)
 	for i := 0; ; i++ {
 		// motivation for several attempts is random clickhouse errors, plus starting before clickhouse is ready to process requests in demo mode
@@ -455,7 +506,9 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	queryPrefix := url.PathEscape(fmt.Sprintf("SELECT shard_num, replica_num, is_local, host_name FROM system.clusters where cluster='%s' and replica_num <= 3 order by shard_num, replica_num", cluster))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
 
-	req, err := http.NewRequest("POST", URL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), data_model.ClickHouseTimeoutConfig)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", URL, nil)
 	if err != nil {
 		return 0, 0, nil, err
 	}
@@ -504,14 +557,17 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	return 0, 0, nil, fmt.Errorf("HTTP get from clickhouse %q for cluster %q returned body with no local replicas - %q", khAddr, cluster, string(body))
 }
 
-func (a *Aggregator) goSend(senderID int) {
+func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context.Context, bucketsToSend chan *aggregatorBucket, senderID int) {
+	defer log.Printf("clickhouse inserter %d quit", senderID)
+	defer insertsSema.Release(1)
+
 	rnd := rand.New()
-	httpClient := makeHTTPClient(data_model.ClickHouseTimeout)
+	httpClient := makeHTTPClient()
 
 	var aggBuckets []*aggregatorBucket
 	var bodyStorage []byte
 
-	for aggBucket := range a.bucketsToSend {
+	for aggBucket := range bucketsToSend {
 		aggBuckets = aggBuckets[:0]
 		bodyStorage = bodyStorage[:0]
 
@@ -583,7 +639,9 @@ func (a *Aggregator) goSend(senderID int) {
 		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0])
 
 		// Never empty, because adds value stats
-		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
+		ctx, cancel := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
+		cancel()
 		a.mu.Lock()
 		if willInsertHistoric {
 			a.historicSenders--
@@ -700,6 +758,8 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 }
 
 func (a *Aggregator) goTicker() {
+	defer log.Printf("clickhouse bucket queue ticket quit")
+
 	now := time.Now()
 	for { // TODO - quit
 		tick := time.After(data_model.TillStartOfNextSecond(now))
@@ -717,9 +777,16 @@ func (a *Aggregator) goTicker() {
 				}
 				continue
 			}
+			a.mu.Lock() // be careful to unlock on all paths below
+			if a.bucketsToSend == nil {
+				a.mu.Unlock()
+				return // aggregator in shutdown
+			}
 			select {
-			case a.bucketsToSend <- aggBucket:
+			case a.bucketsToSend <- aggBucket: // have to send under lock
+				a.mu.Unlock()
 			default:
+				a.mu.Unlock()
 				numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
 				err := fmt.Errorf("insert conveyor is full for Bucket time=%d, contributors %d", aggBucket.time, numContributors)
 				fmt.Printf("%s\n", err)

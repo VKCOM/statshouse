@@ -121,12 +121,12 @@ func (c *Cache) startWorkLocked(key string, e *entry, extra interface{}) {
 	c.workCond.Signal()
 }
 
-func (c *Cache) DiskCacheSize() int {
+func (c *Cache) DiskCacheEmpty() bool {
 	if c.DiskCache == nil {
-		return 0
+		return true
 	}
-	cacheSize, _ := c.DiskCache.Count(c.DiskCacheNamespace) // ignore errors
-	return cacheSize
+	keys, _ := c.DiskCache.ListKeys(c.DiskCacheNamespace, 1, 0) // ignore errors
+	return len(keys) == 0
 }
 
 func (c *Cache) SetBootstrapValue(now time.Time, key string, v Value, ttl time.Duration) error {
@@ -180,7 +180,9 @@ func (c *Cache) runRun() {
 		for i := 0; i < runnersCount; i++ {
 			go c.run()
 		}
-		go c.diskCleanup()
+		// go c.DiskCleanup() - Too slow, must use efficient data structure
+		// https://pastebin.mvk.com/6yrlAdgzmjz93Tt8YFEO23tl0qYBJBZwyEVatpoUXl88ZvdSDyCXQUvzu3jvB9rBl4LoU3M62V6UAYZ3.m
+		// https://pastebin.mvk.com/agA6bJ0n8QRrks43UJnOyxmSGjlL7CqKrgjF5HrAIOmp0PnC8RLCOQng5ze4oGJPKZGk9Rfe6yKh8IxR.m
 	})
 }
 
@@ -217,7 +219,7 @@ func (c *Cache) run() {
 	}
 }
 
-func (c *Cache) diskCleanup() {
+func (c *Cache) DiskCleanup() { // Public so linter will not complain
 	if c.DiskCache == nil || c.MaxDiskCacheSize <= 0 {
 		return
 	}
@@ -235,7 +237,7 @@ func (c *Cache) diskCleanup() {
 		}
 		c.workMu.Unlock()
 
-		diskCacheSize, _ := c.DiskCache.Count(c.DiskCacheNamespace)
+		diskCacheSize, _ := c.DiskCache.VerySlowCountDoNotUse(c.DiskCacheNamespace)
 		if diskCacheSize <= c.MaxDiskCacheSize {
 			time.Sleep(10 * time.Second)
 			continue

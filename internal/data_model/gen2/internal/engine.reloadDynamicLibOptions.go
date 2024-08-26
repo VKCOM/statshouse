@@ -21,7 +21,7 @@ type EngineReloadDynamicLibOptions struct {
 }
 
 func (EngineReloadDynamicLibOptions) TLName() string { return "engine.reloadDynamicLibOptions" }
-func (EngineReloadDynamicLibOptions) TLTag() uint32  { return 0xf3d0fb1 }
+func (EngineReloadDynamicLibOptions) TLTag() uint32  { return 0x0f3d0fb1 }
 
 func (item *EngineReloadDynamicLibOptions) SetSlicesPart(v float64) {
 	item.SlicesPart = v
@@ -76,7 +76,7 @@ func (item *EngineReloadDynamicLibOptions) Write(w []byte) []byte {
 }
 
 func (item *EngineReloadDynamicLibOptions) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xf3d0fb1); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0f3d0fb1); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -88,7 +88,7 @@ func (item *EngineReloadDynamicLibOptions) WriteBoxedGeneral(w []byte) (_ []byte
 }
 
 func (item *EngineReloadDynamicLibOptions) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xf3d0fb1)
+	w = basictl.NatWrite(w, 0x0f3d0fb1)
 	return item.Write(w)
 }
 

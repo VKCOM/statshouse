@@ -19,7 +19,7 @@ type StatshouseGetMetricsResult struct {
 }
 
 func (StatshouseGetMetricsResult) TLName() string { return "statshouse.getMetricsResult" }
-func (StatshouseGetMetricsResult) TLTag() uint32  { return 0xc803d05 }
+func (StatshouseGetMetricsResult) TLTag() uint32  { return 0x0c803d05 }
 
 func (item *StatshouseGetMetricsResult) Reset() {
 	item.Version = ""
@@ -45,7 +45,7 @@ func (item *StatshouseGetMetricsResult) Write(w []byte) []byte {
 }
 
 func (item *StatshouseGetMetricsResult) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803d05); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803d05); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -57,7 +57,7 @@ func (item *StatshouseGetMetricsResult) WriteBoxedGeneral(w []byte) (_ []byte, e
 }
 
 func (item *StatshouseGetMetricsResult) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc803d05)
+	w = basictl.NatWrite(w, 0x0c803d05)
 	return item.Write(w)
 }
 
@@ -157,7 +157,7 @@ type StatshouseGetMetricsResultBytes struct {
 }
 
 func (StatshouseGetMetricsResultBytes) TLName() string { return "statshouse.getMetricsResult" }
-func (StatshouseGetMetricsResultBytes) TLTag() uint32  { return 0xc803d05 }
+func (StatshouseGetMetricsResultBytes) TLTag() uint32  { return 0x0c803d05 }
 
 func (item *StatshouseGetMetricsResultBytes) Reset() {
 	item.Version = item.Version[:0]
@@ -183,7 +183,7 @@ func (item *StatshouseGetMetricsResultBytes) Write(w []byte) []byte {
 }
 
 func (item *StatshouseGetMetricsResultBytes) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803d05); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803d05); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -195,7 +195,7 @@ func (item *StatshouseGetMetricsResultBytes) WriteBoxedGeneral(w []byte) (_ []by
 }
 
 func (item *StatshouseGetMetricsResultBytes) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xc803d05)
+	w = basictl.NatWrite(w, 0x0c803d05)
 	return item.Write(w)
 }
 

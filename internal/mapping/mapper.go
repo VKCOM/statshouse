@@ -45,8 +45,8 @@ func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache,
 	}
 }
 
-func (m *Mapper) TagValueDiskCacheSize() int {
-	return m.pipeline.tagValue.DiskCacheSize()
+func (m *Mapper) TagValueDiskCacheEmpty() bool {
+	return m.pipeline.tagValue.DiskCacheEmpty()
 }
 
 func (m *Mapper) SetBootstrapValue(now time.Time, key string, v pcache.Value, ttl time.Duration) error {

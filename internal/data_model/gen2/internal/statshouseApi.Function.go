@@ -180,7 +180,7 @@ var _StatshouseApiFunction = [35]UnionElement{
 	{TLTag: 0x56071d39, TLName: "statshouseApi.fnP10", TLString: "statshouseApi.fnP10#56071d39"},
 	{TLTag: 0xcf9ad7bf, TLName: "statshouseApi.fnP25", TLString: "statshouseApi.fnP25#cf9ad7bf"},
 	{TLTag: 0x77c5de5c, TLName: "statshouseApi.fnP50", TLString: "statshouseApi.fnP50#77c5de5c"},
-	{TLTag: 0xe674272, TLName: "statshouseApi.fnP75", TLString: "statshouseApi.fnP75#0e674272"},
+	{TLTag: 0x0e674272, TLName: "statshouseApi.fnP75", TLString: "statshouseApi.fnP75#0e674272"},
 	{TLTag: 0xd4c8c793, TLName: "statshouseApi.fnP90", TLString: "statshouseApi.fnP90#d4c8c793"},
 	{TLTag: 0x9a92b76f, TLName: "statshouseApi.fnP95", TLString: "statshouseApi.fnP95#9a92b76f"},
 	{TLTag: 0x71992e9a, TLName: "statshouseApi.fnP99", TLString: "statshouseApi.fnP99#71992e9a"},
@@ -375,7 +375,7 @@ func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	case 0x77c5de5c:
 		item.index = 16
 		return w, nil
-	case 0xe674272:
+	case 0x0e674272:
 		item.index = 17
 		return w, nil
 	case 0xd4c8c793:

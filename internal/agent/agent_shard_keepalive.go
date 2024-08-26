@@ -74,6 +74,7 @@ func (s *ShardReplica) sendKeepLive() error {
 	return err
 }
 
+// We see no reason to carefully stop/wait this loop at shutdown
 func (s *ShardReplica) goLiveChecker() {
 	// We have separate loops instead of using flushBuckets agent loop, because sendKeepLive can block on connect for
 	// very long time, and it is convenient if it blocks there

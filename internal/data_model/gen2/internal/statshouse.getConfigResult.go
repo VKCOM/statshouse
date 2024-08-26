@@ -21,7 +21,7 @@ type StatshouseGetConfigResult struct {
 }
 
 func (StatshouseGetConfigResult) TLName() string { return "statshouse.getConfigResult" }
-func (StatshouseGetConfigResult) TLTag() uint32  { return 0xc803d07 }
+func (StatshouseGetConfigResult) TLTag() uint32  { return 0x0c803d07 }
 
 func (item *StatshouseGetConfigResult) SetTs(v int64, nat_fields_mask *uint32) {
 	item.Ts = v
@@ -82,7 +82,7 @@ func (item *StatshouseGetConfigResult) Write(w []byte, nat_fields_mask uint32) [
 }
 
 func (item *StatshouseGetConfigResult) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803d07); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803d07); err != nil {
 		return w, err
 	}
 	return item.Read(w, nat_fields_mask)
@@ -94,7 +94,7 @@ func (item *StatshouseGetConfigResult) WriteBoxedGeneral(w []byte, nat_fields_ma
 }
 
 func (item *StatshouseGetConfigResult) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
-	w = basictl.NatWrite(w, 0xc803d07)
+	w = basictl.NatWrite(w, 0x0c803d07)
 	return item.Write(w, nat_fields_mask)
 }
 
@@ -220,7 +220,7 @@ type StatshouseGetConfigResultBytes struct {
 }
 
 func (StatshouseGetConfigResultBytes) TLName() string { return "statshouse.getConfigResult" }
-func (StatshouseGetConfigResultBytes) TLTag() uint32  { return 0xc803d07 }
+func (StatshouseGetConfigResultBytes) TLTag() uint32  { return 0x0c803d07 }
 
 func (item *StatshouseGetConfigResultBytes) SetTs(v int64, nat_fields_mask *uint32) {
 	item.Ts = v
@@ -281,7 +281,7 @@ func (item *StatshouseGetConfigResultBytes) Write(w []byte, nat_fields_mask uint
 }
 
 func (item *StatshouseGetConfigResultBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xc803d07); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0c803d07); err != nil {
 		return w, err
 	}
 	return item.Read(w, nat_fields_mask)
@@ -293,7 +293,7 @@ func (item *StatshouseGetConfigResultBytes) WriteBoxedGeneral(w []byte, nat_fiel
 }
 
 func (item *StatshouseGetConfigResultBytes) WriteBoxed(w []byte, nat_fields_mask uint32) []byte {
-	w = basictl.NatWrite(w, 0xc803d07)
+	w = basictl.NatWrite(w, 0x0c803d07)
 	return item.Write(w, nat_fields_mask)
 }
 

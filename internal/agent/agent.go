@@ -7,9 +7,11 @@
 package agent
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"strconv"
@@ -19,6 +21,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/env"
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -40,6 +43,15 @@ type Agent struct {
 	ShardReplicas   []*ShardReplica // 3 * number of shards
 	Shards          []*Shard
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
+
+	cancelSendsFunc   context.CancelFunc
+	cancelSendsCtx    context.Context
+	recentSendersSema *semaphore.Weighted
+	sendersWG         sync.WaitGroup
+	cancelFlushFunc   context.CancelFunc
+	cancelFlushCtx    context.Context
+	flusherWG         sync.WaitGroup
+	preprocessWG      sync.WaitGroup
 
 	diskBucketCache *DiskBucketStorage
 	hostName        []byte
@@ -80,6 +92,7 @@ type Agent struct {
 	statErrorsDiskCompressFailed    *BuiltInItemValue
 	statLongWindowOverflow          *BuiltInItemValue
 	statDiskOverflow                *BuiltInItemValue
+	statMemoryOverflow              *BuiltInItemValue
 
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
@@ -100,7 +113,14 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
 
+	cancelSendsCtx, cancelSendsFunc := context.WithCancel(context.Background())
+	cancelFlushCtx, cancelFlushFunc := context.WithCancel(context.Background())
+
 	result := &Agent{
+		cancelSendsCtx:        cancelSendsCtx,
+		cancelSendsFunc:       cancelSendsFunc,
+		cancelFlushCtx:        cancelFlushCtx,
+		cancelFlushFunc:       cancelFlushFunc,
 		hostName:              format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		componentTag:          componentTag,
 		heartBeatEventType:    format.TagValueIDHeartbeatEventStart,
@@ -153,14 +173,15 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
 		shard := &Shard{
-			config:          config,
-			agent:           result,
-			ShardNum:        i,
-			ShardKey:        int32(i) + 1,
-			timeSpreadDelta: 3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			addBuiltInsTime: nowUnix,
-			BucketsToSend:   make(chan compressedBucketDataOnDisk),
-			perm:            rnd.Perm(data_model.AggregationShardsPerSecond),
+			config:              config,
+			agent:               result,
+			ShardNum:            i,
+			ShardKey:            int32(i) + 1,
+			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			addBuiltInsTime:     nowUnix,
+			BucketsToSend:       make(chan compressedBucketData),
+			BucketsToPreprocess: make(chan preprocessorBucketData, 1), // length of preprocessor queue
+			perm:                rnd.Perm(data_model.AggregationShardsPerSecond),
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		for r := range shard.CurrentBuckets {
@@ -175,12 +196,11 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
-		shard.condPreprocess = sync.NewCond(&shard.mu)
 		result.Shards = append(result.Shards, shard)
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
-		// TODO - make historic queue strict queue instead
+		// TODO - make historic queue strict queue instead (?)
 		for j := 0; j < data_model.MaxConveyorDelay*2; j++ {
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
@@ -220,9 +240,19 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}})
 	result.statLongWindowOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
 	result.statDiskOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
+	result.statMemoryOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingThrownDueToMemory}})
 
 	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil
+}
+
+// Idea behind this semaphore is
+// 1. semaphore for N
+// 2. acquire once for each goroutine
+// 3. each goroutine releases once at exit
+// 4. main tries to acquire N, it will succeed when all goroutines exit
+func (s *Agent) totalRecentSenders() int64 {
+	return int64(len(s.Shards) * data_model.MaxConveyorDelay)
 }
 
 // separated so we can set AggregatorHost, which is dependent on tagMapper which uses agent to write statistics
@@ -238,17 +268,67 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 		}
 		go shardReplica.goTestConnectionLoop()
 	}
+	s.recentSendersSema = semaphore.NewWeighted(s.totalRecentSenders())
 	for _, shard := range s.Shards {
-		go shard.goPreProcess()
+		s.preprocessWG.Add(1)
+		go shard.goPreProcess(&s.preprocessWG)
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
-			go shard.goSendRecent()
+			_ = s.recentSendersSema.Acquire(context.Background(), 1)
+			s.sendersWG.Add(1)
+			go shard.goSendRecent(j, &s.sendersWG, s.recentSendersSema, s.cancelSendsCtx, shard.BucketsToSend)
 		}
 		for j := 0; j < data_model.MaxHistorySendStreams; j++ {
-			go shard.goSendHistoric()
+			s.sendersWG.Add(1)
+			go shard.goSendHistoric(&s.sendersWG, s.cancelSendsCtx)
 		}
-		go shard.goEraseHistoric()
+		s.sendersWG.Add(1)
+		go shard.goEraseHistoric(&s.sendersWG, s.cancelSendsCtx)
 	}
-	go s.goFlusher()
+	s.flusherWG.Add(1)
+	go s.goFlusher(s.cancelFlushCtx, &s.flusherWG)
+}
+
+func (s *Agent) DisableNewSends() {
+	for _, shard := range s.Shards {
+		shard.DisableNewSends()
+	}
+}
+
+func (s *Agent) WaitRecentSenders(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := s.recentSendersSema.Acquire(ctx, s.totalRecentSenders()); err != nil {
+		log.Printf("WaitRecentSenders timeout after %v: %v", timeout, err)
+	}
+	// either timeout passes or all recent senders quit
+}
+
+func (s *Agent) ShutdownFlusher() {
+	s.cancelFlushFunc()
+	for _, shard := range s.Shards {
+		shard.StopReceivingIncomingData()
+	}
+}
+
+func (s *Agent) WaitFlusher() {
+	s.flusherWG.Wait()
+}
+
+func (s *Agent) FlushAllData() (nonEmpty int) {
+	for i := 0; i != data_model.MaxFutureSecondsOnDisk; i++ {
+		for _, shard := range s.Shards {
+			nonEmpty += shard.FlushAllDataSingleStep()
+		}
+	}
+	for _, shard := range s.Shards {
+		shard.StopPreprocessor()
+	}
+	return
+}
+
+func (s *Agent) WaitPreprocessor() {
+	s.preprocessWG.Wait()
 }
 
 func (s *Agent) Close() {
@@ -342,9 +422,23 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	}
 }
 
-func (s *Agent) goFlusher() {
-	for { // TODO - quit
-		time.Sleep(time.Millisecond * 100) // if flush queue was stuck on some shard for < second, we want to retry, so we get no missed seconds
+func (s *Agent) goFlusher(cancelFlushCtx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+	timer := time.NewTimer(time.Hour) // stupid go, we need timer, but do not yet want to start it
+	if !timer.Stop() {
+		<-timer.C
+	}
+	for {
+		timer.Reset(100 * time.Millisecond)
+		// If flush queue was stuck on some shard for < second, we want to retry, so we get less chance of missed seconds,
+		// that's why we wait for 0.1 sec, not until start of the next second (+taking into account data_model.AgentWindow).
+		// We could write complicated code here, but we do not want to risk correctness
+		select {
+		case <-cancelFlushCtx.Done():
+			log.Printf("Flusher quit")
+			return
+		case <-timer.C:
+		}
 		s.goFlushIteration(time.Now())
 		s.updateConfigRemotelyExperimental()
 		// code below was used to test agent resilience to jitter

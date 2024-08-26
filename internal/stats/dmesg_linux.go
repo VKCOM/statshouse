@@ -28,7 +28,6 @@ func (c *DMesgStats) WriteMetrics(nowUnix int64) error {
 	c.cache = c.cache[:n]
 	k, err := syscall.Klogctl(SYSLOG_ACTION_READ_ALL, c.cache)
 	if err != nil {
-
 		return fmt.Errorf("failed to read klog: %w", multierr.Append(err, errStopCollector))
 	}
 	c.cache = c.cache[:k]

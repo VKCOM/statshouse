@@ -17,7 +17,7 @@ type EngineGetExpectedMetafilesStats struct {
 }
 
 func (EngineGetExpectedMetafilesStats) TLName() string { return "engine.getExpectedMetafilesStats" }
-func (EngineGetExpectedMetafilesStats) TLTag() uint32  { return 0x342f391 }
+func (EngineGetExpectedMetafilesStats) TLTag() uint32  { return 0x0342f391 }
 
 func (item *EngineGetExpectedMetafilesStats) Reset() {}
 
@@ -33,7 +33,7 @@ func (item *EngineGetExpectedMetafilesStats) Write(w []byte) []byte {
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x342f391); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x0342f391); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -45,7 +45,7 @@ func (item *EngineGetExpectedMetafilesStats) WriteBoxedGeneral(w []byte) (_ []by
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x342f391)
+	w = basictl.NatWrite(w, 0x0342f391)
 	return item.Write(w)
 }
 
