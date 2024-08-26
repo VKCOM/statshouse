@@ -42,6 +42,7 @@ type (
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue
 	VectorStatshouseCentroid                      = internal.VectorStatshouseCentroid
+	VectorStatshouseCentroidFloat                 = internal.VectorStatshouseCentroidFloat
 	VectorStatshouseIngestionStatus2              = internal.VectorStatshouseIngestionStatus2
 	VectorStatshouseMapping                       = internal.VectorStatshouseMapping
 	VectorStatshouseMappingBytes                  = internal.VectorStatshouseMappingBytes

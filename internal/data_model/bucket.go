@@ -13,6 +13,7 @@ import (
 	"sort"
 	"unsafe"
 
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"pgregory.net/rand"
 
 	"github.com/dchest/siphash"
@@ -358,8 +359,8 @@ func (s *MultiValue) AddValueArrayHostPercentile(values []float64, mult float64,
 	}
 }
 
-func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32, compression float64, hasPercentiles bool) {
-	if len(values) == 0 { // should be never, but as we divide by it, we keep check here
+func (s *MultiValue) ApplyValues(histogram []tlstatshouse.Centroid, values []float64, count float64, totalCount float64, hostTag int32, compression float64, hasPercentiles bool) {
+	if totalCount == 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
 	if s.ValueTDigest == nil && hasPercentiles {
@@ -367,9 +368,9 @@ func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32,
 	}
 	sumDiff := float64(0)
 	sumSquareDiff := float64(0)
-	mult := 1.0
-	if count != 0 {
-		mult = count / float64(len(values))
+	mult := 1.0 // mult is for TDigest only, we must make multiplication when we Add()
+	if count != totalCount {
+		mult = count / totalCount
 	}
 	for _, fv := range values {
 		if hasPercentiles {
@@ -387,8 +388,26 @@ func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32,
 		}
 		s.Value.ValueSet = true
 	}
-	if count == 0 || count == float64(len(values)) {
-		s.Value.Counter += float64(len(values))
+	for _, kv := range histogram {
+		fv := kv.Value
+		if hasPercentiles {
+			s.ValueTDigest.Add(fv, mult*kv.Count)
+		}
+		fvc := fv * kv.Count
+		sumDiff += fvc
+		sumSquareDiff += fvc * fvc
+		if !s.Value.ValueSet || fv < s.Value.ValueMin {
+			s.Value.ValueMin = fv
+			s.Value.MinHostTag = hostTag
+		}
+		if !s.Value.ValueSet || fv > s.Value.ValueMax {
+			s.Value.ValueMax = fv
+			s.Value.MaxHostTag = hostTag
+		}
+		s.Value.ValueSet = true
+	}
+	if count == totalCount {
+		s.Value.Counter += totalCount
 		s.Value.ValueSum += sumDiff
 		s.Value.ValueSumSquare += sumSquareDiff
 		return
@@ -396,8 +415,8 @@ func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32,
 	s.Value.Counter += count
 	// values and counter are set, so if we get [1 2 2 100] with count 20, we do not know how many times each item was repeated,
 	// so we simply guess they had equal probability.
-	s.Value.ValueSum += sumDiff * count / float64(len(values))
-	s.Value.ValueSumSquare += sumSquareDiff * count / float64(len(values))
+	s.Value.ValueSum += sumDiff * count / totalCount
+	s.Value.ValueSumSquare += sumSquareDiff * count / totalCount
 }
 
 func (s *MultiValue) AddUniqueHost(hashes []int64, count float64, hostTag int32) {

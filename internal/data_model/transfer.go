@@ -113,21 +113,20 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	if s.Value.MaxHostTag != 0 {
 		item.SetMaxHostTag(s.Value.MaxHostTag, fieldsMask)
 	}
-	// TODO - uncomment after aggregators deplayed
-	// if s.Value.MinHostTag != s.Value.MaxHostTag {
-	//	item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
-	// }
-	// if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
-	//	item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
-	// }
+	if s.Value.MinHostTag != s.Value.MaxHostTag {
+		item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
+	}
+	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
+	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
 		item.SetUniques(string(*marshalBuf), fieldsMask)
 	}
 	if s.ValueTDigest != nil {
-		var cc []tlstatshouse.Centroid
+		var cc []tlstatshouse.CentroidFloat
 		for _, c := range s.ValueTDigest.Centroids() {
-			cc = append(cc, tlstatshouse.Centroid{Value: float32(c.Mean), Weight: float32(c.Weight * sampleFactor)})
+			cc = append(cc, tlstatshouse.CentroidFloat{Value: float32(c.Mean), Count: float32(c.Weight * sampleFactor)})
 		}
 		if len(cc) != 0 { // empty centroids is ordinary value
 			item.SetCentroids(cc, fieldsMask) // TODO - do not set percentiles if v.ValueMin == v.ValueMax, restore on other side
@@ -217,7 +216,7 @@ func (s *MultiValue) MergeWithTL2(s2 *tlstatshouse.MultiValueBytes, fields_mask 
 			s.ValueTDigest = tdigest.NewWithCompression(compression)
 		}
 		for _, c := range s2.Centroids {
-			s.ValueTDigest.Add(float64(c.Value), float64(c.Weight))
+			s.ValueTDigest.Add(float64(c.Value), float64(c.Count))
 		}
 	}
 	if !s2.IsSetMaxHostTag(fields_mask) {

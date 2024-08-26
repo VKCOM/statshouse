@@ -118,7 +118,8 @@ const (
 	Stat                                         = 0x9d56e6b2 // stat
 	StatshouseAddMetricsBatch                    = 0x56580239 // statshouse.addMetricsBatch
 	StatshouseAutoCreate                         = 0x28bea524 // statshouse.autoCreate
-	StatshouseCentroid                           = 0x73fd01e0 // statshouse.centroid
+	StatshouseCentroid                           = 0x155f4d34 // statshouse.centroid
+	StatshouseCentroidFloat                      = 0x73fd01e0 // statshouse.centroidFloat
 	StatshouseCommonProxyHeader                  = 0x6c803d07 // statshouse.commonProxyHeader
 	StatshouseGetConfig2                         = 0x4285ff57 // statshouse.getConfig2
 	StatshouseGetConfigResult                    = 0x0c803d07 // statshouse.getConfigResult

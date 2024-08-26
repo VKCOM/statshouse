@@ -205,6 +205,8 @@ outer:
 
 		// order is important. If JSON has leading whitespaces, it will not be detected/parsed
 		switch {
+		case pktLen == 0: // Otherwise empty packets count as protobuf
+			setValueSize(u.packetSizeEmptyErr, pktLen)
 		case bytes.HasPrefix(pkt, metricsBatchPrefix):
 			for len(pkt) > 0 {
 				var err error
@@ -245,8 +247,6 @@ outer:
 				}
 			}
 			setValueSize(u.packetSizeMsgPackOK, pktLen)
-		case pktLen == 0: // Do not count empty packets as protobuf
-			setValueSize(u.packetSizeEmptyErr, pktLen)
 		default: // assume Protobuf, it is too flexible, many wrong packets will be accounted for here
 			for len(pkt) > 0 {
 				var err error

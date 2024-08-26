@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -204,7 +205,7 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 	mi.MapStringTopBytes(str, totalCount).ApplyUnique(hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, histogram []tlstatshouse.Centroid, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
@@ -213,10 +214,13 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, valu
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	totalCount := float64(len(values))
-	if count != 0 {
-		totalCount = count
+	for _, kv := range histogram {
+		totalCount += kv.Count // all counts are validated to be >= 0
 	}
-	mi.MapStringTopBytes(str, totalCount).ApplyValues(values, count, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
+	if count == 0 {
+		count = totalCount
+	}
+	mi.MapStringTopBytes(str, totalCount).ApplyValues(values, histogram, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
 func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {

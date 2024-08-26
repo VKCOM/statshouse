@@ -619,8 +619,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
-	if len(m.Value) != 0 {
-		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+	if len(m.Histogram) != 0 || len(m.Value) != 0 {
+		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if m.Counter > 0 {

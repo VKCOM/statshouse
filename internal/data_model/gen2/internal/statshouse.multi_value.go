@@ -17,15 +17,15 @@ type StatshouseMultiValue struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin          float64              // Conditional: nat_fields_mask.3
-	ValueMax          float64              // Conditional: nat_fields_mask.4
-	ValueSum          float64              // Conditional: nat_fields_mask.4
-	ValueSumSquare    float64              // Conditional: nat_fields_mask.4
-	Uniques           string               // Conditional: nat_fields_mask.5
-	Centroids         []StatshouseCentroid // Conditional: nat_fields_mask.6
-	MaxHostTag        int32                // Conditional: nat_fields_mask.7
-	MinHostTag        int32                // Conditional: nat_fields_mask.8
-	MaxCounterHostTag int32                // Conditional: nat_fields_mask.9
+	ValueMin          float64                   // Conditional: nat_fields_mask.3
+	ValueMax          float64                   // Conditional: nat_fields_mask.4
+	ValueSum          float64                   // Conditional: nat_fields_mask.4
+	ValueSumSquare    float64                   // Conditional: nat_fields_mask.4
+	Uniques           string                    // Conditional: nat_fields_mask.5
+	Centroids         []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
+	MaxHostTag        int32                     // Conditional: nat_fields_mask.7
+	MinHostTag        int32                     // Conditional: nat_fields_mask.8
+	MaxCounterHostTag int32                     // Conditional: nat_fields_mask.9
 }
 
 func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
@@ -153,7 +153,7 @@ func (item StatshouseMultiValue) IsSetUniques(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<5) != 0
 }
 
-func (item *StatshouseMultiValue) SetCentroids(v []StatshouseCentroid, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValue) SetCentroids(v []StatshouseCentroidFloat, nat_fields_mask *uint32) {
 	item.Centroids = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 6
@@ -274,7 +274,7 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 		item.Uniques = ""
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidFloatRead(w, &item.Centroids); err != nil {
 			return w, err
 		}
 	} else {
@@ -329,7 +329,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) []byte
 		w = basictl.StringWrite(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		w = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWrite(w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.IntWrite(w, item.MaxHostTag)
@@ -458,7 +458,7 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if nat_fields_mask&(1<<6) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
@@ -581,7 +581,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames, short, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -605,15 +605,15 @@ type StatshouseMultiValueBytes struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin          float64              // Conditional: nat_fields_mask.3
-	ValueMax          float64              // Conditional: nat_fields_mask.4
-	ValueSum          float64              // Conditional: nat_fields_mask.4
-	ValueSumSquare    float64              // Conditional: nat_fields_mask.4
-	Uniques           []byte               // Conditional: nat_fields_mask.5
-	Centroids         []StatshouseCentroid // Conditional: nat_fields_mask.6
-	MaxHostTag        int32                // Conditional: nat_fields_mask.7
-	MinHostTag        int32                // Conditional: nat_fields_mask.8
-	MaxCounterHostTag int32                // Conditional: nat_fields_mask.9
+	ValueMin          float64                   // Conditional: nat_fields_mask.3
+	ValueMax          float64                   // Conditional: nat_fields_mask.4
+	ValueSum          float64                   // Conditional: nat_fields_mask.4
+	ValueSumSquare    float64                   // Conditional: nat_fields_mask.4
+	Uniques           []byte                    // Conditional: nat_fields_mask.5
+	Centroids         []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
+	MaxHostTag        int32                     // Conditional: nat_fields_mask.7
+	MinHostTag        int32                     // Conditional: nat_fields_mask.8
+	MaxCounterHostTag int32                     // Conditional: nat_fields_mask.9
 }
 
 func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
@@ -741,7 +741,7 @@ func (item StatshouseMultiValueBytes) IsSetUniques(nat_fields_mask uint32) bool 
 	return nat_fields_mask&(1<<5) != 0
 }
 
-func (item *StatshouseMultiValueBytes) SetCentroids(v []StatshouseCentroid, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValueBytes) SetCentroids(v []StatshouseCentroidFloat, nat_fields_mask *uint32) {
 	item.Centroids = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 6
@@ -862,7 +862,7 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 		item.Uniques = item.Uniques[:0]
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidFloatRead(w, &item.Centroids); err != nil {
 			return w, err
 		}
 	} else {
@@ -917,7 +917,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) [
 		w = basictl.StringWriteBytes(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		w = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWrite(w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.IntWrite(w, item.MaxHostTag)
@@ -1046,7 +1046,7 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if nat_fields_mask&(1<<6) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
@@ -1169,7 +1169,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames, short, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
