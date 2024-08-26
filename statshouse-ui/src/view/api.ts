@@ -39,7 +39,6 @@ export interface queryResult {
   readonly series: querySeries;
   readonly receive_errors: number;
   readonly receive_warnings: number;
-  readonly receive_errors_legacy: number;
   readonly sampling_factor_src: number;
   readonly sampling_factor_agg: number;
   readonly mapping_errors: number;
