@@ -274,6 +274,9 @@ func (p *SamplingMultiItemPair) discard(sf float64, h *sampler) {
 }
 
 func (h *sampler) sample(g samplerGroup) {
+	if len(g.items) == 0 {
+		return
+	}
 	sfNum := g.budgetDenom * g.sumSize
 	sfDenom := g.budget
 	if sfNum < 1 {
@@ -301,29 +304,28 @@ func (h *sampler) sample(g samplerGroup) {
 		})
 	}
 	// keep whales
-	//
-	// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
-	// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
-	// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
-	var (
-		items = g.items
-		pos   = int(int64(len(items)) * sfDenom / sfNum / 2) // len(items) / sf / 2
-	)
-	if pos > 0 {
-		if pos > len(items) { // should always hold but checking is cheap
-			pos = len(items)
+	items := g.items
+	if !items[0].metric.NoWhales {
+		// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
+		// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
+		// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
+		pos := int(int64(len(items)) * sfDenom / sfNum / 2) // len(items) / sf / 2
+		if pos > 0 {
+			if pos > len(items) { // should always hold but checking is cheap
+				pos = len(items)
+			}
+			sort.Slice(items, func(i, j int) bool {
+				return items[i].WhaleWeight > items[j].WhaleWeight
+			})
+			for i := 0; i < pos; i++ {
+				items[i].keep(1, h)
+			}
+			items = items[pos:]
+			sf *= 2 // space has been taken by whales
 		}
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].WhaleWeight > items[j].WhaleWeight
-		})
-		for i := 0; i < pos; i++ {
-			items[i].keep(1, h)
-		}
-		items = items[pos:]
-		sf *= 2 // space has been taken by whales
 	}
-	// sample tail
-	pos = h.SelectF(items, sf, h.Rand)
+	// sample remaining
+	pos := h.SelectF(items, sf, h.Rand)
 	for i := 0; i < pos; i++ {
 		items[i].keep(sf, h)
 	}

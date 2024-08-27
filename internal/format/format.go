@@ -227,6 +227,7 @@ type MetricMetaValue struct {
 	SkipMinHost          bool                     `json:"skip_min_host,omitempty"`
 	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
+	NoWhales             bool                     `json:"no_whales,omitempty"` // "whales" sampling algorithm disabled
 	MetricType           string                   `json:"metric_type"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 
