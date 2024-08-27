@@ -91,7 +91,12 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, envLoa
 	if err != nil {
 		return nil, err
 	}
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats} // TODO add modules
+	gcStats, err := NewGoStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats, gcStats} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {

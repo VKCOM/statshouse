@@ -128,6 +128,7 @@ const (
 	BuiltinMetricIDAPIBufferBytesTotal        = -106
 	BuiltinMetricIDAutoCreateMetric           = -107
 	BuiltinMetricIDRestartTimings             = -108
+	BuiltinMetricIDGCDuration                 = -109
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -176,6 +177,7 @@ const (
 	BuiltinMetricAPIBufferBytesAlloc            = "__api_buffer_bytes_alloc"
 	BuiltinMetricAPIBufferBytesFree             = "__api_buffer_bytes_free"
 	BuiltinMetricAPIBufferBytesTotal            = "__api_buffer_bytes_total"
+	BuiltinMetricNameGCDuration                 = "__gc_duration"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -364,6 +366,7 @@ const (
 	TagValueIDSystemMetricProtocols = 7
 	TagValueIDSystemMetricVMStat    = 8
 	TagValueIDSystemMetricDMesgStat = 9
+	TagValueIDSystemMetricGCStats   = 10
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
@@ -1686,6 +1689,7 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDSystemMetricProtocols: "protocols",
 					TagValueIDSystemMetricVMStat:    "vmstat",
 					TagValueIDSystemMetricDMesgStat: "dmesg",
+					TagValueIDSystemMetricGCStats:   "gc",
 				}),
 			}},
 		},
@@ -2182,6 +2186,19 @@ Value is delta between second value and time it was inserted.`,
 				Description: "-",
 			}},
 		},
+		BuiltinMetricIDGCDuration: {
+			Name:        BuiltinMetricNameGCDuration,
+			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
+			Description: "Count - number of GC, Value - time spent to gc",
+			Tags: []MetricMetaTag{{
+				Description: "-", // reserved for host
+			},
+				{
+					Description:   "component",
+					ValueComments: convertToValueComments(componentToValue),
+				}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2221,6 +2238,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesFree:         true,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
 		BuiltinMetricIDAutoCreateMetric:           true,
+		BuiltinMetricIDGCDuration:                 true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2333,6 +2351,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesFree:         true,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
 		BuiltinMetricIDRestartTimings:             true,
+		BuiltinMetricIDGCDuration:                 true,
 	}
 
 	insertKindToValue = map[int32]string{

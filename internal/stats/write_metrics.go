@@ -16,11 +16,13 @@ type MetricWriter interface {
 	WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32)
 	WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32)
 	WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32)
+	WriteSystemMetricCountValueWithoutHost(nowUnix int64, name string, count, value float64, tagsList ...int32)
 
 	WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag)
 	WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag)
 }
 
+// Golang StatsHouse library cannot fulfill all of our requirements in this case
 type MetricWriterRemoteImpl struct {
 	HostName  string
 	envLoader *env.Loader
@@ -115,6 +117,12 @@ func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValue(nowUnix int64, name
 	statshouse.Metric(name, tags).Value(value)
 }
 
+func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValueWithoutHost(nowUnix int64, name string, count, value float64, tagsList ...int32) {
+	tags := buildTags(false, tagsList...)
+	statshouse.Metric(name, tags).Value(value)
+	statshouse.Metric(name, tags).Count(count)
+}
+
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(false, tagsList...)
 	statshouse.Metric(name, tags).Value(value)
@@ -190,6 +198,14 @@ func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name str
 func (p *MetricWriterSHImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	m := p.metric
 	fillCommonMetric(p, m, false, name, nowUnix, tagsList...)
+	m.Value = append(m.Value, value)
+	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
+}
+
+func (p *MetricWriterSHImpl) WriteSystemMetricCountValueWithoutHost(nowUnix int64, name string, count, value float64, tagsList ...int32) {
+	m := p.metric
+	fillCommonMetric(p, m, false, name, nowUnix, tagsList...)
+	m.Counter = count
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: m})
 }
