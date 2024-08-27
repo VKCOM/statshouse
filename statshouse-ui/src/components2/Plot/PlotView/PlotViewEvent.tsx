@@ -27,6 +27,7 @@ import css from './style.module.css';
 import { incrs } from './constants';
 import { PlotEvents } from './PlotEvents';
 import uPlot from 'uplot';
+import { useLiveModeStore } from '../../../store2/liveModeStore';
 
 const rightPad = 16;
 const threshold = buildThresholdList(1);
@@ -38,6 +39,7 @@ const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
 
 export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
+  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
 
@@ -63,7 +65,6 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
     setPlotVisibility,
     setPlotYLock,
     setTimeRange,
-    setLiveMode,
     createPlotPreview,
 
     resetZoom,
@@ -78,7 +79,6 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
       setPlotVisibility,
       setPlotYLock,
       setTimeRange,
-      setLiveMode,
       createPlotPreview,
       resetZoom,
     }) => {
@@ -108,7 +108,6 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
         setPlotVisibility,
         setPlotYLock,
         setTimeRange,
-        setLiveMode,
         createPlotPreview,
         resetZoom,
       };

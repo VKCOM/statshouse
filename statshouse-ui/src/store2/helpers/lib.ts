@@ -6,8 +6,8 @@
 
 import { type PlotParams, promQLMetric } from 'url2';
 import { type PlotData } from '../plotDataStore';
-import { whatToWhatDesc } from '../../view/api';
 import { MetricMeta } from '../metricsMetaStore';
+import { whatToWhatDesc } from '../../view/whatToWhatDesc';
 
 export function getMetricName(plot?: PlotParams, plotData?: PlotData) {
   if (!plot) {

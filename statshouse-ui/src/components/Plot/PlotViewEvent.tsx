@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { now, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
 import {
@@ -43,6 +43,7 @@ import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../
 import { METRIC_TYPE } from '../../api/enum';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import css from './style.module.css';
+import { promQLMetric } from '../../view/promQLMetric';
 
 const unFocusAlfa = 1;
 const rightPad = 16;

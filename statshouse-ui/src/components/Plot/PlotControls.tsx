@@ -11,7 +11,6 @@ import {
   getTagDescription,
   getTimeShifts,
   isTagEnabled,
-  promQLMetric,
   timeShiftAbbrevExpand,
 } from '../../view/utils';
 import {
@@ -33,7 +32,7 @@ import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import { setUpdatedTag, Store, useStore, useVariableListStore } from '../../store';
 import { globalSettings } from '../../common/settings';
-import { filterHasTagID, metricKindToWhat, whatToWhatDesc } from '../../view/api';
+import { filterHasTagID, metricKindToWhat } from '../../view/api';
 import { produce } from 'immer';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
@@ -46,6 +45,8 @@ import { dequal } from 'dequal/lite';
 import { PlotControlAggregation } from './PlotControlAggregation';
 import { isNotNil, parseURLSearchParams, toNumber } from '../../common/helpers';
 import { PlotControlView } from './PlotControlView';
+import { promQLMetric } from '../../view/promQLMetric';
+import { whatToWhatDesc } from '../../view/whatToWhatDesc';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 

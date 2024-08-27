@@ -11,18 +11,19 @@ import { ReactComponent as SVGExclamationTriangleFill } from 'bootstrap-icons/ic
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { useStatsHouseShallow } from '../../../store2';
 import cn from 'classnames';
+import { useLiveModeStore } from '../../../store2/liveModeStore';
 
 export type PlotHealsStatusProps = {
   className?: string;
   plotKey: PlotKey;
 };
 export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
-  const { lastError, plotHealsTimeout, interval, loader, clearPlotError, loadPlotData } = useStatsHouseShallow(
-    ({ plotsData, plotHeals, liveMode, clearPlotError, loadPlotData }) => ({
+  const interval = useLiveModeStore(({ liveMode: { interval } }) => interval);
+  const { lastError, plotHealsTimeout, loader, clearPlotError, loadPlotData } = useStatsHouseShallow(
+    ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({
       lastError: plotsData[plotKey]?.error,
       loader: (plotsData[plotKey]?.numQueries ?? 0) > 0,
       plotHealsTimeout: plotHeals[plotKey]?.timeout,
-      interval: liveMode.interval,
       clearPlotError,
       loadPlotData,
     })

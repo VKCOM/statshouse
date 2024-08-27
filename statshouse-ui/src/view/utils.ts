@@ -8,7 +8,7 @@ import React from 'react';
 import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
-import { DashboardInfo, metricTagValueInfo, RawValueKind, whatToWhatDesc } from './api';
+import { DashboardInfo, metricTagValueInfo, RawValueKind } from './api';
 import { type UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
@@ -31,10 +31,11 @@ import {
 import { globalSettings } from '../common/settings';
 import { formatFixed } from '../common/formatFixed';
 import { formatFixedFloor } from '../common/formatFixedFloor';
+import { promQLMetric } from './promQLMetric';
+import { whatToWhatDesc } from './whatToWhatDesc';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
-export const promQLMetric = '~';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(n, max));
