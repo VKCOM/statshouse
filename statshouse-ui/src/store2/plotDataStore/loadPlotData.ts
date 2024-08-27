@@ -85,13 +85,15 @@ export async function loadPlotData(
         state.plotsData[plotKey] = {
           ...getEmptyPlotData(),
           error403: error.toString(),
+          lastHeals: false,
         };
       };
     } else if (error.name !== 'AbortError') {
       return (state) => {
         if (state.plotsData[plotKey]) {
           state.plotsData[plotKey]!.error = error.toString();
-          state.setPlotHeal(plotKey, false);
+          state.plotsData[plotKey]!.lastHeals = false;
+          // state.setPlotHeal(plotKey, false);
         }
         //if (resetCache) {
         //                   state.plotsData[index] = {
@@ -114,9 +116,14 @@ export async function loadPlotData(
     };
     return (state) => {
       state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
+      state.plotsData[plotKey]!.lastHeals = true;
       if (metricMeta?.name) {
         state.metricMeta[metricMeta.name] = metricMeta;
       }
+      if (state.plotHeals[plotKey]?.status) {
+        state.plotsData[plotKey]!.error = '';
+      }
+      // state.setPlotHeal(plotKey, true);
     };
   }
   return null;
