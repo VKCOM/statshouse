@@ -20,7 +20,6 @@ type (
 	AddMetricsBatchBytes              = internal.StatshouseAddMetricsBatchBytes
 	AutoCreate                        = internal.StatshouseAutoCreate
 	AutoCreateBytes                   = internal.StatshouseAutoCreateBytes
-	Centroid                          = internal.StatshouseCentroid
 	CentroidFloat                     = internal.StatshouseCentroidFloat
 	CommonProxyHeader                 = internal.StatshouseCommonProxyHeader
 	CommonProxyHeaderBytes            = internal.StatshouseCommonProxyHeaderBytes

@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"fmt"
+	"runtime/debug"
 	"testing"
 )
 
@@ -16,4 +18,27 @@ func Benchmark_B(t *testing.B) {
 			panic(err)
 		}
 	}
+}
+
+var test []byte
+
+/*
+Benchmark_GC-10    	23858916	        69.53 ns/op
+*/
+func Benchmark_GC(t *testing.B) {
+	alloc := 1000
+	stats := debug.GCStats{}
+	for i := 0; i < t.N; i++ {
+		if i%1000 == 0 {
+			t.StopTimer()
+			for j := 0; j < alloc; j++ {
+				test = make([]byte, 1)
+			}
+			t.StartTimer()
+		}
+		debug.ReadGCStats(&stats)
+	}
+	fmt.Println(stats)
+	fmt.Println(test)
+
 }

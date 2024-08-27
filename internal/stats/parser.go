@@ -21,12 +21,12 @@ type either[a, b any] struct {
 	right  b
 }
 
-const debug = false
+const debug_mode = false
 
 var errParse = fmt.Errorf("parse error")
 
 func errMsg(err error, input []byte) error {
-	if debug {
+	if debug_mode {
 		return errors.WithStack(fmt.Errorf("%w, %s", err, string(input)))
 	}
 	return err
