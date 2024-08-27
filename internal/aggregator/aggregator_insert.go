@@ -459,7 +459,17 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		item.Tail.Value.AddValue(v.Budget())
 		insertItem(key, &item, 1, buckets[0].time)
 	}
-
+	// report sampling engine time
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 1, 0, 0, historicTag}),
+		float64(sampler.TimeAppend()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 2, 0, 0, historicTag}),
+		float64(sampler.TimePartition()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 3, 0, 0, historicTag}),
+		float64(sampler.TimeBudgeting()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 4, 0, 0, historicTag}),
+		float64(sampler.TimeSampling()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [16]int32{0, 0, 0, 0, historicTag}),
+		float64(sampler.ItemCount()), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	// report budget used
 	budgetKey := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, historicTag})
 	budgetItem := data_model.MultiItem{}

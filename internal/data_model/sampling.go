@@ -9,6 +9,7 @@ package data_model
 import (
 	"math"
 	"sort"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -81,6 +82,12 @@ type (
 		MetricCount        int
 		MetricGroups       []samplerGroup
 		SampleFactors      []tlstatshouse.SampleFactor
+
+		timeStart     time.Time
+		timePartition time.Time
+		timeBudgeting time.Time
+		timeSampling  time.Duration
+		timeEnd       time.Time
 	}
 )
 
@@ -97,6 +104,7 @@ func NewSampler(capacity int, config SamplerConfig) sampler {
 		config.SelectF = selectRandom
 	}
 	h := sampler{
+		timeStart:     time.Now(),
 		SamplerConfig: config,
 		items:         make([]SamplingMultiItemPair, 0, capacity),
 		partF:         make([]partitionFunc, 0, 3),
@@ -145,6 +153,7 @@ func (h *sampler) Run(budget int64) {
 		return
 	}
 	// partition by group/metric/key
+	h.timePartition = time.Now()
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
 		if lhs.metric.NamespaceID != rhs.metric.NamespaceID {
@@ -184,6 +193,7 @@ func (h *sampler) Run(budget int64) {
 		budget:      budget,
 	}
 	// run sampling
+	h.timeBudgeting = time.Now()
 	h.run(h.currentGroup)
 	// finalize "MetricGroups"
 	h.MetricGroups = append(h.MetricGroups, h.currentGroup)
@@ -199,10 +209,31 @@ func (h *sampler) Run(budget int64) {
 			SumSizeDiscard: h.sumSizeDiscard,
 		})
 	}
+	h.timeEnd = time.Now()
 }
 
 func (h *sampler) KeepBuiltin(p SamplingMultiItemPair) {
 	h.sumSizeKeepBuiltin.AddValue(float64(p.Size))
+}
+
+func (h *sampler) ItemCount() int {
+	return len(h.items)
+}
+
+func (h *sampler) TimeAppend() float64 {
+	return h.timePartition.Sub(h.timeStart).Seconds()
+}
+
+func (h *sampler) TimePartition() float64 {
+	return h.timeBudgeting.Sub(h.timePartition).Seconds()
+}
+
+func (h *sampler) TimeBudgeting() float64 {
+	return (h.timeEnd.Sub(h.timeBudgeting) - h.timeSampling).Seconds()
+}
+
+func (h *sampler) TimeSampling() float64 {
+	return h.timeSampling.Seconds()
 }
 
 func (h *sampler) run(g samplerGroup) {
@@ -277,6 +308,8 @@ func (h *sampler) sample(g samplerGroup) {
 	if len(g.items) == 0 {
 		return
 	}
+	timeStart := time.Now()
+	defer func() { h.timeSampling += time.Since(timeStart) }()
 	sfNum := g.budgetDenom * g.sumSize
 	sfDenom := g.budget
 	if sfNum < 1 {
