@@ -17,6 +17,7 @@ import { updateClearPlotError } from './updateClearPlotError';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { dequal } from 'dequal/lite';
 import { changePlotParamForData } from './changePlotParamForData';
+import { useLiveModeStore } from '../liveModeStore';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -141,12 +142,16 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const prevPlotData = getState().plotsData[plotKey];
       const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
       if (!force) {
-        const liveSkip = getState().liveMode.status && !!prevPlotData?.numQueries;
+        const liveSkip = useLiveModeStore.getState().liveMode.status && !!prevPlotData?.numQueries;
         const visible = getState().plotVisibilityList[plotKey] || getState().plotPreviewList[plotKey];
         if (liveSkip || !visible) {
           // console.log('skip', plotKey, { liveSkip, visible });
           return;
         }
+      }
+      const plotHeal = getState().isPlotHeal(plotKey);
+      if (!plotHeal) {
+        return;
       }
       const changeMetricName = plot?.metricName !== prevPlot?.metricName;
       if (!changeMetricName && prevPlotData?.error403) {

@@ -16,7 +16,7 @@ import {
 } from 'url2';
 import { type StoreSlice } from '../createStore';
 import { appHistory } from 'common/appHistory';
-import { getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
+import { getAbbrev, getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
 import { mergeLeft } from 'common/helpers';
 import { getUrlState } from './getUrlState';
 import { type StatsHouseStore } from '../statsHouseStore';
@@ -37,13 +37,14 @@ import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { updateTitle } from './updateTitle';
+import { defaultBaseRange } from '../constants';
 
 export type UrlStore = {
   params: QueryParams;
   saveParams: QueryParams;
   isEmbed: boolean;
   dashboardLayoutEdit: boolean;
-  updateUrlState(): void;
+  updateUrlState(): Promise<void>;
   setUrlStore(next: ProduceUpdate<UrlStore>, replace?: boolean): void;
   setParams(next: ProduceUpdate<QueryParams>, replace?: boolean): void;
   setTimeRange(tr: { from: number; to: number | TimeRangeKeysTo }, replace?: boolean): void;
@@ -150,8 +151,8 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
 
-  function updateUrlState() {
-    getUrlState(getState().saveParams, prevLocation).then((res) => {
+  async function updateUrlState() {
+    return getUrlState(getState().saveParams, prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
         s.params = mergeLeft(s.params, res.params);
@@ -237,7 +238,11 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
 
   const saveParams = getDefaultParams();
   if (isValidPath(prevLocation)) {
-    setTimeout(updateUrlState, 0);
+    setTimeout(() => {
+      updateUrlState().then(() => {
+        getState().setBaseRange(getAbbrev(getState().params.timeRange) || defaultBaseRange);
+      });
+    }, 0);
   }
   return {
     params: saveParams,

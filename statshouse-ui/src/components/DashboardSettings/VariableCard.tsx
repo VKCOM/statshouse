@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { produce } from 'immer';
-import { getMetricFullName, isValidVariableName, promQLMetric } from '../../view/utils';
+import { getMetricFullName, isValidVariableName } from '../../view/utils';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PlotStore } from '../../store';
 import { MetricMetaValue } from '../../api/metric';
@@ -21,6 +21,7 @@ import { PlotParams, toPlotKey, VariableParams, VariableParamsSource } from '../
 import { TAG_KEY, TagKey } from '../../api/enum';
 import { VariableSource } from './VariableSource';
 import { currentAccessInfo } from '../../common/access';
+import { promQLMetric } from '../../view/promQLMetric';
 
 export type VariableCardProps = {
   indexVariable: number;

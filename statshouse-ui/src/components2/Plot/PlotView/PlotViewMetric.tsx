@@ -34,6 +34,7 @@ import { PlotEventOverlay } from './PlotEventOverlay';
 import { type PlotValues } from 'store2/plotDataStore';
 import { useThemeStore } from 'store';
 import { incrs } from './constants';
+import { useLiveModeStore } from '../../../store2/liveModeStore';
 
 const rightPad = 16;
 const threshold = buildThresholdList(1);
@@ -45,6 +46,7 @@ const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
 
 export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
+  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
     numSeries,
@@ -69,7 +71,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     setPlotVisibility,
     setPlotYLock,
     setTimeRange,
-    setLiveMode,
     createPlotPreview,
     setPlotShow,
     resetZoom,
@@ -83,7 +84,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
       setPlotVisibility,
       setPlotYLock,
       setTimeRange,
-      setLiveMode,
       createPlotPreview,
       setPlotShow,
       resetZoom,
@@ -115,7 +115,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         setPlotVisibility,
         setPlotYLock,
         setTimeRange,
-        setLiveMode,
         createPlotPreview,
         setPlotShow,
         resetZoom,

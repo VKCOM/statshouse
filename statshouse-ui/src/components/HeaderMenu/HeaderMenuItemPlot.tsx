@@ -20,15 +20,15 @@ import {
   useStore,
 } from '../../store';
 import { PlotLink } from '../Plot/PlotLink';
-import { whatToWhatDesc } from '../../view/api';
 
 import cn from 'classnames';
 import css from './style.module.css';
-import { promQLMetric } from '../../view/utils';
 import { shallow } from 'zustand/shallow';
 import { PLOT_TYPE } from '../../url/queryParams';
 import { buildThresholdList, useIntersectionObserver } from '../../hooks';
 import { Popper, Tooltip } from '../UI';
+import { promQLMetric } from '../../view/promQLMetric';
+import { whatToWhatDesc } from '../../view/whatToWhatDesc';
 
 const threshold = buildThresholdList(1);
 

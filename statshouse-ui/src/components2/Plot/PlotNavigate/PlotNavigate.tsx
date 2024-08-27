@@ -12,7 +12,6 @@ import { ReactComponent as SVGZoomOut } from 'bootstrap-icons/icons/zoom-out.svg
 import { ReactComponent as SVGMap } from 'bootstrap-icons/icons/map.svg';
 import { ReactComponent as SVGLock } from 'bootstrap-icons/icons/lock.svg';
 import { ReactComponent as SVGUnlock } from 'bootstrap-icons/icons/unlock.svg';
-import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
 import { ReactComponent as SVGLink } from 'bootstrap-icons/icons/link.svg';
 import { ReactComponent as SVGTable } from 'bootstrap-icons/icons/table.svg';
 import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
@@ -26,19 +25,17 @@ import { useStatsHouseShallow } from 'store2';
 import { isPromQL } from 'store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
-import { useLinkPlot } from '../../../hooks/useLinkPlot';
-import { useSingleLinkPlot } from '../../../hooks/useSingleLinkPlot';
+import { useSingleLinkPlot } from 'hooks';
+import { useLiveModeStore } from 'store2/liveModeStore';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
   className?: string;
 };
 export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className }) => {
+  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     plot,
-    // singleLink,
-    // dashboardOuterLink,
-    setLiveMode,
     timeRangePanLeft,
     timeRangePanRight,
     timeRangeZoomIn,
@@ -49,8 +46,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
   } = useStatsHouseShallow(
     ({
       params: { plots },
-      // links: { plotsLink, dashboardOuterLink },
-      setLiveMode,
       timeRangePanLeft,
       timeRangePanRight,
       timeRangeZoomIn,
@@ -60,9 +55,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
       setPlotYLock,
     }) => ({
       plot: plotKey && plots[plotKey],
-      // singleLink: plotsLink[plotKey]?.singleLink,
-      // dashboardOuterLink,
-      setLiveMode,
       timeRangePanLeft,
       timeRangePanRight,
       timeRangeZoomIn,
@@ -73,9 +65,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
     })
   );
   const singleLink = useSingleLinkPlot(plotKey ?? '-1', true);
-  // const plot = useUrlStore((s) => s.params.plots[plotKey]);
-  // const singleLink = usePlotsInfoStore((s) => s.plotsInfo[plotKey]?.outerLink);
-  // const { live, disabledLive } = useLiveModeStore(useShallow((s) => ({ live: s.live, disabledLive: s.disabled })));
   const panLeft = useCallback(() => {
     setLiveMode(false);
     timeRangePanLeft();

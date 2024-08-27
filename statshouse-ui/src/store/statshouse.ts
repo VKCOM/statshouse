@@ -28,7 +28,6 @@ import {
   queryTableRow,
   queryTableURL,
   queryURL,
-  whatToWhatDesc,
 } from '../view/api';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
@@ -45,7 +44,6 @@ import {
   now,
   paramToVariable,
   plotLoadPrioritySort,
-  promQLMetric,
   readJSONLD,
   replaceVariable,
   sortByKey,
@@ -94,6 +92,8 @@ import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
 import { addStatus, removePlotHeals, resortPlotHeals, skipRequestPlot, usePlotHealsStore } from './plot/plotHealsStore';
 import { formatByMetricType, getMetricType } from '../common/formatByMetricType';
 import { dashboardURL } from '../view/dashboardURL';
+import { promQLMetric } from '../view/promQLMetric';
+import { whatToWhatDesc } from '../view/whatToWhatDesc';
 
 export type PlotStore = {
   nameMetric: string;

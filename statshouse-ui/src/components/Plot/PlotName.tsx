@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import cn from 'classnames';
 import { PlotParams } from '../../url/queryParams';
 import { PlotStore } from '../../store';
-import { promQLMetric } from '../../view/utils';
-import { whatToWhatDesc } from '../../view/api';
+import { promQLMetric } from '../../view/promQLMetric';
+import { whatToWhatDesc } from '../../view/whatToWhatDesc';
 
 export type PlotNameProps = {
   plot: PlotParams;
