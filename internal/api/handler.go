@@ -965,11 +965,7 @@ func (h *Handler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version
 }
 
 func formValueParamMetric(r *http.Request) string {
-	const formerBuiltin = "__builtin_" // we renamed builtin metrics, removing prefix
 	str := r.FormValue(ParamMetric)
-	if strings.HasPrefix(str, formerBuiltin) {
-		str = "__" + str[len(formerBuiltin):]
-	}
 	ns := r.FormValue(ParamNamespace)
 	return mergeMetricNamespace(ns, str)
 }
@@ -3440,11 +3436,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		case ParamFromTime:
 			t.strFrom = first(v)
 		case ParamMetric:
-			const formerBuiltin = "__builtin_" // we renamed builtin metrics, removing prefix
 			name := first(v)
-			if strings.HasPrefix(name, formerBuiltin) {
-				name = "__" + name[len(formerBuiltin):]
-			}
 			ns := r.FormValue(ParamNamespace)
 			t.metricName = mergeMetricNamespace(ns, name)
 		case ParamNumResults:
