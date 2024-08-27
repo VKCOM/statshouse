@@ -23,6 +23,7 @@ export function getEmptyPlotData(): PlotData {
     plotAgg: autoAgg,
     showMetricName: '',
     metricUnit: METRIC_TYPE.none,
+    lastHeals: true,
     error: '',
     error403: '',
     errorSkipCount: 0,

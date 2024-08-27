@@ -54,6 +54,7 @@ export type PlotData = {
   plotAgg: string;
   showMetricName: string;
   metricUnit: MetricType;
+  lastHeals: boolean;
   error: string;
   error403?: string;
   errorSkipCount: number;
@@ -149,15 +150,19 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           return;
         }
       }
+
       const plotHeal = getState().isPlotHeal(plotKey);
       if (!plotHeal) {
+        // console.log('skip heal');
         return;
       }
+
       const changeMetricName = plot?.metricName !== prevPlot?.metricName;
       if (!changeMetricName && prevPlotData?.error403) {
         // console.log('exit 1', plotKey);
         return;
       }
+
       if (getState().params.tabNum === plotKey) {
         getState().loadMetricMetaByPlotKey(plotKey).then();
       }
@@ -190,6 +195,17 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           .then((updatePlotData) => {
             if (updatePlotData) {
               setState(updatePlotData);
+              getState().setPlotHeal(plotKey, !!getState().plotsData[plotKey]?.lastHeals);
+              if (!getState().plotsData[plotKey]?.lastHeals && changePlotParam) {
+                setState((state) => {
+                  state.plotsData[plotKey] = {
+                    ...getEmptyPlotData(),
+                    error: state.plotsData[plotKey]?.error || '',
+                    error403: state.plotsData[plotKey]?.error403,
+                    lastHeals: false,
+                  };
+                });
+              }
             }
           })
           .finally(() => {
