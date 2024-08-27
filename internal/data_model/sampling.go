@@ -305,7 +305,7 @@ func (h *sampler) sample(g samplerGroup) {
 	}
 	// keep whales
 	items := g.items
-	if !items[0].metric.NoWhales {
+	if !items[0].metric.WhalesOff {
 		// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
 		// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
 		// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.

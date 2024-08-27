@@ -227,7 +227,6 @@ type MetricMetaValue struct {
 	SkipMinHost          bool                     `json:"skip_min_host,omitempty"`
 	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
-	NoWhales             bool                     `json:"no_whales,omitempty"` // "whales" sampling algorithm disabled
 	MetricType           string                   `json:"metric_type"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 
@@ -241,6 +240,7 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
+	WhalesOff           bool                     `json:"-"` // "whales" sampling algorithm disabled
 	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
 
 	GroupID int32 `json:"-"`
@@ -458,6 +458,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
+	m.WhalesOff = strings.Contains(m.Description, "__whales_off")                    // Experimental
 	if m.Kind == MetricKindCounter {
 		if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
 			s := m.Description[i+len(HistogramBucketsStartMark):]
