@@ -2309,6 +2309,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSrcSamplingBudget:         true,
 		BuiltinMetricIDSrcSamplingGroupBudget:    true,
 		BuiltinMetricIDRestartTimings:            true,
+		BuiltinMetricIDGCDuration:                true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
