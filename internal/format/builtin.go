@@ -714,6 +714,9 @@ Count is number of such seconds waiting.`,
 			}, {
 				Description:   "aggregator_role",
 				ValueComments: convertToValueComments(aggregatorRoleToValue),
+			}, {
+				Description:   "route",
+				ValueComments: convertToValueComments(routeToValue),
 			}},
 		},
 		BuiltinMetricIDAggBucketAggregateTimeSec: {
@@ -949,6 +952,9 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description:   "aggregator_role",
 				ValueComments: convertToValueComments(aggregatorRoleToValue),
+			}, {
+				Description:   "route",
+				ValueComments: convertToValueComments(routeToValue),
 			}},
 		},
 		BuiltinMetricIDAggInsertSizeReal: {
@@ -2213,6 +2219,9 @@ Value is delta between second value and time it was inserted.`,
 			}, {
 				Description:   "aggregator_role",
 				ValueComments: convertToValueComments(aggregatorRoleToValue),
+			}, {
+				Description:   "route",
+				ValueComments: convertToValueComments(routeToValue),
 			}},
 		},
 	}

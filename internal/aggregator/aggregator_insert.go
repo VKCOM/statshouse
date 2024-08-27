@@ -433,7 +433,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	// budget at t2 is bigger because unused budget from t1 was transferred to t2
 	numContributors := 0
 	for _, b := range buckets {
-		numContributors += int(b.contributorsOriginal.Counter + b.contributorsSpare.Counter)
+		numContributors += int(b.contributorsCount())
 	}
 	resPos := len(res)
 	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(config.InsertBudget*numContributors)
