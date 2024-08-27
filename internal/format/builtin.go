@@ -129,6 +129,7 @@ const (
 	BuiltinMetricIDAutoCreateMetric           = -107
 	BuiltinMetricIDRestartTimings             = -108
 	BuiltinMetricIDGCDuration                 = -109
+	BuiltinMetricIDAggHistoricHostsWaiting    = -110
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -2198,6 +2199,21 @@ Value is delta between second value and time it was inserted.`,
 					Description:   "component",
 					ValueComments: convertToValueComments(componentToValue),
 				}},
+		},
+		BuiltinMetricIDAggHistoricHostsWaiting: {
+			Name:        "__agg_historic_hosts_waiting",
+			Kind:        MetricKindValue,
+			Description: "Approximate number of different hosts waiting with historic data.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description:   "aggregator_role",
+				ValueComments: convertToValueComments(aggregatorRoleToValue),
+			}},
 		},
 	}
 

@@ -224,6 +224,8 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 					time:                        args.Time,
 					contributors:                map[*rpc.HandlerContext]struct{}{},
 					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
+					historicHostsOriginal:       map[int32]int64{},
+					historicHostsSpare:          map[int32]int64{},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -270,8 +272,14 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
 	if args.IsSetSpare() {
 		aggBucket.contributorsSpare.AddCounterHost(1, host) // protected by a.mu
+		if args.IsSetHistoric() {
+			a.historicHostsSpare[host]++
+		}
 	} else {
 		aggBucket.contributorsOriginal.AddCounterHost(1, host) // protected by a.mu
+		if args.IsSetHistoric() {
+			a.historicHostsOriginal[host]++
+		}
 	}
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
@@ -351,6 +359,13 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	}
 	for _, m := range usedMetrics {
 		aggBucket.usedMetrics[m] = struct{}{}
+	}
+	if args.IsSetHistoric() {
+		if args.IsSetSpare() {
+			aggBucket.historicHostsSpare[host]++
+		} else {
+			aggBucket.historicHostsOriginal[host]++
+		}
 	}
 	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
