@@ -25,6 +25,13 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
+func bool2int(b bool) int { // freaking golang clowns
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext) error {
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	keyID := hctx.KeyID()
@@ -136,8 +143,9 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	}
 	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
 	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
+	if isRouteProxy {
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
 	var bcStr []byte
@@ -224,8 +232,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 					time:                        args.Time,
 					contributors:                map[*rpc.HandlerContext]struct{}{},
 					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
-					historicHostsOriginal:       map[int32]int64{},
-					historicHostsSpare:          map[int32]int64{},
+					historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -270,16 +277,9 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	if args.IsSetSpare() {
-		aggBucket.contributorsSpare.AddCounterHost(1, host) // protected by a.mu
-		if args.IsSetHistoric() {
-			a.historicHostsSpare[host]++
-		}
-	} else {
-		aggBucket.contributorsOriginal.AddCounterHost(1, host) // protected by a.mu
-		if args.IsSetHistoric() {
-			a.historicHostsOriginal[host]++
-		}
+	aggBucket.contributorsMetric[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)].AddCounterHost(1, host) // protected by a.mu
+	if args.IsSetHistoric() {
+		a.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][host]++
 	}
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
@@ -361,11 +361,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		aggBucket.usedMetrics[m] = struct{}{}
 	}
 	if args.IsSetHistoric() {
-		if args.IsSetSpare() {
-			aggBucket.historicHostsSpare[host]++
-		} else {
-			aggBucket.historicHostsOriginal[host]++
-		}
+		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][host]++
 	}
 	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock

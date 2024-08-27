@@ -50,11 +50,9 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		contributors          map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects
-		historicHostsOriginal map[int32]int64                  // Protected by mu
-		historicHostsSpare    map[int32]int64                  // Protected by mu
-		contributorsOriginal  data_model.ItemValue             // Not recorded for keep-alive, protected by aggregator mutex
-		contributorsSpare     data_model.ItemValue             // Not recorded for keep-alive, protected by aggregator mutex
+		contributors       map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects
+		historicHosts      [2][2]map[int32]int64            // [role][route] Protected by mu
+		contributorsMetric [2][2]data_model.ItemValue       // [role][route] Not recorded for keep-alive, protected by aggregator mutex
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
@@ -94,8 +92,7 @@ type (
 
 		// we potentially have 100+ buckets with 20000+ contributors each,
 		// so we have to maintain a sum of waiting hosts if we want accurate and fast metric.
-		historicHostsOriginal map[int32]int64 // Protected by mu
-		historicHostsSpare    map[int32]int64 // Protected by mu
+		historicHosts [2][2]map[int32]int64 // [role][route] Protected by mu
 
 		recentSenders   int
 		historicSenders int
@@ -208,8 +205,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		cancelInsertsFunc:           cancelInsertFunc,
 		bucketsToSend:               make(chan *aggregatorBucket),
 		historicBuckets:             map[uint32]*aggregatorBucket{},
-		historicHostsOriginal:       map[int32]int64{},
-		historicHostsSpare:          map[int32]int64{},
+		historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 		config:                      config,
 		configR:                     config.ConfigAggregatorRemote,
 		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
@@ -388,6 +384,11 @@ func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, erro
 	return cacheData, nil
 }
 
+func (b *aggregatorBucket) contributorsCount() float64 {
+	return b.contributorsMetric[0][0].Counter + b.contributorsMetric[0][1].Counter +
+		b.contributorsMetric[1][0].Counter + b.contributorsMetric[1][1].Counter
+}
+
 func (b *aggregatorBucket) lockShard(lockedShard *int, sID int) *aggregatorShard {
 	if *lockedShard == sID {
 		return &b.shards[sID]
@@ -430,39 +431,43 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	a.mu.Lock()
 	recentSenders := a.recentSenders
 	historicSends := a.historicSenders
-	var original data_model.ItemValue
-	var spare data_model.ItemValue
-	var original_unique data_model.ItemValue
-	var spare_unique data_model.ItemValue
+	var bucketsWaiting [2][2]data_model.ItemValue
+	var secondsWaiting [2][2]data_model.ItemValue
+	var hostsWaiting [2][2]data_model.ItemValue
 	for _, v := range a.historicBuckets {
-		// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
-		original.AddValueCounterHost(float64(nowUnix-v.time), v.contributorsOriginal.Counter, v.contributorsOriginal.MaxCounterHostTag)
-		spare.AddValueCounterHost(float64(nowUnix-v.time), v.contributorsSpare.Counter, v.contributorsSpare.MaxCounterHostTag)
-		original_unique.AddValueCounterHost(float64(nowUnix-v.time), 1, v.contributorsOriginal.MaxCounterHostTag)
-		spare_unique.AddValueCounterHost(float64(nowUnix-v.time), 1, v.contributorsSpare.MaxCounterHostTag)
+		for i, cc := range v.contributorsMetric {
+			for j, bb := range cc {
+				// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
+				bucketsWaiting[i][j].AddValueCounterHost(float64(nowUnix-v.time), bb.Counter, bb.MaxCounterHostTag)
+				if bb.Counter > 0 {
+					secondsWaiting[i][j].AddValueCounterHost(float64(nowUnix-v.time), 1, bb.MaxCounterHostTag)
+				}
+			}
+		}
 	}
-	var original_hosts data_model.ItemValue
-	var spare_hosts data_model.ItemValue
-	for h := range a.historicHostsOriginal { // random sample host every second is very good for max_host combobox under plot
-		original_hosts.AddValueCounterHost(float64(len(a.historicHostsOriginal)), 1, h)
-		break
-	}
-	for h := range a.historicHostsSpare { // random sample host every second is very good for max_host combobox under plot
-		spare_hosts.AddValueCounterHost(float64(len(a.historicHostsSpare)), 1, h)
-		break
+	for i, cc := range a.historicHosts {
+		for j, bb := range cc {
+			for h := range bb { // random sample host every second is very good for max_host combobox under plot
+				hostsWaiting[i][j].AddValueCounterHost(float64(len(bb)), 1, h)
+				break
+			}
+		}
 	}
 	a.mu.Unlock()
 
-	writeWaiting := func(metricID int32, key4 int32, item *data_model.ItemValue) {
-		key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, key4})
-		a.sh2.MergeItemValue(key, item, nil)
+	writeWaiting := func(metricID int32, item *[2][2]data_model.ItemValue) {
+		tagsRole := [2]int32{format.TagValueIDAggregatorOriginal, format.TagValueIDAggregatorSpare}
+		tagsRoute := [2]int32{format.TagValueIDRouteDirect, format.TagValueIDRouteIngressProxy}
+		for i, cc := range *item {
+			for j, bb := range cc {
+				key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, tagsRole[i], tagsRoute[j]})
+				a.sh2.MergeItemValue(key, &bb, nil)
+			}
+		}
 	}
-	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorOriginal, &original)
-	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorSpare, &spare)
-	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
-	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
-	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.TagValueIDAggregatorOriginal, &original_hosts)
-	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.TagValueIDAggregatorSpare, &spare_hosts)
+	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, &bucketsWaiting)
+	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, &secondsWaiting)
+	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, &hostsWaiting)
 
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
 	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
@@ -579,13 +584,21 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	return 0, 0, nil, fmt.Errorf("HTTP get from clickhouse %q for cluster %q returned body with no local replicas - %q", khAddr, cluster, string(body))
 }
 
-func (a *Aggregator) updateHistoricHostsLocked(my map[int32]int64, del map[int32]int64) {
+func (a *Aggregator) updateHistoricHostLocked(my map[int32]int64, del map[int32]int64) {
 	for k, v := range del {
 		value := my[k] - v
 		if value == 0 {
 			delete(my, k)
 		} else {
 			my[k] = value
+		}
+	}
+}
+
+func (a *Aggregator) updateHistoricHostsLocked(my [2][2]map[int32]int64, del [2][2]map[int32]int64) {
+	for i, m1 := range my {
+		for j, m2 := range m1 {
+			a.updateHistoricHostLocked(m2, del[i][j])
 		}
 	}
 }
@@ -621,7 +634,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
 		a.estimator.ReportHourCardinality(aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 
-		recentContributors := aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter
+		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
 		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + a.config.HistoricInserters)
 		// each historic inserter takes not more than maxHistoricInsertBatch the oldest buckets, so for example with 2 inserters
@@ -642,8 +655,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
 			for _, b := range staleBuckets {
 				b.mu.Lock()
-				hostsOriginal := b.historicHostsOriginal
-				hostsSpare := b.historicHostsSpare
 				for hctx := range b.contributors {
 					hctx.Response, _ = args.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
 					hctx.SendHijackedResponse(nil)
@@ -651,10 +662,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				for hctx := range b.contributors { // compiles into map_clear
 					delete(b.contributors, hctx)
 				}
+				historicHosts := b.historicHosts
 				b.mu.Unlock()
 				a.mu.Lock()
-				a.updateHistoricHostsLocked(a.historicHostsOriginal, hostsOriginal)
-				a.updateHistoricHostsLocked(a.historicHostsSpare, hostsSpare)
+				a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				a.mu.Unlock()
 				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
 				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
@@ -662,7 +673,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			if historicBucket == nil {
 				break
 			}
-			historicContributors += historicBucket.contributorsOriginal.Counter + historicBucket.contributorsSpare.Counter
+			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
 			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
@@ -687,11 +698,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		} else {
 			a.recentSenders--
 		}
-		numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
 		a.mu.Unlock()
 
 		if sendErr != nil {
-			comment := fmt.Sprintf("time=%d (delta = %d), contributors %d Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), numContributors, senderID)
+			comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
 			a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 			log.Print(sendErr)
 			sendErr = rpc.Error{
@@ -702,8 +712,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		for i, b := range aggBuckets {
 			b.mu.Lock()
-			hostsOriginal := b.historicHostsOriginal
-			hostsSpare := b.historicHostsSpare
 			for hctx := range b.contributors {
 				hctx.Response, _ = args.WriteResult(hctx.Response, "Dummy historic result")
 				hctx.SendHijackedResponse(sendErr)
@@ -711,10 +719,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			for hctx := range b.contributors { // compiles into map_clear
 				delete(b.contributors, hctx)
 			}
+			historicHosts := b.historicHosts
 			b.mu.Unlock()
 			a.mu.Lock()
-			a.updateHistoricHostsLocked(a.historicHostsOriginal, hostsOriginal)
-			a.updateHistoricHostsLocked(a.historicHostsSpare, hostsSpare)
+			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
 			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception), dur, 1, 0)
@@ -783,8 +791,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			time:                        nowUnix - uint32(a.config.ShortWindow),
 			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
-			historicHostsOriginal:       map[int32]int64{},
-			historicHostsSpare:          map[int32]int64{},
+			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -793,8 +800,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
 			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
-			historicHostsOriginal:       map[int32]int64{},
-			historicHostsSpare:          map[int32]int64{},
+			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -836,10 +842,13 @@ func (a *Aggregator) goTicker() {
 				a.mu.Unlock()
 			default:
 				a.mu.Unlock()
-				numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
-				err := fmt.Errorf("insert conveyor is full for Bucket time=%d, contributors %d", aggBucket.time, numContributors)
+				numContributors := aggBucket.contributorsCount()
+				err := fmt.Errorf("insert conveyor is full for Bucket time=%d, contributors %f", aggBucket.time, numContributors)
 				fmt.Printf("%s\n", err)
 				aggBucket.mu.Lock()
+				// there must be exactly 0 historic hosts in this bucket, so can skip the next lines
+				// historicHosts := aggBucket.historicHosts
+				// (under aggregator lock): a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				for hctx := range aggBucket.contributors {
 					hctx.SendHijackedResponse(err)
 				}
