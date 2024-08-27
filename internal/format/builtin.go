@@ -130,6 +130,8 @@ const (
 	BuiltinMetricIDRestartTimings             = -108
 	BuiltinMetricIDGCDuration                 = -109
 	BuiltinMetricIDAggHistoricHostsWaiting    = -110
+	BuiltinMetricIDAggSamplingEngineTime      = -111
+	BuiltinMetricIDAggSamplingEngineKeys      = -112
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -1992,6 +1994,43 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			MetricType:  MetricSecond,
 			Description: "Time sampling this second took. Written when second is inserted, which can be much later.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingEngineTime: {
+			Name:        "__agg_sampling_engine_time",
+			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
+			Description: "Time spent in sampling engine",
+			Tags: []MetricMetaTag{{
+				Description: "phase",
+				ValueComments: map[string]string{
+					" 1": "append",
+					" 2": "partition",
+					" 3": "budgeting",
+					" 4": "sampling",
+				},
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingEngineKeys: {
+			Name:        "__agg_sampling_engine_keys",
+			Kind:        MetricKindCounter,
+			Description: "Number of series went through sampling engine",
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
