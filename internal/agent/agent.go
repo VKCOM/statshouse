@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/env"
+	"github.com/vkcom/statshouse/internal/sharding"
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -478,40 +479,15 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
-func (s *Agent) shardNumFromKey(key data_model.Key) int {
-	if s.shardByMetric.Load() {
-		metricId := int(uint16(key.Metric))
-		// __badges and __src_ingestion_status are special cases
-		// they are sharded same way as metric they are used for
-		switch metricId {
-		case format.BuiltinMetricIDBadges:
-			metricId = int(key.Keys[2])
-		case format.BuiltinMetricIDIngestionStatus:
-			metricId = int(key.Keys[1])
-		}
-		shardNum := metricId % s.NumShards()
-		return shardNum
-	}
-
-	hash := key.Hash()
-	numShards := s.NumShards()
-	skipShards := int(s.skipShards.Load())        // free on x86
-	if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
-		mul := (hash >> 32) * uint64(numShards-skipShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
-		return skipShards + int(mul)
-	}
-	mul := (hash >> 32) * uint64(numShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
-	return int(mul)
-}
-
-func (s *Agent) shardFromKey(key data_model.Key) *Shard {
-	return s.Shards[s.shardNumFromKey(key)]
-}
-
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
-	shard := s.shardFromKey(key)
+	metricInfo := format.BuiltinMetrics[key.Metric]
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		return nil
+	}
+	shard := s.Shards[shardId]
 	return shard.CreateBuiltInItemValue(key)
 }
 
@@ -529,7 +505,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		return
 	}
 	// now set ok status
-	s.AddCounter(data_model.Key{
+	s.AddBuiltinCounter(data_model.Key{
 		Metric: format.BuiltinMetricIDIngestionStatus,
 		Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
 	}, 1)
@@ -537,33 +513,33 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterHostStringBytes(data_model.Key{
+		s.AddBuiltinCounterHostStringBytes(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
-		}, h.NotFoundTagName, 1, 0, nil)
+		}, h.NotFoundTagName, 1, 0)
 	}
 	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
 		// FoundDraftTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterHostStringBytes(data_model.Key{
+		s.AddBuiltinCounterHostStringBytes(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
-		}, h.FoundDraftTagName, 1, 0, nil)
+		}, h.FoundDraftTagName, 1, 0)
 	}
 	if h.TagSetTwiceKey != 0 {
-		s.AddCounter(data_model.Key{
+		s.AddBuiltinCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
 		}, 1)
 	}
 	if h.InvalidRawTagKey != 0 {
-		s.AddCounterHostStringBytes(data_model.Key{
+		s.AddBuiltinCounterHostStringBytes(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
-		}, h.InvalidRawValue, 1, 0, nil)
+		}, h.InvalidRawValue, 1, 0)
 	}
 	if h.LegacyCanonicalTagKey != 0 {
-		s.AddCounter(data_model.Key{
+		s.AddBuiltinCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
 		}, 1)
@@ -593,12 +569,18 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	keyHash := h.Key.Hash()
-	shard := s.shardFromKey(h.Key)
+	shardId, err := sharding.Shard(h.Key, h.MetricInfo.Sharding, s.NumShards())
+	if err != nil {
+		// should never happen
+		s.logF("could not determine shard for metric %d: %v", h.Key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	if len(m.Unique) != 0 {
 		// if we shard by metric all values of a given metric will go to the same shard anyway,
 		// so there is no need for special sharding for unique values
 		numShards := s.NumShards()
-		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 && !s.shardByMetric.Load() {
+		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 && h.MetricInfo.Sharding.Strategy == format.MappedTags {
 			// we want unique value sets to have no intersections
 			// so we first shard by unique value, then shard among 3 replicas by keys
 			skipShards := int(s.skipShards.Load())
@@ -639,91 +621,181 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 }
 
 // count should be > 0 and not NaN
-func (s *Agent) AddCounter(key data_model.Key, count float64) {
-	s.AddCounterHost(key, count, 0, nil)
+func (s *Agent) AddCounter(key data_model.Key, count float64, metricInfo *format.MetricMetaValue) {
+	s.AddCounterHost(key, count, 0, metricInfo)
 }
 
 func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
-	if count <= 0 {
+	if count <= 0 || metricInfo == nil {
 		return
 	}
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
 	shard.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
 }
 
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
 // count should be > 0 and not NaN
 func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
-	if count <= 0 {
+	if count <= 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.AddCounterHostStringBytes(key, keyHash, str, count, hostTag, metricInfo)
 }
 
-func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter float64, hostTag int32) {
-	if counter <= 0 {
+func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+	if counter <= 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(key, keyHash, value, counter, hostTag, nil)
 }
 
 // value should be not NaN.
 func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float64, metricInfo *format.MetricMetaValue) {
-	if counter <= 0 {
+	if counter <= 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(key, keyHash, value, counter, 0, metricInfo)
 }
 
-/*
-func (s *Agent) AddValueCounterHostArray(key data_model.Key, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
-	if len(values) == 0 || mult < 0 {
-		return
-	}
-	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
-	shard.AddValueArrayCounterHost(key, keyHash, values, mult, hostTag, metricInfo)
-}
-*/
-
 func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
-	if len(values) == 0 || mult < 0 {
+	if len(values) == 0 || mult < 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTag, str, metricInfo)
 }
 
-func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTag int32, str []byte) {
-	if counter <= 0 {
+func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+	if counter <= 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTag, str, nil)
 }
 
 func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
-	if item.Count() <= 0 {
+	if metricInfo == nil && key.Metric < 0 {
+		metricInfo = format.BuiltinMetrics[key.Metric]
+	}
+	if item.Count() <= 0 || metricInfo == nil {
 		return
 	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, keyHash, item, metricInfo)
 }
 
 func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
+	if len(hashes) == 0 || count < 0 || metricInfo == nil {
+		return
+	}
 	keyHash := key.Hash()
-	shard := s.shardFromKey(key)
-	shard.AddUniqueHostStringBytes(key, hostTag, str, keyHash, hashes, count, metricInfo)
+	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
+		return
+	}
+	shard := s.Shards[shardId]
+	shard.ApplyUnique(key, keyHash, str, hashes, count, hostTag, metricInfo)
+}
+
+func (s *Agent) AddBuiltinCounter(key data_model.Key, count float64) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddCounter(key, count, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinCounterHost(key data_model.Key, count float64, hostTag int32) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddCounterHost(key, count, hostTag, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinCounterHostStringBytes(key data_model.Key, str []byte, count float64, hostTag int32) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddCounterHostStringBytes(key, str, count, hostTag, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinValueCounterHost(key data_model.Key, value float64, counter float64, hostTag int32) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddValueCounterHost(key, value, counter, hostTag, metricInfo)
+	}
+}
+
+// value should be not NaN.
+func (s *Agent) AddBuiltinValueCounter(key data_model.Key, value float64, counter float64) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddValueCounter(key, value, counter, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinValueArrayCounterHostStringBytes(key data_model.Key, values []float64, mult float64, hostTag int32, str []byte) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddValueArrayCounterHostStringBytes(key, values, mult, hostTag, str, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTag int32, str []byte) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddValueCounterHostStringBytes(key, value, counter, hostTag, str, metricInfo)
+	}
+}
+
+func (s *Agent) MergeBuilinItemValue(key data_model.Key, item *data_model.ItemValue) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.MergeItemValue(key, item, metricInfo)
+	}
+}
+
+func (s *Agent) AddBuiltinUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, hashes []int64, count float64) {
+	if metricInfo, ok := format.BuiltinMetrics[key.Metric]; ok {
+		s.AddUniqueHostStringBytes(key, hostTag, str, hashes, count, metricInfo)
+	}
 }
 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) data_model.Key {

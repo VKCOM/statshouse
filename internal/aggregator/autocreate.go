@@ -289,12 +289,12 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)
 	if err != nil {
 		tags[2] = 2 // failure
-		ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
+		ac.agg.sh2.AddBuiltinCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 		return fmt.Errorf("failed to create or update metric: %w", err)
 	}
 	// succeeded, wait a bit until changes applied locally
 	tags[2] = 1 // success
-	ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
+	ac.agg.sh2.AddBuiltinCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1)
 	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
 	_ = ac.storage.Journal().WaitVersion(ctx, ret.Version)

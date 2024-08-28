@@ -471,9 +471,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, &hostsWaiting)
 
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
-	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
+	a.sh2.AddBuiltinValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
-	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
+	a.sh2.AddBuiltinValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
 
@@ -669,7 +669,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				a.mu.Unlock()
 				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
-				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
+				a.sh2.AddBuiltinValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
 				break
@@ -726,11 +726,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception), dur, 1, 0)
+			a.sh2.AddBuiltinValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception), dur, 1, 0)
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0)
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0)
+		a.sh2.AddBuiltinValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0)
+		a.sh2.AddBuiltinValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0)
 
 		sendErr = fmt.Errorf("simulated error")
 		aggBucket.mu.Lock()
