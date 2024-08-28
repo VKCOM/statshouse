@@ -13,12 +13,18 @@ func Shard(key data_model.Key, sharding format.MetricSharding, numShards int) (u
 		if !sharding.Shard.IsDefined() {
 			return 0, fmt.Errorf("invalid sharding config: shard is not defined")
 		}
+		if sharding.Shard.V >= uint32(numShards) {
+			return 0, fmt.Errorf("invalid sharding config: shard >= numShards")
+		}
 		return sharding.Shard.V, nil
 	case format.MappedTags:
 		return shardByMappedTags(key, numShards), nil
 	case format.Tag:
 		if !sharding.TagId.IsDefined() {
 			return 0, fmt.Errorf("invalid sharding config: tag_id is not defined")
+		}
+		if sharding.TagId.V >= format.MaxTags {
+			return 0, fmt.Errorf("invalid sharding config: tag_id >= MaxTags")
 		}
 		return shardByTag(key, sharding.TagId.V, numShards), nil
 	}
