@@ -37,13 +37,13 @@ import HardwareInfo from '../img/hardware-info.png'
 | 7  | host_block_io_time           | The amount of time to transfer data to and from disk. Count - number of operations, Value - wait time for handle operations |
 | 8  | host_block_io_size           | The amount of data transferred to and from disk. Count - number of operations, Value - size                                 |
 | 9  | host_disk_usage              | Disk space utilization                                                                                                      |
-| 10 | host_inode_usage             | todo                                                                                                                          |
+| 10 | host_inode_usage             | The number of free and used inodes in a filesystem                                                                          |
 | 11 | host_system_uptime           | The amount of time the system has been running                                                                              |
 | 12 | host_system_process_created  | Number of processes and threads created                                                                                     |
 | 13 | host_system_process_status   | Number of processes currently blocked, waiting IO or running on CPUs                                                        |
-| 14 | host_system_psi_cpu          | PSI of CPU", // todo fix                                                                                                    |
-| 15 | host_system_psi_mem          | PSI of memory                                                                                                               |
-| 16 | host_system_psi_io           | PSI of IO                                                                                                                   |
+| 14 | host_system_psi_cpu          | PSI for CPU (_some_, _full_)                                                                                                    |
+| 15 | host_system_psi_mem          | PSI for memory                                                                 <br/>                                        |
+| 16 | host_system_psi_io           | PSI for IO                                                                                                                  |
 | 17 | host_net_packet              | Number of transferred packets grouped by protocol                                                                           |
 | 18 | host_net_error               | Number of network errors                                                                                                    |
 | 19 | host_net_bandwidth" // total | Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes                      |
@@ -59,7 +59,7 @@ import HardwareInfo from '../img/hardware-info.png'
 | 29 | host_oom_kill                | The number of OOM                                                                                                           |
 | 30 | host_numa_events             | NUMA events                                                                                                                 |
 | 31 | host_dmesg_events            | dmesg events                                                                                                                |
-| 32 | host_oom_kill_detailed       | // todo                                                                                                                     |
+| 32 | host_oom_kill_detailed       | The number of killed OOM processes (tagged by process)                                                                      |
 
 ## Как использовать теги для метрик хостов
 
