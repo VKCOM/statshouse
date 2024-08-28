@@ -26,23 +26,23 @@ func TestShard(t *testing.T) {
 		wantErr bool
 	}{
 		// be careful, if this tests are failing then we changed shardig schema
-		{"ok-by-tags-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.MappedTags}, numShards: 16}, 8, false},
-		{"ok-by-tags-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.MappedTags}, numShards: 16}, 15, false},
-		{"ok-by-tags-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.MappedTags}, numShards: 16}, 5, false},
+		{"ok-by-tags-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByMappedTags}, numShards: 16}, 8, false},
+		{"ok-by-tags-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.ShardByMappedTags}, numShards: 16}, 15, false},
+		{"ok-by-tags-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.ShardByMappedTags}, numShards: 16}, 5, false},
 
-		{"ok-fixed-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.FixedShard, Shard: opt.OUint32(3)}, numShards: 16}, 3, false},
-		{"ok-fixed-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.FixedShard, Shard: opt.OUint32(4)}, numShards: 16}, 4, false},
-		{"ok-fixed-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.FixedShard, Shard: opt.OUint32(0)}, numShards: 16}, 0, false},
+		{"ok-fixed-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(3)}, numShards: 16}, 3, false},
+		{"ok-fixed-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(4)}, numShards: 16}, 4, false},
+		{"ok-fixed-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(0)}, numShards: 16}, 0, false},
 
-		{"ok-by-tag-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.Tag, TagId: opt.OUint32(1)}, numShards: 16}, 2, false},
-		{"ok-by-tag-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.Tag, TagId: opt.OUint32(1)}, numShards: 16}, 6, false},
-		{"ok-by-tag-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.Tag, TagId: opt.OUint32(0)}, numShards: 16}, 0, false},
+		{"ok-by-tag-1", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}, numShards: 16}, 2, false},
+		{"ok-by-tag-2", args{key: metric2, sharding: format.MetricSharding{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}, numShards: 16}, 6, false},
+		{"ok-by-tag-builtin", args{key: metricBuiltin, sharding: format.MetricSharding{Strategy: format.ShardByTag, TagId: opt.OUint32(0)}, numShards: 16}, 0, false},
 
 		// negative cases
-		{"fail-fixed-no-shard", args{key: metric1, sharding: format.MetricSharding{Strategy: format.FixedShard}, numShards: 16}, 0, true},
-		{"fail-fixed-bad-shard", args{key: metric1, sharding: format.MetricSharding{Strategy: format.FixedShard, Shard: opt.OUint32(1000)}, numShards: 16}, 0, true},
-		{"fail-by-tag-no-id", args{key: metric1, sharding: format.MetricSharding{Strategy: format.Tag}, numShards: 16}, 0, true},
-		{"fail-by-tag-bad-id", args{key: metric1, sharding: format.MetricSharding{Strategy: format.Tag, TagId: opt.OUint32(1000)}, numShards: 16}, 0, true},
+		{"fail-fixed-no-shard", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByFixedShard}, numShards: 16}, 0, true},
+		{"fail-fixed-bad-shard", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(1000)}, numShards: 16}, 0, true},
+		{"fail-by-tag-no-id", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByTag}, numShards: 16}, 0, true},
+		{"fail-by-tag-bad-id", args{key: metric1, sharding: format.MetricSharding{Strategy: format.ShardByTag, TagId: opt.OUint32(1000)}, numShards: 16}, 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
