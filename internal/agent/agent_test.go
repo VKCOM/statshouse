@@ -15,6 +15,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/mailru/easyjson/opt"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -201,14 +202,11 @@ func Benchmark_sampleFactorDeterministic(b *testing.B) {
 }
 
 func Test_AgentSharding(t *testing.T) {
-	config := Config{
-		ShardByMetric: true,
-	}
+	config := Config{}
 	agent := &Agent{
 		config: config,
 		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
 	}
-	agent.shardByMetric.Store(config.ShardByMetric)
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
 
@@ -232,7 +230,6 @@ func Test_AgentSharding(t *testing.T) {
 			}
 		}
 		shard.cond = sync.NewCond(&shard.mu)
-		shard.condPreprocess = sync.NewCond(&shard.mu)
 		agent.Shards[i] = shard
 	}
 

@@ -65,7 +65,6 @@ type Agent struct {
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
-	shardByMetric                atomic.Bool  // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -412,7 +411,6 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
-	s.shardByMetric.Store(config.ShardByMetric)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
