@@ -63,17 +63,17 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 		if err != nil {
 			// TODO - write to actual log from time to time
 			a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "error", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), err.Error())
-			ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host)
+			ms.sh2.AddBuiltinValueCounterHost(key, 0, 1, extra.Host)
 		} else {
 			switch c {
 			case format.TagValueIDAggMappingCreatedStatusFlood:
 				// TODO - more efficient flood processing - do not write to log, etc
 				a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "flood", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), extra.HostName)
-				ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host)
+				ms.sh2.AddBuiltinValueCounterHost(key, 0, 1, extra.Host)
 			case format.TagValueIDAggMappingCreatedStatusCreated:
 				a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "created", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), strconv.Itoa(int(keyValue)))
 				// if askedKey is created, it is valid and safe to write
-				ms.sh2.AddValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(askedKey))
+				ms.sh2.AddBuiltinValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(askedKey))
 			}
 		}
 		return pcache.Int32ToValue(keyValue), d, err
@@ -156,10 +156,10 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key data_model.Key) (err error) {
 	if r.Err != nil {
 		key.Keys[5] = format.TagValueIDAggMappingStatusErrUncached
-		ms.sh2.AddCounter(key, 1)
+		ms.sh2.AddBuiltinCounter(key, 1)
 		return r.Err
 	}
-	ms.sh2.AddCounter(key, 1)
+	ms.sh2.AddBuiltinCounter(key, 1)
 	result := tlstatshouse.GetTagMappingResult{Value: pcache.ValueToInt32(r.Value), TtlNanosec: int64(r.TTL)}
 	hctx.Response, err = args.WriteResult(hctx.Response, result)
 	return err
