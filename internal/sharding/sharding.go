@@ -9,7 +9,7 @@ import (
 
 func Shard(key data_model.Key, sharding format.MetricSharding, numShards int) (uint32, error) {
 	switch sharding.Strategy {
-	case format.FixedShard:
+	case format.ShardByFixedShard:
 		if !sharding.Shard.IsDefined() {
 			return 0, fmt.Errorf("invalid sharding config: shard is not defined")
 		}
@@ -17,9 +17,9 @@ func Shard(key data_model.Key, sharding format.MetricSharding, numShards int) (u
 			return 0, fmt.Errorf("invalid sharding config: shard >= numShards")
 		}
 		return sharding.Shard.V, nil
-	case format.MappedTags:
+	case format.ShardByMappedTags:
 		return shardByMappedTags(key, numShards), nil
-	case format.Tag:
+	case format.ShardByTag:
 		if !sharding.TagId.IsDefined() {
 			return 0, fmt.Errorf("invalid sharding config: tag_id is not defined")
 		}
