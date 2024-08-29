@@ -468,8 +468,10 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		float64(sampler.TimeBudgeting()), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 4, 0, 0, historicTag}),
 		float64(sampler.TimeSampling()), 1, a.aggregatorHost, metricCache, usedTimestamps)
-	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [16]int32{0, 0, 0, 0, historicTag}),
-		float64(sampler.ItemCount()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 5, 0, 0, historicTag}),
+		float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, usedTimestamps)
+	res = appendValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [16]int32{0, 0, 0, 0, historicTag}),
+		"", data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHost), metricCache, usedTimestamps)
 	// report budget used
 	budgetKey := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, historicTag})
 	budgetItem := data_model.MultiItem{}

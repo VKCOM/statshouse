@@ -126,6 +126,12 @@ func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
 	return item
 }
 
+func SimpleItemCounter(count float64, hostTag int32) ItemValue {
+	var item ItemValue
+	item.AddCounterHost(count, hostTag)
+	return item
+}
+
 func (s *ItemValue) AddCounterHost(count float64, hostTag int32) {
 	if count > s.Counter {
 		s.MaxCounterHostTag = hostTag
