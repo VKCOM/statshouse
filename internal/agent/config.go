@@ -38,6 +38,7 @@ type Config struct {
 	StatsHouseEnv          string
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
+	BuiltinNewSharding     bool
 
 	// "remote write" was never used (so never tested) and was dropped
 	RemoteWriteEnabled bool
@@ -65,6 +66,7 @@ func DefaultConfig() Config {
 		KeepAliveSuccessTimeout:          time.Second * 5, // aggregator puts keep-alive requests in a bucket most soon to be inserted, so this is larger than strictly required
 		SaveSecondsImmediately:           false,
 		StatsHouseEnv:                    "production",
+		BuiltinNewSharding:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
 		RemoteWriteEnabled:               false,
 		RemoteWriteAddr:                  ":13380",
 		RemoteWritePath:                  "/write",
@@ -101,6 +103,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
+		f.BoolVar(&c.BuiltinNewSharding, "buitin-new-sharding", d.BuiltinNewSharding, "Put builtin metrics into 0 shard, except for ingestion and bages which sharded by metric")
 	}
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
