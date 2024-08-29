@@ -30,6 +30,7 @@ const config = {
               counterID: '96098475',
               webvisor: true,
             }],
+
       [
         require.resolve("@cmfcmf/docusaurus-search-local"),
         {
@@ -46,7 +47,7 @@ const config = {
             indexDocSidebarParentCategories: 0,
 
             // whether to index blog pages
-            indexBlog: false,
+            indexBlog: true,
 
             // whether to index static pages
             // /404.html is never indexed
@@ -136,7 +137,7 @@ const config = {
 //            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
           routeBasePath: '/', // Serve the docs at the site's root
         },
-        blog: false,
+        blog: {},
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -175,7 +176,7 @@ const config = {
 //            position: 'left',
 //            label: 'Documentation',
 //          },
-//          {to: '/blog', label: 'Blog', position: 'left'},
+          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/VKCOM/statshouse',
             label: 'GitHub',
