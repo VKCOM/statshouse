@@ -65,6 +65,7 @@ type Agent struct {
 
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
+	builtinNewSharding           atomic.Bool  // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -411,6 +412,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
+	s.builtinNewSharding.Store(config.BuiltinNewSharding)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -627,7 +629,12 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 	if count <= 0 || metricInfo == nil {
 		return
 	}
-	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
+	ms := metricInfo.Sharding
+	// temporary, should be removed after full deploy and switch to a new key
+	if key.Metric < 0 && !s.builtinNewSharding.Load() {
+		ms = format.MetricSharding{Strategy: format.ShardByMappedTags}
+	}
+	shardId, err := sharding.Shard(key, ms, s.NumShards())
 	if err != nil {
 		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return

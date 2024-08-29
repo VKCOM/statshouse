@@ -207,6 +207,7 @@ func Test_AgentSharding(t *testing.T) {
 		config: config,
 		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
 	}
+	agent.builtinNewSharding.Store(true)
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
 
