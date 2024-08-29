@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwebsite=self.webpackChunkwebsite||[]).push([[2535],{5641:e=>{e.exports=JSON.parse('{"title":"All posts","items":[{"title":"Welcome","permalink":"/statshouse/blog/2024/08/29/1","unlisted":false}]}')}}]);

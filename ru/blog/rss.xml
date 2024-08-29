@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel>
+        <title>StatsHouse Blog</title>
+        <link>https://github.com/statshouse/ru/blog</link>
+        <description>StatsHouse Blog</description>
+        <lastBuildDate>Thu, 29 Aug 2024 00:00:00 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>https://github.com/jpmonette/feed</generator>
+        <language>ru</language>
+        <item>
+            <title><![CDATA[Привет!]]></title>
+            <link>https://github.com/statshouse/ru/blog/2024/08/29/1</link>
+            <guid>https://github.com/statshouse/ru/blog/2024/08/29/1</guid>
+            <pubDate>Thu, 29 Aug 2024 00:00:00 GMT</pubDate>
+            <description><![CDATA[Привет!]]></description>
+            <content:encoded><![CDATA[<p>Привет!</p>
+<p>Здесь мы будем рассказывать об обновлениях документации StatsHouse.</p>
+<p>Дайджесты будут регулярными, но о важных обновлениях будем писать вне очереди.</p>
+<p>Следите за новостями!</p>]]></content:encoded>
+            <category>docs</category>
+        </item>
+    </channel>
+</rss>

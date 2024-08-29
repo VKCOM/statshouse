@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://github.com/statshouse/blog</id>
+    <title>StatsHouse Blog</title>
+    <updated>2024-08-29T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://github.com/statshouse/blog"/>
+    <subtitle>StatsHouse Blog</subtitle>
+    <icon>https://github.com/statshouse/img/statshouse.ico</icon>
+    <entry>
+        <title type="html"><![CDATA[Welcome]]></title>
+        <id>https://github.com/statshouse/blog/2024/08/29/1</id>
+        <link href="https://github.com/statshouse/blog/2024/08/29/1"/>
+        <updated>2024-08-29T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[Hi,]]></summary>
+        <content type="html"><![CDATA[<p>Hi,
+here is the place we will share the updates on StatsHouse documentation and more.</p>
+<p>There will be regular digests as well as extra updates on documenting the important features.</p>
+<p>Stay tuned!</p>]]></content>
+        <author>
+            <name>Olga Naumenko</name>
+            <uri>https://github.com/olganaumenko</uri>
+        </author>
+        <category label="docs" term="docs"/>
+    </entry>
+</feed>
