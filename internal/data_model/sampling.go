@@ -83,11 +83,12 @@ type (
 		MetricGroups       []samplerGroup
 		SampleFactors      []tlstatshouse.SampleFactor
 
-		timeStart     time.Time
-		timePartition time.Time
-		timeBudgeting time.Time
-		timeSampling  time.Duration
-		timeEnd       time.Time
+		timeStart      time.Time
+		timePartition  time.Time
+		timeMetricMeta time.Duration
+		timeBudgeting  time.Time
+		timeSampling   time.Duration
+		timeEnd        time.Time
 	}
 )
 
@@ -97,6 +98,7 @@ var missingMetricMeta = format.MetricMetaValue{
 }
 
 func NewSampler(capacity int, config SamplerConfig) sampler {
+	timeStart := time.Now()
 	if config.RoundF == nil {
 		config.RoundF = roundSampleFactor
 	}
@@ -104,7 +106,7 @@ func NewSampler(capacity int, config SamplerConfig) sampler {
 		config.SelectF = selectRandom
 	}
 	h := sampler{
-		timeStart:     time.Now(),
+		timeStart:     timeStart,
 		SamplerConfig: config,
 		items:         make([]SamplingMultiItemPair, 0, capacity),
 		partF:         make([]partitionFunc, 0, 3),
@@ -128,23 +130,6 @@ func (h *sampler) Add(p SamplingMultiItemPair) {
 		h.sumSizeDiscard.AddValue(0)
 		return
 	}
-	if p.Item.MetricMeta != nil && p.MetricID == p.Item.MetricMeta.MetricID {
-		p.metric = p.Item.MetricMeta
-	} else {
-		p.metric = h.getMetricMeta(p.MetricID)
-	}
-	if h.SampleKeys && len(p.metric.FairKey) != 0 {
-		n := len(p.metric.FairKey)
-		if n > maxFairKeyLen {
-			n = maxFairKeyLen
-		}
-		for i := 0; i < n; i++ {
-			if x := p.metric.FairKey[i]; 0 <= x && x < len(p.Key.Keys) {
-				p.fairKey[i] = p.Key.Keys[x]
-			}
-		}
-		p.fairKeyLen = n
-	}
 	h.items = append(h.items, p)
 }
 
@@ -152,8 +137,35 @@ func (h *sampler) Run(budget int64) {
 	if len(h.items) == 0 {
 		return
 	}
-	// partition by group/metric/key
 	h.timePartition = time.Now()
+	// query metric meta, initialize fair key
+	sort.Slice(h.items, func(i, j int) bool {
+		return h.items[i].MetricID < h.items[j].MetricID
+	})
+	for i := 0; i < len(h.items); i++ {
+		if i > 0 && h.items[i].MetricID == h.items[i-1].MetricID {
+			h.items[i].metric = h.items[i-1].metric
+		} else {
+			if h.items[i].Item.MetricMeta != nil && h.items[i].MetricID == h.items[i].Item.MetricMeta.MetricID {
+				h.items[i].metric = h.items[i].Item.MetricMeta
+			} else {
+				h.items[i].metric = h.getMetricMeta(h.items[i].MetricID)
+			}
+		}
+		if h.SampleKeys && len(h.items[i].metric.FairKey) != 0 {
+			n := len(h.items[i].metric.FairKey)
+			if n > maxFairKeyLen {
+				n = maxFairKeyLen
+			}
+			for j := 0; j < n; j++ {
+				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Key.Keys) {
+					h.items[i].fairKey[j] = h.items[i].Key.Keys[x]
+				}
+			}
+			h.items[i].fairKeyLen = n
+		}
+	}
+	// partition by namespace/group/metric/key
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
 		if lhs.metric.NamespaceID != rhs.metric.NamespaceID {
@@ -225,7 +237,11 @@ func (h *sampler) TimeAppend() float64 {
 }
 
 func (h *sampler) TimePartition() float64 {
-	return h.timeBudgeting.Sub(h.timePartition).Seconds()
+	return (h.timeBudgeting.Sub(h.timePartition) - h.timeMetricMeta).Seconds()
+}
+
+func (h *sampler) TimeMetricMeta() float64 {
+	return h.timeMetricMeta.Seconds()
 }
 
 func (h *sampler) TimeBudgeting() float64 {
@@ -527,7 +543,9 @@ func (h *sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 	if h.Meta == nil {
 		return &missingMetricMeta
 	}
+	timeStart := time.Now()
 	if res := h.Meta.GetMetaMetric(metricID); res != nil {
+		h.timeMetricMeta += time.Since(timeStart)
 		return res
 	}
 	if res := format.BuiltinMetrics[metricID]; res != nil {

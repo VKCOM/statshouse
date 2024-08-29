@@ -2017,6 +2017,7 @@ Value is delta between second value and time it was inserted.`,
 					" 2": "partition",
 					" 3": "budgeting",
 					" 4": "sampling",
+					" 5": "meta",
 				},
 			}, {
 				Description: "-",
