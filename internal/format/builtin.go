@@ -278,6 +278,7 @@ const (
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 	TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft     = 53
+	TagValueIDSrcIngestionStatusErrShardingFailed            = 54
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -685,6 +686,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
 					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 					TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
+					TagValueIDSrcIngestionStatusErrShardingFailed:            "err_sharding_failed",
 				}),
 			}, {
 				Description: "tag_id",

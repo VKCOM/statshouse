@@ -504,6 +504,15 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, 0, nil)
 		return
 	}
+	keyHash := h.Key.Hash()
+	shardId, err := sharding.Shard(h.Key, h.MetricInfo.Sharding, s.NumShards())
+	if err != nil {
+		s.AddBuiltinCounter(data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, h.IngestionTagKey},
+		}, 1)
+		return
+	}
 	// now set ok status
 	s.AddBuiltinCounter(data_model.Key{
 		Metric: format.BuiltinMetricIDIngestionStatus,
@@ -568,13 +577,6 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
-	keyHash := h.Key.Hash()
-	shardId, err := sharding.Shard(h.Key, h.MetricInfo.Sharding, s.NumShards())
-	if err != nil {
-		// should never happen
-		s.logF("could not determine shard for metric %d: %v", h.Key.Metric, err)
-		return
-	}
 	shard := s.Shards[shardId]
 	if len(m.Unique) != 0 {
 		// if we shard by metric all values of a given metric will go to the same shard anyway,
@@ -636,7 +638,6 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 	}
 	shardId, err := sharding.Shard(key, ms, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -653,7 +654,6 @@ func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count 
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -667,7 +667,6 @@ func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter f
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -682,7 +681,6 @@ func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -696,7 +694,6 @@ func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values [
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -710,7 +707,6 @@ func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -727,7 +723,6 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -741,7 +736,6 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 	keyHash := key.Hash()
 	shardId, err := sharding.Shard(key, metricInfo.Sharding, s.NumShards())
 	if err != nil {
-		s.logF("could not determine shard for metric %d: %v", key.Metric, err)
 		return
 	}
 	shard := s.Shards[shardId]
