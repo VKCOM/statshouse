@@ -209,14 +209,14 @@ func (h *sampler) Run(budget int64) {
 	h.run(h.currentGroup)
 	// finalize "MetricGroups"
 	h.MetricGroups = append(h.MetricGroups, h.currentGroup)
-	if h.sumSizeKeepBuiltin.Counter > 0 {
+	if h.sumSizeKeepBuiltin.Count() > 0 {
 		h.MetricGroups = append(h.MetricGroups, samplerGroup{
 			NamespaceID: format.BuiltinNamespaceIDDefault,
 			GroupID:     format.BuiltinGroupIDBuiltin,
 			SumSizeKeep: h.sumSizeKeepBuiltin,
 		})
 	}
-	if h.sumSizeDiscard.Counter > 0 {
+	if h.sumSizeDiscard.Count() > 0 {
 		h.MetricGroups = append(h.MetricGroups, samplerGroup{
 			SumSizeDiscard: h.sumSizeDiscard,
 		})

@@ -63,6 +63,7 @@ func reopenLog() {
 var globalStartTime = time.Now() // good enough for us
 
 func main() {
+	// data_model.PrintLinearMaxHostProbabilities()
 	os.Exit(runMain())
 }
 

@@ -65,7 +65,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 					Keys:      [16]int32{0, format.TagValueIDTimingMissedSecondsAgent},
 				}
 				mi := data_model.MapKeyItemMultiItem(&b.MultiItems, key, s.config.StringTopCapacity, nil, nil)
-				mi.Tail.AddValueCounterHost(float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
+				mi.Tail.AddValueCounterHost(s.rng, float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
 			}
 			b.Time = currentTimeRounded + uint32(r)
 		}
@@ -157,7 +157,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	for k, v := range bucket.MultiItems {
 		if k.Metric == format.BuiltinMetricIDIngestionStatus && k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization.
-			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: k.Keys[0], Metric: k.Keys[1], Value: float32(v.Tail.Value.Counter * v.SF)})
+			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: k.Keys[0], Metric: k.Keys[1], Value: float32(v.Tail.Value.Count() * v.SF)})
 			continue
 		}
 		item := k.TLMultiItemFromKey(bucket.Time)
@@ -213,7 +213,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 
 func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	defer wg.Done()
-	rnd := rand.New() // We use distinct rand so that we can use it without locking
+	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	for pbd := range s.BucketsToPreprocess {
 		bucket := &data_model.MetricsBucket{Time: pbd.time}
@@ -221,14 +221,14 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 		// nothing is in FutureQueue. If pbd.buckets is empty, we must still do processing and sending
 		// for each contributor every second.
 
-		s.mergeBuckets(bucket, pbd.buckets) // TODO - why we merge instead of passing array to sampleBucket
-		sampleFactors := s.sampleBucket(bucket, rnd)
+		s.mergeBuckets(rng, bucket, pbd.buckets) // TODO - why we merge instead of passing array to sampleBucket
+		sampleFactors := s.sampleBucket(bucket, rng)
 		s.sendToSenders(bucket, sampleFactors)
 	}
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
+func (s *Shard) mergeBuckets(rng *rand.Rand, bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
 	s.mu.Lock()
 	stringTopCapacity := s.config.StringTopCapacity
 	s.mu.Unlock()
@@ -240,7 +240,7 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 	for _, b := range buckets {
 		for k, v := range b.MultiItems {
 			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, stringTopCapacity, nil, nil)
-			mi.Merge(v)
+			mi.Merge(rng, v)
 		}
 	}
 }
@@ -260,7 +260,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem, _ uint32) { delete(bucket.MultiItems, key) }, // remove from map
 	})
 	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
+		whaleWeight := item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
@@ -293,11 +293,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		// keep bytes
 		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
 		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-		mi.Tail.Value.Merge(&v.SumSizeKeep)
+		mi.Tail.Value.Merge(rnd, &v.SumSizeKeep)
 		// discard bytes
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
 		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-		mi.Tail.Value.Merge(&v.SumSizeDiscard)
+		mi.Tail.Value.Merge(rnd, &v.SumSizeDiscard)
 		// budget
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Keys: [16]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
 		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
@@ -310,7 +310,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Keys: [16]int32{0, s.agent.componentTag}}
 	mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-	mi.Tail.Value.AddValueCounterHost(float64(sampler.MetricCount), 1, 0)
+	mi.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
 	return sampler.SampleFactors
 }
 

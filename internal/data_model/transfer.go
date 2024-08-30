@@ -11,6 +11,7 @@ import (
 	"math"
 
 	"github.com/hrissan/tdigest"
+	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -83,7 +84,7 @@ func (s *MultiValue) TLSizeEstimate() int {
 	if s.Value.MinHostTag != s.Value.MaxHostTag {
 		sz += 4
 	}
-	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+	if s.Value.MaxCounterHostTag() != s.Value.MaxHostTag {
 		sz += 4
 	}
 	if s.HLL.ItemsCount() != 0 {
@@ -105,7 +106,7 @@ func (s *MultiValue) TLSizeEstimate() int {
 }
 
 func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, marshalBuf *[]byte) {
-	cou := s.Value.Counter * sampleFactor
+	cou := s.Value.Count() * sampleFactor
 	if cou <= 0 {
 		return
 	}
@@ -116,8 +117,8 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	if s.Value.MinHostTag != s.Value.MaxHostTag {
 		item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
 	}
-	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
-		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
+	if s.Value.MaxCounterHostTag() != s.Value.MaxHostTag {
+		item.SetMaxCounterHostTag(s.Value.maxCounterHostTag, fieldsMask)
 	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
@@ -151,7 +152,7 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	}
 }
 
-func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
+func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
 	counter := float64(0)
 	if s2.IsSetCounterEq1(fields_mask) {
 		counter = 1
@@ -162,10 +163,10 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	if counter <= 0 || math.IsNaN(counter) { // sanity check/check for empty String Top tail
 		return
 	}
-	if counter > math.MaxFloat32 { // agents do similar check. Code here is for old agents without this check. TODO - remove after July 2024
+	if counter > math.MaxFloat32 { // agents do similar check, but this is so cheap, we repeat on aggregators.
 		counter = math.MaxFloat32
 	}
-	s.AddCounterHost(counter, s2.MaxCounterHostTag)
+	s.AddCounterHost(rng, counter, s2.MaxCounterHostTag)
 	if !s2.IsSetValueSet(fields_mask) {
 		return
 	}
@@ -189,14 +190,14 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	s.ValueSet = true
 }
 
-func (s *MultiItem) MergeWithTLMultiItem(s2 *tlstatshouse.MultiItemBytes, hostTag int32) {
+func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, s2 *tlstatshouse.MultiItemBytes, hostTag int32) {
 	for _, v := range s2.Top {
-		mi := s.MapStringTopBytes(v.Key, v.Value.Counter)
+		mi := s.MapStringTopBytes(rng, v.Key, v.Value.Counter)
 		v.Key, _ = format.AppendValidStringValue(v.Key[:0], v.Key) // TODO - report this error via builtin metrics
 		// we want to validate all incoming strings. In case of encoding error, v.Key will be truncated to 0
-		mi.MergeWithTL2(&v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
+		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
 	}
-	s.Tail.MergeWithTL2(&s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)
+	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)
 }
 
 func (s *MultiItem) TLSizeEstimate() int {
@@ -207,7 +208,7 @@ func (s *MultiItem) TLSizeEstimate() int {
 	return size
 }
 
-func (s *MultiValue) MergeWithTL2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag int32, compression float64) {
+func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag int32, compression float64) {
 	if s2.IsSetUniques(fields_mask) {
 		_ = s.HLL.MergeRead(bytes.NewBuffer(s2.Uniques)) // return error, write meta metric
 	}
@@ -228,5 +229,5 @@ func (s *MultiValue) MergeWithTL2(s2 *tlstatshouse.MultiValueBytes, fields_mask 
 	if !s2.IsSetMaxCounterHostTag(fields_mask) {
 		s2.MaxCounterHostTag = s2.MaxHostTag // either original or set above
 	}
-	s.Value.MergeWithTLItem2(s2, fields_mask)
+	s.Value.MergeWithTLItem2(rng, s2, fields_mask)
 }

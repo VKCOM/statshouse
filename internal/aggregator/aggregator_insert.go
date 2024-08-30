@@ -203,16 +203,17 @@ func appendAggregates(res []byte, c float64, mi float64, ma float64, su float64,
 }
 
 func appendValueStat(res []byte, key data_model.Key, skey string, v data_model.ItemValue, cache *metricIndexCache, usedTimestamps map[uint32]struct{}) []byte {
-	if v.Counter <= 0 { // We have lots of built-in  counters which are normally 0
+	count := v.Count()
+	if count <= 0 { // We have lots of built-in counters which are normally 0
 		return res
 	}
 	// for explanation of insert logic, see multiValueMarshal below
 	res = appendKeys(res, key, cache, usedTimestamps)
 	skipMaxHost, skipMinHost, skipSumSquare := cache.skips(key.Metric)
 	if v.ValueSet {
-		res = appendAggregates(res, v.Counter, v.ValueMin, v.ValueMax, v.ValueSum, zeroIfTrue(v.ValueSumSquare, skipSumSquare))
+		res = appendAggregates(res, count, v.ValueMin, v.ValueMax, v.ValueSum, zeroIfTrue(v.ValueSumSquare, skipSumSquare))
 	} else {
-		res = appendAggregates(res, v.Counter, 0, v.Counter, 0, 0)
+		res = appendAggregates(res, count, 0, count, 0, 0)
 	}
 
 	res = rowbinary.AppendEmptyCentroids(res)
@@ -235,7 +236,7 @@ func appendValueStat(res []byte, key data_model.Key, skey string, v data_model.I
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTag, float32(v.Counter))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTag(), float32(count))
 		}
 	}
 	return res
@@ -247,7 +248,7 @@ func appendSimpleValueStat(res []byte, key data_model.Key, v float64, count floa
 
 func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, value *data_model.MultiValue, skey string, sf float64) []byte {
 	skipMaxHost, skipMinHost, skipSumSquare := cache.skips(metricID)
-	counter := value.Value.Counter * sf
+	counter := value.Value.Count() * sf
 	if value.Value.ValueSet {
 		res = appendAggregates(res, counter, value.Value.ValueMin, value.Value.ValueMax, value.Value.ValueSum*sf, zeroIfTrue(value.Value.ValueSumSquare*sf, skipSumSquare))
 	} else {
@@ -275,7 +276,7 @@ func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, valu
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTag, float32(counter)) // max_counter_host, not always correct, but hopefully good enough
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTag(), float32(counter)) // max_counter_host, not always correct, but hopefully good enough
 		}
 	}
 	return res
@@ -384,7 +385,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		is := insertSize{}
 		for si := 0; si < len(b.shards); si++ {
 			for k, item := range b.shards[si].multiItems {
-				whaleWeight := item.FinishStringTop(config.StringTopCountInsert) // all excess items are baked into Tail
+				whaleWeight := item.FinishStringTop(rnd, config.StringTopCountInsert) // all excess items are baked into Tail
 
 				resPos := len(res)
 				res = appendMultiBadge(res, k, item, metricCache, usedTimestamps)
