@@ -84,7 +84,7 @@ func (s *MultiValue) TLSizeEstimate() int {
 	if s.Value.MinHostTag != s.Value.MaxHostTag {
 		sz += 4
 	}
-	if s.Value.MaxCounterHostTag() != s.Value.MaxHostTag {
+	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
 		sz += 4
 	}
 	if s.HLL.ItemsCount() != 0 {
@@ -117,8 +117,8 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	if s.Value.MinHostTag != s.Value.MaxHostTag {
 		item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
 	}
-	if s.Value.MaxCounterHostTag() != s.Value.MaxHostTag {
-		item.SetMaxCounterHostTag(s.Value.maxCounterHostTag, fieldsMask)
+	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
 	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])

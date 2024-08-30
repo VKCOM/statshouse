@@ -192,6 +192,12 @@ func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 }
 
 func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+	if count == 0 {
+		count = float64(len(hashes))
+	}
+	if count <= 0 {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
@@ -199,22 +205,11 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
-	totalCount := float64(len(hashes))
-	if count != 0 {
-		totalCount = count
-	}
-	mv := mi.MapStringTopBytes(s.rng, str, totalCount)
+	mv := mi.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 }
 
 func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.stopReceivingIncomingData {
-		return
-	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
 		totalCount += kv[1] // all counts are validated to be >= 0
@@ -222,7 +217,17 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, hist
 	if count == 0 {
 		count = totalCount
 	}
-	mv := mi.MapStringTopBytes(s.rng, str, totalCount)
+	if count <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopReceivingIncomingData {
+		return
+	}
+	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
+	mv := mi.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
