@@ -285,8 +285,18 @@ const (
 	TagValueIDPacketFormatRPC      = 6
 	TagValueIDPacketFormatEmpty    = 7
 
-	TagValueIDAgentReceiveStatusOK    = 1
-	TagValueIDAgentReceiveStatusError = 2
+	TagValueIDPacketProtocolUDP      = 1
+	TagValueIDPacketProtocolUnixGram = 2
+	TagValueIDPacketProtocolTCP      = 3
+	TagValueIDPacketProtocolVKRPC    = 4
+	TagValueIDPacketProtocolHTTP     = 5
+
+	TagValueIDAgentReceiveStatusOK           = 1
+	TagValueIDAgentReceiveStatusError        = 2
+	TagValueIDAgentReceiveStatusConnect      = 3
+	TagValueIDAgentReceiveStatusDisconnect   = 4
+	TagValueIDAgentReceiveStatusNetworkError = 5
+	TagValueIDAgentReceiveStatusFramingError = 6
 
 	TagValueIDAggMappingDolphinLegacy = 1 // unused, remains for historic purpose
 	TagValueIDAggMappingTags          = 2
@@ -834,6 +844,9 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDAgentReceiveStatusOK:    "ok",
 					TagValueIDAgentReceiveStatusError: "error",
 				}),
+			}, {
+				Description:   "protocol",
+				ValueComments: convertToValueComments(packetProtocolToValue),
 			}},
 		},
 		BuiltinMetricIDAggMapping: {
@@ -1020,9 +1033,16 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAgentReceiveStatusOK:    "ok",
-					TagValueIDAgentReceiveStatusError: "error",
+					TagValueIDAgentReceiveStatusOK:           "ok",
+					TagValueIDAgentReceiveStatusError:        "error",
+					TagValueIDAgentReceiveStatusConnect:      "connect",
+					TagValueIDAgentReceiveStatusDisconnect:   "disconnect",
+					TagValueIDAgentReceiveStatusNetworkError: "network_error",
+					TagValueIDAgentReceiveStatusFramingError: "framing_error",
 				}),
+			}, {
+				Description:   "protocol",
+				ValueComments: convertToValueComments(packetProtocolToValue),
 			}},
 		},
 		BuiltinMetricIDAgentUDPReceiveBufferSize: {
@@ -2453,6 +2473,14 @@ Value is delta between second value and time it was inserted.`,
 		TagValueIDPacketFormatProtobuf: "protobuf",
 		TagValueIDPacketFormatRPC:      "rpc",
 		TagValueIDPacketFormatEmpty:    "empty",
+	}
+
+	packetProtocolToValue = map[int32]string{
+		TagValueIDPacketProtocolUDP:      "udp",
+		TagValueIDPacketProtocolUnixGram: "unixgram",
+		TagValueIDPacketProtocolTCP:      "tcp",
+		TagValueIDPacketProtocolVKRPC:    "vkrpc",
+		TagValueIDPacketProtocolHTTP:     "http",
 	}
 
 	aggregatorRoleToValue = map[int32]string{

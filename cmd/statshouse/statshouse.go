@@ -266,6 +266,8 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		runtime.GOMAXPROCS(argv.maxCores)
 	}
 
+	runPprof()
+
 	var (
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
@@ -422,12 +424,24 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	}
 
 	// Run pprof server
-	var hijack *rpc.HijackListener
-	if argv.pprofHTTP {
-		hijack = rpc.NewHijackListener(listeners[0].Addr())
-		defer func() { _ = hijack.Close() }()
-		go trustedNetworkServeHTTP(hijack)
-	}
+	hijackTCP := rpc.NewHijackListener(listeners[0].Addr())
+	hijackHTTP := rpc.NewHijackListener(listeners[0].Addr())
+	defer func() { _ = hijackTCP.Close() }()
+	defer func() { _ = hijackHTTP.Close() }()
+
+	receiverTCP := receiver.NewTCPReceiver(sh2, logPackets)
+	go func() {
+		if err := receiverTCP.Serve(w, hijackTCP); err != nil {
+			logErr.Printf("error serving TCP: %v", err)
+		}
+	}()
+
+	receiverHTTP := receiver.NewHTTPReceiver(sh2, logPackets)
+	go func() {
+		if err := receiverHTTP.Serve(w, hijackHTTP); err != nil {
+			logErr.Printf("error serving HTTP: %v", err)
+		}
+	}()
 
 	// Run RPC server
 	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
@@ -444,11 +458,14 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
 		metrics.ServerWithMetrics,
 	}
-	if hijack != nil {
-		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-			hijack.AddConnection(conn)
-		}))
-	}
+	options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+		if strings.HasPrefix(string(conn.Magic), receiver.TCPPrefix) {
+			conn.Magic = conn.Magic[len(receiver.TCPPrefix):]
+			hijackTCP.AddConnection(conn)
+			return
+		}
+		hijackHTTP.AddConnection(conn)
+	}))
 	srv := rpc.NewServer(options...)
 	defer metrics.Run(srv)()
 	for _, ln := range listeners {
@@ -595,16 +612,11 @@ func mainIngressProxy(aesPwd string) {
 		logErr.Fatalf("%v", err)
 	}
 
-	// Open port and run pprof server
+	runPprof()
+
 	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
 	if err != nil {
 		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
-	}
-	var hijack *rpc.HijackListener
-	if argv.pprofHTTP {
-		hijack = rpc.NewHijackListener(ln.Addr())
-		defer func() { _ = hijack.Close() }()
-		go trustedNetworkServeHTTP(hijack)
 	}
 
 	// Run agent (we use agent instance for ingress proxy built-in metrics)
@@ -617,7 +629,7 @@ func mainIngressProxy(aesPwd string) {
 	sh2.Run(0, 0, 0)
 
 	// Run ingress proxy
-	err = aggregator.RunIngressProxy(ln, hijack, sh2, aesPwd, config)
+	err = aggregator.RunIngressProxy(ln, sh2, aesPwd, config)
 	if err != nil && err != rpc.ErrServerClosed {
 		logErr.Fatalf("error running ingress proxy: %v", err)
 	}
@@ -638,35 +650,15 @@ func serveRPC(ln net.Listener, server *rpc.Server) {
 	}
 }
 
-func trustedNetworkServeHTTP(ln *rpc.HijackListener) {
-	handler := http.NewServeMux()
-	network := ln.Addr().Network()
-	trustedSubnetGroups, _ := rpc.ParseTrustedSubnets(build.TrustedSubnetGroups())
-	intranetIP := func(ip net.IP) bool {
-		if ip.IsLoopback() {
-			return true
-		}
-		for _, group := range trustedSubnetGroups {
-			for _, network := range group {
-				if network.Contains(ip) {
-					return true
-				}
-			}
-		}
-		return false
+func runPprof() {
+	if argv.pprofHTTP {
+		logErr.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
 	}
-	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		remoteAddr, err := net.ResolveTCPAddr(network, r.RemoteAddr)
-		if err == nil && intranetIP(remoteAddr.IP) {
-			http.DefaultServeMux.ServeHTTP(w, r)
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-		}
-	})
-	logOk.Printf("Serve HTTP on %s", ln.Addr())
-	server := http.Server{Handler: handler}
-	err := server.Serve(ln)
-	if err != nil && err != rpc.ErrServerClosed {
-		logErr.Printf("HTTP server failed to serve on %s: %v", ln.Addr(), err)
+	if argv.pprofListenAddr != "" {
+		go func() {
+			if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
+				logErr.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
+			}
+		}()
 	}
 }

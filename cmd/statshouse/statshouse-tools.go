@@ -370,7 +370,8 @@ func mainTLClient() int {
 		return 1
 	}
 	var ret tl.True
-	if err := tlclient.AddMetricsBatchBytes(context.Background(), batch, nil, &ret); err != nil {
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	if err := tlclient.AddMetricsBatchBytes(context.Background(), batch, &extra, &ret); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "addMetricsBatch failed - %v", err)
 		return 1
 	}
