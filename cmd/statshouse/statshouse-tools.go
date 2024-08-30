@@ -371,7 +371,9 @@ func mainTLClient() int {
 	}
 	var ret tl.True
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	if err := tlclient.AddMetricsBatchBytes(context.Background(), batch, &extra, &ret); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5) // TODO - option to set timeout
+	defer cancel()
+	if err := tlclient.AddMetricsBatchBytes(ctx, batch, &extra, &ret); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "addMetricsBatch failed - %v", err)
 		return 1
 	}
