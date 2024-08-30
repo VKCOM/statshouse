@@ -111,8 +111,8 @@ func argvAddCommonFlags() {
 	flag.StringVar(&argv.userLogin, "u", defaultUser, "sets user name to make setuid")
 	flag.StringVar(&argv.userGroup, "g", defaultGroup, "sets user group to make setguid")
 
-	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address (deprecated)")
-	flag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
+	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
+	flag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port (deprecated due to security reasons)")
 
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
 

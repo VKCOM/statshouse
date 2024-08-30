@@ -101,7 +101,7 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
+func RunIngressProxy(ln net.Listener, sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
 	// Now we configure our clients using repetition of 3 ingress proxy addresses per shard
 	extAddr := config.ExternalAddresses
 	for i := 1; i < len(sh2.GetConfigResult.Addresses)/3; i++ { // GetConfig returns only non-empty list divisible by 3
@@ -136,11 +136,6 @@ func RunIngressProxy(ln net.Listener, hijack *rpc.HijackListener, sh2 *agent.Age
 		rpc.ServerWithRequestMemoryLimit(8 << 30), // see server settings in aggregator. We do not multiply here
 		rpc.ServerWithResponseMemoryLimit(config.ResponseMemoryLimit),
 		metrics.ServerWithMetrics,
-	}
-	if hijack != nil {
-		options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-			hijack.AddConnection(conn)
-		}))
 	}
 	proxy.server = rpc.NewServer(options...)
 	defer metrics.Run(proxy.server)()

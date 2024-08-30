@@ -55,8 +55,8 @@ func (h statsHandler) handleStats(stats map[string]string) {
 	stats["statshouse_udp_recv_batches_ok"] = strconv.FormatUint(statBatchesTotalOK, 10)
 	stats["statshouse_udp_recv_batches_err"] = strconv.FormatUint(statBatchesTotalErr, 10)
 
-	stats["statshouse_rpc_recv_calls_ok"] = strconv.FormatUint(h.receiverRPC.StatCallsTotalOK.Load(), 10)
-	stats["statshouse_rpc_recv_calls_err"] = strconv.FormatUint(h.receiverRPC.StatCallsTotalErr.Load(), 10)
+	stats["statshouse_rpc_recv_calls_ok"] = strconv.FormatUint(h.receiverRPC.StatBatchesTotalOK(), 10)
+	stats["statshouse_rpc_recv_calls_err"] = strconv.FormatUint(h.receiverRPC.StatBatchesTotalErr(), 10)
 
 	stats["statshouse_journal_version"] = strconv.FormatInt(h.metricsStorage.Version(), 10)
 	for i, s := range h.sh2.Shards {
