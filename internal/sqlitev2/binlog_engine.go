@@ -2,7 +2,6 @@ package sqlitev2
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -113,8 +112,11 @@ func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	return nil
 }
 
-func (b *binlogEngine) StartReindex() error {
-	return fmt.Errorf("implement")
+func (b *binlogEngine) StartReindex(operator binlog.ReindexOperator) {
+}
+
+func (b *binlogEngine) Split(offset int64, toShardID string) bool {
+	return false
 }
 
 func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool, waitSnapshotMeta bool) []byte {

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/myxo/gofs"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
@@ -30,26 +31,31 @@ type ReaderSync interface {
 }
 
 type binlogReader struct {
+	fs                  gofs.FS
 	fsWatcher           *fsnotify.Watcher
 	stat                *stat
 	readyCallbackCalled bool
 	fileHeaders         []FileHeader
 	logger              binlog.Logger
 	commitDuration      time.Duration
-	DoNotFSyncOnRead    bool
 
-	stop       *chan struct{}
-	pidChanged *chan struct{}
+	stop         chan struct{}
+	pidChanged   chan struct{}
+	reindexEvent chan bool // make event bus if we have more events?
 }
 
-func newBinlogReader(pidChanged *chan struct{}, commitDuration time.Duration, logger binlog.Logger, stat *stat, DoNotFSyncOnRead bool, stopCh *chan struct{}) (*binlogReader, error) {
+func newBinlogReader(fs gofs.FS, pidChanged chan struct{}, reindexEvent chan bool, commitDuration time.Duration, logger binlog.Logger, stat *stat, stopCh chan struct{}) (*binlogReader, error) {
+	if logger == nil {
+		logger = &binlog.EmptyLogger{}
+	}
 	return &binlogReader{
-		stop:             stopCh,
-		pidChanged:       pidChanged,
-		stat:             stat,
-		logger:           logger,
-		commitDuration:   commitDuration,
-		DoNotFSyncOnRead: DoNotFSyncOnRead,
+		fs:             fs,
+		stop:           stopCh,
+		reindexEvent:   reindexEvent,
+		pidChanged:     pidChanged,
+		stat:           stat,
+		logger:         logger,
+		commitDuration: commitDuration,
 	}, nil
 }
 
@@ -71,7 +77,7 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 		}()
 	}
 
-	b.fileHeaders, err = ScanForFilesFromPos(0, prefixPath, expectedMagic, nil)
+	b.fileHeaders, err = ScanForFilesFromPos(b.fs, 0, prefixPath, expectedMagic, nil)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to scan directory for binlog files: %w", err)
 	}
@@ -109,6 +115,11 @@ loop:
 			var pos int64
 			var crc uint32
 			pos, crc, rotated, err = b.readBinlogFromFile(fileHdr, fromPosition, engine, sm, endlessMode)
+			// ErrUpgradeToBarsicLev is allowed to pup up for correct switching
+			if err == ErrUpgradeToBarsicLev {
+				return pos, crc, err
+			}
+
 			if err != nil {
 				return posAfterRead, crcAfterRead, err
 			}
@@ -118,7 +129,7 @@ loop:
 		fileIndex = len(b.fileHeaders)
 		lastBinlogPosition := b.fileHeaders[fileIndex-1].Position
 
-		newFileHeaders, err := ScanForFilesFromPos(lastBinlogPosition, prefixPath, 0, b.fileHeaders)
+		newFileHeaders, err := ScanForFilesFromPos(b.fs, lastBinlogPosition, prefixPath, 0, b.fileHeaders)
 		if err != nil {
 			return posAfterRead, crcAfterRead, fmt.Errorf("ScanForFilesFromPos failed at pos %d: %w", lastBinlogPosition, err)
 		}
@@ -149,7 +160,7 @@ loop:
 func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath string, currHdrs []FileHeader) ([]FileHeader, error) {
 	for {
 		// no point to specify expected magic, since we already read first file
-		fileHeaders, err := ScanForFilesFromPos(lastBinlogPosition, prefixPath, 0, currHdrs)
+		fileHeaders, err := ScanForFilesFromPos(b.fs, lastBinlogPosition, prefixPath, 0, currHdrs)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +171,7 @@ func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath
 
 		timer := time.NewTimer(time.Second)
 		select {
-		case <-*b.stop:
+		case <-b.stop:
 			return nil, errStopped
 		case <-timer.C:
 		}
@@ -168,7 +179,7 @@ func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath
 }
 
 func (b *binlogReader) readBinlogFromFile(header *FileHeader, fromPos int64, engine binlog.Engine, si *seekInfo, endlessMode bool) (int64, uint32, bool, error) {
-	fd, err := os.Open(header.FileName)
+	fd, err := b.fs.Open(header.FileName)
 	if err != nil {
 		return 0, 0, false, err
 	}
@@ -249,26 +260,24 @@ func (b *binlogReader) readUncompressedFile(r ReaderSync, curPos int64, curCrc32
 		clientDontKnowMagic bool
 		processErr          error
 		finish              bool
-		hasUncommitted      bool
+		commitPos           int64
 	)
 	b.stat.positionInCurFile.Store(levRotateSize)
 
 	buffer := newReadBuffer(64 * 1024)
 	commitTimer := time.NewTimer(b.commitDuration)
 	makeCommit := func(int64, uint32) error {
-		if !hasUncommitted {
+		if commitPos == curPos {
 			return nil
 		}
-		if endlessMode && !b.DoNotFSyncOnRead { // no sense to run fsync in master mode while reading
-			if err := r.Sync(); err != nil {
-				return nil
-			}
+		commitPos = curPos
+		if err := r.Sync(); err != nil {
+			return fmt.Errorf("failed fsync in reader: %w", err)
 		}
 		snapMeta := prepareSnapMeta(curPos, curCrc32, b.stat.lastTimestamp.Load())
 		if err := engine.Commit(curPos, snapMeta, curPos); err != nil {
 			return fmt.Errorf("Engine.Commit return error %w", err)
 		}
-		hasUncommitted = false
 		return nil
 	}
 
@@ -286,11 +295,16 @@ loop:
 		b.stat.positionInCurFile.Add(int64(readBytes))
 
 		if processErr != nil && !isExpectedError(processErr) {
+			// ErrUpgradeToBarsicLev is allowed to pup up for correct switching
+			if processErr == ErrUpgradeToBarsicLev {
+				return curPos, curCrc32, true, ErrUpgradeToBarsicLev
+			}
+
 			return curPos, curCrc32, false, fmt.Errorf("Engine.Apply return error %w", processErr)
 		}
 
 		select {
-		case <-*b.stop:
+		case <-b.stop:
 			return curPos, curCrc32, false, errStopped
 		case <-commitTimer.C:
 			// Фейковый коммит. fsync делает репликатор и мы не знаем когда он произошел, поэтому так.
@@ -299,7 +313,15 @@ loop:
 				return curPos, curCrc32, false, err
 			}
 			commitTimer.Reset(b.commitDuration)
+		case <-b.reindexEvent:
+			engine.StartReindex(&EmptyReindexOperator{})
 		default:
+		}
+
+		if curPos-commitPos > int64(uncommittedMaxSize) {
+			if err := makeCommit(curPos, curCrc32); err != nil {
+				return curPos, curCrc32, false, err
+			}
 		}
 
 		{
@@ -326,14 +348,10 @@ loop:
 						return curPos, curCrc32, false, fmt.Errorf("Engine.ChangeRole return error %w", err)
 					}
 
-					if b.logger != nil {
-						b.logger.Infof("Binlog: running in subst mode, wait for previous process to be killed")
-					}
-					<-*b.pidChanged
+					b.logger.Infof("Binlog: running in subst mode, wait for previous process to be killed")
+					<-b.pidChanged
 
-					if b.logger != nil {
-						b.logger.Infof("Binlog: previous process is dead, continue to read binlog")
-					}
+					b.logger.Infof("Binlog: previous process is dead, continue to read binlog")
 
 					// Теперь файлы на диске гарантированно актуальные, больше в эту ветку заходить не нужно
 					b.pidChanged = nil
@@ -353,10 +371,7 @@ loop:
 
 				if !b.readyCallbackCalled {
 					b.readyCallbackCalled = true
-					if err := engine.ChangeRole(binlog.ChangeRoleInfo{
-						IsMaster: false,
-						IsReady:  true,
-					}); err != nil {
+					if err := engine.ChangeRole(binlog.ChangeRoleInfo{IsMaster: false, IsReady: true}); err != nil {
 						return curPos, curCrc32, false, fmt.Errorf("Engine.ChangeRole return error %w", err)
 					}
 				}
@@ -366,9 +381,7 @@ loop:
 					continue
 				case err = <-b.fsWatcher.Errors:
 					// can't really do anything here... Just clean up channel
-					if b.logger != nil {
-						b.logger.Warnf("Error while fsWatcher: %s", err)
-					}
+					b.logger.Warnf("Error while fsWatcher: %s", err)
 					continue
 				case <-commitTimer.C:
 					if err := makeCommit(curPos, curCrc32); err != nil {
@@ -376,7 +389,9 @@ loop:
 					}
 					commitTimer.Reset(b.commitDuration)
 					continue
-				case <-*b.stop:
+				case <-b.reindexEvent:
+					engine.StartReindex(&EmptyReindexOperator{})
+				case <-b.stop:
 					break loop
 				}
 			}
@@ -493,7 +508,6 @@ loop:
 		}
 
 		clientDontKnowMagic = false
-		hasUncommitted = true
 
 		if serviceLev && (processErr == nil || processErr == ErrUpgradeToBarsicLev) {
 			newPos, skipErr := engine.Skip(int64(readBytes))
@@ -550,8 +564,8 @@ func (b *binlogReader) readAndUpdateCRCIfNeed(r io.Reader, curPos int64, curCrc3
 	return curPos, curCrc32, nil
 }
 
-func readBinlogHeaderFile(header *FileHeader, expectedMagic uint32) error {
-	fd, err := os.OpenFile(header.FileName, os.O_RDONLY, defaultFilePerm)
+func readBinlogHeaderFile(fs gofs.FS, header *FileHeader, expectedMagic uint32) error {
+	fd, err := fs.OpenFile(header.FileName, os.O_RDONLY, defaultFilePerm)
 	if err != nil {
 		return err
 	}

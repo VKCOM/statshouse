@@ -61,7 +61,7 @@ func testLongpollServer(t *rapid.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		if err := s.Serve(ln); err != nil && err != ErrServerClosed {
+		if err := s.Serve(ln); err != nil {
 			t.Fatal(err)
 		}
 		wg.Done()

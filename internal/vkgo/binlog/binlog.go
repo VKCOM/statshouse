@@ -11,7 +11,10 @@ import (
 	"fmt"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/tlbarsic"
 )
+
+type StartCmd = tlbarsic.Start
 
 const BarsicNotAMasterRPCError = -2011 // TODO - move to better place
 
@@ -51,9 +54,18 @@ type EngineStatus struct { // copy of tlbarsic.EngineStatus
 	PreparedSnapshotSize     int64
 }
 
+type ReindexOperator interface {
+	FinishedOk()
+	FinishedError()
+}
+
+// Engine represent all operation that engine need to implement
+//
+// All callbacks called from single event reactor, so they won't be called concurrently.
 type Engine interface {
 	// Apply получает payload с событиями, которые должен обработать движок. После обработки движок должен вернуть
-	// свою позицию бинлога. Семантика newOffset - все до этой позиции движок успешно обработал.
+	// свою позицию бинлога. Семантика newOffset - все до этой позиции движок успешно обработал
+	// (позиция начинается с нуля, при обработке первых 20 байт, возвращайте 20).
 	//
 	//  Содержание payload немного отличается в зависимости от имплементации:
 	//
@@ -88,9 +100,9 @@ type Engine interface {
 
 	// ChangeRole сообщает движку об изменении его роли
 	// Когда info.IsReadyMaster(), движок уже стал пишущим мастером, и имеет право ещё до выхода из этой функции
-	//     начать вызывать Apply для новых команд
+	//     начать вызывать Append для новых команд
 	// Когда !info.IsReadyMaster(), движок обязан гарантировать, что ещё до выхода из этой функции сложит полномочия
-	//     пишущего мастера, то есть больше не вызовет ни один Apply
+	//     пишущего мастера, то есть больше не вызовет ни один Append
 	// Под капотом, библиотека Barsic записывает в первом случае эхо команды до вызова ChangeRole, а во втором случае - сразу после.
 	//
 	// Отдельную семантику имеет первый вызов ChangeRole с флагом IsReady, это означает, что мы прочитали текущий бинлог
@@ -99,27 +111,34 @@ type Engine interface {
 	// TODO: подробно описать сценарий
 	ChangeRole(info ChangeRoleInfo) error
 
-	// Experimental for now. TODO - stabilize
-	StartReindex() error
+	// StartReindex signal that engine need to reindex it's state. After reindex engine must call one of
+	// Finished* function from ReindexOperator.
+	//
+	// Be aware that this function called in common event reactor, so it should not block
+	StartReindex(operator ReindexOperator)
 
-	// engine must start graceful shutdown of all connections and is recommended to
-	// exit after all connections shutdown. Otherwise barsic will close it after some timeout.
+	// Split command engine to forget state not belonging to new shard and remember new shardID.
+	// engine should learn about which state to forget by parsing toShardID
+	// also engine must reset snapshotMeta and controlMeta to empty state
+	// before split, engine will always receive commit for split offset
+	// engine must return true if it implements this method, otherwise it will be killed
+	Split(offset int64, toShardID string) bool
+
+	// Shutdown tells engine that it will be shutdown soon.
+	// On receive, engine must stop answering engine.pid so "пинговалка" mark us as dead and we stop receiving requests.
+	// After some time, barsic will stop us for good
+	//
+	// Note: this is (hopefully) temporary solution for "no error" graceful restart.
 	Shutdown()
 }
 
 type Binlog interface {
-	// Run запускает работу бинлогов. Если движок уже прочитал часть состояния из снепшота, он должен передать
-	// offset и snapshotMeta (берутся из Engine.Commit).
-	// Блокируется на все время работы бинлогов
-	// содержимое snapshotMeta копируется, слайс или подслайс не сохраняется
-	Run(offset int64, snapshotMeta []byte, engine Engine) error // TODO - deprecate and use the next one
-	Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine Engine) error
-
-	// Restart просит Барсик перезапустить движок. Может быть вызван в любой момент, даже до Start, вызвать Restart
-	// 1 или более раз. Если движок был мастером, Барсик запустит процесс безоткатного снятия роли, затем
-	// когда роль станет безопасна для рестарта, закроет сокет, дождётся выхода и перезапустит движок.
-	// также учитывается состояние кластера, если другие движки перезапускаются, перезапуск этого может быть отложен.
-	Restart()
+	// Run binlog event reactor. Blocking for whole duration of Engine lifetime.
+	//
+	// Engine start getting event only during Run. If Run is exit, engine should close rpc server and exit.
+	// Arguments should be restored from snapshot (see Engine.Commit for details)
+	// Slices are cloned, safe for reuse
+	Run(offset int64, snapshotMeta []byte, controlMeta []byte, engine Engine) error
 
 	// Append асинхронно добавляет событие в бинлог. Это не дает гарантий, что событие останется в бинлоге,
 	// для этого см. функцию Engine.Commit. Возвращает позицию в которую будет записанно следующее событие.
@@ -132,35 +151,38 @@ type Binlog interface {
 	// AppendASAP тоже что и Append, только просит имплементацию закоммитить события как только сможет
 	AppendASAP(onOffset int64, payload []byte) (nextLevOffset int64, err error)
 
-	// AddStats записывает статистику в stats. Формат соответствует стандартным 7enginestat
-	AddStats(stats map[string]string)
-
-	// Shutdown дает сигнал на завершение работы бинлога. Неблокирующий.
-	Shutdown() error
-
 	// EngineStatus отправляет статус Барсику для показа в консоли. Можно отправлять как угодно часто, но лучше, когда меняется.
 	// Первый статус с версией и именем снапшота лучше отправить сразу же, как тольео выбрали, какой снапшот грузить.
 	EngineStatus(status EngineStatus)
-}
 
-type Options struct {
-	// Настройки для fsBinlog имплементации, барсик настраиваится в конфиге барсика
-	PrefixPath        string // путь до бинлога, включающий префикс для файлов финлога (например `some/path/gopusher_binlog`)
-	Magic             uint32 // Ожидаемый magic (scheme) движка (0 - если можно открывать любой тип)
-	ReplicaMode       bool   // Бинлог открывается в режиме читающей реплики (постоянно читаем файл, если EOF, ждем новой записи)
-	ReadAndExit       bool   // Может быть полезен для инструментария, не имеет смысла вместе с ReplicaMode
-	MaxChunkSize      uint32 // Примерный порог (в байтах) для срабатывания ротации бинлога
-	HardMemLimit      int    // Лимит буффера, при котором включается механизм back pressure: Append начнет блокироваться, пока буффер не передастся на запись
-	EngineIDInCluster uint   // Номер данного шарда в кластере, для статы
-	ClusterSize       uint   // Размер кластера для данного шарда, для статы
-	DoNotFSyncOnRead  bool   // Не делать fsync при коммите в режиме реплики. При отключении теряется гарантия того, что Commit() реально записал на диск. Для тестов перфа
+	// Return Start command sent by Barsic on handshake. If we not running under barsic, false is returned
+	GetStartCmd() (StartCmd, bool)
+
+	// RequestShutdown send barsic request for exit.
+	//
+	// Common shutdown states is (some steps may alter by barsic config)
+	// - if engine is leader, it demotes to follower
+	// - wait until quorum + 1 of engines in shard is working
+	// - send Engine.Shutdown
+	// - unblock Binlog.Run
+	// - wait until engine process exit
+	RequestShutdown()
+
+	// RequestReindex from barsic.
+	//
+	// Usually reindex happen on some schedule, but engine might decide it need reindex now.
+	// After this call barsic will put engine in indexing queue and call StartReindex in some time.
+	RequestReindex(diff bool, fast bool)
+
+	// AddStats записывает статистику в stats. Формат соответствует стандартным 7enginestat
+	AddStats(stats map[string]string)
 }
 
 // Experimental, TODO - move to better place
 func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
 	c.ValidateReadRequest(hctx)
 	if !c.IsReadyMaster() {
-		return rpc.Error{
+		return &rpc.Error{
 			Code:        BarsicNotAMasterRPCError,
 			Description: fmt.Sprintf("%d:%d not master", c.EpochNumber, c.ViewNumber),
 		}

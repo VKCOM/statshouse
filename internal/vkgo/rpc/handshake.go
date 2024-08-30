@@ -21,11 +21,6 @@ import (
 )
 
 const (
-	// Previous limit of 1 second sometimes causes sporadic handshake failures
-	// when TCP is feeling bad (e.g. >200ms delay between SYN-ACK and ACK),
-	// so try to bump it to avoid warnings about handshake failures in logs.
-	DefaultHandshakeStepTimeout = DefaultPacketTimeout
-
 	cryptoSchemaNone      = 0 // RPC_CRYPTO_NONE in C++ engine
 	cryptoSchemaAES       = 1 // RPC_CRYPTO_AES in C++ engine
 	cryptoSchemaNoneOrAES = 2 // RPC_CRYPTO_NONE_OR_AES in C++ engine

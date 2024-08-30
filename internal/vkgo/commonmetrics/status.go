@@ -53,7 +53,7 @@ func StatusFromError(err error) Status {
 	if errors.Is(err, context.Canceled) {
 		return Status{Description: StatusTimeout}
 	}
-	if rpcError, ok := err.(rpc.Error); ok {
+	if rpcError, ok := err.(*rpc.Error); ok {
 		var status string
 		switch code := rpcError.Code; code {
 		case errCodeUnknownFunctionID:

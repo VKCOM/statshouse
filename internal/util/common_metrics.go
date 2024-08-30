@@ -39,7 +39,7 @@ func NewRPCServerMetrics(service string) *RPCServerMetrics {
 func (s *RPCServerMetrics) ServerWithMetrics(so *rpc.ServerOptions) {
 	so.AcceptErrHandler = s.handleAcceptError
 	so.ConnErrHandler = s.handleConnError
-	so.ResponseHandler = s.handleResponse
+	so.ResponseHook = s.handleResponse
 }
 
 func (s *RPCServerMetrics) Run(server *rpc.Server) func() {

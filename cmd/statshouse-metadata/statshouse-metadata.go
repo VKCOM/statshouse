@@ -27,7 +27,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metadata"
 	"github.com/vkcom/statshouse/internal/util"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -193,7 +192,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		_, err = fsbinlog.CreateEmptyFsBinlog(binlog.Options{
+		_, err = fsbinlog.CreateEmptyFsBinlog(fsbinlog.Options{
 			PrefixPath:        argv.binlogPrefix,
 			Magic:             binlogMagic,
 			EngineIDInCluster: uint(engineID),
@@ -231,7 +230,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("can't kill old process: %w", err)
 	}
-	bl, err := fsbinlog.NewFsBinlog(&Logger{}, binlog.Options{
+	bl, err := fsbinlog.NewFsBinlog(&Logger{}, fsbinlog.Options{
 		PrefixPath: argv.binlogPrefix,
 		Magic:      binlogMagic,
 	})
@@ -334,7 +333,7 @@ func run() error {
 	defer metrics.Run(server)()
 	go func() {
 		err = server.Serve(rpcLn)
-		if err != rpc.ErrServerClosed {
+		if err != nil {
 			log.Println(err)
 		}
 	}()

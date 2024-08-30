@@ -15,7 +15,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/sqlite"
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 
 	"context"
 )
@@ -161,7 +161,7 @@ const entityHistoryMaxResponseSize = 1024 * 1024 * 4
 func OpenDB(
 	path string,
 	opt Options,
-	binlog binlog2.Binlog) (*DBV2, error) {
+	binlog fsbinlog.BinlogReadWrite) (*DBV2, error) {
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}

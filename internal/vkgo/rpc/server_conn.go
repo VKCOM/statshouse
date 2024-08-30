@@ -125,7 +125,8 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 
 func (sc *serverConn) sendLetsFin() {
 	if !sc.conn.FlagCancelReq() {
-		return // TODO - close connection here?
+		// We do not close here, because connections with declared cancel support can also freeze/not respond to protocol
+		return
 	}
 	sc.mu.Lock()
 	if sc.closedFlag || sc.readFINFlag {
@@ -340,6 +341,9 @@ func (sc *serverConn) cancelLongpollResponse(queryID int64) {
 	}
 	sc.mu.Unlock()
 	resp.canceller.CancelHijack(resp.hctx)
+	if sc.server.opts.ResponseHook != nil {
+		sc.server.opts.ResponseHook(resp.hctx, ErrCancelHijack)
+	}
 	sc.releaseHandlerCtx(resp.hctx)
 }
 
@@ -360,6 +364,9 @@ func (sc *serverConn) cancelAllLongpollResponses() {
 			sc.server.addTrace(fmt.Sprintf("cancelAllLongpollResponse %d", resp.hctx.queryID))
 		}
 		resp.canceller.CancelHijack(resp.hctx)
+		if sc.server.opts.ResponseHook != nil {
+			sc.server.opts.ResponseHook(resp.hctx, ErrCancelHijack)
+		}
 		sc.releaseHandlerCtx(resp.hctx)
 	}
 }

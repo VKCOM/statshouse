@@ -279,7 +279,7 @@ func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 	}
 	ipp, err := netip.ParseAddrPort(hctx.RemoteAddr().String())
 	if err != nil {
-		return rpc.Error{
+		return &rpc.Error{
 			Code:        data_model.RPCErrorScrapeAgentIP,
 			Description: "scrape agent must have an IP address",
 		}

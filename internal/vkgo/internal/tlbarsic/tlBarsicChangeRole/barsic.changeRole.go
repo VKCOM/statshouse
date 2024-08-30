@@ -21,8 +21,9 @@ type BarsicChangeRole struct {
 	// Master (TrueType) // Conditional: item.FieldsMask.0
 	// Ready (TrueType) // Conditional: item.FieldsMask.1
 	Offset      int64
-	EpochNumber int64 // Conditional: item.FieldsMask.30
+	EpochNumber int64
 	ViewNumber  int64
+	// EpochNumberLegacyFlag (TrueType) // Conditional: item.FieldsMask.30
 }
 
 func (BarsicChangeRole) TLName() string { return "barsic.changeRole" }
@@ -46,15 +47,14 @@ func (item *BarsicChangeRole) SetReady(v bool) {
 }
 func (item BarsicChangeRole) IsSetReady() bool { return item.FieldsMask&(1<<1) != 0 }
 
-func (item *BarsicChangeRole) SetEpochNumber(v int64) {
-	item.EpochNumber = v
-	item.FieldsMask |= 1 << 30
+func (item *BarsicChangeRole) SetEpochNumberLegacyFlag(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 30
+	} else {
+		item.FieldsMask &^= 1 << 30
+	}
 }
-func (item *BarsicChangeRole) ClearEpochNumber() {
-	item.EpochNumber = 0
-	item.FieldsMask &^= 1 << 30
-}
-func (item BarsicChangeRole) IsSetEpochNumber() bool { return item.FieldsMask&(1<<30) != 0 }
+func (item BarsicChangeRole) IsSetEpochNumberLegacyFlag() bool { return item.FieldsMask&(1<<30) != 0 }
 
 func (item *BarsicChangeRole) Reset() {
 	item.FieldsMask = 0
@@ -77,11 +77,7 @@ func (item *BarsicChangeRole) FillRandom(rg *basictl.RandGenerator) {
 		item.FieldsMask |= (1 << 30)
 	}
 	item.Offset = basictl.RandomLong(rg)
-	if item.FieldsMask&(1<<30) != 0 {
-		item.EpochNumber = basictl.RandomLong(rg)
-	} else {
-		item.EpochNumber = 0
-	}
+	item.EpochNumber = basictl.RandomLong(rg)
 	item.ViewNumber = basictl.RandomLong(rg)
 }
 
@@ -92,14 +88,13 @@ func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.Offset); err != nil {
 		return w, err
 	}
-	if item.FieldsMask&(1<<30) != 0 {
-		if w, err = basictl.LongRead(w, &item.EpochNumber); err != nil {
-			return w, err
-		}
-	} else {
-		item.EpochNumber = 0
+	if w, err = basictl.LongRead(w, &item.EpochNumber); err != nil {
+		return w, err
 	}
-	return basictl.LongRead(w, &item.ViewNumber)
+	if w, err = basictl.LongRead(w, &item.ViewNumber); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -110,9 +105,7 @@ func (item *BarsicChangeRole) WriteGeneral(w []byte) (_ []byte, err error) {
 func (item *BarsicChangeRole) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	if item.FieldsMask&(1<<30) != 0 {
-		w = basictl.LongWrite(w, item.EpochNumber)
-	}
+	w = basictl.LongWrite(w, item.EpochNumber)
 	w = basictl.LongWrite(w, item.ViewNumber)
 	return w
 }
@@ -200,6 +193,8 @@ func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	var propOffsetPresented bool
 	var propEpochNumberPresented bool
 	var propViewNumberPresented bool
+	var trueTypeEpochNumberLegacyFlagPresented bool
+	var trueTypeEpochNumberLegacyFlagValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -258,6 +253,14 @@ func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 					return err
 				}
 				propViewNumberPresented = true
+			case "epoch_number_legacy_flag":
+				if trueTypeEpochNumberLegacyFlagPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "epoch_number_legacy_flag")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeEpochNumberLegacyFlagValue); err != nil {
+					return err
+				}
+				trueTypeEpochNumberLegacyFlagPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.changeRole", key)
 			}
@@ -290,8 +293,10 @@ func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 			item.FieldsMask |= 1 << 1
 		}
 	}
-	if propEpochNumberPresented {
-		item.FieldsMask |= 1 << 30
+	if trueTypeEpochNumberLegacyFlagPresented {
+		if trueTypeEpochNumberLegacyFlagValue {
+			item.FieldsMask |= 1 << 30
+		}
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeMasterPresented && !trueTypeMasterValue && (item.FieldsMask&(1<<0) != 0) {
@@ -299,6 +304,10 @@ func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReadyPresented && !trueTypeReadyValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeEpochNumberLegacyFlagPresented && !trueTypeEpochNumberLegacyFlagValue && (item.FieldsMask&(1<<30) != 0) {
 		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
@@ -336,10 +345,12 @@ func (item *BarsicChangeRole) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if (item.Offset != 0) == false {
 		w = w[:backupIndexOffset]
 	}
-	if item.FieldsMask&(1<<30) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"epoch_number":`...)
-		w = basictl.JSONWriteInt64(w, item.EpochNumber)
+	backupIndexEpochNumber := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"epoch_number":`...)
+	w = basictl.JSONWriteInt64(w, item.EpochNumber)
+	if (item.EpochNumber != 0) == false {
+		w = w[:backupIndexEpochNumber]
 	}
 	backupIndexViewNumber := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -347,6 +358,10 @@ func (item *BarsicChangeRole) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	w = basictl.JSONWriteInt64(w, item.ViewNumber)
 	if (item.ViewNumber != 0) == false {
 		w = w[:backupIndexViewNumber]
+	}
+	if item.FieldsMask&(1<<30) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"epoch_number_legacy_flag":true`...)
 	}
 	return append(w, '}')
 }

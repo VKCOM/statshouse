@@ -106,7 +106,7 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 				delete(queryIDs, queryID)
 
 				if queryID%2 != 0 {
-					refErr := Error{
+					refErr := &Error{
 						Code:        int32(queryID),
 						Description: strconv.Itoa(int(queryID)),
 					}
@@ -135,7 +135,7 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 		t.Fatal(err)
 	}
 	err = <-serverErr
-	if err != ErrServerClosed {
+	if err != nil {
 		t.Fatal(err)
 	}
 }

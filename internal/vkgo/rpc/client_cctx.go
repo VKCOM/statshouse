@@ -8,7 +8,6 @@ package rpc
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
@@ -25,13 +24,7 @@ import (
 //    If receiver reads context from channel, it must pass it to putCallContext
 //    If receiver does not read from channel, context is GC-ed with the channel
 
-func preparePacket(req *Request, deadline time.Time) error {
-	if !deadline.IsZero() && !req.Extra.IsSetCustomTimeoutMs() {
-		// Not as close to actual writing as possible (we want that due to time.Until)
-		// If negative already, so be it.
-		req.Extra.SetCustomTimeoutMs(int32(time.Until(deadline).Milliseconds()))
-	}
-
+func preparePacket(req *Request) error {
 	headerBuf := req.Body // move to local var, then back for speed
 	req.extraStart = len(headerBuf)
 
@@ -91,19 +84,19 @@ func parseResponseExtra(extra *ReqResultExtra, respBody []byte) (_ []byte, err e
 		if respBody, err = rpcErr.Read(afterTag); err != nil {
 			return respBody, err
 		}
-		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultError{}.TLTag():
 		var rpcErr tl.RpcReqResultError // ignore query ID
 		if respBody, err = rpcErr.Read(afterTag); err != nil {
 			return respBody, err
 		}
-		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultErrorWrapped{}.TLTag():
 		var rpcErr tl.RpcReqResultErrorWrapped
 		if respBody, err = rpcErr.Read(afterTag); err != nil {
 			return respBody, err
 		}
-		return respBody, Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	}
 	return respBody, nil
 }

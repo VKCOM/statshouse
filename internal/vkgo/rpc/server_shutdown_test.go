@@ -146,7 +146,7 @@ func testShutdownClient(t *rapid.T) {
 		t.Fatal(err)
 	}
 	err = <-serverErrChan
-	if err != ErrServerClosed {
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(ts.clients) != 0 {

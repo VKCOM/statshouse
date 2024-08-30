@@ -185,7 +185,7 @@ func handleEngineSleep(ctx context.Context, hctx *HandlerContext, timeMs int32) 
 		deadline := hctx.RequestTime.Add(hctx.timeout)
 		dt := time.Since(deadline)
 		if dt >= 0 {
-			return Error{
+			return &Error{
 				Code:        TlErrorTimeout,
 				Description: fmt.Sprintf("RPC query timeout (%v after deadline)", dt),
 			}

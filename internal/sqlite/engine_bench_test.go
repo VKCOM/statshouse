@@ -14,7 +14,7 @@ import (
 const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"
 
 func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode DurabilityMode, commitOnEachWrite, waitCommit bool) (*Engine, binlog2.Binlog) {
-	options := binlog2.Options{
+	options := fsbinlog.Options{
 		PrefixPath: prefix + "/test",
 		Magic:      3456,
 	}

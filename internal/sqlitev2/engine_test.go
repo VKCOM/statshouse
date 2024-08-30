@@ -166,7 +166,7 @@ func openEngineWithoutBinlog(t *testing.T, opt testEngineOptions) *Engine {
 }
 
 func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) {
-	options := binlog2.Options{
+	options := fsbinlog.Options{
 		PrefixPath:  opt.prefix + "/test",
 		Magic:       3456,
 		ReplicaMode: opt.replica,
@@ -198,7 +198,7 @@ func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) 
 }
 
 func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica, readAndExit bool, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
-	options := binlog2.Options{
+	options := fsbinlog.Options{
 		PrefixPath:  prefix + "/test",
 		Magic:       3456,
 		ReplicaMode: replica,
@@ -973,7 +973,7 @@ func Test_Engine_Wal_Switch_Before_Engine_Run(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
-	options := binlog2.Options{
+	options := fsbinlog.Options{
 		PrefixPath: dir + "/test",
 		Magic:      3456,
 	}

@@ -8,43 +8,43 @@ package fsbinlog
 
 import (
 	"hash/crc32"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
 	"testing"
 
+	"github.com/myxo/gofs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
 const beginSize = 24 + 20 // start lev + tag lev
 
 func TestSimpleWrite(t *testing.T) {
-	dir := t.TempDir()
+	fs := gofs.NewMemoryFs()
+	dir := fs.TempDir()
 
-	options := binlog.Options{
+	options := Options{
 		PrefixPath:   filepath.Join(dir, "test_log"),
 		MaxChunkSize: 100000,
+		Fs:           fs,
 	}
 	file, err := CreateEmptyFsBinlog(options)
 	require.NoError(t, err)
 
-	fileData, err := os.ReadFile(file)
+	fileData, err := fs.ReadFile(file)
 	require.NoError(t, err)
 	crcAfterCreate := crc32.Update(0, crc32.IEEETable, fileData)
 
 	fh := FileHeader{FileName: file}
-	err = readBinlogHeaderFile(&fh, 0)
+	err = readBinlogHeaderFile(fs, &fh, 0)
 	require.NoError(t, err)
 
 	buff := newBuffEx(crcAfterCreate, int64(len(fileData)), int64(len(fileData)), int64(options.MaxChunkSize))
 
 	engine := NewTestEngine(int64(len(fileData)))
 	stop := make(chan struct{})
-	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop)
+	bw, err := newBinlogWriter(fs, &LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop, nil, 0)
 	require.NoError(t, err)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -59,12 +59,13 @@ func TestSimpleWrite(t *testing.T) {
 	lev2 := []byte("world   ")
 	buff.appendLevUnsafe(lev1)
 	buff.appendLevUnsafe(lev2)
+	buff.rd.commitASAP = true
 	buff.mu.Unlock()
-	bw.ch <- struct{}{}
+	bw.dataCh <- struct{}{}
 
 	engine.WaitUntilCommit(int64(beginSize + len(lev1) + len(lev2)))
 
-	fileData, err = os.ReadFile(file)
+	fileData, err = fs.ReadFile(file)
 	require.NoError(t, err)
 
 	crcFinal := crc32.Update(0, crc32.IEEETable, fileData)
@@ -82,27 +83,29 @@ func TestSimpleWrite(t *testing.T) {
 }
 
 func TestRotate(t *testing.T) {
-	dir := t.TempDir()
+	fs := gofs.NewMemoryFs()
+	dir := fs.TempDir()
 
-	options := binlog.Options{
+	options := Options{
 		PrefixPath:   filepath.Join(dir, "test_log"),
 		MaxChunkSize: 1024,
+		Fs:           fs,
 	}
 	file, err := CreateEmptyFsBinlog(options)
 	require.NoError(t, err)
 
-	fileData, err := os.ReadFile(file)
+	fileData, err := fs.ReadFile(file)
 	require.NoError(t, err)
 	crcAfterCreate := crc32.Update(0, crc32.IEEETable, fileData)
 
 	fh := FileHeader{FileName: file}
-	err = readBinlogHeaderFile(&fh, 0)
+	err = readBinlogHeaderFile(fs, &fh, 0)
 	require.NoError(t, err)
 
 	buff := newBuffEx(crcAfterCreate, int64(len(fileData)), int64(len(fileData)), int64(options.MaxChunkSize))
 	engine := NewTestEngine(int64(len(fileData)))
 	stop := make(chan struct{})
-	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop)
+	bw, err := newBinlogWriter(fs, &LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop, nil, 0)
 	require.NoError(t, err)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -120,12 +123,13 @@ func TestRotate(t *testing.T) {
 	}
 	buff.rotateFile()
 	buff.appendLevUnsafe([]byte(levs[2]))
+	buff.rd.commitASAP = true
 	buff.mu.Unlock()
-	bw.ch <- struct{}{}
+	bw.dataCh <- struct{}{}
 
 	engine.WaitUntilCommit(int64(beginSize + 512*3))
 
-	files, err := os.ReadDir(dir)
+	files, err := fs.ReadDir(dir)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(files))
 
@@ -141,7 +145,7 @@ func TestRotate(t *testing.T) {
 	crc := uint32(0)
 	pos := int64(0)
 	for _, name := range fileNames {
-		fileData, err = os.ReadFile(filepath.Join(dir, name))
+		fileData, err = fs.ReadFile(filepath.Join(dir, name))
 		require.NoError(t, err)
 
 		crc = crc32.Update(crc, crc32.IEEETable, fileData)

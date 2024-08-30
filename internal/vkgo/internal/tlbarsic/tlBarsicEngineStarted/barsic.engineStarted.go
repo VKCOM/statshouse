@@ -20,9 +20,10 @@ type BarsicEngineStarted struct {
 	FieldsMask uint32
 	// LegacyStart (TrueType) // Conditional: item.FieldsMask.0
 	// EngineUpgrade (TrueType) // Conditional: item.FieldsMask.1
-	Offset       int64
-	SnapshotMeta string
-	ControlMeta  string
+	Offset          int64
+	SnapshotMeta    string
+	ControlMeta     string
+	ProtocolVersion uint32 // Conditional: item.FieldsMask.2
 }
 
 func (BarsicEngineStarted) TLName() string { return "barsic.engineStarted" }
@@ -46,11 +47,22 @@ func (item *BarsicEngineStarted) SetEngineUpgrade(v bool) {
 }
 func (item BarsicEngineStarted) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *BarsicEngineStarted) SetProtocolVersion(v uint32) {
+	item.ProtocolVersion = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *BarsicEngineStarted) ClearProtocolVersion() {
+	item.ProtocolVersion = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item BarsicEngineStarted) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
+
 func (item *BarsicEngineStarted) Reset() {
 	item.FieldsMask = 0
 	item.Offset = 0
 	item.SnapshotMeta = ""
 	item.ControlMeta = ""
+	item.ProtocolVersion = 0
 }
 
 func (item *BarsicEngineStarted) FillRandom(rg *basictl.RandGenerator) {
@@ -63,9 +75,16 @@ func (item *BarsicEngineStarted) FillRandom(rg *basictl.RandGenerator) {
 	if maskFieldsMask&(1<<1) != 0 {
 		item.FieldsMask |= (1 << 1)
 	}
+	if maskFieldsMask&(1<<2) != 0 {
+		item.FieldsMask |= (1 << 2)
+	}
 	item.Offset = basictl.RandomLong(rg)
 	item.SnapshotMeta = basictl.RandomString(rg)
 	item.ControlMeta = basictl.RandomString(rg)
+	if item.FieldsMask&(1<<2) != 0 {
+	} else {
+		item.ProtocolVersion = 0
+	}
 }
 
 func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
@@ -78,7 +97,17 @@ func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.SnapshotMeta); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.ControlMeta)
+	if w, err = basictl.StringRead(w, &item.ControlMeta); err != nil {
+		return w, err
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.NatRead(w, &item.ProtocolVersion); err != nil {
+			return w, err
+		}
+	} else {
+		item.ProtocolVersion = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -91,6 +120,9 @@ func (item *BarsicEngineStarted) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWrite(w, item.SnapshotMeta)
 	w = basictl.StringWrite(w, item.ControlMeta)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.NatWrite(w, item.ProtocolVersion)
+	}
 	return w
 }
 
@@ -177,6 +209,7 @@ func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	var propOffsetPresented bool
 	var propSnapshotMetaPresented bool
 	var propControlMetaPresented bool
+	var propProtocolVersionPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -235,6 +268,14 @@ func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.Json
 					return err
 				}
 				propControlMetaPresented = true
+			case "protocol_version":
+				if propProtocolVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "protocol_version")
+				}
+				if err := internal.Json2ReadUint32(in, &item.ProtocolVersion); err != nil {
+					return err
+				}
+				propProtocolVersionPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", key)
 			}
@@ -257,6 +298,9 @@ func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	if !propControlMetaPresented {
 		item.ControlMeta = ""
 	}
+	if !propProtocolVersionPresented {
+		item.ProtocolVersion = 0
+	}
 	if trueTypeLegacyStartPresented {
 		if trueTypeLegacyStartValue {
 			item.FieldsMask |= 1 << 0
@@ -266,6 +310,9 @@ func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.Json
 		if trueTypeEngineUpgradeValue {
 			item.FieldsMask |= 1 << 1
 		}
+	}
+	if propProtocolVersionPresented {
+		item.FieldsMask |= 1 << 2
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeLegacyStartPresented && !trueTypeLegacyStartValue && (item.FieldsMask&(1<<0) != 0) {
@@ -324,6 +371,11 @@ func (item *BarsicEngineStarted) WriteJSONOpt(newTypeNames bool, short bool, w [
 	if (len(item.ControlMeta) != 0) == false {
 		w = w[:backupIndexControlMeta]
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"protocol_version":`...)
+		w = basictl.JSONWriteUint32(w, item.ProtocolVersion)
+	}
 	return append(w, '}')
 }
 
@@ -342,9 +394,10 @@ type BarsicEngineStartedBytes struct {
 	FieldsMask uint32
 	// LegacyStart (TrueType) // Conditional: item.FieldsMask.0
 	// EngineUpgrade (TrueType) // Conditional: item.FieldsMask.1
-	Offset       int64
-	SnapshotMeta []byte
-	ControlMeta  []byte
+	Offset          int64
+	SnapshotMeta    []byte
+	ControlMeta     []byte
+	ProtocolVersion uint32 // Conditional: item.FieldsMask.2
 }
 
 func (BarsicEngineStartedBytes) TLName() string { return "barsic.engineStarted" }
@@ -368,11 +421,22 @@ func (item *BarsicEngineStartedBytes) SetEngineUpgrade(v bool) {
 }
 func (item BarsicEngineStartedBytes) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *BarsicEngineStartedBytes) SetProtocolVersion(v uint32) {
+	item.ProtocolVersion = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *BarsicEngineStartedBytes) ClearProtocolVersion() {
+	item.ProtocolVersion = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item BarsicEngineStartedBytes) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
+
 func (item *BarsicEngineStartedBytes) Reset() {
 	item.FieldsMask = 0
 	item.Offset = 0
 	item.SnapshotMeta = item.SnapshotMeta[:0]
 	item.ControlMeta = item.ControlMeta[:0]
+	item.ProtocolVersion = 0
 }
 
 func (item *BarsicEngineStartedBytes) FillRandom(rg *basictl.RandGenerator) {
@@ -385,9 +449,16 @@ func (item *BarsicEngineStartedBytes) FillRandom(rg *basictl.RandGenerator) {
 	if maskFieldsMask&(1<<1) != 0 {
 		item.FieldsMask |= (1 << 1)
 	}
+	if maskFieldsMask&(1<<2) != 0 {
+		item.FieldsMask |= (1 << 2)
+	}
 	item.Offset = basictl.RandomLong(rg)
 	item.SnapshotMeta = basictl.RandomStringBytes(rg)
 	item.ControlMeta = basictl.RandomStringBytes(rg)
+	if item.FieldsMask&(1<<2) != 0 {
+	} else {
+		item.ProtocolVersion = 0
+	}
 }
 
 func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
@@ -400,7 +471,17 @@ func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringReadBytes(w, &item.SnapshotMeta); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.ControlMeta)
+	if w, err = basictl.StringReadBytes(w, &item.ControlMeta); err != nil {
+		return w, err
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.NatRead(w, &item.ProtocolVersion); err != nil {
+			return w, err
+		}
+	} else {
+		item.ProtocolVersion = 0
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -413,6 +494,9 @@ func (item *BarsicEngineStartedBytes) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
 	w = basictl.StringWriteBytes(w, item.ControlMeta)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.NatWrite(w, item.ProtocolVersion)
+	}
 	return w
 }
 
@@ -499,6 +583,7 @@ func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	var propOffsetPresented bool
 	var propSnapshotMetaPresented bool
 	var propControlMetaPresented bool
+	var propProtocolVersionPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -557,6 +642,14 @@ func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl
 					return err
 				}
 				propControlMetaPresented = true
+			case "protocol_version":
+				if propProtocolVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "protocol_version")
+				}
+				if err := internal.Json2ReadUint32(in, &item.ProtocolVersion); err != nil {
+					return err
+				}
+				propProtocolVersionPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", key)
 			}
@@ -579,6 +672,9 @@ func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	if !propControlMetaPresented {
 		item.ControlMeta = item.ControlMeta[:0]
 	}
+	if !propProtocolVersionPresented {
+		item.ProtocolVersion = 0
+	}
 	if trueTypeLegacyStartPresented {
 		if trueTypeLegacyStartValue {
 			item.FieldsMask |= 1 << 0
@@ -588,6 +684,9 @@ func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl
 		if trueTypeEngineUpgradeValue {
 			item.FieldsMask |= 1 << 1
 		}
+	}
+	if propProtocolVersionPresented {
+		item.FieldsMask |= 1 << 2
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeLegacyStartPresented && !trueTypeLegacyStartValue && (item.FieldsMask&(1<<0) != 0) {
@@ -645,6 +744,11 @@ func (item *BarsicEngineStartedBytes) WriteJSONOpt(newTypeNames bool, short bool
 	w = basictl.JSONWriteStringBytes(w, item.ControlMeta)
 	if (len(item.ControlMeta) != 0) == false {
 		w = w[:backupIndexControlMeta]
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"protocol_version":`...)
+		w = basictl.JSONWriteUint32(w, item.ProtocolVersion)
 	}
 	return append(w, '}')
 }

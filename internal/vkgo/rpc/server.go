@@ -22,7 +22,6 @@ import (
 
 	"go.uber.org/atomic"
 
-	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
@@ -70,9 +69,10 @@ const (
 )
 
 var (
-	ErrServerClosed   = errors.New("rpc: Server closed")
+	errServerClosed   = errors.New("rpc: server closed")
 	ErrNoHandler      = &Error{Code: TlErrorNoHandler, Description: "rpc: no handler"} // Never wrap this error
-	errHijackResponse = errors.New("rpc: user of Server is now responsible for sending the response")
+	errHijackResponse = errors.New("rpc: user of server is now responsible for sending the response")
+	ErrCancelHijack   = &Error{Code: TlErrorTimeout, Description: "rpc: longpoll cancelled"} // passed to response hook. Decided to add separate code later.
 
 	statCPUInfo = srvfunc.MakeCPUInfo() // TODO - remove global
 )
@@ -83,8 +83,8 @@ type (
 	VerbosityHandlerFunc func(int) error
 	LoggerFunc           func(format string, args ...any)
 	ErrHandlerFunc       func(err error)
-	RequestHandlerFunc   func(hctx *HandlerContext)
-	ResponseHandlerFunc  func(hctx *HandlerContext, err error)
+	RequestHookFunc      func(hctx *HandlerContext)
+	ResponseHookFunc     func(hctx *HandlerContext, err error)
 )
 
 func ChainHandler(ff ...HandlerFunc) HandlerFunc {
@@ -142,6 +142,7 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 		conns:        map[*serverConn]struct{}{},
 		reqMemSem:    semaphore.NewWeighted(int64(opts.RequestMemoryLimit)),
 		respMemSem:   semaphore.NewWeighted(int64(opts.ResponseMemoryLimit)),
+		connSem:      semaphore.NewWeighted(int64(opts.MaxConns)),
 		startTime:    uniqueStartTime(),
 		statHostname: host,
 	}
@@ -163,7 +164,7 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 const (
 	serverStatusInitial  = 0 // ordering is important, we use >/< comparisons with statues
 	serverStatusStarted  = 1 // after first call to Serve.
-	serverStatusShutdown = 2 // after first call to Shutdown. Serve calls will fail. Main context is cancelled, Responses are still being sent.
+	serverStatusShutdown = 2 // after first call to Shutdown(). New Serve() calls will quit immediately. Main context is cancelled, Responses are still being sent.
 	serverStatusStopped  = 3 // after first call to Wait. Everything is torn down, except if some handlers did not return
 )
 
@@ -183,13 +184,13 @@ type Server struct {
 	serverStatus int
 	listeners    []net.Listener // will close after
 	conns        map[*serverConn]struct{}
-	connGroup    WaitGroup
 
 	workerPool   *workerPool
-	workersGroup WaitGroup
+	workersGroup sync.WaitGroup
 
 	closeCtx       context.Context
 	cancelCloseCtx context.CancelFunc
+	connSem        *semaphore.Weighted
 	reqMemSem      *semaphore.Weighted
 	respMemSem     *semaphore.Weighted
 	reqBufPool     sync.Pool
@@ -221,6 +222,7 @@ func (s *Server) addTrace(str string) {
 	s.tracingLog = append(s.tracingLog, str)
 }
 
+// some users want to delay registering handler after server is created
 func (s *Server) RegisterHandlerFunc(h HandlerFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -230,6 +232,7 @@ func (s *Server) RegisterHandlerFunc(h HandlerFunc) {
 	s.opts.Handler = h
 }
 
+// some users want to delay registering handler after server is created
 func (s *Server) RegisterStatsHandlerFunc(h StatsHandlerFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -239,6 +242,7 @@ func (s *Server) RegisterStatsHandlerFunc(h StatsHandlerFunc) {
 	s.opts.StatsHandler = h
 }
 
+// some users want to delay registering handler after server is created
 func (s *Server) RegisterVerbosityHandlerFunc(h VerbosityHandlerFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -257,21 +261,27 @@ func (s *Server) Shutdown() {
 		return
 	}
 	s.serverStatus = serverStatusShutdown
-	for sc := range s.conns {
-		sc.sendLetsFin()
-	}
 
 	for _, ln := range s.listeners {
 		_ = ln.Close() // We do not care
 	}
 	s.listeners = s.listeners[:0]
+
+	for sc := range s.conns {
+		sc.sendLetsFin()
+	}
 }
 
 // Waits for all requests to be handled and responses sent
+// After this function Close() must return immediately, but we are still afraid to call it here as it wait for more objects
 func (s *Server) CloseWait(ctx context.Context) error {
 	s.Shutdown()
-	err := s.connGroup.Wait(ctx) // After shutdown, if clients follow protocol, all connections will soon be closed
-	_ = s.Close()
+	// After shutdown, if clients follow protocol, all connections will soon be closed
+	// we can acquire whole semaphore only if all connections finished
+	err := s.connSem.Acquire(ctx, int64(s.opts.MaxConns))
+	if err == nil {
+		s.connSem.Release(int64(s.opts.MaxConns)) // we support multiple calls to Close/CloseWait
+	}
 	return err
 }
 
@@ -298,8 +308,11 @@ func (s *Server) Close() error {
 	// after that Put will return false and worker will quit
 	s.workerPool.Close()
 
-	s.connGroup.WaitForever()
-	s.workersGroup.WaitForever()
+	// we can acquire whole semaphore only if all connections finished
+	_ = s.connSem.Acquire(context.Background(), int64(s.opts.MaxConns))
+	s.connSem.Release(int64(s.opts.MaxConns)) // we support multiple calls to Close/CloseWait
+
+	s.workersGroup.Wait()
 
 	if len(s.conns) != 0 {
 		s.opts.Logf("rpc: tracking of connection invariant violated after close wait - %d connections", len(s.conns))
@@ -453,28 +466,35 @@ func (s *Server) Serve(ln net.Listener) error {
 	s.mu.Lock()
 	if s.serverStatus > serverStatusStarted {
 		s.mu.Unlock()
-		return ErrServerClosed
+		// probably some goroutine was delayed to call Serve, and user already called Shutdown(). No problem, simply quit
+		_ = ln.Close() // usually server closes all listeners passed to Serve(), let's make no exceptions
+		return nil
 	}
 	s.serverStatus = serverStatusStarted
-
-	ln = netutil.LimitListener(ln, s.opts.MaxConns)
 	s.listeners = append(s.listeners, ln)
 	s.mu.Unlock()
 
+	if err := s.connSem.Acquire(s.closeCtx, 1); err != nil {
+		return nil
+	}
 	var acceptDelay time.Duration
 	for {
+		// at this point we own connSem once
 		nc, err := ln.Accept()
+		s.mu.Lock()
+		if s.serverStatus >= serverStatusShutdown {
+			s.mu.Unlock()
+			if err == nil { // We could be waiting on Lock above with accepted connection when server was Shutdown()
+				_ = nc.Close()
+			}
+			s.connSem.Release(1)
+			return nil
+		}
+		s.mu.Unlock()
 		if err != nil {
 			if s.opts.AcceptErrHandler != nil {
 				s.opts.AcceptErrHandler(err)
 			}
-			s.mu.Lock()
-			if s.serverStatus >= serverStatusShutdown {
-				s.mu.Unlock()
-				return ErrServerClosed
-			}
-			s.mu.Unlock()
-
 			//lint:ignore SA1019 "FIXME: to ne.Timeout()"
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
 				// In practice error can happen when system is out of descriptors.
@@ -492,23 +512,26 @@ func (s *Server) Serve(ln net.Listener) error {
 				time.Sleep(acceptDelay)
 				continue
 			}
+			s.connSem.Release(1)
 			return err
 		}
-		conn := NewPacketConn(nc, s.opts.ConnReadBufSize, s.opts.ConnWriteBufSize, DefaultConnTimeoutAccuracy)
+		conn := NewPacketConn(nc, s.opts.ConnReadBufSize, s.opts.ConnWriteBufSize)
 
 		s.statConnectionsTotal.Inc()
 		s.statConnectionsCurrent.Inc()
 
-		s.connGroup.Add(1)
-		go s.goHandshake(conn, ln.Addr(), &s.connGroup)
+		go s.goHandshake(conn, ln.Addr())                        // will release connSem
+		if err := s.connSem.Acquire(s.closeCtx, 1); err != nil { // we need to acquire again to Accept()
+			return nil
+		}
 	}
 }
 
-func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
-	defer s.statConnectionsCurrent.Dec()
-	defer wg.Done()
+func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr) {
+	defer s.connSem.Release(1)
+	defer s.statConnectionsCurrent.Dec() // we have the same value in connSema, but reading from here is faster
 
-	magicHead, flags, err := conn.HandshakeServer(s.opts.cryptoKeys, s.opts.TrustedSubnetGroups, s.opts.ForceEncryption, s.startTime, DefaultHandshakeStepTimeout)
+	magicHead, flags, err := conn.HandshakeServer(s.opts.cryptoKeys, s.opts.TrustedSubnetGroups, s.opts.ForceEncryption, s.startTime, DefaultPacketTimeout)
 	if err != nil {
 		switch string(magicHead) {
 		case memcachedStatsReqRN, memcachedStatsReqN, memcachedGetStatsReq:
@@ -571,11 +594,9 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		s.opts.Logf("rpc: %s->%s Handshake ", sc.conn.remoteAddr, sc.conn.localAddr)
 	}
 
-	wg.Add(1)
-
 	readErrCC := make(chan error, 1)
 	go s.receiveLoop(sc, readErrCC)
-	writeErr := s.sendLoop(sc, wg)
+	writeErr := s.sendLoop(sc)
 	if debugPrint {
 		fmt.Printf("%v server %p conn %p sendLoop quit\n", time.Now(), s, sc)
 	}
@@ -664,7 +685,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 
 		hctx, ok := sc.acquireHandlerCtx(header.tip, &s.opts)
 		if !ok {
-			return nil, ErrServerClosed
+			return nil, errServerClosed
 		}
 		s.statRequestsCurrent.Inc()
 
@@ -698,9 +719,6 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		hctx.respTaken = respTaken
 
 		s.statRequestsTotal.Inc()
-		if s.opts.RequestHandler != nil {
-			s.opts.RequestHandler(hctx)
-		}
 
 		if !s.syncHandler(header.tip, sc, hctx) {
 			if s.opts.MaxWorkers <= 0 {
@@ -710,7 +728,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 			} else {
 				w := s.acquireWorker()
 				if w == nil {
-					return hctx, ErrServerClosed
+					return hctx, errServerClosed
 				}
 				w.ch <- workerWork{sc: sc, hctx: hctx}
 			}
@@ -718,9 +736,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 	}
 }
 
-func (s *Server) sendLoop(sc *serverConn, wg *WaitGroup) error {
-	defer wg.Done()
-
+func (s *Server) sendLoop(sc *serverConn) error {
 	toRelease, err := s.sendLoopImpl(sc) // err is logged inside, if needed
 	if len(toRelease) != 0 {
 		s.rareLog(&s.lastPushToClosedLog, "failed to push %d responses because connection was closed to %v", len(toRelease), sc.conn.remoteAddr)
@@ -777,9 +793,6 @@ func (s *Server) sendLoopImpl(sc *serverConn) ([]*HandlerContext, error) { // re
 				s.opts.Logf("rpc: %s->%s Response packet queryID=%d extra=%s body=%x\n", sc.conn.remoteAddr, sc.conn.localAddr, hctx.queryID, hctx.ResponseExtra.String(), hctx.Response[:hctx.extraStart])
 			}
 			err := writeResponseUnlocked(sc.conn, hctx)
-			if s.opts.ResponseHandler != nil {
-				s.opts.ResponseHandler(hctx, err)
-			}
 			if err != nil {
 				s.rareLog(&s.lastOtherLog, "rpc: error writing packet reqTag #%08x to %v, disconnecting: %v", hctx.reqTag, sc.conn.remoteAddr, err)
 				return writeQ[i:], err // release remaining contexts
@@ -844,6 +857,9 @@ func (s *Server) doSyncHandler(reqHeaderTip uint32, sc *serverConn, hctx *Handle
 		if s.opts.DebugRPC {
 			s.opts.Logf("rpc: %s->%s SyncHandler packet tag=#%08x queryID=%d extra=%s body=%x\n", sc.conn.remoteAddr, sc.conn.localAddr, reqHeaderTip, hctx.queryID, hctx.RequestExtra.String(), hctx.Request)
 		}
+		if s.opts.RequestHook != nil {
+			s.opts.RequestHook(hctx)
+		}
 		if s.opts.SyncHandler == nil {
 			return ErrNoHandler
 		}
@@ -868,12 +884,17 @@ func (s *Server) legacySyncHandler(sc *serverConn, hctx *HandlerContext) { // sa
 }
 
 func (sc *serverConn) pushResponse(hctx *HandlerContext, err error, isLongpoll bool) {
-	if !isLongpoll {
+	if !isLongpoll { // already released for longpoll
 		sc.releaseRequest(hctx)
 	}
 	hctx.PrepareResponse(err)
 	if !hctx.noResult { // do not spend time for accounting, will release anyway couple lines below
 		hctx.respTaken, _ = sc.server.accountResponseMem(sc.closeCtx, hctx.respTaken, cap(hctx.Response), true)
+	}
+	if sc.server.opts.ResponseHook != nil {
+		// we'd like to avoid calling handler for cancelled response,
+		// but we do not want to do it under lock in push and cannot do it after lock due to potential race
+		sc.server.opts.ResponseHook(hctx, err)
 	}
 	sc.push(hctx, isLongpoll)
 }
@@ -897,12 +918,13 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	resp := hctx.Response
 	if err != nil {
 		respErr := Error{}
+		var respErr2 *Error
 		switch {
 		case err == ErrNoHandler: // this case is only to include reqTag into description
 			respErr.Code = TlErrorNoHandler
 			respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqTag)
-		case errors.As(err, &respErr):
-			// OK, forward the error as-is
+		case errors.As(err, &respErr2):
+			respErr = *respErr2 // OK, forward the error as-is
 		case errors.Is(err, context.DeadlineExceeded):
 			respErr.Code = TlErrorTimeout
 			respErr.Description = fmt.Sprintf("%s (server-adjusted request timeout was %v)", err.Error(), hctx.timeout)
@@ -986,7 +1008,7 @@ func (s *Server) callHandlerNoRecover(ctx context.Context, hctx *HandlerContext)
 			deadline := hctx.RequestTime.Add(hctx.timeout)
 			dt := time.Since(deadline)
 			if dt >= 0 {
-				return Error{
+				return &Error{
 					Code:        TlErrorTimeout,
 					Description: fmt.Sprintf("RPC query timeout (%v after deadline)", dt),
 				}
@@ -1069,7 +1091,7 @@ func IsHijackedResponse(err error) bool {
 }
 
 // Also helps garbage collect workers
-func (s *Server) rpsCalcLoop(wg *WaitGroup) {
+func (s *Server) rpsCalcLoop(wg *sync.WaitGroup) {
 	defer wg.Done()
 	tick := time.NewTicker(rpsCalcInterval)
 	defer tick.Stop()

@@ -20,7 +20,8 @@ type ClientOptions struct {
 	ConnReadBufSize     int
 	ConnWriteBufSize    int
 	PacketTimeout       time.Duration
-	ProtocolVersion     uint32 // if >0, will send modified nonce packet. Server must be upgraded to at least ignore higher bits of nonce.Schema
+	ProtocolVersion     uint32        // if >0, will send modified nonce packet. Server must be upgraded to at least ignore higher bits of nonce.Schema
+	DefaultTimeout      time.Duration // has no effect if <= 0
 
 	trustedSubnetGroupsParseErrors []error
 }
@@ -63,6 +64,8 @@ func ClientWithConnReadBufSize(size int) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		if size > 0 {
 			o.ConnReadBufSize = size
+		} else {
+			o.ConnReadBufSize = 1 // for tests
 		}
 	}
 }
@@ -71,6 +74,8 @@ func ClientWithConnWriteBufSize(size int) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		if size > 0 {
 			o.ConnWriteBufSize = size
+		} else {
+			o.ConnWriteBufSize = 1 // for tests
 		}
 	}
 }
@@ -89,3 +94,13 @@ func ClientWithProtocolVersion(protocolVersion uint32) ClientOptionsFunc {
 		o.ProtocolVersion = protocolVersion
 	}
 }
+
+// Default timeout for requests with no timeout in context
+// Not recommended, as affects all requests even those which need infinite timeout (some long polls)
+// If this timeout set, and you need request with an infinite timeout, use Extra.SetTimeoutMs(0)
+// Commented out for now to prevent abuse.
+// func ClientWithRequestTimeout(timeout time.Duration) ClientOptionsFunc {
+//	return func(opts *ClientOptions) {
+//		opts.DefaultTimeout = timeout
+//	}
+// }

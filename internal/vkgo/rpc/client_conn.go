@@ -312,15 +312,15 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 
 func (pc *clientConn) run() (goodHandshake bool) {
 	address := srvfunc.MaybeResolveAddr(pc.address.Network, pc.address.Address)
-	nc, err := net.DialTimeout(pc.address.Network, address, DefaultHandshakeStepTimeout)
+	nc, err := net.DialTimeout(pc.address.Network, address, pc.client.opts.PacketTimeout)
 	if err != nil {
 		pc.client.opts.Logf("rpc: failed to start new peer connection with %v: %v", pc.address, err)
 		return false
 	}
 
-	conn := NewPacketConn(nc, pc.client.opts.ConnReadBufSize, pc.client.opts.ConnWriteBufSize, DefaultConnTimeoutAccuracy)
+	conn := NewPacketConn(nc, pc.client.opts.ConnReadBufSize, pc.client.opts.ConnWriteBufSize)
 
-	err = conn.HandshakeClient(pc.client.opts.CryptoKey, pc.client.opts.TrustedSubnetGroups, pc.client.opts.ForceEncryption, uniqueStartTime(), 0, DefaultHandshakeStepTimeout, pc.client.opts.ProtocolVersion)
+	err = conn.HandshakeClient(pc.client.opts.CryptoKey, pc.client.opts.TrustedSubnetGroups, pc.client.opts.ForceEncryption, uniqueStartTime(), 0, pc.client.opts.PacketTimeout, pc.client.opts.ProtocolVersion)
 	if err != nil {
 		_ = conn.Close()
 		pc.client.opts.Logf("rpc: failed to establish new peer connection with %v: %v", pc.address, err)
@@ -488,7 +488,7 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 		}
 		cctx.body = respReuseData
 		cctx.Body = respBody
-		cctx.err = Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
+		cctx.err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
 		return cctx, nil
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
