@@ -2567,6 +2567,107 @@ Value is delta between second value and time it was inserted.`,
 		" 1": "pool", // "sync.Pool", allocated buffer is subject for reuse (good)
 		" 2": "heap", // large buffer won't be reused (bad, should not happen)
 	}
+
+	// metic metas for builtin metrics are accessible directly without search in map
+	// they are initialized from BuiltinMetrics map in init() function
+	BuiltinMetricMetaAgentSamplingFactor        *MetricMetaValue
+	BuiltinMetricMetaAggBucketReceiveDelaySec   *MetricMetaValue
+	BuiltinMetricMetaAggInsertSize              *MetricMetaValue
+	BuiltinMetricMetaTLByteSizePerInflightType  *MetricMetaValue
+	BuiltinMetricMetaAggKeepAlive               *MetricMetaValue
+	BuiltinMetricMetaAggSizeCompressed          *MetricMetaValue
+	BuiltinMetricMetaAggSizeUncompressed        *MetricMetaValue
+	BuiltinMetricMetaAggAdditionsToEstimator    *MetricMetaValue
+	BuiltinMetricMetaAggHourCardinality         *MetricMetaValue
+	BuiltinMetricMetaAggSamplingFactor          *MetricMetaValue
+	BuiltinMetricMetaIngestionStatus            *MetricMetaValue
+	BuiltinMetricMetaAggInsertTime              *MetricMetaValue
+	BuiltinMetricMetaAggHistoricBucketsWaiting  *MetricMetaValue
+	BuiltinMetricMetaAggBucketAggregateTimeSec  *MetricMetaValue
+	BuiltinMetricMetaAggActiveSenders           *MetricMetaValue
+	BuiltinMetricMetaAggOutdatedAgents          *MetricMetaValue
+	BuiltinMetricMetaAgentDiskCacheErrors       *MetricMetaValue
+	BuiltinMetricMetaTimingErrors               *MetricMetaValue
+	BuiltinMetricMetaAgentReceivedBatchSize     *MetricMetaValue
+	BuiltinMetricMetaAggMapping                 *MetricMetaValue
+	BuiltinMetricMetaAggInsertTimeReal          *MetricMetaValue
+	BuiltinMetricMetaAgentHistoricQueueSize     *MetricMetaValue
+	BuiltinMetricMetaAggHistoricSecondsWaiting  *MetricMetaValue
+	BuiltinMetricMetaAggInsertSizeReal          *MetricMetaValue
+	BuiltinMetricMetaAgentMapping               *MetricMetaValue
+	BuiltinMetricMetaAgentReceivedPacketSize    *MetricMetaValue
+	BuiltinMetricMetaAggMappingCreated          *MetricMetaValue
+	BuiltinMetricMetaVersions                   *MetricMetaValue
+	BuiltinMetricMetaBadges                     *MetricMetaValue
+	BuiltinMetricMetaAutoConfig                 *MetricMetaValue
+	BuiltinMetricMetaJournalVersions            *MetricMetaValue
+	BuiltinMetricMetaPromScrapeTime             *MetricMetaValue
+	BuiltinMetricMetaAgentHeartbeatVersion      *MetricMetaValue
+	BuiltinMetricMetaAgentHeartbeatArgs         *MetricMetaValue
+	BuiltinMetricMetaUsageMemory                *MetricMetaValue
+	BuiltinMetricMetaUsageCPU                   *MetricMetaValue
+	BuiltinMetricMetaGeneratorConstCounter      *MetricMetaValue
+	BuiltinMetricMetaGeneratorSinCounter        *MetricMetaValue
+	BuiltinMetricMetaHeartbeatVersion           *MetricMetaValue
+	BuiltinMetricMetaHeartbeatArgs              *MetricMetaValue
+	BuiltinMetricMetaAPIBRS                     *MetricMetaValue
+	BuiltinMetricMetaBudgetHost                 *MetricMetaValue
+	BuiltinMetricMetaBudgetAggregatorHost       *MetricMetaValue
+	BuiltinMetricMetaAPIActiveQueries           *MetricMetaValue
+	BuiltinMetricMetaRPCRequests                *MetricMetaValue
+	BuiltinMetricMetaBudgetUnknownMetric        *MetricMetaValue
+	BuiltinMetricMetaContributorsLog            *MetricMetaValue
+	BuiltinMetricMetaContributorsLogRev         *MetricMetaValue
+	BuiltinMetricMetaGeneratorGapsCounter       *MetricMetaValue
+	BuiltinMetricMetaGroupSizeBeforeSampling    *MetricMetaValue
+	BuiltinMetricMetaGroupSizeAfterSampling     *MetricMetaValue
+	BuiltinMetricMetaAPISelectBytes             *MetricMetaValue
+	BuiltinMetricMetaAPISelectRows              *MetricMetaValue
+	BuiltinMetricMetaAPISelectDuration          *MetricMetaValue
+	BuiltinMetricMetaAgentHistoricQueueSizeSum  *MetricMetaValue
+	BuiltinMetricMetaAPISourceSelectRows        *MetricMetaValue
+	BuiltinMetricMetaSystemMetricScrapeDuration *MetricMetaValue
+	BuiltinMetricMetaMetaServiceTime            *MetricMetaValue
+	BuiltinMetricMetaMetaClientWaits            *MetricMetaValue
+	BuiltinMetricMetaAgentUDPReceiveBufferSize  *MetricMetaValue
+	BuiltinMetricMetaAPIMetricUsage             *MetricMetaValue
+	BuiltinMetricMetaAPIServiceTime             *MetricMetaValue
+	BuiltinMetricMetaAPIResponseTime            *MetricMetaValue
+	BuiltinMetricMetaSrcTestConnection          *MetricMetaValue
+	BuiltinMetricMetaAgentAggregatorTimeDiff    *MetricMetaValue
+	BuiltinMetricMetaSrcSamplingMetricCount     *MetricMetaValue
+	BuiltinMetricMetaAggSamplingMetricCount     *MetricMetaValue
+	BuiltinMetricMetaSrcSamplingSizeBytes       *MetricMetaValue
+	BuiltinMetricMetaAggSamplingSizeBytes       *MetricMetaValue
+	BuiltinMetricMetaUIErrors                   *MetricMetaValue
+	BuiltinMetricMetaStatsHouseErrors           *MetricMetaValue
+	BuiltinMetricMetaSrcSamplingBudget          *MetricMetaValue
+	BuiltinMetricMetaAggSamplingBudget          *MetricMetaValue
+	BuiltinMetricMetaSrcSamplingGroupBudget     *MetricMetaValue
+	BuiltinMetricMetaAggSamplingGroupBudget     *MetricMetaValue
+	BuiltinMetricMetaPromQLEngineTime           *MetricMetaValue
+	BuiltinMetricMetaAPICacheHit                *MetricMetaValue
+	BuiltinMetricMetaAggScrapeTargetDispatch    *MetricMetaValue
+	BuiltinMetricMetaAggScrapeTargetDiscovery   *MetricMetaValue
+	BuiltinMetricMetaAggScrapeConfigHash        *MetricMetaValue
+	BuiltinMetricMetaAggSamplingTime            *MetricMetaValue
+	BuiltinMetricMetaAgentDiskCacheSize         *MetricMetaValue
+	BuiltinMetricMetaAggContributors            *MetricMetaValue
+	BuiltinMetricMetaAggAgentSharding           *MetricMetaValue
+	BuiltinMetricMetaAPICacheBytesAlloc         *MetricMetaValue
+	BuiltinMetricMetaAPICacheBytesFree          *MetricMetaValue
+	BuiltinMetricMetaAPICacheBytesTotal         *MetricMetaValue
+	BuiltinMetricMetaAPICacheAgeEvict           *MetricMetaValue
+	BuiltinMetricMetaAPICacheAgeTotal           *MetricMetaValue
+	BuiltinMetricMetaAPIBufferBytesAlloc        *MetricMetaValue
+	BuiltinMetricMetaAPIBufferBytesFree         *MetricMetaValue
+	BuiltinMetricMetaAPIBufferBytesTotal        *MetricMetaValue
+	BuiltinMetricMetaAutoCreateMetric           *MetricMetaValue
+	BuiltinMetricMetaRestartTimings             *MetricMetaValue
+	BuiltinMetricMetaGCDuration                 *MetricMetaValue
+	BuiltinMetricMetaAggHistoricHostsWaiting    *MetricMetaValue
+	BuiltinMetricMetaAggSamplingEngineTime      *MetricMetaValue
+	BuiltinMetricMetaAggSamplingEngineKeys      *MetricMetaValue
 )
 
 func TagIDTagToTagID(tagIDTag int32) string {
@@ -2697,4 +2798,103 @@ func init() {
 		}
 		_ = m.RestoreCachedInfo()
 	}
+
+	BuiltinMetricMetaAgentSamplingFactor = BuiltinMetrics[BuiltinMetricIDAgentSamplingFactor]
+	BuiltinMetricMetaAggBucketReceiveDelaySec = BuiltinMetrics[BuiltinMetricIDAggBucketReceiveDelaySec]
+	BuiltinMetricMetaAggInsertSize = BuiltinMetrics[BuiltinMetricIDAggInsertSize]
+	BuiltinMetricMetaTLByteSizePerInflightType = BuiltinMetrics[BuiltinMetricIDTLByteSizePerInflightType]
+	BuiltinMetricMetaAggKeepAlive = BuiltinMetrics[BuiltinMetricIDAggKeepAlive]
+	BuiltinMetricMetaAggSizeCompressed = BuiltinMetrics[BuiltinMetricIDAggSizeCompressed]
+	BuiltinMetricMetaAggSizeUncompressed = BuiltinMetrics[BuiltinMetricIDAggSizeUncompressed]
+	BuiltinMetricMetaAggAdditionsToEstimator = BuiltinMetrics[BuiltinMetricIDAggAdditionsToEstimator]
+	BuiltinMetricMetaAggHourCardinality = BuiltinMetrics[BuiltinMetricIDAggHourCardinality]
+	BuiltinMetricMetaAggSamplingFactor = BuiltinMetrics[BuiltinMetricIDAggSamplingFactor]
+	BuiltinMetricMetaIngestionStatus = BuiltinMetrics[BuiltinMetricIDIngestionStatus]
+	BuiltinMetricMetaAggInsertTime = BuiltinMetrics[BuiltinMetricIDAggInsertTime]
+	BuiltinMetricMetaAggHistoricBucketsWaiting = BuiltinMetrics[BuiltinMetricIDAggHistoricBucketsWaiting]
+	BuiltinMetricMetaAggBucketAggregateTimeSec = BuiltinMetrics[BuiltinMetricIDAggBucketAggregateTimeSec]
+	BuiltinMetricMetaAggActiveSenders = BuiltinMetrics[BuiltinMetricIDAggActiveSenders]
+	BuiltinMetricMetaAggOutdatedAgents = BuiltinMetrics[BuiltinMetricIDAggOutdatedAgents]
+	BuiltinMetricMetaAgentDiskCacheErrors = BuiltinMetrics[BuiltinMetricIDAgentDiskCacheErrors]
+	BuiltinMetricMetaTimingErrors = BuiltinMetrics[BuiltinMetricIDTimingErrors]
+	BuiltinMetricMetaAgentReceivedBatchSize = BuiltinMetrics[BuiltinMetricIDAgentReceivedBatchSize]
+	BuiltinMetricMetaAggMapping = BuiltinMetrics[BuiltinMetricIDAggMapping]
+	BuiltinMetricMetaAggInsertTimeReal = BuiltinMetrics[BuiltinMetricIDAggInsertTimeReal]
+	BuiltinMetricMetaAgentHistoricQueueSize = BuiltinMetrics[BuiltinMetricIDAgentHistoricQueueSize]
+	BuiltinMetricMetaAggHistoricSecondsWaiting = BuiltinMetrics[BuiltinMetricIDAggHistoricSecondsWaiting]
+	BuiltinMetricMetaAggInsertSizeReal = BuiltinMetrics[BuiltinMetricIDAggInsertSizeReal]
+	BuiltinMetricMetaAgentMapping = BuiltinMetrics[BuiltinMetricIDAgentMapping]
+	BuiltinMetricMetaAgentReceivedPacketSize = BuiltinMetrics[BuiltinMetricIDAgentReceivedPacketSize]
+	BuiltinMetricMetaAggMappingCreated = BuiltinMetrics[BuiltinMetricIDAggMappingCreated]
+	BuiltinMetricMetaVersions = BuiltinMetrics[BuiltinMetricIDVersions]
+	BuiltinMetricMetaBadges = BuiltinMetrics[BuiltinMetricIDBadges]
+	BuiltinMetricMetaAutoConfig = BuiltinMetrics[BuiltinMetricIDAutoConfig]
+	BuiltinMetricMetaJournalVersions = BuiltinMetrics[BuiltinMetricIDJournalVersions]
+	BuiltinMetricMetaPromScrapeTime = BuiltinMetrics[BuiltinMetricIDPromScrapeTime]
+	BuiltinMetricMetaAgentHeartbeatVersion = BuiltinMetrics[BuiltinMetricIDAgentHeartbeatVersion]
+	BuiltinMetricMetaAgentHeartbeatArgs = BuiltinMetrics[BuiltinMetricIDAgentHeartbeatArgs]
+	BuiltinMetricMetaUsageMemory = BuiltinMetrics[BuiltinMetricIDUsageMemory]
+	BuiltinMetricMetaUsageCPU = BuiltinMetrics[BuiltinMetricIDUsageCPU]
+	BuiltinMetricMetaGeneratorConstCounter = BuiltinMetrics[BuiltinMetricIDGeneratorConstCounter]
+	BuiltinMetricMetaGeneratorSinCounter = BuiltinMetrics[BuiltinMetricIDGeneratorSinCounter]
+	BuiltinMetricMetaHeartbeatVersion = BuiltinMetrics[BuiltinMetricIDHeartbeatVersion]
+	BuiltinMetricMetaHeartbeatArgs = BuiltinMetrics[BuiltinMetricIDHeartbeatArgs]
+	BuiltinMetricMetaAPIBRS = BuiltinMetrics[BuiltinMetricIDAPIBRS]
+	BuiltinMetricMetaBudgetHost = BuiltinMetrics[BuiltinMetricIDBudgetHost]
+	BuiltinMetricMetaBudgetAggregatorHost = BuiltinMetrics[BuiltinMetricIDBudgetAggregatorHost]
+	BuiltinMetricMetaAPIActiveQueries = BuiltinMetrics[BuiltinMetricIDAPIActiveQueries]
+	BuiltinMetricMetaRPCRequests = BuiltinMetrics[BuiltinMetricIDRPCRequests]
+	BuiltinMetricMetaBudgetUnknownMetric = BuiltinMetrics[BuiltinMetricIDBudgetUnknownMetric]
+	BuiltinMetricMetaContributorsLog = BuiltinMetrics[BuiltinMetricIDContributorsLog]
+	BuiltinMetricMetaContributorsLogRev = BuiltinMetrics[BuiltinMetricIDContributorsLogRev]
+	BuiltinMetricMetaGeneratorGapsCounter = BuiltinMetrics[BuiltinMetricIDGeneratorGapsCounter]
+	BuiltinMetricMetaGroupSizeBeforeSampling = BuiltinMetrics[BuiltinMetricIDGroupSizeBeforeSampling]
+	BuiltinMetricMetaGroupSizeAfterSampling = BuiltinMetrics[BuiltinMetricIDGroupSizeAfterSampling]
+	BuiltinMetricMetaAPISelectBytes = BuiltinMetrics[BuiltinMetricIDAPISelectBytes]
+	BuiltinMetricMetaAPISelectRows = BuiltinMetrics[BuiltinMetricIDAPISelectRows]
+	BuiltinMetricMetaAPISelectDuration = BuiltinMetrics[BuiltinMetricIDAPISelectDuration]
+	BuiltinMetricMetaAgentHistoricQueueSizeSum = BuiltinMetrics[BuiltinMetricIDAgentHistoricQueueSizeSum]
+	BuiltinMetricMetaAPISourceSelectRows = BuiltinMetrics[BuiltinMetricIDAPISourceSelectRows]
+	BuiltinMetricMetaSystemMetricScrapeDuration = BuiltinMetrics[BuiltinMetricIDSystemMetricScrapeDuration]
+	BuiltinMetricMetaMetaServiceTime = BuiltinMetrics[BuiltinMetricIDMetaServiceTime]
+	BuiltinMetricMetaMetaClientWaits = BuiltinMetrics[BuiltinMetricIDMetaClientWaits]
+	BuiltinMetricMetaAgentUDPReceiveBufferSize = BuiltinMetrics[BuiltinMetricIDAgentUDPReceiveBufferSize]
+	BuiltinMetricMetaAPIMetricUsage = BuiltinMetrics[BuiltinMetricIDAPIMetricUsage]
+	BuiltinMetricMetaAPIServiceTime = BuiltinMetrics[BuiltinMetricIDAPIServiceTime]
+	BuiltinMetricMetaAPIResponseTime = BuiltinMetrics[BuiltinMetricIDAPIResponseTime]
+	BuiltinMetricMetaSrcTestConnection = BuiltinMetrics[BuiltinMetricIDSrcTestConnection]
+	BuiltinMetricMetaAgentAggregatorTimeDiff = BuiltinMetrics[BuiltinMetricIDAgentAggregatorTimeDiff]
+	BuiltinMetricMetaSrcSamplingMetricCount = BuiltinMetrics[BuiltinMetricIDSrcSamplingMetricCount]
+	BuiltinMetricMetaAggSamplingMetricCount = BuiltinMetrics[BuiltinMetricIDAggSamplingMetricCount]
+	BuiltinMetricMetaSrcSamplingSizeBytes = BuiltinMetrics[BuiltinMetricIDSrcSamplingSizeBytes]
+	BuiltinMetricMetaAggSamplingSizeBytes = BuiltinMetrics[BuiltinMetricIDAggSamplingSizeBytes]
+	BuiltinMetricMetaUIErrors = BuiltinMetrics[BuiltinMetricIDUIErrors]
+	BuiltinMetricMetaStatsHouseErrors = BuiltinMetrics[BuiltinMetricIDStatsHouseErrors]
+	BuiltinMetricMetaSrcSamplingBudget = BuiltinMetrics[BuiltinMetricIDSrcSamplingBudget]
+	BuiltinMetricMetaAggSamplingBudget = BuiltinMetrics[BuiltinMetricIDAggSamplingBudget]
+	BuiltinMetricMetaSrcSamplingGroupBudget = BuiltinMetrics[BuiltinMetricIDSrcSamplingGroupBudget]
+	BuiltinMetricMetaAggSamplingGroupBudget = BuiltinMetrics[BuiltinMetricIDAggSamplingGroupBudget]
+	BuiltinMetricMetaPromQLEngineTime = BuiltinMetrics[BuiltinMetricIDPromQLEngineTime]
+	BuiltinMetricMetaAPICacheHit = BuiltinMetrics[BuiltinMetricIDAPICacheHit]
+	BuiltinMetricMetaAggScrapeTargetDispatch = BuiltinMetrics[BuiltinMetricIDAggScrapeTargetDispatch]
+	BuiltinMetricMetaAggScrapeTargetDiscovery = BuiltinMetrics[BuiltinMetricIDAggScrapeTargetDiscovery]
+	BuiltinMetricMetaAggScrapeConfigHash = BuiltinMetrics[BuiltinMetricIDAggScrapeConfigHash]
+	BuiltinMetricMetaAggSamplingTime = BuiltinMetrics[BuiltinMetricIDAggSamplingTime]
+	BuiltinMetricMetaAgentDiskCacheSize = BuiltinMetrics[BuiltinMetricIDAgentDiskCacheSize]
+	BuiltinMetricMetaAggContributors = BuiltinMetrics[BuiltinMetricIDAggContributors]
+	BuiltinMetricMetaAggAgentSharding = BuiltinMetrics[BuiltinMetricIDAggAgentSharding]
+	BuiltinMetricMetaAPICacheBytesAlloc = BuiltinMetrics[BuiltinMetricIDAPICacheBytesAlloc]
+	BuiltinMetricMetaAPICacheBytesFree = BuiltinMetrics[BuiltinMetricIDAPICacheBytesFree]
+	BuiltinMetricMetaAPICacheBytesTotal = BuiltinMetrics[BuiltinMetricIDAPICacheBytesTotal]
+	BuiltinMetricMetaAPICacheAgeEvict = BuiltinMetrics[BuiltinMetricIDAPICacheAgeEvict]
+	BuiltinMetricMetaAPICacheAgeTotal = BuiltinMetrics[BuiltinMetricIDAPICacheAgeTotal]
+	BuiltinMetricMetaAPIBufferBytesAlloc = BuiltinMetrics[BuiltinMetricIDAPIBufferBytesAlloc]
+	BuiltinMetricMetaAPIBufferBytesFree = BuiltinMetrics[BuiltinMetricIDAPIBufferBytesFree]
+	BuiltinMetricMetaAPIBufferBytesTotal = BuiltinMetrics[BuiltinMetricIDAPIBufferBytesTotal]
+	BuiltinMetricMetaAutoCreateMetric = BuiltinMetrics[BuiltinMetricIDAutoCreateMetric]
+	BuiltinMetricMetaRestartTimings = BuiltinMetrics[BuiltinMetricIDRestartTimings]
+	BuiltinMetricMetaGCDuration = BuiltinMetrics[BuiltinMetricIDGCDuration]
+	BuiltinMetricMetaAggHistoricHostsWaiting = BuiltinMetrics[BuiltinMetricIDAggHistoricHostsWaiting]
+	BuiltinMetricMetaAggSamplingEngineTime = BuiltinMetrics[BuiltinMetricIDAggSamplingEngineTime]
+	BuiltinMetricMetaAggSamplingEngineKeys = BuiltinMetrics[BuiltinMetricIDAggSamplingEngineKeys]
 }
