@@ -17,7 +17,6 @@ import {
 import { type StoreSlice } from '../createStore';
 import { appHistory } from 'common/appHistory';
 import { getAbbrev, getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
-import { mergeLeft } from 'common/helpers';
 import { getUrlState } from './getUrlState';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { type PlotType, type TimeRangeKeysTo } from 'api/enum';
@@ -38,6 +37,11 @@ import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { updateTitle } from './updateTitle';
 import { defaultBaseRange } from '../constants';
+import { useErrorStore } from '../../store';
+import { debug } from '../../common/debug';
+import { saveDashboard } from './saveDashboard';
+import { readDataDashboard } from './readDataDashboard';
+import { mergeParams } from './mergeParams';
 
 export type UrlStore = {
   params: QueryParams;
@@ -155,12 +159,40 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     return getUrlState(getState().saveParams, prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
-        s.params = mergeLeft(s.params, res.params);
-        s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+        // s.params = mergeLeft(s.params, {
+        //   ...res.params,
+        //   timeRange:
+        //     res.params.timeRange.urlTo !== s.params.timeRange.urlTo ||
+        //     res.params.timeRange.from !== s.params.timeRange.from
+        //       ? res.params.timeRange
+        //       : s.params.timeRange,
+        // });
+        s.params = mergeParams(s.params, {
+          ...res.params,
+          timeRange:
+            res.params.timeRange.urlTo !== s.params.timeRange.urlTo ||
+            res.params.timeRange.from !== s.params.timeRange.from
+              ? res.params.timeRange
+              : s.params.timeRange,
+        });
+        // s.params = {
+        //   ...res.params,
+        //   timeRange:
+        //     res.params.timeRange.urlTo !== s.params.timeRange.urlTo ||
+        //     res.params.timeRange.from !== s.params.timeRange.from
+        //       ? res.params.timeRange
+        //       : s.params.timeRange,
+        // };
+        // s.saveParams = mergeLeft(s.saveParams, res.saveParams);
+        s.saveParams = res.saveParams;
+        if (res.error != null) {
+          useErrorStore.getState().addError(res.error);
+        }
         if (s.params.tabNum === '-2') {
           s.dashboardLayoutEdit = true;
         }
       });
+      debug.log('updateUrlState', getState().params);
       if (res.reset) {
         updateHistory(
           produce(getState(), (p) => {
@@ -170,11 +202,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         );
       }
       getState().updatePlotsData();
-      // console.log('updateUrlState', getState().params, getState().saveParams);
     });
-    // .finally(() => {
-    //   getState().updatePlotsInfo();
-    // });
   }
 
   function updateHistory(state: StatsHouseStore, replace: boolean = false) {
@@ -186,7 +214,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       } else {
         appHistory.push({ search });
       }
-      // console.log('setUrlStore');
     }
   }
 
@@ -201,7 +228,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       prevLocation = location;
       if (isValidPath(prevLocation) && prevSearch !== prevLocation.search) {
         prevSearch = prevLocation.search;
-        // console.log('appHistory.listen');
         updateUrlState();
       }
     }
@@ -224,16 +250,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     ) {
       getState().updateTitle();
     }
-    //   if (
-    //     state.params !== prevState.params ||
-    //     state.plotVisibilityList !== prevState.plotVisibilityList ||
-    //     state.plotPreviewList !== prevState.plotPreviewList
-    //   ) {
-    //     console.time('store.subscribe');
-    //     const plots = updatePlotList(state, prevState);
-    //     console.timeEnd('store.subscribe');
-    //     plots.forEach(state.loadPlotData);
-    //   }
   });
 
   const saveParams = getDefaultParams();
@@ -252,17 +268,14 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setUrlStore,
     dashboardLayoutEdit: false,
     setParams(next: ProduceUpdate<QueryParams>, replace) {
-      // console.log('setParams');
       setUrlStore(updateParams(next), replace);
       getState().updatePlotsData();
     },
     setTimeRange({ from, to }, replace) {
-      // console.log('setTimeRange');
       setUrlStore(updateTimeRange(from, to), replace);
       getState().updatePlotsData();
     },
     setPlot(plotKey, next, replace) {
-      // console.log('setPlots');
       setUrlStore(updatePlot(plotKey, next), replace);
       getState().loadPlotData(plotKey);
     },
@@ -398,7 +411,17 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       return getAutoSearchVariable(getState);
     },
     async saveDashboard() {
-      //todo: save dash
+      const { response, error } = await saveDashboard(getState().params);
+      if (error) {
+        useErrorStore.getState().addError(error);
+      }
+      if (response) {
+        const saveParams = readDataDashboard(response.data);
+        setUrlStore((store) => {
+          store.saveParams = saveParams;
+          store.params.dashboardVersion = saveParams.dashboardVersion;
+        });
+      }
     },
     async removeDashboard() {
       //todo: remove dash

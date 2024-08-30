@@ -15,6 +15,9 @@ import { SettingsPage } from './view/Settings/SettingsPage';
 import { GroupPage } from './view/Settings/GroupPage';
 import { NamespacePage } from './view/Settings/NamespacePage';
 
+// import View2Page from './view2/ViewPage';
+// import Core from './view2/Core';
+
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 
 const View2Page = React.lazy(() => import('./view2/ViewPage'));

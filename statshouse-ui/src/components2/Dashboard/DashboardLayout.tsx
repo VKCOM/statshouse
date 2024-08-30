@@ -276,6 +276,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
                         className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
                         key={plotKey}
                         plotKey={plotKey}
+                        isDashboard
                       />
                     </DashboardPlotWrapper>
                   ))}

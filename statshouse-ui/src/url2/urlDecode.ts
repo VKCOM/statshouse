@@ -77,6 +77,9 @@ export function urlDecode(
     uniqueArray([...variableKeys, ...defaultParams.orderVariables]),
     defaultParams
   );
+  if (groups.orderGroup.length === 1 && groups.groups[0]?.count !== plots.orderPlot.length) {
+    groups.groups[0]!.count = plots.orderPlot.length;
+  }
   return {
     ...global,
     ...timeRange,

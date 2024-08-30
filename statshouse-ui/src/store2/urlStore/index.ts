@@ -7,3 +7,5 @@
 export * from './urlStore';
 export { toggleGroupShow } from './toggleGroupShow';
 export { updateTitle } from './updateTitle';
+export { saveDashboard } from './saveDashboard';
+export { mergeParams } from './mergeParams';

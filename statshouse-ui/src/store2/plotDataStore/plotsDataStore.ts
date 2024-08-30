@@ -114,25 +114,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     updatePlotsData() {
-      //todo: optimize load data
-
-      // console.log('updatePlotsData');
-      // const {
-      //   params: { orderPlot, tabNum },
-      //   plotVisibilityList,
-      //   plotPreviewList,
-      // } = getState();
-      //
-      // if (+tabNum > -1) {
-      //   getState().loadMetricMetaByPlotKey(tabNum).then();
-      //   getState().loadPlotData(tabNum);
-      // }
-      // orderPlot
-      //   .filter((plotKey) => plotKey !== tabNum && (plotVisibilityList[plotKey] || plotPreviewList[plotKey]))
-      //   .forEach((plotKey) => {
-      //     getState().loadPlotData(plotKey);
-      //   });
-
       getState().params.orderPlot.forEach((plotKey) => {
         getState().loadPlotData(plotKey);
       });
@@ -181,7 +162,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts;
       if (update || force) {
         // console.log('loadPlotData run', plotKey);
-        // console.log({ update });
+        // console.log(plotKey, { update, changePlotParam, changeTime, changeNowTime, changeTimeShifts });
         // setState((state) => {
         //   const scales: UPlotWrapperPropsScales = {};
         //   scales.x = { min: state.params.timeRange.to + state.params.timeRange.from, max: state.params.timeRange.to };

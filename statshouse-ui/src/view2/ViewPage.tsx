@@ -44,33 +44,6 @@ export function ViewPage() {
         <div className="position-relative">
           <Dashboard />
           {+tabNum >= 0 && <PlotLayout className="py-3" />}
-          {/*{params.tabNum >= 0 && (*/}
-          {/*  <div className={`container-xl tab-pane show active ${params.tabNum >= 0 ? '' : 'hidden-dashboard'}`}>*/}
-          {/*    <PlotLayout*/}
-          {/*      embed={embed}*/}
-          {/*      indexPlot={params.tabNum}*/}
-          {/*      setParams={setPlotParams}*/}
-          {/*      sel={activePlot}*/}
-          {/*      meta={activePlotMeta}*/}
-          {/*      numQueries={globalNumQueriesPlot}*/}
-          {/*      setBaseRange={setBaseRange}*/}
-          {/*    >*/}
-          {/*      {params.plots.map((plot, index) => (*/}
-          {/*        <PlotView*/}
-          {/*          key={index}*/}
-          {/*          indexPlot={index}*/}
-          {/*          type={plot.type}*/}
-          {/*          compact={!!embed}*/}
-          {/*          embed={embed}*/}
-          {/*          className={index === params.tabNum ? '' : 'hidden-dashboard'}*/}
-          {/*          yAxisSize={yAxisSize}*/}
-          {/*          dashboard={false}*/}
-          {/*        />*/}
-          {/*      ))}*/}
-          {/*    </PlotLayout>*/}
-          {/*  </div>*/}
-          {/*)}*/}
-          {/*{params.tabNum < 0 && <Dashboard embed={embed} yAxisSize={yAxisSize} />}*/}
         </div>
       </div>
     </div>

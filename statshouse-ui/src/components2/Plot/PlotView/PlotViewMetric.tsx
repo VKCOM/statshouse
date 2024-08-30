@@ -45,14 +45,13 @@ const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
 
-export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
+export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProps) {
   const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
     numSeries,
     error403,
     isEmbed,
-    isDashboard,
     metricUnit,
     metricUnitData,
     topInfo,
@@ -77,7 +76,7 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
   } = useStatsHouseShallow(
     ({
       plotsData,
-      params: { plots, tabNum, timeRange },
+      params: { plots, timeRange },
       metricMeta,
       isEmbed,
       baseRange,
@@ -110,7 +109,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         legendMaxHostWidth: plotData?.legendMaxHostWidth,
         legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
         isEmbed,
-        isDashboard: +tabNum < 0,
         baseRange,
         setPlotVisibility,
         setPlotYLock,
@@ -163,7 +161,6 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
     }
     return getMetricType(plotDataWhat?.length ? plotDataWhat : plotWhat, metricUnitData);
   }, [metricUnit, metricUnitData, plotDataWhat, plotWhat]);
-
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: themeDark ? greyDark : grey,
@@ -183,17 +180,19 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
         focus: {
           prox: Infinity, // always have one series focused
         },
-        sync: {
-          key: syncGroup,
-          filters: {
-            sub(event) {
-              return event !== 'mouseup' && event !== 'mousedown';
-            },
-            pub(event) {
-              return event !== 'mouseup' && event !== 'mousedown';
-            },
-          },
-        },
+        sync: isDashboard
+          ? {
+              key: syncGroup,
+              filters: {
+                sub(event) {
+                  return event !== 'mouseup' && event !== 'mousedown';
+                },
+                pub(event) {
+                  return event !== 'mouseup' && event !== 'mousedown';
+                },
+              },
+            }
+          : undefined,
         dataIdx: dataIdxNearest,
       },
       focus: {
@@ -247,7 +246,7 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yLockRef]);
+  }, [compact, getAxisStroke, isDashboard, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yLockRef]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -269,9 +268,11 @@ export function PlotViewMetric({ className, plotKey }: PlotViewProps) {
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
-      createPlotPreview(plotKey, u);
+      if (isDashboard) {
+        createPlotPreview(plotKey, u);
+      }
     },
-    [createPlotPreview, plotKey]
+    [createPlotPreview, isDashboard, plotKey]
   );
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
     const res: UPlotWrapperPropsScales = {};

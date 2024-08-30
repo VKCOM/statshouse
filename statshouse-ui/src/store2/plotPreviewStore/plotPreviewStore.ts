@@ -6,7 +6,7 @@
 
 import { Queue } from 'common/Queue';
 import { StoreSlice } from '../createStore';
-import { StatsHouseStore } from '../statsHouseStore';
+import { StatsHouseStore, useStatsHouse } from '../statsHouseStore';
 import { PlotKey } from 'url2';
 import { canvasToImageData } from 'common/canvasToImage';
 
@@ -29,6 +29,9 @@ export const plotPreviewStore: StoreSlice<StatsHouseStore, PlotPreviewStore> = (
     plotPreviewUrlList: {},
     plotPreviewAbortController: {},
     async createPlotPreview(plotKey, u, width = 300) {
+      if (!getState().plotPreviewList[plotKey]) {
+        return;
+      }
       const controller = new AbortController();
       setState((state) => {
         state.plotPreviewAbortController[plotKey]?.abort();

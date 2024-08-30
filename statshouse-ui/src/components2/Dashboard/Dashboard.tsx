@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useEffect } from 'react';
 import { useStatsHouseShallow } from '../../store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
@@ -15,7 +15,7 @@ import cn from 'classnames';
 import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
 import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
-import { useLinkPlot } from '../../hooks/useLinkPlot';
+import { useLinkPlot } from 'hooks';
 
 export type DashboardProps = {
   className?: string;

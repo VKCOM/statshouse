@@ -7,38 +7,42 @@
 import { getDefaultParams, type QueryParams, type TreeParamsObject, treeParamsObjectValueSymbol } from 'url2';
 import { GET_PARAMS } from 'api/enum';
 import { debug } from 'common/debug';
-import { apiDashboardFetch } from 'api/dashboard';
-import { normalizeDashboard } from './normalizeDashboard';
+import { apiDashboardFetch, ApiDashboardGet } from 'api/dashboard';
+import { readDataDashboard } from './readDataDashboard';
 
 export function getDashboardId(urlTree: TreeParamsObject) {
   return urlTree[GET_PARAMS.dashboardID]?.[treeParamsObjectValueSymbol]?.[0];
+}
+export function getDashboardVersion(urlTree: TreeParamsObject) {
+  return urlTree[GET_PARAMS.dashboardVersion]?.[treeParamsObjectValueSymbol]?.[0];
 }
 
 export async function loadDashboard(
   prevParam: QueryParams,
   urlTree: TreeParamsObject,
   defaultParams = getDefaultParams()
-) {
+): Promise<{ params: QueryParams; error?: Error }> {
   const dashboardId = getDashboardId(urlTree);
+  const dashboardVersion = getDashboardVersion(urlTree);
 
   let dashboardParams = defaultParams;
   if (dashboardId) {
     if (dashboardId && prevParam.dashboardId === dashboardId) {
-      return prevParam;
+      return { params: prevParam };
     }
-    const { response, error } = await apiDashboardFetch({ [GET_PARAMS.dashboardID]: dashboardId });
+    const urlGetParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: dashboardId };
+    if (dashboardVersion != null) {
+      urlGetParams[GET_PARAMS.dashboardApiVersion] = dashboardVersion;
+    }
+
+    const { response, error } = await apiDashboardFetch(urlGetParams);
     if (error) {
       debug.error(error);
+      return { params: dashboardParams, error };
     }
     if (response) {
-      dashboardParams = normalizeDashboard(response.data?.dashboard?.data, {
-        ...defaultParams,
-        dashboardId: response.data.dashboard.dashboard_id.toString(),
-        dashboardName: response.data.dashboard.name,
-        dashboardDescription: response.data.dashboard.description,
-        dashboardVersion: response.data.dashboard.version,
-      });
+      dashboardParams = readDataDashboard(response.data, defaultParams);
     }
   }
-  return dashboardParams;
+  return { params: dashboardParams };
 }
