@@ -25,9 +25,20 @@ type GroupWithMetricsList struct {
 
 type ApplyPromConfig func(configID int32, configString string)
 
-type MetricsStorage struct {
-	mu sync.RWMutex
+type SnapshotMeta struct {
+	MetricsByIDSnapshot   map[int32]*format.MetricMetaValue
+	MetricsByNameSnapshot map[string]*format.MetricMetaValue
+}
 
+type metaSnapshot struct {
+	mu                    sync.RWMutex
+	metricsByIDSnapshot   map[int32]*format.MetricMetaValue
+	metricsByNameSnapshot map[string]*format.MetricMetaValue
+}
+
+type MetricsStorage struct {
+	mu            sync.RWMutex
+	metaSnapshot  *metaSnapshot
 	metricsByID   map[int32]*format.MetricMetaValue
 	metricsByName map[string]*format.MetricMetaValue
 
@@ -52,6 +63,10 @@ type MetricsStorage struct {
 
 func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
 	result := &MetricsStorage{
+		metaSnapshot: &metaSnapshot{
+			metricsByNameSnapshot: map[string]*format.MetricMetaValue{},
+			metricsByIDSnapshot:   map[int32]*format.MetricMetaValue{},
+		},
 		metricsByID:      map[int32]*format.MetricMetaValue{},
 		metricsByName:    map[string]*format.MetricMetaValue{},
 		dashboardByID:    map[int32]*format.DashboardMeta{},
@@ -70,6 +85,54 @@ func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromC
 	}
 	result.journal = MakeJournal(namespaceSuffix, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
+}
+
+func (snapshot *metaSnapshot) GetMetaMetric(metricID int32) *format.MetricMetaValue {
+	snapshot.mu.RLock()
+	defer snapshot.mu.RUnlock()
+	return snapshot.metricsByIDSnapshot[metricID]
+}
+
+func (snapshot *metaSnapshot) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
+	snapshot.mu.RLock()
+	defer snapshot.mu.RUnlock()
+	return snapshot.metricsByNameSnapshot[metricName]
+}
+
+func (snapshot *metaSnapshot) GetMetaMetricByNameBytes(metric []byte) *format.MetricMetaValue {
+	snapshot.mu.RLock()
+	defer snapshot.mu.RUnlock()
+	return snapshot.metricsByNameSnapshot[string(metric)]
+}
+
+func (snapshot SnapshotMeta) GetMetaMetric(metricID int32) *format.MetricMetaValue {
+	return snapshot.MetricsByIDSnapshot[metricID]
+}
+
+func (snapshot SnapshotMeta) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
+	return snapshot.MetricsByNameSnapshot[metricName]
+}
+
+func (snapshot SnapshotMeta) GetMetaMetricByNameBytes(metric []byte) *format.MetricMetaValue {
+	return snapshot.MetricsByNameSnapshot[string(metric)]
+}
+
+func (snapshot *metaSnapshot) updateSnapshotUnlocked(
+	metricsByIDSnapshot map[int32]*format.MetricMetaValue,
+	metricsByNameSnapshot map[string]*format.MetricMetaValue) {
+	snapshot.mu.Lock()
+	defer snapshot.mu.Unlock()
+	snapshot.metricsByIDSnapshot = metricsByIDSnapshot
+	snapshot.metricsByNameSnapshot = metricsByNameSnapshot
+}
+
+func (snapshot *metaSnapshot) getCopyUnlocked() SnapshotMeta {
+	snapshot.mu.RLock()
+	defer snapshot.mu.RUnlock()
+	return SnapshotMeta{
+		MetricsByIDSnapshot:   snapshot.metricsByIDSnapshot,
+		MetricsByNameSnapshot: snapshot.metricsByNameSnapshot,
+	}
 }
 
 // satisfy format.MetaStorageInterface
@@ -94,6 +157,14 @@ func (ms *MetricsStorage) KnownTags() tlmetadata.Event {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.knownTags
+}
+
+func (ms *MetricsStorage) GetSnapshotMeta() SnapshotMeta {
+	return ms.metaSnapshot.getCopyUnlocked()
+}
+
+func (ms *MetricsStorage) GetMetaMetricDelayed(metricID int32) *format.MetricMetaValue {
+	return ms.metaSnapshot.GetMetaMetric(metricID)
 }
 
 func (ms *MetricsStorage) GetMetaMetric(metricID int32) *format.MetricMetaValue {
@@ -148,6 +219,10 @@ func (ms *MetricsStorage) GetMetaMetricByNameBytes(metric []byte) *format.Metric
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.metricsByName[string(metric)]
+}
+
+func (ms *MetricsStorage) GetMetaMetricByNameBytesDelayed(metric []byte) *format.MetricMetaValue {
+	return ms.metaSnapshot.GetMetaMetricByNameBytes(metric)
 }
 
 func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.MetricMetaValue {
@@ -438,6 +513,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.mu.Unlock()
 		}
 	}
+	ms.copyToSnapshotUnlocked()
 	if ms.applyPromConfig != nil {
 		// outside of lock, once
 		if promConfigSet {
@@ -450,6 +526,18 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
 		}
 	}
+}
+
+func (ms *MetricsStorage) copyToSnapshotUnlocked() {
+	metricsByIDSnapshot := map[int32]*format.MetricMetaValue{}
+	metricsByNameSnapshot := map[string]*format.MetricMetaValue{}
+	ms.mu.Lock()
+	for k, v := range ms.metricsByName {
+		metricsByNameSnapshot[k] = v
+		metricsByIDSnapshot[v.MetricID] = v
+	}
+	ms.mu.Unlock()
+	ms.metaSnapshot.updateSnapshotUnlocked(metricsByIDSnapshot, metricsByNameSnapshot)
 }
 
 // call when namespace is added or changed O(number of metrics + numb of groups)

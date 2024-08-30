@@ -544,7 +544,7 @@ func (h *sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 		return &missingMetricMeta
 	}
 	timeStart := time.Now()
-	if res := h.Meta.GetMetaMetric(metricID); res != nil {
+	if res := h.Meta.GetMetaMetricDelayed(metricID); res != nil {
 		h.timeMetricMeta += time.Since(timeStart)
 		return res
 	}

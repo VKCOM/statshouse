@@ -280,6 +280,10 @@ func (m metaStorageMock) GetMetaMetric(metricID int32) *format.MetricMetaValue {
 	return m.getMetaMetric(metricID)
 }
 
+func (m metaStorageMock) GetMetaMetricDelayed(metricID int32) *format.MetricMetaValue {
+	return m.getMetaMetric(metricID)
+}
+
 func (m metaStorageMock) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
 	return m.getMetaMetricByName(metricName)
 }
