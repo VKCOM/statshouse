@@ -16,20 +16,21 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/myxo/gofs"
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
 
-func chooseFilenameForChunk(pos int64, prefixPath string) string {
+func chooseFilenameForChunk(fs gofs.FS, pos int64, prefixPath string) string {
 	posStr := fmt.Sprintf(`%05d`, pos)
 	posSize := len(posStr) - 4
 	prefix := fmt.Sprintf(`%s.%02d`, prefixPath, posSize)
 
 	for l := 4; l < len(posStr); l++ {
 		filename := prefix + posStr[:l] + `.bin`
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
+		if _, err := fs.Stat(filename); os.IsNotExist(err) {
 			return filename
 		}
 	}
@@ -71,11 +72,11 @@ func hasFile(name string, files []FileHeader) bool {
 	return false
 }
 
-func ScanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMagic uint32, knownFiles []FileHeader) ([]FileHeader, error) {
+func ScanForFilesFromPos(fs gofs.FS, afterThisPosition int64, prefixPath string, expectedMagic uint32, knownFiles []FileHeader) ([]FileHeader, error) {
 	root := path.Dir(prefixPath)
 	basename := path.Base(prefixPath)
 
-	allFilenames, err := os.ReadDir(root)
+	allFilenames, err := fs.ReadDir(root)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func ScanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMag
 
 		var fh FileHeader
 		fh.FileName = filepath
-		if err := readBinlogHeaderFile(&fh, expectedMagic); err != nil {
+		if err := readBinlogHeaderFile(fs, &fh, expectedMagic); err != nil {
 			if afterThisPosition != 0 {
 				// Если мы ожидаем новые бинлоги в конце, то можем попсть в ситуацию,
 				// когда старый бинлог удалят прямо между получением списка файлов и чтением его заголовка.
@@ -123,7 +124,7 @@ func ScanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMag
 }
 
 // WriteEmptyBinlog записывает содержимое начального блока нового бинлога (имя файла "name.000000.bin")
-func writeEmptyBinlog(options binlog.Options, w io.Writer) error {
+func writeEmptyBinlog(options Options, w io.Writer) error {
 	levStart := tlfsbinlog.LevStart{
 		SchemaId:   int32(options.Magic),
 		ExtraBytes: 0,
@@ -215,4 +216,15 @@ func (b *readBuffer) Bytes() []byte {
 
 func (b *readBuffer) IsLowFilled() bool {
 	return b.size < int(float64(cap(b.buff))*0.1)
+}
+
+type EmptyReindexOperator struct {
+}
+
+var _ binlog.ReindexOperator = &EmptyReindexOperator{}
+
+func (f *EmptyReindexOperator) FinishedError() {
+}
+
+func (f *EmptyReindexOperator) FinishedOk() {
 }

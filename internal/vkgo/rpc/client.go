@@ -234,13 +234,15 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	}
 
 	if req.Extra.IsSetNoResult() {
-		// We consider it antipattern
+		// We consider it antipattern. TODO - implement)
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
 	}
 
-	deadline, _ := ctx.Deadline()
-
-	if err := preparePacket(req, deadline); err != nil {
+	deadline, err := c.fillRequestTimeout(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := preparePacket(req); err != nil {
 		return nil, nil, err
 	}
 
@@ -305,6 +307,33 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 	return pc, cctx, err
+}
+
+func (c *Client) fillRequestTimeout(ctx context.Context, req *Request) (time.Time, error) {
+	UpdateExtraTimeout(&req.Extra, c.opts.DefaultTimeout)
+	if !req.Extra.IsSetCustomTimeoutMs() && req.Extra.CustomTimeoutMs != 0 { // protect against programmer's mistake
+		return time.Time{}, fmt.Errorf("rpc: custom timeout should be set with extra.SetCustomTimeoutMs function, otherwise custom timeout is ignored")
+	}
+	if req.Extra.CustomTimeoutMs < 0 { // TODO - change TL scheme to have unsigned type
+		return time.Time{}, fmt.Errorf("rpc: extra.CustomTimeoutMs (%d) should not be negative", req.Extra.CustomTimeoutMs)
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		to := time.Until(deadline)
+		if to <= 0 { // local timeout, <= is the only correct comparison
+			return time.Time{}, fmt.Errorf("context timeout expired before call is made")
+		}
+		if req.Extra.CustomTimeoutMs == 0 || to < time.Millisecond*time.Duration(req.Extra.CustomTimeoutMs) {
+			// there is no point to set timeout larger than set in context, as client will fail locally before server returns response
+			req.Extra.ClearCustomTimeoutMs()
+			UpdateExtraTimeout(&req.Extra, to)
+			return deadline, nil
+		}
+	}
+	if req.Extra.CustomTimeoutMs == 0 { //  infinite
+		req.Extra.ClearCustomTimeoutMs() // normalize by not sending infinite timeout
+		return time.Time{}, nil
+	}
+	return time.Now().Add(time.Millisecond * time.Duration(req.Extra.CustomTimeoutMs)), nil
 }
 
 // ResetReconnectDelay resets timer before the next reconnect attempt.
@@ -431,4 +460,29 @@ func (c *Client) PutResponse(cctx *Response) {
 	}
 
 	c.responsePool.Put(cctx)
+}
+
+func roundTimeoutToInt32(timeout time.Duration) int32 {
+	if timeout <= 0 {
+		return 0 // infinite
+	}
+	timeoutMilli := timeout.Milliseconds()
+	if timeoutMilli > math.MaxInt32 {
+		return 0 // large timeouts round to infinite
+	}
+	if timeoutMilli < 1 { // do not round small timeouts to infinite
+		return 1
+	}
+	return int32(timeoutMilli)
+}
+
+// We have several hierarchical timeouts, we update from high to lower priority.
+// So if high priority timeout is set (even to 0 (infinite)), subsequent calls do nothing.
+func UpdateExtraTimeout(extra *InvokeReqExtra, timeout time.Duration) {
+	if extra.IsSetCustomTimeoutMs() {
+		return
+	}
+	if t := roundTimeoutToInt32(timeout); t > 0 {
+		extra.SetCustomTimeoutMs(t)
+	}
 }

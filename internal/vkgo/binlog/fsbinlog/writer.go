@@ -11,41 +11,47 @@ import (
 	"os"
 	"time"
 
+	"github.com/myxo/gofs"
+
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
-var testEnvTurnOffFSync bool
-
 type binlogWriter struct {
 	logger             binlog.Logger
+	fs                 gofs.FS
 	engine             binlog.Engine
 	stat               *stat
-	fd                 *os.File
+	fp                 *gofs.File
 	BinlogChunkMaxSize int64
 	curFileHeader      *FileHeader
 	PrefixPath         string
 	buffEx             *buffExchange
+	writeCallDelay     time.Duration
 
-	stop chan struct{}
-
-	// Канал сигнализирующий о наличии данных. Протокол следующий:
-	// если передано nil, то мы можем забрать (steal) данные, если в данный момент не заняты
-	// если переданы буфферы, это значит, что клиент уперся в HardMemLimit и мы обязанны их взять как можно скорее
-	ch chan struct{}
+	stop           chan struct{}
+	reindexEventCh chan bool
+	dataCh         chan struct{}
 }
 
 func newBinlogWriter(
+	fs gofs.FS,
 	logger binlog.Logger,
 	engine binlog.Engine,
-	options binlog.Options,
+	options Options,
 	posAfterRead int64,
 	lastFileHdr *FileHeader,
 	buffEx *buffExchange,
 	stat *stat,
 	stop chan struct{},
+	reindexEventCh chan bool,
+	writeCallDelay time.Duration,
 ) (*binlogWriter, error) {
+	if logger == nil {
+		logger = &binlog.EmptyLogger{}
+	}
 	bw := &binlogWriter{
 		logger:             logger,
+		fs:                 fs,
 		engine:             engine,
 		stat:               stat,
 		BinlogChunkMaxSize: int64(options.MaxChunkSize),
@@ -53,7 +59,9 @@ func newBinlogWriter(
 		PrefixPath:         options.PrefixPath,
 		buffEx:             buffEx,
 		stop:               stop,
-		ch:                 make(chan struct{}, 1),
+		reindexEventCh:     reindexEventCh,
+		dataCh:             make(chan struct{}, 1),
+		writeCallDelay:     writeCallDelay,
 	}
 
 	expectedSize := posAfterRead - lastFileHdr.Position
@@ -69,12 +77,12 @@ func (bw *binlogWriter) initChunk(createNew bool, filename string, expectedSize 
 	if createNew {
 		flags |= os.O_CREATE | os.O_EXCL
 	}
-	fd, err := os.OpenFile(filename, flags, defaultFilePerm)
+	fd, err := bw.fs.OpenFile(filename, flags, defaultFilePerm)
 	if err != nil {
 		return err
 	}
 
-	fi, err := os.Stat(filename)
+	fi, err := bw.fs.Stat(filename)
 	if err != nil {
 		return err
 	}
@@ -82,7 +90,7 @@ func (bw *binlogWriter) initChunk(createNew bool, filename string, expectedSize 
 		return fmt.Errorf("current position in file is not equal file size, expected: %d, file size: %d", expectedSize, fi.Size())
 	}
 
-	bw.fd = fd
+	bw.fp = fd
 	return nil
 }
 
@@ -94,30 +102,22 @@ func (bw *binlogWriter) loop(lastFsyncPos int64) (PositionInfo, error) {
 	defer func() {
 		flushCh.Stop()
 
-		if bw.fd == nil {
+		if bw.fp == nil {
 			return
 		}
 
-		if bw.logger != nil {
-			if fi, err := bw.fd.Stat(); err != nil {
-				bw.logger.Infof(`fsBinlogImpl stop writing loop: last filename:%q (could not get stats:%s)`, bw.fd.Name(), err)
-			} else {
-				bw.logger.Infof(`fsBinlogImpl stop writing loop: last filename:%q file_size=%d pos_in_file=%d global_pos=%d crc=0x%x`,
-					bw.fd.Name(), fi.Size(), rd.offsetLocal, rd.offsetGlobal, rd.crc)
-			}
+		if fi, err := bw.fp.Stat(); err != nil {
+			bw.logger.Infof(`fsBinlogImpl stop writing loop: last filename:%q (could not get stats:%s)`, bw.fp.Name(), err)
+		} else {
+			bw.logger.Infof(`fsBinlogImpl stop writing loop: last filename:%q file_size=%d pos_in_file=%d global_pos=%d crc=0x%x`,
+				bw.fp.Name(), fi.Size(), rd.offsetLocal, rd.offsetGlobal, rd.crc)
 		}
 
-		if !testEnvTurnOffFSync {
-			if err := bw.fd.Sync(); err != nil {
-				if bw.logger != nil {
-					bw.logger.Errorf("Cannot flush data to file: %s", err)
-				}
-			}
+		if err := bw.fp.Sync(); err != nil {
+			bw.logger.Errorf("Cannot flush data to file: %s", err)
 		}
-		if err := bw.fd.Close(); err != nil {
-			if bw.logger != nil {
-				bw.logger.Warnf("Error while closing file: %s", err)
-			}
+		if err := bw.fp.Close(); err != nil {
+			bw.logger.Warnf("Error while closing file: %s", err)
 		}
 	}()
 
@@ -126,12 +126,13 @@ func (bw *binlogWriter) loop(lastFsyncPos int64) (PositionInfo, error) {
 		dirty   bool
 		loopErr error
 	)
+	lastWrite := time.Now()
 loop:
 	for !stop {
 		hitTimer := false
 
 		select {
-		case _, ok := <-bw.ch:
+		case _, ok := <-bw.dataCh:
 			if !ok {
 				stop = true
 			}
@@ -143,10 +144,24 @@ loop:
 		case <-bw.stop:
 			bw.buffEx.stopAccept()
 			stop = true
+
+		case <-bw.reindexEventCh:
+			bw.engine.StartReindex(&EmptyReindexOperator{})
+			continue
 		}
 
 		buff, rd = bw.buffEx.replaceBuff(buff)
 		if len(buff) != 0 {
+			now := time.Now()
+			sinceLastWrite := now.Sub(lastWrite)
+			lastWrite = now
+			if sinceLastWrite < bw.writeCallDelay {
+				// We don't want to write every small event without batching (it may have unpredictable effects in replicator),
+				// but don't want to over pessimize replication lag. Sleep for e.g. millisecond is a reasonable tradeoff
+				time.Sleep(bw.writeCallDelay - sinceLastWrite)
+				lastWrite = time.Now()
+			}
+
 			if err := bw.writeBuffer(buff, &rd); err != nil {
 				_ = bw.engine.ChangeRole(binlog.ChangeRoleInfo{
 					IsMaster: false,
@@ -159,16 +174,13 @@ loop:
 			dirty = true
 		}
 
-		if dirty && (rd.commitASAP || hitTimer || stop) {
-			var err error
-			if !testEnvTurnOffFSync {
-				err = bw.fd.Sync()
-			}
+		bigUncommittedTail := rd.offsetGlobal-lastFsyncPos > uncommittedMaxSize
+
+		if dirty && (rd.commitASAP || hitTimer || bigUncommittedTail || stop) {
+			err := bw.fp.Sync()
 
 			if err != nil {
-				if bw.logger != nil {
-					bw.logger.Errorf("Binlog: abort binlog writing, cannot fsync, error: %q, last fsync position: %d", err, lastFsyncPos)
-				}
+				bw.logger.Errorf("Binlog: abort binlog writing, cannot fsync, error: %q, last fsync position: %d", err, lastFsyncPos)
 				// on this stage we do not care about errors anymore
 				_ = bw.engine.ChangeRole(binlog.ChangeRoleInfo{
 					IsMaster: false,
@@ -200,7 +212,7 @@ func (bw *binlogWriter) writeBuffer(buff []byte, rd *replaceData) error {
 	prevPos := int64(0)
 	for _, pos := range rd.rotatePos {
 		to := pos - levRotateSize
-		if _, err := bw.fd.Write(buff[prevPos:to]); err != nil {
+		if _, err := bw.fp.Write(buff[prevPos:to]); err != nil {
 			return err
 		}
 		if err := bw.rotate(buff[to:pos], buff[pos:pos+levRotateSize]); err != nil {
@@ -208,7 +220,7 @@ func (bw *binlogWriter) writeBuffer(buff []byte, rd *replaceData) error {
 		}
 		prevPos = pos + levRotateSize
 	}
-	if _, err := bw.fd.Write(buff[prevPos:]); err != nil {
+	if _, err := bw.fp.Write(buff[prevPos:]); err != nil {
 		return err
 	}
 	return nil
@@ -218,10 +230,8 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	// Нужно сначала создать новый файл, записать в него ROTATE_FROM, синкнуть на диск, а потом уже писать ROTATE_TO и закрывать старый.
 	// Так работают сишные движки и такое поведение ожидает репликатор.
 
-	if !testEnvTurnOffFSync {
-		if err := bw.fd.Sync(); err != nil {
-			return err
-		}
+	if err := bw.fp.Sync(); err != nil {
+		return err
 	}
 
 	var newHeader FileHeader
@@ -230,20 +240,20 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	}
 	newHeader.Position = newHeader.LevRotateFrom.CurLogPos
 	newHeader.Timestamp = uint64(newHeader.LevRotateFrom.Timestamp)
-	newHeader.FileName = chooseFilenameForChunk(newHeader.Position, bw.PrefixPath)
+	newHeader.FileName = chooseFilenameForChunk(bw.fs, newHeader.Position, bw.PrefixPath)
 
 	if bw.logger != nil {
 		bw.logger.Tracef("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)
 	}
 
-	prevChunkFd := bw.fd // Сохраняю старый файл для дозаписи события
+	prevChunkFd := bw.fp // Сохраняю старый файл для дозаписи события
 
 	if err := bw.initChunk(true, newHeader.FileName, 0); err != nil {
 		return err
 	}
 
 	// Сначала запись RotateFrom в новый бинлог
-	if _, err := bw.fd.Write(rotateFrom); err != nil {
+	if _, err := bw.fp.Write(rotateFrom); err != nil {
 		return err
 	}
 
@@ -251,12 +261,8 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	bw.stat.lastTimestamp.Store(uint32(newHeader.LevRotateFrom.Timestamp))
 	bw.stat.currentBinlogPath.Store(newHeader.FileName)
 
-	if !testEnvTurnOffFSync {
-		if err := bw.fd.Sync(); err != nil {
-			if bw.logger != nil {
-				bw.logger.Warnf(`could not sync new binlog file: %s`, err)
-			}
-		}
+	if err := bw.fp.Sync(); err != nil {
+		bw.logger.Warnf(`could not sync new binlog file: %s`, err)
 	}
 
 	// Теперь записываю ROTATE_TO в прошлый	файл и закрываю его
@@ -264,24 +270,16 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 		return fmt.Errorf(`could not write ROTATE_TO event: %s`, err)
 	}
 
-	if !testEnvTurnOffFSync {
-		if err := prevChunkFd.Sync(); err != nil {
-			if bw.logger != nil {
-				bw.logger.Warnf(`could not sync previous bw file after rotation: %s`, err)
-			}
-		}
+	if err := prevChunkFd.Sync(); err != nil {
+		bw.logger.Warnf(`could not sync previous bw file after rotation: %s`, err)
 	}
 
 	if err := prevChunkFd.Chmod(0440); err != nil {
-		if bw.logger != nil {
-			bw.logger.Warnf("Can't set read only mode for the slice %s", prevChunkFd.Name())
-		}
+		bw.logger.Warnf("Can't set read only mode for the slice %s", prevChunkFd.Name())
 	}
 
 	if err := prevChunkFd.Close(); err != nil {
-		if bw.logger != nil {
-			bw.logger.Warnf(`could not close previous bw file after rotation: %s`, err)
-		}
+		bw.logger.Warnf(`could not close previous bw file after rotation: %s`, err)
 	}
 
 	return nil

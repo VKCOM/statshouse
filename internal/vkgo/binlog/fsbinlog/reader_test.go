@@ -17,13 +17,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/myxo/gofs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
 
-func GetPosAndCrc(t *testing.T, dir string) (int64, uint32) {
-	files, err := os.ReadDir(dir)
+func GetPosAndCrc(t *testing.T, fs gofs.FS, dir string) (int64, uint32) {
+	files, err := fs.ReadDir(dir)
 	assert.Nil(t, err)
 
 	fileNames := make([]string, len(files))
@@ -38,7 +39,7 @@ func GetPosAndCrc(t *testing.T, dir string) (int64, uint32) {
 	crc := uint32(0)
 	pos := int64(0)
 	for _, name := range fileNames {
-		fileData, err := os.ReadFile(filepath.Join(dir, name))
+		fileData, err := fs.ReadFile(filepath.Join(dir, name))
 		require.NoError(t, err)
 
 		crc = crc32.Update(crc, crc32.IEEETable, fileData)
@@ -63,11 +64,12 @@ func copyFolder(t *testing.T, src, dst string) {
 func TestRead(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	testDataDir := filepath.Join(filepath.Dir(filename), "test_data/test_log")
+	fs := gofs.OsFs()
 
 	PrefixPath := filepath.Join(testDataDir, "test_log")
 
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
+	reader, err := newBinlogReader(fs, nil, nil, time.Second, nil, &stat{}, stop)
 	require.NoError(t, err)
 
 	engine := NewTestEngine(0)
@@ -86,7 +88,7 @@ func TestRead(t *testing.T) {
 	pos, crc, err := reader.readAllFromPosition(0, PrefixPath, testMagic, engine, nil, false)
 	require.NoError(t, err)
 
-	expectedPos, expectedCrc := GetPosAndCrc(t, testDataDir)
+	expectedPos, expectedCrc := GetPosAndCrc(t, fs, testDataDir)
 
 	require.Equal(t, expectedPos, pos)
 	require.Equal(t, expectedCrc, crc)
@@ -98,9 +100,10 @@ func TestReadIncorrectMagic(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	testDataDir := filepath.Join(filepath.Dir(filename), "test_data/test_log")
 	PrefixPath := filepath.Join(testDataDir, "test_log")
+	fs := gofs.NewMemoryFs()
 
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
+	reader, err := newBinlogReader(fs, nil, nil, time.Second, nil, &stat{}, stop)
 	require.NoError(t, err)
 
 	_, _, err = reader.readAllFromPosition(0, PrefixPath, testMagic+1, NewTestEngine(0), nil, false)
@@ -112,10 +115,11 @@ func TestReadIncorrectMagic(t *testing.T) {
 func TestReadFromMiddle(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	testDataDir := filepath.Join(filepath.Dir(filename), "test_data/test_log")
+	fs := gofs.OsFs()
 
 	PrefixPath := filepath.Join(testDataDir, "test_log")
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
+	reader, err := newBinlogReader(fs, nil, nil, time.Second, nil, &stat{}, stop)
 	require.NoError(t, err)
 
 	count := 20
@@ -135,7 +139,7 @@ func TestReadFromMiddle(t *testing.T) {
 	pos, crc, err := reader.readAllFromPosition(startPosition, PrefixPath, 0, engine, nil, false)
 	require.NoError(t, err)
 
-	expectedPos, expectedCrc := GetPosAndCrc(t, testDataDir)
+	expectedPos, expectedCrc := GetPosAndCrc(t, fs, testDataDir)
 
 	require.Equal(t, expectedPos, pos)
 	require.Equal(t, expectedCrc, crc)
@@ -150,9 +154,10 @@ func TestReadReplicaMode(t *testing.T) {
 	testDataDir := filepath.Join(filepath.Dir(filename), "test_data/test_log")
 	copyFolder(t, testDataDir, tmpDir)
 	PrefixPath := filepath.Join(tmpDir, "test_log")
+	fs := gofs.OsFs()
 
 	stopCh := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stopCh)
+	reader, err := newBinlogReader(fs, nil, nil, time.Second, nil, &stat{}, stopCh)
 	require.NoError(t, err)
 
 	engine := NewTestEngine(0)

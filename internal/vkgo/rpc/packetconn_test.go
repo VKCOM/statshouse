@@ -46,10 +46,10 @@ func (p *packetConnMachine) init(t *rapid.T) {
 	wb2 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb2")
 
 	p.c1 = &connEx{
-		pc: NewPacketConn(nc1, rb1, wb1, 0),
+		pc: NewPacketConn(nc1, rb1, wb1),
 	}
 	p.c2 = &connEx{
-		pc: NewPacketConn(nc2, rb2, wb2, 0),
+		pc: NewPacketConn(nc2, rb2, wb2),
 	}
 
 	enc := rapid.Bool().Draw(t, "enc")

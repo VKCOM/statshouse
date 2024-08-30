@@ -705,7 +705,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
 			a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 			log.Print(sendErr)
-			sendErr = rpc.Error{
+			sendErr = &rpc.Error{
 				Code:        data_model.RPCErrorInsert,
 				Description: sendErr.Error(),
 			}

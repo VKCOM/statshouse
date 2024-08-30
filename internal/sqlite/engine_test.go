@@ -114,7 +114,7 @@ func apply(t *testing.T, scanOnly bool, applyF func(string2 string)) func(conn C
 }
 
 func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica, readAndExit, commitOnEachWrite bool, mode DurabilityMode, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
-	options := binlog2.Options{
+	options := fsbinlog.Options{
 		PrefixPath:  prefix + "/test",
 		Magic:       3456,
 		ReplicaMode: replica,

@@ -87,7 +87,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 	}
 	sr, cancel, err := h.ah.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
+		err = &rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return err
 	}
 	defer cancel()
@@ -170,7 +170,7 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 			res.Series.SeriesData = append(res.Series.SeriesData, *data)
 		}
 	} else if chunkMaxSize < metaSize {
-		return rpc.Error{
+		return &rpc.Error{
 			Code:        rpcErrorCodeChunkStorageFailed,
 			Description: fmt.Sprintf("response metadata size %d out of range", metaSize),
 		}
@@ -179,7 +179,7 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		res.Series = chunks[0] // return first chunk immediately
 		rid := int64(rand.Uint64())
 		if err = h.brs.Set(ctx, rid, req.ai.user, chunks[1:], bigResponseTTL); err != nil {
-			return rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
+			return &rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
 		}
 		res.ResponseId = rid
 		res.ChunkIds = make([]int32, 0, len(chunks)-1)
@@ -202,22 +202,22 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 
 	ai, err := h.parseAccessToken(args.AccessToken)
 	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
+		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	es.setAccessInfo(ai)
 
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
-		err = rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	if br.owner != ai.user {
-		err = rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
+		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	if int(args.ChunkId) > len(br.chunks)-1 {
-		err = rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
+		err = &rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 
@@ -235,17 +235,17 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 		h.statRpcTime(es, err, recover())
 	}()
 	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
+		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	es.setAccessInfo(ai)
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
-		err = rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	if br.owner != ai.user {
-		err = rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
+		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	res := tlstatshouseApi.ReleaseChunksResponse{
@@ -343,14 +343,14 @@ func (q *seriesRequestRPC) toSeriesRequest(h *RPCHandler) (seriesRequest, error)
 	var err error
 	req.ai, err = h.parseAccessToken(q.accessToken)
 	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
+		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return seriesRequest{}, err
 	}
 	q.stat.setAccessInfo(req.ai)
 	var metric *format.MetricMetaValue
 	metric, err = h.ah.getMetricMeta(req.ai, q.metricName)
 	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
+		err = &rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
 		return seriesRequest{}, err
 	}
 	q.stat.setMetricMeta(metric)

@@ -630,7 +630,7 @@ func mainIngressProxy(aesPwd string) {
 
 	// Run ingress proxy
 	err = aggregator.RunIngressProxy(ln, sh2, aesPwd, config)
-	if err != nil && err != rpc.ErrServerClosed {
+	if err != nil {
 		logErr.Fatalf("error running ingress proxy: %v", err)
 	}
 }
@@ -645,7 +645,7 @@ func listen(network, address string) net.Listener {
 
 func serveRPC(ln net.Listener, server *rpc.Server) {
 	err := server.Serve(ln)
-	if err != nil && err != rpc.ErrServerClosed {
+	if err != nil {
 		logErr.Fatalf("RPC server failed to serve on %s: %v", ln.Addr(), err)
 	}
 }

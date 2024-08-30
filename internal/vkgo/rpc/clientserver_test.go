@@ -45,7 +45,7 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 	}
 
 	if n%2 != 0 {
-		rpcErr := Error{
+		rpcErr := &Error{
 			Code:        int32(n),
 			Description: strconv.Itoa(int(n)),
 		}
@@ -93,7 +93,7 @@ func dorequest(t *rapid.T, c *Client, addr string) {
 	defer c.PutResponse(resp)
 
 	if n%2 != 0 {
-		refErr := Error{
+		refErr := &Error{
 			Code:        n,
 			Description: strconv.Itoa(int(n)),
 		}
@@ -189,7 +189,7 @@ func testRPCRoundtrip(t *rapid.T) {
 		t.Fatal(err)
 	}
 	err = <-serverErr
-	if err != ErrServerClosed {
+	if err != nil {
 		t.Fatal(err)
 	}
 }

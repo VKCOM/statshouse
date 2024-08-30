@@ -24,7 +24,7 @@ type worker struct {
 	gcTime     time.Time
 }
 
-func (w *worker) run(wg *WaitGroup) {
+func (w *worker) run(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for work := range w.ch {
 		work.sc.handle(work.hctx)
@@ -76,7 +76,7 @@ func (t *workerPool) Created() (current int, total int) {
 	return t.created, t.create
 }
 
-func (t *workerPool) Get(wg *WaitGroup) (*worker, bool) {
+func (t *workerPool) Get(wg *sync.WaitGroup) (*worker, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 

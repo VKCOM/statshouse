@@ -36,12 +36,15 @@ const (
 	TlErrorTimeout       = -3000 // TL_ERROR_QUERY_TIMEOUT
 	TLErrorNoConnections = -3002 // TL_ERROR_NO_CONNECTIONS
 	TlErrorInternal      = -3003 // TL_ERROR_INTERNAL
+	TLErrorResultToLarge = -3011 // TL_ERROR_RESULT_TOO_LARGE
 	TlErrorUnknown       = -4000 // TL_ERROR_UNKNOWN
 
 	DefaultPacketTimeout = 10 * time.Second
 	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
 	//
 	// We have single timeout for all activity.
+	// Network connect is similar to request/response so must happen within this timeout
+	// Then handshake is series of request/responses which must each happen within this timeout
 	//
 	// Before reading next packet, timer is set to this timeout.
 	// If not a single byte is read from the peer before timeout triggers, ping is sent and timer is reset.
@@ -77,12 +80,11 @@ type Error struct {
 }
 
 type tagError struct {
-	tag string
-	msg string
-	err error
+	tag string // can be empty, but in most cases is not
+	err error  // never nil
 }
 
-func (err Error) Error() string {
+func (err *Error) Error() string {
 	return fmt.Sprintf("RPC error %v: %v", err.Code, err.Description)
 }
 
@@ -106,26 +108,14 @@ func ErrorTag(err error) string {
 	if e := errors.Unwrap(err); e != nil {
 		return ErrorTag(e)
 	}
-	return err.Error()
+	return err.Error() // TODO - return "" instead
 }
 
 func (err *tagError) Error() string {
-	if err == nil {
-		return "<nil>"
-	}
-	if len(err.msg) != 0 {
-		return err.msg
-	}
-	if err.err != nil {
-		return err.err.Error()
-	}
-	return ""
+	return err.err.Error()
 }
 
 func (err *tagError) Unwrap() error {
-	if err == nil {
-		return nil
-	}
 	return err.err
 }
 

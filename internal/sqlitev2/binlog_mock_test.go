@@ -25,7 +25,7 @@ func (b *binlogMock) Run2(offset int64, snapshotMeta []byte, controlMeta []byte,
 	panic("err")
 }
 
-func (b *binlogMock) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
+func (b *binlogMock) Run(offset int64, snapshotMeta []byte, controlMeta []byte, engine binlog.Engine) error {
 	b.engine = engine
 	return nil
 }
@@ -82,4 +82,14 @@ func (b *binlogMock) MockSkip(t require.TestingT, skip int64) int64 {
 	b.skipL += skip
 	require.NoError(t, err)
 	return newOffset
+}
+
+func (b *binlogMock) GetStartCmd() (binlog.StartCmd, bool) {
+	return binlog.StartCmd{}, false
+}
+
+func (b *binlogMock) RequestReindex(diff bool, fast bool) {
+}
+
+func (b *binlogMock) RequestShutdown() {
 }

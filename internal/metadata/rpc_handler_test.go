@@ -54,9 +54,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 	require.NoError(t, err)
 	go func() {
 		err = server.Serve(ln)
-		if err != rpc.ErrServerClosed {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 	}()
 	rpcClient := rpc.NewClient()
 	cl := &tlmetadata.Client{
@@ -342,8 +340,7 @@ func TestRPCServer(t *testing.T) {
 		jsonStr, _ := statJson("abc2", 1235, strings.Repeat("a", maxReqSize))
 		checkJson(t, jsonStr)
 		_, err := putMetric(t, rpcClient, "abc2", jsonStr, 0, 0)
-		require.ErrorIs(t, err, data_model.ErrRequestIsTooBig)
-		rpcErr := rpc.Error{}
+		var rpcErr *rpc.Error
 		errors.As(err, &rpcErr)
 		require.Equal(t, data_model.ErrRequestIsTooBig.Code, rpcErr.Code)
 	})

@@ -16,6 +16,10 @@ func (s *CircularSlice[T]) Len() int {
 	return s.write_pos - s.read_pos
 }
 
+func (s *CircularSlice[T]) Cap() int {
+	return len(s.elements)
+}
+
 // Two parts of circular slice
 func (s *CircularSlice[T]) Slices() ([]T, []T) {
 	capacity := len(s.elements)
@@ -27,19 +31,19 @@ func (s *CircularSlice[T]) Slices() ([]T, []T) {
 
 // Will also reduce capacity
 func (s *CircularSlice[T]) Reserve(newCapacity int) {
-	if newCapacity <= s.Len() { // fits perfectly, do nothing
+	if newCapacity <= len(s.elements) { // fits perfectly, do nothing
 		return
 	}
 	s1, s2 := s.Slices()
-	elements := make([]T, 0, newCapacity)
-	elements = append(elements, s1...)
-	elements = append(elements, s2...)
-	if len(elements) != len(s1)+len(s2) {
+	elements := make([]T, newCapacity) // size will forever be equal to capacity
+	off := copy(elements, s1)
+	off += copy(elements[off:], s2)
+	if off != len(s1)+len(s2) {
 		panic("circular slice invariant violated in Reserve")
 	}
 	s.read_pos = 0
-	s.write_pos = len(elements)
-	s.elements = elements[:newCapacity]
+	s.write_pos = off
+	s.elements = elements
 }
 
 func (s *CircularSlice[T]) PushBack(element T) {
@@ -70,18 +74,22 @@ func (s *CircularSlice[T]) Front() T {
 }
 
 func (s *CircularSlice[T]) Index(pos int) T {
+	return *s.IndexRef(pos)
+}
+
+func (s *CircularSlice[T]) IndexRef(pos int) *T {
 	if pos < 0 {
 		panic("circular slice index < 0")
 	}
 	capacity := len(s.elements)
 	offset := s.read_pos + pos
 	if offset < capacity {
-		return s.elements[offset]
+		return &s.elements[offset]
 	}
 	if offset >= s.write_pos {
 		panic("circular slice index out of range")
 	}
-	return s.elements[offset-capacity]
+	return &s.elements[offset-capacity]
 }
 
 func (s *CircularSlice[T]) PopFront() T {
@@ -92,10 +100,10 @@ func (s *CircularSlice[T]) PopFront() T {
 	var empty T
 	s.elements[s.read_pos] = empty // do not prevent garbage collection from invisible parts of slice
 	s.read_pos++
-	size := len(s.elements)
-	if s.read_pos >= size {
-		s.read_pos -= size
-		s.write_pos -= size
+	capacity := len(s.elements)
+	if s.read_pos >= capacity {
+		s.read_pos -= capacity
+		s.write_pos -= capacity
 	}
 	if s.read_pos == s.write_pos { // Maximize probability of single continuous slice
 		s.read_pos = 0
@@ -105,6 +113,14 @@ func (s *CircularSlice[T]) PopFront() T {
 }
 
 func (s *CircularSlice[T]) Clear() {
+	var empty T
+	s1, s2 := s.Slices()
+	for i := range s1 {
+		s1[i] = empty
+	}
+	for i := range s2 {
+		s2[i] = empty
+	}
 	s.read_pos = 0
 	s.write_pos = 0
 }
@@ -115,4 +131,10 @@ func (s *CircularSlice[T]) DeepAssign(other CircularSlice[T]) {
 		read_pos:  other.read_pos,
 		write_pos: other.write_pos,
 	}
+}
+
+func (s *CircularSlice[T]) Swap(other *CircularSlice[T]) {
+	s.elements, other.elements = other.elements, s.elements
+	s.write_pos, other.write_pos = other.write_pos, s.write_pos
+	s.read_pos, other.read_pos = other.read_pos, s.read_pos
 }

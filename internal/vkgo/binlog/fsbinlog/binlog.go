@@ -18,21 +18,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/myxo/gofs"
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
+	"github.com/vkcom/statshouse/internal/vkgo/tlbarsic"
 )
 
 const (
 	mb                     = 1024 * 1024
 	flushInterval          = 500 * time.Millisecond
+	uncommittedMaxSize     = 50 * mb // may be set in Options if need
 	writeCrcEveryBytes     = 64 * 1024
-	bufferSendThreshold    = writeCrcEveryBytes
 	defaultMaxChunkSize    = 1024 * mb
 	defaultHardMemoryLimit = 100 * mb
 	defaultBuffSize        = mb / 2
+	defaultWriteCallDelay  = time.Millisecond
 
 	defaultFilePerm = os.FileMode(0640)
 
@@ -77,7 +80,8 @@ type (
 	}
 
 	fsBinlog struct {
-		options      binlog.Options
+		fs           gofs.FS
+		options      Options
 		stat         stat
 		engine       binlog.Engine
 		logger       binlog.Logger
@@ -85,7 +89,8 @@ type (
 		writer       *binlogWriter
 		stop         chan struct{}
 		stopOnce     sync.Once
-		pidChanged   *chan struct{}
+		pidChanged   chan struct{}
+		reindexEvent chan bool
 
 		predict struct {
 			lastPosForCrc int64
@@ -95,6 +100,25 @@ type (
 		}
 
 		buffEx *buffExchange
+	}
+
+	// Настройки для fsBinlog имплементации, барсик настраиваится в конфиге барсика
+	Options struct {
+		PrefixPath        string // путь до бинлога, включающий префикс для файлов финлога (например `some/path/gopusher_binlog`)
+		Magic             uint32 // Ожидаемый magic (scheme) движка (0 - если можно открывать любой тип)
+		ReplicaMode       bool   // Бинлог открывается в режиме читающей реплики (постоянно читаем файл, если наткнулись на EOF, ждем новой записи)
+		ReadAndExit       bool   // Может быть полезен для инструментария (например дампилки бинлога), не имеет смысла вместе с ReplicaMode
+		MaxChunkSize      uint32 // Примерный порог (в байтах) для срабатывания ротации бинлога
+		HardMemLimit      int    // Лимит буффера, при котором включается механизм back pressure: Append начнет блокироваться, пока буффер не передастся на запись
+		EngineIDInCluster uint   // Номер данного шарда в кластере, для статы
+		ClusterSize       uint   // Размер кластера для данного шарда, для статы
+
+		// Файловая система, которую должен использовать fsBinlog.
+		// Для прода должен быть nil (тогда будет использована реальная fs).
+		// В тестах можно передавать fs := gofs.NewMemoryFs, тогда не будет обращений к диску и тесты будут побыстрее.
+		Fs gofs.FS
+
+		WriteCallDelay *time.Duration // Sleep duration between writes. Defaults to defaultWriteCallDelay. May be explicitly set to zero
 	}
 )
 
@@ -109,9 +133,9 @@ type BinlogReadWrite interface {
 }
 
 // NewFsBinlog создает объект бинлога с правильными дефолтами
-func NewFsBinlog(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, error) {
+func NewFsBinlog(logger binlog.Logger, options Options) (BinlogReadWrite, error) {
 	runSimpleMode = true
-	return doCreateBinlog(logger, options)
+	return doCreateBinlog(logger, options), nil
 }
 
 // NewFsBinlogMasterChange используется в сценарии replace pid мастера (при апдейте движка). В этом сценарии
@@ -122,34 +146,40 @@ func NewFsBinlog(logger binlog.Logger, options binlog.Options) (BinlogReadWrite,
 // После этого он блокируется на канале, который возвращается из этой функции. Обязанность клиента - дернуть
 // канал, когда станет известно, что предыдущий мастер завершил работу (см. vkd.Options.ReadyHandler).
 // После этого бинлог возвращается к обычной работе и при получении EOF будет вызван Binlog.ChangeRole с IsReady == true
-func NewFsBinlogMasterChange(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, *chan struct{}, error) {
+func NewFsBinlogMasterChange(logger binlog.Logger, options Options) (BinlogReadWrite, chan struct{}, error) {
 	runSimpleMode = false
-	bl, err := doCreateBinlog(logger, options)
-	if err != nil {
-		return nil, nil, err
-	}
-	pidChanged := make(chan struct{}, 1)
-	bl.pidChanged = &pidChanged
-	return bl, &pidChanged, nil
+	bl := doCreateBinlog(logger, options)
+	bl.pidChanged = make(chan struct{}, 1)
+	return bl, bl.pidChanged, nil
 }
 
-func doCreateBinlog(logger binlog.Logger, options binlog.Options) (*fsBinlog, error) {
+func doCreateBinlog(logger binlog.Logger, options Options) *fsBinlog {
 	if options.MaxChunkSize == 0 {
 		options.MaxChunkSize = defaultMaxChunkSize
 	}
 	if options.HardMemLimit == 0 {
 		options.HardMemLimit = defaultHardMemoryLimit
 	}
+	if options.WriteCallDelay == nil {
+		dur := defaultWriteCallDelay
+		options.WriteCallDelay = &dur
+	}
+	fs := options.Fs
+	if fs == nil {
+		fs = gofs.OsFs()
+	}
 	return &fsBinlog{
-		options: options,
-		logger:  logger,
-		stop:    make(chan struct{}),
-	}, nil
+		fs:           fs,
+		options:      options,
+		logger:       logger,
+		stop:         make(chan struct{}),
+		reindexEvent: make(chan bool, 1),
+	}
 }
 
 // CreateEmptyFsBinlog создает новый бинлог.
 // Обычная схема такая: движок запускается с флагом --create-binlog и завершает работу, после его запускают на уже существующих файлах
-func CreateEmptyFsBinlog(options binlog.Options) (string, error) {
+func CreateEmptyFsBinlog(options Options) (string, error) {
 	if len(options.PrefixPath) == 0 {
 		return "", fmt.Errorf("PrefixPath is empty, cannot create binlog file")
 	}
@@ -157,8 +187,12 @@ func CreateEmptyFsBinlog(options binlog.Options) (string, error) {
 	basename := path.Base(options.PrefixPath)
 
 	fileName := filepath.Join(root, basename+`.000000.bin`)
+	fs := options.Fs
+	if fs == nil {
+		fs = gofs.OsFs()
+	}
 
-	fd, err := os.OpenFile(fileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, defaultFilePerm)
+	fd, err := fs.OpenFile(fileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, defaultFilePerm)
 	if err != nil {
 		return fileName, err
 	}
@@ -228,7 +262,7 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 	b.predict.firstFile = ri.LastFileHeader.Position == 0
 	if b.predict.firstFile {
 		// We should save file content for hash calc in Rotate levs (only on first file)
-		fp, err := os.Open(ri.LastFileHeader.FileName)
+		fp, err := b.fs.Open(ri.LastFileHeader.FileName)
 		if err != nil {
 			return ri, err
 		}
@@ -248,11 +282,7 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 	return b.writer.loop(ri.Offset)
 }
 
-func (b *fsBinlog) Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine binlog.Engine) error {
-	return b.Run(offset, snapshotMeta, engine)
-}
-
-func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
+func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, controlMeta []byte, engine binlog.Engine) error {
 	readInfo, err := b.ReadAll(offset, snapshotMeta, engine)
 	if errors.Is(err, errStopped) {
 		return nil
@@ -273,11 +303,24 @@ func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) 
 	return err
 }
 
-func (b *fsBinlog) Restart() {
-	_ = b.Shutdown() // TODO - better idea?
+func (b *fsBinlog) RequestShutdown() {
+	b.stopOnce.Do(func() {
+		close(b.stop)
+	})
+}
+
+func (b *fsBinlog) RequestReindex(diff bool, fast bool) {
+	select {
+	case b.reindexEvent <- true:
+	default:
+	}
 }
 
 func (b *fsBinlog) EngineStatus(status binlog.EngineStatus) {} // Status will appear only after upgrade to Barsic
+
+func (b *fsBinlog) GetStartCmd() (tlbarsic.Start, bool) {
+	return tlbarsic.Start{}, false
+}
 
 func (b *fsBinlog) Append(onOffset int64, payload []byte) (int64, error) {
 	return b.doAppend(onOffset, payload, false)
@@ -298,21 +341,20 @@ func (b *fsBinlog) doAppend(onOffset int64, body []byte, asap bool) (int64, erro
 		return nextPos, err
 	}
 
-	if asap || curBuffSize >= bufferSendThreshold {
-		if curBuffSize >= b.options.HardMemLimit {
-			if b.logger != nil {
-				b.logger.Infof("Binlog: buffer size exceed hard memory limit (%d byte), start back pressure procedure", b.options.HardMemLimit)
-			}
-
-			b.writer.ch <- struct{}{}
-			return nextPos, nil
+	if curBuffSize >= b.options.HardMemLimit {
+		if b.logger != nil {
+			b.logger.Infof("Binlog: buffer size exceed hard memory limit (%d byte), start back pressure procedure", b.options.HardMemLimit)
 		}
 
-		// Продолжаем писать, writer заберет буффер, когда освободится
-		select {
-		case b.writer.ch <- struct{}{}:
-		default:
-		}
+		// Ждем пока writer реально не заберет
+		b.writer.dataCh <- struct{}{}
+		return nextPos, nil
+	}
+
+	// Продолжаем писать, writer заберет буффер, когда освободится
+	select {
+	case b.writer.dataCh <- struct{}{}:
+	default:
 	}
 
 	return nextPos, nil
@@ -446,7 +488,7 @@ func (b *fsBinlog) AddStats(stats map[string]string) {
 }
 
 func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, error) {
-	reader, err := newBinlogReader(b.pidChanged, flushInterval, b.logger, &b.stat, b.options.DoNotFSyncOnRead, &b.stop)
+	reader, err := newBinlogReader(b.fs, b.pidChanged, b.reindexEvent, flushInterval, b.logger, &b.stat, b.stop)
 	if err != nil {
 		return PositionInfo{}, err
 	}
@@ -494,13 +536,6 @@ func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, erro
 	return readInfo, err
 }
 
-func (b *fsBinlog) Shutdown() error {
-	b.stopOnce.Do(func() {
-		close(b.stop)
-	})
-	return nil
-}
-
 func (b *fsBinlog) isWriterInitialized() bool {
 	b.writerInitMu.Lock()
 	defer b.writerInitMu.Unlock()
@@ -530,6 +565,7 @@ func (b *fsBinlog) setupWriterWorker(readInfo PositionInfo) error {
 
 	var err error
 	b.writer, err = newBinlogWriter(
+		b.fs,
 		b.logger,
 		b.engine,
 		b.options,
@@ -538,6 +574,8 @@ func (b *fsBinlog) setupWriterWorker(readInfo PositionInfo) error {
 		b.buffEx,
 		&b.stat,
 		b.stop,
+		b.reindexEvent,
+		*b.options.WriteCallDelay,
 	)
 	return err
 }

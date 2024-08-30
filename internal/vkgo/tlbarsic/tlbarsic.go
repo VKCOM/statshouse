@@ -9,6 +9,7 @@ package tlbarsic
 
 import (
 	"context"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/internal"
@@ -26,6 +27,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotDependency"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotExternalFile"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotHeader"
+	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSplit"
 	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicStart"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
@@ -51,6 +53,8 @@ type (
 	SnapshotExternalFileBytes = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes
 	SnapshotHeader            = tlBarsicSnapshotHeader.BarsicSnapshotHeader
 	SnapshotHeaderBytes       = tlBarsicSnapshotHeader.BarsicSnapshotHeaderBytes
+	Split                     = tlBarsicSplit.BarsicSplit
+	SplitBytes                = tlBarsicSplit.BarsicSplitBytes
 	Start                     = tlBarsicStart.BarsicStart
 	StartBytes                = tlBarsicStart.BarsicStartBytes
 )
@@ -59,7 +63,8 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID int64 // should be non-zero when using rpc-proxy
+	ActorID int64         // should be >0 for routing via rpc-proxy
+	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
 func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
@@ -69,6 +74,7 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
@@ -93,6 +99,7 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
@@ -117,6 +124,7 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.changeRole", err)
@@ -141,6 +149,7 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
@@ -165,6 +174,7 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
@@ -189,6 +199,7 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
@@ -213,6 +224,7 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
@@ -237,6 +249,7 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
@@ -261,6 +274,7 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
@@ -285,6 +299,7 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineWantsRestart", err)
@@ -309,6 +324,7 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.reindex", err)
@@ -333,6 +349,7 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.revert", err)
@@ -357,6 +374,7 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.shutdown", err)
@@ -381,6 +399,7 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.skip", err)
@@ -398,6 +417,56 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 	return nil
 }
 
+func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "barsic.split"
+	if extra != nil {
+		req.Extra = *extra
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("barsic.split", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("barsic.split", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "barsic.split"
+	if extra != nil {
+		req.Extra = *extra
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("barsic.split", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("barsic.split", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.InvokeReqExtra, ret *tlTrue.True) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -405,6 +474,7 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
@@ -429,6 +499,7 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 	if extra != nil {
 		req.Extra = *extra
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
@@ -457,6 +528,7 @@ type Handler struct {
 	Revert             func(ctx context.Context, args Revert) (tlTrue.True, error)             // barsic.revert
 	Shutdown           func(ctx context.Context, args Shutdown) (tlTrue.True, error)           // barsic.shutdown
 	Skip               func(ctx context.Context, args Skip) (tlTrue.True, error)               // barsic.skip
+	Split              func(ctx context.Context, args Split) (tlTrue.True, error)              // barsic.split
 	Start              func(ctx context.Context, args Start) (tlTrue.True, error)              // barsic.start
 
 	RawApplyPayload       func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.applyPayload
@@ -469,6 +541,7 @@ type Handler struct {
 	RawRevert             func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.revert
 	RawShutdown           func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.shutdown
 	RawSkip               func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.skip
+	RawSplit              func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.split
 	RawStart              func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.start
 }
 
@@ -782,6 +855,37 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("barsic.skip", err)
+			}
+			return nil
+		}
+	case 0xaf4c92d8: // barsic.split
+		hctx.RequestFunctionName = "barsic.split"
+		if h.RawSplit != nil {
+			hctx.Request = r
+			err = h.RawSplit(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("barsic.split", err)
+			}
+			return nil
+		}
+		if h.Split != nil {
+			var args Split
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("barsic.split", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.Split(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("barsic.split", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("barsic.split", err)
 			}
 			return nil
 		}

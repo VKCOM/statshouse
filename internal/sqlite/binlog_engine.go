@@ -156,8 +156,7 @@ func (impl *binlogEngineReplicaImpl) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
-func (impl *binlogEngineReplicaImpl) StartReindex() error {
-	return nil // TODO - implement
+func (impl *binlogEngineReplicaImpl) StartReindex(operator binlog2.ReindexOperator) {
 }
 
 func (impl *binlogEngineReplicaImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
@@ -191,4 +190,8 @@ func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 
 func (impl *binlogEngineReplicaImpl) Shutdown() {
 	// nop
+}
+
+func (impl *binlogEngineReplicaImpl) Split(offset int64, toShardID string) bool {
+	return false
 }

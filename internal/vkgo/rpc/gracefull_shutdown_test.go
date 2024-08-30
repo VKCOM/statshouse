@@ -79,7 +79,7 @@ func testRPCGraceful(t *rapid.T) {
 			if debugPrint {
 				fmt.Printf("%v serve of %p\n", time.Now(), s)
 			}
-			if err := s.Serve(ln2); err != nil && err != ErrServerClosed {
+			if err := s.Serve(ln2); err != nil {
 				t.Fatal(err)
 			}
 			if debugPrint {

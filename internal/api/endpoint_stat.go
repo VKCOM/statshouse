@@ -100,7 +100,7 @@ func (es *endpointStat) reportServiceTime(code int, err error) {
 	}
 	if es.protocol == format.TagValueIDRPC && code == 0 {
 		switch e := err.(type) {
-		case rpc.Error:
+		case *rpc.Error:
 			code = int(e.Code)
 		case nil:
 			// code = 0

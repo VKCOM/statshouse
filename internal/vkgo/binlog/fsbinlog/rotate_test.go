@@ -18,8 +18,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
 func TestBinlogRotate(t *testing.T) {
@@ -27,14 +25,14 @@ func TestBinlogRotate(t *testing.T) {
 
 	testLevs := []string{genStr(256), genStr(700), genStr(512), genStr(256)}
 
-	options := binlog.Options{
+	options := Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
 	}
 	{
 		bl := InitBinlogWithLevs(t, options, NewTestEngine(0), testLevs)
-		assert.Nil(t, bl.Shutdown())
+		bl.RequestShutdown()
 	}
 
 	files, err := os.ReadDir(dir)
@@ -57,14 +55,14 @@ func TestBinlogRotate(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Run(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, nil, engine))
 		stop <- struct{}{}
 	}()
 
 	engine.WaitForReadyFlag()
 	assert.Equal(t, len(testLevs), count)
 
-	assert.Nil(t, bl.Shutdown())
+	bl.RequestShutdown()
 	<-stop
 }
 
@@ -82,7 +80,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 		testLevs[i] = genStr(seededRand.Intn(1024 * 10))
 	}
 
-	options := binlog.Options{
+	options := Options{
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
 		MaxChunkSize: 1024 * 1024,
@@ -97,7 +95,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Run(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, nil, engine))
 		stop <- struct{}{}
 	}()
 
@@ -111,7 +109,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 	}
 
 	engine.WaitUntilCommit(offset)
-	assert.Nil(t, bl.Shutdown())
+	bl.RequestShutdown()
 	<-stop
 
 	testForCrcCorrectness(t, dir)
@@ -131,7 +129,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 		testLevs[i] = genStr(seededRand.Intn(1024 * 10))
 	}
 
-	options := binlog.Options{
+	options := Options{
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
 		MaxChunkSize: 1024 * 1024 / 2,
@@ -146,7 +144,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Run(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, nil, engine))
 		stop <- struct{}{}
 	}()
 
@@ -160,7 +158,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 	}
 
 	engine.WaitUntilCommit(offset)
-	assert.Nil(t, bl.Shutdown())
+	bl.RequestShutdown()
 	<-stop
 
 	// Now write second parts
@@ -176,7 +174,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop = make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Run(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, nil, engine))
 		stop <- struct{}{}
 	}()
 
@@ -190,7 +188,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 	}
 
 	engine.WaitUntilCommit(offset)
-	assert.Nil(t, bl.Shutdown())
+	bl.RequestShutdown()
 	<-stop
 
 	testForCrcCorrectness(t, dir)

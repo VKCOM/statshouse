@@ -371,7 +371,7 @@ func (e *Engine) binlogRun() (*binlogEngineReplicaImpl, error) {
 
 				}
 			}()
-			err = e.binlog.Run(offset, meta, impl)
+			err = e.binlog.Run(offset, meta, nil, impl)
 			if err != nil {
 				e.rw.mu.Lock()
 				e.rw.err = err
@@ -558,10 +558,7 @@ func (e *Engine) Close(ctx context.Context) error {
 func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
 	var error error
 	if e.opt.DurabilityMode != NoBinlog && e.binlog != nil {
-		err := e.binlog.Shutdown()
-		if err != nil {
-			multierr.AppendInto(&error, err)
-		}
+		e.binlog.RequestShutdown()
 	}
 	for {
 		/*

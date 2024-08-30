@@ -114,21 +114,21 @@ const (
 	APIRemoteConfig                        = "statshouse_api_remote_config"
 )
 
-var ErrEntityNotExists = rpc.Error{
+var ErrEntityNotExists = &rpc.Error{
 	Code:        -1234,
 	Description: "Entity doesn't exists",
 }
-var ErrEntityExists = rpc.Error{
+var ErrEntityExists = &rpc.Error{
 	Code:        -1235,
 	Description: "Entity already exists",
 }
 
-var ErrEntityInvalidVersion = rpc.Error{
+var ErrEntityInvalidVersion = &rpc.Error{
 	Code:        -1236,
 	Description: "Invalid version. Reload this page and try again",
 }
 
-var ErrRequestIsTooBig = rpc.Error{
+var ErrRequestIsTooBig = &rpc.Error{
 	Code:        -1237,
 	Description: "Entity is too big",
 }
@@ -146,7 +146,7 @@ func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {
 
 // those can seriously fill our logs, we want to avoid it in a consistent manner
 func SilentRPCError(err error) bool {
-	var rpcError rpc.Error
+	var rpcError *rpc.Error
 	if !errors.As(err, &rpcError) {
 		return false
 	}

@@ -320,7 +320,7 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	if len(controlMeta) == 0 {
 		controlMeta = snapshotMeta
 	}
-	err = e.rw.setError(e.binlog.Run2(e.rw.getDBOffsetLocked(), snapshotMeta, controlMeta, false, e.binlogEngine))
+	err = e.rw.setError(e.binlog.Run(e.rw.getDBOffsetLocked(), snapshotMeta, controlMeta, e.binlogEngine))
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	if err != nil {
@@ -669,10 +669,7 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 	var error error
 	if waitCommitBinlog {
 		e.logger.Println("calling binlog.Shutdown")
-		err := e.binlog.Shutdown()
-		if err != nil {
-			multierr.AppendInto(&error, err)
-		}
+		e.binlog.RequestShutdown()
 		<-e.finishBinlogRunCh
 		e.checkpointer.DoCheckpointIfCan()
 	}

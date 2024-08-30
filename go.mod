@@ -28,7 +28,7 @@ require (
 	github.com/prometheus/procfs v0.9.0
 	github.com/prometheus/prometheus v0.36.2
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 	github.com/tinylib/msgp v1.1.6
 	github.com/vkcom/statshouse-go v0.3.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
@@ -47,7 +47,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.24.0
 	pgregory.net/rand v1.0.2
-	pgregory.net/rapid v1.0.0
+	pgregory.net/rapid v1.1.0
 )
 
 require (
@@ -103,6 +103,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
+	github.com/myxo/gofs v0.0.6
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pascaldekloe/name v1.0.1 // indirect
