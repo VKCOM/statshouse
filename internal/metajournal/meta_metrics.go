@@ -167,6 +167,10 @@ func (ms *MetricsStorage) GetMetaMetricDelayed(metricID int32) *format.MetricMet
 	return ms.metaSnapshot.GetMetaMetric(metricID)
 }
 
+func (ms *MetricsStorage) GetMetaMetricByNameDelayed(metric string) *format.MetricMetaValue {
+	return ms.metaSnapshot.GetMetaMetricByName(metric)
+}
+
 func (ms *MetricsStorage) GetMetaMetric(metricID int32) *format.MetricMetaValue {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()

@@ -810,7 +810,7 @@ func (h *Handler) getMetricMeta(ai accessInfo, metricName string) (*format.Metri
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m, nil
 	}
-	v := h.metricsStorage.GetMetaMetricByName(metricName)
+	v := h.metricsStorage.GetMetaMetricByNameDelayed(metricName)
 	if v == nil {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricName))
 	}
@@ -837,7 +837,7 @@ func (h *Handler) getMetricIDForStat(metricName string) int32 {
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m.MetricID
 	}
-	v := h.metricsStorage.GetMetaMetricByName(metricName)
+	v := h.metricsStorage.GetMetaMetricByNameDelayed(metricName)
 	if v == nil {
 		return 0
 	}
