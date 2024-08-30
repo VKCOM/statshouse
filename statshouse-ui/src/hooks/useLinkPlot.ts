@@ -1,8 +1,9 @@
-import { PlotKey } from 'url2';
+import { type PlotKey, type QueryParams } from 'url2';
 import { useStatsHouseShallow, viewPath } from 'store2';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPlotLink } from 'store2/helpers';
 import { To } from 'react-router-dom';
+import { dequal } from 'dequal/lite';
 
 export function useLinkPlot(plotKey: PlotKey, visible?: boolean): To {
   const { params, saveParams, visibleState } = useStatsHouseShallow(
@@ -12,10 +13,14 @@ export function useLinkPlot(plotKey: PlotKey, visible?: boolean): To {
       visibleState: visible ?? (plotPreviewList[plotKey] || plotVisibilityList[plotKey]),
     })
   );
+  const oldParams = useRef<QueryParams | undefined>();
   const [link, setLink] = useState<string>('');
   useEffect(() => {
     if (visibleState) {
-      setLink(getPlotLink(plotKey, params, saveParams));
+      if (!dequal({ ...oldParams.current, tabNum: '0' }, { ...params, tabNum: '0' })) {
+        oldParams.current = params;
+        setLink(getPlotLink(plotKey, params, saveParams));
+      }
     }
   }, [params, plotKey, saveParams, visibleState]);
   return useMemo(

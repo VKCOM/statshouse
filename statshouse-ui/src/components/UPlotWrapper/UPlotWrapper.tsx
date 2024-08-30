@@ -394,16 +394,6 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     width,
   ]);
 
-  useLayoutEffect(
-    () => () => {
-      if (uRef.current) {
-        debug.log('%cUPlotWrapper destroy', 'color:blue;');
-        uRef.current?.destroy();
-        uRef.current = undefined;
-      }
-    },
-    [opts]
-  );
   useEffect(() => {
     const redraw = () => {
       if (window.document.visibilityState === 'visible') {

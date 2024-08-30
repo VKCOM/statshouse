@@ -14,6 +14,7 @@ import { useStatsHouse } from 'store2';
 export type PlotViewProps = {
   className?: string;
   plotKey: PlotKey;
+  isDashboard?: boolean;
 };
 export function PlotView(props: PlotViewProps) {
   const type = useStatsHouse((s) => s.params.plots[props.plotKey]?.type ?? PLOT_TYPE.Metric);

@@ -90,6 +90,7 @@ export function _PlotControlFilterVariable({ className, variableKey }: PlotContr
       notValues={variable?.negative ? variable?.values : undefined}
       onChange={setValuesVariable}
       setOpen={onSetUpdatedVariable}
+      small
     />
   );
 }

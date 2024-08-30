@@ -38,14 +38,13 @@ const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
 
-export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
+export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps) {
   const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
 
     error403,
     isEmbed,
-    isDashboard,
     metricUnit,
     metricUnitData,
 
@@ -71,7 +70,7 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
   } = useStatsHouseShallow(
     ({
       plotsData,
-      params: { plots, tabNum, timeRange },
+      params: { plots, timeRange },
       plotsEventsData,
       metricMeta,
       isEmbed,
@@ -103,7 +102,6 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
         legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
         plotEventsDataRange: plotsEventsData[plotKey]?.range,
         isEmbed,
-        isDashboard: +tabNum < 0,
         baseRange,
         setPlotVisibility,
         setPlotYLock,
@@ -260,9 +258,11 @@ export function PlotViewEvent({ plotKey, className }: PlotViewProps) {
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
-      createPlotPreview(plotKey, u);
+      if (isDashboard) {
+        createPlotPreview(plotKey, u);
+      }
     },
-    [createPlotPreview, plotKey]
+    [createPlotPreview, isDashboard, plotKey]
   );
 
   const scales = useMemo<UPlotWrapperPropsScales>(() => {

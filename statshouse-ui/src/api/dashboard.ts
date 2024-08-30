@@ -21,6 +21,7 @@ export type ApiDashboard = {
  */
 export type ApiDashboardGet = {
   [GET_PARAMS.dashboardID]: string;
+  [GET_PARAMS.dashboardApiVersion]?: string;
 };
 
 /**
@@ -35,19 +36,23 @@ export type ApiDashboardPut = DashboardInfo;
 
 export type DashboardInfo = {
   dashboard: DashboardMetaInfo;
-  delete_mark: boolean;
+  delete_mark?: boolean;
 };
 
 export type DashboardMetaInfo = {
-  dashboard_id: number;
+  dashboard_id?: number;
   name: string;
   description: string;
   version?: number;
-  update_time: number;
-  deleted_time: number;
+  update_time?: number;
+  deleted_time?: number;
   data: Record<string, unknown>;
 };
 
 export async function apiDashboardFetch(params: ApiDashboardGet, keyRequest?: unknown) {
   return await apiFetch<ApiDashboard>({ url: ApiDashboardEndpoint, get: params, keyRequest });
+}
+
+export async function apiDashboardSaveFetch(params: ApiDashboardPost, keyRequest?: unknown) {
+  return await apiFetch<ApiDashboard>({ url: ApiDashboardEndpoint, post: params, keyRequest });
 }
