@@ -143,14 +143,14 @@ func RunIngressProxy(ln net.Listener, sh2 *agent.Agent, aesPwd string, config Co
 	return proxy.server.Serve(ln)
 }
 
-func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
+func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) (data_model.Key, *format.MetricMetaValue) {
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
 	protocol := int32(hctx.ProtocolVersion())
 	return data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
 		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(hctx.RequestTag()), resultTag, 0, 0, keyIDTag, 0, protocol},
-	}
+	}, format.BuiltinMetricMetaRPCRequests
 }
 
 func (ls *longpollShard) callback(client *rpc.Client, resp *rpc.Response, err error) {
@@ -169,12 +169,13 @@ func (ls *longpollShard) callback(client *rpc.Client, resp *rpc.Response, err er
 	}
 	delete(ls.clientList, hctx)
 	var key data_model.Key
+	var meta *format.MetricMetaValue
 	if err != nil {
-		key = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrUpstream)
+		key, meta = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrUpstream)
 	} else {
-		key = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusOK)
+		key, meta = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusOK)
 	}
-	ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, nil)
+	ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, meta)
 	if resp != nil {
 		hctx.Response = append(hctx.Response, resp.Body...)
 	}
@@ -185,8 +186,8 @@ func (ls *longpollShard) CancelHijack(hctx *rpc.HandlerContext) {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	if lpc, ok := ls.clientList[hctx]; ok {
-		key := keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrCancel)
-		ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, nil)
+		key, meta := keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusErrCancel)
+		ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, meta)
 	}
 	delete(ls.clientList, hctx)
 }
@@ -195,8 +196,8 @@ func (proxy *IngressProxy) syncHandler(ctx context.Context, hctx *rpc.HandlerCon
 	requestLen := len(hctx.Request)
 	resultTag, err := proxy.syncHandlerImpl(ctx, hctx)
 	if resultTag != 0 {
-		key := keyFromHctx(hctx, resultTag)
-		proxy.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
+		key, meta := keyFromHctx(hctx, resultTag)
+		proxy.sh2.AddValueCounter(key, float64(requestLen), 1, meta)
 	}
 	return err
 }
@@ -246,8 +247,8 @@ func (proxy *IngressProxy) syncHandlerImpl(ctx context.Context, hctx *rpc.Handle
 func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
 	requestLen := len(hctx.Request)
 	resultTag, err := proxy.handlerImpl(ctx, hctx)
-	key := keyFromHctx(hctx, resultTag)
-	proxy.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
+	key, meta := keyFromHctx(hctx, resultTag)
+	proxy.sh2.AddValueCounter(key, float64(requestLen), 1, meta)
 	return err
 }
 

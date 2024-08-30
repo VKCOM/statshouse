@@ -58,22 +58,23 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 		}
 		keyValue, c, d, err := loader.GetTagMapping(ctx, askedKey, metricName, extra.Create)
 		key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey})
+		meta := format.BuiltinMetricMetaAggMappingCreated
 		key = key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
 
 		if err != nil {
 			// TODO - write to actual log from time to time
 			a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "error", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), err.Error())
-			ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, nil)
+			ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
 		} else {
 			switch c {
 			case format.TagValueIDAggMappingCreatedStatusFlood:
 				// TODO - more efficient flood processing - do not write to log, etc
 				a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "flood", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), extra.HostName)
-				ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, nil)
+				ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
 			case format.TagValueIDAggMappingCreatedStatusCreated:
 				a.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "created", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), strconv.Itoa(int(keyValue)))
 				// if askedKey is created, it is valid and safe to write
-				ms.sh2.AddValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(askedKey), nil)
+				ms.sh2.AddValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(askedKey), meta)
 			}
 		}
 		return pcache.Int32ToValue(keyValue), d, err

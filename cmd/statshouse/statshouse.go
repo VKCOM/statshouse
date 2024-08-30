@@ -290,12 +290,12 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			}
 			for _, r := range receiversUDP {
 				v := float64(r.ReceiveBufferSize())
-				a.AddValueCounter(k, v, 1, nil)
+				a.AddValueCounter(k, v, 1, format.BuiltinMetricMetaAgentUDPReceiveBufferSize)
 			}
 			if dc != nil {
 				s, err := dc.DiskSizeBytes()
 				if err == nil {
-					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, nil)
+					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
 				}
 			}
 		},

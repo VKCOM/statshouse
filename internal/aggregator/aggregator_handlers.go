@@ -47,7 +47,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	} else if err != nil {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
 	}
-	a.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
+	a.sh2.AddValueCounter(key, float64(requestLen), 1, format.BuiltinMetricMetaRPCRequests)
 	return err
 }
 
@@ -85,12 +85,12 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	if args.Cluster != a.config.Cluster {
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, host, nil)
+		a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
 		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
 	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(key, 1, host, nil)
+	a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
 	return a.getConfigResult(), nil
 }
 
@@ -172,7 +172,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		if args.BuildCommitTs < effectiveLeastAllowedAgentCommitTs {
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, owner, 0, int32(addrIPV4)})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(key, 1, host, nil)
+			a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAggOutdatedAgents)
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("agent is too old please update"))
 			return nil
 		}
@@ -184,7 +184,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		a.mu.Unlock()
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, host, nil)
+		a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
 		return err // TODO - return code so clients will print into log and discard data
 	}
 
@@ -213,7 +213,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host, nil)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
 			return nil
@@ -222,7 +222,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host, nil)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host, format.BuiltinMetricMetaTimingErrors)
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
 			return nil
 		}
@@ -247,7 +247,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host, nil)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
 			return nil
@@ -256,7 +256,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host, nil)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host, format.BuiltinMetricMetaTimingErrors)
 			return rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
@@ -475,7 +475,7 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 		a.mu.Unlock()
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, host, nil)
+		a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
 		return err
 	}
 	oldestTime := a.recentBuckets[0].time // Most ready for insert

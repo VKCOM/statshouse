@@ -31,53 +31,53 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string,
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseInactive}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopRecentSenders); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRecentSenders}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopReceivers); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopReceivers}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopFlusher); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlusher}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopFlushing); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlushing}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopPreprocessor); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopPreprocessor}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopInserters); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopInserters}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := time.Duration(si.StopRPCServer); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRPCServer}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	finishLoadingTime := time.Now()
 	if dur := startDiscCache.Sub(globalStartTime); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartDiskCache}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 	if dur := finishLoadingTime.Sub(startDiscCache); dur > 0 {
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartService}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 	}
 
 	startShutdownTime := time.Unix(0, si.StartShutdownTime)
@@ -85,7 +85,7 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string,
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
 		sh2.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Keys: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseTotal}},
-			dur.Seconds(), 1, nil)
+			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
 		logOk.Printf("restart finished in %v (since shutdown start time recorded by previous instance)", dur)
 	} else {
 		logOk.Printf("start finished in %v (since this main() launched)", time.Since(globalStartTime))
