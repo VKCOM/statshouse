@@ -134,6 +134,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	Version() int64
 	StateHash() string
 	GetMetaMetric(metricID int32) *MetricMetaValue
+	GetMetaMetricDelayed(metricID int32) *MetricMetaValue
 	GetMetaMetricByName(metricName string) *MetricMetaValue
 	GetGroup(id int32) *MetricsGroup
 	GetNamespace(id int32) *NamespaceMeta

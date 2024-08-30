@@ -343,6 +343,13 @@ func TestMetricStorage1(t *testing.T) {
 			return result, v, nil
 		})
 		t.Run(tc.name, tc.f)
+		for id, metric := range m.metricsByID {
+			m1 := m.metaSnapshot.metricsByIDSnapshot[id]
+			require.Equal(t, *metric, *m1)
+
+			m2 := m.metaSnapshot.metricsByNameSnapshot[metric.Name]
+			require.Equal(t, *metric, *m2)
+		}
 	}
 
 }
@@ -936,4 +943,39 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("part of journal3", test(3, []tlmetadata.Event{a, b, c}, nil))
 		t.Run("part of journal4", test(999, []tlmetadata.Event{a, b, c}, nil))
 	})
+}
+
+// to check by race detector
+func TestRace(t *testing.T) {
+	const name = "name"
+	metric := format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
+	metric.Name = name
+	metric.MetricID = 1
+	data, err := metric.MarshalBinary()
+	require.NoError(t, err)
+	m := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+		var result []tlmetadata.Event
+		result = append(result, tlmetadata.Event{
+			NamespaceId: 0,
+			Id:          1,
+			Name:        name,
+			EventType:   format.MetricEvent,
+			Version:     lastVersion + 1,
+			Data:        string(data),
+		})
+		return result, lastVersion + 1, nil
+	})
+	require.NoError(t, m.Journal().updateJournal(nil))
+
+	go func() {
+		for {
+			metric := m.GetMetaMetricDelayed(1)
+			require.Equal(t, name, m.GetMetaMetricDelayed(1).Name)
+			require.Equal(t, name, m.GetMetaMetric(1).Name)
+			require.Equal(t, int32(format.BuiltinGroupIDDefault), m.GetGroupBy(metric).ID)
+		}
+	}()
+	for i := 0; i < 10000; i++ {
+		require.NoError(t, m.Journal().updateJournal(nil))
+	}
 }
