@@ -9,12 +9,13 @@ package receiver
 import (
 	"strings"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
-	"go.uber.org/atomic"
 )
 
 const (
@@ -145,7 +146,7 @@ func createBatchSizeValue(ag *agent.Agent, formatTagValueID int32, statusTagValu
 		return ag.CreateBuiltInItemValue(data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedBatchSize,
 			Keys:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
-		})
+		}, format.BuiltinMetricMetaAgentReceivedBatchSize)
 	}
 	return nil
 }
@@ -155,7 +156,7 @@ func createPacketSizeValue(bm *agent.Agent, formatTagValueID int32, statusTagVal
 		return bm.CreateBuiltInItemValue(data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedPacketSize,
 			Keys:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
-		})
+		}, format.BuiltinMetricMetaAgentReceivedPacketSize)
 	}
 	return nil
 }

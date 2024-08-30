@@ -154,13 +154,13 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 }
 
 // safe only to access fields mask in args, other fields point to reused memory
-func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key data_model.Key) (err error) {
+func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key data_model.Key, meta *format.MetricMetaValue) (err error) {
 	if r.Err != nil {
 		key.Keys[5] = format.TagValueIDAggMappingStatusErrUncached
-		ms.sh2.AddCounter(key, 1, nil)
+		ms.sh2.AddCounter(key, 1, meta)
 		return r.Err
 	}
-	ms.sh2.AddCounter(key, 1, nil)
+	ms.sh2.AddCounter(key, 1, meta)
 	result := tlstatshouse.GetTagMappingResult{Value: pcache.ValueToInt32(r.Value), TtlNanosec: int64(r.TTL)}
 	hctx.Response, err = args.WriteResult(hctx.Response, result)
 	return err
@@ -182,6 +182,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	}
 	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAggMappingStatusOKCached})
 	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	meta := format.BuiltinMetricMetaAggMapping
 
 	r := ms.tagValue.GetCached(now, args.Key)
 	if !r.Found() {
@@ -207,7 +208,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			defer ms.mu.Unlock()
 			if *bb {
 				key.Keys[5] = format.TagValueIDAggMappingStatusOKUncached
-				err := ms.sendCreateTagMappingResult(hctx, args, v, key)
+				err := ms.sendCreateTagMappingResult(hctx, args, v, key, meta)
 				hctx.SendHijackedResponse(err)
 			}
 		})
@@ -218,5 +219,5 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			return hctx.HijackResponse(ms)
 		}
 	}
-	return ms.sendCreateTagMappingResult(hctx, args, r, key)
+	return ms.sendCreateTagMappingResult(hctx, args, r, key, meta)
 }
