@@ -26,6 +26,8 @@ import (
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/relabel"
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
@@ -33,7 +35,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"go.uber.org/atomic"
 )
 
 type scrapeServer struct {
@@ -232,7 +233,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 				// success, targets_ready
 				s.sh2.AddCounterHostStringBytes(
 					s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 1}),
-					[]byte(host), 1, 0, nil)
+					[]byte(host), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 			}
 		}
 	}()
@@ -268,7 +269,7 @@ func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 	v := s.configH.Load()
 	s.sh2.AddCounterHostStringBytes(
 		s.sh2.AggKey(nowUnix, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
-		nil, 1, 0, nil)
+		nil, 1, 0, format.BuiltinMetricMetaAggScrapeConfigHash)
 }
 
 func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -330,12 +331,12 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 			// failure, targets_sent
 			s.sh2.AddCounterHostStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 2}),
-				[]byte(req.addr.String()), 1, 0, nil)
+				[]byte(req.addr.String()), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		} else {
 			// success, targets_sent
 			s.sh2.AddCounterHostStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 2}),
-				[]byte(req.addr.String()), 1, 0, nil)
+				[]byte(req.addr.String()), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		}
 	}
 	return true, err

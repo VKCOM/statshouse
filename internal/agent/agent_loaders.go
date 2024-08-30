@@ -173,7 +173,7 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 	// On the other hand, if aggregators cannot map, but can insert, system is working
 	// So, we must have separate live-dead status for mappings - TODO
 	if s0 == nil {
-		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead}}, 0, 1, nil)
+		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead}}, 0, 1, format.BuiltinMetricMetaAgentMapping)
 		return nil, version, fmt.Errorf("cannot load meta journal, all aggregators are dead")
 	}
 	now := time.Now()
@@ -189,15 +189,15 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 	// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
 	err := s0.client.GetMetrics3(ctxParent, args, &extra, &ret)
 	if err != nil {
-		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrSingle}}, time.Since(now).Seconds(), 1, nil)
+		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrSingle}}, time.Since(now).Seconds(), 1, format.BuiltinMetricMetaAgentMapping)
 		return nil, version, fmt.Errorf("cannot load meta journal - %w", err)
 	}
 	/*
 		for _, r := range ret.Events {
-				s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrSingle}}, time.Since(now).Seconds(), 1, false, nil)
+				s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrSingle}}, time.Since(now).Seconds(), 1, false, format.BuiltinMetricIDAgentMapping)
 		}
 	*/
-	s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKFirst}}, time.Since(now).Seconds(), 1, nil)
+	s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKFirst}}, time.Since(now).Seconds(), 1, format.BuiltinMetricMetaAgentMapping)
 	return ret.Events, ret.CurrentVersion, nil
 }
 
@@ -206,7 +206,7 @@ func (s *Agent) LoadOrCreateMapping(ctxParent context.Context, key string, flood
 	// Use 2 alive random aggregators for mapping
 	s0, s1 := s.getRandomLiveShardReplicas()
 	if s0 == nil {
-		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead}}, 0, 1, nil)
+		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead}}, 0, 1, format.BuiltinMetricMetaAgentMapping)
 		return nil, 0, fmt.Errorf("all aggregators are dead")
 	}
 	now := time.Now()
