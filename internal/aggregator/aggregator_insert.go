@@ -60,13 +60,12 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 		lastMetric:          lastMetricData{lastMetricPrekey: -1}, // so if somehow 0 metricID is inserted first, will have no prekey
 
 	}
-	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
-		result.ingestionStatusData.lastMetricPrekeyOnly = bm.PreKeyOnly
-		result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex
-		result.ingestionStatusData.lastMetricSkipMinHost = bm.SkipMinHost
-		result.ingestionStatusData.lastMetricSkipMaxHost = bm.SkipMaxHost
-		result.ingestionStatusData.lastMetricSkipSumSquare = bm.SkipSumSquare
-	}
+	bm := format.BuiltinMetricMetaIngestionStatus
+	result.ingestionStatusData.lastMetricPrekeyOnly = bm.PreKeyOnly
+	result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex
+	result.ingestionStatusData.lastMetricSkipMinHost = bm.SkipMinHost
+	result.ingestionStatusData.lastMetricSkipMaxHost = bm.SkipMaxHost
+	result.ingestionStatusData.lastMetricSkipSumSquare = bm.SkipSumSquare
 	return result
 }
 

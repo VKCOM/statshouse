@@ -203,21 +203,21 @@ func (s *ShardReplica) InitBuiltInMetric() {
 	// Unfortunately we do not know aggregator host tag.
 	s.successTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDSrcTestConnection,
-		[16]int32{0, s.agent.componentTag, format.TagOKConnection}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag, format.TagOKConnection}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaSrcTestConnection)
 	s.noConnectionTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDSrcTestConnection,
-		[16]int32{0, s.agent.componentTag, format.TagNoConnection}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag, format.TagNoConnection}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaSrcTestConnection)
 	s.failedTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDSrcTestConnection,
-		[16]int32{0, s.agent.componentTag, format.TagOtherError}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag, format.TagOtherError}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaSrcTestConnection)
 	s.rpcErrorTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDSrcTestConnection,
-		[16]int32{0, s.agent.componentTag, format.TagRPCError}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag, format.TagRPCError}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaSrcTestConnection)
 	s.timeoutTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDSrcTestConnection,
-		[16]int32{0, s.agent.componentTag, format.TagTimeoutError}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag, format.TagTimeoutError}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaSrcTestConnection)
 
 	s.aggTimeDiffBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
 		format.BuiltinMetricIDAgentAggregatorTimeDiff,
-		[16]int32{0, s.agent.componentTag}, 0, s.ShardKey, s.ReplicaKey))
+		[16]int32{0, s.agent.componentTag}, 0, s.ShardKey, s.ReplicaKey), format.BuiltinMetricMetaAgentAggregatorTimeDiff)
 }

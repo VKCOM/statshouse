@@ -158,7 +158,7 @@ func RunSimulator(simID int, metricsStorage *metajournal.MetricsStorage, storage
 }
 
 func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agent, totalRange int, key1range int32, key2range int32, key3range int32) {
-	mag := s.CreateBuiltInItemValue(data_model.Key{Metric: 100, Keys: [16]int32{0, int32(simID)}})
+	mag := s.CreateBuiltInItemValue(data_model.Key{Metric: 100, Keys: [16]int32{0, int32(simID)}}, journal.GetMetaMetric(100))
 
 	metricInfo1 := journal.GetMetaMetricByName(data_model.SimulatorMetricPrefix + "1")
 	metricInfo2 := journal.GetMetaMetricByName(data_model.SimulatorMetricPrefix + "2")
