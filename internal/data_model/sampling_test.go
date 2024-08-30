@@ -453,7 +453,7 @@ func (b *samplingTestBucket) generateSeriesSize(t *rapid.T, s samplingTestSpec) 
 
 func (b *samplingTestBucket) generateNormValues(r *rand.Rand) {
 	for _, v := range b.series {
-		v.Tail.Value.Counter = r.NormFloat64()
+		v.Tail.Value.counter = r.NormFloat64()
 	}
 }
 
@@ -462,7 +462,7 @@ func (b *samplingTestBucket) run(s *sampler, budget int64) {
 		s.Add(SamplingMultiItemPair{
 			Key:         k,
 			Item:        v,
-			WhaleWeight: v.FinishStringTop(20),
+			WhaleWeight: v.FinishStringTop(rand.New(), 20),
 			Size:        samplingTestSizeOf(k, v),
 			MetricID:    k.Metric,
 		})
@@ -481,7 +481,7 @@ type samplingTestStat struct {
 }
 
 func (s *samplingTestStat) aggregate(item *MultiItem) {
-	v := item.Tail.Value.Counter
+	v := item.Tail.Value.Count()
 	s.sum += v
 	s.sumSq += v * v
 	s.n++
@@ -550,7 +550,7 @@ func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx)
 func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) []tlstatshouse.SampleFactor {
 	sampler := NewSampler(len(bucket.MultiItems), config.SamplerConfig)
 	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(config.stringTopCountSend) // all excess items are baked into Tail
+		whaleWeight := item.FinishStringTop(rand.New(), config.stringTopCountSend) // all excess items are baked into Tail
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
@@ -587,7 +587,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 	var remainingWeight int64
 
 	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(config.stringTopCountSend) // all excess items are baked into Tail, config.StringTopCountSend
+		whaleWeight := item.FinishStringTop(rand.New(), config.stringTopCountSend) // all excess items are baked into Tail, config.StringTopCountSend
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {

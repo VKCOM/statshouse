@@ -385,8 +385,8 @@ func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, erro
 }
 
 func (b *aggregatorBucket) contributorsCount() float64 {
-	return b.contributorsMetric[0][0].Counter + b.contributorsMetric[0][1].Counter +
-		b.contributorsMetric[1][0].Counter + b.contributorsMetric[1][1].Counter
+	return b.contributorsMetric[0][0].Count() + b.contributorsMetric[0][1].Count() +
+		b.contributorsMetric[1][0].Count() + b.contributorsMetric[1][1].Count()
 }
 
 func (b *aggregatorBucket) lockShard(lockedShard *int, sID int) *aggregatorShard {
@@ -426,6 +426,7 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 }
 
 func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) {
+	rng := rand.New()
 	a.scrape.reportConfigHash(nowUnix)
 
 	a.mu.Lock()
@@ -438,9 +439,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 		for i, cc := range v.contributorsMetric {
 			for j, bb := range cc {
 				// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
-				bucketsWaiting[i][j].AddValueCounterHost(float64(nowUnix-v.time), bb.Counter, bb.MaxCounterHostTag)
-				if bb.Counter > 0 {
-					secondsWaiting[i][j].AddValueCounterHost(float64(nowUnix-v.time), 1, bb.MaxCounterHostTag)
+				bucketsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), bb.Count(), bb.MaxCounterHostTag())
+				if bb.Count() > 0 {
+					secondsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), 1, bb.MaxCounterHostTag())
 				}
 			}
 		}
@@ -448,7 +449,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	for i, cc := range a.historicHosts {
 		for j, bb := range cc {
 			for h := range bb { // random sample host every second is very good for max_host combobox under plot
-				hostsWaiting[i][j].AddValueCounterHost(float64(len(bb)), 1, h)
+				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, h)
 				break
 			}
 		}
@@ -632,7 +633,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Unlock()
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
-		a.estimator.ReportHourCardinality(aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+		a.estimator.ReportHourCardinality(rnd, aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -676,7 +677,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
-			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+			a.estimator.ReportHourCardinality(rnd, historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
