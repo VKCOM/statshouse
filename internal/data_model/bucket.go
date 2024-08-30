@@ -8,8 +8,6 @@ package data_model
 
 import (
 	"encoding/binary"
-	"math"
-	"math/bits"
 	"sort"
 	"unsafe"
 
@@ -33,7 +31,7 @@ type (
 
 	ItemCounter struct {
 		counter           float64
-		maxCounterHostTag int32 // Mapped example hostname randomized according to distribution
+		MaxCounterHostTag int32 // Mapped example hostname randomized according to distribution
 	}
 
 	ItemValue struct {
@@ -72,13 +70,7 @@ type (
 const sipKeyA = 0x3605bf49d8e3adf2
 const sipKeyB = 0xc302580679a8cef2
 
-// do not forget to set sumDistribution
-func NewItemCounter(count float64, hostTag int32) ItemCounter {
-	return ItemCounter{counter: count, maxCounterHostTag: hostTag}
-}
-
-func (s *ItemCounter) Count() float64           { return s.counter }
-func (s *ItemCounter) MaxCounterHostTag() int32 { return s.maxCounterHostTag }
+func (s *ItemCounter) Count() float64 { return s.counter }
 
 func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
@@ -133,36 +125,20 @@ func (k *Key) HashSafe() uint64 {
 }
 
 func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
-	var item ItemValue
-	item.AddValueCounterHost(nil, value, count, hostTag)
+	item := SimpleItemCounter(count, hostTag)
+	item.addOnlyValue(value, count, hostTag)
 	return item
 }
 
 func SimpleItemCounter(count float64, hostTag int32) ItemValue {
-	var item ItemValue
-	item.AddCounterHost(nil, count, hostTag)
-	return item
-}
-
-func (s *ItemValue) AddCounterHost(rng *rand.Rand, count float64, hostTag int32) {
-	if count > s.counter {
-		s.maxCounterHostTag = hostTag
-	} else if count == s.counter && bits.OnesCount64(math.Float64bits(count)+uint64(hostTag+s.maxCounterHostTag))&1 == 0 {
-		s.maxCounterHostTag = hostTag // Motivation - max jitter for equal counts (like 1), so more hosts have chance to appear
-	}
-	s.counter += count
+	return ItemValue{ItemCounter: ItemCounter{counter: count, MaxCounterHostTag: hostTag}}
 }
 
 func (s *ItemValue) AddValue(value float64) {
 	s.AddValueCounter(value, 1)
 }
 
-func (s *ItemValue) AddValueCounter(value float64, count float64) {
-	s.AddValueCounterHost(nil, value, count, 0)
-}
-
-func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag int32) {
-	s.AddCounterHost(rng, count, hostTag)
+func (s *ItemValue) addOnlyValue(value float64, count float64, hostTag int32) {
 	s.ValueSum += value * count
 	s.ValueSumSquare += value * value * count
 
@@ -177,9 +153,20 @@ func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count flo
 	s.ValueSet = true
 }
 
+func (s *ItemValue) AddValueCounter(value float64, count float64) {
+	s.AddCounter(count)
+	s.addOnlyValue(value, count, 0)
+}
+
+func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag int32) {
+	s.AddCounterHost(rng, count, hostTag)
+	s.addOnlyValue(value, count, hostTag)
+}
+
 func (s *ItemValue) AddValueArrayHost(rng *rand.Rand, values []float64, mult float64, hostTag int32) {
+	s.AddCounterHost(rng, mult*float64(len(values)), hostTag)
 	for _, value := range values {
-		s.AddValueCounterHost(rng, value, mult, hostTag)
+		s.addOnlyValue(value, mult, hostTag)
 	}
 }
 
@@ -194,7 +181,7 @@ func (s *ItemValue) TLSizeEstimate() int {
 }
 
 func (s *ItemValue) Merge(rng *rand.Rand, s2 *ItemValue) {
-	s.AddCounterHost(rng, s2.counter, s2.maxCounterHostTag)
+	s.ItemCounter.Merge(rng, s2.ItemCounter)
 	if !s2.ValueSet {
 		return
 	}
@@ -383,27 +370,18 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 	if s.ValueTDigest == nil && hasPercentiles {
 		s.ValueTDigest = tdigest.NewWithCompression(compression)
 	}
-	sumDiff := float64(0)
-	sumSquareDiff := float64(0)
-	mult := 1.0 // mult is for TDigest only, we must make multiplication when we Add()
+	mult := 1.0
+	// mult is for TDigest only, we must make multiplication when we Add()
+	// mult can be 0.3333333333, so we divide our sums by totalCount, not multiply by mult
 	if count != totalCount {
 		mult = count / totalCount
 	}
+	tmp := SimpleItemCounter(count, hostTag)
 	for _, fv := range values {
 		if hasPercentiles {
 			s.ValueTDigest.Add(fv, mult)
 		}
-		sumDiff += fv
-		sumSquareDiff += fv * fv
-		if !s.Value.ValueSet || fv < s.Value.ValueMin {
-			s.Value.ValueMin = fv
-			s.Value.MinHostTag = hostTag
-		}
-		if !s.Value.ValueSet || fv > s.Value.ValueMax {
-			s.Value.ValueMax = fv
-			s.Value.MaxHostTag = hostTag
-		}
-		s.Value.ValueSet = true
+		tmp.addOnlyValue(fv, 1, hostTag)
 	}
 	for _, kv := range histogram {
 		fv := kv[0]
@@ -411,64 +389,42 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 		if hasPercentiles {
 			s.ValueTDigest.Add(fv, mult*cc)
 		}
-		fvc := fv * cc
-		sumDiff += fvc
-		sumSquareDiff += fvc * fvc
-		if !s.Value.ValueSet || fv < s.Value.ValueMin {
-			s.Value.ValueMin = fv
-			s.Value.MinHostTag = hostTag
-		}
-		if !s.Value.ValueSet || fv > s.Value.ValueMax {
-			s.Value.ValueMax = fv
-			s.Value.MaxHostTag = hostTag
-		}
-		s.Value.ValueSet = true
+		tmp.addOnlyValue(fv, cc, hostTag)
 	}
-	if count == totalCount {
-		s.Value.counter += totalCount
-		s.Value.ValueSum += sumDiff
-		s.Value.ValueSumSquare += sumSquareDiff
-		return
+	if count != totalCount {
+		tmp.ValueSum *= count
+		tmp.ValueSumSquare *= count
+		if totalCount != 1 { // optimization
+			tmp.ValueSum /= totalCount // clean division by, for example 3
+			tmp.ValueSumSquare /= totalCount
+		}
 	}
-	s.Value.counter += count
-	// values and counter are set, so if we get [1 2 2 100] with count 20, we do not know how many times each item was repeated,
-	// so we simply guess they had equal probability.
-	s.Value.ValueSum += sumDiff * count / totalCount
-	s.Value.ValueSumSquare += sumSquareDiff * count / totalCount
+	s.Value.Merge(rng, &tmp)
 }
 
 func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag int32) {
-	if len(hashes) == 0 { // should be never after all usages are from ApplyMetric
+	totalCount := float64(len(hashes))
+	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
-	sumDiff := float64(0)
-	sumSquareDiff := float64(0)
+	tmp := SimpleItemCounter(count, hostTag)
 	for _, hash := range hashes {
 		s.HLL.Insert(uint64(hash))
-		fv := float64(hash)
-		sumDiff += fv
-		sumSquareDiff += fv * fv
-		if !s.Value.ValueSet || fv < s.Value.ValueMin {
-			s.Value.ValueMin = fv
-			s.Value.MinHostTag = hostTag
-		}
-		if !s.Value.ValueSet || fv > s.Value.ValueMax {
-			s.Value.ValueMax = fv
-			s.Value.MaxHostTag = hostTag
-		}
-		s.Value.ValueSet = true
+		fv := float64(hash) // hashes are also values
+		tmp.addOnlyValue(fv, 1, hostTag)
 	}
-	if count == 0 {
-		s.AddCounterHost(rng, float64(len(hashes)), hostTag)
-		s.Value.ValueSum += sumDiff
-		s.Value.ValueSumSquare += sumSquareDiff
-		return
+	// if both uniques and counter are set, we might get unique [1 2 2 100] with count 20,
+	// We do not know how many times each item was repeated,
+	// So we simply guess they had equal probability
+	if count != totalCount {
+		tmp.ValueSum *= count
+		tmp.ValueSumSquare *= count
+		if totalCount != 1 { // optimization
+			tmp.ValueSum /= totalCount // clean division by, for example 3
+			tmp.ValueSumSquare /= totalCount
+		}
 	}
-	s.AddCounterHost(rng, count, hostTag)
-	// uniques and counter are set, so if we get [1 2 2 100] with count 20, we do not know how many times each item was repeated,
-	// so we simply guess they had equal probability
-	s.Value.ValueSum += sumDiff * count / float64(len(hashes))
-	s.Value.ValueSumSquare += sumSquareDiff * count / float64(len(hashes))
+	s.Value.Merge(rng, &tmp)
 }
 
 func (s *MultiValue) Merge(rng *rand.Rand, s2 *MultiValue) {

@@ -15,7 +15,7 @@ func testEqual(t testing.TB, a ItemValue, b ItemValue) {
 }
 
 func testEqualNB(t testing.TB, a ItemValue, b ItemValue) {
-	a.maxCounterHostTag = b.maxCounterHostTag // NB
+	a.MaxCounterHostTag = b.MaxCounterHostTag // NB
 	testEqual(t, a, b)
 }
 
@@ -25,7 +25,7 @@ func TestItemValue(t *testing.T) {
 	initialSc := ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           2,
-			maxCounterHostTag: 7,
+			MaxCounterHostTag: 7,
 		},
 	}
 	sc := SimpleItemCounter(2, 7)
@@ -48,7 +48,7 @@ func TestItemValue(t *testing.T) {
 	testEqualNB(t, sc2, ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           5,
-			maxCounterHostTag: 9,
+			MaxCounterHostTag: 9,
 		},
 	})
 
@@ -56,7 +56,7 @@ func TestItemValue(t *testing.T) {
 	initialIV := ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           2,
-			maxCounterHostTag: 7,
+			MaxCounterHostTag: 7,
 		},
 		ValueMin:       5,
 		ValueMax:       5,
@@ -86,7 +86,7 @@ func TestItemValue(t *testing.T) {
 	testEqual(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           5,
-			maxCounterHostTag: 0,
+			MaxCounterHostTag: 7,
 		},
 		ValueMin:       3,
 		ValueMax:       5,
@@ -102,7 +102,7 @@ func TestItemValue(t *testing.T) {
 	addIV := ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           5,
-			maxCounterHostTag: 6,
+			MaxCounterHostTag: 6,
 		},
 		ValueMin:       3,
 		ValueMax:       5,
@@ -112,18 +112,18 @@ func TestItemValue(t *testing.T) {
 		MaxHostTag:     7,
 		ValueSet:       true,
 	}
-	testEqual(t, iv2, addIV)
+	testEqualNB(t, iv2, addIV)
 	// add 1 element array
 	iv2 = iv
 	iv2.AddValueArrayHost(rng, []float64{3}, 3, 6)
-	testEqual(t, iv2, addIV)
+	testEqualNB(t, iv2, addIV)
 	// add array
 	iv2 = iv
 	iv2.AddValueArrayHost(rng, []float64{1, 4}, 0.5, 6)
 	addIVArray := ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           3,
-			maxCounterHostTag: 6,
+			MaxCounterHostTag: 6,
 		},
 		ValueMin:       1,
 		ValueMax:       5,
@@ -140,7 +140,7 @@ func TestItemValue(t *testing.T) {
 	testEqualNB(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           4,
-			maxCounterHostTag: 6,
+			MaxCounterHostTag: 6,
 		},
 		ValueMin:       5,
 		ValueMax:       5,
@@ -156,7 +156,7 @@ func TestItemValue(t *testing.T) {
 	testEqualNB(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
 			counter:           4,
-			maxCounterHostTag: 6,
+			MaxCounterHostTag: 6,
 		},
 		ValueMin:       5,
 		ValueMax:       5,

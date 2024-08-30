@@ -457,7 +457,7 @@ func (b *samplingTestBucket) generateSeriesSize(t *rapid.T, s samplingTestSpec) 
 
 func (b *samplingTestBucket) generateNormValues(r *rand.Rand) {
 	for _, v := range b.series {
-		v.Tail.Value.counter = r.NormFloat64()
+		v.Tail.Value = SimpleItemCounter(r.NormFloat64(), 0)
 	}
 }
 

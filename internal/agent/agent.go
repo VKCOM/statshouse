@@ -704,9 +704,6 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 }
 
 func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
-	if len(hashes) == 0 || count < 0 {
-		return
-	}
 	keyHash := key.Hash()
 	shard := s.shardFromHash(keyHash)
 	shard.ApplyUnique(key, keyHash, str, hashes, count, hostTag, metricInfo)
