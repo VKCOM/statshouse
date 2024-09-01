@@ -4,17 +4,15 @@ import { Dashboard, TvModePanel } from 'components2';
 import { useEmbedMessage } from 'hooks/useEmbedMessage';
 import { ErrorMessages } from '../components';
 import { PlotLayout } from '../components2/Plot/PlotLayout';
-import { useErrorStore } from '../store';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
-  const { tvModeEnable, isEmbed, plotsLength, tabNum } = useStatsHouseShallow(
-    ({ params: { plots, orderPlot, tabNum }, tvMode: { enable }, isEmbed }) => ({
+  const { tvModeEnable, isEmbed, plotsLength, isPlot } = useStatsHouseShallow(
+    ({ params: { orderPlot, tabNum }, tvMode: { enable }, isEmbed }) => ({
       tvModeEnable: enable,
       isEmbed,
       plotsLength: orderPlot.length,
-
-      tabNum,
+      isPlot: +tabNum >= 0,
     })
   );
   const [refPage, setRefPage] = useState<HTMLDivElement | null>(null);
@@ -43,13 +41,11 @@ export function ViewPage() {
         {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
         <div className="position-relative">
           <Dashboard />
-          {+tabNum >= 0 && <PlotLayout className="py-3" />}
+          {isPlot && <PlotLayout className="py-3" />}
         </div>
       </div>
     </div>
   );
-
-  // return <DashboardWidget></DashboardWidget>;
 }
 
 export default ViewPage;

@@ -220,7 +220,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   function setUrlStore(next: ProduceUpdate<StatsHouseStore>, replace: boolean = false) {
     const nextState = produce(getState(), next);
     updateHistory(nextState, replace);
-    setState(nextState);
+    setState(nextState, true);
   }
 
   appHistory.listen(({ location }) => {

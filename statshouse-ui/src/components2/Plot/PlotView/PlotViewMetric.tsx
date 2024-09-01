@@ -119,6 +119,8 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       };
     }
   );
+  const divOut = useRef<HTMLDivElement>(null);
+  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const themeDark = useThemeStore((s) => s.dark);
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
@@ -284,8 +286,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   }, [timeRangeFrom, timeRangeTo, yLock]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
-  const divOut = useRef<HTMLDivElement>(null);
-  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
+
   const onMouseOver = useCallback(() => {
     if (divOut.current && !isEmbed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
@@ -319,6 +320,15 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   useEffect(() => {
     setPlotVisibility(plotKey, visible > 0);
   }, [plotKey, setPlotVisibility, visible]);
+
+  const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem[]>>>(
+    (legend) => {
+      if (fixHeight > 0 || !isDashboard) {
+        setLegend(legend);
+      }
+    },
+    [fixHeight, isDashboard]
+  );
 
   return (
     <div
@@ -358,7 +368,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            <PlotHeader plotKey={plotKey} />
+            <PlotHeader plotKey={plotKey} isDashboard={isDashboard} />
             {!compact && <PlotSubMenu plotKey={plotKey} />}
           </div>
         </div>
@@ -385,7 +395,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
               className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
-              onUpdateLegend={setLegend}
+              onUpdateLegend={onUpdateLegend}
             >
               <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
                 <PlotEventOverlay

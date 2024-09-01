@@ -3,7 +3,10 @@ import type { ProduceUpdate } from '../helpers';
 import type { GroupInfo, GroupKey, PlotKey, PlotParams, QueryParams, VariableKey, VariableParams } from 'url2';
 import type { StatsHouseStore } from '../statsHouseStore';
 import type { TagKey } from 'api/enum';
-import { deepClone, isNotNil, toNumberM } from 'common/helpers';
+import { isNotNil, toNumberM } from 'common/helpers';
+import { clonePlot } from '../../url2/clonePlot';
+import { cloneGroup } from '../../url2/cloneGroup';
+import { cloneVariable } from '../../url2/cloneVariable';
 
 export type VariableLinks = { variableKey: VariableKey; tag: TagKey };
 
@@ -33,19 +36,19 @@ export function getPlotStruct(params: QueryParams): PlotStruct {
     params.variables[variableKey]!.link.forEach(([pKey, tag]) => {
       (variableLinks[pKey] ??= []).push({ variableKey, tag });
     });
-    return { variableInfo: deepClone(params.variables[variableKey]!) };
+    return { variableInfo: cloneVariable(params.variables[variableKey]!) };
   });
   return {
     variables,
     groups: params.orderGroup.map((groupKey, groupIndex) => {
       mapGroupIndex[groupKey] = groupIndex;
       return {
-        groupInfo: deepClone(params.groups[groupKey]!),
+        groupInfo: cloneGroup(params.groups[groupKey]!),
         plots: orderPlots.splice(0, params.groups[groupKey]!.count).map((plotKey, plotIndex) => {
           mapPlotIndex[plotKey] = plotIndex;
           mapPlotToGroup[plotKey] = groupKey;
           return {
-            plotInfo: deepClone(params.plots[plotKey]!),
+            plotInfo: clonePlot(params.plots[plotKey]!),
             variableLinks: variableLinks[plotKey]?.map(({ variableKey, tag }) => ({ variableKey, tag })) ?? [],
           };
         }),

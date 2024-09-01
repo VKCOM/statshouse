@@ -20,70 +20,47 @@ import { Link } from 'react-router-dom';
 import { Button, ToggleButton, Tooltip } from 'components/UI';
 import { PLOT_TYPE, toPlotType } from 'api/enum';
 import { debug } from 'common/debug';
-import { PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { type PlotKey } from 'url2';
+import { useStatsHouse } from 'store2';
 import { isPromQL } from 'store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
-import { useSingleLinkPlot } from 'hooks';
+import { useLinkPlot } from 'hooks';
 import { useLiveModeStore } from 'store2/liveModeStore';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
   className?: string;
 };
+
+const { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut, setPlotType, resetZoom, setPlotYLock } =
+  useStatsHouse.getState();
+
 export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className }) => {
   const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
-  const {
-    plot,
-    timeRangePanLeft,
-    timeRangePanRight,
-    timeRangeZoomIn,
-    timeRangeZoomOut,
-    setPlotType,
-    resetZoom,
-    setPlotYLock,
-  } = useStatsHouseShallow(
-    ({
-      params: { plots },
-      timeRangePanLeft,
-      timeRangePanRight,
-      timeRangeZoomIn,
-      timeRangeZoomOut,
-      setPlotType,
-      resetZoom,
-      setPlotYLock,
-    }) => ({
-      plot: plotKey && plots[plotKey],
-      timeRangePanLeft,
-      timeRangePanRight,
-      timeRangeZoomIn,
-      timeRangeZoomOut,
-      setPlotType,
-      resetZoom,
-      setPlotYLock,
-    })
-  );
-  const singleLink = useSingleLinkPlot(plotKey ?? '-1', true);
+  const plot = useStatsHouse(({ params: { plots } }) => plotKey && plots[plotKey]);
+
+  const singleLink = useLinkPlot(plotKey ?? '-1', true, true);
+
   const panLeft = useCallback(() => {
     setLiveMode(false);
     timeRangePanLeft();
-  }, [setLiveMode, timeRangePanLeft]);
+  }, [setLiveMode]);
 
   const panRight = useCallback(() => {
     setLiveMode(false);
     timeRangePanRight();
-  }, [setLiveMode, timeRangePanRight]);
+  }, [setLiveMode]);
 
   const zoomIn = useCallback(() => {
     setLiveMode(false);
     timeRangeZoomIn();
-  }, [setLiveMode, timeRangeZoomIn]);
+  }, [setLiveMode]);
 
   const zoomOut = useCallback(() => {
     setLiveMode(false);
     timeRangeZoomOut();
-  }, [setLiveMode, timeRangeZoomOut]);
+  }, [setLiveMode]);
 
   const copyLink = useCallback(() => {
     if (singleLink) {
@@ -101,16 +78,16 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
       const type = toPlotType(e.currentTarget.getAttribute('data-value'), PLOT_TYPE.Metric);
       plotKey && setPlotType(plotKey, type);
     },
-    [plotKey, setPlotType]
+    [plotKey]
   );
   const onResetZoom = useCallback(() => {
     plotKey && resetZoom(plotKey);
-  }, [plotKey, resetZoom]);
+  }, [plotKey]);
   const onYLockChange = useCallback(
     (status: boolean) => {
       plotKey && setPlotYLock(plotKey, status);
     },
-    [plotKey, setPlotYLock]
+    [plotKey]
   );
 
   return (
@@ -127,7 +104,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
       <Button type="button" className="btn btn-outline-primary" title="Zoom out" onClick={zoomOut}>
         <SVGZoomOut />
       </Button>
-      {!!plot && (
+      {plotKey != null && (
         <Button type="button" className="btn btn-outline-primary" title="Reset zoom" onClick={onResetZoom}>
           <SVGMap />
         </Button>
@@ -171,7 +148,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
           <SVGLink />
         </Button>
       )}
-      {!!singleLink && !plot && (
+      {!!singleLink && plotKey == null && (
         <Tooltip<'span'> as="span" role="button" className="btn btn-outline-primary p-0" title="Open link">
           <Link to={singleLink} className="d-block px-2 py-1" target="_blank">
             <SVGBoxArrowUpRight />

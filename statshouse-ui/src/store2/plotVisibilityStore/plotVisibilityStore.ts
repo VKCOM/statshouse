@@ -7,6 +7,7 @@
 import { StoreSlice } from '../createStore';
 import { StatsHouseStore } from '../statsHouseStore';
 import { PlotKey } from 'url2';
+import { getPlotLoader } from '../plotQueryStore';
 
 export type PlotVisibilityStore = {
   plotVisibilityList: Partial<Record<PlotKey, boolean>>;
@@ -16,7 +17,7 @@ export type PlotVisibilityStore = {
   clearPlotVisibility(plotKey: PlotKey): void;
 };
 
-export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStore> = (setState, getState, store) => ({
+export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStore> = (setState, getState) => ({
   plotVisibilityList: {},
   plotPreviewList: {},
   setPlotVisibility(plotKey, toggle) {
@@ -24,28 +25,17 @@ export const plotVisibilityStore: StoreSlice<StatsHouseStore, PlotVisibilityStor
       state.plotVisibilityList[plotKey] = state.params.tabNum === plotKey || toggle;
     });
     if (toggle) {
-      if (!getState().plotsData[plotKey]?.numQueries) {
+      if (!getPlotLoader(plotKey)) {
         getState().loadPlotData(plotKey);
       }
     }
-    // todo:
-    // if (toggle) {
-    //   if (!useUrlStore.getState().numQueriesPlot[plotKey]) {
-    //     useUrlStore.getState().loadPlot(plotKey);
-    //   }
-    //   useUrlStore.getState().params.plots[plotKey]?.events.forEach((iPlot) => {
-    //     if (!useUrlStore.getState().numQueriesPlot[iPlot]) {
-    //       useUrlStore.getState().loadPlot(iPlot);
-    //     }
-    //   });
-    // }
   },
   setPlotPreviewVisibility(plotKey, toggle) {
     setState((state) => {
       state.plotPreviewList[plotKey] = state.params.tabNum === plotKey || toggle;
     });
     if (toggle) {
-      if (!getState().plotsData[plotKey]?.numQueries) {
+      if (!getPlotLoader(plotKey)) {
         getState().loadPlotData(plotKey);
       }
     }

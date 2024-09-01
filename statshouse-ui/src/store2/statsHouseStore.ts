@@ -21,7 +21,6 @@ import { plotEventsDataStore, PlotEventsDataStore } from './plotEventsDataStore'
 export type StatsHouseStore = UrlStore &
   UserStore &
   PlotsInfoStore &
-  // LiveModeStore &
   MetricMetaStore &
   PlotVisibilityStore &
   PlotPreviewStore &
@@ -34,7 +33,6 @@ const statsHouseStore: Store<StatsHouseStore> = (...props) => ({
   ...urlStore(...props),
   ...userStore(...props),
   ...plotsInfoStore(...props),
-  // ...liveModeStore(...props),
   ...metricMetaStore(...props),
   ...plotVisibilityStore(...props),
   ...plotPreviewStore(...props),

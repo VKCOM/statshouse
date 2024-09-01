@@ -19,6 +19,8 @@ import { Popper } from 'components';
 import { getMetricFullName } from 'store2/helpers';
 import { PLOT_TYPE } from 'api/enum';
 import { PlotName } from '../Plot/PlotView/PlotName';
+import { usePlotLoader } from '../../store2/plotQueryStore';
+import { PlotLink } from '../Plot/PlotLink';
 
 const threshold = buildThresholdList(1);
 
@@ -46,16 +48,17 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
     [openRef, setOpen]
   );
   const visible = useIntersectionObserver(visibleRef, threshold, undefined, 0);
-  const { metricFullName, setPlotPreviewVisibility, error403, error, plotPreviewUrl, numQueries, plotType } =
-    useStatsHouseShallow(({ params: { plots }, plotsData, setPlotPreviewVisibility, plotPreviewUrlList }) => ({
+  const plotLoader = usePlotLoader(plotKey);
+  const { metricFullName, setPlotPreviewVisibility, error403, error, plotPreviewUrl, plotType } = useStatsHouseShallow(
+    ({ params: { plots }, plotsData, setPlotPreviewVisibility, plotPreviewUrlList }) => ({
       setPlotPreviewVisibility,
       metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
       error403: plotsData[plotKey]?.error403,
       error: plotsData[plotKey]?.error,
       plotPreviewUrl: plotPreviewUrlList[plotKey],
-      numQueries: plotsData[plotKey]?.numQueries ?? 0,
       plotType: plots[plotKey]?.type,
-    }));
+    })
+  );
   const link = useLinkPlot(plotKey, visible > 0);
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
         {/*<SVGGraphUp className={css.icon} />*/}
         {!!error403 && <SVGXSquare className={css.icon} />}
         {!!plotPreviewUrl && !error403 && <img alt={metricFullName} src={plotPreviewUrl} className="w-100 h-100" />}
-        {numQueries > 0 && !error403 && !error && (
+        {plotLoader && !error403 && !error && (
           <div className="position-absolute top-50 start-50 translate-middle show-delay">
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
           </div>
@@ -94,9 +97,9 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
       <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
         <ul className={css.sub} ref={sub}>
           <li className={cn(css.subItem, 'font-monospace fw-bold text-center')}>
-            <Link className={css.link} to={link}>
+            <PlotLink className={css.link} plotKey={plotKey}>
               <PlotName plotKey={plotKey} />
-            </Link>
+            </PlotLink>
           </li>
           {!!plotPreviewUrl && !error403 && (
             <li className="nav-item p-1">

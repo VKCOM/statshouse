@@ -8,37 +8,30 @@ import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'components';
 import { useStatsHouseShallow } from 'store2';
+import { useGlobalLoader } from 'store2/plotQueryStore';
 
 export type DashboardInfoProps = {
   className?: string;
 };
 
 export function DashboardInfo({ className }: DashboardInfoProps) {
-  const {
-    dashboardName,
-    dashboardDescription,
-    isDashboard,
-    removeDashboard,
-    globalNumQueries,
-    setDashboardLayoutEdit,
-    setParams,
-  } = useStatsHouseShallow(
-    ({
-      params: { dashboardId, dashboardName, dashboardDescription },
-      removeDashboard,
-      globalNumQueries,
-      setDashboardLayoutEdit,
-      setParams,
-    }) => ({
-      dashboardName,
-      dashboardDescription,
-      isDashboard: dashboardId != null,
-      removeDashboard,
-      globalNumQueries,
-      setDashboardLayoutEdit,
-      setParams,
-    })
-  );
+  const globalLoader = useGlobalLoader();
+  const { dashboardName, dashboardDescription, isDashboard, removeDashboard, setDashboardLayoutEdit, setParams } =
+    useStatsHouseShallow(
+      ({
+        params: { dashboardId, dashboardName, dashboardDescription },
+        removeDashboard,
+        setDashboardLayoutEdit,
+        setParams,
+      }) => ({
+        dashboardName,
+        dashboardDescription,
+        isDashboard: dashboardId != null,
+        removeDashboard,
+        setDashboardLayoutEdit,
+        setParams,
+      })
+    );
 
   const navigate = useNavigate();
 
@@ -118,7 +111,7 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
                 type="button"
                 className="btn btn-outline-danger ms-2"
                 onClick={onRemoveDashboard}
-                disabled={globalNumQueries > 1}
+                disabled={globalLoader}
               >
                 Remove
               </Button>

@@ -111,6 +111,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       };
     }
   );
+  const divOut = useRef<HTMLDivElement>(null);
+  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const themeDark = useThemeStore((s) => s.dark);
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
@@ -275,8 +277,6 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
   }, [timeRangeFrom, timeRangeTo, yLock]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
-  const divOut = useRef<HTMLDivElement>(null);
-  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
     if (divOut.current && !isEmbed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
@@ -378,7 +378,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            <PlotHeader plotKey={plotKey} />
+            <PlotHeader plotKey={plotKey} isDashboard={isDashboard} />
             {!compact && <PlotSubMenu plotKey={plotKey} />}
           </div>
         </div>

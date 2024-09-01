@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect } from 'react';
+import React, { memo, useCallback } from 'react';
 import { useStatsHouseShallow } from '../../store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
@@ -16,12 +16,14 @@ import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-a
 import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
 import { useLinkPlot } from 'hooks';
+import { useGlobalLoader } from '../../store2/plotQueryStore';
 
 export type DashboardProps = {
   className?: string;
 };
 
 export function _Dashboard({ className }: DashboardProps) {
+  const globalLoader = useGlobalLoader();
   const {
     tabNum,
     isEmbed,
@@ -31,10 +33,7 @@ export function _Dashboard({ className }: DashboardProps) {
     variablesLength,
     dashboardLayoutEdit,
     setDashboardLayoutEdit,
-    // dashboardLink,
-    // dashboardSettingLink,
     isDashboard,
-    globalLoadQueries,
     saveDashboard,
   } = useStatsHouseShallow(
     ({
@@ -43,8 +42,6 @@ export function _Dashboard({ className }: DashboardProps) {
       tvMode: { enable },
       dashboardLayoutEdit,
       setDashboardLayoutEdit,
-      // links: { dashboardLink, dashboardSettingLink },
-      globalNumQueries,
       saveDashboard,
     }) => ({
       tabNum,
@@ -55,10 +52,7 @@ export function _Dashboard({ className }: DashboardProps) {
       variablesLength: orderVariables.length,
       dashboardLayoutEdit,
       setDashboardLayoutEdit,
-      // dashboardLink,
-      // dashboardSettingLink,
       isDashboard: dashboardId != null,
-      globalLoadQueries: globalNumQueries > 0,
       saveDashboard,
     })
   );
@@ -103,11 +97,11 @@ export function _Dashboard({ className }: DashboardProps) {
             <Button
               type="button"
               className="nav-link"
-              disabled={globalLoadQueries || !dashboardName}
+              disabled={globalLoader || !dashboardName}
               onClick={onSaveDashboard}
               title={!dashboardName ? 'Required name dashboard' : 'Save dashboard'}
             >
-              {globalLoadQueries ? (
+              {globalLoader ? (
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
               ) : (
                 <SVGCloudArrowUp className="mx-1" />

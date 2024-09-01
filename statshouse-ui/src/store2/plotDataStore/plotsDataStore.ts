@@ -18,6 +18,8 @@ import { getEmptyPlotData } from './getEmptyPlotData';
 import { dequal } from 'dequal/lite';
 import { changePlotParamForData } from './changePlotParamForData';
 import { useLiveModeStore } from '../liveModeStore';
+import { getPlotLoader, queryStart } from '../plotQueryStore';
+import { skipTimeout } from '../../common/helpers';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -78,17 +80,17 @@ export type PlotData = {
   maxHostLists: SelectOptionProps[][];
   promqltestfailed?: boolean;
   promqlExpand: boolean;
-  numQueries: number;
+  // numQueries: number;
 };
 
 export type PlotsDataStore = {
   plotsData: Partial<Record<PlotKey, PlotData>>;
-  globalNumQueries: number;
+  // globalNumQueries: number;
   togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
   updatePlotsData(): void;
-  loadPlotData(plotKey: PlotKey, force?: boolean): void;
-  globalQueryStart(): () => void;
-  queryStart(plotKey: PlotKey): () => void;
+  loadPlotData(plotKey: PlotKey, force?: boolean): Promise<void>;
+  // globalQueryStart(): () => void;
+  // queryStart(plotKey: PlotKey): () => void;
   clearPlotError(plotKey: PlotKey): void;
   setPlotShow(plotKey: PlotKey, idx: number, show?: boolean, single?: boolean): void;
 };
@@ -104,7 +106,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
   });
   return {
     plotsData: {},
-    globalNumQueries: 0,
+    // globalNumQueries: 0,
     togglePromqlExpand(plotKey, status) {
       setState((state) => {
         const pd = state.plotsData[plotKey];
@@ -114,19 +116,41 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     updatePlotsData() {
-      getState().params.orderPlot.forEach((plotKey) => {
-        getState().loadPlotData(plotKey);
+      const {
+        params: { tabNum, orderPlot },
+        plotVisibilityList,
+        plotPreviewList,
+        loadPlotData,
+      } = getState();
+      const first: PlotKey[] = [];
+      const second: PlotKey[] = [];
+      const third: PlotKey[] = [];
+
+      orderPlot.forEach((plotKey) => {
+        if (tabNum === plotKey) {
+          first.push(plotKey);
+        } else if (plotVisibilityList[plotKey]) {
+          second.push(plotKey);
+        } else if (plotPreviewList[plotKey]) {
+          third.push(plotKey);
+        }
       });
+
+      first.forEach((p) => loadPlotData(p, true));
+      second.forEach((p) => loadPlotData(p));
+      third.forEach((p) => loadPlotData(p));
     },
-    loadPlotData(plotKey, force = false) {
-      // console.log('loadPlotData', plotKey);
+    async loadPlotData(plotKey, force = false) {
+      await skipTimeout();
       const plot = getState().params.plots[plotKey];
       const prevPlotData = getState().plotsData[plotKey];
       const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
+      if (useLiveModeStore.getState().liveMode.status && getPlotLoader(plotKey)) {
+        return;
+      }
       if (!force) {
-        const liveSkip = useLiveModeStore.getState().liveMode.status && !!prevPlotData?.numQueries;
         const visible = getState().plotVisibilityList[plotKey] || getState().plotPreviewList[plotKey];
-        if (liveSkip || !visible) {
+        if (!visible) {
           // console.log('skip', plotKey, { liveSkip, visible });
           return;
         }
@@ -171,7 +195,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         //   }
         //   state.plotsData[index].scales = scales;
         // });
-        const queryEnd = getState().queryStart(plotKey);
+        const queryEnd = queryStart(plotKey);
         loadPlotData(plotKey, getState().params)
           .then((updatePlotData) => {
             if (updatePlotData) {
@@ -200,7 +224,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       //   }
       // });
       plot?.events.forEach((iPlot) => {
-        if (!getState().plotsData[iPlot]?.numQueries) {
+        if (!getPlotLoader(iPlot)) {
           getState().loadPlotData(iPlot, true);
         }
       });
@@ -215,33 +239,33 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           .catch(() => undefined);
       }
     },
-    globalQueryStart() {
-      setState((state) => {
-        state.globalNumQueries += 1;
-      });
-      return () => {
-        setState((state) => {
-          state.globalNumQueries -= 1;
-        });
-      };
-    },
-    queryStart(plotKey) {
-      setState((state) => {
-        state.plotsData[plotKey] ??= getEmptyPlotData();
-        state.plotsData[plotKey]!.numQueries++;
-      });
-      let start = true;
-      return () => {
-        if (start) {
-          start = false;
-          setState((state) => {
-            if (state.plotsData[plotKey]) {
-              state.plotsData[plotKey]!.numQueries--;
-            }
-          });
-        }
-      };
-    },
+    // globalQueryStart() {
+    //   setState((state) => {
+    //     state.globalNumQueries += 1;
+    //   });
+    //   return () => {
+    //     setState((state) => {
+    //       state.globalNumQueries -= 1;
+    //     });
+    //   };
+    // },
+    // queryStart(plotKey) {
+    //   setState((state) => {
+    //     state.plotsData[plotKey] ??= getEmptyPlotData();
+    //     state.plotsData[plotKey]!.numQueries++;
+    //   });
+    //   let start = true;
+    //   return () => {
+    //     if (start) {
+    //       start = false;
+    //       setState((state) => {
+    //         if (state.plotsData[plotKey]) {
+    //           state.plotsData[plotKey]!.numQueries--;
+    //         }
+    //       });
+    //     }
+    //   };
+    // },
     clearPlotError(plotKey) {
       setState(updateClearPlotError(plotKey));
     },

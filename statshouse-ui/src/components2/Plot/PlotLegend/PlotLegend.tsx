@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { LegendItem, Tooltip } from 'components';
 import cn from 'classnames';
 
@@ -27,7 +27,7 @@ type PlotLegendProps = {
   unit?: MetricType;
 };
 
-export const PlotLegend: React.FC<PlotLegendProps> = ({
+export const _PlotLegend: React.FC<PlotLegendProps> = ({
   plotKey,
   legend,
   onLegendShow,
@@ -199,3 +199,5 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
     </div>
   );
 };
+
+export const PlotLegend = memo(_PlotLegend);

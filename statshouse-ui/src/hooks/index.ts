@@ -13,6 +13,4 @@ export * from './useWindowSize';
 export * from './useOnClickOutside';
 export * from './useStateBoolean';
 export * from './useStateToRef';
-export * from './useAddLinkPlot';
 export * from './useLinkPlot';
-export * from './useSingleLinkPlot';

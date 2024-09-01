@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { getNewPlot, type QueryParams, urlEncode } from 'url2';
-import { deepClone } from 'common/helpers';
 import { getNextPlotKey, updateQueryParamsPlotStruct } from '../urlStore/updateParamsPlotStruct';
 import { produce } from 'immer';
+import { clonePlot } from 'url2/clonePlot';
 
 export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): string {
   const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
@@ -19,10 +19,9 @@ export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): s
       const groupKey = plotStruct.mapPlotToGroup[tabNum]!;
       const groupIndex = plotStruct.mapGroupIndex[groupKey]!;
       const plotIndex = plotStruct.mapPlotIndex[tabNum]!;
-      const { plotInfo, variableLinks } = deepClone(plotStruct.groups[groupIndex]?.plots[plotIndex]) ?? {
-        plotInfo: getNewPlot(),
-        variableLinks: [],
-      };
+      const plotInfo = clonePlot(plotStruct.groups[groupIndex]?.plots[plotIndex].plotInfo) ?? getNewPlot();
+      const variableLinks = plotStruct.groups[groupIndex]?.plots[plotIndex].variableLinks ?? [];
+
       if (plotStruct.groups[groupIndex]) {
         plotStruct.groups[groupIndex].plots.push({
           plotInfo: {
