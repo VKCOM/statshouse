@@ -20,7 +20,6 @@ export function _PlotLayout({ className }: PlotLayoutProps) {
     ({ params: { tabNum, plots }, plotsData, isEmbed }) => ({
       tabNum,
       plotDataPromqlExpand: (isPromQL(plots[tabNum]) && plotsData[tabNum]?.promqlExpand) ?? false,
-
       isEmbed,
     })
   );

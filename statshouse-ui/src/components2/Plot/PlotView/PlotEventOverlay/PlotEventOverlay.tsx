@@ -10,9 +10,9 @@ import { UPlotWrapperPropsHooks } from 'components/UPlotWrapper';
 import uPlot from 'uplot';
 import css from './style.module.css';
 import { PlotEventFlag } from './PlotEventFlag';
-import { type PlotKey, readTimeRange, type TimeRange } from 'url2';
+import { type PlotKey, PlotParams, readTimeRange, type TimeRange } from 'url2';
 import { useResizeObserver } from 'view/utils';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { type PlotData } from 'store2/plotDataStore';
 
 type Flag = {
@@ -93,18 +93,32 @@ export type PlotEventOverlayProps = {
   flagHeight?: number;
   compact?: boolean;
 };
+const emptyArray: PlotKey[] = [];
 export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
-  const { params, plotEvents, plotsData } = useStatsHouseShallow(({ params, plotsData }) => ({
-    params,
-    plotEvents: params.plots[plotKey]?.events,
-    plotsData,
-  }));
-  // const params = useStore(selectorParams);
-  // const plot = params.plots[indexPlot];
-  // const eventsData = useStore(selectorPlotsData);
+  const plotEvents = useStatsHouse(({ params: { plots } }) => plots[plotKey]?.events ?? emptyArray);
+  const plots = useStatsHouseShallow(({ params: { plots } }) =>
+    plotEvents.reduce(
+      (res, pK) => {
+        res[pK] = plots[pK];
+        return res;
+      },
+      {} as Partial<Record<PlotKey, PlotParams>>
+    )
+  );
+  const plotsData = useStatsHouseShallow(({ plotsData }) =>
+    plotEvents.reduce(
+      (res, pK) => {
+        if (plotsData[pK]) {
+          res[pK] = plotsData[pK];
+        }
+        return res;
+      },
+      {} as Partial<Record<PlotKey, PlotData>>
+    )
+  );
   const [plotWidth, setPlotWidth] = useState(width);
   const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
@@ -165,7 +179,7 @@ export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: P
           <g stroke="gray" strokeWidth="0.5" fill="gray">
             {lines.map((r) => (
               <PlotEventFlag
-                plots={params.plots}
+                plots={plots}
                 plotWidth={plotWidth}
                 range={r.range}
                 agg={r.agg}

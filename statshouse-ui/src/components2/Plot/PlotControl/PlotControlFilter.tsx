@@ -24,20 +24,21 @@ import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
 import { useStatsHouseShallow } from 'store2';
 import { filterHasTagID } from 'store2/helpers';
+import { useGlobalLoader } from '../../../store2/plotQueryStore';
 
 const emptyFilter: Partial<Record<TagKey, string[]>> = {};
 const emptyGroup: TagKey[] = [];
 
 export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
-  const { meta, plotType, filterIn, filterNotIn, groupBy, globalLoader } = useStatsHouseShallow(
-    ({ params: { plots }, metricMeta, globalNumQueries }) => ({
+  const globalLoader = useGlobalLoader();
+  const { meta, plotType, filterIn, filterNotIn, groupBy } = useStatsHouseShallow(
+    ({ params: { plots }, metricMeta }) => ({
       plot: plots[plotKey],
       plotType: plots[plotKey]?.type ?? PLOT_TYPE.Metric,
       filterIn: plots[plotKey]?.filterIn ?? emptyFilter,
       filterNotIn: plots[plotKey]?.filterNotIn ?? emptyFilter,
       groupBy: plots[plotKey]?.groupBy ?? emptyGroup,
       meta: metricMeta[plots[plotKey]?.metricName ?? ''],
-      globalLoader: globalNumQueries > 0,
     })
   );
   const filterInfo = useMemo(() => ({ filterIn, filterNotIn, groupBy }), [filterIn, filterNotIn, groupBy]);

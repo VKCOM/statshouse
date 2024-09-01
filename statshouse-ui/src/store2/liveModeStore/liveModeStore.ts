@@ -27,7 +27,6 @@ export const liveModeStore: StoreSlice<LiveModeStore, LiveModeStore> = (setState
   let id: NodeJS.Timeout | undefined = undefined;
   function liveTick() {
     if (document.visibilityState === 'visible' && getState().liveMode.status && isValidPath(appHistory.location)) {
-      debug.log('liveTick');
       useStatsHouse
         .getState()
         .setTimeRange({ from: useStatsHouse.getState().params.timeRange.from, to: TIME_RANGE_KEYS_TO.Now }, true);

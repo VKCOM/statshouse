@@ -12,6 +12,7 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { useStatsHouseShallow } from '../../../store2';
 import cn from 'classnames';
 import { useLiveModeStore } from '../../../store2/liveModeStore';
+import { usePlotLoader } from '../../../store2/plotQueryStore';
 
 export type PlotHealsStatusProps = {
   className?: string;
@@ -19,10 +20,10 @@ export type PlotHealsStatusProps = {
 };
 export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
   const interval = useLiveModeStore(({ liveMode: { interval } }) => interval);
-  const { lastError, plotHealsTimeout, loader, clearPlotError, loadPlotData } = useStatsHouseShallow(
+  const loader = usePlotLoader(plotKey);
+  const { lastError, plotHealsTimeout, clearPlotError, loadPlotData } = useStatsHouseShallow(
     ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({
       lastError: plotsData[plotKey]?.error,
-      loader: (plotsData[plotKey]?.numQueries ?? 0) > 0,
       plotHealsTimeout: plotHeals[plotKey]?.timeout,
       clearPlotError,
       loadPlotData,

@@ -18,31 +18,23 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
-import { useLinkPlot, useOnClickOutside, useSingleLinkPlot } from 'hooks';
+import { useOnClickOutside } from 'hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { PlotName } from './PlotName';
-import { Link } from 'react-router-dom';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
+import { PlotLink } from '../PlotLink';
 
-export type PlotHeaderProps = { plotKey: PlotKey };
+export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
-export function _PlotHeader({ plotKey }: PlotHeaderProps) {
-  const { plot, metricName, what, meta, isEmbed, isDashboard, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
+export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
+  const { plot, metricName, what, meta, isEmbed, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
     useStatsHouseShallow(
-      ({
-        plotsData,
-        params: { plots, orderPlot, tabNum },
-        metricMeta,
-        isEmbed,
-        dashboardLayoutEdit,
-        setPlot,
-        removePlot,
-      }) => {
+      ({ plotsData, params: { plots, orderPlot }, metricMeta, isEmbed, dashboardLayoutEdit, setPlot, removePlot }) => {
         const plot = plots[plotKey];
         const plotData = plotsData[plotKey];
         return {
@@ -51,7 +43,6 @@ export function _PlotHeader({ plotKey }: PlotHeaderProps) {
           what: getMetricWhat(plot, plotData),
           meta: getMetricMeta(metricMeta, plot, plotData),
           isEmbed,
-          isDashboard: +tabNum < 0,
           dashboardLayoutEdit,
           canRemove: orderPlot.length > 1,
           setPlot,
@@ -91,8 +82,6 @@ export function _PlotHeader({ plotKey }: PlotHeaderProps) {
     },
     [metricFullName, plotKey, setPlot]
   );
-  const link = useLinkPlot(plotKey);
-  const singleLink = useSingleLinkPlot(plotKey);
 
   useEffect(() => {
     setLocalCustomName(plot?.customName || metricFullName);
@@ -182,14 +171,20 @@ export function _PlotHeader({ plotKey }: PlotHeaderProps) {
                   className="text-decoration-none overflow-hidden text-nowrap"
                   title={plotTooltip}
                 >
-                  <Link className="text-decoration-none" to={link} target={isEmbed ? '_blank' : '_self'}>
+                  <PlotLink plotKey={plotKey} className="text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
                     <PlotName plotKey={plotKey} />
-                  </Link>
+                  </PlotLink>
+                  {/*<Link className="text-decoration-none" to={link} target={isEmbed ? '_blank' : '_self'}>
+                    <PlotName plotKey={plotKey} />
+                  </Link>*/}
                 </Tooltip>
                 {!isEmbed && (
-                  <Link to={singleLink} target="_blank" className="ms-2">
+                  <PlotLink plotKey={plotKey} className="ms-2" single target="_blank">
                     <SVGBoxArrowUpRight width={10} height={10} />
-                  </Link>
+                  </PlotLink>
+                  /*<Link to={singleLink} target="_blank" className="ms-2">
+                    <SVGBoxArrowUpRight width={10} height={10} />
+                  </Link>*/
                 )}
               </>
             )}
@@ -240,9 +235,13 @@ export function _PlotHeader({ plotKey }: PlotHeaderProps) {
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 gap-1 mb-1`}
         >
           <Tooltip hover title={plotTooltip}>
-            <Link to={link} className="text-secondary text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
+            <PlotLink
+              plotKey={plotKey}
+              className="text-secondary text-decoration-none"
+              target={isEmbed ? '_blank' : '_self'}
+            >
               <PlotName plotKey={plotKey} />
-            </Link>
+            </PlotLink>
           </Tooltip>
           <PlotHeaderBadges plotKey={plotKey} compact={compact} dashboard={isDashboard} />
         </h6>
@@ -280,9 +279,9 @@ export function _PlotHeader({ plotKey }: PlotHeaderProps) {
                   <span className="text-secondary text-decoration-none">
                     <PlotName plotKey={plotKey} />
                   </span>
-                  <Link to={singleLink} target="_blank" className="ms-2">
+                  <PlotLink plotKey={plotKey} single target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
-                  </Link>
+                  </PlotLink>
                 </div>
                 <Button
                   ref={formRef}

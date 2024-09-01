@@ -47,6 +47,5 @@ export function getEmptyPlotData(): PlotData {
     maxHostLists: [],
     promqltestfailed: false,
     promqlExpand: false,
-    numQueries: 0,
   };
 }
