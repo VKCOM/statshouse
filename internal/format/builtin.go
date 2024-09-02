@@ -119,21 +119,21 @@ const (
 	BuiltinMetricIDAggSamplingTime            = -95
 	BuiltinMetricIDAgentDiskCacheSize         = -96
 	BuiltinMetricIDAggContributors            = -97
-	BuiltinMetricIDAggAgentSharding           = -98
-	BuiltinMetricIDAPICacheBytesAlloc         = -99
-	BuiltinMetricIDAPICacheBytesFree          = -100
-	BuiltinMetricIDAPICacheBytesTotal         = -101
-	BuiltinMetricIDAPICacheAgeEvict           = -102
-	BuiltinMetricIDAPICacheAgeTotal           = -103
-	BuiltinMetricIDAPIBufferBytesAlloc        = -104
-	BuiltinMetricIDAPIBufferBytesFree         = -105
-	BuiltinMetricIDAPIBufferBytesTotal        = -106
-	BuiltinMetricIDAutoCreateMetric           = -107
-	BuiltinMetricIDRestartTimings             = -108
-	BuiltinMetricIDGCDuration                 = -109
-	BuiltinMetricIDAggHistoricHostsWaiting    = -110
-	BuiltinMetricIDAggSamplingEngineTime      = -111
-	BuiltinMetricIDAggSamplingEngineKeys      = -112
+	// BuiltinMetricIDAggAgentSharding           = -98  // deprecated
+	BuiltinMetricIDAPICacheBytesAlloc      = -99
+	BuiltinMetricIDAPICacheBytesFree       = -100
+	BuiltinMetricIDAPICacheBytesTotal      = -101
+	BuiltinMetricIDAPICacheAgeEvict        = -102
+	BuiltinMetricIDAPICacheAgeTotal        = -103
+	BuiltinMetricIDAPIBufferBytesAlloc     = -104
+	BuiltinMetricIDAPIBufferBytesFree      = -105
+	BuiltinMetricIDAPIBufferBytesTotal     = -106
+	BuiltinMetricIDAutoCreateMetric        = -107
+	BuiltinMetricIDRestartTimings          = -108
+	BuiltinMetricIDGCDuration              = -109
+	BuiltinMetricIDAggHistoricHostsWaiting = -110
+	BuiltinMetricIDAggSamplingEngineTime   = -111
+	BuiltinMetricIDAggSamplingEngineKeys   = -112
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -173,7 +173,6 @@ const (
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 	BuiltinMetricNameIDUIErrors                 = "__ui_errors"
-	BuiltinMetricNameAggAgentSharding           = "__agg_agent_sharding"
 	BuiltinMetricAPICacheBytesAlloc             = "__api_cache_bytes_alloc"
 	BuiltinMetricAPICacheBytesFree              = "__api_cache_bytes_free"
 	BuiltinMetricAPICacheBytesTotal             = "__api_cache_bytes_total"
@@ -467,28 +466,6 @@ Set by aggregator.`,
 				}),
 			}, {
 				Description: "-",
-			}},
-		},
-		BuiltinMetricIDAggAgentSharding: {
-			Name:        BuiltinMetricNameAggAgentSharding,
-			Kind:        MetricKindCounter,
-			Resolution:  60,
-			Description: `# of agents with specific sharding scheme. Set by aggregator.`,
-			MetricType:  MetricSecond,
-			Tags: []MetricMetaTag{{
-				Description: "-",
-			}, {
-				Description: "-",
-			}, {
-				Description: "-",
-			}, {
-				Description: "sharding_by",
-				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDSharingByMappedTags: "mapped_tags",
-					TagValueIDSharingByMetricId:   "metric_id",
-				}),
-			}, {
-				Description: "host",
 			}},
 		},
 		BuiltinMetricIDAggInsertSize: {
@@ -2653,7 +2630,6 @@ Value is delta between second value and time it was inserted.`,
 	BuiltinMetricMetaAggSamplingTime            *MetricMetaValue
 	BuiltinMetricMetaAgentDiskCacheSize         *MetricMetaValue
 	BuiltinMetricMetaAggContributors            *MetricMetaValue
-	BuiltinMetricMetaAggAgentSharding           *MetricMetaValue
 	BuiltinMetricMetaAPICacheBytesAlloc         *MetricMetaValue
 	BuiltinMetricMetaAPICacheBytesFree          *MetricMetaValue
 	BuiltinMetricMetaAPICacheBytesTotal         *MetricMetaValue
@@ -2882,7 +2858,6 @@ func init() {
 	BuiltinMetricMetaAggSamplingTime = BuiltinMetrics[BuiltinMetricIDAggSamplingTime]
 	BuiltinMetricMetaAgentDiskCacheSize = BuiltinMetrics[BuiltinMetricIDAgentDiskCacheSize]
 	BuiltinMetricMetaAggContributors = BuiltinMetrics[BuiltinMetricIDAggContributors]
-	BuiltinMetricMetaAggAgentSharding = BuiltinMetrics[BuiltinMetricIDAggAgentSharding]
 	BuiltinMetricMetaAPICacheBytesAlloc = BuiltinMetrics[BuiltinMetricIDAPICacheBytesAlloc]
 	BuiltinMetricMetaAPICacheBytesFree = BuiltinMetrics[BuiltinMetricIDAPICacheBytesFree]
 	BuiltinMetricMetaAPICacheBytesTotal = BuiltinMetrics[BuiltinMetricIDAPICacheBytesTotal]

@@ -64,7 +64,6 @@ func (s *ShardReplica) FillStats(stats map[string]string) {
 
 func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	var sharding int32
 	args := tlstatshouse.SendSourceBucket2Bytes{
 		Time:            cbd.time,
 		BuildCommit:     []byte(build.Commit()),
@@ -78,7 +77,6 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
-	args.SetSharding(sharding)
 
 	sizeMem := shard.HistoricBucketsDataSizeMemory()
 	if sizeMem < math.MaxInt32 {
