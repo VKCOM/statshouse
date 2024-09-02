@@ -426,8 +426,6 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(rng, float64(v.Value), 1, host)
 	}
 
-	getMultiItem(args.Time, format.BuiltinMetricIDAggAgentSharding, [16]int32{0, 0, 0, 0, args.Sharding}).Tail.AddCounterHost(rng, 1, host)
-
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
 		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(rng, float64(value), host)
 	}
