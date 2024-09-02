@@ -25,7 +25,7 @@ func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int) (uin
 	}
 
 	switch sh.Strategy {
-	case format.ShardByFixedShard:
+	case format.ShardFixed:
 		if !sh.Shard.IsDefined() {
 			return 0, "", fmt.Errorf("invalid sharding config: shard is not defined")
 		}
@@ -33,7 +33,7 @@ func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int) (uin
 			return 0, "", fmt.Errorf("invalid sharding config: shard >= numShards")
 		}
 		return sh.Shard.V, sh.Strategy, nil
-	case format.ShardByMappedTags:
+	case format.ShardBy16MappedTagsHash:
 		return shardByMappedTags(key, numShards), sh.Strategy, nil
 	case format.ShardByTag:
 		if !sh.TagId.IsDefined() {

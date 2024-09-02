@@ -1114,8 +1114,7 @@ Set by aggregator.`,
 			}},
 			PreKeyTagID: "2",
 			Sharding: []MetricSharding{{
-				Strategy: ShardByTag,
-				TagId:    opt.OUint32(2),
+				Strategy: ShardAggInternal,
 			}},
 		},
 		BuiltinMetricIDAutoConfig: {
@@ -2768,7 +2767,7 @@ func init() {
 		// init sharding strategy if it's not explicitly defined
 		if len(m.Sharding) == 0 {
 			m.Sharding = []MetricSharding{{
-				Strategy: ShardByFixedShard,
+				Strategy: ShardFixed,
 				Shard:    opt.OUint32(0),
 			}}
 		}

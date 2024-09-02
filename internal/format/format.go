@@ -209,9 +209,11 @@ type MetricsGroup struct {
 
 // possible sharding strategies
 const (
-	ShardByMappedTags = "mapped_tags"
-	ShardByFixedShard = "fixed_shard"
-	ShardByTag        = "tag"
+	ShardBy16MappedTagsHash = "16_mapped_tags_hash"
+	ShardFixed              = "fixed_shard"
+	ShardByTag              = "tag"
+	// some builtin metrics are produced direclty by aggregator, so they are written to shard in which they are produced
+	ShardAggInternal = "agg_internal"
 )
 
 type MetricSharding struct {
@@ -516,7 +518,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	// default strategy if it's not configured
 	if len(m.Sharding) == 0 {
-		m.Sharding = []MetricSharding{{Strategy: ShardByMappedTags}}
+		m.Sharding = []MetricSharding{{Strategy: ShardBy16MappedTagsHash}}
 	}
 	for _, sh := range m.Sharding {
 		if validationErr := ValidSharding(sh); validationErr != nil {
@@ -703,17 +705,17 @@ func ValidRawKind(s string) bool {
 
 func ValidSharding(sharding MetricSharding) error {
 	switch sharding.Strategy {
-	case ShardByMappedTags:
+	case ShardBy16MappedTagsHash, ShardAggInternal:
 		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return fmt.Errorf("%s strategy is incompative with shard or tag_id", ShardByMappedTags)
+			return fmt.Errorf("%s strategy is incompative with shard or tag_id", sharding.Strategy)
 		}
 		return nil
-	case ShardByFixedShard:
+	case ShardFixed:
 		if !sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return fmt.Errorf("%s strategy requires shard to be set", ShardByFixedShard)
+			return fmt.Errorf("%s strategy requires shard to be set", ShardFixed)
 		}
 		if sharding.TagId.IsDefined() {
-			return fmt.Errorf("%s strategy is incompative with tag_id", ShardByFixedShard)
+			return fmt.Errorf("%s strategy is incompative with tag_id", ShardFixed)
 		}
 		return nil
 	case ShardByTag:
