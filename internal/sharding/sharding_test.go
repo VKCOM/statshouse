@@ -13,6 +13,8 @@ func TestShard(t *testing.T) {
 	metric1 := data_model.Key{Timestamp: 1000, Metric: 1, Keys: [format.MaxTags]int32{1, 2, 3}}
 	metric2 := data_model.Key{Timestamp: 1000, Metric: 2, Keys: [format.MaxTags]int32{5, 6}}
 	metricBuiltin := data_model.Key{Timestamp: 1000, Metric: -1000}
+	pastTs := uint32(900)
+	futureTs := uint32(1100)
 
 	type args struct {
 		key       data_model.Key
@@ -30,6 +32,19 @@ func TestShard(t *testing.T) {
 		{"ok-by-tags-1", args{key: metric1, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}}}, numShards: 16}, 8, format.ShardBy16MappedTagsHash, false},
 		{"ok-by-tags-2", args{key: metric2, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}}}, numShards: 16}, 15, format.ShardBy16MappedTagsHash, false},
 		{"ok-by-tags-builtin", args{key: metricBuiltin, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}}}, numShards: 16}, 5, format.ShardBy16MappedTagsHash, false},
+
+		{"ok-multiple-after", args{key: metricBuiltin, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{
+			{Strategy: format.ShardBy16MappedTagsHash},
+			{Strategy: format.ShardFixed, Shard: opt.OUint32(0), AfterTs: opt.OUint32(futureTs)},
+		}}, numShards: 16}, 5, format.ShardBy16MappedTagsHash, false},
+		{"ok-multiple-before", args{key: metricBuiltin, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{
+			{Strategy: format.ShardFixed, Shard: opt.OUint32(0)},
+			{Strategy: format.ShardBy16MappedTagsHash, AfterTs: opt.OUint32(pastTs)},
+		}}, numShards: 16}, 5, format.ShardBy16MappedTagsHash, false},
+		{"ok-multiple-no-ts", args{key: metricBuiltin, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{
+			{Strategy: format.ShardFixed, Shard: opt.OUint32(0)},
+			{Strategy: format.ShardBy16MappedTagsHash},
+		}}, numShards: 16}, 5, format.ShardBy16MappedTagsHash, false},
 
 		{"ok-fixed-1", args{key: metric1, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardFixed, Shard: opt.OUint32(3)}}}, numShards: 16}, 3, format.ShardFixed, false},
 		{"ok-fixed-2", args{key: metric2, meta: &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardFixed, Shard: opt.OUint32(4)}}}, numShards: 16}, 4, format.ShardFixed, false},
