@@ -692,10 +692,10 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 				Description: "tag_id",
 			}},
 			PreKeyTagID: "1",
-			Sharding: MetricSharding{
+			Sharding: []MetricSharding{{
 				Strategy: ShardByTag,
 				TagId:    opt.OUint32(1),
-			},
+			}},
 		},
 		BuiltinMetricIDAggInsertTime: {
 			Name:        "__agg_insert_time",
@@ -1136,10 +1136,10 @@ Set by aggregator.`,
 				IsMetric:    true,
 			}},
 			PreKeyTagID: "2",
-			Sharding: MetricSharding{
+			Sharding: []MetricSharding{{
 				Strategy: ShardByTag,
 				TagId:    opt.OUint32(2),
-			},
+			}},
 		},
 		BuiltinMetricIDAutoConfig: {
 			Name: "__autoconfig",
@@ -2790,11 +2790,11 @@ func init() {
 		}
 
 		// init sharding strategy if it's not explicitly defined
-		if m.Sharding.Strategy == "" {
-			m.Sharding = MetricSharding{
+		if len(m.Sharding) == 0 {
+			m.Sharding = []MetricSharding{{
 				Strategy: ShardByFixedShard,
 				Shard:    opt.OUint32(0),
-			}
+			}}
 		}
 		_ = m.RestoreCachedInfo()
 	}

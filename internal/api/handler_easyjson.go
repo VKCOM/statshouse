@@ -9,6 +9,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -505,7 +506,28 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 				in.Delim(']')
 			}
 		case "sharding":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &out.Sharding)
+			if in.IsNull() {
+				in.Skip()
+				out.Sharding = nil
+			} else {
+				in.Delim('[')
+				if out.Sharding == nil {
+					if !in.IsDelim(']') {
+						out.Sharding = make([]format.MetricSharding, 0, 1)
+					} else {
+						out.Sharding = []format.MetricSharding{}
+					}
+				} else {
+					out.Sharding = (out.Sharding)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v12 format.MetricSharding
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &v12)
+					out.Sharding = append(out.Sharding, v12)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -555,11 +577,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		out.RawString(prefix)
 		{
 			out.RawByte('[')
-			for v12, v13 := range in.Tags {
-				if v12 > 0 {
+			for v13, v14 := range in.Tags {
+				if v13 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out, v13)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out, v14)
 			}
 			out.RawByte(']')
 		}
@@ -569,16 +591,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		out.RawString(prefix)
 		{
 			out.RawByte('{')
-			v14First := true
-			for v14Name, v14Value := range in.TagsDraft {
-				if v14First {
-					v14First = false
+			v15First := true
+			for v15Name, v15Value := range in.TagsDraft {
+				if v15First {
+					v15First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v14Name))
+				out.String(string(v15Name))
 				out.RawByte(':')
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out, v14Value)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out, v15Value)
 			}
 			out.RawByte('}')
 		}
@@ -653,19 +675,28 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		out.RawString(prefix)
 		{
 			out.RawByte('[')
-			for v15, v16 := range in.FairKeyTagIDs {
-				if v15 > 0 {
+			for v16, v17 := range in.FairKeyTagIDs {
+				if v16 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v16))
+				out.String(string(v17))
 			}
 			out.RawByte(']')
 		}
 	}
-	if true {
+	if len(in.Sharding) != 0 {
 		const prefix string = ",\"sharding\":"
 		out.RawString(prefix)
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, in.Sharding)
+		{
+			out.RawByte('[')
+			for v18, v19 := range in.Sharding {
+				if v18 > 0 {
+					out.RawByte(',')
+				}
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, v19)
+			}
+			out.RawByte(']')
+		}
 	}
 	out.RawByte('}')
 }
@@ -694,6 +725,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 			(out.Shard).UnmarshalEasyJSON(in)
 		case "tag_id":
 			(out.TagId).UnmarshalEasyJSON(in)
+		case "after_ts":
+			(out.AfterTs).UnmarshalEasyJSON(in)
 		default:
 			in.SkipRecursive()
 		}
@@ -722,6 +755,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 		const prefix string = ",\"tag_id\":"
 		out.RawString(prefix)
 		(in.TagId).MarshalEasyJSON(out)
+	}
+	if (in.AfterTs).IsDefined() {
+		const prefix string = ",\"after_ts\":"
+		out.RawString(prefix)
+		(in.AfterTs).MarshalEasyJSON(out)
 	}
 	out.RawByte('}')
 }
@@ -765,9 +803,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Le
 				for !in.IsDelim('}') {
 					key := int32(in.Int32Str())
 					in.WantColon()
-					var v17 string
-					v17 = string(in.String())
-					(out.ID2Value)[key] = v17
+					var v20 string
+					v20 = string(in.String())
+					(out.ID2Value)[key] = v20
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -785,9 +823,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Le
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v18 string
-					v18 = string(in.String())
-					(out.ValueComments)[key] = v18
+					var v21 string
+					v21 = string(in.String())
+					(out.ValueComments)[key] = v21
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -852,16 +890,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.
 		}
 		{
 			out.RawByte('{')
-			v19First := true
-			for v19Name, v19Value := range in.ID2Value {
-				if v19First {
-					v19First = false
+			v22First := true
+			for v22Name, v22Value := range in.ID2Value {
+				if v22First {
+					v22First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.Int32Str(int32(v19Name))
+				out.Int32Str(int32(v22Name))
 				out.RawByte(':')
-				out.String(string(v19Value))
+				out.String(string(v22Value))
 			}
 			out.RawByte('}')
 		}
@@ -876,16 +914,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.
 		}
 		{
 			out.RawByte('{')
-			v20First := true
-			for v20Name, v20Value := range in.ValueComments {
-				if v20First {
-					v20First = false
+			v23First := true
+			for v23Name, v23Value := range in.ValueComments {
+				if v23First {
+					v23First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v20Name))
+				out.String(string(v23Name))
 				out.RawByte(':')
-				out.String(string(v20Value))
+				out.String(string(v23Value))
 			}
 			out.RawByte('}')
 		}
@@ -927,9 +965,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in *jlexer.Lexer
 					out.Time = (out.Time)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v21 int64
-					v21 = int64(in.Int64())
-					out.Time = append(out.Time, v21)
+					var v24 int64
+					v24 = int64(in.Int64())
+					out.Time = append(out.Time, v24)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -950,9 +988,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in *jlexer.Lexer
 					out.SeriesMeta = (out.SeriesMeta)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v22 QuerySeriesMetaV2
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in, &v22)
-					out.SeriesMeta = append(out.SeriesMeta, v22)
+					var v25 QuerySeriesMetaV2
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in, &v25)
+					out.SeriesMeta = append(out.SeriesMeta, v25)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -973,38 +1011,38 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in *jlexer.Lexer
 					out.SeriesData = (out.SeriesData)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v23 *[]float64
+					var v26 *[]float64
 					if in.IsNull() {
 						in.Skip()
-						v23 = nil
+						v26 = nil
 					} else {
-						if v23 == nil {
-							v23 = new([]float64)
+						if v26 == nil {
+							v26 = new([]float64)
 						}
 						if in.IsNull() {
 							in.Skip()
-							*v23 = nil
+							*v26 = nil
 						} else {
 							in.Delim('[')
-							if *v23 == nil {
+							if *v26 == nil {
 								if !in.IsDelim(']') {
-									*v23 = make([]float64, 0, 8)
+									*v26 = make([]float64, 0, 8)
 								} else {
-									*v23 = []float64{}
+									*v26 = []float64{}
 								}
 							} else {
-								*v23 = (*v23)[:0]
+								*v26 = (*v26)[:0]
 							}
 							for !in.IsDelim(']') {
-								var v24 float64
-								v24 = float64(in.Float64())
-								*v23 = append(*v23, v24)
+								var v27 float64
+								v27 = float64(in.Float64())
+								*v26 = append(*v26, v27)
 								in.WantComma()
 							}
 							in.Delim(']')
 						}
 					}
-					out.SeriesData = append(out.SeriesData, v23)
+					out.SeriesData = append(out.SeriesData, v26)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1030,11 +1068,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v25, v26 := range in.Time {
-				if v25 > 0 {
+			for v28, v29 := range in.Time {
+				if v28 > 0 {
 					out.RawByte(',')
 				}
-				out.Int64(int64(v26))
+				out.Int64(int64(v29))
 			}
 			out.RawByte(']')
 		}
@@ -1046,11 +1084,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v27, v28 := range in.SeriesMeta {
-				if v27 > 0 {
+			for v30, v31 := range in.SeriesMeta {
+				if v30 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out, v28)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out, v31)
 			}
 			out.RawByte(']')
 		}
@@ -1062,25 +1100,25 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v29, v30 := range in.SeriesData {
-				if v29 > 0 {
+			for v32, v33 := range in.SeriesData {
+				if v32 > 0 {
 					out.RawByte(',')
 				}
-				if v30 == nil {
+				if v33 == nil {
 					out.RawString("null")
 				} else {
-					if *v30 == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+					if *v33 == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
 						out.RawString("null")
 					} else {
 						out.RawByte('[')
-						for v31, v32 := range *v30 {
-							if v31 > 0 {
+						for v34, v35 := range *v33 {
+							if v34 > 0 {
 								out.RawByte(',')
 							}
-							if math.IsNaN(float64(v32)) {
+							if math.IsNaN(float64(v35)) {
 								out.RawString("null")
 							} else {
-								out.Float64(float64(v32))
+								out.Float64(float64(v35))
 							}
 						}
 						out.RawByte(']')
@@ -1122,9 +1160,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v33 SeriesMetaTag
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in, &v33)
-					(out.Tags)[key] = v33
+					var v36 SeriesMetaTag
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in, &v36)
+					(out.Tags)[key] = v36
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -1145,9 +1183,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 					out.MaxHosts = (out.MaxHosts)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v34 string
-					v34 = string(in.String())
-					out.MaxHosts = append(out.MaxHosts, v34)
+					var v37 string
+					v37 = string(in.String())
+					out.MaxHosts = append(out.MaxHosts, v37)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1188,16 +1226,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 			out.RawString(`null`)
 		} else {
 			out.RawByte('{')
-			v35First := true
-			for v35Name, v35Value := range in.Tags {
-				if v35First {
-					v35First = false
+			v38First := true
+			for v38Name, v38Value := range in.Tags {
+				if v38First {
+					v38First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v35Name))
+				out.String(string(v38Name))
 				out.RawByte(':')
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(out, v35Value)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(out, v38Value)
 			}
 			out.RawByte('}')
 		}
@@ -1209,11 +1247,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v36, v37 := range in.MaxHosts {
-				if v36 > 0 {
+			for v39, v40 := range in.MaxHosts {
+				if v39 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v37))
+				out.String(string(v40))
 			}
 			out.RawByte(']')
 		}
@@ -1418,9 +1456,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer
 					out.Metrics = (out.Metrics)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v38 string
-					v38 = string(in.String())
-					out.Metrics = append(out.Metrics, v38)
+					var v41 string
+					v41 = string(in.String())
+					out.Metrics = append(out.Metrics, v41)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1451,11 +1489,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v39, v40 := range in.Metrics {
-				if v39 > 0 {
+			for v42, v43 := range in.Metrics {
+				if v42 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v40))
+				out.String(string(v43))
 			}
 			out.RawByte(']')
 		}
@@ -1643,9 +1681,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 					out.Rows = (out.Rows)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v41 queryTableRow
-					(v41).UnmarshalEasyJSON(in)
-					out.Rows = append(out.Rows, v41)
+					var v44 queryTableRow
+					(v44).UnmarshalEasyJSON(in)
+					out.Rows = append(out.Rows, v44)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1666,9 +1704,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 					out.What = (out.What)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v42 QueryFunc
-					(v42).UnmarshalEasyJSON(in)
-					out.What = append(out.What, v42)
+					var v45 QueryFunc
+					(v45).UnmarshalEasyJSON(in)
+					out.What = append(out.What, v45)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1695,9 +1733,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 					out.DebugQueries = (out.DebugQueries)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v43 string
-					v43 = string(in.String())
-					out.DebugQueries = append(out.DebugQueries, v43)
+					var v46 string
+					v46 = string(in.String())
+					out.DebugQueries = append(out.DebugQueries, v46)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1723,11 +1761,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v44, v45 := range in.Rows {
-				if v44 > 0 {
+			for v47, v48 := range in.Rows {
+				if v47 > 0 {
 					out.RawByte(',')
 				}
-				(v45).MarshalEasyJSON(out)
+				(v48).MarshalEasyJSON(out)
 			}
 			out.RawByte(']')
 		}
@@ -1739,11 +1777,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v46, v47 := range in.What {
-				if v46 > 0 {
+			for v49, v50 := range in.What {
+				if v49 > 0 {
 					out.RawByte(',')
 				}
-				(v47).MarshalEasyJSON(out)
+				(v50).MarshalEasyJSON(out)
 			}
 			out.RawByte(']')
 		}
@@ -1770,11 +1808,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v48, v49 := range in.DebugQueries {
-				if v48 > 0 {
+			for v51, v52 := range in.DebugQueries {
+				if v51 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v49))
+				out.String(string(v52))
 			}
 			out.RawByte(']')
 		}
@@ -1826,9 +1864,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer
 					out.PointMeta = (out.PointMeta)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v50 QueryPointsMeta
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in, &v50)
-					out.PointMeta = append(out.PointMeta, v50)
+					var v53 QueryPointsMeta
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in, &v53)
+					out.PointMeta = append(out.PointMeta, v53)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1849,9 +1887,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer
 					out.PointData = (out.PointData)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v51 float64
-					v51 = float64(in.Float64())
-					out.PointData = append(out.PointData, v51)
+					var v54 float64
+					v54 = float64(in.Float64())
+					out.PointData = append(out.PointData, v54)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1872,9 +1910,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer
 					out.DebugQueries = (out.DebugQueries)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v52 string
-					v52 = string(in.String())
-					out.DebugQueries = append(out.DebugQueries, v52)
+					var v55 string
+					v55 = string(in.String())
+					out.DebugQueries = append(out.DebugQueries, v55)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1900,11 +1938,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v53, v54 := range in.PointMeta {
-				if v53 > 0 {
+			for v56, v57 := range in.PointMeta {
+				if v56 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out, v54)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out, v57)
 			}
 			out.RawByte(']')
 		}
@@ -1916,15 +1954,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v55, v56 := range in.PointData {
-				if v55 > 0 {
+			for v58, v59 := range in.PointData {
+				if v58 > 0 {
 					out.RawByte(',')
 				}
-				if math.IsNaN(float64(v56)) {
+				if math.IsNaN(v59) {
 					out.RawString("null")
 				} else {
-					out.Float64(float64(v56))
-				}			}
+					out.Float64(float64(v59))
+				}
+			}
 			out.RawByte(']')
 		}
 	}
@@ -1935,11 +1974,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Wri
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v57, v58 := range in.DebugQueries {
-				if v57 > 0 {
+			for v60, v61 := range in.DebugQueries {
+				if v60 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v58))
+				out.String(string(v61))
 			}
 			out.RawByte(']')
 		}
@@ -1986,9 +2025,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexe
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v59 SeriesMetaTag
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in, &v59)
-					(out.Tags)[key] = v59
+					var v62 SeriesMetaTag
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in, &v62)
+					(out.Tags)[key] = v62
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -2029,16 +2068,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Wr
 			out.RawString(`null`)
 		} else {
 			out.RawByte('{')
-			v60First := true
-			for v60Name, v60Value := range in.Tags {
-				if v60First {
-					v60First = false
+			v63First := true
+			for v63Name, v63Value := range in.Tags {
+				if v63First {
+					v63First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v60Name))
+				out.String(string(v63Name))
 				out.RawByte(':')
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(out, v60Value)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(out, v63Value)
 			}
 			out.RawByte('}')
 		}
@@ -2105,9 +2144,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in *jlexer.Lexe
 					out.Namespaces = (out.Namespaces)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v61 namespaceShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in, &v61)
-					out.Namespaces = append(out.Namespaces, v61)
+					var v64 namespaceShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in, &v64)
+					out.Namespaces = append(out.Namespaces, v64)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -2133,11 +2172,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v62, v63 := range in.Namespaces {
-				if v62 > 0 {
+			for v65, v66 := range in.Namespaces {
+				if v65 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out, v63)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out, v66)
 			}
 			out.RawByte(']')
 		}
@@ -2245,9 +2284,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in *jlexer.Lexe
 					out.Metrics = (out.Metrics)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v64 metricShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in, &v64)
-					out.Metrics = append(out.Metrics, v64)
+					var v67 metricShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in, &v67)
+					out.Metrics = append(out.Metrics, v67)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -2273,11 +2312,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v65, v66 := range in.Metrics {
-				if v65 > 0 {
+			for v68, v69 := range in.Metrics {
+				if v68 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out, v66)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out, v69)
 			}
 			out.RawByte(']')
 		}
@@ -2371,9 +2410,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in *jlexer.Lexe
 					out.TagValues = (out.TagValues)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v67 MetricTagValueInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in, &v67)
-					out.TagValues = append(out.TagValues, v67)
+					var v70 MetricTagValueInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in, &v70)
+					out.TagValues = append(out.TagValues, v70)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -2401,11 +2440,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v68, v69 := range in.TagValues {
-				if v68 > 0 {
+			for v71, v72 := range in.TagValues {
+				if v71 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out, v69)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out, v72)
 			}
 			out.RawByte(']')
 		}
@@ -2511,9 +2550,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexe
 					out.Groups = (out.Groups)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v70 groupShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in, &v70)
-					out.Groups = append(out.Groups, v70)
+					var v73 groupShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in, &v73)
+					out.Groups = append(out.Groups, v73)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -2539,11 +2578,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v71, v72 := range in.Groups {
-				if v71 > 0 {
+			for v74, v75 := range in.Groups {
+				if v74 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out, v72)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out, v75)
 			}
 			out.RawByte(']')
 		}
@@ -2658,9 +2697,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(in *jlexer.Lexe
 					out.Dashboards = (out.Dashboards)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v73 dashboardShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi20(in, &v73)
-					out.Dashboards = append(out.Dashboards, v73)
+					var v76 dashboardShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi20(in, &v76)
+					out.Dashboards = append(out.Dashboards, v76)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -2686,11 +2725,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi19(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v74, v75 := range in.Dashboards {
-				if v74 > 0 {
+			for v77, v78 := range in.Dashboards {
+				if v77 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi20(out, v75)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi20(out, v78)
 			}
 			out.RawByte(']')
 		}
@@ -2862,15 +2901,15 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi22(in *jlexer.Lexe
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v76 interface{}
-					if m, ok := v76.(easyjson.Unmarshaler); ok {
+					var v79 interface{}
+					if m, ok := v79.(easyjson.Unmarshaler); ok {
 						m.UnmarshalEasyJSON(in)
-					} else if m, ok := v76.(json.Unmarshaler); ok {
+					} else if m, ok := v79.(json.Unmarshaler); ok {
 						_ = m.UnmarshalJSON(in.Raw())
 					} else {
-						v76 = in.Interface()
+						v79 = in.Interface()
 					}
-					(out.JSONData)[key] = v76
+					(out.JSONData)[key] = v79
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -2926,21 +2965,21 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi22(out *jwriter.Wr
 			out.RawString(`null`)
 		} else {
 			out.RawByte('{')
-			v77First := true
-			for v77Name, v77Value := range in.JSONData {
-				if v77First {
-					v77First = false
+			v80First := true
+			for v80Name, v80Value := range in.JSONData {
+				if v80First {
+					v80First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v77Name))
+				out.String(string(v80Name))
 				out.RawByte(':')
-				if m, ok := v77Value.(easyjson.Marshaler); ok {
+				if m, ok := v80Value.(easyjson.Marshaler); ok {
 					m.MarshalEasyJSON(out)
-				} else if m, ok := v77Value.(json.Marshaler); ok {
+				} else if m, ok := v80Value.(json.Marshaler); ok {
 					out.Raw(m.MarshalJSON())
 				} else {
-					out.Raw(json.Marshal(v77Value))
+					out.Raw(json.Marshal(v80Value))
 				}
 			}
 			out.RawByte('}')
@@ -2983,9 +3022,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi23(in *jlexer.Lexe
 					out.Plots = (out.Plots)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v78 DashboardPlot
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in, &v78)
-					out.Plots = append(out.Plots, v78)
+					var v81 DashboardPlot
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in, &v81)
+					out.Plots = append(out.Plots, v81)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3006,9 +3045,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi23(in *jlexer.Lexe
 					out.Vars = (out.Vars)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v79 DashboardVar
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in, &v79)
-					out.Vars = append(out.Vars, v79)
+					var v82 DashboardVar
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in, &v82)
+					out.Vars = append(out.Vars, v82)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3044,11 +3083,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi23(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v80, v81 := range in.Plots {
-				if v80 > 0 {
+			for v83, v84 := range in.Plots {
+				if v83 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out, v81)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out, v84)
 			}
 			out.RawByte(']')
 		}
@@ -3060,11 +3099,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi23(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v82, v83 := range in.Vars {
-				if v82 > 0 {
+			for v85, v86 := range in.Vars {
+				if v85 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out, v83)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out, v86)
 			}
 			out.RawByte(']')
 		}
@@ -3086,11 +3125,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi23(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v84, v85 := range in.TimeShifts {
-				if v84 > 0 {
+			for v87, v88 := range in.TimeShifts {
+				if v87 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v85))
+				out.String(string(v88))
 			}
 			out.RawByte(']')
 		}
@@ -3195,9 +3234,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in *jlexer.Lexe
 					out.Vals = (out.Vals)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v86 string
-					v86 = string(in.String())
-					out.Vals = append(out.Vals, v86)
+					var v89 string
+					v89 = string(in.String())
+					out.Vals = append(out.Vals, v89)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3218,30 +3257,30 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in *jlexer.Lexe
 					out.Link = (out.Link)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v87 []int
+					var v90 []int
 					if in.IsNull() {
 						in.Skip()
-						v87 = nil
+						v90 = nil
 					} else {
 						in.Delim('[')
-						if v87 == nil {
+						if v90 == nil {
 							if !in.IsDelim(']') {
-								v87 = make([]int, 0, 8)
+								v90 = make([]int, 0, 8)
 							} else {
-								v87 = []int{}
+								v90 = []int{}
 							}
 						} else {
-							v87 = (v87)[:0]
+							v90 = (v90)[:0]
 						}
 						for !in.IsDelim(']') {
-							var v88 int
-							v88 = int(in.Int())
-							v87 = append(v87, v88)
+							var v91 int
+							v91 = int(in.Int())
+							v90 = append(v90, v91)
 							in.WantComma()
 						}
 						in.Delim(']')
 					}
-					out.Link = append(out.Link, v87)
+					out.Link = append(out.Link, v90)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3277,11 +3316,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v89, v90 := range in.Vals {
-				if v89 > 0 {
+			for v92, v93 := range in.Vals {
+				if v92 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v90))
+				out.String(string(v93))
 			}
 			out.RawByte(']')
 		}
@@ -3293,19 +3332,19 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v91, v92 := range in.Link {
-				if v91 > 0 {
+			for v94, v95 := range in.Link {
+				if v94 > 0 {
 					out.RawByte(',')
 				}
-				if v92 == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+				if v95 == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
 					out.RawString("null")
 				} else {
 					out.RawByte('[')
-					for v93, v94 := range v92 {
-						if v93 > 0 {
+					for v96, v97 := range v95 {
+						if v96 > 0 {
 							out.RawByte(',')
 						}
-						out.Int(int(v94))
+						out.Int(int(v97))
 					}
 					out.RawByte(']')
 				}
@@ -3411,9 +3450,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in *jlexer.Lexe
 					out.What = (out.What)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v95 string
-					v95 = string(in.String())
-					out.What = append(out.What, v95)
+					var v98 string
+					v98 = string(in.String())
+					out.What = append(out.What, v98)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3434,9 +3473,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in *jlexer.Lexe
 					out.GroupBy = (out.GroupBy)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v96 string
-					v96 = string(in.String())
-					out.GroupBy = append(out.GroupBy, v96)
+					var v99 string
+					v99 = string(in.String())
+					out.GroupBy = append(out.GroupBy, v99)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -3450,30 +3489,30 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in *jlexer.Lexe
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v97 []string
+					var v100 []string
 					if in.IsNull() {
 						in.Skip()
-						v97 = nil
+						v100 = nil
 					} else {
 						in.Delim('[')
-						if v97 == nil {
+						if v100 == nil {
 							if !in.IsDelim(']') {
-								v97 = make([]string, 0, 4)
+								v100 = make([]string, 0, 4)
 							} else {
-								v97 = []string{}
+								v100 = []string{}
 							}
 						} else {
-							v97 = (v97)[:0]
+							v100 = (v100)[:0]
 						}
 						for !in.IsDelim(']') {
-							var v98 string
-							v98 = string(in.String())
-							v97 = append(v97, v98)
+							var v101 string
+							v101 = string(in.String())
+							v100 = append(v100, v101)
 							in.WantComma()
 						}
 						in.Delim(']')
 					}
-					(out.FilterIn)[key] = v97
+					(out.FilterIn)[key] = v100
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -3487,30 +3526,30 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi24(in *jlexer.Lexe
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v99 []string
+					var v102 []string
 					if in.IsNull() {
 						in.Skip()
-						v99 = nil
+						v102 = nil
 					} else {
 						in.Delim('[')
-						if v99 == nil {
+						if v102 == nil {
 							if !in.IsDelim(']') {
-								v99 = make([]string, 0, 4)
+								v102 = make([]string, 0, 4)
 							} else {
-								v99 = []string{}
+								v102 = []string{}
 							}
 						} else {
-							v99 = (v99)[:0]
+							v102 = (v102)[:0]
 						}
 						for !in.IsDelim(']') {
-							var v100 string
-							v100 = string(in.String())
-							v99 = append(v99, v100)
+							var v103 string
+							v103 = string(in.String())
+							v102 = append(v102, v103)
 							in.WantComma()
 						}
 						in.Delim(']')
 					}
-					(out.FilterNotIn)[key] = v99
+					(out.FilterNotIn)[key] = v102
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -3570,11 +3609,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v101, v102 := range in.What {
-				if v101 > 0 {
+			for v104, v105 := range in.What {
+				if v104 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v102))
+				out.String(string(v105))
 			}
 			out.RawByte(']')
 		}
@@ -3586,11 +3625,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out *jwriter.Wr
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v103, v104 := range in.GroupBy {
-				if v103 > 0 {
+			for v106, v107 := range in.GroupBy {
+				if v106 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v104))
+				out.String(string(v107))
 			}
 			out.RawByte(']')
 		}
@@ -3602,40 +3641,8 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out *jwriter.Wr
 			out.RawString(`null`)
 		} else {
 			out.RawByte('{')
-			v105First := true
-			for v105Name, v105Value := range in.FilterIn {
-				if v105First {
-					v105First = false
-				} else {
-					out.RawByte(',')
-				}
-				out.String(string(v105Name))
-				out.RawByte(':')
-				if v105Value == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-					out.RawString("null")
-				} else {
-					out.RawByte('[')
-					for v106, v107 := range v105Value {
-						if v106 > 0 {
-							out.RawByte(',')
-						}
-						out.String(string(v107))
-					}
-					out.RawByte(']')
-				}
-			}
-			out.RawByte('}')
-		}
-	}
-	{
-		const prefix string = ",\"filterNotIn\":"
-		out.RawString(prefix)
-		if in.FilterNotIn == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
-			out.RawString(`null`)
-		} else {
-			out.RawByte('{')
 			v108First := true
-			for v108Name, v108Value := range in.FilterNotIn {
+			for v108Name, v108Value := range in.FilterIn {
 				if v108First {
 					v108First = false
 				} else {
@@ -3652,6 +3659,38 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi24(out *jwriter.Wr
 							out.RawByte(',')
 						}
 						out.String(string(v110))
+					}
+					out.RawByte(']')
+				}
+			}
+			out.RawByte('}')
+		}
+	}
+	{
+		const prefix string = ",\"filterNotIn\":"
+		out.RawString(prefix)
+		if in.FilterNotIn == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
+			out.RawString(`null`)
+		} else {
+			out.RawByte('{')
+			v111First := true
+			for v111Name, v111Value := range in.FilterNotIn {
+				if v111First {
+					v111First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.String(string(v111Name))
+				out.RawByte(':')
+				if v111Value == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+					out.RawString("null")
+				} else {
+					out.RawByte('[')
+					for v112, v113 := range v111Value {
+						if v112 > 0 {
+							out.RawByte(',')
+						}
+						out.String(string(v113))
 					}
 					out.RawByte(']')
 				}

@@ -218,6 +218,7 @@ type MetricSharding struct {
 	Strategy string     `json:"strategy"`         // possible values: mapped_tags, fixed_shard, tag
 	Shard    opt.Uint32 `json:"shard,omitempty"`  // only for "fixed_shard" strategy
 	TagId    opt.Uint32 `json:"tag_id,omitempty"` // only for "tag" strategy
+	AfterTs  opt.Uint32 `json:"after_ts,omitempty"`
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -245,7 +246,7 @@ type MetricMetaValue struct {
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
-	Sharding             MetricSharding           `json:"sharding,omitempty"`
+	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -514,11 +515,14 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	// default strategy if it's not configured
-	if m.Sharding.Strategy == "" {
-		m.Sharding.Strategy = ShardByMappedTags
+	if len(m.Sharding) == 0 {
+		m.Sharding = []MetricSharding{{Strategy: ShardByMappedTags}}
 	}
-	if validationErr := ValidSharding(m.Sharding); validationErr != nil {
-		err = multierr.Append(err, validationErr)
+	for _, sh := range m.Sharding {
+		if validationErr := ValidSharding(sh); validationErr != nil {
+			err = multierr.Append(err, validationErr)
+			break
+		}
 	}
 	return err
 }
