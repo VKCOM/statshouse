@@ -235,12 +235,21 @@ func Test_AgentSharding(t *testing.T) {
 	}
 
 	rng := rand.New()
-	fixedShard := func(key data_model.Key) format.MetricSharding {
-		return format.MetricSharding{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(uint32(key.Metric) % 5)}
+	fixedShard := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
+		if meta == nil {
+			meta = &format.MetricMetaValue{}
+		}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(uint32(key.Metric) % 5)}}
+		return meta
 	}
-	byMappedTags := func(key data_model.Key) format.MetricSharding {
-		return format.MetricSharding{Strategy: format.ShardByMappedTags}
+	byMappedTags := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
+		if meta == nil {
+			meta = &format.MetricMetaValue{}
+		}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardByMappedTags}}
+		return meta
 	}
+	byTagIngestion := &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}}}
 	for i := 0; i < 1000; i++ {
 		// fixed shard
 		applyRandCountMetric(agent, rng, nowUnix, 1, fixedShard)
@@ -267,11 +276,11 @@ func Test_AgentSharding(t *testing.T) {
 					shardCount += int(sh.MultiItems[key].Tail.Value.Count())
 					expectedShardNum := uint32(0) // buitin metrics
 					if key.Metric > 0 && key.Metric < 300_001 {
-						expectedShardNum, _ = sharding.Shard(key, fixedShard(key), agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, fixedShard(nil, key), agent.NumShards())
 					} else if key.Metric >= 300_001 {
-						expectedShardNum, _ = sharding.Shard(key, byMappedTags(key), agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, byMappedTags(nil, key), agent.NumShards())
 					} else if key.Metric == format.BuiltinMetricIDIngestionStatus {
-						expectedShardNum, _ = sharding.Shard(key, format.MetricSharding{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}, agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, byTagIngestion, agent.NumShards())
 					}
 					if int(expectedShardNum) != si {
 						t.Fatalf("failed for metric %v expected shard %d but got %d", key, expectedShardNum, si)
@@ -306,7 +315,7 @@ func randResolution(rng *rand.Rand) int {
 	return resolutions[rng.Int31n(int32(len(resolutions)))]
 }
 
-func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sharding func(key data_model.Key) format.MetricSharding) {
+func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
 	m := tlstatshouse.MetricBytes{
 		Counter: 1,
 	}
@@ -315,13 +324,13 @@ func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sha
 		Key: key,
 		MetricInfo: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
-			Sharding:            sharding(key),
 		},
 	}
+	h.MetricInfo = updateMeta(h.MetricInfo, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
 
-func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sharding func(key data_model.Key) format.MetricSharding) {
+func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
 	value := 1 + rng.Int31n(100)
 	m := tlstatshouse.MetricBytes{
 		Counter: 1,
@@ -335,13 +344,13 @@ func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sha
 		Key: key,
 		MetricInfo: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
-			Sharding:            sharding(key),
 		},
 	}
+	h.MetricInfo = updateMeta(h.MetricInfo, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
 
-func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sharding func(key data_model.Key) format.MetricSharding) {
+func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
 	value := 1 + rng.Int31n(10)
 	m := tlstatshouse.MetricBytes{
 		Counter: 1,
@@ -355,9 +364,9 @@ func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, sh
 		Key: key,
 		MetricInfo: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
-			ShardUniqueValues:   false, // for predictability
-			Sharding:            sharding(key),
+			ShardUniqueValues:   false, // for predictability of total sum in shards
 		},
 	}
+	h.MetricInfo = updateMeta(h.MetricInfo, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
