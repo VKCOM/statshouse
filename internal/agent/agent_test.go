@@ -239,14 +239,14 @@ func Test_AgentSharding(t *testing.T) {
 		if meta == nil {
 			meta = &format.MetricMetaValue{}
 		}
-		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardByFixedShard, Shard: opt.OUint32(uint32(key.Metric) % 5)}}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardFixed, Shard: opt.OUint32(uint32(key.Metric) % 5)}}
 		return meta
 	}
 	byMappedTags := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
 		if meta == nil {
 			meta = &format.MetricMetaValue{}
 		}
-		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardByMappedTags}}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}}
 		return meta
 	}
 	byTagIngestion := &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}}}
