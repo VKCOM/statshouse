@@ -214,6 +214,9 @@ const (
 	ShardByTag              = "tag"
 	// some builtin metrics are produced direclty by aggregator, so they are written to shard in which they are produced
 	ShardAggInternal = "agg_internal"
+	// shard = metric_id % num_shards
+	// it's only used for hardware metrics, overall not recommended because shard depends on total number of shards
+	ShardByMetricId = "metric_id"
 )
 
 type MetricSharding struct {
@@ -705,7 +708,7 @@ func ValidRawKind(s string) bool {
 
 func ValidSharding(sharding MetricSharding) error {
 	switch sharding.Strategy {
-	case ShardBy16MappedTagsHash, ShardAggInternal:
+	case ShardBy16MappedTagsHash, ShardAggInternal, ShardByMetricId:
 		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
 			return fmt.Errorf("%s strategy is incompative with shard or tag_id", sharding.Strategy)
 		}
