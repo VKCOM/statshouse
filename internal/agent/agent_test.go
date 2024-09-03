@@ -276,11 +276,11 @@ func Test_AgentSharding(t *testing.T) {
 					shardCount += int(sh.MultiItems[key].Tail.Value.Count())
 					expectedShardNum := uint32(0) // buitin metrics
 					if key.Metric > 0 && key.Metric < 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(key, fixedShard(nil, key), agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, fixedShard(nil, key), agent.NumShards(), true)
 					} else if key.Metric >= 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(key, byMappedTags(nil, key), agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, byMappedTags(nil, key), agent.NumShards(), true)
 					} else if key.Metric == format.BuiltinMetricIDIngestionStatus {
-						expectedShardNum, _, _ = sharding.Shard(key, byTagIngestion, agent.NumShards())
+						expectedShardNum, _, _ = sharding.Shard(key, byTagIngestion, agent.NumShards(), true)
 					}
 					if int(expectedShardNum) != si {
 						t.Fatalf("failed for metric %v expected shard %d but got %d", key, expectedShardNum, si)

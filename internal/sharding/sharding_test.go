@@ -62,7 +62,7 @@ func TestShard(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotShard, gotStrategy, err := Shard(tt.args.key, tt.args.meta, tt.args.numShards)
+			gotShard, gotStrategy, err := Shard(tt.args.key, tt.args.meta, tt.args.numShards, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Shard() error = %v, wantErr %v", err, tt.wantErr)
 				return

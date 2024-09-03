@@ -8,20 +8,14 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int) (uint32, string, error) {
+func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, string, error) {
 	if len(meta.Sharding) == 0 {
 		return 0, "", fmt.Errorf("bad metric meta, no sharding defined")
 	}
-	ts := key.Timestamp
-	if ts == 0 {
-		ts = uint32(time.Now().Unix())
-	}
-	var sh format.MetricSharding
-	for i := len(meta.Sharding) - 1; i >= 0; i-- {
-		sh = meta.Sharding[i]
-		if !sh.AfterTs.IsDefined() || sh.AfterTs.V < ts {
-			break
-		}
+	sh := choseShardingStrategy(key, meta)
+	if key.Metric < 0 && !builtinNewSharding {
+		// fallback to legacy format
+		sh = format.MetricSharding{Strategy: format.ShardBy16MappedTagsHash}
 	}
 
 	switch sh.Strategy {
@@ -55,4 +49,18 @@ func shardByMappedTags(key data_model.Key, numShards int) uint32 {
 
 func shardByTag(key data_model.Key, tagId uint32, numShards int) uint32 {
 	return uint32(key.Keys[tagId]) % uint32(numShards)
+}
+
+func choseShardingStrategy(key data_model.Key, meta *format.MetricMetaValue) (sh format.MetricSharding) {
+	ts := key.Timestamp
+	if ts == 0 {
+		ts = uint32(time.Now().Unix())
+	}
+	for i := len(meta.Sharding) - 1; i >= 0; i-- {
+		sh = meta.Sharding[i]
+		if !sh.AfterTs.IsDefined() || sh.AfterTs.V < ts {
+			break
+		}
+	}
+	return sh
 }
