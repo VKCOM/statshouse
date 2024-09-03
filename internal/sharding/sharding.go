@@ -37,6 +37,8 @@ func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int, buil
 			return 0, "", fmt.Errorf("invalid sharding config: tag_id >= MaxTags")
 		}
 		return shardByTag(key, sh.TagId.V, numShards), sh.Strategy, nil
+	case format.ShardByMetricId:
+		return shardByMetricId(key, numShards), sh.Strategy, nil
 	}
 	return 0, "", fmt.Errorf("invalid sharding config: unknown strategy")
 }
@@ -49,6 +51,10 @@ func shardByMappedTags(key data_model.Key, numShards int) uint32 {
 
 func shardByTag(key data_model.Key, tagId uint32, numShards int) uint32 {
 	return uint32(key.Keys[tagId]) % uint32(numShards)
+}
+
+func shardByMetricId(key data_model.Key, numShards int) uint32 {
+	return uint32(key.Metric) % uint32(numShards)
 }
 
 func choseShardingStrategy(key data_model.Key, meta *format.MetricMetaValue) (sh format.MetricSharding) {
