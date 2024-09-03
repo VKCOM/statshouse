@@ -84,7 +84,12 @@ gen-sqlite:
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
-.PHONY: lint
+.PHONY: lint test check
 lint:
 	staticcheck -version
 	staticcheck ./...
+
+test:
+	go test -v -race ./...
+
+check: lint test
