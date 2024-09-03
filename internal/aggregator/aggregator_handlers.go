@@ -257,7 +257,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host, format.BuiltinMetricMetaTimingErrors)
-			return rpc.Error{
+			return &rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
 			}
