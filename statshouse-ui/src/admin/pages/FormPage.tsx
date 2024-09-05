@@ -579,7 +579,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
           Fair key tags
         </label>
         <div className="col-sm-auto pt-1">
-          {adminMode && (
+          {
             <Select
               className="sh-select form-control"
               classNameList="dropdown-menu"
@@ -587,12 +587,10 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
               options={values.tags.map((_, tI) => ({ value: tI.toString(), name: `tag ${tI}` }))}
               value={values.fair_key_tag_ids ?? []}
               onChange={(values) => {
-                if (adminMode) {
-                  dispatch({ type: 'fair_key_tag_ids', value: Array.isArray(values) ? values : [] });
-                }
+                dispatch({ type: 'fair_key_tag_ids', value: Array.isArray(values) ? values : [] });
               }}
             />
-          )}
+          }
           <div className="d-flex gap-1 mt-2">
             {!values.fair_key_tag_ids?.length && <span className="text-body-tertiary">disabled</span>}
             {(values.fair_key_tag_ids ?? []).map((tId) => (
@@ -601,12 +599,10 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
                 className="badge bg-success"
                 role="button"
                 onClick={() => {
-                  if (adminMode) {
-                    dispatch({
-                      type: 'fair_key_tag_ids',
-                      value: (values.fair_key_tag_ids ?? []).filter((tI) => tI !== tId),
-                    });
-                  }
+                  dispatch({
+                    type: 'fair_key_tag_ids',
+                    value: (values.fair_key_tag_ids ?? []).filter((tI) => tI !== tId),
+                  });
                 }}
               >
                 tag {tId}
