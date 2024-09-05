@@ -10,21 +10,17 @@ import { ToggleButton } from 'components';
 import { useStatsHouseShallow } from 'store2';
 import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscreen.svg';
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
+import { setTVMode, useTvModeStore } from '../../store2/tvModeStore';
 
 export type ButtonToggleTvModeProps = {
   className?: string;
 };
 export function _ButtonToggleTvMode({ className }: ButtonToggleTvModeProps) {
-  const { enable, setTVMode } = useStatsHouseShallow(({ tvMode: { enable }, setTVMode }) => ({
-    enable,
-    setTVMode,
-  }));
-  const onToggle = useCallback(
-    (status: boolean) => {
-      setTVMode({ enable: status });
-    },
-    [setTVMode]
-  );
+  const enable = useTvModeStore(({ enable }) => enable);
+
+  const onToggle = useCallback((status: boolean) => {
+    setTVMode({ enable: status });
+  }, []);
   return (
     <ToggleButton
       className={cn('btn btn-outline-primary', className)}

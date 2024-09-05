@@ -342,10 +342,11 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   );
 
   useEffect(() => {
-    const legendF = legend.slice();
-    if (seriesFocus !== null) {
-      legendF[seriesFocus] = { ...legendF[seriesFocus], focus: true };
-    }
+    const legendF = legend.map((l, li) => ({
+      ...l,
+      dash: l.dash && [...l.dash],
+      focus: li === seriesFocus ? true : l.focus,
+    }));
     onUpdateLegend?.(legendF);
   }, [legend, seriesFocus, onUpdateLegend]);
 

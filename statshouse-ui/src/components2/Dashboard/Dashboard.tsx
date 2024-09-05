@@ -17,6 +17,7 @@ import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
 import { useLinkPlot } from 'hooks';
 import { useGlobalLoader } from '../../store2/plotQueryStore';
+import { useTvModeStore } from '../../store2/tvModeStore';
 
 export type DashboardProps = {
   className?: string;
@@ -24,11 +25,11 @@ export type DashboardProps = {
 
 export function _Dashboard({ className }: DashboardProps) {
   const globalLoader = useGlobalLoader();
+  const tvModeEnable = useTvModeStore(({ enable }) => enable);
   const {
     tabNum,
     isEmbed,
     dashboardName,
-    tvModeEnable,
     plotsLength,
     variablesLength,
     dashboardLayoutEdit,
@@ -39,7 +40,6 @@ export function _Dashboard({ className }: DashboardProps) {
     ({
       params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId },
       isEmbed,
-      tvMode: { enable },
       dashboardLayoutEdit,
       setDashboardLayoutEdit,
       saveDashboard,
@@ -47,7 +47,6 @@ export function _Dashboard({ className }: DashboardProps) {
       tabNum,
       isEmbed,
       dashboardName,
-      tvModeEnable: enable,
       plotsLength: orderPlot.length,
       variablesLength: orderVariables.length,
       dashboardLayoutEdit,

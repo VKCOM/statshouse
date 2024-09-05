@@ -15,7 +15,7 @@ export function getEmptyPlotData(): PlotData {
     bands: [],
     series: [],
     seriesShow: [],
-    scales: {},
+    // scales: {},
     promQL: '',
     metricName: '',
     metricWhat: '',

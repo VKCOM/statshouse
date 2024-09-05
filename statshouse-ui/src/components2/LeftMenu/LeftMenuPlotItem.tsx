@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { type PlotKey } from 'url2';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
+import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { useStatsHouseShallow } from 'store2';
 
 import {
@@ -15,14 +16,18 @@ import {
 import cn from 'classnames';
 import css from './style.module.css';
 import { Link } from 'react-router-dom';
-import { Popper } from 'components';
+import { Button, Popper } from 'components';
 import { getMetricFullName } from 'store2/helpers';
 import { PLOT_TYPE } from 'api/enum';
 import { PlotName } from '../Plot/PlotView/PlotName';
-import { usePlotLoader } from '../../store2/plotQueryStore';
+import { usePlotLoader } from 'store2/plotQueryStore';
 import { PlotLink } from '../Plot/PlotLink';
+import { setPlotPreviewVisibility } from 'store2/plotVisibilityStore';
+import { usePlotPreviewStore } from 'store2/plotPreviewStore';
 
-const threshold = buildThresholdList(1);
+const stopPropagation = (e: React.MouseEvent) => {
+  e.stopPropagation();
+};
 
 export type LeftMenuPlotItemProps = {
   plotKey: PlotKey;
@@ -47,23 +52,35 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
     },
     [openRef, setOpen]
   );
-  const visible = useIntersectionObserver(visibleRef, threshold, undefined, 0);
+  const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
+  const visibleBool = visible > 0;
   const plotLoader = usePlotLoader(plotKey);
-  const { metricFullName, setPlotPreviewVisibility, error403, error, plotPreviewUrl, plotType } = useStatsHouseShallow(
-    ({ params: { plots }, plotsData, setPlotPreviewVisibility, plotPreviewUrlList }) => ({
-      setPlotPreviewVisibility,
+  const plotPreviewUrl = usePlotPreviewStore((s) => s.plotPreviewUrlList[plotKey]);
+  const { metricFullName, error403, error, plotType, canRemove, removePlot } = useStatsHouseShallow(
+    ({ params: { plots, orderPlot }, plotsData, removePlot }) => ({
       metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
       error403: plotsData[plotKey]?.error403,
       error: plotsData[plotKey]?.error,
-      plotPreviewUrl: plotPreviewUrlList[plotKey],
       plotType: plots[plotKey]?.type,
+      canRemove: orderPlot.length > 1,
+      removePlot,
     })
   );
-  const link = useLinkPlot(plotKey, visible > 0);
+
+  const onRemove = useCallback(
+    (e: React.MouseEvent) => {
+      removePlot(plotKey);
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    [plotKey, removePlot]
+  );
+
+  const link = useLinkPlot(plotKey, visibleBool);
 
   useEffect(() => {
-    setPlotPreviewVisibility(plotKey, visible > 0);
-  }, [plotKey, setPlotPreviewVisibility, visible]);
+    setPlotPreviewVisibility(plotKey, visibleBool);
+  }, [plotKey, visibleBool]);
 
   return (
     <li
@@ -96,9 +113,20 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
       </Link>
       <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
         <ul className={css.sub} ref={sub}>
-          <li className={cn(css.subItem, 'font-monospace fw-bold text-center')}>
-            <PlotLink className={css.link} plotKey={plotKey}>
-              <PlotName plotKey={plotKey} />
+          <li className={cn(css.subItem, 'font-monospace fw-bold text-center p-1')}>
+            <PlotLink className={cn('d-flex overflow-hidden align-items-center p-0', css.link)} plotKey={plotKey}>
+              <PlotName className="flex-grow-1 d-flex overflow-hidden" plotKey={plotKey} />
+              {canRemove && (
+                <Button
+                  className={cn('btn btn-sm ms-1 border-0')}
+                  title="Remove"
+                  onPointerDown={stopPropagation}
+                  onClick={onRemove}
+                  type="button"
+                >
+                  <SVGTrash />
+                </Button>
+              )}
             </PlotLink>
           </li>
           {!!plotPreviewUrl && !error403 && (

@@ -21,14 +21,15 @@ export function useIntersectionObserver(
       return;
     }
     const upd = (entries: IntersectionObserverEntry[]) => {
-      setVisible(entries[0]?.intersectionRatio ?? 0);
+      setVisible(entries.reduce((res, e) => e.intersectionRatio, 0));
     };
     const o = new IntersectionObserver(upd, { threshold });
     o.observe(target);
     return () => {
       o.unobserve(target);
       o.disconnect();
+      setVisible(initVisible);
     };
-  }, [root, target, threshold]);
+  }, [initVisible, root, target, threshold]);
   return visible;
 }

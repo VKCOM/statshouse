@@ -11,7 +11,7 @@ import { userStore, type UserStore } from './userStore';
 import { plotsInfoStore, type PlotsInfoStore } from './plotsInfoStore';
 import { updateLiveMode, useLiveModeStore } from './liveModeStore';
 import { metricMetaStore, MetricMetaStore } from './metricsMetaStore';
-import { plotVisibilityStore, type PlotVisibilityStore } from './plotVisibilityStore';
+import { plotVisibilityStore, type PlotVisibilityStore, usePlotVisibilityStore } from './plotVisibilityStore';
 import { plotPreviewStore, type PlotPreviewStore } from './plotPreviewStore';
 import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
 import { plotsDataStore, PlotsDataStore } from './plotDataStore';
@@ -22,24 +22,24 @@ export type StatsHouseStore = UrlStore &
   UserStore &
   PlotsInfoStore &
   MetricMetaStore &
-  PlotVisibilityStore &
-  PlotPreviewStore &
+  // PlotVisibilityStore &
+  // PlotPreviewStore &
   PlotHealsStore &
   PlotsDataStore &
-  PlotEventsDataStore &
-  TVModeStore;
+  PlotEventsDataStore;
+// TVModeStore;
 
 const statsHouseStore: Store<StatsHouseStore> = (...props) => ({
   ...urlStore(...props),
   ...userStore(...props),
   ...plotsInfoStore(...props),
   ...metricMetaStore(...props),
-  ...plotVisibilityStore(...props),
-  ...plotPreviewStore(...props),
+  // ...plotVisibilityStore(...props),
+  // ...plotPreviewStore(...props),
   ...plotHealsStore(...props),
   ...plotsDataStore(...props),
   ...plotEventsDataStore(...props),
-  ...tvModeStore(...props),
+  // ...tvModeStore(...props),
 });
 export const useStatsHouse = createStore<StatsHouseStore>(statsHouseStore);
 
@@ -59,3 +59,5 @@ useStatsHouse.subscribe((state, prevState) => {
     useLiveModeStore.setState(updateLiveMode(state));
   }
 });
+
+usePlotVisibilityStore.subscribe((state, prevState) => {});

@@ -4,13 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey, type QueryParams, urlEncode } from 'url2';
+import { getDefaultParams, getNewGroup, getNewPlot, type PlotKey, type QueryParams, urlEncode } from 'url2';
 import { produce } from 'immer';
+import { addPlot } from './addPlot';
+import { clonePlot } from '../../url2/clonePlot';
+import { getEmptyPlotData } from '../plotDataStore/getEmptyPlotData';
 
 let localParams: QueryParams;
-let localSingleParams: QueryParams;
+// let localSingleParams: QueryParams;
 let localSaveParams: QueryParams;
-let templateFn: (plotKey: PlotKey) => string;
+// let templateFn: (plotKey: PlotKey) => string;
 let templateSaveFn: (plotKey: PlotKey) => string;
 
 const plotKeyPh = '#$$$[pk]$$$#';
@@ -40,11 +43,88 @@ export function getPlotLink(plotKey: PlotKey, params: QueryParams, saveParams: Q
   }
 }
 
-export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string {
-  if (localSingleParams === params && !!templateFn) {
-    return templateFn(plotKey);
-  } else {
-    localSingleParams = params;
-    return (templateFn = createTemplateFn(params))(plotKey);
+export function getFreePlot(plotKey: PlotKey, params: QueryParams) {
+  if (params.plots[plotKey]) {
+    const plot = clonePlot(params.plots[plotKey]!);
+    params.orderVariables.forEach((vK) => {
+      const variable = params.variables[vK];
+      if (variable) {
+        variable.link.forEach(([iPlot, keyTag]) => {
+          if (iPlot === plotKey) {
+            if (variable.negative) {
+              plot.filterNotIn[keyTag] = [...variable.values];
+            } else {
+              plot.filterIn[keyTag] = [...variable.values];
+            }
+            if (variable.groupBy) {
+              if (plot.groupBy.indexOf(keyTag) < 0) {
+                plot.groupBy.push(keyTag);
+              }
+            } else {
+              if (plot.groupBy.indexOf(keyTag) > -1) {
+                plot.groupBy = plot.groupBy.filter((g) => g !== keyTag);
+              }
+            }
+          }
+        });
+      }
+    });
+    return plot;
   }
+  return getNewPlot();
+}
+
+export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string {
+  if (plotKey === '-1') {
+    return (
+      '?' +
+      new URLSearchParams(
+        urlEncode(
+          produce(params, (p) => {
+            p.tabNum = plotKey;
+          })
+        )
+      ).toString()
+    );
+  }
+  return (
+    '?' +
+    new URLSearchParams(
+      urlEncode(
+        produce(params, (p) => {
+          const plot = { ...getFreePlot(plotKey, params), id: '0' };
+          const plotEvents = plot.events.map((pK, index) => ({
+            ...getFreePlot(pK, params),
+            id: (index + 1).toString(),
+          }));
+          plot.events = plotEvents.map(({ id }) => id);
+          p.live = false;
+          p.theme = undefined;
+          p.dashboardId = undefined;
+          p.dashboardName = '';
+          p.dashboardDescription = '';
+          p.dashboardVersion = undefined;
+          p.tabNum = plot.id;
+          p.plots = {
+            [plot.id]: plot,
+          };
+          p.orderPlot = [plot.id];
+          plotEvents.forEach((pE) => {
+            p.plots[pE.id] = pE;
+            p.orderPlot.push(pE.id);
+          });
+          p.variables = {};
+          p.orderVariables = [];
+          p.groups = {
+            '0': {
+              ...getNewGroup(),
+              id: '0',
+              count: 1 + plotEvents.length,
+            },
+          };
+          p.orderGroup = ['0'];
+        })
+      )
+    ).toString()
+  );
 }
