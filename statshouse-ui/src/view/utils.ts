@@ -167,7 +167,7 @@ export function secondsRangeToString(seconds: number, short?: boolean): string {
   if (result.length > 2) {
     result.pop();
   }
-  return result.join(short ? '' : ' ');
+  return String(result.join(short ? '' : ' '));
 }
 
 export function timeRangeString(r: timeRange): string {

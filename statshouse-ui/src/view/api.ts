@@ -190,7 +190,7 @@ export function metaToBaseLabel(meta: querySeriesMeta, uniqueWhatLength: number)
   if (uniqueWhatLength > 1) {
     desc = `${desc}: ${whatToWhatDesc(meta.what)}`;
   }
-  return desc;
+  return String(desc);
 }
 
 // XXX: keep in sync with Go

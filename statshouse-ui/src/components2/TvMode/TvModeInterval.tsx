@@ -6,8 +6,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { toNumber } from 'common/helpers';
-import { useStatsHouseShallow } from 'store2';
-import { defaultInterval } from 'store2/tvModeStore';
+import { defaultInterval, setTVMode, useTvModeStore } from 'store2/tvModeStore';
 
 export type TvModeIntervalProps = {
   className?: string;
@@ -27,17 +26,11 @@ const tvModeIntervalsOptions = [
 ];
 
 export function _TvModeInterval({ className }: TvModeIntervalProps) {
-  const { interval, setTVMode } = useStatsHouseShallow(({ tvMode: { interval }, setTVMode }) => ({
-    interval,
-    setTVMode,
-  }));
-  const onChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = toNumber(event.currentTarget.value, defaultInterval);
-      setTVMode({ interval: value });
-    },
-    [setTVMode]
-  );
+  const interval = useTvModeStore(({ interval }) => interval);
+  const onChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = toNumber(event.currentTarget.value, defaultInterval);
+    setTVMode({ interval: value });
+  }, []);
   return (
     <select className="form-select" value={interval} onChange={onChange}>
       {tvModeIntervalsOptions.map(({ value, name }) => (

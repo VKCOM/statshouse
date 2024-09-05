@@ -13,7 +13,6 @@ export { getUrl } from './getUrl';
 export { addPlot } from './addPlot';
 export { addPlotByUrl } from './addPlotByUrl';
 export { getAddPlotLink } from './getAddPlotLink';
-export { getSinglePlotLink } from './getSinglePlotLink';
 export { getPlotByUrl } from './getPlotByUrl';
 export { filterHasTagID } from './filterHasTagID';
 export * from './timeRangeAbbrev';

@@ -1,11 +1,10 @@
-import { StoreSlice } from '../createStore';
+import { createStore, StoreSlice } from '../createStore';
 import { toNumber } from 'common/helpers';
 import { StatsHouseStore } from '../statsHouseStore';
 
-export type TVMode = { enable: boolean; interval: number };
 export type TVModeStore = {
-  tvMode: TVMode;
-  setTVMode: (mode: Partial<TVMode>) => void;
+  enable: boolean;
+  interval: number;
 };
 
 export const defaultInterval = 0;
@@ -27,42 +26,40 @@ export function setStorageTVInterval(tvInterval: number) {
   }
 }
 
-export const tvModeStore: StoreSlice<StatsHouseStore, TVModeStore> = (setState, getState, store) => {
+export const tvModeStore: StoreSlice<TVModeStore, TVModeStore> = (setState, getState, store) => {
   const interval = getStorageTVInterval();
   store.subscribe((state, prevState) => {
-    if (state.tvMode !== prevState.tvMode) {
-      if (state.tvMode.interval !== prevState.tvMode.interval) {
-        clearInterval(timer);
-        if (state.tvMode.interval !== prevState.tvMode.interval) {
-          setStorageTVInterval(state.tvMode.interval);
-        }
-        if (state.tvMode.enable && state.tvMode.interval > 0) {
-          timer = setInterval(tickTVMode, state.tvMode.interval);
-        }
-        if (state.tvMode.enable && state.tvMode.enable !== prevState.tvMode.enable) {
-          lastGroup = undefined;
-          tickTVMode();
-        }
+    if (state.interval !== prevState.interval) {
+      clearInterval(timer);
+      if (state.interval !== prevState.interval) {
+        setStorageTVInterval(state.interval);
+      }
+      if (state.enable && state.interval > 0) {
+        timer = setInterval(tickTVMode, state.interval);
+      }
+      if (state.enable && state.enable !== prevState.enable) {
+        lastGroup = undefined;
+        tickTVMode();
       }
     }
   });
   return {
-    tvMode: {
-      enable: false,
-      interval,
-    },
-    setTVMode({ enable, interval }) {
-      setState((state) => {
-        if (enable != null) {
-          state.tvMode.enable = enable;
-        }
-        if (interval != null) {
-          state.tvMode.interval = interval;
-        }
-      });
-    },
+    enable: false,
+    interval,
   };
 };
+export function setTVMode({ enable, interval }: { enable?: boolean; interval?: number }) {
+  useTvModeStore.setState((state) => {
+    if (enable != null) {
+      state.enable = enable;
+    }
+    if (interval != null) {
+      state.interval = interval;
+    }
+  });
+}
+
+export const useTvModeStore = createStore<TVModeStore>(tvModeStore);
 
 export function tickTVMode() {
   const groups = [...document.querySelectorAll(`div.groupShow[data-group]`)];

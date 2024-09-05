@@ -4,17 +4,16 @@ import { Dashboard, TvModePanel } from 'components2';
 import { useEmbedMessage } from 'hooks/useEmbedMessage';
 import { ErrorMessages } from '../components';
 import { PlotLayout } from '../components2/Plot/PlotLayout';
+import { useTvModeStore } from '../store2/tvModeStore';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
-  const { tvModeEnable, isEmbed, plotsLength, isPlot } = useStatsHouseShallow(
-    ({ params: { orderPlot, tabNum }, tvMode: { enable }, isEmbed }) => ({
-      tvModeEnable: enable,
-      isEmbed,
-      plotsLength: orderPlot.length,
-      isPlot: +tabNum >= 0,
-    })
-  );
+  const tvModeEnable = useTvModeStore((s) => s.enable);
+  const { isEmbed, plotsLength, isPlot } = useStatsHouseShallow(({ params: { orderPlot, tabNum }, isEmbed }) => ({
+    isEmbed,
+    plotsLength: orderPlot.length,
+    isPlot: +tabNum >= 0,
+  }));
   const [refPage, setRefPage] = useState<HTMLDivElement | null>(null);
 
   // const live = useLiveModeStore((s) => s.live);

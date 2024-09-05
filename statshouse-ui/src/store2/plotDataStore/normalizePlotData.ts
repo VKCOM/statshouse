@@ -300,12 +300,12 @@ export function normalizePlotData(
       };
     }
 
-    plotData.scales.x = { min: timeRange.from + timeRange.to, max: timeRange.to };
-    if (plot.yLock.min !== 0 || plot.yLock.max !== 0) {
-      plotData.scales.y = { ...plot.yLock };
-    } else {
-      plotData.scales.y = { min: 0, max: 0 };
-    }
+    // plotData.scales.x = { min: timeRange.from + timeRange.to, max: timeRange.to };
+    // if (plot.yLock.min !== 0 || plot.yLock.max !== 0) {
+    //   plotData.scales.y = { ...plot.yLock };
+    // } else {
+    //   plotData.scales.y = { min: 0, max: 0 };
+    // }
     plotData.promQL = response.promql;
     plotData.lastPlotParams = deepClone(plot);
     plotData.lastTimeRange = deepClone(timeRange);

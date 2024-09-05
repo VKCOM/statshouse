@@ -6,9 +6,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type PlotViewProps } from './PlotView';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { useThemeStore } from 'store';
-import { buildThresholdList, useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from 'hooks';
+import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from 'hooks';
 import { black, grey, greyDark } from 'view/palette';
 import { UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts, UPlotWrapperPropsScales } from 'components';
 import { formatByMetricType, getMetricType, splitByMetricType } from 'common/formatByMetricType';
@@ -27,16 +27,19 @@ import css from './style.module.css';
 import { incrs } from './constants';
 import { PlotEvents } from './PlotEvents';
 import uPlot from 'uplot';
-import { useLiveModeStore } from '../../../store2/liveModeStore';
+import { useLiveModeStore } from 'store2/liveModeStore';
+import { setPlotVisibility } from 'store2/plotVisibilityStore';
+import { createPlotPreview } from 'store2/plotPreviewStore';
 
 const rightPad = 16;
-const threshold = buildThresholdList(1);
 
 // const themeDark = false;
 // const xAxisSize = 16;
 const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
+
+const { setPlotYLock, setTimeRange, resetZoom } = useStatsHouse.getState();
 
 export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps) {
   const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
@@ -61,12 +64,11 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
     plotEventsDataRange,
-    setPlotVisibility,
-    setPlotYLock,
-    setTimeRange,
-    createPlotPreview,
-
-    resetZoom,
+    // setPlotVisibility,
+    // setPlotYLock,
+    // setTimeRange,
+    // createPlotPreview,
+    // resetZoom,
   } = useStatsHouseShallow(
     ({
       plotsData,
@@ -75,11 +77,11 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       metricMeta,
       isEmbed,
       baseRange,
-      setPlotVisibility,
-      setPlotYLock,
-      setTimeRange,
-      createPlotPreview,
-      resetZoom,
+      // setPlotVisibility,
+      // setPlotYLock,
+      // setTimeRange,
+      // createPlotPreview,
+      // resetZoom,
     }) => {
       const plot = plots[plotKey];
       const plotData = plotsData[plotKey];
@@ -103,16 +105,18 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         plotEventsDataRange: plotsEventsData[plotKey]?.range,
         isEmbed,
         baseRange,
-        setPlotVisibility,
-        setPlotYLock,
-        setTimeRange,
-        createPlotPreview,
-        resetZoom,
+        // setPlotVisibility,
+        // setPlotYLock,
+        // setTimeRange,
+        // createPlotPreview,
+        // resetZoom,
       };
     }
   );
   const divOut = useRef<HTMLDivElement>(null);
-  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
+  const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
+  const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
+  const visibleBool = visible > 0;
   const themeDark = useThemeStore((s) => s.dark);
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
@@ -145,7 +149,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         }
       }
     },
-    [setPlotYLock, plotKey, setLiveMode, setTimeRange]
+    [plotKey, setLiveMode]
   );
 
   const metricType = useMemo(() => {
@@ -260,11 +264,11 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
-      if (isDashboard) {
+      if (isDashboard && !isEmbed) {
         createPlotPreview(plotKey, u);
       }
     },
-    [createPlotPreview, isDashboard, plotKey]
+    [isDashboard, isEmbed, plotKey]
   );
 
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
@@ -337,8 +341,10 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
   }, [seriesShow]);
 
   useEffect(() => {
-    setPlotVisibility(plotKey, visible > 0);
-  }, [plotKey, setPlotVisibility, visible]);
+    if (isDashboard) {
+      setPlotVisibility(plotKey, visibleBool);
+    }
+  }, [isDashboard, plotKey, visibleBool]);
 
   return (
     <div
@@ -362,7 +368,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
     >
-      <div className="plot-view-inner">
+      <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
         <div
           className="d-flex align-items-center position-relative"
           style={{
