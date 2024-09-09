@@ -169,6 +169,10 @@ const config = {
           src: '/img/statshouse.jpeg',
         },
         items: [
+                {
+                  type: 'search',
+                  position: 'left',
+                },
 
 //          {
 //            type: 'docSidebar',
