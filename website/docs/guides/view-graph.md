@@ -437,6 +437,14 @@ For data with daily variations, you may want to zoom in without Y-axis autoscali
 
 <img src={LockY} width="1000"/>
 
+:::info
+If you need a logarithmic scale, switch to the [PromQL query editor](#18--promql-query-editor). Use standard PromQL 
+functions:
+* [`ln()`](https://prometheus.io/docs/prometheus/1.8/querying/functions/#ln)
+* [`log2()`](https://prometheus.io/docs/prometheus/1.8/querying/functions/#log2)
+* [`log10()`](https://prometheus.io/docs/prometheus/1.8/querying/functions/#log10)
+  :::
+
 ## 15 — Copy link to clipboard
 
 Adjust the viewing options in the UI—group or filter your data by tags—and share the link with these options included.
