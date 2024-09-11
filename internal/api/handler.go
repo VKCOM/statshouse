@@ -112,6 +112,7 @@ const (
 
 	Version1       = "1"
 	Version2       = "2"
+	Version3       = "3" // new tables format with stags
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
 	dataFormatText = "text"

@@ -366,7 +366,7 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		case ParamVersion:
 			s := first(v)
 			switch s {
-			case Version1, Version2:
+			case Version1, Version2, Version3:
 				t.version = s
 			default:
 				return nil, fmt.Errorf("invalid version: %q", s)
