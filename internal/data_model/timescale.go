@@ -16,6 +16,7 @@ import (
 const (
 	Version1 = "1"
 	Version2 = "2"
+	Version3 = "3"
 
 	//   >2h at  1s resolution
 	//  >10h at  5s resolution
@@ -45,6 +46,10 @@ const (
 	_1sTableSH2          = "statshouse_value_1s_dist"
 	_1mTableSH2          = "statshouse_value_1m_dist"
 	_1hTableSH2          = "statshouse_value_1h_dist"
+
+	_1sTableSH3 = "statshouse_v3_1s_dist"
+	_1mTableSH3 = "statshouse_v3_1m_dist"
+	_1hTableSH3 = "statshouse_v3_1h_dist"
 
 	fastQueryTimeInterval = (86400 + 3600) * 2
 )
@@ -140,6 +145,19 @@ var (
 			_5s:  _1sTableSH2,
 			_1s:  _1sTableSH2,
 		},
+		Version3: {
+			_1M:  _1hTableSH3,
+			_7d:  _1hTableSH3,
+			_24h: _1hTableSH3,
+			_4h:  _1hTableSH3,
+			_1h:  _1hTableSH3,
+			_15m: _1mTableSH3,
+			_5m:  _1mTableSH3,
+			_1m:  _1mTableSH3,
+			_15s: _1sTableSH3,
+			_5s:  _1sTableSH3,
+			_1s:  _1sTableSH3,
+		},
 	}
 
 	lodLevels = map[string][]lodSwitch{
@@ -166,6 +184,19 @@ var (
 			relSwitch: _0s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
 			tables:    LODTables[Version2],
+		}},
+		Version3: {{
+			relSwitch: 33*_24h - 2*_1m,
+			levels:    []int64{_7d, _24h, _4h, _1h},
+			tables:    LODTables[Version3],
+		}, {
+			relSwitch: 52*_1h - 2*_1s,
+			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
+			tables:    LODTables[Version3],
+		}, {
+			relSwitch: _0s,
+			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
+			tables:    LODTables[Version3],
 		}},
 	}
 
