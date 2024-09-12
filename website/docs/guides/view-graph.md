@@ -2,7 +2,7 @@
 sidebar_position: 4
 ---
 
-import HomeLabeled from '../img/home-labeled.png'
+import HomeLabeled6AB from '../img/home-labeled-6ab.png'
 import TableView from '../img/table-view.png'
 import HostMetrics from '../img/host-metrics.png'
 import ServiceMetrics from '../img/service-metrics.png'
@@ -40,6 +40,8 @@ import Prom from '../img/prom.png'
 import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
+import Delta from '../img/delta.png'
+import Resolution from '../img/resolution.png'
 
 # View metric data
 
@@ -49,7 +51,7 @@ StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
 
-<img src={HomeLabeled} width="1000"/>
+<img src={HomeLabeled6AB} width="1000"/>
 
 ## 1 — Metric name
 
@@ -69,9 +71,9 @@ Some popular host metrics are built-in such as CPU or disk usage, and more:
 Host metric names begin with `host_`.
 :::
 
-Find the full list of host metrics and their implementation 
-on 
-[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37). 
+Find the full list of host metrics and their implementation
+on
+[GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
 For more details, see the [Administrator guide](../admin/host-metrics.md).
 
 ### Service metrics
@@ -84,18 +86,18 @@ You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 
 ### Common metrics
 
-If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
+If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the
 engines, services, microservices, proxies, etc. in the organization.
 
 ### "How can I find the metrics author?"
 
-There is no mechanism for checking a metrics author in StatsHouse, but sometimes authors mention how to find them 
+There is no mechanism for checking a metrics author in StatsHouse, but sometimes authors mention how to find them
 in the metric description section. Otherwise, use your organization's internal communication channels.
 
 ### "How can I display several metrics on a graph?"
 
 [Query StatsHouse with PromQL](query-wth-promql.md).
-To compare metrics, [create a dashboard](dashboards.md). To find relationships 
+To compare metrics, [create a dashboard](dashboards.md). To find relationships
 between the metrics or events, use [Event overlay](#11--event-overlay).
 
 ## 2 — Graph name
@@ -143,7 +145,7 @@ Cumulative functions are not meaningful for _unique_ metrics.
 
 #### Derivative functions
 
-A derivative function shows the rate of change for the initial function, i.e., the difference between the two nearest 
+A derivative function shows the rate of change for the initial function, i.e., the difference between the two nearest
 function values.
 
 #### Percentiles
@@ -151,9 +153,9 @@ function values.
 Percentiles are available for _value_ metrics only.
 To get them, [enable percentiles](edit-metrics.md#percentiles) in the UI.
 
-Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased 
-[sampling](../overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an 
-eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution) 
+Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
+[sampling](../overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
+eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
 ## 4 — Time period
@@ -199,7 +201,7 @@ The larger aggregation interval you choose, the smoother look your graph has:
 
 ### _Auto_ and _Auto (low)_
 
-An _Auto_ interval uses the 
+An _Auto_ interval uses the
 [_minimal available interval_ for aggregation](../overview/concepts.md#minimal-available-aggregation-interval)
 to show data on a graph.
 This interval _varies_ depending on the currently available aggregation:
@@ -210,10 +212,65 @@ This interval _varies_ depending on the currently available aggregation:
 The currently available aggregation is also related to
 a metric [resolution](../overview/concepts.md#resolution).
 
-The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
+The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother
 even when you view data using the minimal available aggregation interval:
 
 <img src={Auto} width="1000"/>
+
+### 6a — "Delta"
+
+The Δ ("delta") value indicates the aggregation interval (resolution) corresponding to the interval
+between the neighboring points on a plot.
+
+**How many points should be plotted? → How many of them will fit on the graph? → Δ (‘delta’)**
+
+1. When you choose a specific aggregation interval (not the _Auto_ or _Auto (low)_, but _1 second_, _5 minutes_, _1
+   hour_, etc.), the "delta" shows the resulting aggregation to be displayed on a graph.
+
+   What does it depend on?
+
+    * On the **[initial resolution](#6b--resolution)** you use for sending data for your metric.
+      The default one is to send data once per second, but you can send it once per 5 seconds, for example.
+    * On the **[minimal available aggregation interval](../overview/concepts.md#minimal-available-aggregation-interval)**.
+      Per-second data is stored for the first two days, then aggregated to per-minute and per-second data.
+    * On the **[chosen aggregation interval](#6--aggregation-interval)**.
+      Per-second aggregates may be available, but you are free to choose per-hour aggregation.
+    * On the **[chosen time period](#4--time-period)**.
+      You can view data for an hour (fewer points to display) or a week (more points to display).
+
+2. When you choose the [_Auto_ or _Auto (low)_](#auto-and-auto-low) aggregation interval, the "delta" shows the
+   minimal available aggregation interval to be displayed on a graph — with regard to your **display resolution**.
+   The display resolution affects the size of the graph in pixels. Sometimes the size of the graph does not
+   allow you to display as many points as you need. So the data is displayed at a lower resolution.
+
+For the _Auto_ or _Auto (low)_ aggregation interval, we recommend using the _count/sec_ and _sum/sec_ statistics.
+If you still do use the _count_ and _sum_ ones, pay attention to the "delta". In this case, the statistic shows
+the number of events for the time interval (which is the "delta" value), and can vary as well.
+
+:::info
+#### How it works in practice
+
+Suppose StatsHouse has detailed data for a metric:
+* it is initially written at a high, though not maximum, resolution (5 seconds);
+* the data is still fresh (it has not turned into minute or hour aggregates);
+* you have chosen a small aggregation interval in the interface (5 seconds also).
+
+But:
+* you requested data for a large time period (a week).
+
+StatsHouse will display the data at _NOT the 5-second_ resolution (as you wanted), but at the _300-second_
+resolution: data with this aggregation interval (Δ300s) fits on the graph.
+
+<img src={Delta} width="1000"/>
+
+:::
+
+### 6b — Resolution
+
+If the owner has [set a custom resolution](edit-metrics.md#resolution) for a metric,
+it is displayed above the graph.
+
+<img src={Resolution} width="800"/>
 
 ## 7 — Tags
 
@@ -231,7 +288,7 @@ In the dropdown menu for each tag, choose the required tag values to show on a g
 
 Group data by a single tag or multiple tags.
 
-If there are many tag values or their combinations, use the [Top N](#8--top-n) option to specify the number of groups 
+If there are many tag values or their combinations, use the [Top N](#8--top-n) option to specify the number of groups
 shown.
 
 <img src={GroupByChoose} width="400"/>
@@ -241,7 +298,7 @@ For example, see the data grouped by the tag `protocol` with the _Top 3_ tag val
 <img src={GroupByGraph} width="600"/>
 
 :::note
-The default UI behavior is to use no grouping. There is no way to set up default grouping for a metric. 
+The default UI behavior is to use no grouping. There is no way to set up default grouping for a metric.
 :::
 
 ### Sort alphabetically
@@ -280,7 +337,7 @@ To get the lowest values, choose one of the _Bottom N_ options in the same dropd
 
 ## 9 — Max host
 
-Enable the [Max host](design-metric.md#host-name-as-a-tag) option to find the host 
+Enable the [Max host](design-metric.md#host-name-as-a-tag) option to find the host
 that sends the maximum value for your metric:
 
 <img src={MaxHostEnable} width="100"/>
@@ -291,13 +348,13 @@ View the list of all hosts sorted by the maximum value or copy the list to clipb
 
 The idea of the maximum value is valid only with respect to the chosen time interval.
 
-If you enable the _Max host_ option and view the whole graph, you see the host that sends the 
+If you enable the _Max host_ option and view the whole graph, you see the host that sends the
 value, which is the maximum in the whole [time period](#4--time-period)—the _Last 24 hours_ in the example below:
 
 <img src={MaxHost1} width="900"/>
 
-When you move the cursor over the graph, you see the resulting _Max host_ changing. It now shows you 
-the host that sends the value, which is the maximum for the available 
+When you move the cursor over the graph, you see the resulting _Max host_ changing. It now shows you
+the host that sends the value, which is the maximum for the available
 [aggregation interval](#6--aggregation-interval)—in the example below, for the minute you are pointing at:
 
 <img src={MaxHost2} width="900"/>
@@ -324,7 +381,7 @@ Overlay a metric with the events of the other metric to find correlations.
 
 <img src={Overlay2} width="900"/>
 
-3. Get back to the first metric. In the _Event overlay_ dropdown menu, choose your second metric of interest. The 
+3. Get back to the first metric. In the _Event overlay_ dropdown menu, choose your second metric of interest. The
    event flags appear on a graph:
 
 <img src={Overlay3} width="900"/>
@@ -349,7 +406,7 @@ are sent in a special compact form to save traffic.
 ### Receive status
 
 This meta-metric redirects you to the `__src_ingestion_status` metric.
-It shows if there are errors when receiving metrics: whether data are formatted properly, 
+It shows if there are errors when receiving metrics: whether data are formatted properly,
 or a counter has a negative value, or a `NaN` value has been sent.
 
 The red alert informs you about the errors:
@@ -360,7 +417,7 @@ Here are some error examples:
 
 <img src={ReceiveStatus} width="300"/>
 
-For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
+For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags
 indicate the slowdowns or errors of the [mapping mechanism](../overview/components.md#metadata).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
@@ -369,20 +426,20 @@ The `err_*_utf8` statuses store the original string values in `hex`.
 
 ### Sampling
 
-StatshHouse has two bottlenecks where it samples data: an agent and an aggregator. An agent is also referred 
+StatshHouse has two bottlenecks where it samples data: an agent and an aggregator. An agent is also referred
 to as _source_ because it is the same machine the data come from.
 
-[Sampling](../overview/concepts.md#sampling) means that StatsHouse throws away pieces of data to reduce its 
-overall amount. 
-To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
+[Sampling](../overview/concepts.md#sampling) means that StatsHouse throws away pieces of data to reduce its
+overall amount.
+To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a
 sampling factor).
 
-The _Sampling source/aggregator_ meta-metric redirects you to the sampling coefficient information for the agent and 
+The _Sampling source/aggregator_ meta-metric redirects you to the sampling coefficient information for the agent and
 aggregation levels:
 * to `__src_sampling_factor` for the agent (source),
 * to `__agg_sampling_factor` for the aggregator.
 
-The non-integer sampling coefficients may lead to 
+The non-integer sampling coefficients may lead to
 [non-integer values for the _count_ statistic](#why-do-i-see-a-non-integer-number-for-a-count-statistic).
 
 If the sampling coefficient for a metric is higher than 1, it is displayed with a yellow alert.
@@ -400,8 +457,8 @@ Learn more about StatsHouse [agents](../overview/components.md#agent) and
 
 ### Cardinality
 
-In StatsHouse, metric [cardinality](../overview/concepts.md#cardinality) is how many unique tag value combinations 
-you send 
+In StatsHouse, metric [cardinality](../overview/concepts.md#cardinality) is how many unique tag value combinations
+you send
 for a metric.
 
 The _Cardinality_ meta-metric redirects you to the `__agg_hour_cardinality` metric:
@@ -411,18 +468,18 @@ The _Cardinality_ meta-metric redirects you to the `__agg_hour_cardinality` metr
 It shows the estimated hour cardinality for a metric.
 Estimation means linear interpolation between cardinality values for the nearest hours.
 
-This cardinality estimation is based on data from all the aggregators and their shards. 
+This cardinality estimation is based on data from all the aggregators and their shards.
 So an _avg_ statistic for this metric shows full cardinality, which may be grouped by aggregator.
 
 ### Mapping status
 
-If you create too many tag values, which have not been 
+If you create too many tag values, which have not been
 mapped yet, the [mapping](../overview/components.md#the-budget-for-creating-tag-values) flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
 Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
-Learn more about [mapping](../overview/components.md#metadata) 
+Learn more about [mapping](../overview/components.md#metadata)
 and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
@@ -431,14 +488,14 @@ By default, the Y-axis is self-scaling—it adjusts itself to a data amplitude.
 You may need to lock it.
 
 For example, your data normally vary in a range of 1–100, and you may see peaks sometimes.
-With the _Lock Y-axis_ feature, you switch autoscaling off to view your data within a given range of values 
+With the _Lock Y-axis_ feature, you switch autoscaling off to view your data within a given range of values
 regardless of peaks.
 For data with daily variations, you may want to zoom in without Y-axis autoscaling:
 
 <img src={LockY} width="1000"/>
 
 :::info
-If you need a logarithmic scale, switch to the [PromQL query editor](#18--promql-query-editor). Use standard PromQL 
+If you need a logarithmic scale, switch to the [PromQL query editor](#18--promql-query-editor). Use standard PromQL
 functions:
 * [`ln()`](https://prometheus.io/docs/prometheus/1.8/querying/functions/#ln)
 * [`log2()`](https://prometheus.io/docs/prometheus/1.8/querying/functions/#log2)
@@ -452,7 +509,7 @@ Adjust the viewing options in the UI—group or filter your data by tags—and s
 Please note that the only viewing option not included in the link is _Live mode_.
 Check the [tip](#5--live-mode) for sharing data with the _Live mode_ option included.
 
-If you have several [metric tabs](#19--metric-tabs) opened, 
+If you have several [metric tabs](#19--metric-tabs) opened,
 the _Copy link to clipboard_ option copies the link to the current metric tab only.
 
 See also the [_Open in a new browser tab_](#20--open-in-a-new-browser-tab) option.
@@ -476,14 +533,14 @@ In most cases, you should not switch to this slow database—you will probably s
 
 ## 18 — PromQL query editor
 
-To broaden the range of operations available when viewing data, we supported PromQL, 
+To broaden the range of operations available when viewing data, we supported PromQL,
 or [Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
 Switch to PromQL query editor for complex viewing scenarios:
 
 <img src={Prom} width="300"/>
 
-You will get an autogenerated PromQL query describing the current graph view. 
+You will get an autogenerated PromQL query describing the current graph view.
 
 Use the PromQL editor to run your queries.
 To switch back to graph mode, press _Filter_:
@@ -495,7 +552,7 @@ Learn how to [query with PromQL](query-wth-promql.md) in detail.
 ## 19 — Metric tabs
 
 Use _Metric tabs_ to [create dashboards](dashboards.md) or to [overlay metric events](#11--event-overlay).
-Duplicate the current graph view to a new tab and choose the other metric, 
+Duplicate the current graph view to a new tab and choose the other metric,
 or copy the graph's URL and paste it to a new metric tab:
 
 <img src={MetricTabs} width="400"/>
@@ -506,9 +563,10 @@ Remove the tab if necessary:
 
 ## 20 — Open in a new browser tab
 
-This option implements the same behavior as 
-the [_Copy link to clipboard_](#15--copy-link-to-clipboard) 
+This option implements the same behavior as
+the [_Copy link to clipboard_](#15--copy-link-to-clipboard)
 but instead of copying the link it opens it in the new browser tab.
 
 All the [_Copy link to clipboard_](#15--copy-link-to-clipboard) limitations apply:
 only the current metric tab is opened, and _Live mode_ is not included.
+
