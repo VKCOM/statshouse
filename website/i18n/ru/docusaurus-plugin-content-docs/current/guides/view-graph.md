@@ -41,6 +41,8 @@ import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
 import DeltaResAggr from '../img/delta-res-aggr.png'
+import ResYellow from '../img/res-yellow.png'
+import ResRed from '../img/res-red.png'
 
 # Как просматривать данные
 
@@ -265,7 +267,11 @@ StatsHouse отобразит данные с разрешением _НЕ в 5 
 Если владелец [настроил пользовательское разрешение](edit-metrics.md#разрешение-resolution) для метрики,
 оно будет отображаться над графиком в виде жёлтого значка.
 
-Если пользовательское разрешение больше, чем выбранный интервал агрегации, значок станет красным.
+<img src={ResYellow} width="800"/>
+
+Если значение пользовательского разрешения больше, чем выбранный интервал агрегации, значок станет красным.
+
+<img src={ResRed} width="1000"/>
 
 ## 7 — Теги
 

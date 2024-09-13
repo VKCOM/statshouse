@@ -41,7 +41,8 @@ import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
 import DeltaResAggr from '../img/delta-res-aggr.png'
-
+import ResYellow from '../img/res-yellow.png'
+import ResRed from '../img/res-red.png'
 
 # View metric data
 
@@ -271,7 +272,11 @@ resolution: data with this aggregation interval (Δ300s) fits on the graph.
 If the owner has [set a custom resolution](edit-metrics.md#resolution) for a metric,
 it is displayed above the graph as the yellow badge.
 
-If the custom resolution is greater than the selected aggregation interval, the badge turns red.
+<img src={ResYellow} width="800"/>
+
+If the custom resolution value is greater than the selected aggregation interval, the badge turns red.
+
+<img src={ResRed} width="1000"/>
 
 ## 7 — Tags
 
