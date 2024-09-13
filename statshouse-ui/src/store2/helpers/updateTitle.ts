@@ -1,6 +1,7 @@
 import type { StatsHouseStore } from '../statsHouseStore';
-import { getMetricFullName } from '../helpers';
+
 import { pageTitle } from '../constants';
+import { getMetricFullName } from './lib';
 
 export function updateTitle({ params: { tabNum, plots, dashboardName }, plotsData }: StatsHouseStore) {
   switch (tabNum) {

@@ -35,7 +35,6 @@ import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
-import { updateTitle } from './updateTitle';
 import { defaultBaseRange } from '../constants';
 import { useErrorStore } from '../../store';
 import { debug } from '../../common/debug';
@@ -71,7 +70,6 @@ export type UrlStore = {
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
   removeDashboard(): Promise<void>;
-  updateTitle(): void;
 };
 
 /*export function checkUpdatePlot(plotKey: PlotKey, store: StatsHouseStore, prevStore: StatsHouseStore): boolean {
@@ -151,7 +149,7 @@ export function updatePlotList(store: StatsHouseStore, prevStore: StatsHouseStor
   return plotsKeyUpdate;
 }*/
 
-export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState, store) => {
+export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState) => {
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
 
@@ -230,25 +228,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         prevSearch = prevLocation.search;
         updateUrlState();
       }
-    }
-  });
-
-  store.subscribe((state, prevState) => {
-    const {
-      params: { tabNum, plots, dashboardName },
-      plotsData,
-    } = state;
-    const {
-      params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName },
-      plotsData: prevPlotsData,
-    } = prevState;
-    if (
-      tabNum !== prevTabNum ||
-      plots[tabNum] !== prevPlots[prevTabNum] ||
-      plotsData[tabNum] !== prevPlotsData[prevTabNum] ||
-      dashboardName !== prevDashboardName
-    ) {
-      getState().updateTitle();
     }
   });
 
@@ -425,9 +404,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     },
     async removeDashboard() {
       //todo: remove dash
-    },
-    updateTitle() {
-      updateTitle(getState());
     },
   };
 };
