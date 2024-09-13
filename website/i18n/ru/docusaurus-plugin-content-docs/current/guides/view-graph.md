@@ -2,7 +2,7 @@
 sidebar_position: 4
 ---
 
-import HomeLabeled from '../img/home-labeled.png'
+import Ui from '../img/ui.png'
 import TableView from '../img/table-view.png'
 import HostMetrics from '../img/host-metrics.png'
 import ServiceMetrics from '../img/service-metrics.png'
@@ -51,7 +51,7 @@ StatsHouse не позволяет просматривать данные че�
 Узнайте, как просматривать данные в StatsHouse: основные возможности обозначены на рисунке внизу, а описания можно 
 найти через панель навигации.
 
-<img src={HomeLabeled} width="1000"/>
+<img src={Ui} width="1000"/>
 
 ## 1 — Название метрики
 

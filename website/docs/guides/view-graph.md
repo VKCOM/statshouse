@@ -2,7 +2,7 @@
 sidebar_position: 4
 ---
 
-import HomeLabeled from '../img/home-labeled.png'
+import Ui from '../img/ui.png'
 import TableView from '../img/table-view.png'
 import HostMetrics from '../img/host-metrics.png'
 import ServiceMetrics from '../img/service-metrics.png'
@@ -49,7 +49,7 @@ StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
 
-<img src={HomeLabeled} width="1000"/>
+<img src={Ui} width="1000"/>
 
 ## 1 — Metric name
 
