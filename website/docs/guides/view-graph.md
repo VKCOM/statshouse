@@ -40,6 +40,8 @@ import Prom from '../img/prom.png'
 import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
+import DeltaResAggr from '../img/delta-res-aggr.png'
+
 
 # View metric data
 
@@ -217,6 +219,10 @@ even when you view data using the minimal available aggregation interval:
 
 ### 6a — "Delta"
 
+:::info
+The functionality described below will be redesigned.
+:::
+
 The Δ ("delta") value indicates the aggregation interval (resolution) corresponding to the interval
 between the neighboring points on a plot.
 
@@ -243,7 +249,7 @@ For the _Auto_ or _Auto (low)_ aggregation interval, we recommend using the _cou
 If you still do use the _count_ and _sum_ ones, pay attention to the "delta". In this case, the statistic shows
 the number of events for the time interval (which is the "delta" value), and can vary as well.
 
-:::info
+:::tip
 #### How it works in practice
 
 Suppose StatsHouse has detailed data for a metric:
@@ -257,6 +263,7 @@ But:
 StatsHouse will display the data at _NOT the 5-second_ resolution (as you wanted), but at the _300-second_
 resolution: data with this aggregation interval (Δ300s) fits on the graph.
 
+<img src={DeltaResAggr} width="1000"/>
 :::
 
 ### 6b — Resolution
