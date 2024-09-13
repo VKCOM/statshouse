@@ -136,6 +136,10 @@ func (pc *PacketConn) ProtocolVersion() uint32 {
 	return pc.protocolVersion
 }
 
+func (pc *PacketConn) KeyID() [4]byte {
+	return pc.keyID
+}
+
 func (pc *PacketConn) Close() error {
 	pc.closeOnce.Do(func() {
 		if pc.tcpconn_fd != nil {

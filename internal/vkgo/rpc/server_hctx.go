@@ -24,23 +24,12 @@ type HandlerContextConnection interface {
 	RareLog(format string, args ...any)
 }
 
-// HandlerContext must not be used outside the handler, except in HijackResponse (longpoll) protocol
-type HandlerContext struct {
+type ServerRequest struct {
 	ActorID     int64
 	QueryID     int64
 	RequestTime time.Time
-	listenAddr  net.Addr
-	localAddr   net.Addr
-	remoteAddr  net.Addr
-
-	keyID             [4]byte // encryption key prefix
-	protocolTransport string
-	protocolVersion   uint32
-
-	request  *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
-	Request  []byte
-	response *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
-	Response []byte
+	Request     []byte
+	Response    []byte
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
@@ -48,19 +37,35 @@ type HandlerContext struct {
 	ResponseExtra          ReqResultExtra // everything we set here will be sent if client requested it (bit of RequestExtra.flags set)
 	requestExtraFieldsmask uint32         // defensive copy
 
+	reqTag   uint32 // actual request can be wrapped 0 or more times within reqHeader
+	noResult bool   // defensive copy
+
+	timeout time.Duration // 0 means infinite, for this, both client and server must have infinite timeout
+}
+
+// HandlerContext must not be used outside the handler, except in HijackResponse (longpoll) protocol
+type HandlerContext struct {
+	ServerRequest
+	listenAddr net.Addr
+	localAddr  net.Addr
+	remoteAddr net.Addr
+
+	keyID             [4]byte // encryption key prefix
+	protocolTransport string
+	protocolVersion   uint32
+
+	request  *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
+	response *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
+
 	// UserData allows caching common state between different requests.
 	UserData any
 
 	RequestFunctionName string // Experimental. Generated handlers fill this during request processing.
 
 	commonConn HandlerContextConnection
-	reqTag     uint32 // actual request can be wrapped 0 or more times within reqHeader
 	reqTaken   int
 	respTaken  int
-	noResult   bool  // defensive copy
 	queryID    int64 // defensive copy
-
-	timeout time.Duration // 0 means infinite, for this, both client and server must have infinite timeout
 }
 
 type handlerContextKey struct{}
@@ -133,11 +138,18 @@ func (hctx *HandlerContext) SendHijackedResponse(err error) {
 
 // This method is temporarily public, do not use directly
 func (hctx *HandlerContext) ParseInvokeReq(opts *ServerOptions) (err error) {
+	if err = hctx.ServerRequest.ParseInvokeReq(opts); err != nil {
+		return err
+	}
+	hctx.queryID = hctx.QueryID
+	return nil
+}
+
+func (hctx *ServerRequest) ParseInvokeReq(opts *ServerOptions) (err error) {
 	var reqHeader tl.RpcInvokeReqHeader
 	if hctx.Request, err = reqHeader.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to read request query ID: %w", err)
 	}
-	hctx.queryID = reqHeader.QueryId
 	hctx.QueryID = reqHeader.QueryId
 
 	var afterTag []byte
@@ -202,3 +214,5 @@ loop:
 	}
 	return nil
 }
+
+func (hctx *ServerRequest) RequestTag() uint32 { return hctx.reqTag }

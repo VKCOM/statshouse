@@ -914,7 +914,7 @@ func (hctx *HandlerContext) PrepareResponse(err error) (extraStart int) {
 	panic("PrepareResponse with too large error is itself too large")
 }
 
-func (hctx *HandlerContext) prepareResponseBody(err error) error {
+func (hctx *ServerRequest) prepareResponseBody(err error, rareLog func(format string, args ...any)) error {
 	resp := hctx.Response
 	if err != nil {
 		respErr := Error{}
@@ -934,7 +934,7 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		}
 
 		if hctx.noResult {
-			hctx.commonConn.RareLog("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqTag, respErr.Error())
+			rareLog("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.QueryID, hctx.reqTag, respErr.Error())
 			return nil
 		}
 
@@ -942,7 +942,7 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		// vkext compatibility hack instead of
 		// packetTypeRPCReqError in packet header
 		ret := tl.RpcReqResultError{
-			QueryId:   hctx.queryID,
+			QueryId:   hctx.QueryID,
 			ErrorCode: respErr.Code,
 			Error:     respErr.Description,
 		}
@@ -953,10 +953,10 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	}
 	if len(resp) == 0 {
 		// Handler should return ErrNoHandler if it does not know how to return response
-		hctx.commonConn.RareLog("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqTag)
+		rareLog("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.QueryID, hctx.reqTag)
 	}
 	hctx.extraStart = len(resp)
-	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}
+	rest := tl.RpcReqResultHeader{QueryId: hctx.QueryID}
 	resp = rest.Write(resp)
 	hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
 	if hctx.ResponseExtra.Flags != 0 {
@@ -968,6 +968,10 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	}
 	hctx.Response = resp
 	return validBodyLen(len(resp))
+}
+
+func (hctx *HandlerContext) prepareResponseBody(err error) error {
+	return hctx.ServerRequest.prepareResponseBody(err, hctx.commonConn.RareLog)
 }
 
 func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err error) {

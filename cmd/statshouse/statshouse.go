@@ -600,12 +600,6 @@ func mainIngressProxy(aesPwd string) {
 	config.Network = "tcp"
 	config.Cluster = argv.cluster
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
-	if len(config.ExternalAddresses) != 3 {
-		logErr.Fatalf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
-	}
-	if len(config.IngressKeys) == 0 {
-		logErr.Fatalf("ingress proxy must have non-empty list of ingress crypto keys")
-	}
 
 	// Ensure agent configuration is valid
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
@@ -613,11 +607,6 @@ func mainIngressProxy(aesPwd string) {
 	}
 
 	runPprof()
-
-	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
-	if err != nil {
-		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
-	}
 
 	// Run agent (we use agent instance for ingress proxy built-in metrics)
 	argv.configAgent.Cluster = argv.cluster
@@ -627,8 +616,35 @@ func mainIngressProxy(aesPwd string) {
 		logErr.Fatalf("error creating Agent instance: %v", err)
 	}
 	sh2.Run(0, 0, 0)
+	if argv.ingressVersion == "2" {
+		p, err := aggregator.NewIngressProxy2(config, sh2, aesPwd)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		p.Run()
+		sigINT := make(chan os.Signal, 1)
+		signal.Notify(sigINT, syscall.SIGINT)
+		for range sigINT {
+			p.Shutdown()
+			_ = p.WaitStopped(5 * time.Second)
+			logOk.Println("Buy")
+			return
+		}
+	}
+
+	// Ensure proxy configuration is valid
+	if len(config.ExternalAddresses) != 3 {
+		logErr.Fatalf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
+	}
+	if len(config.IngressKeys) == 0 {
+		logErr.Fatalf("ingress proxy must have non-empty list of ingress crypto keys")
+	}
 
 	// Run ingress proxy
+	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
+	if err != nil {
+		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
+	}
 	err = aggregator.RunIngressProxy(ln, sh2, aesPwd, config)
 	if err != nil {
 		logErr.Fatalf("error running ingress proxy: %v", err)
