@@ -2,7 +2,7 @@
 sidebar_position: 4
 ---
 
-import HomeLabeled from '../img/home-labeled.png'
+import Ui from '../img/ui.png'
 import TableView from '../img/table-view.png'
 import HostMetrics from '../img/host-metrics.png'
 import ServiceMetrics from '../img/service-metrics.png'
@@ -40,6 +40,9 @@ import Prom from '../img/prom.png'
 import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
+import DeltaResAggr from '../img/delta-res-aggr.png'
+import ResYellow from '../img/res-yellow.png'
+import ResRed from '../img/res-red.png'
 
 # View metric data
 
@@ -49,7 +52,7 @@ StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
 
-<img src={HomeLabeled} width="1000"/>
+<img src={Ui} width="1000"/>
 
 ## 1 — Metric name
 
@@ -214,6 +217,66 @@ The _Auto (low)_ aggregation interval reduces the displayed resolution by a cons
 even when you view data using the minimal available aggregation interval:
 
 <img src={Auto} width="1000"/>
+
+### 6a — "Delta"
+
+:::info
+The functionality described below will be redesigned.
+:::
+
+The Δ ("delta") value indicates the aggregation interval (resolution) corresponding to the interval
+between the neighboring points on a plot.
+
+1. When you choose a specific aggregation interval (not the _Auto_ or _Auto (low)_, but _1 second_, _5 minutes_, _1
+   hour_, etc.), the "delta" shows the resulting aggregation to be displayed on a graph.
+
+   What does it depend on?
+
+    * On the **[initial resolution](#6b--resolution)** you use for sending data for your metric.
+      The default one is to send data once per second, but you can send it once per 5 seconds, for example.
+    * On the **[minimal available aggregation interval](../overview/concepts.md#minimal-available-aggregation-interval)**.
+      Per-second data is stored for the first two days, then aggregated to per-minute and per-second data.
+    * On the **[chosen aggregation interval](#6--aggregation-interval)**.
+      Per-second aggregates may be available, but you are free to choose per-hour aggregation.
+    * On the **[chosen time period](#4--time-period)**.
+      You can view data for an hour (fewer points to display) or a week (more points to display).
+
+2. When you choose the [_Auto_ or _Auto (low)_](#auto-and-auto-low) aggregation interval, the "delta" shows the
+   minimal available aggregation interval to be displayed on a graph — with regard to your **display resolution**.
+   The display resolution affects the size of the graph in pixels. Sometimes the size of the graph does not
+   allow you to display as many points as you need. So the data is displayed at a lower resolution.
+
+For the _Auto_ or _Auto (low)_ aggregation interval, we recommend using the _count/sec_ and _sum/sec_ statistics.
+If you still do use the _count_ and _sum_ ones, pay attention to the "delta". In this case, the statistic shows
+the number of events for the time interval (which is the "delta" value), and can vary as well.
+
+:::tip
+#### How it works in practice
+
+Suppose StatsHouse has detailed data for a metric:
+* it is initially written at a high, though not maximum, resolution (5 seconds);
+* the data is still fresh (it has not turned into minute or hour aggregates);
+* you have chosen a small aggregation interval in the interface (5 seconds also).
+
+But:
+* you requested data for a large time period (a week).
+
+StatsHouse will display the data at _NOT the 5-second_ resolution (as you wanted), but at the _300-second_
+resolution: data with this aggregation interval (Δ300s) fits on the graph.
+
+<img src={DeltaResAggr} width="1000"/>
+:::
+
+### 6b — Resolution
+
+If the owner has [set a custom resolution](edit-metrics.md#resolution) for a metric,
+it is displayed above the graph as the yellow badge.
+
+<img src={ResYellow} width="800"/>
+
+If the custom resolution value is greater than the selected aggregation interval, the badge turns red.
+
+<img src={ResRed} width="1000"/>
 
 ## 7 — Tags
 
