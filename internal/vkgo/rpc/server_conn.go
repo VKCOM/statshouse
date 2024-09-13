@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
@@ -198,6 +199,10 @@ func (sc *serverConn) WaitClosed() error {
 }
 
 func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
+	return hctx.ServerRequest.writeReponseUnlocked(conn)
+}
+
+func (hctx *ServerRequest) writeReponseUnlocked(conn *PacketConn) error {
 	resp := hctx.Response
 	extraStart := hctx.extraStart
 
@@ -213,6 +218,52 @@ func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
 	}
 	conn.writePacketTrailerUnlocked()
 	return nil
+}
+
+func (req *ServerRequest) WriteReponseAndFlush(conn *PacketConn, err error, rareLog func(format string, args ...any)) error {
+	req.extraStart = len(req.Response)
+	err = req.prepareResponseBody(err, rareLog)
+	if err != nil {
+		return err
+	}
+	conn.writeMu.Lock()
+	defer conn.writeMu.Unlock()
+	err = req.writeReponseUnlocked(conn)
+	if err != nil {
+		return err
+	}
+	conn.FlushUnlocked()
+	return nil
+}
+
+func (req *ServerRequest) ForwardAndFlush(conn *PacketConn, tip uint32, timeout time.Duration) error {
+	switch tip {
+	case tl.RpcCancelReq{}.TLTag():
+		conn.writeMu.Lock()
+		defer conn.writeMu.Unlock()
+		err := writeCustomPacketUnlocked(conn, tl.RpcCancelReq{}.TLTag(), req.Request, timeout)
+		if err != nil {
+			return err
+		}
+		return conn.FlushUnlocked()
+	case tl.RpcInvokeReqHeader{}.TLTag():
+		fwd := Request{
+			Body:    req.Request,
+			Extra:   req.RequestExtra,
+			queryID: req.QueryID,
+		}
+		if err := preparePacket(&fwd); err != nil {
+			return err
+		}
+		conn.writeMu.Lock()
+		defer conn.writeMu.Unlock()
+		if err := writeRequestUnlocked(conn, &fwd, timeout); err != nil {
+			return err
+		}
+		return conn.FlushUnlocked()
+	default:
+		return fmt.Errorf("unknown packet type 0x%x", tip)
+	}
 }
 
 func (sc *serverConn) acquireHandlerCtx(tip uint32, options *ServerOptions) (*HandlerContext, bool) {

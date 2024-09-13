@@ -237,9 +237,11 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		RawGetTargets2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.scrape.handleGetTargets(ctx, hctx)
 		},
-		RawAutoCreate: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+	}
+	if a.autoCreate != nil {
+		a.h.RawAutoCreate = func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.autoCreate.handleAutoCreate(ctx, hctx)
-		},
+		}
 	}
 	if len(a.hostName) == 0 {
 		return nil, fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
