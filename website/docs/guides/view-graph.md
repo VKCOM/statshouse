@@ -215,6 +215,57 @@ even when you view data using the minimal available aggregation interval:
 
 <img src={Auto} width="1000"/>
 
+### 6a — "Delta"
+
+The Δ ("delta") value indicates the aggregation interval (resolution) corresponding to the interval
+between the neighboring points on a plot.
+
+1. When you choose a specific aggregation interval (not the _Auto_ or _Auto (low)_, but _1 second_, _5 minutes_, _1
+   hour_, etc.), the "delta" shows the resulting aggregation to be displayed on a graph.
+
+   What does it depend on?
+
+    * On the **[initial resolution](#6b--resolution)** you use for sending data for your metric.
+      The default one is to send data once per second, but you can send it once per 5 seconds, for example.
+    * On the **[minimal available aggregation interval](../overview/concepts.md#minimal-available-aggregation-interval)**.
+      Per-second data is stored for the first two days, then aggregated to per-minute and per-second data.
+    * On the **[chosen aggregation interval](#6--aggregation-interval)**.
+      Per-second aggregates may be available, but you are free to choose per-hour aggregation.
+    * On the **[chosen time period](#4--time-period)**.
+      You can view data for an hour (fewer points to display) or a week (more points to display).
+
+2. When you choose the [_Auto_ or _Auto (low)_](#auto-and-auto-low) aggregation interval, the "delta" shows the
+   minimal available aggregation interval to be displayed on a graph — with regard to your **display resolution**.
+   The display resolution affects the size of the graph in pixels. Sometimes the size of the graph does not
+   allow you to display as many points as you need. So the data is displayed at a lower resolution.
+
+For the _Auto_ or _Auto (low)_ aggregation interval, we recommend using the _count/sec_ and _sum/sec_ statistics.
+If you still do use the _count_ and _sum_ ones, pay attention to the "delta". In this case, the statistic shows
+the number of events for the time interval (which is the "delta" value), and can vary as well.
+
+:::info
+#### How it works in practice
+
+Suppose StatsHouse has detailed data for a metric:
+* it is initially written at a high, though not maximum, resolution (5 seconds);
+* the data is still fresh (it has not turned into minute or hour aggregates);
+* you have chosen a small aggregation interval in the interface (5 seconds also).
+
+But:
+* you requested data for a large time period (a week).
+
+StatsHouse will display the data at _NOT the 5-second_ resolution (as you wanted), but at the _300-second_
+resolution: data with this aggregation interval (Δ300s) fits on the graph.
+
+:::
+
+### 6b — Resolution
+
+If the owner has [set a custom resolution](edit-metrics.md#resolution) for a metric,
+it is displayed above the graph as the yellow badge.
+
+If the custom resolution is greater than the selected aggregation interval, the badge turns red.
+
 ## 7 — Tags
 
 Filter or group data on a graph using tags.
