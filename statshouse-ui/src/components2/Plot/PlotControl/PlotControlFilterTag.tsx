@@ -40,7 +40,7 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
   // const meta = useMetricsStore((s) => s.meta[metricName]);
   const tagList = useVariableListStore((s) => s.tags[plotKey]?.[tagKey]);
 
-  const [negativeTag, setNegativeTag] = useState<boolean>(false);
+  const [negativeTag, setNegativeTag] = useState<boolean>((filterNotIn?.length ?? 0) > 0);
   const onSetNegativeTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
       if (tagKey == null) {

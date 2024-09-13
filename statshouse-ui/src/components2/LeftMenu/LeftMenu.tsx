@@ -88,7 +88,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
     setTimeout(() => {
       refListMenuItemPlot.current?.querySelector('.' + css.active)?.scrollIntoView({ block: 'nearest' });
     }, 0);
-  }, []);
+  }, [viewPlots]);
 
   const onPasteClipboard = useCallback(() => {
     getClipboard().then((url) => {
