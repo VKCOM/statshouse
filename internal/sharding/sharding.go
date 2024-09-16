@@ -8,7 +8,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, string, error) {
+func Shard(key data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, string, error) {
 	if len(meta.Sharding) == 0 {
 		return 0, "", fmt.Errorf("bad metric meta, no sharding defined")
 	}
@@ -28,7 +28,8 @@ func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int, buil
 		}
 		return sh.Shard.V, sh.Strategy, nil
 	case format.ShardBy16MappedTagsHash:
-		return shardByMappedTags(key, numShards), sh.Strategy, nil
+		shard := shardByMappedTags(keyHash, numShards)
+		return shard, sh.Strategy, nil
 	case format.ShardByTag:
 		if !sh.TagId.IsDefined() {
 			return 0, "", fmt.Errorf("invalid sharding config: tag_id is not defined")
@@ -43,9 +44,8 @@ func Shard(key data_model.Key, meta *format.MetricMetaValue, numShards int, buil
 	return 0, "", fmt.Errorf("invalid sharding config: unknown strategy")
 }
 
-func shardByMappedTags(key data_model.Key, numShards int) uint32 {
-	hash := key.Hash()
-	mul := (hash >> 32) * uint64(numShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
+func shardByMappedTags(keyHash uint64, numShards int) uint32 {
+	mul := (keyHash >> 32) * uint64(numShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
 	return uint32(mul)
 }
 

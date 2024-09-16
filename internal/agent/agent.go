@@ -482,7 +482,8 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(key data_model.Key, meta *format.MetricMetaValue) *BuiltInItemValue {
-	shardId, _, err := sharding.Shard(key, meta, s.NumShards(), s.builtinNewSharding.Load())
+	keyHash := key.Hash()
+	shardId, _, err := sharding.Shard(key, keyHash, meta, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return nil
 	}
@@ -503,7 +504,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, 0, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
-	shardId, strategy, err := sharding.Shard(h.Key, h.MetricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	keyHash := h.Key.Hash()
+	shardId, strategy, err := sharding.Shard(h.Key, keyHash, h.MetricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		s.AddCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
@@ -576,7 +578,6 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	shard := s.Shards[shardId]
-	keyHash := h.Key.Hash()
 	if len(m.Unique) != 0 {
 		// if we shard by metric all values of a given metric will go to the same shard anyway,
 		// so there is no need for special sharding for unique values
@@ -630,12 +631,12 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 	if count <= 0 {
 		return
 	}
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	keyHash := key.Hash()
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	keyHash := key.Hash()
 	shard.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
 }
 
@@ -646,7 +647,7 @@ func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count 
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -659,7 +660,7 @@ func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter f
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -673,7 +674,7 @@ func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -686,7 +687,7 @@ func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values [
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -699,7 +700,7 @@ func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -712,7 +713,7 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
@@ -725,7 +726,7 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 		return
 	}
 	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
