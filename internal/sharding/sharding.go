@@ -8,40 +8,40 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func Shard(key data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, string, error) {
+func Shard(key data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, int, error) {
 	if len(meta.Sharding) == 0 {
-		return 0, "", fmt.Errorf("bad metric meta, no sharding defined")
+		return 0, -1, fmt.Errorf("bad metric meta, no sharding defined")
 	}
 	sh := choseShardingStrategy(key, meta)
 	if key.Metric < 0 && !builtinNewSharding {
 		// fallback to legacy format
-		sh = format.MetricSharding{Strategy: format.ShardBy16MappedTagsHash}
+		sh = format.MetricSharding{Strategy: format.ShardBy16MappedTagsHash, StrategyId: format.ShardBy16MappedTagsHashId}
 	}
 
-	switch sh.Strategy {
-	case format.ShardFixed:
+	switch sh.StrategyId {
+	case format.ShardFixedId:
 		if !sh.Shard.IsDefined() {
-			return 0, "", fmt.Errorf("invalid sharding config: shard is not defined")
+			return 0, -1, fmt.Errorf("invalid sharding config: shard is not defined")
 		}
 		if sh.Shard.V >= uint32(numShards) {
-			return 0, "", fmt.Errorf("invalid sharding config: shard >= numShards")
+			return 0, -1, fmt.Errorf("invalid sharding config: shard >= numShards")
 		}
-		return sh.Shard.V, sh.Strategy, nil
-	case format.ShardBy16MappedTagsHash:
+		return sh.Shard.V, sh.StrategyId, nil
+	case format.ShardBy16MappedTagsHashId:
 		shard := shardByMappedTags(keyHash, numShards)
-		return shard, sh.Strategy, nil
-	case format.ShardByTag:
+		return shard, sh.StrategyId, nil
+	case format.ShardByTagId:
 		if !sh.TagId.IsDefined() {
-			return 0, "", fmt.Errorf("invalid sharding config: tag_id is not defined")
+			return 0, -1, fmt.Errorf("invalid sharding config: tag_id is not defined")
 		}
 		if sh.TagId.V >= format.MaxTags {
-			return 0, "", fmt.Errorf("invalid sharding config: tag_id >= MaxTags")
+			return 0, -1, fmt.Errorf("invalid sharding config: tag_id >= MaxTags")
 		}
-		return shardByTag(key, sh.TagId.V, numShards), sh.Strategy, nil
+		return shardByTag(key, sh.TagId.V, numShards), sh.StrategyId, nil
 	case format.ShardByMetricId:
-		return shardByMetricId(key, numShards), sh.Strategy, nil
+		return shardByMetricId(key, numShards), sh.StrategyId, nil
 	}
-	return 0, "", fmt.Errorf("invalid sharding config: unknown strategy")
+	return 0, -1, fmt.Errorf("invalid sharding config: unknown strategy")
 }
 
 func shardByMappedTags(keyHash uint64, numShards int) uint32 {
