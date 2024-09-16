@@ -582,7 +582,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		// if we shard by metric all values of a given metric will go to the same shard anyway,
 		// so there is no need for special sharding for unique values
 		numShards := s.NumShards()
-		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 && strategy == format.ShardBy16MappedTagsHash {
+		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 && strategy == format.ShardBy16MappedTagsHashId {
 			// we want unique value sets to have no intersections
 			// so we first shard by unique value, then shard among 3 replicas by keys
 			skipShards := int(s.skipShards.Load())

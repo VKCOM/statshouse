@@ -2667,7 +2667,7 @@ func init() {
 		v.Resolution = 5
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
-		v.Sharding = []MetricSharding{{Strategy: ShardByMetricId}}
+		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
