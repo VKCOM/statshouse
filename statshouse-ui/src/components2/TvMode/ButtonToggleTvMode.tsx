@@ -7,10 +7,9 @@
 import React, { memo, useCallback } from 'react';
 import cn from 'classnames';
 import { ToggleButton } from 'components';
-import { useStatsHouseShallow } from 'store2';
 import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscreen.svg';
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
-import { setTVMode, useTvModeStore } from '../../store2/tvModeStore';
+import { setTVMode, useTvModeStore } from 'store2/tvModeStore';
 
 export type ButtonToggleTvModeProps = {
   className?: string;

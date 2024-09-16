@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useStatsHouseShallow } from 'store2';
+import React, { useEffect, useState } from 'react';
+import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { Dashboard, TvModePanel } from 'components2';
 import { useEmbedMessage } from 'hooks/useEmbedMessage';
 import { ErrorMessages } from '../components';
@@ -9,23 +9,23 @@ import { useTvModeStore } from '../store2/tvModeStore';
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
   const tvModeEnable = useTvModeStore((s) => s.enable);
-  const { isEmbed, plotsLength, isPlot } = useStatsHouseShallow(({ params: { orderPlot, tabNum }, isEmbed }) => ({
-    isEmbed,
-    plotsLength: orderPlot.length,
-    isPlot: +tabNum >= 0,
-  }));
+  const { isEmbed, plotsLength, isPlot, tabNum } = useStatsHouseShallow(
+    ({ params: { orderPlot, tabNum }, isEmbed }) => ({
+      isEmbed,
+      plotsLength: orderPlot.length,
+      isPlot: +tabNum >= 0,
+      tabNum,
+    })
+  );
   const [refPage, setRefPage] = useState<HTMLDivElement | null>(null);
-
-  // const live = useLiveModeStore((s) => s.live);
-  // const disablesdLive = useStore(selectorDisabledLive);
 
   useEmbedMessage(refPage, isEmbed);
 
-  // useEffect(() => {
-  //   if (params.tabNum >= 0 && !useStore.getState().dashboardLayoutEdit) {
-  //     window.scrollTo(0, 0);
-  //   }
-  // }, [params.tabNum]);
+  useEffect(() => {
+    if (+tabNum >= 0 && !useStatsHouse.getState().dashboardLayoutEdit) {
+      window.scrollTo(0, 0);
+    }
+  }, [tabNum]);
 
   if (plotsLength === 0) {
     return (

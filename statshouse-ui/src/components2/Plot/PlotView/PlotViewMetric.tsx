@@ -34,7 +34,7 @@ import { PlotEventOverlay } from './PlotEventOverlay';
 import { type PlotValues } from 'store2/plotDataStore';
 import { useThemeStore } from 'store';
 import { incrs } from './constants';
-import { useLiveModeStore } from 'store2/liveModeStore';
+import { setLiveMode } from 'store2/liveModeStore';
 import { setPlotVisibility } from 'store2/plotVisibilityStore';
 import { createPlotPreview } from 'store2/plotPreviewStore';
 
@@ -49,7 +49,6 @@ const syncGroup = '1';
 const { setPlotYLock, setTimeRange, setPlotShow, resetZoom } = useStatsHouse.getState();
 
 export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProps) {
-  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
     numSeries,
@@ -159,7 +158,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         }
       }
     },
-    [plotKey, setLiveMode]
+    [plotKey]
   );
 
   const metricType = useMemo(() => {

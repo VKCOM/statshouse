@@ -26,7 +26,7 @@ import { isPromQL } from 'store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
 import { useLinkPlot } from 'hooks';
-import { useLiveModeStore } from 'store2/liveModeStore';
+import { setLiveMode } from 'store2/liveModeStore';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
@@ -37,30 +37,25 @@ const { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut, 
   useStatsHouse.getState();
 
 export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className }) => {
-  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const plot = useStatsHouse(({ params: { plots } }) => plotKey && plots[plotKey]);
 
   const singleLink = useLinkPlot(plotKey ?? '-1', true, true);
 
   const panLeft = useCallback(() => {
-    setLiveMode(false);
     timeRangePanLeft();
-  }, [setLiveMode]);
+  }, []);
 
   const panRight = useCallback(() => {
-    setLiveMode(false);
     timeRangePanRight();
-  }, [setLiveMode]);
+  }, []);
 
   const zoomIn = useCallback(() => {
-    setLiveMode(false);
     timeRangeZoomIn();
-  }, [setLiveMode]);
+  }, []);
 
   const zoomOut = useCallback(() => {
-    setLiveMode(false);
     timeRangeZoomOut();
-  }, [setLiveMode]);
+  }, []);
 
   const copyLink = useCallback(() => {
     if (singleLink) {

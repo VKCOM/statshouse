@@ -120,14 +120,6 @@ export function _DashboardHeader() {
         )}
         <div className="ms-2 mb-2">
           <ButtonToggleTvMode className="btn-sm" />
-          {/*<ToggleButton*/}
-          {/*  className="btn btn-outline-primary btn-sm"*/}
-          {/*  checked={tvModeEnabled}*/}
-          {/*  onChange={onToggleEnableTVMode}*/}
-          {/*  title={tvModeEnabled ? 'TV mode Off' : 'TV mode On'}*/}
-          {/*>*/}
-          {/*  {tvModeEnabled ? <SVGFullscreenExit /> : <SVGFullscreen />}*/}
-          {/*</ToggleButton>*/}
         </div>
       </div>
     </div>

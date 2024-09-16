@@ -11,7 +11,6 @@ import { userStore, type UserStore } from './userStore';
 import { plotsInfoStore, type PlotsInfoStore } from './plotsInfoStore';
 import { updateLiveMode, useLiveModeStore } from './liveModeStore';
 import { metricMetaStore, MetricMetaStore } from './metricsMetaStore';
-import { usePlotVisibilityStore } from './plotVisibilityStore';
 import { usePlotPreviewStore } from './plotPreviewStore';
 import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
 import { plotsDataStore, PlotsDataStore } from './plotDataStore';
@@ -78,8 +77,6 @@ useStatsHouse.subscribe((state, prevState) => {
     updateFavicon(usePlotPreviewStore.getState().plotPreviewUrlList[tabNum]);
   }
 });
-
-usePlotVisibilityStore.subscribe((state, prevState) => {});
 
 usePlotPreviewStore.subscribe((state, prevState) => {
   const tabNum = useStatsHouse.getState().params.tabNum;
