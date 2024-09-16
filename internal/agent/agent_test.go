@@ -202,37 +202,11 @@ func Benchmark_sampleFactorDeterministic(b *testing.B) {
 }
 
 func Test_AgentSharding(t *testing.T) {
-	config := Config{}
-	agent := &Agent{
-		config: config,
-		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
-	}
-	agent.builtinNewSharding.Store(true)
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
-
-	agent.Shards = make([]*Shard, 5)
-	for i := range agent.Shards {
-		shard := &Shard{
-			ShardNum:        i,
-			config:          config,
-			agent:           agent,
-			addBuiltInsTime: nowUnix,
-		}
-		for r := range shard.CurrentBuckets {
-			if r != format.AllowedResolution(r) {
-				continue
-			}
-			ur := uint32(r)
-			bucketTime := (nowUnix / ur) * ur
-			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-			}
-		}
-		shard.cond = sync.NewCond(&shard.mu)
-		agent.Shards[i] = shard
-	}
+	config := Config{}
+	agent := makeAgent(config, nowUnix)
+	agent.builtinNewSharding.Store(true)
 
 	rng := rand.New()
 	fixedShard := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
@@ -294,6 +268,31 @@ func Test_AgentSharding(t *testing.T) {
 	// twice as much because of ingestion_status
 	if totalCount != 12000 {
 		t.Fatalf("expected to have 12000 metrics added to shards but got %d", totalCount)
+	}
+}
+
+func Benchmark_AgentApplyMetric(b *testing.B) {
+	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
+	nowUnix := uint32(startTime.Unix())
+	config := Config{}
+	agent := makeAgent(config, nowUnix)
+	m := tlstatshouse.MetricBytes{
+		Counter: 1,
+		Value:   make([]float64, 1),
+	}
+	h := data_model.MappedMetricHeader{
+		MetricInfo: &format.MetricMetaValue{
+			EffectiveResolution: 1,
+			Sharding:            []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}},
+		},
+	}
+
+	rng := rand.New()
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		h.Key = randKey(rng, nowUnix, 1)
+		agent.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 	}
 }
 
@@ -369,4 +368,34 @@ func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, up
 	}
 	h.MetricInfo = updateMeta(h.MetricInfo, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
+}
+
+func makeAgent(config Config, nowUnix uint32) *Agent {
+	agent := &Agent{
+		config: config,
+		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
+	}
+	agent.Shards = make([]*Shard, 5)
+	for i := range agent.Shards {
+		shard := &Shard{
+			ShardNum:        i,
+			config:          config,
+			agent:           agent,
+			addBuiltInsTime: nowUnix,
+		}
+		for r := range shard.CurrentBuckets {
+			if r != format.AllowedResolution(r) {
+				continue
+			}
+			ur := uint32(r)
+			bucketTime := (nowUnix / ur) * ur
+			for sh := 0; sh < r; sh++ {
+				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
+				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
+			}
+		}
+		shard.cond = sync.NewCond(&shard.mu)
+		agent.Shards[i] = shard
+	}
+	return agent
 }
