@@ -26,28 +26,29 @@ export function setStorageTVInterval(tvInterval: number) {
   }
 }
 
-export const tvModeStore: StoreSlice<TVModeStore, TVModeStore> = (setState, getState, store) => {
-  const interval = getStorageTVInterval();
-  store.subscribe((state, prevState) => {
+export const tvModeStore: StoreSlice<TVModeStore, TVModeStore> = () => ({
+  enable: false,
+  interval: getStorageTVInterval(),
+});
+
+export const useTvModeStore = createStore<TVModeStore>(tvModeStore);
+
+useTvModeStore.subscribe((state, prevState) => {
+  if (state.interval !== prevState.interval || state.enable !== prevState.enable) {
+    clearInterval(timer);
     if (state.interval !== prevState.interval) {
-      clearInterval(timer);
-      if (state.interval !== prevState.interval) {
-        setStorageTVInterval(state.interval);
-      }
-      if (state.enable && state.interval > 0) {
-        timer = setInterval(tickTVMode, state.interval);
-      }
-      if (state.enable && state.enable !== prevState.enable) {
-        lastGroup = undefined;
-        tickTVMode();
-      }
+      setStorageTVInterval(state.interval);
     }
-  });
-  return {
-    enable: false,
-    interval,
-  };
-};
+    if (state.enable && state.interval > 0) {
+      timer = setInterval(tickTVMode, state.interval);
+    }
+    if (state.enable && state.enable !== prevState.enable) {
+      lastGroup = undefined;
+      tickTVMode();
+    }
+  }
+});
+
 export function setTVMode({ enable, interval }: { enable?: boolean; interval?: number }) {
   useTvModeStore.setState((state) => {
     if (enable != null) {
@@ -58,8 +59,6 @@ export function setTVMode({ enable, interval }: { enable?: boolean; interval?: n
     }
   });
 }
-
-export const useTvModeStore = createStore<TVModeStore>(tvModeStore);
 
 export function tickTVMode() {
   const groups = [...document.querySelectorAll(`div.groupShow[data-group]`)];

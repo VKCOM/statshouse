@@ -41,6 +41,7 @@ import { debug } from '../../common/debug';
 import { saveDashboard } from './saveDashboard';
 import { readDataDashboard } from './readDataDashboard';
 import { mergeParams } from './mergeParams';
+import { setLiveMode } from '../liveModeStore';
 
 export type UrlStore = {
   params: QueryParams;
@@ -281,18 +282,24 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       );
     },
     timeRangePanLeft() {
+      setLiveMode(false);
       setUrlStore(timeRangePanLeft());
       getState().updatePlotsData();
     },
     timeRangePanRight() {
+      if (getState().params.timeRange.absolute) {
+        setLiveMode(false);
+      }
       setUrlStore(timeRangePanRight());
       getState().updatePlotsData();
     },
     timeRangeZoomIn() {
+      setLiveMode(false);
       setUrlStore(timeRangeZoomIn());
       getState().updatePlotsData();
     },
     timeRangeZoomOut() {
+      setLiveMode(false);
       setUrlStore(timeRangeZoomOut());
       getState().updatePlotsData();
     },

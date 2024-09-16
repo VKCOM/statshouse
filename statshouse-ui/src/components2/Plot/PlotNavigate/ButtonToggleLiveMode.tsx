@@ -8,21 +8,18 @@ import React, { memo } from 'react';
 import cn from 'classnames';
 import { ToggleButton } from 'components';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
-import { useLiveModeStoreShallow } from 'store2/liveModeStore';
+import { setLiveMode, useLiveModeStoreShallow } from 'store2/liveModeStore';
 
 export type ButtonToggleLiveModeProps = { className?: string };
 
 export function _ButtonToggleLiveMode({ className }: ButtonToggleLiveModeProps) {
-  const { status, disabled, setLiveMode } = useLiveModeStoreShallow(
-    ({ liveMode: { status, disabled }, setLiveMode }) => ({
-      status,
-      disabled,
-      setLiveMode,
-    })
-  );
+  const { status, disabled } = useLiveModeStoreShallow(({ status, disabled }) => ({
+    status,
+    disabled,
+  }));
   return (
     <ToggleButton
-      className={cn('btn btn-outline-primary', className)}
+      className={cn('btn btn-outline-primary', !status && 'bg-body', className)}
       title="Follow live"
       checked={status}
       onChange={setLiveMode}

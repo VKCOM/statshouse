@@ -27,7 +27,7 @@ import css from './style.module.css';
 import { incrs } from './constants';
 import { PlotEvents } from './PlotEvents';
 import uPlot from 'uplot';
-import { useLiveModeStore } from 'store2/liveModeStore';
+import { setLiveMode } from 'store2/liveModeStore';
 import { setPlotVisibility } from 'store2/plotVisibilityStore';
 import { createPlotPreview } from 'store2/plotPreviewStore';
 
@@ -42,7 +42,6 @@ const syncGroup = '1';
 const { setPlotYLock, setTimeRange, resetZoom } = useStatsHouse.getState();
 
 export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps) {
-  const setLiveMode = useLiveModeStore(({ setLiveMode }) => setLiveMode);
   const {
     yLock,
 
@@ -149,7 +148,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         }
       }
     },
-    [plotKey, setLiveMode]
+    [plotKey]
   );
 
   const metricType = useMemo(() => {

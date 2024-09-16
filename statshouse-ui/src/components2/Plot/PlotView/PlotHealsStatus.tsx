@@ -19,7 +19,7 @@ export type PlotHealsStatusProps = {
   plotKey: PlotKey;
 };
 export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
-  const interval = useLiveModeStore(({ liveMode: { interval } }) => interval);
+  const interval = useLiveModeStore(({ interval }) => interval);
   const loader = usePlotLoader(plotKey);
   const { lastError, plotHealsTimeout, clearPlotError, loadPlotData } = useStatsHouseShallow(
     ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({

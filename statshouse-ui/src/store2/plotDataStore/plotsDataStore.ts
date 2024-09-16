@@ -147,7 +147,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
      * @param force - ignore visible
      */
     async loadPlotData(plotKey, force = false) {
-      if (useLiveModeStore.getState().liveMode.status && getPlotLoader(plotKey)) {
+      if (useLiveModeStore.getState().status && getPlotLoader(plotKey)) {
         return;
       }
       const prepareEnd = queryStart(plotKey);
