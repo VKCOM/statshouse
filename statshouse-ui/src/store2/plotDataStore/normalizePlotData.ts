@@ -339,6 +339,12 @@ export function normalizePlotData(
       Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
     plotData.legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
 
+    plotData.receiveErrors = response.receive_errors;
+    plotData.receiveWarnings = response.receive_warnings;
+    plotData.samplingFactorSrc = response.sampling_factor_src;
+    plotData.samplingFactorAgg = response.sampling_factor_agg;
+    plotData.mappingFloodEvents = response.mapping_errors;
+
     // setState((state) => {
     //   delete state.plotsDataAbortController[index];
     //   const noUpdateData = dequal(stacked?.response || response, state.plotsData[index]?.stacked || state.plotsData[index]?.response);

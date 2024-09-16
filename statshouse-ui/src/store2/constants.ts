@@ -14,3 +14,4 @@ export const defaultBaseRange = TIME_RANGE_ABBREV.last2d;
 export const autoAgg = '2000';
 export const autoLowAgg = '500';
 export const pageTitle = 'StatsHouse UI';
+export const defaultIcon = '/favicon.ico';

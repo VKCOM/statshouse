@@ -5,18 +5,18 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { createStore, type Store } from './createStore';
-import { urlStore, type UrlStore } from './urlStore';
+import { updateTitle, urlStore, type UrlStore } from './urlStore';
 import { useShallow } from 'zustand/react/shallow';
 import { userStore, type UserStore } from './userStore';
 import { plotsInfoStore, type PlotsInfoStore } from './plotsInfoStore';
 import { updateLiveMode, useLiveModeStore } from './liveModeStore';
 import { metricMetaStore, MetricMetaStore } from './metricsMetaStore';
-import { plotVisibilityStore, type PlotVisibilityStore, usePlotVisibilityStore } from './plotVisibilityStore';
-import { plotPreviewStore, type PlotPreviewStore } from './plotPreviewStore';
+import { usePlotVisibilityStore } from './plotVisibilityStore';
+import { usePlotPreviewStore } from './plotPreviewStore';
 import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
 import { plotsDataStore, PlotsDataStore } from './plotDataStore';
-import { tvModeStore, TVModeStore } from './tvModeStore';
 import { plotEventsDataStore, PlotEventsDataStore } from './plotEventsDataStore';
+import { updateFavicon } from './helpers/updateFavicon';
 
 export type StatsHouseStore = UrlStore &
   UserStore &
@@ -50,6 +50,15 @@ export function useStatsHouseShallow<T = unknown>(selector: (state: StatsHouseSt
 useLiveModeStore.setState(updateLiveMode(useStatsHouse.getState()));
 
 useStatsHouse.subscribe((state, prevState) => {
+  const {
+    params: { tabNum, plots, dashboardName },
+    plotsData,
+  } = state;
+  const {
+    params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName },
+    plotsData: prevPlotsData,
+  } = prevState;
+
   if (
     state.params.plots !== prevState.params.plots ||
     state.params.timeRange.urlTo !== prevState.params.timeRange.urlTo ||
@@ -58,6 +67,23 @@ useStatsHouse.subscribe((state, prevState) => {
   ) {
     useLiveModeStore.setState(updateLiveMode(state));
   }
+
+  if (
+    tabNum !== prevTabNum ||
+    plots[tabNum] !== prevPlots[prevTabNum] ||
+    plotsData[tabNum] !== prevPlotsData[prevTabNum] ||
+    dashboardName !== prevDashboardName
+  ) {
+    updateTitle(state);
+    updateFavicon(usePlotPreviewStore.getState().plotPreviewUrlList[tabNum]);
+  }
 });
 
 usePlotVisibilityStore.subscribe((state, prevState) => {});
+
+usePlotPreviewStore.subscribe((state, prevState) => {
+  const tabNum = useStatsHouse.getState().params.tabNum;
+  if (state.plotPreviewUrlList[tabNum] !== prevState.plotPreviewUrlList[tabNum]) {
+    updateFavicon(state.plotPreviewUrlList[tabNum]);
+  }
+});
