@@ -12,7 +12,6 @@ import { clonePlot } from 'url2/clonePlot';
 export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): string {
   const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
   const nextId = getNextPlotKey(params);
-
   const nextParams = produce<QueryParams>(
     { ...params, tabNum: nextId },
     updateQueryParamsPlotStruct((plotStruct) => {

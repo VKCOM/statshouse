@@ -42,6 +42,7 @@ import { saveDashboard } from './saveDashboard';
 import { readDataDashboard } from './readDataDashboard';
 import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
+import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 
 export type UrlStore = {
   params: QueryParams;
@@ -71,6 +72,7 @@ export type UrlStore = {
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
   removeDashboard(): Promise<void>;
+  removeVariableLinkByPlotKey(plotKey: PlotKey): void;
 };
 
 /*export function checkUpdatePlot(plotKey: PlotKey, store: StatsHouseStore, prevStore: StatsHouseStore): boolean {
@@ -410,7 +412,32 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       }
     },
     async removeDashboard() {
-      //todo: remove dash
+      const { response, error } = await saveDashboard(getState().params, true);
+      if (error) {
+        useErrorStore.getState().addError(error);
+      }
+      if (response) {
+        const saveParams = readDataDashboard(response.data);
+        setUrlStore((store) => {
+          store.saveParams = saveParams;
+          store.params.dashboardVersion = saveParams.dashboardVersion;
+        });
+      }
+    },
+    removeVariableLinkByPlotKey(plotKey: PlotKey) {
+      const plotFilter = filterVariableByPlot(getState().params.plots[plotKey]);
+      const variables = getState().params.variables;
+      const variableKeys = getState().params.orderVariables.filter((vK) => plotFilter(variables[vK]));
+      if (variableKeys.length) {
+        getState().setParams((params) => {
+          variableKeys.forEach((vK) => {
+            const variable = params.variables[vK];
+            if (variable) {
+              variable.link = variable.link.filter(([pKey]) => pKey !== plotKey);
+            }
+          });
+        }, true);
+      }
     },
   };
 };

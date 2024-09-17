@@ -1,9 +1,9 @@
 import { type QueryParams, urlEncode } from 'url2';
 import { dashboardMigrateSaveToOld } from './dashboardMigrate';
-import { apiDashboardSaveFetch, DashboardInfo } from '../../api/dashboard';
-import { toNumber } from '../../common/helpers';
+import { apiDashboardSaveFetch, DashboardInfo } from 'api/dashboard';
+import { toNumber } from 'common/helpers';
 
-export async function saveDashboard(params: QueryParams) {
+export async function saveDashboard(params: QueryParams, remove?: boolean) {
   const searchParams = urlEncode(params);
   const oldDashboardParams = dashboardMigrateSaveToOld(params);
   oldDashboardParams.dashboard.data.searchParams = searchParams;
@@ -11,7 +11,7 @@ export async function saveDashboard(params: QueryParams) {
     dashboard: {
       name: params.dashboardName,
       description: params.dashboardDescription,
-      version: params.dashboardVersion,
+      version: params.dashboardVersion ?? 0,
       dashboard_id: toNumber(params.dashboardId) ?? undefined,
       data: {
         ...oldDashboardParams.dashboard.data,
@@ -19,5 +19,8 @@ export async function saveDashboard(params: QueryParams) {
       },
     },
   };
+  if (remove) {
+    dashboardParams.delete_mark = true;
+  }
   return apiDashboardSaveFetch(dashboardParams);
 }

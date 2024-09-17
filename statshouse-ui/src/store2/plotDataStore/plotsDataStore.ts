@@ -21,6 +21,10 @@ import { useLiveModeStore } from '../liveModeStore';
 import { getPlotLoader, queryStart } from '../plotQueryStore';
 import { skipTimeout } from '../../common/helpers';
 import { usePlotVisibilityStore } from '../plotVisibilityStore';
+import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
+import { isPromQL } from '../helpers';
+import { filterVariableByPromQl } from '../helpers/filterVariableByPromQl';
+import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -66,6 +70,7 @@ export type PlotData = {
   lastTimeRange?: TimeRange;
   lastTimeShifts?: number[];
   lastQuerySeriesMeta?: QuerySeriesMeta[];
+  loadBadges?: boolean;
   receiveErrors: number;
   receiveWarnings: number;
   samplingFactorSrc: number;
@@ -156,6 +161,8 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const plot = getState().params.plots[plotKey];
       const prevPlotData = getState().plotsData[plotKey];
       const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
+      const orderVariables = getState().params.orderVariables;
+      const variables = getState().params.variables;
       const isEmbed = getState().isEmbed;
       let priority = 3;
       if (!force) {
@@ -207,7 +214,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         prepareEnd();
         return;
       }
-
       const changeMetricName = plot?.metricName !== prevPlot?.metricName;
       if (!changeMetricName && prevPlotData?.error403) {
         // console.log('exit 1', plotKey);
@@ -228,10 +234,17 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
       const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
       const changeTimeShifts = dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
+
+      const changeVariablesKey = useVariableChangeStatusStore.getState().changeVariable;
+      const changeVariable = orderVariables.some(
+        (vK) => changeVariablesKey[vK] && filterVariableByPlot(plot)(variables[vK])
+      );
+      const fetchBadges = priority === 1 && !isEmbed;
+      const loadBadges = fetchBadges && !getState().plotsData[plotKey]?.loadBadges;
       // console.log('-====-');
       // console.log({ to: getState().params.timeRange.to, to_last: getState().plotsData[plotKey]?.lastTimeRange?.to });
       // console.log({ plotKey, changePlotParam, changeTime, changeNowTime });
-      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts;
+      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable || loadBadges;
       prepareEnd();
       if (update) {
         // console.log('loadPlotData run', plotKey);
@@ -246,7 +259,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         // });
 
         const queryEnd = queryStart(plotKey);
-        loadPlotData(plotKey, getState().params, priority === 1 && !isEmbed, priority)
+        loadPlotData(plotKey, getState().params, fetchBadges, priority)
           .then((updatePlotData) => {
             if (updatePlotData) {
               setState(updatePlotData);

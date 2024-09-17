@@ -117,6 +117,7 @@ export async function loadPlotData(
     return (state) => {
       state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
       state.plotsData[plotKey]!.lastHeals = true;
+      state.plotsData[plotKey]!.loadBadges = fetchBadges;
       if (metricMeta?.name) {
         state.metricMeta[metricMeta.name] = metricMeta;
       }

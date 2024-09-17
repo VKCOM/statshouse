@@ -13,10 +13,13 @@ export type PlotControlMetricNameProps = {
   plotKey: PlotKey;
 };
 export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) {
-  const { metricName, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    metricName: plots[plotKey]?.metricName,
-    setPlot,
-  }));
+  const { metricName, setPlot, removeVariableLinkByPlotKey } = useStatsHouseShallow(
+    ({ params: { plots }, setPlot, removeVariableLinkByPlotKey }) => ({
+      metricName: plots[plotKey]?.metricName,
+      setPlot,
+      removeVariableLinkByPlotKey,
+    })
+  );
   const onChange = useCallback(
     (value?: string | string[]) => {
       if (typeof value !== 'string') {
@@ -30,8 +33,9 @@ export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) 
         p.filterNotIn = {};
         p.customDescription = '';
       });
+      removeVariableLinkByPlotKey(plotKey);
     },
-    [plotKey, setPlot]
+    [plotKey, removeVariableLinkByPlotKey, setPlot]
   );
   return <SelectMetric value={metricName} onChange={onChange} />;
 }

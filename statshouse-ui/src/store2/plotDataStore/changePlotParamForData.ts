@@ -1,5 +1,6 @@
-import { PlotParams } from 'url2';
+import { type PlotParams, type VariableParams } from 'url2';
 import { dequal } from 'dequal/lite';
+import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
 
 export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams) {
   return (

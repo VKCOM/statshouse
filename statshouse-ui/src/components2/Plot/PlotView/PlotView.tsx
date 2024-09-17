@@ -17,7 +17,7 @@ export type PlotViewProps = {
   isDashboard?: boolean;
 };
 export function _PlotView(props: PlotViewProps) {
-  const type = useStatsHouse((s) => s.params.plots[props.plotKey]?.type ?? PLOT_TYPE.Metric);
+  const type = useStatsHouse((s) => s.params.plots[props.plotKey]?.type);
   switch (type) {
     case PLOT_TYPE.Metric:
       return <PlotViewMetric {...props}></PlotViewMetric>;
