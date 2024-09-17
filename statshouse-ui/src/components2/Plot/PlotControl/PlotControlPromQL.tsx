@@ -15,20 +15,11 @@ import { PlotControlMaxHost } from './PlotControlMaxHost';
 import { PlotControlUnit } from './PlotControlUnit';
 import { PlotControlPromQLEditor } from './PlotControlPromQLEditor';
 import { PlotControlFilterVariable } from './PlotControlFilterVariable';
-import { useStatsHouse } from 'store2';
 import { ErrorMessages } from 'components';
-
-function findVariable(name?: string, promQL?: string) {
-  return !!name && !!promQL && promQL.indexOf(name) > -1;
-}
-function filterVariableByPromQl<T extends { name: string }>(promQL?: string): (v?: T) => v is NonNullable<T> {
-  return (v): v is NonNullable<T> => findVariable(v?.name, promQL);
-}
+import { useVariablesPlotByPromQL } from 'hooks/useVariablesPlotByPromQL';
 
 export function PlotControlPromQL({ plotKey }: PlotControlProps) {
-  const plotVariables = useStatsHouse((s) =>
-    Object.values(s.params.variables).filter(filterVariableByPromQl(s.params.plots[plotKey]?.promQL))
-  );
+  const plotVariables = useVariablesPlotByPromQL(plotKey);
 
   return (
     <div className="d-flex flex-column gap-3">

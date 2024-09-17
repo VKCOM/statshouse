@@ -54,5 +54,10 @@ export async function apiDashboardFetch(params: ApiDashboardGet, keyRequest?: un
 }
 
 export async function apiDashboardSaveFetch(params: ApiDashboardPost, keyRequest?: unknown) {
-  return await apiFetch<ApiDashboard>({ url: ApiDashboardEndpoint, post: params, keyRequest });
+  return await apiFetch<ApiDashboard>({
+    url: ApiDashboardEndpoint,
+    method: params.dashboard.dashboard_id == null ? 'PUT' : 'POST',
+    post: params,
+    keyRequest,
+  });
 }

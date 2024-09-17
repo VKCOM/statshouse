@@ -6,7 +6,7 @@ import { To } from 'react-router-dom';
 import { dequal } from 'dequal/lite';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { usePlotVisibilityStore } from '../store2/plotVisibilityStore';
+import { usePlotVisibilityStore } from 'store2/plotVisibilityStore';
 
 type LinkPlot = {
   plotLinks: Partial<Record<PlotKey, To>>;
@@ -53,9 +53,7 @@ function createPlotLink(plotKey: PlotKey, single?: boolean) {
 function createAddPlotLink() {
   const { params, saveParams } = useStatsHouse.getState();
   useLinkPlots.setState((s) => {
-    if (!s.addPlotLink) {
-      s.addPlotLink = getAddPlotLink(params, saveParams);
-    }
+    s.addPlotLink = getAddPlotLink(params, saveParams);
   });
 }
 
@@ -75,11 +73,12 @@ export function useLinkPlot(plotKey: PlotKey, visible?: boolean, single?: boolea
 }
 
 export function useAddLinkPlot(visible: boolean): To {
+  const tabNum = useStatsHouse((s) => s.params.tabNum);
   const link = useLinkPlots((s) => s.addPlotLink ?? '');
   useEffect(() => {
-    if (visible && !link) {
+    if (visible) {
       createAddPlotLink();
     }
-  }, [link, visible]);
+  }, [visible, tabNum]);
   return link;
 }

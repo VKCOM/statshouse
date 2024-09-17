@@ -16,29 +16,25 @@ import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
 import { plotsDataStore, PlotsDataStore } from './plotDataStore';
 import { plotEventsDataStore, PlotEventsDataStore } from './plotEventsDataStore';
 import { updateFavicon } from './helpers/updateFavicon';
+import { useVariableChangeStatusStore } from './variableChangeStatusStore';
+import { filterVariableByPromQl } from './helpers/filterVariableByPromQl';
 
 export type StatsHouseStore = UrlStore &
   UserStore &
   PlotsInfoStore &
   MetricMetaStore &
-  // PlotVisibilityStore &
-  // PlotPreviewStore &
   PlotHealsStore &
   PlotsDataStore &
   PlotEventsDataStore;
-// TVModeStore;
 
 const statsHouseStore: Store<StatsHouseStore> = (...props) => ({
   ...urlStore(...props),
   ...userStore(...props),
   ...plotsInfoStore(...props),
   ...metricMetaStore(...props),
-  // ...plotVisibilityStore(...props),
-  // ...plotPreviewStore(...props),
   ...plotHealsStore(...props),
   ...plotsDataStore(...props),
   ...plotEventsDataStore(...props),
-  // ...tvModeStore(...props),
 });
 export const useStatsHouse = createStore<StatsHouseStore>(statsHouseStore);
 
@@ -50,11 +46,18 @@ useLiveModeStore.setState(updateLiveMode(useStatsHouse.getState()));
 
 useStatsHouse.subscribe((state, prevState) => {
   const {
-    params: { tabNum, plots, dashboardName },
+    params: { tabNum, plots, orderPlot, dashboardName, variables, orderVariables },
     plotsData,
+    dashboardLayoutEdit,
   } = state;
   const {
-    params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName },
+    params: {
+      tabNum: prevTabNum,
+      plots: prevPlots,
+      dashboardName: prevDashboardName,
+      variables: prevVariables,
+      orderVariables: prevOrderVariables,
+    },
     plotsData: prevPlotsData,
   } = prevState;
 
@@ -67,6 +70,26 @@ useStatsHouse.subscribe((state, prevState) => {
     useLiveModeStore.setState(updateLiveMode(state));
   }
 
+  // if (variables !== prevVariables) {
+  useVariableChangeStatusStore.setState((s) => {
+    // s.changeVariable = {};
+    // s.updatePlot = {};
+    orderVariables.forEach((kV) => {
+      s.changeVariable[kV] = variables[kV] !== prevVariables[kV];
+      // variables[kV]?.link.forEach(([pK]) => {
+      //   s.updatePlot[pK] = true;
+      // });
+      // prevVariables[kV]?.link.forEach(([pK]) => {
+      //   s.updatePlot[pK] = true;
+      // });
+      // orderPlot
+      //   .filter((pK) => filterVariableByPromQl(plots[pK]?.promQL)(variables[kV]))
+      //   .forEach((pK) => {
+      //     s.updatePlot[pK] = true;
+      //   });
+    });
+  });
+  // }
   if (
     tabNum !== prevTabNum ||
     plots[tabNum] !== prevPlots[prevTabNum] ||
@@ -75,6 +98,10 @@ useStatsHouse.subscribe((state, prevState) => {
   ) {
     updateTitle(state);
     updateFavicon(usePlotPreviewStore.getState().plotPreviewUrlList[tabNum]);
+  }
+
+  if (+tabNum >= 0 && dashboardLayoutEdit) {
+    state.setDashboardLayoutEdit(false);
   }
 });
 

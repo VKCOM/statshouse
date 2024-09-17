@@ -58,16 +58,16 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
     (event: React.MouseEvent) => {
       if (isDashboard && window.confirm(`Remove dashboard ${dashboardName}?`)) {
         removeDashboard().then(() => {
-          setDashboardLayoutEdit(false);
-          setParams((params) => {
-            params.dashboardId = undefined;
-          });
+          // setDashboardLayoutEdit(false);
+          // setParams((params) => {
+          //   params.dashboardId = undefined;
+          // }, true);
           navigate('/dash-list');
         });
       }
       event.preventDefault();
     },
-    [dashboardName, isDashboard, navigate, removeDashboard, setDashboardLayoutEdit, setParams]
+    [dashboardName, isDashboard, navigate, removeDashboard]
   );
 
   return (

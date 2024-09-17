@@ -17,6 +17,10 @@ export type PlotControlProps = {
 };
 export function PlotControl(props: PlotControlProps) {
   const isProm = useStatsHouse(({ params: { tabNum, plots } }) => isPromQL(plots[tabNum]));
+  const isPlot = useStatsHouse(({ params: { tabNum, plots } }) => !!plots[tabNum]);
+  if (!isPlot) {
+    return null;
+  }
   if (isProm) {
     return <PlotControlPromQL {...props}></PlotControlPromQL>;
   }

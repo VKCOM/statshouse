@@ -74,7 +74,7 @@ export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
     return variable;
   });
   const dashboard: OldDashboardParams = {
-    dashboard_id: toNumber(params.dashboardId, 0),
+    dashboard_id: toNumber(params.dashboardId) ?? undefined,
     name: params.dashboardName,
     description: params.dashboardDescription,
     version: params.dashboardVersion,
