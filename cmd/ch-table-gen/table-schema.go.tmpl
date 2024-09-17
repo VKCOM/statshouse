@@ -2,7 +2,7 @@
     `metric` Int32,
     {{if .Prekey -}}
     -- prekey value equal to one of the tags (assume that prekey always has mapping)
-    `prekey` UInt32,
+    `prekey` UInt64,
     {{- end}}
     {{if .PrekeySet -}}
     -- 0 write only to basic table
@@ -12,7 +12,7 @@
     {{- end}}
     `time` DateTime,
 	{{range $t := .BasicTags }}
-    `key{{$t.Index}}` UInt32, 
+    `key{{$t.Index}}` UInt64,
     {{if $t.StringValue -}} `skey{{$t.Index}}` String, {{- end}}
 	{{- end}}
 	{{range $i := .RawTags }}
