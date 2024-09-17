@@ -74,14 +74,17 @@ type (
 
 	sampler struct {
 		SamplerConfig
-		items              []SamplingMultiItemPair
-		partF              []partitionFunc
-		sumSizeKeepBuiltin ItemValue
-		sumSizeDiscard     ItemValue
-		currentGroup       samplerGroup
-		MetricCount        int
-		MetricGroups       []samplerGroup
-		SampleFactors      []tlstatshouse.SampleFactor
+		items                []SamplingMultiItemPair
+		partF                []partitionFunc
+		sumSizeKeepBuiltin   ItemValue
+		sumSizeDiscard       ItemValue
+		currentGroup         samplerGroup
+		currentMetricID      int32
+		currentMetricSFSum   float64
+		currentMetricSFCount float64
+		MetricCount          int
+		MetricGroups         []samplerGroup
+		SampleFactors        []tlstatshouse.SampleFactor
 
 		timeStart      time.Time
 		timePartition  time.Time
@@ -197,13 +200,14 @@ func (h *sampler) Run(budget int64) {
 	}
 	h.MetricCount = metricCount
 	h.MetricGroups = make([]samplerGroup, 0, groupCount+2)
-	// initialize root group
+	// initialize current metric and group
 	h.currentGroup = samplerGroup{
 		NamespaceID: format.BuiltinNamespaceIDDefault,
 		GroupID:     format.BuiltinGroupIDDefault,
 		items:       h.items,
 		budget:      budget,
 	}
+	h.currentMetricID = h.items[0].MetricID
 	// run sampling
 	h.timeBudgeting = time.Now()
 	h.run(h.currentGroup)
@@ -221,6 +225,9 @@ func (h *sampler) Run(budget int64) {
 			SumSizeDiscard: h.sumSizeDiscard,
 		})
 	}
+	// record last metric sample factor
+	h.setCurrentMetric(0)
+	// record running time
 	h.timeEnd = time.Now()
 }
 
@@ -257,9 +264,6 @@ func (h *sampler) run(g samplerGroup) {
 	var s []samplerGroup
 	var sumWeight int64
 	if g.depth < len(h.partF) {
-		if g.GroupID != 0 && g.MetricID == 0 {
-			h.setCurrentGroup(g)
-		}
 		s, sumWeight = h.partF[g.depth](h, g)
 	} else {
 		s, sumWeight = partitionByKey(h, g)
@@ -275,6 +279,9 @@ func (h *sampler) run(g samplerGroup) {
 		if s[i].budget < sumWeight*s[i].sumSize {
 			break // SF > 1
 		}
+		if s[i].MetricID == 0 {
+			h.setCurrentGroup(s[i])
+		}
 		s[i].keep(h)
 		g.budget -= s[i].sumSize
 		sumWeight -= s[i].weight
@@ -283,9 +290,16 @@ func (h *sampler) run(g samplerGroup) {
 	for ; i < len(s); i++ {
 		s[i].budget = g.budget * s[i].weight
 		s[i].budgetDenom = sumWeight
+		if s[i].depth < len(h.partF) {
+			if s[i].GroupID != 0 && s[i].MetricID == 0 {
+				h.setCurrentGroup(s[i])
+			}
+		} else if s[i].depth == len(h.partF) && s[i].MetricID != h.currentMetricID {
+			h.setCurrentMetric(s[i].MetricID)
+		}
 		if s[i].noSampleAgent && h.ModeAgent {
 			s[i].keep(h)
-		} else if g.depth < len(h.partF)+s[i].items[0].fairKeyLen-1 {
+		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
 			s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
 			s[i].budgetDenom = 1
 			h.run(s[i])
@@ -296,9 +310,6 @@ func (h *sampler) run(g samplerGroup) {
 }
 
 func (g samplerGroup) keep(h *sampler) {
-	if g.MetricID == 0 {
-		h.setCurrentGroup(g)
-	}
 	for i := range g.items {
 		g.items[i].keep(1, h)
 	}
@@ -344,14 +355,8 @@ func (h *sampler) sample(g samplerGroup) {
 		sfNum = int64(sf)
 		sfDenom = 1
 	}
-	if h.SampleFactorF != nil {
-		h.SampleFactorF(g.MetricID, sf)
-	} else {
-		h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-			Metric: g.MetricID,
-			Value:  float32(sf),
-		})
-	}
+	h.currentMetricSFCount++
+	h.currentMetricSFSum += sf
 	// keep whales
 	items := g.items
 	if !items[0].metric.WhalesOff {
@@ -391,6 +396,23 @@ func (h *sampler) setCurrentGroup(g samplerGroup) {
 		g.GroupID = format.BuiltinGroupIDDefault
 	}
 	h.currentGroup = g
+}
+
+func (h *sampler) setCurrentMetric(metricID int32) {
+	if h.currentMetricSFCount > 0 {
+		sf := h.currentMetricSFSum / h.currentMetricSFCount // AVG
+		if h.SampleFactorF != nil {
+			h.SampleFactorF(h.currentMetricID, sf)
+		} else {
+			h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
+				Metric: h.currentMetricID,
+				Value:  float32(sf),
+			})
+		}
+	}
+	h.currentMetricID = metricID
+	h.currentMetricSFSum = 0
+	h.currentMetricSFCount = 0
 }
 
 func partitionByNamespace(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
