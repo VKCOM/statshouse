@@ -2,6 +2,7 @@
 
 - number of tags increased 16 -> 64
 - tag types `Int32` -> `Int64` to support raw tags
+- two raw `Int128` tags to support long ids or ipv6 addresses
 - `flags` bitfield to indicate in which tables we want to write
 - `raw_flags UInt64` column to indicate that tag is raw
 	- idea here is to write all number tags as raw tags automatically, and remove raw tag option from UI altogether
@@ -14,7 +15,7 @@
 - `PRIMARY KEY` will be shortened to `index_type, metric, prekey, time` ordering will still be dependent on all tags
 
 Stuff that is not part of this change
-- separate `r0..r3` columns for raw tags
+- separate `r0..r3` columns for raw tags(except for long ones)
 	- instead we increase size of usual columns to 64 bits
 	- also automatically guess when tag is raw and mark it with a bit in `raw_flags`
 - separate host tag
@@ -46,7 +47,9 @@ map_view_1h-->table_1h;
 10. `raw_flags UInt64`
 11. `host String`
 12. `skey String`
-13. Digest
+13. `lkey0 Int128`
+14. `lkey1 Int128`
+15. Digest
 
 `flags` - bitfield with 3 reserved bits
 1. write to basic index
@@ -68,8 +71,10 @@ map_view_1h-->table_1h;
 8. `key63 Int64`
 9. `skey63 String`
 10. `raw_flags UInt64`
-10. `skey String`
-11. Digest
+11. `skey String`
+12. `lkey0 Int128`
+13. `lkey1 Int128`
+14. Digest
 
 ## Automatic raw tags
 Problem: raw tags are confusing for users and has to be set up in advance. Changing tag  raw flag breaks all existing tags.
