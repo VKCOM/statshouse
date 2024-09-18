@@ -41,7 +41,21 @@ fi
 
 # builder image
 BUILD_IMAGE=statshouse_builder_$NAME_RELEASE
-docker image build -t $BUILD_IMAGE - <<EOF
+if [ $IMAGE_NAME = 'centos' ]; then
+  docker image build -t $BUILD_IMAGE - <<EOF
+FROM $IMAGE
+RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/CentOS-*.repo
+RUN sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/CentOS-*.repo
+RUN sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-*.repo
+RUN $DNF update -y
+RUN $DNF group install -y "Development Tools"
+RUN  curl -L https://go.dev/dl/go$GOLANG_VERSION.linux-amd64.tar.gz | tar -C /usr/local -xzf -
+ENV PATH=\$PATH:/usr/local/go/bin
+RUN groupadd -g $GID builder
+RUN useradd -u $UID -g $GID builder
+EOF
+else
+  docker image build -t $BUILD_IMAGE - <<EOF
 FROM $IMAGE
 RUN $DNF update -y
 RUN $DNF group install -y "Development Tools"
@@ -50,6 +64,7 @@ ENV PATH=\$PATH:/usr/local/go/bin
 RUN groupadd -g $GID builder
 RUN useradd -u $UID -g $GID builder
 EOF
+fi
 
 # frontend
 if [ ! -d statshouse-ui/build ]; then
