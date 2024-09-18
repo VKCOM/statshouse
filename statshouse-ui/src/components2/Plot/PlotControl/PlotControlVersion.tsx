@@ -6,7 +6,7 @@
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import React, { memo, useCallback } from 'react';
-import { SwitchBox } from 'components';
+import { SwitchBox } from 'components/UI';
 import { globalSettings } from 'common/settings';
 import { getNewPlot, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from '../../../store2';

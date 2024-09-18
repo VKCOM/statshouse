@@ -43,3 +43,5 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ adminMode }) => {
     </div>
   );
 };
+
+export default SettingsPage;

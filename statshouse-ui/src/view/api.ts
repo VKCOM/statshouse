@@ -4,16 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { convert, timeShiftDesc } from './utils';
 import { TimeRange } from '../common/TimeRange';
-import { Column } from 'react-data-grid';
-import { EventDataRow } from '../store';
-import {
-  EventFormatterData,
-  EventFormatterDefault,
-  EventFormatterHeaderDefault,
-  EventFormatterHeaderTime,
-} from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
 import {
   encodeVariableConfig,
@@ -36,6 +27,7 @@ import {
 } from 'api/enum';
 import { promQLMetric } from './promQLMetric';
 import { whatToWhatDesc } from './whatToWhatDesc';
+import { convert, timeShiftDesc } from './utils2';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -73,11 +65,6 @@ export interface querySeriesMetaTag {
   readonly raw_kind?: RawValueKind;
 }
 
-export interface DashboardInfo {
-  dashboard: DashboardMeta;
-  delete_mark?: boolean;
-}
-
 export type queryTableRow = {
   time: number;
   data: number[];
@@ -92,16 +79,6 @@ export type queryTable = {
   more: boolean;
   what: QueryWhat[];
 };
-
-export interface DashboardMeta {
-  dashboard_id?: number;
-  name: string;
-  description: string;
-  version?: number;
-  update_time?: number;
-  deleted_time?: number;
-  data: { [key: string]: unknown };
-}
 
 export interface MetricsGroupInfo {
   group: MetricsGroup;
@@ -131,21 +108,6 @@ export interface PromConfigInfo {
   config: string;
   version: number;
 }
-
-export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
-  minWidth: 20,
-  maxWidth: 300,
-  resizable: true,
-  renderHeaderCell: EventFormatterHeaderDefault,
-  width: 'auto',
-  renderCell: EventFormatterDefault,
-  // sortable: true,
-  // headerCellClass: 'no-Focus',
-};
-export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
-  timeString: { key: 'timeString', name: 'Time', width: 165, renderHeaderCell: EventFormatterHeaderTime },
-  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key), renderCell: EventFormatterData }])),
-});
 
 // XXX: keep in sync with Go
 export function formatTagValue(value: string, comment?: string, raw?: boolean, kind?: RawValueKind): string {

@@ -6,9 +6,9 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
-import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from 'view/utils';
-import { ToggleButton } from 'components';
-import { useStatsHouseShallow } from '../../../store2';
+import { ToggleButton } from 'components/UI';
+import { useStatsHouseShallow } from 'store2';
+import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from 'view/utils2';
 
 export type PlotControlGlobalTimeShiftsProps = {
   className?: string;

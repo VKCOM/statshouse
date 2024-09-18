@@ -15,7 +15,7 @@ import { PlotControlMaxHost } from './PlotControlMaxHost';
 import { PlotControlUnit } from './PlotControlUnit';
 import { PlotControlPromQLEditor } from './PlotControlPromQLEditor';
 import { PlotControlFilterVariable } from './PlotControlFilterVariable';
-import { ErrorMessages } from 'components';
+import { ErrorMessages } from 'components/ErrorMessages';
 import { useVariablesPlotByPromQL } from 'hooks/useVariablesPlotByPromQL';
 
 export function PlotControlPromQL({ plotKey }: PlotControlProps) {

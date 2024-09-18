@@ -14,9 +14,9 @@ import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
 import { GroupKey } from 'url2';
-import { Button, TextArea, Tooltip } from '../../components';
+import { Button, TextArea, Tooltip } from 'components/UI';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
-import { useStatsHouseShallow } from '../../store2';
+import { useStatsHouseShallow } from 'store2';
 
 export type DashboardGroupProps = {
   children?: React.ReactNode;

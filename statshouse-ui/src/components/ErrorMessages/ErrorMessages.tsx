@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback } from 'react';
-import { useError } from '../../hooks/useError';
-import { useErrorStore } from '../../store';
-import { Button } from '../UI';
+import { useError } from 'hooks/useError';
+import { useErrorStore } from 'store/errors';
+import { Button } from 'components/UI';
 
 export type ErrorMessagesProps = {
   channel?: string;

@@ -19,3 +19,5 @@ export function Admin(props: { yAxisSize: number; adminMode: boolean }) {
     </Routes>
   );
 }
+
+export default Admin;

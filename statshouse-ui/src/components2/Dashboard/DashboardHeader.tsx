@@ -11,7 +11,7 @@ import { PlotControlTo } from '../Plot/PlotControl/PlotControlTo';
 import { PlotControlGlobalTimeShifts } from '../Plot/PlotControl/PlotControlGlobalTimeShifts';
 import { useStatsHouseShallow, viewPath } from 'store2';
 import { NavLink } from 'react-router-dom';
-import { Button, ToggleButton } from 'components';
+import { Button, ToggleButton } from 'components/UI';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ButtonToggleTvMode } from '../TvMode';
@@ -111,7 +111,7 @@ export function _DashboardHeader() {
         </div>
         {!!isSaveDashboard && (
           <div className="ms-2 mb-2">
-            <NavLink to={{ pathname: viewPath[0], search: `?id=${dashboardId}` }} end>
+            <NavLink reloadDocument to={{ pathname: viewPath[0], search: `?id=${dashboardId}` }} end>
               <Button type="button" className="btn btn-sm btn-outline-primary" title="Reset dashboard to saved state">
                 <SVGArrowCounterclockwise />
               </Button>

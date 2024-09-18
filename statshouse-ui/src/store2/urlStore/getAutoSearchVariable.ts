@@ -1,9 +1,9 @@
 import { type StatsHouseStore } from '../statsHouseStore';
 import { getNewVariable, promQLMetric, type QueryParams, type VariableParamsLink } from 'url2';
 import { GET_PARAMS, TAG_KEY, toTagKey } from 'api/enum';
-import { getTagDescription, isTagEnabled, isValidVariableName } from 'view/utils';
 import { produce } from 'immer';
 import { getNextVariableKey } from './updateParamsPlotStruct';
+import { getTagDescription, isTagEnabled, isValidVariableName } from 'view/utils2';
 
 export async function getAutoSearchVariable(
   getState: () => StatsHouseStore

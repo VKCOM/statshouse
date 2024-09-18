@@ -7,7 +7,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ApiTable } from 'api/tableOld';
 
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import cn from 'classnames';
 import css from './style.module.css';
 import { type PlotParams, type TimeRange } from 'url2';

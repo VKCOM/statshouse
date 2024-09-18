@@ -7,9 +7,9 @@
 import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 import { SetTimeRange, TIME_RANGE_KEYS_TO, TimeRange } from '../../common/TimeRange';
 import { TimeHelper } from '../../common/TimeHelper';
-import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '../../view/utils';
 import cn from 'classnames';
 import { Button } from '../UI';
+import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '../../view/utils2';
 
 export type PlotControlFromProps = {
   timeRange: TimeRange;

@@ -8,7 +8,7 @@ import React, { memo, useCallback, useRef } from 'react';
 import { Link, To } from 'react-router-dom';
 
 import { useOnClickOutside, useStateBoolean, useStateToRef } from 'hooks';
-import { Popper } from 'components';
+import { Popper } from 'components/UI';
 
 import css from './style.module.css';
 import cn from 'classnames';

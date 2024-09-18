@@ -16,8 +16,8 @@ import { replaceVariable } from '../helpers/replaceVariable';
 import { apiTableFetch, ApiTableGet, GetTableResp, QueryTableRow } from 'api/table';
 import { uniqueArray } from 'common/helpers';
 import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
-import { fmtInputDateTime, formatLegendValue } from 'view/utils';
 import { debug } from 'common/debug';
+import { fmtInputDateTime, formatLegendValue } from 'view/utils2';
 
 type EventDataChunk = GetTableResp & { to: number; from: number; fromEnd: boolean };
 

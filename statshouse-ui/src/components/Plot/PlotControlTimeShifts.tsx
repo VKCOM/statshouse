@@ -8,9 +8,9 @@ import React, { useCallback, useMemo } from 'react';
 import cn from 'classnames';
 
 import { selectorParamsPlots, selectorParamsTimeShifts, selectorSetParams, useStore } from '../../store';
-import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '../../view/utils';
 import { ToggleButton } from '../UI';
 import { produce } from 'immer';
+import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '../../view/utils2';
 
 export type PlotControlTimeShiftsProps = {
   className?: string;

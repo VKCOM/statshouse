@@ -1,7 +1,7 @@
 import React from 'react';
 import { PlotKey } from 'url2';
 import { Link } from 'react-router-dom';
-import { useLinkPlot } from '../../hooks';
+import { useLinkPlot } from 'hooks/useLinkPlot';
 
 export type PlotLinkProps = {
   plotKey: PlotKey;

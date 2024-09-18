@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback } from 'react';
-import { SelectMetric } from 'components';
+import { SelectMetric } from 'components/SelectMertic';
 import { useStatsHouseShallow } from 'store2';
 import { type PlotKey } from 'url2';
 

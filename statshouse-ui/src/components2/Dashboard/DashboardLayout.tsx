@@ -8,10 +8,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { toNumber } from 'common/helpers';
 import css from './style.module.css';
 import cn from 'classnames';
-import { useResizeObserver } from 'view/utils';
 import { useStatsHouseShallow } from 'store2';
 import { GroupKey, PlotKey } from 'url2';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 import { PlotView } from '../Plot';
@@ -20,6 +19,7 @@ import { DashboardGroup } from './DashboardGroup';
 import { produce } from 'immer';
 import { getNextGroupKey } from 'store2/urlStore/updateParamsPlotStruct';
 import { prepareItemsGroup } from 'common/prepareItemsGroup';
+import { useResizeObserver } from 'hooks/useResizeObserver';
 
 function getStylePreview(
   targetRect: DOMRect,

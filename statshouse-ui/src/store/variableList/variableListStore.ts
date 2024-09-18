@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Store, useStore } from '../statshouse';
-import { getTagDescription, isTagEnabled, isValidVariableName, loadAllMeta, replaceVariable } from '../../view/utils';
+import { loadAllMeta, replaceVariable } from '../../view/utils';
 import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
 import {
   GET_PARAMS,
@@ -33,6 +33,7 @@ import {
 } from '../../url/queryParams';
 import { createStore } from '../createStore';
 import { promQLMetric } from '../../view/promQLMetric';
+import { getTagDescription, isTagEnabled, isValidVariableName } from '../../view/utils2';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };

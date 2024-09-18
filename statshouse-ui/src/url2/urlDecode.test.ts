@@ -13,7 +13,7 @@ import {
   urlDecodeVariableSource,
 } from './urlDecode';
 import { GET_PARAMS, METRIC_TYPE, METRIC_TYPE_URL, PLOT_TYPE, QUERY_WHAT, TIME_RANGE_KEYS_TO } from 'api/enum';
-import { THEMES } from 'store';
+import { THEMES } from 'store/theme';
 import { QueryParams, VariableParams, VariableParamsSource } from './queryParams';
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
 import {

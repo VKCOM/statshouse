@@ -9,8 +9,6 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { fmtInputDateTime, now, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
 import {
@@ -28,12 +26,11 @@ import {
   useLiveModeStore,
   usePlotHealsStore,
   useStore,
-  useThemeStore,
-} from '../../store';
+} from 'store';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
-import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
+import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from 'hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
@@ -42,6 +39,10 @@ import css from './style.module.css';
 import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import { promQLMetric } from '../../view/promQLMetric';
+import { fmtInputDateTime, now, timeRangeAbbrevExpand } from '../../view/utils2';
+import { useThemeStore } from '../../store/theme';
+import { LegendItem, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../UPlotWrapper';
+import { PlotLegend } from '../PlotLegend';
 
 const unFocusAlfa = 1;
 const rightPad = 16;

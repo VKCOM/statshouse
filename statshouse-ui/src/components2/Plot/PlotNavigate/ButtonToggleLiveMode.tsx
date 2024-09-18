@@ -6,7 +6,7 @@
 
 import React, { memo } from 'react';
 import cn from 'classnames';
-import { ToggleButton } from 'components';
+import { ToggleButton } from 'components/UI';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
 import { setLiveMode, useLiveModeStoreShallow } from 'store2/liveModeStore';
 

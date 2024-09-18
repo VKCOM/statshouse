@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo, useRef } from 'react';
-import { LegendItem, Tooltip } from 'components';
 import cn from 'classnames';
 
 import css from './style.module.css';
@@ -14,8 +13,11 @@ import { PlotLegendMaxHost } from './PlotLegendMaxHost';
 import { PlotValueUnit } from './PlotValueUnit';
 import { METRIC_TYPE, MetricType } from 'api/enum';
 import { type PlotValues } from 'store2/plotDataStore';
-import { secondsRangeToString, timeShiftDesc, useResizeObserver } from 'view/utils';
 import { type PlotKey } from 'url2';
+import { useResizeObserver } from 'hooks/useResizeObserver';
+import { secondsRangeToString, timeShiftDesc } from 'view/utils2';
+import { LegendItem } from 'components/UPlotWrapper';
+import { Tooltip } from 'components/UI';
 
 type PlotLegendProps = {
   plotKey: PlotKey;

@@ -7,7 +7,7 @@
 import React, { memo, useCallback } from 'react';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import cn from 'classnames';
 import { metricKindToWhat } from 'view/api';
 import { type QueryWhat } from 'api/enum';

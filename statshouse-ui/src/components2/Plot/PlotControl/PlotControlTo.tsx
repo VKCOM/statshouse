@@ -6,14 +6,21 @@
 
 import React, { type ChangeEvent, memo, useCallback } from 'react';
 
-import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from 'view/utils';
 import { ReactComponent as SVGLockClock } from 'assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from 'assets/svg/UnlockClock.svg';
 import cn from 'classnames';
-import { ToggleButton } from 'components';
+import { ToggleButton } from 'components/UI';
 import { TIME_RANGE_KEYS_TO } from 'api/enum';
 import { useStatsHouseShallow } from 'store2';
 import { constToTime } from 'url2';
+import {
+  formatInputDate,
+  formatInputTime,
+  maxTimeRange,
+  now,
+  parseInputDate,
+  parseInputTime,
+} from '../../../view/utils2';
 
 export type PlotControlToProps = {
   className?: string;

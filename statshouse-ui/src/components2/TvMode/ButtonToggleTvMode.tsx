@@ -6,7 +6,7 @@
 
 import React, { memo, useCallback } from 'react';
 import cn from 'classnames';
-import { ToggleButton } from 'components';
+import { ToggleButton } from 'components/UI';
 import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscreen.svg';
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
 import { setTVMode, useTvModeStore } from 'store2/tvModeStore';

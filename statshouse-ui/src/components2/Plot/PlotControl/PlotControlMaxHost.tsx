@@ -6,7 +6,7 @@
 
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import React, { memo, useCallback } from 'react';
-import { SwitchBox } from 'components';
+import { SwitchBox } from 'components/UI';
 import { useStatsHouseShallow } from 'store2';
 import { getNewPlot, type PlotKey } from 'url2';
 

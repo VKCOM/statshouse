@@ -9,11 +9,12 @@ import cn from 'classnames';
 import { TagSelect } from '../TagSelect';
 import { formatTagValue } from '../../view/api';
 import { SelectOptionProps } from '../Select';
-import { formatPercent, normalizeTagValues } from '../../view/utils';
+import { normalizeTagValues } from '../../view/utils';
 import { MetricMetaTag } from '../../api/metric';
 import { MetricTagValueInfo } from '../../api/metricTagValues';
 import { escapeHTML } from '../../common/helpers';
 import { Button } from '../UI';
+import { formatPercent } from '../../view/utils2';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];

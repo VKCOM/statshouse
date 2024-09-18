@@ -1,8 +1,9 @@
 import { Portal } from './Portal';
 import css from './style.module.css';
 import React, { memo, ReactNode, RefObject, useEffect, useMemo, useState } from 'react';
-import { buildThresholdList, useIntersectionObserver, useRectObserver, useWindowSize, WindowSize } from '../../hooks';
+import { buildThresholdList, useIntersectionObserver, useRectObserver } from 'hooks';
 import cn from 'classnames';
+import { useWindowSize, WindowSize } from 'hooks/useWindowSize';
 
 const popperId = 'popper-group';
 

@@ -4,13 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { DashboardListStore, useDashboardListStore } from '../store';
+import { DashboardListStore, useDashboardListStore } from '../store/dashboardList';
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useStateInput, useWindowSize } from '../hooks';
-import { ErrorMessages } from '../components';
+import { useStateInput } from '../hooks';
+import { ErrorMessages } from '../components/ErrorMessages';
 import cn from 'classnames';
 import { SearchFabric } from '../common/helpers';
+import { useWindowSize } from 'hooks/useWindowSize';
 
 export type DashboardListViewProps = {};
 
@@ -59,3 +60,5 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
     </div>
   );
 };
+
+export default DashboardListView;

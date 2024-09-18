@@ -6,8 +6,7 @@
 
 import React, { memo, useCallback, useState } from 'react';
 import { type TagKey } from 'api/enum';
-import { getTagDescription } from 'view/utils';
-import { Tooltip, VariableControl } from 'components';
+import { Tooltip } from 'components/UI';
 import { produce } from 'immer';
 import { sortEntity } from 'common/helpers';
 import cn from 'classnames';
@@ -16,6 +15,8 @@ import { setUpdatedTag, useVariableListStore } from 'store2/variableList';
 import { type PlotKey, QueryParams } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { useVariableLink } from 'hooks/useVariableLink';
+import { getTagDescription } from 'view/utils2';
+import { VariableControl } from '../../../components/VariableControl';
 
 export type PlotControlFilterTagProps = {
   plotKey: PlotKey;

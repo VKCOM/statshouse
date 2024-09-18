@@ -5,7 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import uPlot from 'uplot';
-import { fmtInputDateTime } from '../../../view/utils';
+
+import { fmtInputDateTime } from 'view/utils2';
 
 export function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
   if (idx === null) {

@@ -6,7 +6,6 @@
 
 import React, { SetStateAction, useCallback, useState } from 'react';
 import { PlotControls } from './PlotControls';
-import { timeRangeAbbrev } from '../../view/utils';
 
 import { PlotControlsPromQL } from './PlotControlsPromQL';
 import cn from 'classnames';
@@ -14,6 +13,7 @@ import css from './style.module.css';
 import { MetricMetaValue } from '../../api/metric';
 import { PlotParams } from '../../url/queryParams';
 import { promQLMetric } from '../../view/promQLMetric';
+import { timeRangeAbbrev } from '../../view/utils2';
 
 export type PlotLayoutProps = {
   embed?: boolean;

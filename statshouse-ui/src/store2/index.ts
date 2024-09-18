@@ -5,5 +5,4 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 export * from './constants';
-export * from './helpers/isValidPath';
 export * from './statsHouseStore';

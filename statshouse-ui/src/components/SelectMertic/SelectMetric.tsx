@@ -1,6 +1,6 @@
 import { Select, SelectOptionProps } from '../Select';
 import React, { useCallback, useMemo } from 'react';
-import { updateMetricsList, useMetricsListStore } from '../../store';
+import { updateMetricsList, useMetricsListStore } from 'store/metricsList';
 import cn from 'classnames';
 
 export type SelectMetricProps = {

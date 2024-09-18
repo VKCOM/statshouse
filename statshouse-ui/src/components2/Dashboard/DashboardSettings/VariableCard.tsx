@@ -21,14 +21,14 @@ import {
   VariableParamsSource,
   VariableSourceKey,
 } from 'url2';
-import { isValidVariableName } from 'view/utils';
 import { TagKey } from 'api/enum';
-import { Button, ToggleButton } from 'components';
+import { Button, ToggleButton } from 'components/UI';
 import { ProduceUpdate } from 'store2/helpers';
 import { useStatsHouseShallow } from 'store2';
 import { VariableSource } from './VariableSource';
 import { isNil, isNotNil } from 'common/helpers';
 import { getNextVariableSourceKey } from 'store2/urlStore/updateParamsPlotStruct';
+import { isValidVariableName } from '../../../view/utils2';
 
 export type VariableCardProps = {
   variableKey: VariableKey;

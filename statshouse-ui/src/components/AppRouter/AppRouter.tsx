@@ -1,6 +1,6 @@
 import React, { useLayoutEffect } from 'react';
 import { Router } from 'react-router-dom';
-import { appHistory } from '../../common/appHistory';
+import { appHistory } from 'common/appHistory';
 
 export type AppRouterProps = { children?: React.ReactNode };
 export function AppRouter({ children }: AppRouterProps) {

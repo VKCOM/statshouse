@@ -5,18 +5,11 @@ import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.s
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { useStatsHouseShallow } from 'store2';
 
-import {
-  buildThresholdList,
-  useIntersectionObserver,
-  useLinkPlot,
-  useOnClickOutside,
-  useStateBoolean,
-  useStateToRef,
-} from 'hooks';
+import { useIntersectionObserver, useOnClickOutside, useStateBoolean, useStateToRef } from 'hooks';
 import cn from 'classnames';
 import css from './style.module.css';
 import { Link } from 'react-router-dom';
-import { Button, Popper } from 'components';
+import { Button, Popper } from 'components/UI';
 import { getMetricFullName } from 'store2/helpers';
 import { PLOT_TYPE } from 'api/enum';
 import { PlotName } from '../Plot/PlotView/PlotName';
@@ -24,6 +17,7 @@ import { usePlotLoader } from 'store2/plotQueryStore';
 import { PlotLink } from '../Plot/PlotLink';
 import { setPlotPreviewVisibility } from 'store2/plotVisibilityStore';
 import { usePlotPreviewStore } from 'store2/plotPreviewStore';
+import { useLinkPlot } from 'hooks/useLinkPlot';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();

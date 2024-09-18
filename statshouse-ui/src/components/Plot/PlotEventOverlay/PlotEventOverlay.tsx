@@ -2,11 +2,11 @@ import React, { memo, MutableRefObject, useCallback, useEffect, useRef, useState
 import { EventObserver } from '../../../common/EventObserver';
 import { UPlotWrapperPropsHooks } from '../../UPlotWrapper';
 import uPlot from 'uplot';
-import { useResizeObserver } from '../../../view/utils';
 import css from './style.module.css';
 import { PlotStore, selectorParams, selectorPlotsData, useStore } from '../../../store';
 import { PlotEventFlag } from './PlotEventFlag';
 import { TimeRange } from '../../../common/TimeRange';
+import { useResizeObserver } from '../../../hooks/useResizeObserver';
 
 type Flag = {
   x: number;

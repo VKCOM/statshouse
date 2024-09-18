@@ -11,9 +11,9 @@ import uPlot from 'uplot';
 import css from './style.module.css';
 import { PlotEventFlag } from './PlotEventFlag';
 import { type PlotKey, PlotParams, readTimeRange, type TimeRange } from 'url2';
-import { useResizeObserver } from 'view/utils';
 import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { type PlotData } from 'store2/plotDataStore';
+import { useResizeObserver } from 'hooks/useResizeObserver';
 
 type Flag = {
   x: number;

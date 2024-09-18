@@ -1,4 +1,3 @@
-import { normalizeDashboard as normalizeDashboardOld } from 'view/utils';
 import { DashboardInfo } from 'api/dashboard';
 import {
   type DashboardParams as OldDashboardParams,
@@ -11,6 +10,7 @@ import {
 import { type PlotKey, type QueryParams } from 'url2';
 import { deepClone, toNumber } from '../../common/helpers';
 import { METRIC_TYPE, PLOT_TYPE } from '../../api/enum';
+import { normalizeDashboard as normalizeDashboardOld } from '../../view/normalizeDashboard';
 
 export function dashboardMigrate(data: unknown) {
   return encodeParams(normalizeDashboardOld(data as DashboardInfo));

@@ -6,7 +6,7 @@
 
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import { useStatsHouseShallow } from 'store2';
 import { useGlobalLoader } from 'store2/plotQueryStore';
 

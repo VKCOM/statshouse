@@ -3,7 +3,6 @@ import { useStatsHouse, viewPath } from 'store2';
 import { useEffect } from 'react';
 import { getAddPlotLink, getPlotLink, getPlotSingleLink } from 'store2/helpers';
 import { To } from 'react-router-dom';
-import { dequal } from 'dequal/lite';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { usePlotVisibilityStore } from 'store2/plotVisibilityStore';
@@ -14,20 +13,12 @@ type LinkPlot = {
   addPlotLink?: To;
 };
 
-const useLinkPlots = create<LinkPlot>()(
+export const useLinkPlots = create<LinkPlot>()(
   immer(() => ({
     plotLinks: {},
     singlePlotLinks: {},
   }))
 );
-
-useStatsHouse.subscribe((state, prevState) => {
-  if (state.params !== prevState.params) {
-    if (!dequal({ ...state.params, tabNum: '0' }, { ...prevState.params, tabNum: '0' })) {
-      useLinkPlots.setState({ plotLinks: {}, singlePlotLinks: {}, addPlotLink: undefined }, true);
-    }
-  }
-});
 
 function createPlotLink(plotKey: PlotKey, single?: boolean) {
   const { params, saveParams } = useStatsHouse.getState();

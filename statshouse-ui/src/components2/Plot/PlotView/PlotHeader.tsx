@@ -6,7 +6,7 @@
 
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotKey } from 'url2';
-import { Button, InputText, TextArea, Tooltip } from 'components';
+import { Button, InputText, TextArea, Tooltip } from 'components/UI';
 import { useStatsHouseShallow } from 'store2';
 import { PlotNavigate } from '../PlotNavigate';
 import cn from 'classnames';

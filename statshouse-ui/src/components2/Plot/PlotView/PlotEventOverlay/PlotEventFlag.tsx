@@ -11,7 +11,7 @@ import cn from 'classnames';
 import { type PlotKey, type PlotParams, type TimeRange } from 'url2';
 import { useDebounceState } from 'hooks';
 import { isNotNil, uniqueArray } from 'common/helpers';
-import { Popper } from 'components';
+import { Popper } from 'components/UI';
 
 export type PlotEventFlagProps = {
   plots: Partial<Record<PlotKey, PlotParams>>;

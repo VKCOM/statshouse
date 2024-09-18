@@ -1,6 +1,5 @@
 import { createStore, StoreSlice } from '../createStore';
 import { toNumber } from 'common/helpers';
-import { StatsHouseStore } from '../statsHouseStore';
 
 export type TVModeStore = {
   enable: boolean;

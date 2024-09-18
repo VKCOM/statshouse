@@ -6,13 +6,13 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { type PlotKey } from 'url2';
-import { Button, Tooltip } from 'components';
+import { Button, Tooltip } from 'components/UI';
 import { ReactComponent as SVGExclamationTriangleFill } from 'bootstrap-icons/icons/exclamation-triangle-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { useStatsHouseShallow } from '../../../store2';
+import { useStatsHouseShallow } from 'store2';
 import cn from 'classnames';
-import { useLiveModeStore } from '../../../store2/liveModeStore';
-import { usePlotLoader } from '../../../store2/plotQueryStore';
+import { useLiveModeStore } from 'store2/liveModeStore';
+import { usePlotLoader } from 'store2/plotQueryStore';
 
 export type PlotHealsStatusProps = {
   className?: string;

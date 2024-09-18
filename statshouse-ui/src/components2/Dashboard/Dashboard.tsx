@@ -5,19 +5,20 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback } from 'react';
-import { useStatsHouseShallow } from '../../store2';
+import { useStatsHouseShallow } from 'store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
-import { Button, ErrorMessages, Tooltip } from '../../components';
+import { Button, Tooltip } from 'components/UI';
 import { DashboardVariablesControl } from './DashboardVariablesControl';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
 import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
-import { useLinkPlot } from 'hooks';
-import { useGlobalLoader } from '../../store2/plotQueryStore';
-import { useTvModeStore } from '../../store2/tvModeStore';
+import { useLinkPlot } from 'hooks/useLinkPlot';
+import { useGlobalLoader } from 'store2/plotQueryStore';
+import { useTvModeStore } from 'store2/tvModeStore';
+import { ErrorMessages } from '../../components/ErrorMessages';
 
 export type DashboardProps = {
   className?: string;

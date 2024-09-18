@@ -10,13 +10,13 @@ import {
   useStore,
 } from '../../store';
 import 'react-data-grid/lib/styles.css';
-import { eventColumnDefault, getEventColumnsType } from '../../view/api';
 import { produce } from 'immer';
 import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
 import { Button } from '../UI';
+import { eventColumnDefault, getEventColumnsType } from '../../view/getEventColumnsType';
 
 export type PlotEventsProps = {
   indexPlot: number;

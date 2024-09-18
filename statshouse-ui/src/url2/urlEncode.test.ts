@@ -14,7 +14,7 @@ import {
 } from './urlEncode';
 import { GroupInfo, PlotParams, QueryParams, VariableParams } from './queryParams';
 import { GET_PARAMS, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, TIME_RANGE_KEYS_TO } from 'api/enum';
-import { THEMES } from 'store';
+import { THEMES } from 'store/theme';
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
 import { promQLMetric, removeValueChar } from './constants';
 

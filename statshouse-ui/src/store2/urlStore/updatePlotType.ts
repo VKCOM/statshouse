@@ -8,8 +8,8 @@ import { StatsHouseStore } from '../statsHouseStore';
 import { type PlotKey } from 'url2';
 import { PLOT_TYPE, type PlotType, QUERY_WHAT, TAG_KEY } from 'api/enum';
 import { ProduceUpdate } from '../helpers';
-import { getTimeShifts, timeShiftAbbrevExpand } from 'view/utils';
 import { dequal } from 'dequal/lite';
+import { getTimeShifts, timeShiftAbbrevExpand } from 'view/utils2';
 
 export function updatePlotType(plotKey: PlotKey, nextType: PlotType): ProduceUpdate<StatsHouseStore> {
   return (store) => {

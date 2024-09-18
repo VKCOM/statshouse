@@ -10,7 +10,6 @@ import { produce, setAutoFreeze } from 'immer';
 import { dequal } from 'dequal/lite';
 
 import {
-  DashboardInfo,
   metaToBaseLabel,
   metaToLabel,
   MetricsGroup,
@@ -35,30 +34,19 @@ import {
   apiPost,
   apiPut,
   Error403,
-  fmtInputDateTime,
-  formatLegendValue,
-  formatPercent,
-  getTimeShifts,
   loadAllMeta,
-  normalizeDashboard,
-  now,
   paramToVariable,
   plotLoadPrioritySort,
   readJSONLD,
   replaceVariable,
   sortByKey,
   tagSyncToVariableConvert,
-  timeRangeAbbrev,
-  timeRangeAbbrevExpand,
-  timeShiftAbbrevExpand,
-  timeShiftToDash,
 } from '../view/utils';
 import { globalSettings, pxPerChar } from '../common/settings';
 import { debug } from '../common/debug';
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
-import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
@@ -94,6 +82,20 @@ import { formatByMetricType, getMetricType } from '../common/formatByMetricType'
 import { dashboardURL } from '../view/dashboardURL';
 import { promQLMetric } from '../view/promQLMetric';
 import { whatToWhatDesc } from '../view/whatToWhatDesc';
+import {
+  fmtInputDateTime,
+  formatLegendValue,
+  formatPercent,
+  getTimeShifts,
+  now,
+  timeRangeAbbrev,
+  timeRangeAbbrevExpand,
+  timeShiftAbbrevExpand,
+  timeShiftToDash,
+} from '../view/utils2';
+import { DashboardInfo, normalizeDashboard } from '../view/normalizeDashboard';
+import { SelectOptionProps } from '../components/Select';
+import { UPlotWrapperPropsScales } from '../components/UPlotWrapper';
 
 export type PlotStore = {
   nameMetric: string;

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
-import { Button, TextArea } from 'components';
+import { Button, TextArea } from 'components/UI';
 import { useStateToRef } from 'hooks';
 import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';

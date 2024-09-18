@@ -9,8 +9,6 @@ export * from './useStateInput';
 export * from './useUPlotPluginHooks';
 export * from './useIntersectionObserver';
 export * from './useRectObserver';
-export * from './useWindowSize';
 export * from './useOnClickOutside';
 export * from './useStateBoolean';
 export * from './useStateToRef';
-export * from './useLinkPlot';

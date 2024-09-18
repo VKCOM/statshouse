@@ -6,9 +6,10 @@
 
 import { formatTagValue, queryTable, queryTableRow, queryTableURL } from '../view/api';
 import { TimeRange } from '../common/TimeRange';
-import { apiGet, fmtInputDateTime } from '../view/utils';
+import { apiGet } from '../view/utils';
 import { QueryWhat, TagKey } from './enum';
 import { freeKeyPrefix, PlotParams } from '../url/queryParams';
+import { fmtInputDateTime } from '../view/utils2';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
 export type WhatCollection = Record<QueryWhat, number>;

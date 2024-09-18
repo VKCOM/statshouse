@@ -5,7 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import uPlot from 'uplot';
-import { now } from '../../../view/utils';
+
+import { now } from 'view/utils2';
 
 export function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {
