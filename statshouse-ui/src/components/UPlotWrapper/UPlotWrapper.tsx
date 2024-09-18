@@ -6,9 +6,9 @@
 
 import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
-import { useResizeObserver } from '../../view/utils';
 import { debug } from '../../common/debug';
 import { deepClone } from '../../common/helpers';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
 
 export type LegendItem<T = Object> = {
   label: string;

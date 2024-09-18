@@ -7,10 +7,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type PlotViewProps } from './PlotView';
 import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { useThemeStore } from 'store';
+import { useThemeStore } from 'store2/themeStore';
 import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from 'hooks';
 import { black, grey, greyDark } from 'view/palette';
-import { UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts, UPlotWrapperPropsScales } from 'components';
+import {
+  UPlotPluginPortal,
+  UPlotWrapper,
+  UPlotWrapperPropsOpts,
+  UPlotWrapperPropsScales,
+} from 'components/UPlotWrapper';
 import { formatByMetricType, getMetricType, splitByMetricType } from 'common/formatByMetricType';
 import { dataIdxNearest } from 'common/dataIdxNearest';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from 'common/axisValues';

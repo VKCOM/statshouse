@@ -6,9 +6,8 @@
 
 import React, { useMemo } from 'react';
 import { type PlotControlProps } from './PlotControl';
-import { ErrorMessages } from 'components';
-import { isTagEnabled } from '../../../view/utils';
-import { PLOT_TYPE, TAG_KEY, TagKey } from '../../../api/enum';
+import { ErrorMessages } from 'components/ErrorMessages';
+import { PLOT_TYPE, TAG_KEY, type TagKey } from 'api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
@@ -24,7 +23,8 @@ import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
 import { useStatsHouseShallow } from 'store2';
 import { filterHasTagID } from 'store2/helpers';
-import { useGlobalLoader } from '../../../store2/plotQueryStore';
+import { useGlobalLoader } from 'store2/plotQueryStore';
+import { isTagEnabled } from 'view/utils2';
 
 const emptyFilter: Partial<Record<TagKey, string[]>> = {};
 const emptyGroup: TagKey[] = [];

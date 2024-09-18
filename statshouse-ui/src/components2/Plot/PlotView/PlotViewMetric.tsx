@@ -14,13 +14,6 @@ import { yAxisSize } from 'common/settings';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import { PlotHeader } from './PlotHeader';
 import { PlotSubMenu } from './PlotSubMenu';
-import {
-  LegendItem,
-  UPlotPluginPortal,
-  UPlotWrapper,
-  UPlotWrapperPropsOpts,
-  UPlotWrapperPropsScales,
-} from 'components';
 import { PlotLegend } from '../PlotLegend';
 import { dateRangeFormat } from './dateRangeFormat';
 import { dataIdxNearest } from 'common/dataIdxNearest';
@@ -32,11 +25,18 @@ import { calcYRange } from 'common/calcYRange';
 import css from './style.module.css';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { type PlotValues } from 'store2/plotDataStore';
-import { useThemeStore } from 'store';
+import { useThemeStore } from 'store2/themeStore';
 import { incrs } from './constants';
 import { setLiveMode } from 'store2/liveModeStore';
 import { setPlotVisibility } from 'store2/plotVisibilityStore';
 import { createPlotPreview } from 'store2/plotPreviewStore';
+import {
+  LegendItem,
+  UPlotPluginPortal,
+  UPlotWrapper,
+  UPlotWrapperPropsOpts,
+  UPlotWrapperPropsScales,
+} from 'components/UPlotWrapper';
 
 const rightPad = 16;
 

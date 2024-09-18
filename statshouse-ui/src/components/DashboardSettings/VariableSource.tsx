@@ -9,7 +9,6 @@ import { SelectMetric } from '../SelectMertic';
 import { isTagKey, TAG_KEY, TagKey } from '../../api/enum';
 import { Button, ToggleButton } from '../UI';
 import { setUpdatedSource, useStore, useVariableListStore, VariableItem } from '../../store';
-import { getTagDescription, isTagEnabled } from '../../view/utils';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import { VariableControl } from '../VariableControl';
@@ -18,6 +17,7 @@ import { produce } from 'immer';
 import { TagBadges } from './TagBadges';
 import { dequal } from 'dequal/lite';
 import { mergeLeft } from '../../common/helpers';
+import { getTagDescription, isTagEnabled } from '../../view/utils2';
 
 export type VariableSourceProps = {
   value?: VariableParamsSource;

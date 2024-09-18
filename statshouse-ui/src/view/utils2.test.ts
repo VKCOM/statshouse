@@ -5,7 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import './../testMock/matchMedia.mock';
-import { convert, lexDecode } from './utils';
+
+import { convert, lexDecode } from './utils2';
 
 describe('utils', () => {
   test('convert hex', () => {

@@ -26,10 +26,10 @@ import {
 import css from './style.module.css';
 import { PlotParams } from '../../url/queryParams';
 import { toNumber } from '../../common/helpers';
-import { useResizeObserver } from '../../view/utils';
 import { Button, TextArea, Tooltip } from '../UI';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
 
 function getStylePreview(
   targetRect: DOMRect,

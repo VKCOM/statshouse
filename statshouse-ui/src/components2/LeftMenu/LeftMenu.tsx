@@ -24,14 +24,16 @@ import { LeftMenuItem } from './LeftMenuItem';
 import { Link, useLocation } from 'react-router-dom';
 import { globalSettings } from 'common/settings';
 import cn from 'classnames';
-import { setDevEnabled, setTheme, THEMES, toTheme, useStore, useStoreDev, useThemeStore } from 'store';
 import { getClipboard } from 'common/helpers';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { addPlotByUrl } from 'store2/helpers';
 import { produce } from 'immer';
-import { useAddLinkPlot, useLinkPlot } from 'hooks';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
 import { prepareItemsGroup } from 'common/prepareItemsGroup';
+import { AppVersionToggle } from '../AppVersionToggle';
+import { useAddLinkPlot, useLinkPlot } from 'hooks/useLinkPlot';
+import { setDevEnabled, useStoreDev } from 'store/dev';
+import { setTheme, THEMES, useThemeStore, toTheme } from 'store2/themeStore';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -76,7 +78,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
   const onSetTheme = useCallback((event: React.MouseEvent) => {
     const value = toTheme(event.currentTarget.getAttribute('data-value'));
     if (value) {
-      setTheme?.(value);
+      setTheme(value);
     }
   }, []);
   const refListMenuItemPlot = useRef<HTMLUListElement>(null);
@@ -98,7 +100,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
     });
   }, [setUrlStore]);
   const onResetTheme = useCallback(() => {
-    useStore.getState().setParams(
+    useStatsHouse.getState().setParams(
       produce((p) => {
         p.theme = undefined;
       })
@@ -150,6 +152,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
                 {devEnabled ? 'DEV ON' : 'DEV OFF'}
               </span>
             </li>
+            <AppVersionToggle />
           </>
         )}
         {!!user.login && (

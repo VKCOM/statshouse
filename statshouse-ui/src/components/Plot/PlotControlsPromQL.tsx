@@ -7,17 +7,7 @@
 import React, { ChangeEvent, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { produce } from 'immer';
 import cn from 'classnames';
-import * as utils from '../../view/utils';
-import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import {
-  Button,
-  PlotControlFrom,
-  PlotControlTimeShifts,
-  PlotControlTo,
-  SwitchBox,
-  TextArea,
-  VariableControl,
-} from '../index';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import {
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -30,7 +20,7 @@ import {
   useStore,
   useVariableListStore,
   VariableListStore,
-} from '../../store';
+} from 'store';
 import { metricKindToWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
@@ -42,6 +32,9 @@ import { MetricMetaValue } from '../../api/metric';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType, QueryWhat, toMetricType } from '../../api/enum';
 import { PlotParams } from '../../url/queryParams';
 import { getMetricType } from '../../common/formatByMetricType';
+import { getTimeShifts, timeRangeAbbrev, timeShiftAbbrevExpand } from '../../view/utils2';
+import { Button, SwitchBox, TextArea } from '../UI';
+import { VariableControl } from '../VariableControl';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
   <div className="input-group">
@@ -67,7 +60,7 @@ const selectorVariables = ({ params: { variables } }: Store) => variables;
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
-  setBaseRange: (r: utils.timeRangeAbbrev) => void;
+  setBaseRange: (r: timeRangeAbbrev) => void;
   sel: PlotParams;
   setSel: (state: React.SetStateAction<PlotParams>, replaceUrl?: boolean) => void;
   meta?: MetricMetaValue;

@@ -9,7 +9,7 @@ import { apiMetricFetch, type MetricMetaTag, type MetricMetaValue } from 'api/me
 import { GET_PARAMS, type TagKey, toTagKey } from 'api/enum';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { type PlotKey, promQLMetric } from 'url2';
-import { useErrorStore } from 'store';
+import { useErrorStore } from 'store/errors';
 import { debug } from 'common/debug';
 import { promiseRun } from 'common/promiseRun';
 import { updateMetricMeta } from './updateMetricMeta';

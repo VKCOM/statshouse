@@ -1,6 +1,6 @@
 import { MutableRefObject, useMemo, useRef } from 'react';
 import { type Plugin } from 'uplot';
-import { UPlotWrapperPropsHooks } from '../components';
+import { UPlotWrapperPropsHooks } from '../components/UPlotWrapper';
 import { EventObserver } from '../common/EventObserver';
 
 export function useUPlotPluginHooks(): [Plugin, MutableRefObject<EventObserver<keyof UPlotWrapperPropsHooks>>] {

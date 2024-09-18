@@ -6,11 +6,11 @@
 
 import React, { ChangeEvent, memo, useCallback } from 'react';
 import { SetTimeRange, TimeRange } from '../../common/TimeRange';
-import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from '../../view/utils';
 import { ReactComponent as SVGLockClock } from '../../assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from '../../assets/svg/UnlockClock.svg';
 import cn from 'classnames';
 import { ToggleButton } from '../UI';
+import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from '../../view/utils2';
 
 export type PlotControlToProps = {
   timeRange: TimeRange;

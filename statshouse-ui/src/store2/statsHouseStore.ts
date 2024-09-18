@@ -17,7 +17,9 @@ import { plotsDataStore, PlotsDataStore } from './plotDataStore';
 import { plotEventsDataStore, PlotEventsDataStore } from './plotEventsDataStore';
 import { updateFavicon } from './helpers/updateFavicon';
 import { useVariableChangeStatusStore } from './variableChangeStatusStore';
-import { filterVariableByPromQl } from './helpers/filterVariableByPromQl';
+import { dequal } from 'dequal/lite';
+import { useLinkPlots } from 'hooks/useLinkPlot';
+import { updateTheme } from './themeStore';
 
 export type StatsHouseStore = UrlStore &
   UserStore &
@@ -56,7 +58,7 @@ useStatsHouse.subscribe((state, prevState) => {
       plots: prevPlots,
       dashboardName: prevDashboardName,
       variables: prevVariables,
-      orderVariables: prevOrderVariables,
+      // orderVariables: prevOrderVariables,
     },
     plotsData: prevPlotsData,
   } = prevState;
@@ -70,26 +72,12 @@ useStatsHouse.subscribe((state, prevState) => {
     useLiveModeStore.setState(updateLiveMode(state));
   }
 
-  // if (variables !== prevVariables) {
   useVariableChangeStatusStore.setState((s) => {
-    // s.changeVariable = {};
-    // s.updatePlot = {};
     orderVariables.forEach((kV) => {
       s.changeVariable[kV] = variables[kV] !== prevVariables[kV];
-      // variables[kV]?.link.forEach(([pK]) => {
-      //   s.updatePlot[pK] = true;
-      // });
-      // prevVariables[kV]?.link.forEach(([pK]) => {
-      //   s.updatePlot[pK] = true;
-      // });
-      // orderPlot
-      //   .filter((pK) => filterVariableByPromQl(plots[pK]?.promQL)(variables[kV]))
-      //   .forEach((pK) => {
-      //     s.updatePlot[pK] = true;
-      //   });
     });
   });
-  // }
+
   if (
     tabNum !== prevTabNum ||
     plots[tabNum] !== prevPlots[prevTabNum] ||
@@ -103,6 +91,14 @@ useStatsHouse.subscribe((state, prevState) => {
   if (+tabNum >= 0 && dashboardLayoutEdit) {
     state.setDashboardLayoutEdit(false);
   }
+  if (state.params !== prevState.params) {
+    if (!dequal({ ...state.params, tabNum: '0' }, { ...prevState.params, tabNum: '0' })) {
+      useLinkPlots.setState({ plotLinks: {}, singlePlotLinks: {}, addPlotLink: undefined }, true);
+    }
+  }
+  if (state.params.theme !== prevState.params.theme) {
+    updateTheme();
+  }
 });
 
 usePlotPreviewStore.subscribe((state, prevState) => {
@@ -111,3 +107,5 @@ usePlotPreviewStore.subscribe((state, prevState) => {
     updateFavicon(state.plotPreviewUrlList[tabNum]);
   }
 });
+
+updateTheme();

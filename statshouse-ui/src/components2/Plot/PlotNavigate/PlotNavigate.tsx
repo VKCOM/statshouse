@@ -25,8 +25,7 @@ import { useStatsHouse } from 'store2';
 import { isPromQL } from 'store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
-import { useLinkPlot } from 'hooks';
-import { setLiveMode } from 'store2/liveModeStore';
+import { useLinkPlot } from 'hooks/useLinkPlot';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;

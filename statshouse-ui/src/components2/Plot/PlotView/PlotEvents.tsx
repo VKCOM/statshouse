@@ -9,12 +9,13 @@ import DataGrid, { Column, DataGridHandle, RenderRowProps, Row, SortColumn } fro
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import { EventDataRow } from 'store2/plotEventsDataStore';
 import { useEventTagColumns2 } from 'hooks/useEventTagColumns2';
 import { PlotKey } from 'url2';
-import { useStatsHouseShallow } from '../../../store2';
-import { eventColumnDefault, getEventColumnsType } from '../../../view/api';
+import { useStatsHouseShallow } from 'store2';
+
+import { eventColumnDefault, getEventColumnsType } from 'view/getEventColumnsType';
 
 export type PlotEventsProps = {
   plotKey: PlotKey;

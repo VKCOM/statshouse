@@ -1,8 +1,8 @@
 import React from 'react';
-import { selectorParams, useStore } from '../../store';
-import { useWindowSize } from '../../hooks';
+import { selectorParams, useStore } from 'store';
+import { useWindowSize } from 'hooks/useWindowSize';
 import cn from 'classnames';
-import { Tooltip } from '../UI';
+import { Tooltip } from 'components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
 
 export type DashboardNameProps = {};

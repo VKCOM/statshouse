@@ -5,13 +5,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { Select, type SelectOptionProps } from 'components';
+import { Select, type SelectOptionProps } from 'components/Select';
 import cn from 'classnames';
 import { type QueryWhat } from 'api/enum';
 import { metricKindToWhat } from 'view/api';
 import { getNewPlot, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
-import { whatToWhatDesc } from '../../../view/whatToWhatDesc';
+import { whatToWhatDesc } from 'view/whatToWhatDesc';
 
 export type PlotControlWhatsProps = {
   plotKey: PlotKey;

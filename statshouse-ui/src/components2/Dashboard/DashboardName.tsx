@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo } from 'react';
-import { useWindowSize } from 'hooks';
+import { useWindowSize } from 'hooks/useWindowSize';
 import cn from 'classnames';
-import { Tooltip } from 'components';
+import { Tooltip } from 'components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
 import { useStatsHouseShallow } from 'store2';
 

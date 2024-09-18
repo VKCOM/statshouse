@@ -5,13 +5,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { Select } from 'components';
+import { Select } from 'components/Select';
 
 import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
 import { debug } from 'common/debug';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import { type PlotKey } from 'url2';
-import { useStatsHouse } from '../../../store2';
+import { useStatsHouse } from 'store2';
 
 type PlotLegendMaxHostProps = {
   value: string;

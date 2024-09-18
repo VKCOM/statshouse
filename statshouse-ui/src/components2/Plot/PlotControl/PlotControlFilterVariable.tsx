@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback } from 'react';
-import { VariableControl } from 'components';
+import { VariableControl } from 'components/VariableControl';
 import { setUpdatedVariable, useVariableListStore } from 'store2/variableList';
 import { VariableKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';

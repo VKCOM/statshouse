@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useStatsHouse, useStatsHouseShallow } from 'store2';
 import { Dashboard, TvModePanel } from 'components2';
 import { useEmbedMessage } from 'hooks/useEmbedMessage';
-import { ErrorMessages } from '../components';
-import { PlotLayout } from '../components2/Plot/PlotLayout';
+import { ErrorMessages } from 'components/ErrorMessages';
+import { PlotLayout } from 'components2/Plot/PlotLayout';
 import { useTvModeStore } from '../store2/tvModeStore';
 
 export function ViewPage() {
@@ -26,7 +26,6 @@ export function ViewPage() {
       window.scrollTo(0, 0);
     }
   }, [tabNum]);
-
   if (plotsLength === 0) {
     return (
       <div className="w-100 p-2">

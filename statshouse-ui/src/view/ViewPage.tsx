@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Dashboard, ErrorMessages, PlotLayout, PlotView, ToggleButton } from '../components';
+import { ToggleButton } from 'components/UI';
 import {
   defaultInterval,
   selectorDisabledLive,
@@ -23,6 +23,8 @@ import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscree
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
 import { toNumber } from '../common/helpers';
+import { Dashboard, PlotLayout, PlotView } from '../components';
+import { ErrorMessages } from '../components/ErrorMessages';
 
 const { setPlotParams, setBaseRange, setCompact } = useStore.getState();
 

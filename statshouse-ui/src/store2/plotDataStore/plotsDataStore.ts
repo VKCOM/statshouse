@@ -6,7 +6,6 @@
 
 import uPlot from 'uplot';
 import { type MetricType, PLOT_TYPE, type QueryWhat } from 'api/enum';
-import { type SelectOptionProps, type UPlotWrapperPropsScales } from '../../components';
 import { type PlotKey, type PlotParams, type TimeRange } from 'url2';
 import { type QuerySeriesMeta } from 'api/query';
 import { type StoreSlice } from '../createStore';
@@ -22,9 +21,8 @@ import { getPlotLoader, queryStart } from '../plotQueryStore';
 import { skipTimeout } from '../../common/helpers';
 import { usePlotVisibilityStore } from '../plotVisibilityStore';
 import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
-import { isPromQL } from '../helpers';
-import { filterVariableByPromQl } from '../helpers/filterVariableByPromQl';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
+import { type SelectOptionProps } from 'components/Select';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -86,17 +84,13 @@ export type PlotData = {
   maxHostLists: SelectOptionProps[][];
   promqltestfailed?: boolean;
   promqlExpand: boolean;
-  // numQueries: number;
 };
 
 export type PlotsDataStore = {
   plotsData: Partial<Record<PlotKey, PlotData>>;
-  // globalNumQueries: number;
   togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
   updatePlotsData(): void;
   loadPlotData(plotKey: PlotKey, force?: boolean): Promise<void>;
-  // globalQueryStart(): () => void;
-  // queryStart(plotKey: PlotKey): () => void;
   clearPlotError(plotKey: PlotKey): void;
   setPlotShow(plotKey: PlotKey, idx: number, show?: boolean, single?: boolean): void;
 };
@@ -165,41 +159,25 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const variables = getState().params.variables;
       const isEmbed = getState().isEmbed;
       let priority = 3;
+      const changeVariablesKey = useVariableChangeStatusStore.getState().changeVariable;
+      const changeVariable = orderVariables.some(
+        (vK) => changeVariablesKey[vK] && filterVariableByPlot(plot)(variables[vK])
+      );
       if (!force) {
         const visible = usePlotVisibilityStore.getState().plotVisibilityList[plotKey];
         const preview = usePlotVisibilityStore.getState().plotPreviewList[plotKey];
         const deltaTime = Math.floor(-timeRange.from / 5);
-        // console.log({ plotKey, visible, preview });
         if (!visible && preview) {
           if (
             prevPlotData?.lastTimeRange?.from === timeRange.from &&
-            Math.abs(prevPlotData?.lastTimeRange?.to - timeRange.to) < deltaTime
+            Math.abs(prevPlotData?.lastTimeRange?.to - timeRange.to) < deltaTime &&
+            !changeVariable
           ) {
             prepareEnd();
             return;
           }
-          // setState((state) => {
-          //   if (state.plotsData[plotKey]) {
-          //     state.plotsData[plotKey]!.scales.x = { min: timeRrange.to + timeRrange.from, max: timeRrange.to };
-          //   }
-          // });
         }
-        //if (
-        //         !usePlotVisibilityStore.getState().visibilityList[index] &&
-        //         usePlotVisibilityStore.getState().previewList[index] &&
-        //         prev.lastTimeRange &&
-        //         Math.abs(prev.lastTimeRange.to - prevStateTo) < deltaTime &&
-        //         Math.abs(prev.lastTimeRange.from - prevStateFrom) < deltaTime
-        //       ) {
-        //         setState((state) => {
-        //           if (state.plotsData[index].scales.x) {
-        //             state.plotsData[index].scales.x = { min: prevStateFrom, max: prevStateTo };
-        //           }
-        //         });
-        //         return;
-        //       }
         if (!visible && !preview) {
-          // console.log('skip', plotKey, { liveSkip, visible });
           prepareEnd();
           return;
         }
@@ -234,30 +212,11 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
       const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
       const changeTimeShifts = dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
-
-      const changeVariablesKey = useVariableChangeStatusStore.getState().changeVariable;
-      const changeVariable = orderVariables.some(
-        (vK) => changeVariablesKey[vK] && filterVariableByPlot(plot)(variables[vK])
-      );
       const fetchBadges = priority === 1 && !isEmbed;
       const loadBadges = fetchBadges && !getState().plotsData[plotKey]?.loadBadges;
-      // console.log('-====-');
-      // console.log({ to: getState().params.timeRange.to, to_last: getState().plotsData[plotKey]?.lastTimeRange?.to });
-      // console.log({ plotKey, changePlotParam, changeTime, changeNowTime });
       let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable || loadBadges;
       prepareEnd();
       if (update) {
-        // console.log('loadPlotData run', plotKey);
-        // console.log(plotKey, { update, changePlotParam, changeTime, changeNowTime, changeTimeShifts });
-        // setState((state) => {
-        //   const scales: UPlotWrapperPropsScales = {};
-        //   scales.x = { min: state.params.timeRange.to + state.params.timeRange.from, max: state.params.timeRange.to };
-        //   if (state.params.plots[plotKey]?.yLock.min !== 0 || state.params.plots[plotKey]?.yLock.max !== 0) {
-        //     scales.y = { ...lastPlotParams.yLock };
-        //   }
-        //   state.plotsData[index].scales = scales;
-        // });
-
         const queryEnd = queryStart(plotKey);
         loadPlotData(plotKey, getState().params, fetchBadges, priority)
           .then((updatePlotData) => {
@@ -281,11 +240,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           });
       }
 
-      // getState().params.plots[plotKey]?.events.forEach((iPlot) => {
-      //   if (!getState().plotsData[iPlot]?.numQueries) {
-      //     getState().loadPlotData(iPlot, true);
-      //   }
-      // });
       plot?.events.forEach((iPlot) => {
         if (!getPlotLoader(iPlot)) {
           getState().loadPlotData(iPlot, true);
@@ -302,33 +256,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           .catch(() => undefined);
       }
     },
-    // globalQueryStart() {
-    //   setState((state) => {
-    //     state.globalNumQueries += 1;
-    //   });
-    //   return () => {
-    //     setState((state) => {
-    //       state.globalNumQueries -= 1;
-    //     });
-    //   };
-    // },
-    // queryStart(plotKey) {
-    //   setState((state) => {
-    //     state.plotsData[plotKey] ??= getEmptyPlotData();
-    //     state.plotsData[plotKey]!.numQueries++;
-    //   });
-    //   let start = true;
-    //   return () => {
-    //     if (start) {
-    //       start = false;
-    //       setState((state) => {
-    //         if (state.plotsData[plotKey]) {
-    //           state.plotsData[plotKey]!.numQueries--;
-    //         }
-    //       });
-    //     }
-    //   };
-    // },
+
     clearPlotError(plotKey) {
       setState(updateClearPlotError(plotKey));
     },

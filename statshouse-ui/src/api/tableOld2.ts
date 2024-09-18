@@ -7,9 +7,10 @@
 import { GET_PARAMS, QueryWhat, TagKey } from './enum';
 import { freeKeyPrefix, PlotParams, TimeRange } from 'url2';
 import { filterParams, formatTagValue, querySeriesMetaTag, v2Value } from 'view/api';
-import { apiGet, fmtInputDateTime } from 'view/utils';
+import { apiGet } from 'view/utils';
 import { uniqueArray } from '../common/helpers';
 import { promQLMetric } from '../view/promQLMetric';
+import { fmtInputDateTime } from '../view/utils2';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
 export type WhatCollection = Record<QueryWhat, number>;

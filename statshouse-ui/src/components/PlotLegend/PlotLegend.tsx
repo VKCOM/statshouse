@@ -5,11 +5,12 @@ import { PlotValues } from '../../store';
 
 import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
-import { secondsRangeToString, timeShiftDesc, useResizeObserver } from '../../view/utils';
 import { PlotLegendMaxHost } from './PlotLegendMaxHost';
 import { Tooltip } from '../UI';
 import { PlotValueUnit } from './PlotValueUnit';
 import { METRIC_TYPE, MetricType } from '../../api/enum';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
+import { secondsRangeToString, timeShiftDesc } from '../../view/utils2';
 
 type PlotLegendProps = {
   indexPlot: number;

@@ -6,7 +6,6 @@
 
 import React, { Dispatch, memo, SetStateAction, useCallback } from 'react';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut } from '../../view/utils';
 import { ReactComponent as SVGChevronLeft } from 'bootstrap-icons/icons/chevron-left.svg';
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
 import { ReactComponent as SVGZoomIn } from 'bootstrap-icons/icons/zoom-in.svg';
@@ -23,6 +22,7 @@ import { debug } from '../../common/debug';
 import { lockRange, PLOT_TYPE, PlotType } from '../../url/queryParams';
 import { Link } from 'react-router-dom';
 import { Button, ToggleButton, Tooltip } from '../UI';
+import { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut } from '../../view/utils2';
 
 export type PlotNavigateProps = {
   live: boolean;

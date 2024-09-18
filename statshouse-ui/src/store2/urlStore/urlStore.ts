@@ -36,7 +36,7 @@ import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { defaultBaseRange } from '../constants';
-import { useErrorStore } from '../../store';
+import { useErrorStore } from 'store/errors';
 import { debug } from '../../common/debug';
 import { saveDashboard } from './saveDashboard';
 import { readDataDashboard } from './readDataDashboard';
@@ -75,99 +75,14 @@ export type UrlStore = {
   removeVariableLinkByPlotKey(plotKey: PlotKey): void;
 };
 
-/*export function checkUpdatePlot(plotKey: PlotKey, store: StatsHouseStore, prevStore: StatsHouseStore): boolean {
-  if (store.liveMode && store.plotsData[plotKey]?.numQueries) {
-    return false;
-  }
-  const plot = store.params.plots[plotKey];
-  const prevPlot = prevStore.params.plots[plotKey];
-  const dataPlot = store.plotsData[plotKey]?.lastPlotParams;
-  if (plot) {
-    if (!prevPlot || !dataPlot) {
-      return true;
-    }
-    if (
-      plot.filterIn !== prevPlot.filterIn ||
-      plot.filterNotIn !== prevPlot.filterNotIn ||
-      plot.groupBy !== prevPlot.groupBy ||
-      plot.numSeries !== prevPlot.numSeries ||
-      plot.what !== prevPlot.what ||
-      plot.promQL !== prevPlot.promQL ||
-      plot.customAgg !== prevPlot.customAgg ||
-      plot.maxHost !== prevPlot.maxHost ||
-      plot.useV2 !== prevPlot.useV2 ||
-      plot.type !== prevPlot.type ||
-      plot.filterIn !== dataPlot.filterIn ||
-      plot.filterNotIn !== dataPlot.filterNotIn ||
-      plot.groupBy !== dataPlot.groupBy ||
-      plot.numSeries !== dataPlot.numSeries ||
-      plot.what !== dataPlot.what ||
-      plot.promQL !== dataPlot.promQL ||
-      plot.customAgg !== dataPlot.customAgg ||
-      plot.maxHost !== dataPlot.maxHost ||
-      plot.useV2 !== dataPlot.useV2 ||
-      plot.type !== dataPlot.type
-    ) {
-      return true;
-    }
-  }
-
-  // change plot param
-  // if (!dequal(store.params.plots[plotKey], prevStore.params.plots[plotKey])) {
-  //   return true;
-  // }
-  // change plot param
-  // if (
-  //   !dequal(store.params.plots[plotKey], store.plotsData[plotKey]?.lastPlotParams) &&
-  //   !store.plotsData[plotKey]?.numQueries
-  // ) {
-  //   return true;
-  // }
-
-  return false;
-}
-
-export function updatePlotList(store: StatsHouseStore, prevStore: StatsHouseStore): PlotKey[] {
-  const first: PlotKey[] = [];
-  const second: PlotKey[] = [];
-  const third: PlotKey[] = [];
-
-  store.params.orderPlot.forEach((pK) => {
-    if (pK === store.params.tabNum && checkUpdatePlot(pK, store, prevStore)) {
-      first.push(pK);
-    } else if (store.plotVisibilityList[pK] && checkUpdatePlot(pK, store, prevStore)) {
-      second.push(pK);
-    } else if (store.plotPreviewList[pK] && checkUpdatePlot(pK, store, prevStore)) {
-      third.push(pK);
-    }
-  });
-
-  const plotsKeyUpdate = [...first, ...second, ...third];
-  if (plotsKeyUpdate.length) {
-    console.log('plotsKeyUpdate', { first, second, third, plotsKeyUpdate });
-  } else {
-    console.log('plotsKeyUpdate skip');
-  }
-  // console.log('list', list);
-  return plotsKeyUpdate;
-}*/
-
 export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getState) => {
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
-
   async function updateUrlState() {
     return getUrlState(getState().saveParams, prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
-        // s.params = mergeLeft(s.params, {
-        //   ...res.params,
-        //   timeRange:
-        //     res.params.timeRange.urlTo !== s.params.timeRange.urlTo ||
-        //     res.params.timeRange.from !== s.params.timeRange.from
-        //       ? res.params.timeRange
-        //       : s.params.timeRange,
-        // });
+
         s.params = mergeParams(s.params, {
           ...res.params,
           timeRange:
@@ -176,15 +91,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
               ? res.params.timeRange
               : s.params.timeRange,
         });
-        // s.params = {
-        //   ...res.params,
-        //   timeRange:
-        //     res.params.timeRange.urlTo !== s.params.timeRange.urlTo ||
-        //     res.params.timeRange.from !== s.params.timeRange.from
-        //       ? res.params.timeRange
-        //       : s.params.timeRange,
-        // };
-        // s.saveParams = mergeLeft(s.saveParams, res.saveParams);
         s.saveParams = res.saveParams;
         if (res.error != null) {
           useErrorStore.getState().addError(res.error);

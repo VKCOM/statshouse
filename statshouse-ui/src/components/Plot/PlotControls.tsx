@@ -5,26 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import * as utils from '../../view/utils';
-import {
-  getMetricFullName,
-  getTagDescription,
-  getTimeShifts,
-  isTagEnabled,
-  timeShiftAbbrevExpand,
-} from '../../view/utils';
-import {
-  Button,
-  PlotControlFrom,
-  PlotControlTimeShifts,
-  PlotControlTo,
-  Select,
-  SelectMetric,
-  SelectOptionProps,
-  SwitchBox,
-  Tooltip,
-  VariableControl,
-} from '../index';
+import { getMetricFullName } from '../../view/utils';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
@@ -47,6 +29,17 @@ import { isNotNil, parseURLSearchParams, toNumber } from '../../common/helpers';
 import { PlotControlView } from './PlotControlView';
 import { promQLMetric } from '../../view/promQLMetric';
 import { whatToWhatDesc } from '../../view/whatToWhatDesc';
+import {
+  getTagDescription,
+  getTimeShifts,
+  isTagEnabled,
+  timeRangeAbbrev,
+  timeShiftAbbrevExpand,
+} from '../../view/utils2';
+import { Select, SelectOptionProps } from '../Select';
+import { SelectMetric } from '../SelectMertic';
+import { Button, SwitchBox, Tooltip } from '../UI';
+import { VariableControl } from '../VariableControl';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -76,7 +69,7 @@ const eventPreset: SelectOptionProps[] = globalSettings.event_preset
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
-  setBaseRange: (r: utils.timeRangeAbbrev) => void;
+  setBaseRange: (r: timeRangeAbbrev) => void;
   meta?: MetricMetaValue;
   numQueries: number;
   clonePlot?: () => void;

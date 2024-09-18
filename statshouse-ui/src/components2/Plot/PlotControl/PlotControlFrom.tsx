@@ -7,12 +7,12 @@
 import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
-import { secondsRangeToString } from 'view/utils';
-import { Button } from 'components';
+import { Button } from 'components/UI';
 import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from 'api/enum';
 import { defaultBaseRange, useStatsHouseShallow } from 'store2';
 import { getEndDay, getEndWeek, getNow } from 'url2';
 import { getAbbrev, timeRangeAbbrevExpand } from 'store2/helpers';
+import { secondsRangeToString } from 'view/utils2';
 
 export type PlotControlFromProps = {
   className?: string;

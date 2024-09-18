@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { selectorLoadPromConfig, selectorPromConfig, selectorSavePromConfig, useStore } from '../../store';
 import { useStateInput } from '../../hooks';
-import { ErrorMessages } from '../../components';
+import { ErrorMessages } from 'components/ErrorMessages';
 
 export type PrometheusPageProps = {};
 export const PrometheusPage: React.FC<PrometheusPageProps> = () => {

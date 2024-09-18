@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback } from 'react';
-import { getTagDescription, isTagEnabled } from '../../view/utils';
 import { MetricMetaValue } from '../../api/metric';
 import { toTagKey } from '../../url/queryParams';
 import { TAG_KEY, TagKey } from '../../api/enum';
+import { getTagDescription, isTagEnabled } from '../../view/utils2';
 
 export type VariablePlotLinkSelectProps = {
   indexPlot: number;

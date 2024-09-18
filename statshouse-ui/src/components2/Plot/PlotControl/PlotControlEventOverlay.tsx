@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { Select, type SelectOptionProps } from 'components';
+import { Select, type SelectOptionProps } from 'components/Select';
 import cn from 'classnames';
 import { isNotNil, parseURLSearchParams } from 'common/helpers';
 import { produce } from 'immer';
