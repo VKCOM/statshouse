@@ -78,3 +78,14 @@ func (a *Aggregator) reportInsertKeys(bucketTime uint32, metric int32, historic 
 	}
 	return key
 }
+
+func (a *Aggregator) reportExpInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int) data_model.Key {
+	key := a.aggKey(bucketTime, metric, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception), 1})
+	if err != nil {
+		key.Keys[5] = format.TagValueIDInsertTimeError
+	}
+	if historic {
+		key.Keys[4] = format.TagValueIDConveyorHistoric
+	}
+	return key
+}
