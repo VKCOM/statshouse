@@ -24,8 +24,10 @@ export type PlotControlUnitProps = {
 export function _PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
   const { metricUnitParam, what, metaMetricType, setPlot } = useStatsHouseShallow((s) => ({
     metricUnitParam: s.params.plots[plotKey]?.metricUnit,
-    what: s.params.plots[plotKey]?.what,
-    metaMetricType: s.metricMeta[s.params.plots[plotKey]?.metricName ?? '']?.metric_type,
+    what: s.plotsData[plotKey]?.whats ?? s.params.plots[plotKey]?.what,
+    metaMetricType:
+      s.plotsData[plotKey]?.metricUnit ??
+      s.metricMeta[s.plotsData[plotKey]?.metricName ?? s.params.plots[plotKey]?.metricName ?? '']?.metric_type,
     setPlot: s.setPlot,
   }));
 
