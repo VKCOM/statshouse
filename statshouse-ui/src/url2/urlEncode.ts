@@ -1,5 +1,5 @@
 import { FilterTag, GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl } from 'api/enum';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl, PLOT_TYPE } from 'api/enum';
 import { dequal } from 'dequal/lite';
 
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
@@ -107,6 +107,9 @@ export function urlEncodePlots(
 
 export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNewPlot()): [string, string][] {
   const paramArr: [string, string][] = [];
+  if (defaultPlot.id === '' && plot.type === PLOT_TYPE.Event) {
+    defaultPlot.numSeries = 0;
+  }
   if (defaultPlot === plot) {
     return paramArr;
   }

@@ -69,6 +69,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendValueWidth,
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
+    isActive,
     // setPlotVisibility,
     // setPlotYLock,
     // setTimeRange,
@@ -78,7 +79,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   } = useStatsHouseShallow(
     ({
       plotsData,
-      params: { plots, timeRange },
+      params: { tabNum, plots, timeRange },
       metricMeta,
       isEmbed,
       baseRange,
@@ -112,6 +113,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
         isEmbed,
         baseRange,
+        isActive: tabNum === plotKey,
         // setPlotVisibility,
         // setPlotYLock,
         // setTimeRange,
@@ -322,10 +324,10 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   }, [seriesShow]);
 
   useEffect(() => {
-    if (isDashboard) {
+    if (isDashboard || isActive) {
       setPlotVisibility(plotKey, visibleBool);
     }
-  }, [isDashboard, plotKey, visibleBool]);
+  }, [isActive, isDashboard, plotKey, visibleBool]);
 
   const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem[]>>>(
     (legend) => {

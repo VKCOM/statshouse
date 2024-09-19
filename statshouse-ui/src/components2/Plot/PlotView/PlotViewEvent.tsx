@@ -68,6 +68,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
     plotEventsDataRange,
+    isActive,
     // setPlotVisibility,
     // setPlotYLock,
     // setTimeRange,
@@ -76,7 +77,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
   } = useStatsHouseShallow(
     ({
       plotsData,
-      params: { plots, timeRange },
+      params: { tabNum, plots, timeRange },
       plotsEventsData,
       metricMeta,
       isEmbed,
@@ -109,6 +110,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         plotEventsDataRange: plotsEventsData[plotKey]?.range,
         isEmbed,
         baseRange,
+        isActive: tabNum === plotKey,
         // setPlotVisibility,
         // setPlotYLock,
         // setTimeRange,
@@ -345,10 +347,10 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
   }, [seriesShow]);
 
   useEffect(() => {
-    if (isDashboard) {
+    if (isDashboard || isActive) {
       setPlotVisibility(plotKey, visibleBool);
     }
-  }, [isDashboard, plotKey, visibleBool]);
+  }, [isActive, isDashboard, plotKey, visibleBool]);
 
   return (
     <div
