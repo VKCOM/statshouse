@@ -19,7 +19,7 @@ mode.
 <img src={WhatIsSh} width="1000"/>
 
 :::tip
-* [View the conceptual **TLDR**](test.md).
+* [View the conceptual **TLDR**](tldr.md).
 * [Start using **StatsHouse in 10 minutes**](quick-start.md).
 * Proceed to [**User guide**](guides/access-cluster.md) or [**Administrator guide**](admin/sys-req.md).
   :::
@@ -41,7 +41,7 @@ You have three options to use StatsHouse:
 
 Use the **🔍 Search** bar in the upper-left corner, or check the table of contents below.
 
-### [TLDR](test.md)
+### [TLDR](tldr.md)
 
 ### [Quick start](quick-start.md)
 

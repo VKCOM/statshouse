@@ -18,7 +18,7 @@ import TldrSfWhat from '../img/t-sf-what.png'
 # Concepts
 
 :::tip
-[Read the **TLDR**](../test.md).
+[Read the **TLDR**](../tldr.md).
 :::
 
 To understand StatsHouse deeply, learn the basic metric-related concepts:
@@ -403,7 +403,7 @@ sampling "mainstays" algorithm is impossible, and StatsHouse has to discard the 
 <img src={TldrSfCorner} width="800"/>
 
 You cannot prevent data from being sampled for sure, but you can 
-[make sampling less likely](../test.md#how-to-minimize-sampling).
+[make sampling less likely](../tldr.md#how-to-minimize-sampling).
 
 ### User-guided sampling
 
