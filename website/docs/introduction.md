@@ -6,18 +6,25 @@ toc_max_heading_level: 2
 
 import Intro from './img/intro.png'
 import WhatIsSh from './img/what-is-sh.png'
+import { Icon } from '@iconify/react';
 
 # What is StatsHouse?
 
 StatsHouse is an [open-source](https://github.com/VKCOM/statshouse) monitoring system that is highly available, scalable, and multitenant.
-One can hardly overload it—due to [aggregation](overview/concepts.md#aggregation) and 
+One can hardly overload it—due to [aggregation](overview/concepts.md#aggregation) and
 [sampling](overview/concepts.md#sampling).
-It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live 
+It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live
 mode.
 
-Read more about StatsHouse [features](overview/features.md). Find StatsHouse on [GitHub](https://github.com/VKCOM/statshouse).
-
 <img src={WhatIsSh} width="1000"/>
+
+:::tip
+* [View the conceptual **TLDR**](test.md).
+* [Start using **StatsHouse in 10 minutes**](quick-start.md).
+* Proceed to [**User guide**](guides/access-cluster.md) or [**Administrator guide**](admin/sys-req.md).
+  :::
+
+Find StatsHouse on [<Icon icon="octicon:mark-github-24" /> GitHub](https://github.com/VKCOM/statshouse).
 
 ## What you can do with StatsHouse
 
@@ -32,12 +39,14 @@ You have three options to use StatsHouse:
 
 ## What you can find in the docs
 
-Use the **🔍 Search** bar in the upper-right corner, or check the table of contents below.
+Use the **🔍 Search** bar in the upper-left corner, or check the table of contents below.
+
+### [TLDR](test.md)
 
 ### [Quick start](quick-start.md)
 
-* [Run StatsHouse locally](quick-start.md#run-statshouse-locally) or 
-[access the deployed one](quick-start.md#get-internal-permissions)
+* [Run StatsHouse locally](quick-start.md#run-statshouse-locally) or
+  [access the deployed one](quick-start.md#get-internal-permissions)
 * [Send metrics from a demo web server](quick-start.md#send-metrics-from-a-demo-web-server)
 * [Create your own metric](quick-start.md#create-your-metric)
 * [Send data to your metric](quick-start.md#send-data-to-your-metric)
@@ -46,11 +55,11 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 ### [User guide](guides/access-cluster.md)
 
 * [Get access to StatsHouse](guides/access-cluster.md)
-* [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from 
+* [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from
   your metric_</text>
 * [Create a metric](guides/create-metric.md)
 * [Send metric data](guides/send-data.md)
-* [View data on a graph](guides/view-graph.md) <text className="orange-text">← _the detailed UI description is 
+* [View data on a graph](guides/view-graph.md) <text className="orange-text">← _the detailed UI description is
   here_</text>
 * [Edit a metric](guides/edit-metrics.md)
 * [Create and view dashboards](guides/dashboards.md)
