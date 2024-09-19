@@ -79,6 +79,10 @@ export function normalizePlotData(
       });
     }
 
+    if (response.metric?.name) {
+      uniqueName.add(response.metric.name);
+    }
+
     for (const meta of series_meta) {
       if (isQueryWhat(meta.what)) {
         uniqueWhat.add(meta.what);

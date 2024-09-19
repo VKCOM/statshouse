@@ -11,6 +11,7 @@ import cn from 'classnames';
 import { useStatsHouseShallow } from 'store2';
 import { formatSI } from 'common/formatByMetricType';
 import { useLinkCSV2 } from 'hooks/useLinkCSV2';
+import { isPromQL } from 'store2/helpers';
 
 export type PlotSubMenuProps = {
   className?: string;
@@ -25,8 +26,8 @@ export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
     samplingFactorAgg,
     mappingFloodEvents,
     timeRange,
-  } = useStatsHouseShallow(({ plotsData, params: { timeRange } }) => ({
-    metricName: plotsData[plotKey]?.metricName ?? '',
+  } = useStatsHouseShallow(({ plotsData, params: { plots, timeRange } }) => ({
+    metricName: plotsData[plotKey]?.metricName ?? (isPromQL(plots[plotKey]) ? '' : plots[plotKey]?.metricName) ?? '',
     receiveErrors: plotsData[plotKey]?.receiveErrors ?? 0,
     receiveWarnings: plotsData[plotKey]?.receiveWarnings ?? 0,
     samplingFactorSrc: plotsData[plotKey]?.samplingFactorSrc ?? 1,

@@ -8,7 +8,7 @@ import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, url
 import { apiQueryFetch, type ApiQueryGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
-import { type ProduceUpdate } from '../helpers';
+import { isPromQL, type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
