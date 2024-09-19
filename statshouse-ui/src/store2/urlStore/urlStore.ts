@@ -133,7 +133,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   appHistory.listen(({ location }) => {
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
-      if (isValidPath(prevLocation) && prevSearch !== prevLocation.search) {
+      if (isValidPath(prevLocation) && (prevSearch !== prevLocation.search || prevSearch === '')) {
         prevSearch = prevLocation.search;
         updateUrlState();
       }
