@@ -13,6 +13,11 @@ case "$IMAGE_NAME" in
   *) echo "Target name \"$IMAGE_NAME\" is not recognized!"; shift; continue ;;
 esac
 
+case "$IMAGE_TAG" in
+  "centos6") DNF_GROUP_CMD="groupinstall" ;;
+  *) DNF_GROUP_CMD="group install" ;;
+esac 
+
 NAME_RELEASE=$(echo $NAME_RELEASE | sed -e 's/-/./g;s/:/./g')
 
 if [[ -z $GOLANG_VERSION ]]; then
@@ -48,7 +53,7 @@ RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/CentOS-*.repo
 RUN sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/CentOS-*.repo
 RUN sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-*.repo
 RUN $DNF update -y
-RUN $DNF group install -y "Development Tools"
+RUN $DNF $DNF_GROUP_CMD -y "Development Tools"
 RUN  curl -L https://go.dev/dl/go$GOLANG_VERSION.linux-amd64.tar.gz | tar -C /usr/local -xzf -
 ENV PATH=\$PATH:/usr/local/go/bin
 RUN groupadd -g $GID builder
@@ -58,7 +63,7 @@ else
   docker image build -t $BUILD_IMAGE - <<EOF
 FROM $IMAGE
 RUN $DNF update -y
-RUN $DNF group install -y "Development Tools"
+RUN $DNF $DNF_GROUP_CMD -y "Development Tools"
 RUN  curl -L https://go.dev/dl/go$GOLANG_VERSION.linux-amd64.tar.gz | tar -C /usr/local -xzf -
 ENV PATH=\$PATH:/usr/local/go/bin
 RUN groupadd -g $GID builder
