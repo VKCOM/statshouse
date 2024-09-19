@@ -8,6 +8,7 @@ import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import DataGrid, { Column, DataGridHandle, RenderRowProps, Row, SortColumn } from 'react-data-grid';
 import cn from 'classnames';
 import css from './style.module.css';
+import 'react-data-grid/lib/styles.css';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
 import { Button } from 'components/UI';
 import { EventDataRow } from 'store2/plotEventsDataStore';

@@ -1,7 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
 
-import css from './style.module.css';
 const appVersion = localStorage.getItem('appVersion');
 export function appVersionToggle() {
   if (appVersion) {
@@ -15,7 +14,16 @@ export function appVersionToggle() {
 export function AppVersionToggle() {
   return (
     <li className={cn()} onClick={appVersionToggle}>
-      <span role="button" className={css.link}>
+      <span
+        role="button"
+        style={{
+          display: 'flex',
+          padding: '10px 17px',
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+          color: 'var(--bs-secondary)',
+        }}
+      >
         AppVersion {appVersion ? '1' : '2'}
       </span>
     </li>
