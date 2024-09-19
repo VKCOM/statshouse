@@ -119,7 +119,7 @@ func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd stri
 	// parse external addresses
 	externalAddresses := make([]*net.TCPAddr, len(config.ExternalAddresses))
 	for i := range config.ExternalAddresses {
-		externalAddresses[i], err = net.ResolveTCPAddr(config.Network, config.ListenAddr)
+		externalAddresses[i], err = net.ResolveTCPAddr(config.Network, config.ExternalAddresses[i])
 		if err != nil {
 			return nil, err
 		}
