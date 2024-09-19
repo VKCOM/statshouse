@@ -98,6 +98,8 @@ func (b *binlogEngine) Revert(toOffset int64) (bool, error) {
 
 func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	b.e.logger.Printf("change role: %+v", info)
+	b.e.rw.setReplica(!info.IsMaster)
+	b.e.userEngine.ChangeRole(info)
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
 			b.e.rw.mu.Lock()
@@ -106,9 +108,6 @@ func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 			close(b.e.readyCh)
 		})
 	}
-	// TODO add notify user
-	b.e.rw.setReplica(!info.IsMaster)
-	b.e.userEngine.ChangeRole(info)
 	return nil
 }
 
