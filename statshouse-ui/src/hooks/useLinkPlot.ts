@@ -20,7 +20,7 @@ export const useLinkPlots = create<LinkPlot>()(
   }))
 );
 
-function createPlotLink(plotKey: PlotKey, single?: boolean) {
+export function createPlotLink(plotKey: PlotKey, single?: boolean) {
   const { params, saveParams } = useStatsHouse.getState();
   useLinkPlots.setState((s) => {
     if (single) {
@@ -41,7 +41,7 @@ function createPlotLink(plotKey: PlotKey, single?: boolean) {
   });
 }
 
-function createAddPlotLink() {
+export function createAddPlotLink() {
   const { params, saveParams } = useStatsHouse.getState();
   useLinkPlots.setState((s) => {
     s.addPlotLink = getAddPlotLink(params, saveParams);
@@ -67,9 +67,9 @@ export function useAddLinkPlot(visible: boolean): To {
   const tabNum = useStatsHouse((s) => s.params.tabNum);
   const link = useLinkPlots((s) => s.addPlotLink ?? '');
   useEffect(() => {
-    if (visible) {
+    if (visible || !link) {
       createAddPlotLink();
     }
-  }, [visible, tabNum]);
+  }, [visible, tabNum, link]);
   return link;
 }

@@ -29,7 +29,6 @@ export function getLoadPlotUrlParams(
   plot = replaceVariable(plotKey, plot, params.variables);
   const width = plot.customAgg === -1 ? autoLowAgg : plot.customAgg === 0 ? autoAgg : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
-    [GET_PARAMS.numResults]: plot.numSeries.toString(),
     [GET_PARAMS.metricWhat]: plot.what.slice(),
     [GET_PARAMS.toTime]: params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
@@ -43,6 +42,7 @@ export function getLoadPlotUrlParams(
   };
   if (plot.metricName && plot.metricName !== promQLMetric) {
     urlParams[GET_PARAMS.metricName] = plot.metricName;
+    urlParams[GET_PARAMS.numResults] = plot.numSeries.toString();
   }
   if (plot.promQL || plot.metricName === promQLMetric) {
     urlParams[GET_PARAMS.metricPromQL] = plot.promQL;

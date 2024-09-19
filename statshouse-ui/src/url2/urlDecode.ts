@@ -17,6 +17,7 @@ import {
   isTagKey,
   METRIC_VALUE_BACKEND_VERSION,
   metricTypeUrlToMetricType,
+  PLOT_TYPE,
   toPlotType,
   toTagKey,
 } from 'api/enum';
@@ -185,6 +186,7 @@ export function urlDecodePlot(
   const rawFilledGraph = searchParams?.[GET_PARAMS.viewFilledGraph]?.[treeParamsObjectValueSymbol]?.[0];
   const metricName = searchParams?.[GET_PARAMS.metricName]?.[treeParamsObjectValueSymbol]?.[0];
   const promQL = searchParams?.[GET_PARAMS.metricPromQL]?.[treeParamsObjectValueSymbol]?.[0];
+  const type = toPlotType(searchParams?.[GET_PARAMS.metricType]?.[treeParamsObjectValueSymbol]?.[0], defaultPlot.type);
   return {
     id: plotKey,
     metricName: metricName ?? ((promQL != null && promQLMetric) || defaultPlot.metricName),
@@ -206,7 +208,8 @@ export function urlDecodePlot(
     ),
     ...urlDecodePlotFilters(GET_PARAMS.metricFilter, searchParams, defaultPlot),
     numSeries:
-      toNumber(searchParams?.[GET_PARAMS.numResults]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.numSeries,
+      toNumber(searchParams?.[GET_PARAMS.numResults]?.[treeParamsObjectValueSymbol]?.[0]) ??
+      (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries),
     useV2: rawUseV2 != null ? rawUseV2 !== METRIC_VALUE_BACKEND_VERSION.v1 : defaultPlot.useV2,
     yLock: {
       min:
@@ -215,7 +218,7 @@ export function urlDecodePlot(
         toNumber(searchParams?.[GET_PARAMS.metricLockMax]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.max,
     },
     maxHost: rawMaxHost != null ? rawMaxHost === '1' : defaultPlot.maxHost,
-    type: toPlotType(searchParams?.[GET_PARAMS.metricType]?.[treeParamsObjectValueSymbol]?.[0], defaultPlot.type),
+    type,
     events: sortUniqueKeys(
       searchParams?.[GET_PARAMS.metricEvent]?.[treeParamsObjectValueSymbol]
         ?.map((s) => toPlotKey(s))
