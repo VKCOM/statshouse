@@ -1,5 +1,5 @@
 import type { GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
+import { PLOT_TYPE, QUERY_WHAT, TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
 import { deepClone } from 'common/helpers';
 import { globalSettings } from 'common/settings';
 
@@ -37,7 +37,7 @@ export function getNewPlot(): PlotParams {
     customName: '',
     customDescription: '',
     promQL: '',
-    metricUnit: METRIC_TYPE.none,
+    metricUnit: undefined,
     what: [QUERY_WHAT.countNorm],
     customAgg: 0,
     groupBy: [],
