@@ -60,7 +60,6 @@ import {
   decodeDashboardVersionParam,
   decodeParams,
   encodeParams,
-  fixMessageTrouble,
   freeKeyPrefix,
   getDefaultParams,
   getNewPlot,
@@ -96,6 +95,7 @@ import {
 import { DashboardInfo, normalizeDashboard } from '../view/normalizeDashboard';
 import { SelectOptionProps } from '../components/Select';
 import { UPlotWrapperPropsScales } from '../components/UPlotWrapper';
+import { fixMessageTrouble } from '../url/fixMessageTrouble';
 
 export type PlotStore = {
   nameMetric: string;

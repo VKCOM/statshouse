@@ -9,6 +9,8 @@ import { getNextPlotKey, updateQueryParamsPlotStruct } from '../urlStore/updateP
 import { produce } from 'immer';
 import { clonePlot } from 'url2/clonePlot';
 
+import { fixMessageTrouble } from 'url/fixMessageTrouble';
+
 export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): string {
   const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
   const nextId = getNextPlotKey(params);
@@ -33,5 +35,5 @@ export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): s
     })
   );
 
-  return '?' + new URLSearchParams(urlEncode(nextParams, saveParams)).toString();
+  return fixMessageTrouble('?' + new URLSearchParams(urlEncode(nextParams, saveParams)).toString());
 }

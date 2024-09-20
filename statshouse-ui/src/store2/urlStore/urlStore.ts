@@ -43,6 +43,7 @@ import { readDataDashboard } from './readDataDashboard';
 import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
+import { fixMessageTrouble } from 'url/fixMessageTrouble';
 
 export type UrlStore = {
   params: QueryParams;
@@ -113,7 +114,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   }
 
   function updateHistory(state: StatsHouseStore, replace: boolean = false) {
-    const search = '?' + getUrl(state);
+    const search = fixMessageTrouble('?' + getUrl(state));
     if (prevSearch !== search) {
       prevSearch = search;
       if (replace) {

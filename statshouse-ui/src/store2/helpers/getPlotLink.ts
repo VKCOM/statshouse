@@ -4,16 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getDefaultParams, getNewGroup, getNewPlot, type PlotKey, type QueryParams, urlEncode } from 'url2';
+import { getNewGroup, getNewPlot, type PlotKey, type QueryParams, urlEncode } from 'url2';
 import { produce } from 'immer';
-import { addPlot } from './addPlot';
-import { clonePlot } from '../../url2/clonePlot';
-import { getEmptyPlotData } from '../plotDataStore/getEmptyPlotData';
+import { clonePlot } from 'url2/clonePlot';
+import { fixMessageTrouble } from 'url/fixMessageTrouble';
 
 let localParams: QueryParams;
-// let localSingleParams: QueryParams;
 let localSaveParams: QueryParams;
-// let templateFn: (plotKey: PlotKey) => string;
 let templateSaveFn: (plotKey: PlotKey) => string;
 
 const plotKeyPh = '#$$$[pk]$$$#';
@@ -29,7 +26,7 @@ function createTemplateFn(params: QueryParams, saveParams?: QueryParams) {
         saveParams
       )
     ).toString();
-  const [f, p] = link.split(encodeURIComponent(plotKeyPh)).map(String);
+  const [f, p] = fixMessageTrouble(link).split(encodeURIComponent(plotKeyPh)).map(String);
   return (plotKey: PlotKey) => `${f}${plotKey}${p}`;
 }
 

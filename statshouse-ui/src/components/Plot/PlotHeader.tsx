@@ -19,7 +19,7 @@ import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import { MetricMetaValue } from '../../api/metric';
-import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
+import { encodeParams, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
 import { shallow } from 'zustand/shallow';
 import { PlotName } from './PlotName';
 import { PlotLink } from './PlotLink';
@@ -30,6 +30,7 @@ import { useOnClickOutside } from '../../hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { promQLMetric } from '../../view/promQLMetric';
 import { whatToWhatDesc } from '../../view/whatToWhatDesc';
+import { fixMessageTrouble } from '../../url/fixMessageTrouble';
 
 const { removePlot, setPlotParams, setPlotType } = useStore.getState();
 const stopPropagation = (e: React.MouseEvent) => {
