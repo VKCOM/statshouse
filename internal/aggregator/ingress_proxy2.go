@@ -3,9 +3,7 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -22,14 +20,13 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 	"go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
 	minAcceptDelay  = 5 * time.Millisecond
 	maxAcceptDelay  = 1 * time.Second
-	maxConns        = rpc.DefaultMaxConns
 	rareLogInterval = 1 * time.Second
 
 	// copied from RPC internals
@@ -54,19 +51,37 @@ type ingressProxy2 struct {
 	serverOpts   rpc.ServerOptions
 	clientOpts   rpc.ClientOptions
 	listeners    []net.Listener
-	listenersG   sync.WaitGroup
-	connSem      semaphore.Weighted
+	wg           sync.WaitGroup
 	shutdownCtx  context.Context
 	shutdownFunc func()
 	startTime    uint32
 	rareLogLast  time.Time
 	rareLogMu    sync.Mutex
 
+	// metrics
 	commonMetricTags      statshouse.Tags
 	сonnectionCountMetric *statshouse.MetricRef
 	requestMemoryMetric   *statshouse.MetricRef
 	responseMemoryMetric  *statshouse.MetricRef
 	regularMeasurementID  int
+}
+
+type proxyConn struct {
+	*ingressProxy2
+	clientConn   *rpc.PacketConn
+	upstreamConn *rpc.PacketConn
+
+	// no synchronization, owned by "requestLoop"
+	clientAddr uint32 // readonly after init
+	req        rpc.ServerRequest
+	reqBuf     []byte
+	reqTip     uint32
+	reqBufCap  int // last buffer capacity
+
+	// no synchronization, owned by "responseLoop"
+	respBuf    []byte
+	respTip    uint32
+	respBufCap int // last buffer capacity
 }
 
 func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd string) (*ingressProxy2, error) {
@@ -89,7 +104,6 @@ func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd stri
 		clientOpts: rpc.ClientOptions{CryptoKey: aesPwd},
 		serverKeys: config.IngressKeys,
 		listeners:  make([]net.Listener, len(agent.GetConfigResult.Addresses)/len(config.ExternalAddresses)),
-		connSem:    *semaphore.NewWeighted(maxConns),
 		startTime:  uint32(time.Now().Unix()),
 		commonMetricTags: statshouse.Tags{
 			env.Name,
@@ -148,15 +162,14 @@ func (p *ingressProxy2) Run() {
 		p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
 		p.responseMemoryMetric.Value(float64(p.responseMemory.Load()))
 	})
-	p.listenersG.Add(len(p.listeners))
+	p.wg.Add(len(p.listeners)) // start listening
 	for i := range p.listeners {
 		go p.listenAndServe(p.listeners[i])
 	}
 }
 
 func (p *ingressProxy2) Shutdown() {
-	n, _ := p.connSem.Observe()
-	log.Printf("Shutdown %v connection(s)\n", n)
+	log.Printf("Shutdown %v connection(s)\n", p.сonnectionCount.Load())
 	statshouse.StopRegularMeasurement(p.regularMeasurementID)
 	p.shutdownFunc()
 	for i := range p.listeners {
@@ -169,39 +182,38 @@ func (p *ingressProxy2) Shutdown() {
 func (p *ingressProxy2) WaitStopped(timeout time.Duration) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	defer cancel()
-	p.listenersG.Wait()
-	err := p.connSem.Acquire(ctx, maxConns)
-	if err != nil {
+	done := make(chan bool)
+	go func() {
+		p.wg.Wait()
+		done <- true
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
 		// reading from both client and upstream is done with infinite timeout, checking shutdown flag when possible
-		n, _ := p.connSem.Observe()
-		log.Printf("Shutdown failed to complete in %v, %d connection(s) left\n", timeout, n)
+		log.Printf("Shutdown failed to complete in %v, %d connection(s) left\n", timeout, p.сonnectionCount.Load())
+		return ctx.Err()
 	}
-	return err
 }
 
 func (p *ingressProxy2) listenAndServe(ln net.Listener) {
-	defer p.listenersG.Done()
+	defer p.wg.Done() // stop listening
 	var acceptDelay time.Duration
 	for {
-		if err := p.connSem.Acquire(p.shutdownCtx, 1); err != nil {
-			panic(err) // should never happen
-		}
 		clientConn, err := ln.Accept()
 		if err == nil {
 			acceptDelay = 0
-			p.сonnectionCount.Inc()
-			go p.serve(clientConn)
+			go p.newProxyConn(clientConn).run()
 			continue
 		}
-		p.connSem.Release(1)
 		if p.shutdownCtx.Err() != nil {
 			return
 		}
-		// report failure
+		// report accept failure then backoff
 		tags := p.commonMetricTags
 		tags[4] = rpc.ErrorTag(err)
 		statshouse.Metric("common_rpc_server_accept_error", tags).Count(1)
-		// backoff
 		if acceptDelay == 0 {
 			acceptDelay = minAcceptDelay
 		} else {
@@ -214,149 +226,167 @@ func (p *ingressProxy2) listenAndServe(ln net.Listener) {
 	}
 }
 
-func (p *ingressProxy2) serve(c net.Conn) {
-	defer p.connSem.Release(1)
+func (p *ingressProxy2) reportClientConnError(err error) {
+	if err == nil {
+		return
+	}
+	tags := p.commonMetricTags // copy
+	tags[4] = rpc.ErrorTag(err)
+	statshouse.Metric("common_rpc_server_conn_error", tags).Count(1)
+}
+
+func (p *ingressProxy2) rareLog(format string, args ...any) {
+	now := time.Now()
+	p.rareLogMu.Lock()
+	defer p.rareLogMu.Unlock()
+	if now.Sub(p.rareLogLast) > rareLogInterval {
+		p.rareLogLast = now
+		log.Printf(format, args...)
+	}
+}
+
+func (p *ingressProxy2) newProxyConn(c net.Conn) *proxyConn {
+	clientAddr, _ := addrIPString(c.RemoteAddr())
+	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
+	p.wg.Add(1)
+	p.сonnectionCount.Inc()
+	return &proxyConn{
+		ingressProxy2: p,
+		clientAddr:    clientAddr,
+		clientConn:    clientConn,
+	}
+}
+
+func (p *proxyConn) run() {
+	defer p.wg.Done()
 	defer p.сonnectionCount.Dec()
-	client := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
-	defer client.Close()
+	defer p.clientConn.Close() // upstream connection will be closed at "responseLoop" exit
 	// handshake client
-	_, _, err := client.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
+	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.rareLog("Server handshake failed: %v", err)
+		p.rareLog("Client handshake error: %v\n", err)
+		p.reportClientConnError(err)
 		return
 	}
 	// read first request to get shardReplica
-	clientAddr, _ := addrIPString(c.RemoteAddr())
-	var req rpc.ServerRequest
-	var tip uint32
-	var buf []byte
 	for {
-		if req, tip, buf, err = p.requestRead(client, clientAddr, buf[:0]); err != nil {
+		if err = p.readRequest(); err != nil {
+			p.rareLog("Client read error: %v\n", err)
+			p.reportClientConnError(err)
 			return
 		}
 		if p.shutdownCtx.Err() != nil {
 			return
 		}
-		if tip == rpcInvokeReqHeaderTLTag {
+		if p.reqTip == rpcInvokeReqHeaderTLTag {
 			break
 		}
+		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", p.reqTip, p.clientConn.RemoteAddr())
 	}
-	// connect upstream
-	shardReplica := binary.LittleEndian.Uint32(req.Request[8:])
+	shardReplica := binary.LittleEndian.Uint32(p.req.Request[8:])
 	shardReplica %= uint32(len(p.GetConfigResult.Addresses))
-	shardReplicaAddr := p.GetConfigResult.Addresses[shardReplica]
-	upstreamConn, err := net.DialTimeout("tcp4", shardReplicaAddr, rpc.DefaultPacketTimeout)
-	if err != nil {
-		p.rareLog("Client connect failed: %v", err)
-		return
+	upstreamAddr := p.GetConfigResult.Addresses[shardReplica]
+	defer p.shutdownClientConn()
+	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
+	for p.shutdownCtx.Err() == nil {
+		// (re)connect upstream
+		if err := p.connectUpstream(upstreamAddr); err != nil {
+			break
+		}
+		// upstream connection will be closed at "responseLoop" exit, serve
+		var responseLoop errgroup.Group
+		responseLoop.Go(p.responseLoop)
+		clientReadErr := p.requestLoop()
+		clientWriteErr := responseLoop.Wait()
+		if clientReadErr != nil || clientWriteErr != nil {
+			break
+		}
 	}
-	// handshake upstream
-	upstream := rpc.NewPacketConn(upstreamConn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
-	defer upstream.Close()
-	err = upstream.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
-	if err != nil {
-		p.rareLog("Client handshake failed: %v", err)
-		return
-	}
-	// all good, run
-	p.rareLog("Connect shard replica %d, addr %v < %v < %v", shardReplica, upstream.RemoteAddr(), client.LocalAddr(), client.RemoteAddr())
-	var respRWLoop sync.WaitGroup
-	var respReadErr, respWriteErr error
-	respRWLoop.Add(1)
-	go func() {
-		defer respRWLoop.Done()
-		respReadErr, respWriteErr = p.responseRWLoop(upstream, client)
-	}()
-	reqReadErr, reqWriteErr := p.requestRWLoop(upstream, client, clientAddr, req, tip, buf)
-	// request stream closed, wait for response stream completion
-	respRWLoop.Wait()
-	p.rareLog("Disconnect shard replica %d, addr %v < %v < %v: %v, %v, %v, %v", shardReplica, upstream.RemoteAddr(), client.LocalAddr(), client.RemoteAddr(), reqReadErr, reqWriteErr, respReadErr, respWriteErr)
+	// done serving
+	p.rareLog("Disconnect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
 }
 
-func (p *ingressProxy2) requestRWLoop(upstream, client *rpc.PacketConn, clientAddr uint32, req rpc.ServerRequest, tip uint32, buf []byte) (readErr, writeErr error) {
-	var bufCap int
-	defer func() {
-		p.requestMemory.Sub(int64(bufCap))
-	}()
-	cryptoKeyID := client.KeyID()
-	metric := data_model.Key{
+func (p *proxyConn) connectUpstream(addr string) error {
+	conn, err := net.DialTimeout("tcp4", addr, rpc.DefaultPacketTimeout)
+	if err != nil {
+		p.rareLog("Upstream connect error: %v\n", err)
+		return err
+	}
+	packetConn := rpc.NewPacketConn(conn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
+	err = packetConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
+	if err != nil {
+		p.rareLog("Upstream handshake error: %v\n", err)
+		conn.Close()
+		return err
+	}
+	p.upstreamConn = packetConn
+	return nil
+}
+
+func (p *proxyConn) requestLoop() error {
+	// exit means inability to deliver a request
+	// "responseLoop" terminates when server done sending responses
+	defer p.upstreamConn.ShutdownWrite()
+	cryptoKeyID := p.clientConn.KeyID()
+	requestSize := data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(client.ProtocolVersion())},
+		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(p.req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
 	}
-	for p.shutdownCtx.Err() == nil {
-		// report request memory size change
-		p.AddValueCounter(metric, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
-		if v := int64(cap(buf) - bufCap); v != 0 {
-			p.requestMemory.Add(v)
-			bufCap = cap(buf)
-		}
-		// write request
-		if writeErr = req.ForwardAndFlush(upstream, tip, rpc.DefaultPacketTimeout); writeErr != nil {
-			if err := req.WriteReponseAndFlush(client, writeErr, p.rareLog); err != nil {
-				p.reportServerConnError(err)
-			}
-			break
-		}
-		// read next request
-		if req, tip, buf, readErr = p.requestRead(client, clientAddr, buf[:0]); readErr != nil {
-			break
-		}
-		// update request tag
-		metric.Keys[2] = int32(req.RequestTag())
-	}
-	p.shutdownProxyConn(upstream, client)
-	// respond to all remaining requests with an error
 	for {
-		var err error
-		if req, _, buf, err = p.requestRead(client, clientAddr, buf[:0]); err != nil {
-			break
+		if err := p.shutdownCtx.Err(); err != nil {
+			return err // shutdown proxy connection
 		}
-		if err = req.WriteReponseAndFlush(client, errProxyConnShutdown, p.rareLog); err != nil {
-			break
+		p.AddValueCounter(requestSize, float64(len(p.req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
+		p.reportRequestBufferSizeChange()
+		if err := p.forwardRequest(); err != nil {
+			p.rareLog("Upstream write error: %v\n", err)
+			return nil // reconnect upstream
 		}
+		if err := p.readRequest(); err != nil {
+			p.rareLog("Client read error: %v\n", err)
+			p.reportClientConnError(err)
+			return err // shutdown proxy connection
+		}
+		requestSize.Keys[2] = int32(p.req.RequestTag())
 	}
-	return readErr, writeErr
 }
 
-func (p *ingressProxy2) responseRWLoop(upstream, client *rpc.PacketConn) (readErr, writeErr error) {
-	defer p.shutdownProxyConn(upstream, client)
-	var buf []byte
-	var bufCap int
-	defer func() {
-		p.responseMemory.Sub(int64(bufCap))
-	}()
-	for p.shutdownCtx.Err() == nil {
-		// read response
-		var tip uint32
-		if tip, buf, readErr = upstream.ReadPacket(buf[:0], time.Duration(0)); readErr != nil {
-			return
+func (p *proxyConn) responseLoop() error {
+	// exit means inability to deliver a response
+	// "requestLoop" terminates on next upstream write
+	defer p.upstreamConn.Close()
+	for {
+		if err := p.shutdownCtx.Err(); err != nil {
+			return err // shutdown proxy connection
 		}
-		// write response
-		if writeErr = client.WritePacket(tip, buf, rpc.DefaultPacketTimeout); writeErr != nil {
-			p.reportServerConnError(writeErr)
-			return
+		if err := p.readResponse(); err != nil {
+			p.rareLog("Upstream read error: %v\n", err)
+			return nil // reconnect upstream
 		}
-		// report response memory size change
-		if v := int64(cap(buf) - bufCap); v != 0 {
-			p.responseMemory.Add(v)
-			bufCap = cap(buf)
+		if err := p.forwardResponse(); err != nil {
+			p.rareLog("Client write error: %v\n", err)
+			p.reportClientConnError(err)
+			return err // shutdown proxy connection
 		}
+		p.reportResponseBufferSizeChange()
 	}
-	return readErr, writeErr
 }
 
-func (p *ingressProxy2) requestRead(client *rpc.PacketConn, clientAddr uint32, buf []byte) (rpc.ServerRequest, uint32, []byte, error) {
+func (p *proxyConn) readRequest() error {
+	buf := p.reqBuf
 	for {
 		var tip uint32
 		var req rpc.ServerRequest
 		var err error
-		tip, req.Request, err = client.ReadPacket(buf, time.Duration(0))
+		tip, req.Request, err = p.clientConn.ReadPacket(buf, time.Duration(0))
 		if err != nil {
-			return req, tip, req.Request, err
+			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+			return err
 		}
 		switch tip {
 		case rpcCancelReqTLTag:
-			return req, tip, req.Request, err
+			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+			return nil
 		case rpcInvokeReqHeaderTLTag:
 			req.Response = req.Request
 			if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
@@ -386,8 +416,9 @@ func (p *ingressProxy2) requestRead(client *rpc.PacketConn, clientAddr uint32, b
 					fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
 					fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 					binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
-					binary.LittleEndian.PutUint32(req.Request[28:], clientAddr)
-					return req, tip, req.Response, nil
+					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr)
+					p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+					return nil
 				default:
 					err = rpc.ErrNoHandler
 				}
@@ -396,35 +427,62 @@ func (p *ingressProxy2) requestRead(client *rpc.PacketConn, clientAddr uint32, b
 			err = fmt.Errorf("unknown packet %d", tip)
 		}
 		// at this point either len(req.Response) != 0 or err != nil
-		if err = req.WriteReponseAndFlush(client, err, p.rareLog); err != nil {
-			p.rareLog("Request write failed: %v", err)
-			p.reportServerConnError(err)
-			return req, tip, req.Response, err
+		if err = req.WriteReponseAndFlush(p.clientConn, err, p.rareLog); err != nil {
+			p.rareLog("Client write error: %v\n", err)
+			p.reportClientConnError(err)
+			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+			return err
 		}
 		buf = req.Response[:0] // buffer reuse
 	}
 }
 
-func (p *ingressProxy2) shutdownProxyConn(upstream, client *rpc.PacketConn) {
-	_ = upstream.ShutdownWrite()
-	_ = client.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout)
+func (p *proxyConn) replyError(err error) error {
+	return p.req.WriteReponseAndFlush(p.clientConn, err, p.rareLog)
 }
 
-func (p *ingressProxy2) reportServerConnError(err error) {
-	if err == nil || errors.Is(err, io.EOF) {
+func (p *proxyConn) forwardRequest() error {
+	return p.req.ForwardAndFlush(p.upstreamConn, p.reqTip, rpc.DefaultPacketTimeout)
+}
+
+func (p *proxyConn) readResponse() error {
+	var err error
+	p.respTip, p.respBuf, err = p.upstreamConn.ReadPacket(p.respBuf[:0], time.Duration(0))
+	return err
+}
+
+func (p *proxyConn) forwardResponse() error {
+	return p.upstreamConn.WritePacket(p.respTip, p.respBuf, rpc.DefaultPacketTimeout)
+}
+
+func (p *proxyConn) reportRequestBufferSizeChange() {
+	if v := int64(cap(p.reqBuf) - p.reqBufCap); v != 0 {
+		p.requestMemory.Add(v)
+		p.reqBufCap = cap(p.reqBuf)
+	}
+}
+
+func (p *proxyConn) reportResponseBufferSizeChange() {
+	if v := int64(cap(p.respBuf) - p.respBufCap); v != 0 {
+		p.responseMemory.Add(v)
+		p.respBufCap = cap(p.respBuf)
+	}
+}
+
+func (p *proxyConn) shutdownClientConn() {
+	// request connection shutdown
+	if err := p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
+		p.rareLog("Client write FIN error: %v\n", err)
 		return
 	}
-	tags := p.commonMetricTags // copy
-	tags[4] = rpc.ErrorTag(err)
-	statshouse.Metric("common_rpc_server_conn_error", tags).Count(1)
-}
-
-func (p *ingressProxy2) rareLog(format string, args ...any) {
-	now := time.Now()
-	p.rareLogMu.Lock()
-	defer p.rareLogMu.Unlock()
-	if now.Sub(p.rareLogLast) > rareLogInterval {
-		p.rareLogLast = now
-		log.Printf(format, args...)
+	// respond to all remaining requests witn an error until client closes conection
+	for {
+		if err := p.readRequest(); err != nil {
+			break
+		}
+		if err := p.replyError(errProxyConnShutdown); err != nil {
+			break
+		}
 	}
+	p.rareLog("Client shutdown completed, addr %v\n", p.clientConn.RemoteAddr())
 }
