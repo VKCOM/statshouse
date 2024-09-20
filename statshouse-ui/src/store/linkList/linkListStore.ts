@@ -5,9 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { useStore } from '../statshouse';
-import { encodeParams, fixMessageTrouble, getNewPlot, QueryParams } from '../../url/queryParams';
+import { encodeParams, getNewPlot, QueryParams } from '../../url/queryParams';
 import { deepClone } from '../../common/helpers';
 import { createStore } from '../createStore';
+import { fixMessageTrouble } from '../../url/fixMessageTrouble';
 
 export type LinkListStore = {
   links: Record<string, string>;

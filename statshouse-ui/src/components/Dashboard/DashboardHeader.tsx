@@ -27,8 +27,9 @@ import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscree
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
 import { NavLink } from 'react-router-dom';
 import { produce } from 'immer';
-import { encodeParams, fixMessageTrouble } from '../../url/queryParams';
+import { encodeParams } from '../../url/queryParams';
 import { Button, ToggleButton } from '../UI';
+import { fixMessageTrouble } from '../../url/fixMessageTrouble';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {

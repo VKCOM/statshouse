@@ -289,13 +289,6 @@ export function toPlotType(s: unknown): PlotType | null {
   return null;
 }
 
-export function fixMessageTrouble(search: string): string {
-  if (search.replaceAll) {
-    return search.replaceAll('+', '%20').replace(/\.$/gi, '%2E');
-  }
-  return search.replace(/\+/gi, '%20').replace(/\.$/gi, '%2E');
-}
-
 export function isGetParam(key: string, getPrefix: string) {
   return key.indexOf(getPrefix) === 0 && numberAsStr(key.slice(getPrefix.length));
 }
