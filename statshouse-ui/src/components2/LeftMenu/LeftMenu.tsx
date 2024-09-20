@@ -21,7 +21,7 @@ import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 // import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import css from './style.module.css';
 import { LeftMenuItem } from './LeftMenuItem';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { globalSettings } from 'common/settings';
 import cn from 'classnames';
 import { getClipboard } from 'common/helpers';
@@ -109,6 +109,12 @@ export function LeftMenu({ className }: LeftMenuProps) {
   return (
     <ul className={cn(css.leftMenu, className)}>
       <LeftMenuItem to="view" icon={SVGLightning} title="StatsHouse">
+        <li className={css.splitter}></li>
+        <li className={css.subItem}>
+          <NavLink className={css.link} to="/admin/create" end>
+            Create&nbsp;metric
+          </NavLink>
+        </li>
         <li className={css.splitter}></li>
         <li className={css.subItem}>
           <a
