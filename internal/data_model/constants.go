@@ -101,7 +101,7 @@ const (
 	AutoconfigDiskNamespace     = "autoconfig:" // stored in agents only
 
 	MappingMaxMetricsInQueue = 1000
-	MappingMaxMemCacheSize   = 2_000_000
+	MappingMaxMemCacheSize   = 1_000_000
 	MappingMaxDiskCacheSize  = 10_000_000
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
 	MappingNegativeCacheTTL  = 5 * time.Second
