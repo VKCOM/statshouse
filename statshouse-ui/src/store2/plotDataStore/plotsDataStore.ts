@@ -211,7 +211,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         getState().params.timeRange.urlTo !== getState().plotsData[plotKey]?.lastTimeRange?.urlTo ||
         getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
       const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
-      const changeTimeShifts = dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
+      const changeTimeShifts = !dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
       const fetchBadges = priority === 1 && !isEmbed;
       const loadBadges = fetchBadges && !getState().plotsData[plotKey]?.loadBadges;
       let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable || loadBadges;
