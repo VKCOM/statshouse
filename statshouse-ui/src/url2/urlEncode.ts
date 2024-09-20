@@ -1,5 +1,5 @@
 import { FilterTag, GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl, PLOT_TYPE } from 'api/enum';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl, PLOT_TYPE, TagKey } from 'api/enum';
 import { dequal } from 'dequal/lite';
 
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
@@ -144,6 +144,18 @@ export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNew
   }
   if (!dequal(defaultPlot.filterIn, plot.filterIn) || !dequal(defaultPlot.filterNotIn, plot.filterNotIn)) {
     paramArr.push(...urlEncodePlotFilters(prefix, plot.filterIn, plot.filterNotIn));
+
+    //remove filter
+    Object.entries(plot.filterIn).forEach(([keyTag, valuesTag]) => {
+      if (defaultPlot.filterIn[keyTag as TagKey]?.length && !valuesTag.length) {
+        paramArr.push([prefix + GET_PARAMS.metricFilter, removeValueChar]);
+      }
+    });
+    Object.entries(plot.filterNotIn).forEach(([keyTag, valuesTag]) => {
+      if (defaultPlot.filterNotIn[keyTag as TagKey]?.length && !valuesTag.length) {
+        paramArr.push([prefix + GET_PARAMS.metricFilter, removeValueChar]);
+      }
+    });
   }
 
   if (defaultPlot.numSeries !== plot.numSeries) {
