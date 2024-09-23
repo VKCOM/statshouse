@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
@@ -55,6 +56,13 @@ func (pq *preparedPointsQuery) isLight() bool {
 }
 
 func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
+	if pq.version == Version3 {
+		return tagValuesQueryV3(pq, lod)
+	}
+	return tagValuesQueryV2(pq, lod)
+}
+
+func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
 	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
@@ -71,7 +79,7 @@ FROM
 WHERE
   %s = ?
   AND time >= ? AND time < ?%s`,
-		columnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
+		mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
 		pq.preKeyTableName(lod),
@@ -85,7 +93,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -95,7 +103,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -112,10 +120,51 @@ ORDER BY
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, columnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
+`, mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
 
 	q, err := util.BindQuery(query, args...)
 	return q, meta, err
+}
+
+func tagValuesQueryV3(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
+	qt, err := template.New("").Parse(`
+SELECT {{.MappedColumnName}} AS _mapped, {{.UnmappedColumnName}} AS _unmapped, toFloat64(sum(count)) AS _count
+FROM {{.TableName}}
+WHERE metric = {{.MetricId}}
+  AND time >= {{.From}} AND time < {{.To}}
+GROUP BY _mapped, _unmapped
+HAVING _count > 0
+ORDER BY _count DESC, _mapped, _unmapped
+LIMIT {{.Limit}}
+SETTINGS optimize_aggregation_in_order = 1
+`)
+	if err != nil {
+		return "", tagValuesQueryMeta{}, fmt.Errorf("failed to create query template: %v", err)
+	}
+	type templParams struct {
+		MappedColumnName   string
+		UnmappedColumnName string
+		TableName          string
+		MetricId           int32
+		From               int64
+		To                 int64
+		Limit              int
+	}
+	p := &templParams{
+		MappedColumnName:   mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
+		UnmappedColumnName: unmappedColumnName(pq.tagID),
+		TableName:          pq.preKeyTableName(lod),
+		MetricId:           pq.metricID,
+		From:               lod.FromSec,
+		To:                 lod.ToSec,
+		Limit:              pq.numResults + 1,
+	}
+	var b bytes.Buffer
+	err = qt.Execute(&b, p)
+	if err != nil {
+		return "", tagValuesQueryMeta{}, fmt.Errorf("failed to execute query template: %v", err)
+	}
+	return b.String(), tagValuesQueryMeta{}, nil
 }
 
 type pointsQueryMeta struct {
@@ -204,7 +253,7 @@ func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int6
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
+			commaBy += fmt.Sprintf(", %s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 		}
 	}
 
@@ -242,7 +291,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -252,7 +301,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -309,9 +358,9 @@ func loadPointQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
 			if i == 0 {
-				commaBy += fmt.Sprintf("%s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf("%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 			} else {
-				commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 			}
 		}
 	}
@@ -342,7 +391,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -352,7 +401,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, mappedColumnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -470,7 +519,7 @@ func preKeyTableNameFromPoint(lod data_model.LOD, tagID string, preKeyTagID stri
 	return lod.Table
 }
 
-func columnName(hasPreKey bool, tagID string, preKeyTagID string) string {
+func mappedColumnName(hasPreKey bool, tagID string, preKeyTagID string) string {
 	// intentionally not using constants from 'format' package,
 	// because it is a table column name, not an external contract
 	switch tagID {
@@ -486,6 +535,10 @@ func columnName(hasPreKey bool, tagID string, preKeyTagID string) string {
 		// dont't verify (ClickHouse just won't find a column)
 		return "key" + tagID
 	}
+}
+
+func unmappedColumnName(tagID string) string {
+	return "skey" + tagID
 }
 
 func expandBindVars(n int) string {

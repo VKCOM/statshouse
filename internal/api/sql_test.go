@@ -117,6 +117,37 @@ SETTINGS
 `, query)
 }
 
+func TestTagValuesQueryV3(t *testing.T) {
+	// prepare
+	pq := &preparedTagValuesQuery{
+		version:     Version3,
+		metricID:    metricID,
+		tagID:       "2",
+		numResults:  5,
+		filterIn:    map[string][]any{"1": {"one", "two"}},
+		filterNotIn: map[string][]any{"0": {"staging"}},
+	}
+	lod := getLod(t)
+
+	// execute
+	query, meta, err := tagValuesQuery(pq, lod)
+
+	// checks
+	assert.NoError(t, err)
+	assert.False(t, meta.stringValue)
+	assert.Equal(t, `
+SELECT key2 AS _mapped, skey2 AS _unmapped, toFloat64(sum(count)) AS _count
+FROM statshouse_value_1m_dist
+WHERE metric = 1000
+  AND time >= 9957 AND time < 20037
+GROUP BY _mapped, _unmapped
+HAVING _count > 0
+ORDER BY _count DESC, _mapped, _unmapped
+LIMIT 6
+SETTINGS optimize_aggregation_in_order = 1
+`, query)
+}
+
 func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
 	pq := &preparedPointsQuery{
