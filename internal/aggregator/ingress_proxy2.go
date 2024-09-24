@@ -261,6 +261,10 @@ func (p *proxyConn) run() {
 	defer p.wg.Done()
 	defer p.сonnectionCount.Dec()
 	defer p.clientConn.Close() // upstream connection will be closed at "responseLoop" exit
+	defer func() {
+		p.requestMemory.Sub(int64(p.reqBufCap))
+		p.responseMemory.Sub(int64(p.respBufCap))
+	}()
 	// handshake client
 	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
@@ -452,7 +456,7 @@ func (p *proxyConn) readResponse() error {
 }
 
 func (p *proxyConn) forwardResponse() error {
-	return p.upstreamConn.WritePacket(p.respTip, p.respBuf, rpc.DefaultPacketTimeout)
+	return p.clientConn.WritePacket(p.respTip, p.respBuf, rpc.DefaultPacketTimeout)
 }
 
 func (p *proxyConn) reportRequestBufferSizeChange() {
