@@ -378,7 +378,7 @@ func (p *proxyConn) readRequest() error {
 		var tip uint32
 		var req rpc.ServerRequest
 		var err error
-		tip, req.Request, err = p.clientConn.ReadPacket(buf, time.Duration(0))
+		tip, req.Request, err = p.clientConn.ReadPacket(buf[:0], time.Duration(0))
 		if err != nil {
 			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
 			return err
@@ -417,7 +417,7 @@ func (p *proxyConn) readRequest() error {
 					fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 					binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
 					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr)
-					p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+					p.req, p.reqTip, p.reqBuf = req, tip, req.Response
 					return nil
 				default:
 					err = rpc.ErrNoHandler
@@ -430,10 +430,10 @@ func (p *proxyConn) readRequest() error {
 		if err = req.WriteReponseAndFlush(p.clientConn, err, p.rareLog); err != nil {
 			p.rareLog("Client write error: %v\n", err)
 			p.reportClientConnError(err)
-			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
+			p.req, p.reqTip, p.reqBuf = req, tip, req.Response
 			return err
 		}
-		buf = req.Response[:0] // buffer reuse
+		buf = req.Response // buffer reuse
 	}
 }
 
