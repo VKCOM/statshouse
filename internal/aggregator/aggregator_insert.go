@@ -122,39 +122,31 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 }
 
 func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool, stringTagProb float64, rnd *rand.Rand) []byte {
-	appendTag := func(res []byte, v uint64) []byte {
+	appendTag := func(res []byte, v uint32) []byte {
 		if newFormat {
 			if v > 0 && stringTagProb > 0 && stringTagProb > rnd.Float64() {
-				res = binary.LittleEndian.AppendUint64(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, 0)
 				res = rowbinary.AppendString(res, fmt.Sprintf("long_and_fake_tagvalue_%d", v))
 			} else {
-				res = binary.LittleEndian.AppendUint64(res, v)
+				res = binary.LittleEndian.AppendUint32(res, v)
 				res = rowbinary.AppendString(res, "")
 			}
 		} else {
-			res = binary.LittleEndian.AppendUint32(res, uint32(v))
+			res = binary.LittleEndian.AppendUint32(res, v)
 		}
 		return res
 	}
 	res = binary.LittleEndian.AppendUint32(res, uint32(k.Metric))
 	prekeyIndex, prekeyOnly := metricCache.getPrekeyIndex(k.Metric)
 	if prekeyIndex >= 0 {
-		if newFormat {
-			res = binary.LittleEndian.AppendUint64(res, uint64(k.Keys[prekeyIndex]))
-		} else {
-			res = binary.LittleEndian.AppendUint32(res, uint32(k.Keys[prekeyIndex]))
-		}
+		res = binary.LittleEndian.AppendUint32(res, uint32(k.Keys[prekeyIndex]))
 		if prekeyOnly {
 			res = append(res, byte(2))
 		} else {
 			res = append(res, byte(1))
 		}
 	} else {
-		if newFormat {
-			res = binary.LittleEndian.AppendUint64(res, uint64(0))
-		} else {
-			res = binary.LittleEndian.AppendUint32(res, uint32(0))
-		}
+		res = binary.LittleEndian.AppendUint32(res, uint32(0))
 		res = append(res, byte(0))
 	}
 	res = binary.LittleEndian.AppendUint32(res, k.Timestamp)
@@ -167,7 +159,7 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 	}
 	for ki := 0; ki < tagsN; ki++ {
 		if ki < len(k.Keys) {
-			res = appendTag(res, uint64(k.Keys[ki]))
+			res = appendTag(res, uint32(k.Keys[ki]))
 		} else {
 			res = appendTag(res, 0)
 		}
