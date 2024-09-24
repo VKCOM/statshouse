@@ -11,7 +11,7 @@ export function clonePlot(plot?: PlotParams): PlotParams | undefined {
     id: plot.id,
     metricName: plot.metricName,
     customName: plot.customName,
-    customDescription: plot.customName,
+    customDescription: plot.customDescription,
     promQL: plot.promQL,
     metricUnit: plot.metricUnit,
     what: [...plot.what],

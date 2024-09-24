@@ -33,7 +33,7 @@ import {
 } from './timeRangeNavigate';
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
-import { updateParamsPlotStruct } from './updateParamsPlotStruct';
+import { updateParamsPlotStruct, VariableLinks } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { defaultBaseRange } from '../constants';
 import { useErrorStore } from 'store/errors';
@@ -44,6 +44,7 @@ import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import { fixMessageTrouble } from 'url/fixMessageTrouble';
+import { isNotNil } from '../../common/helpers';
 
 export type UrlStore = {
   params: QueryParams;
@@ -69,7 +70,8 @@ export type UrlStore = {
   addDashboardGroup(groupKey: GroupKey): void;
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
-  moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
+  // moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
+  setNextDashboardSchemePlot(nextScheme: { groupKey: GroupKey; plots: PlotKey[] }[]): void;
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
   removeDashboard(): Promise<void>;
@@ -266,41 +268,74 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setDashboardGroup(groupKey, next) {
       setUrlStore(updateGroup(groupKey, next));
     },
-    moveDashboardPlot(plotKey, plotKeyTarget, groupKey) {
-      if (plotKey != null && groupKey != null) {
-        setUrlStore(
-          updateParamsPlotStruct((plotStruct) => {
-            const sourceGroupKey = plotStruct.mapPlotToGroup[plotKey] ?? '';
-            const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
-            const sourcePlotIndex = plotStruct.mapPlotIndex[plotKey];
-            const targetGroupIndex = plotStruct.mapGroupIndex[groupKey ?? sourceGroupKey];
-            let targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
-            if (sourceGroupIndex != null && sourcePlotIndex != null) {
-              const sourcePlots = plotStruct.groups[sourceGroupIndex].plots.splice(sourcePlotIndex, 1);
-              if (targetGroupIndex == null) {
-                plotStruct.groups.push({
-                  plots: [...sourcePlots],
-                  groupInfo: {
-                    ...getNewGroup(),
-                    id: groupKey,
-                  },
-                });
-              } else {
-                if (targetPlotIndex) {
-                  if (sourceGroupIndex === targetGroupIndex) {
-                    targetPlotIndex = plotStruct.groups[targetGroupIndex].plots.findIndex(
-                      ({ plotInfo }) => plotInfo.id === plotKeyTarget
-                    );
-                  }
-                  plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
-                } else {
-                  plotStruct.groups[targetGroupIndex].plots.push(...sourcePlots);
+    // moveDashboardPlot(plotKey, plotKeyTarget, groupKey) {
+    //   if (plotKey != null && groupKey != null) {
+    //     setUrlStore(
+    //       updateParamsPlotStruct((plotStruct) => {
+    //         const sourceGroupKey = plotStruct.mapPlotToGroup[plotKey] ?? '';
+    //         const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
+    //         const sourcePlotIndex = plotStruct.mapPlotIndex[plotKey];
+    //         const targetGroupIndex = plotStruct.mapGroupIndex[groupKey ?? sourceGroupKey];
+    //         let targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
+    //         if (sourceGroupIndex != null && sourcePlotIndex != null) {
+    //           const sourcePlots = plotStruct.groups[sourceGroupIndex].plots.splice(sourcePlotIndex, 1);
+    //           if (targetGroupIndex == null) {
+    //             plotStruct.groups.push({
+    //               plots: [...sourcePlots],
+    //               groupInfo: {
+    //                 ...getNewGroup(),
+    //                 id: groupKey,
+    //               },
+    //             });
+    //           } else {
+    //             if (targetPlotIndex) {
+    //               if (sourceGroupIndex === targetGroupIndex) {
+    //                 targetPlotIndex = plotStruct.groups[targetGroupIndex].plots.findIndex(
+    //                   ({ plotInfo }) => plotInfo.id === plotKeyTarget
+    //                 );
+    //               }
+    //               plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
+    //             } else {
+    //               plotStruct.groups[targetGroupIndex].plots.push(...sourcePlots);
+    //             }
+    //           }
+    //         }
+    //       })
+    //     );
+    //   }
+    // },
+    setNextDashboardSchemePlot(nextScheme) {
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          plotStruct.groups = nextScheme.map((g) => {
+            const sourceGroupIndex = plotStruct.mapGroupIndex[g.groupKey];
+            const plots: { plotInfo: PlotParams; variableLinks: VariableLinks[] }[] = g.plots
+              .map((pK) => {
+                const sourceGroupKey = plotStruct.mapPlotToGroup[pK] ?? '';
+                const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
+                const sourcePlotIndex = plotStruct.mapPlotIndex[pK];
+                if (sourceGroupIndex != null && sourcePlotIndex != null) {
+                  return plotStruct.groups[sourceGroupIndex].plots[sourcePlotIndex];
                 }
-              }
+                return null;
+              })
+              .filter(isNotNil);
+            if (sourceGroupIndex != null) {
+              return {
+                groupInfo: plotStruct.groups[sourceGroupIndex].groupInfo,
+                plots,
+              };
             }
-          })
-        );
-      }
+            return {
+              groupInfo: {
+                ...getNewGroup(),
+                id: g.groupKey,
+              },
+              plots,
+            };
+          });
+        })
+      );
     },
     async autoSearchVariable() {
       return getAutoSearchVariable(getState);

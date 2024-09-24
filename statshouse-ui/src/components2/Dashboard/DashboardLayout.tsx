@@ -77,14 +77,14 @@ export type DashboardLayoutProps = {
   className?: string;
 };
 export function _DashboardLayout({ className }: DashboardLayoutProps) {
-  const { groups, orderGroup, orderPlot, dashboardLayoutEdit, isEmbed, addDashboardGroup, moveDashboardPlot } =
+  const { groups, orderGroup, orderPlot, dashboardLayoutEdit, isEmbed, addDashboardGroup, setNextDashboardSchemePlot } =
     useStatsHouseShallow(
       ({
         params: { groups, orderGroup, orderPlot },
         dashboardLayoutEdit,
         isEmbed,
         addDashboardGroup,
-        moveDashboardPlot,
+        setNextDashboardSchemePlot,
       }) => ({
         groups,
         orderGroup,
@@ -92,7 +92,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
         dashboardLayoutEdit,
         isEmbed,
         addDashboardGroup,
-        moveDashboardPlot,
+        setNextDashboardSchemePlot,
       })
     );
   const preview = useRef<HTMLDivElement>(null);
@@ -102,10 +102,15 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
   const [selectTarget, setSelectTarget] = useState<PlotKey | null>(null);
   const [selectTargetGroup, setSelectTargetGroup] = useState<GroupKey | null>(null);
   const [stylePreview, setStylePreview] = useState<React.CSSProperties>({});
-  const [itemsGroup, setItemsGroup] = useState(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+  const originItemsGroupRef = useRef(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+  const itemsGroupRef = useRef(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+  const [itemsGroup, setItemsGroup] = useState(originItemsGroupRef.current);
+
   useEffect(() => {
-    setItemsGroup(prepareItemsGroup({ groups, orderGroup, orderPlot }));
+    originItemsGroupRef.current = prepareItemsGroup({ groups, orderGroup, orderPlot });
+    setItemsGroup(originItemsGroupRef.current);
   }, [groups, orderGroup, orderPlot]);
+
   useEffect(() => {
     setItemsGroup(
       produce((ig) => {
@@ -135,14 +140,19 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
       })
     );
   }, [select, selectTarget, selectTargetGroup]);
+  useEffect(() => {
+    itemsGroupRef.current = itemsGroup;
+  }, [itemsGroup]);
 
   const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
 
   const save = useCallback(
     (index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null) => {
-      moveDashboardPlot(index, indexTarget, indexGroup);
+      if (index != null) {
+        setNextDashboardSchemePlot(itemsGroupRef.current);
+      }
     },
-    [moveDashboardPlot]
+    [setNextDashboardSchemePlot]
   );
 
   const onDown = useCallback(
