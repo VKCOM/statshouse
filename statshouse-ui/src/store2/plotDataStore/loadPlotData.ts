@@ -8,7 +8,7 @@ import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, url
 import { apiQueryFetch, type ApiQueryGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
-import { isPromQL, type ProduceUpdate } from '../helpers';
+import { type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
@@ -110,10 +110,13 @@ export async function loadPlotData(
   }
   if (response) {
     const data = normalizePlotData(response.data, plot, params);
-    const metricMeta: MetricMeta = {
-      ...response.data.metric,
-      ...tagsArrToObject(response.data.metric.tags),
-    };
+    let metricMeta: MetricMeta;
+    if (response.data.metric) {
+      metricMeta = {
+        ...response.data.metric,
+        ...tagsArrToObject(response.data.metric.tags),
+      };
+    }
     return (state) => {
       state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
       state.plotsData[plotKey]!.lastHeals = true;
