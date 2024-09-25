@@ -63,7 +63,7 @@ export type SeriesResponse = {
   promql: string;
   __debug_queries: string[];
   promqltestfailed?: boolean;
-  metric: MetricMetaValue;
+  metric: MetricMetaValue | null;
 };
 
 export type QuerySeries = {
