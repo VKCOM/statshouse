@@ -1,37 +1,58 @@
 # New schema
 
-- number of tags increased 16 -> 64
-- tag types `Int32` -> `Int64` to support raw tags
-- two raw `Int128` tags to support long ids or ipv6 addresses
+- number of tags increased 16 -> 48
+- separate `r0..r3` `Int64` columns for raw tags
 - `flags` bitfield to indicate in which tables we want to write
+	- new + old table or just new table (for migration to a new pipeline)
+	- prekey, basic or both tables
+	- hour table with TTL or default hour table
+		- to store short lived metrics that live only for 1mo (like pod telemetry)
 - `raw_flags UInt64` column to indicate that tag is raw
-	- idea here is to write all number tags as raw tags automatically, and remove raw tag option from UI altogether
+	- idea here is to write all number tags as raw tags automatically when we can
 - each tag followed by unmapped stag option, only one them should be set at a time
-	- prekey is required to always be mapped
-- `index_type UInt8` to merge basic and prekey tables
+- add `preskey` to store unmapped prekeys
+- `prekey` is now 64 bit to support `r0..r3` tags
+- `index_type UInt8` to merge basic and `prekey` tables into a single one
 	- 0 - basic index
-	- 2 - prekey index
-- `PARTITION BY` increased from 6 to 12 hours
-- `PRIMARY KEY` will be shortened to `index_type, metric, prekey, time` ordering will still be dependent on all tags
+	- 2 - `prekey` index
+- `PARTITION BY` increased from 6 to 24 hours
+- `PRIMARY KEY` will be shortened to `index_type, metric, prekey, preskey, time` and first 8 tags
+- `max_host`, `min_host` will become `AggregateFunction(argMax, String, Float32)` because we want to store location, and can't always map host
+- add `max_counter_host` we can do it later
 
-Stuff that is not part of this change
-- separate `r0..r3` columns for raw tags(except for long ones)
-	- instead we increase size of usual columns to 64 bits
-	- also automatically guess when tag is raw and mark it with a bit in `raw_flags`
-- separate host tag
-	- I don't see any reason to have it, since we can configure any other tag as host
-- payload for events it's not part of key and can be added anytime in a future
+Experimental stuff:
+- maybe optimize `max_host`and  `max_counter_host` and to store host in binary format if it is mapped
+- get rid of min/max extract them from `max_host`, `min_host` and  `max_counter_host`
 
 ## Write dataflow
 ```mermaid  
 graph LR;
 agg-->input_table
+subgraph new_tables
+input_table-->new_map_view_1s;
+input_table-->new_map_view_1m;
+input_table-->new_map_view_1h;
+input_table-->new_map_view_1h_short;
+new_map_view_1s-->new_table_1s;
+new_map_view_1m-->new_table_1m;
+new_map_view_1h-->new_table_1h;
+new_map_view_1h_short-->new_table_1h_short;
+end
+
+subgraph old_tables
 input_table-->map_view_1s;
 input_table-->map_view_1m;
 input_table-->map_view_1h;
+input_table-->prekey_map_view_1s;
+input_table-->prekey_map_view_1m;
+input_table-->prekey_map_view_1h;
 map_view_1s-->table_1s;
 map_view_1m-->table_1m;
 map_view_1h-->table_1h;
+prekey_map_view_1s-->prekey_table_1s;
+prekey_map_view_1m-->prekey_table_1m;
+prekey_map_view_1h-->prekey_table_1h;
+end
 ```
 ## Schemas
 ### input_table
@@ -39,17 +60,18 @@ map_view_1h-->table_1h;
 2. `prekey Int64`
 3. `flags UInt8`
 4. `time DateTime`
-5. `key0 Int64`
-6. `skey0 String`
-7. ...
-8. `key63 Int64`
-9. `skey63 String`
-10. `raw_flags UInt64`
-11. `host String`
-12. `skey String`
-13. `lkey0 Int128`
-14. `lkey1 Int128`
-15. Digest
+5. `r0 Int64`
+6. ...
+7. `r3 Int64`
+8. `key0 Int64`
+9. `skey0 String`
+10. ...
+11. `key47 Int64`
+12. `skey47 String`
+13. `raw_flags UInt64`
+14. `host String`
+15. `skey String`
+16. Digest
 
 `flags` - bitfield with 3 reserved bits
 1. write to basic index
@@ -79,10 +101,10 @@ map_view_1h-->table_1h;
 ## Automatic raw tags
 Problem: raw tags are confusing for users and has to be set up in advance. Changing tag  raw flag breaks all existing tags.
 
-Idea is to detect that tag value in an allowed range: `[-2^63, 2^63-1]`  and automatically save it as a raw tag. To distinguish mapped tags from raw tags we add `raw_flags` field. 
+Idea is to detect that tag value in an allowed range: `[-2^31, 2^31-1]`  and automatically save it as a raw tag. To distinguish mapped tags from raw tags we add `raw_flags` field. 
 All existing raw tags will be simply copied into new ones.
 
-Only issue here is that some people would want to write `UInt64` values  `[0, 2^64-1]`  as raw tags. For them add additional flag in metadata that will signify that numbers over `2^63` should be treated as raw tags instead of strings. If this flag is set it's up to the user to ensure that all values send into agent are positive.
+For people who actually know that we want to write `UInt64` values  we have separate `Int64` row tag fields.
 
 # Old schema
 
@@ -142,5 +164,3 @@ prekey_map_view_1h-->prekey_table_1h;
 6. `key15 Int32`
 7. `skey String`
 8. Digest
-
-
