@@ -1,8 +1,8 @@
-CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_dist ON CLUSTER {{.Cluster}}
+CREATE TABLE IF NOT EXISTS {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}_dist ON CLUSTER {{.Cluster}}
 {{template "table-schema.go.tmpl" .Schema -}}
-ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}');
+ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}');
 
-CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}} ON CLUSTER {{.Cluster}}
+CREATE TABLE IF NOT EXISTS {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}} ON CLUSTER {{.Cluster}}
 {{template "table-schema.go.tmpl" .Schema -}}
 ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{replica}')
 {{.Partition}}
@@ -11,13 +11,14 @@ ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{
 {{.Settings}}
 ;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_matview ON CLUSTER {{.Cluster}} TO {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}
+CREATE MATERIALIZED VIEW IF NOT EXISTS {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}_matview ON CLUSTER {{.Cluster}} TO {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}
 {{template "table-schema.go.tmpl" .Schema -}}
 AS SELECT
+    `index_type`,
     `metric`,
-    {{if .Schema.Prekey -}}
-    `prekey`,
-    {{- end}}
+    `pre_tag`,
+    `pre_stag`,
+
     {{if eq .Resolution "1s" -}}
     `time`,
     {{- else if eq .Resolution "1m" -}}
@@ -25,33 +26,27 @@ AS SELECT
     {{- else if eq .Resolution "1h" -}}
     toStartOfInterval(time, toIntervalHour(1)) AS `time`,
     {{- end}}
-	{{range $t := .Schema.BasicTags }}
-    `key{{$t.Index}}` ,
-    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
-	{{- end}}
+
 	{{range $i := .Schema.RawTags }}
-    `rkey{{$i}}`,
+    `rtag{{$i}}`,
 	{{- end}}
-    {{if .Schema.HostTag}}
-    `host`,
+	{{range $i := .Schema.BasicTags }}
+    `tag{{$i}}`,
+    `stag{{$i}}`,
 	{{- end}}
-    `skey`,
     `count`,
     `min`,
     `max`,
+    `max_count`,
     `sum`,
     `sumsquare`,
     `min_host`,
     `max_host`,
+    `max_count_host`,
     `percentiles`,
     `uniq_state`
 FROM {{.SelectFrom}}
-WHERE (toDate(time) >= (today() - 3)) AND 
-    (toDate(time) <= (today() + 1)) AND 
-    {{if .Schema.Prekey -}}
-    (prekey_set > 0)
-    {{else}}
-    (prekey_set != 2)
-    {{- end}}
+WHERE (toDate(time) >= (today() - 3)) 
+    AND (toDate(time) <= (today() + 1))
 ;
 

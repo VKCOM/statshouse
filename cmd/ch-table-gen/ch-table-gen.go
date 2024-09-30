@@ -9,17 +9,10 @@ import (
 	"text/template"
 )
 
-type BasicTagParams struct {
-	Index       int
-	StringValue bool
-}
-
 type SchemaParams struct {
-	BasicTags []BasicTagParams
-	RawTags   []int
-	HostTag   bool
-	Prekey    bool
-	PrekeySet bool
+	BasicTags  []int
+	RawTags    []int
+	InputTable bool
 }
 
 type TableTTL struct {
@@ -125,36 +118,38 @@ type Params struct {
 	Tables        []TableParams
 }
 
+func (itp IncomingTableParams) tableName() string {
+	return itp.NamePrefix + itp.NamePostfix
+}
+
 func parseParams() (params Params) {
 	var schemaParams SchemaParams
 	var basicTagsN int
 	var rawTagsN int
 	var stringTags bool
 	var cluster string
-	flag.IntVar(&basicTagsN, "basic-tags", 64, "number of basic tags")
+	var partitionHours int
+	var tablesPrefix string
+	const incomingPostfix = "incoming"
+	flag.IntVar(&basicTagsN, "basic-tags", 48, "number of basic tags")
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
-	flag.IntVar(&rawTagsN, "raw-tags", 0, "number of raw tags")
-	flag.BoolVar(&schemaParams.HostTag, "host-tag", true, "special host tag")
+	flag.IntVar(&rawTagsN, "raw-tags", 4, "number of raw tags")
+	flag.IntVar(&partitionHours, "partition-hours", 24, "partition by that many hours")
 	flag.StringVar(&cluster, "cluster", "statlogs2", "clickhouse cluster name")
+	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v3_", "prefix for tables")
 	flag.Parse()
 
-	schemaParams.BasicTags = make([]BasicTagParams, basicTagsN)
+	schemaParams.BasicTags = make([]int, basicTagsN)
 	for i := 0; i < basicTagsN; i++ {
-		schemaParams.BasicTags[i] = BasicTagParams{
-			Index:       i,
-			StringValue: stringTags,
-		}
+		schemaParams.BasicTags[i] = i
 	}
 	schemaParams.RawTags = make([]int, rawTagsN)
 	for i := 0; i < rawTagsN; i++ {
 		schemaParams.RawTags[i] = i
 	}
 
-	prekeySchemaParams := schemaParams
-	prekeySchemaParams.Prekey = true
 	incomingSchemaParams := schemaParams
-	incomingSchemaParams.Prekey = true
-	incomingSchemaParams.PrekeySet = true
+	incomingSchemaParams.InputTable = true
 	commonSettings := TableSettings{
 		IntSettings: make(map[string]int),
 		StrSettings: make(map[string]string),
@@ -174,51 +169,35 @@ func parseParams() (params Params) {
 	}
 	secSettings.IntSettings["max_bytes_to_merge_at_max_space_in_pool"] = 16106127360
 
+	incomingTable := IncomingTableParams{
+		NamePrefix:  tablesPrefix,
+		NamePostfix: incomingPostfix,
+		Cluster:     cluster,
+		Schema:      incomingSchemaParams,
+	}
 	params = Params{
-		IncomingTable: IncomingTableParams{
-			NamePrefix:  "statshouse_exp",
-			NamePostfix: "incoming_str",
-			Cluster:     cluster,
-			Schema:      incomingSchemaParams,
-		},
+		IncomingTable: incomingTable,
 		Tables: []TableParams{
 			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_basic",
-				Resolution:  "1s",
-				Cluster:     cluster,
-				Schema:      schemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
+				NamePrefix: tablesPrefix,
+				Resolution: "1s",
+				Cluster:    cluster,
+				Schema:     schemaParams,
+				SelectFrom: incomingTable.tableName(),
 				TTL: TableTTL{
 					Hours: 52,
 				},
 				Partition: TablePartition{
-					hours: 12,
+					hours: 24,
 				},
 				Settings: secSettings,
 			},
 			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_prekey",
-				Resolution:  "1s",
-				Cluster:     cluster,
-				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
-				TTL: TableTTL{
-					Hours: 52,
-				},
-				Partition: TablePartition{
-					hours: 12,
-				},
-				Settings: secSettings,
-			},
-			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_basic",
-				Resolution:  "1m",
-				Cluster:     cluster,
-				Schema:      schemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
+				NamePrefix: tablesPrefix,
+				Resolution: "1m",
+				Cluster:    cluster,
+				Schema:     schemaParams,
+				SelectFrom: incomingTable.tableName(),
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",
@@ -230,45 +209,11 @@ func parseParams() (params Params) {
 				Settings: commonSettings,
 			},
 			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_prekey",
-				Resolution:  "1m",
-				Cluster:     cluster,
-				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
-				TTL: TableTTL{
-					DaysToDisk: 4,
-					DiskName:   "default",
-					Days:       33,
-				},
-				Partition: TablePartition{
-					day: true,
-				},
-				Settings: commonSettings,
-			},
-			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_basic",
-				Resolution:  "1h",
-				Cluster:     cluster,
-				Schema:      schemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
-				TTL: TableTTL{
-					DaysToDisk: 4,
-					DiskName:   "default",
-				},
-				Partition: TablePartition{
-					month: true,
-				},
-				Settings: commonSettings,
-			},
-			{
-				NamePrefix:  "statshouse_exp",
-				NamePostfix: "str_prekey",
-				Resolution:  "1h",
-				Cluster:     cluster,
-				Schema:      prekeySchemaParams,
-				SelectFrom:  "statshouse_exp_incoming_str",
+				NamePrefix: tablesPrefix,
+				Resolution: "1h",
+				Cluster:    cluster,
+				Schema:     schemaParams,
+				SelectFrom: incomingTable.tableName(),
 				TTL: TableTTL{
 					DaysToDisk: 4,
 					DiskName:   "default",

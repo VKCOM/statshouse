@@ -1,25 +1,15 @@
-PRIMARY KEY (
-    `metric`,
-    {{if .Prekey -}}
-    `prekey`,
-    {{- end}}
-    `time`,
-)
 ORDER BY (
+    `index_type`,
     `metric`,
-    {{if .Prekey -}}
-    `prekey`,
-    {{- end}}
+    `pre_tag`,
+    `pre_stag`,
     `time`,
-	{{range $t := .BasicTags }}
-    `key{{$t.Index}}`, 
-    {{if $t.StringValue -}} `skey{{$t.Index}}`, {{- end}}
-	{{- end}}
 	{{range $i := .RawTags }}
-    `rkey{{$i}}`,
+    `rtag{{$i}}`,
 	{{- end}}
-    {{if .HostTag}}
-    `host`,
+	{{range $i := .BasicTags }}
+    `tag{{$i}}`, 
+    `stag{{$i}}`,
 	{{- end}}
-    `skey`
+    `raw_flags`
 )
