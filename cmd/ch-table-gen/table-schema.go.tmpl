@@ -1,35 +1,31 @@
 (
+    -- 1 means pretag index
+    `index_type` UInt8,
+    {{if .InputTable -}} `write_flags` UInt8, {{- end}}
     `metric` Int32,
-    {{if .Prekey -}}
-    -- prekey value equal to one of the tags (assume that prekey always has mapping)
-    `prekey` UInt64,
-    {{- end}}
-    {{if .PrekeySet -}}
-    -- 0 write only to basic table
-    -- 1 write to both basic and prekey tables
-    -- 2 write only to prekey table
-    `prekey_set` UInt8,
-    {{- end}}
+    `pre_tag` UInt64,
+    `pre_stag` String,
     `time` DateTime,
-	{{range $t := .BasicTags }}
-    `key{{$t.Index}}` UInt64,
-    {{if $t.StringValue -}} `skey{{$t.Index}}` String, {{- end}}
-	{{- end}}
+
 	{{range $i := .RawTags }}
-    `rkey{{$i}}` UInt64,
+    `rtag{{$i}}` UInt64,
 	{{- end}}
-    {{if .HostTag}}
-    -- optional field that can be enabled by a toggle for a metric
-    `host` String,
+	{{range $i := .BasicTags }}
+    `tag{{$i}}` Int32,
+    `stag{{$i}}` String,
 	{{- end}}
-    `skey` String,
+    -- bitfield that shows whether given tag is mapped id or raw int32 value
+    `raw_flags` UInt64,
+
     `count` SimpleAggregateFunction(sum, Float64),
     `min` SimpleAggregateFunction(min, Float64),
     `max` SimpleAggregateFunction(max, Float64),
+    `max_count` SimpleAggregateFunction(max, Float64),
     `sum` SimpleAggregateFunction(sum, Float64),
     `sumsquare` SimpleAggregateFunction(sum, Float64),
-    `min_host` AggregateFunction(argMin, Int32, Float32),
-    `max_host` AggregateFunction(argMax, Int32, Float32),
+    `min_host` AggregateFunction(argMin, String, Float32),
+    `max_host` AggregateFunction(argMax, String, Float32),
+    `max_count_host` AggregateFunction(argMax, String, Float32),
     `percentiles` AggregateFunction(quantilesTDigest(0.5), Float32),
     `uniq_state` AggregateFunction(uniq, Int64)
 )

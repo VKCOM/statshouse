@@ -1,3 +1,3 @@
-CREATE TABLE IF NOT EXISTS {{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}_dist ON CLUSTER {{.Cluster}}
+CREATE TABLE IF NOT EXISTS {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}_dist ON CLUSTER {{.Cluster}}
 {{template "table-schema.go.tmpl" .Schema -}}
-ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}_{{.Resolution}}_{{.NamePostfix}}');
+ENGINE = Distributed('{{.Cluster}}', 'default', '{{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}');
