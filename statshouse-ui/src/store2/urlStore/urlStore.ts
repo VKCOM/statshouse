@@ -189,6 +189,12 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
           if (sourceGroupIndex != null && sourceIndex != null) {
             plotStruct.groups[sourceGroupIndex].plots.splice(sourceIndex, 1);
           }
+          //remove event link
+          plotStruct.groups.forEach((g) => {
+            g.plots.forEach((p) => {
+              p.plotInfo.events = p.plotInfo.events.filter((pK) => plotKey !== pK);
+            });
+          });
         })
       );
     },

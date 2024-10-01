@@ -169,6 +169,12 @@ export function urlDecodePlots(
       }
     }
   });
+  //fix event link
+  orderPlot.forEach((pK) => {
+    if (plots[pK]) {
+      plots[pK]!.events = plots[pK]!.events.filter((eK) => !!plots[eK]);
+    }
+  });
   return { plots, orderPlot };
 }
 
