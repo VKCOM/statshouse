@@ -39,9 +39,9 @@ func getTableDesc() string {
 func getNewTableDesc() string {
 	keysFieldsNamesVec := make([]string, format.NewMaxTags)
 	for i := 0; i < format.NewMaxTags; i++ {
-		keysFieldsNamesVec[i] = fmt.Sprintf(`key%d,skey%d`, i, i)
+		keysFieldsNamesVec[i] = fmt.Sprintf(`tag%d,stag%d`, i, i)
 	}
-	return `statshouse_exp_incoming_str(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
+	return `statshouse_v3_incoming(metric,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host_legacy,max_host_legacy)`
 }
 
 type lastMetricData struct {
@@ -122,18 +122,11 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 }
 
 func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool, stringTagProb float64, rnd *rand.Rand) []byte {
+	if newFormat {
+		return appendKeysNewFormat(res, k, metricCache, usedTimestamps, stringTagProb, rnd)
+	}
 	appendTag := func(res []byte, v uint32) []byte {
-		if newFormat {
-			if v > 0 && stringTagProb > 0 && stringTagProb > rnd.Float64() {
-				res = binary.LittleEndian.AppendUint32(res, 0)
-				res = rowbinary.AppendString(res, fmt.Sprintf("long_and_fake_tagvalue_%d", v))
-			} else {
-				res = binary.LittleEndian.AppendUint32(res, v)
-				res = rowbinary.AppendString(res, "")
-			}
-		} else {
-			res = binary.LittleEndian.AppendUint32(res, v)
-		}
+		res = binary.LittleEndian.AppendUint32(res, v)
 		return res
 	}
 	res = binary.LittleEndian.AppendUint32(res, uint32(k.Metric))
@@ -154,9 +147,31 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 		usedTimestamps[k.Timestamp] = struct{}{} // TODO - optimize out bucket timestamp
 	}
 	tagsN := format.MaxTags
-	if newFormat {
-		tagsN = format.NewMaxTags
+	for ki := 0; ki < tagsN; ki++ {
+		res = appendTag(res, uint32(k.Keys[ki]))
 	}
+	return res
+}
+
+func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, stringTagProb float64, rnd *rand.Rand) []byte {
+	appendTag := func(res []byte, v uint32) []byte {
+		if v > 0 && stringTagProb > 0 && stringTagProb > rnd.Float64() {
+			res = binary.LittleEndian.AppendUint32(res, 0)
+			res = rowbinary.AppendString(res, fmt.Sprintf("long_and_fake_tagvalue_%d", v))
+		} else {
+			res = binary.LittleEndian.AppendUint32(res, v)
+			res = rowbinary.AppendString(res, "")
+		}
+		return res
+	}
+	res = binary.LittleEndian.AppendUint32(res, uint32(k.Metric))
+	// TODO write pretags
+	_ = metricCache
+	res = binary.LittleEndian.AppendUint32(res, k.Timestamp)
+	if usedTimestamps != nil { // do not update map when writing map itself
+		usedTimestamps[k.Timestamp] = struct{}{} // TODO - optimize out bucket timestamp
+	}
+	tagsN := format.NewMaxTags
 	for ki := 0; ki < tagsN; ki++ {
 		if ki < len(k.Keys) {
 			res = appendTag(res, uint32(k.Keys[ki]))
