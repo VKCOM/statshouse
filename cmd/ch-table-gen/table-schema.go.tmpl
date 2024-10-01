@@ -26,6 +26,10 @@
     `min_host` AggregateFunction(argMin, String, Float32),
     `max_host` AggregateFunction(argMax, String, Float32),
     `max_count_host` AggregateFunction(argMax, String, Float32),
+    {{if .InputTable -}}
+    `min_host_legacy` AggregateFunction(argMin, Int32, Float32),
+    `max_host_legacy` AggregateFunction(argMax, Int32, Float32),
+    {{- end}}
     `percentiles` AggregateFunction(quantilesTDigest(0.5), Float32),
     `uniq_state` AggregateFunction(uniq, Int64)
 )
