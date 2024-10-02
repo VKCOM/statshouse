@@ -1,7 +1,10 @@
 (
-    -- 1 means pretag index
+    {{if .InputTable -}}
+    `insert_flags` UInt8,
+    {{- else -}}
+    -- 1 means pre_tag index, 0 main index
     `index_type` UInt8,
-    {{if .InputTable -}} `write_flags` UInt8, {{- end}}
+    {{- end}}
     `metric` Int32,
     `pre_tag` UInt64,
     `pre_stag` String,
