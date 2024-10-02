@@ -41,7 +41,7 @@ func getNewTableDesc() string {
 	for i := 0; i < format.NewMaxTags; i++ {
 		keysFieldsNamesVec[i] = fmt.Sprintf(`tag%d,stag%d`, i, i)
 	}
-	return `statshouse_v3_incoming(metric,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host_legacy,max_host_legacy)`
+	return `statshouse_v3_incoming(metric,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,min_host_legacy,max_host_legacy)`
 }
 
 type lastMetricData struct {
@@ -121,9 +121,9 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 	return false, false, false
 }
 
-func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool, stringTagProb float64, rnd *rand.Rand) []byte {
+func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool, stringTagProb float64, rnd *rand.Rand, stag string) []byte {
 	if newFormat {
-		return appendKeysNewFormat(res, k, metricCache, usedTimestamps, stringTagProb, rnd)
+		return appendKeysNewFormat(res, k, metricCache, usedTimestamps, stringTagProb, rnd, stag)
 	}
 	appendTag := func(res []byte, v uint32) []byte {
 		res = binary.LittleEndian.AppendUint32(res, v)
@@ -153,7 +153,7 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 	return res
 }
 
-func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, stringTagProb float64, rnd *rand.Rand) []byte {
+func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, stringTagProb float64, rnd *rand.Rand, stag string) []byte {
 	appendTag := func(res []byte, v uint32) []byte {
 		if v > 0 && stringTagProb > 0 && stringTagProb > rnd.Float64() {
 			res = binary.LittleEndian.AppendUint32(res, 0)
@@ -173,6 +173,12 @@ func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexC
 	}
 	tagsN := format.NewMaxTags
 	for ki := 0; ki < tagsN; ki++ {
+		// stag is an alias for stag47
+		if ki == format.NewMaxTags-1 {
+			res = binary.LittleEndian.AppendUint32(res, 0)
+			res = rowbinary.AppendString(res, stag)
+			continue
+		}
 		if ki < len(k.Keys) {
 			res = appendTag(res, uint32(k.Keys[ki]))
 		} else {
@@ -254,7 +260,7 @@ func appendValueStat(rng *rand.Rand, res []byte, key data_model.Key, skey string
 		return res
 	}
 	// for explanation of insert logic, see multiValueMarshal below
-	res = appendKeys(res, key, cache, usedTimestamps, newFormat, 0, nil /* don't replace mappings with strings from builtin metrics */)
+	res = appendKeys(res, key, cache, usedTimestamps, newFormat, 0, nil /* don't replace mappings with strings from builtin metrics */, skey)
 	skipMaxHost, skipMinHost, skipSumSquare := cache.skips(key.Metric)
 	if v.ValueSet {
 		res = appendAggregates(res, count, v.ValueMin, v.ValueMax, v.ValueSum, zeroIfTrue(v.ValueSumSquare, skipSumSquare))
@@ -264,7 +270,9 @@ func appendValueStat(rng *rand.Rand, res []byte, key data_model.Key, skey string
 
 	res = rowbinary.AppendEmptyCentroids(res)
 	res = rowbinary.AppendEmptyUnique(res)
-	res = rowbinary.AppendString(res, skey)
+	if !newFormat {
+		res = rowbinary.AppendString(res, skey)
+	}
 
 	if v.ValueSet {
 		if skipMinHost {
@@ -293,7 +301,7 @@ func appendSimpleValueStat(rng *rand.Rand, res []byte, key data_model.Key, v flo
 	return appendValueStat(rng, res, key, "", data_model.SimpleItemValue(v, count, hostTag), metricCache, usedTimestamps, newFormat)
 }
 
-func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, res []byte, value *data_model.MultiValue, skey string, sf float64) []byte {
+func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, res []byte, value *data_model.MultiValue, skey string, sf float64, newFormat bool) []byte {
 	skipMaxHost, skipMinHost, skipSumSquare := cache.skips(metricID)
 	counter := value.Value.Count() * sf
 	if value.Value.ValueSet {
@@ -306,7 +314,9 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 	}
 	res = rowbinary.AppendCentroids(res, value.ValueTDigest, sf)
 	res = value.HLL.MarshallAppend(res)
-	res = rowbinary.AppendString(res, skey)
+	if !newFormat {
+		res = rowbinary.AppendString(res, skey)
+	}
 	if value.Value.ValueSet {
 		if skipMinHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
@@ -371,9 +381,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 
 		resPos := len(res)
 		if !item.Tail.Empty() { // only tail
-			res = appendKeys(res, k, metricCache, usedTimestamps, newFormat, stringTagProb, rnd)
+			res = appendKeys(res, k, metricCache, usedTimestamps, newFormat, stringTagProb, rnd, "")
 
-			res = multiValueMarshal(rnd, k.Metric, metricCache, res, &item.Tail, "", sf)
+			res = multiValueMarshal(rnd, k.Metric, metricCache, res, &item.Tail, "", sf, newFormat)
 
 			if k.Metric < 0 {
 				is.builtin += len(res) - resPos
@@ -396,8 +406,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 				continue
 			}
 			// We have no badges for string tops
-			res = appendKeys(res, k, metricCache, usedTimestamps, newFormat, stringTagProb, rnd)
-			res = multiValueMarshal(rnd, k.Metric, metricCache, res, value, skey, sf)
+			res = appendKeys(res, k, metricCache, usedTimestamps, newFormat, stringTagProb, rnd, skey)
+			res = multiValueMarshal(rnd, k.Metric, metricCache, res, value, skey, sf, newFormat)
 		}
 		if k.Metric < 0 {
 			is.builtin += len(res) - resPos
