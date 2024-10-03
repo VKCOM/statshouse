@@ -51,7 +51,7 @@ end
 
 ## Schemas
 ### input_table
-1. `insert_flags UInt8`
+1. `index_type UInt8`
 2. `metric Int32`
 3. `pre_tag Int32`
 4. `pre_stag String`
@@ -67,13 +67,6 @@ end
 14. `min_host_legacy AggregateFunction(argMin, Int32, Float32)`
 15. `max_host_legacy AggregateFunction(argMax, Int32, Float32)`
 16. ... (rest of digest)
-
-`insert_flags` - bitfield with 2 defined flags and 6 reserved ones
-1. write to main index
-2. write to prekey index
-
-We have separate columns `insert_flags` and `index_type` because `insert_flags` could be used not only to distinguinsh between pre_tag and main index
-but also to route between different tables.
 
 ### table_1x
 1. `index_type UInt8`
@@ -91,7 +84,7 @@ but also to route between different tables.
 13. `max_count_host AggregateFunction(argMax, String, Float32)`
 14. ... (rest of digest)
 
-index_type 
+`index_type`
 - 0 - main index (pre_tag is empty)
 - 1 - pre_tag index
 
