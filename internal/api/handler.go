@@ -1670,6 +1670,12 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if !ai.CanEditMetric(false, *old, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
+		if diffContainsRawTagChanges(*old, metric) {
+			if isAdmin := ai.isAdmin() || ai.insecureMode; !isAdmin {
+				return format.MetricMetaValue{}, httpErr(http.StatusForbidden,
+					fmt.Errorf("raw tags can only be edited by administrators, please contact the support group"))
+			}
+		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
 			err = fmt.Errorf("error saving metric in sqllite: %w", err)
@@ -1678,6 +1684,20 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 	}
 	return resp, nil
+}
+
+func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
+	for i := 0; i < len(old.Tags) && i < len(new.Tags); i++ {
+		if old.Tags[i].Raw != new.Tags[i].Raw {
+			return true // edit
+		}
+	}
+	for i := len(new.Tags); i < len(old.Tags); i++ {
+		if old.Tags[i].Raw {
+			return true // removal
+		}
+	}
+	return false
 }
 
 func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Request) {
