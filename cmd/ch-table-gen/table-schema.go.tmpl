@@ -10,15 +10,10 @@
     `pre_stag` String,
     `time` DateTime,
 
-	{{range $i := .RawTags }}
-    `rtag{{$i}}` UInt64,
-	{{- end}}
 	{{range $i := .BasicTags }}
     `tag{{$i}}` Int32,
     `stag{{$i}}` String,
 	{{- end}}
-    -- bitfield that shows whether given tag is mapped id or raw int32 value
-    `raw_flags` UInt64,
 
     `count` SimpleAggregateFunction(sum, Float64),
     `min` SimpleAggregateFunction(min, Float64),

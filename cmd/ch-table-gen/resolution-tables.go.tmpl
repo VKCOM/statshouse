@@ -27,14 +27,10 @@ AS SELECT
     toStartOfInterval(time, toIntervalHour(1)) AS `time`,
     {{- end}}
 
-	{{range $i := .Schema.RawTags }}
-    `rtag{{$i}}`,
-	{{- end}}
 	{{range $i := .Schema.BasicTags }}
     `tag{{$i}}`,
     `stag{{$i}}`,
 	{{- end}}
-    `raw_flags`,
     `count`,
     `min`,
     `max`,

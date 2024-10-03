@@ -11,7 +11,6 @@ import (
 
 type SchemaParams struct {
 	BasicTags  []int
-	RawTags    []int
 	InputTable bool
 }
 
@@ -125,7 +124,6 @@ func (itp IncomingTableParams) tableName() string {
 func parseParams() (params Params) {
 	var schemaParams SchemaParams
 	var basicTagsN int
-	var rawTagsN int
 	var stringTags bool
 	var cluster string
 	var partitionHours int
@@ -133,7 +131,6 @@ func parseParams() (params Params) {
 	const incomingPostfix = "incoming"
 	flag.IntVar(&basicTagsN, "basic-tags", 48, "number of basic tags")
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
-	flag.IntVar(&rawTagsN, "raw-tags", 4, "number of raw tags")
 	flag.IntVar(&partitionHours, "partition-hours", 24, "partition by that many hours")
 	flag.StringVar(&cluster, "cluster", "statlogs2", "clickhouse cluster name")
 	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v3_", "prefix for tables")
@@ -142,10 +139,6 @@ func parseParams() (params Params) {
 	schemaParams.BasicTags = make([]int, basicTagsN)
 	for i := 0; i < basicTagsN; i++ {
 		schemaParams.BasicTags[i] = i
-	}
-	schemaParams.RawTags = make([]int, rawTagsN)
-	for i := 0; i < rawTagsN; i++ {
-		schemaParams.RawTags[i] = i
 	}
 
 	incomingSchemaParams := schemaParams
