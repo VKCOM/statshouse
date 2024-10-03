@@ -6,6 +6,7 @@ function getRect(target: Element, fixed: boolean = false) {
     nextRect.x += window.scrollX;
     nextRect.y += window.scrollY;
   }
+  // console.log('getRect', { target, ...nextRect.toJSON() });
   return (r: DOMRect) => {
     if (r.x === nextRect.x && r.y === nextRect.y && r.width === nextRect.width && r.height === nextRect.height) {
       return r;
@@ -14,14 +15,19 @@ function getRect(target: Element, fixed: boolean = false) {
   };
 }
 
-export function useRectObserver(target?: Element | null, fixed: boolean = false): [DOMRect, () => void] {
+export function useRectObserver(
+  target?: Element | null,
+  fixed: boolean = false,
+  active: boolean = true,
+  scroll: boolean = true
+): [DOMRect, () => void] {
   const [rect, setRect] = useState<DOMRect>(new DOMRect());
 
   const update = useCallback(() => {
-    if (target) {
+    if (target && active) {
       setRect(getRect(target, fixed));
     }
-  }, [fixed, target]);
+  }, [active, fixed, target]);
 
   useEffect(() => {
     if (!target) {
@@ -31,15 +37,19 @@ export function useRectObserver(target?: Element | null, fixed: boolean = false)
     update();
     const r = new ResizeObserver(update);
     const m = new MutationObserver(update);
-    window.addEventListener('scroll', update, { capture: true });
+    if (scroll) {
+      window.addEventListener('scroll', update, { capture: true });
+    }
     r.observe(target, {});
     m.observe(target, { attributes: true });
     return () => {
-      window.removeEventListener('scroll', update, { capture: true });
+      if (scroll) {
+        window.removeEventListener('scroll', update, { capture: true });
+      }
       r.unobserve(target);
       r.disconnect();
       m.disconnect();
     };
-  }, [target, update]);
+  }, [scroll, target, update]);
   return [rect, update];
 }

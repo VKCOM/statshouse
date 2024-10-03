@@ -15,6 +15,7 @@ import { useWindowSize } from 'hooks/useWindowSize';
 import { toggleDashboardsFavorite, useFavoriteStore } from 'store2/favoriteStore';
 import { ReactComponent as SVGStar } from 'bootstrap-icons/icons/star.svg';
 import { ReactComponent as SVGStarFill } from 'bootstrap-icons/icons/star-fill.svg';
+import { Tooltip } from '../components/UI';
 
 export type DashboardListViewProps = {};
 
@@ -69,16 +70,18 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
             <Link to={`/view?id=${item.id}`} className="text-body text-decoration-none">
               <h6 className="m-0 d-flex align-items-center gap-1">
                 <span className="flex-grow-1">{item.name}</span>
-                <span
-                  className="text-primary"
-                  onClick={(e) => {
-                    toggleDashboardsFavorite(item.id);
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                >
-                  {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
-                </span>
+                <Tooltip title={dashboardsFavorite[item.id] ? 'remove favorite' : 'add favorite'}>
+                  <span
+                    className="text-primary"
+                    onClick={(e) => {
+                      toggleDashboardsFavorite(item.id);
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                  >
+                    {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
+                  </span>
+                </Tooltip>
               </h6>
               {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
             </Link>
@@ -91,16 +94,18 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
             <Link to={`/view?id=${item.id}`} className="text-body text-decoration-none">
               <h6 className="m-0 d-flex gap-1">
                 <span className="flex-grow-1">{item.name}</span>
-                <span
-                  className="text-primary"
-                  onClick={(e) => {
-                    toggleDashboardsFavorite(item.id);
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                >
-                  {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
-                </span>
+                <Tooltip title={dashboardsFavorite[item.id] ? 'remove favorite' : 'add favorite'}>
+                  <span
+                    className="text-primary"
+                    onClick={(e) => {
+                      toggleDashboardsFavorite(item.id);
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                  >
+                    {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
+                  </span>
+                </Tooltip>
               </h6>
               {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
             </Link>

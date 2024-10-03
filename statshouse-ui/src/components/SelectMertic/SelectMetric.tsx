@@ -1,7 +1,12 @@
-import { Select, SelectOptionProps } from '../Select';
-import React, { useCallback, useMemo } from 'react';
-import { updateMetricsList, useMetricsListStore } from 'store/metricsList';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMetricsListStore } from 'store/metricsList';
 import cn from 'classnames';
+import { Select, SelectOptionProps } from '../UI/Select';
+import { useDebounceState } from 'hooks';
+import { SearchFabric } from 'common/helpers';
+import { toggleMetricsFavorite, toggleShowMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
+import { SelectMetricRow } from './SelectMetricRow';
+import { ToggleShowMetricsFavorite } from './ToggleShowMetricsFavorite';
 
 export type SelectMetricProps = {
   value?: string;
@@ -9,26 +14,83 @@ export type SelectMetricProps = {
   className?: string;
   placeholder?: string;
 };
-export function SelectMetric({ value, onChange, className, placeholder }: SelectMetricProps) {
+export function _SelectMetric({ value, onChange, className, placeholder }: SelectMetricProps) {
   const { list, loading } = useMetricsListStore();
-  const metricsOptions = useMemo<SelectOptionProps[]>(() => list.map(({ name }) => ({ name, value: name })), [list]);
-  const onSearchMetrics = useCallback((values: SelectOptionProps[]) => {
-    if (values.length === 0 && !useMetricsListStore.getState().loading) {
-      updateMetricsList();
+  const metricsFavorite = useFavoriteStore((s) => s.metricsFavorite);
+  const showMetricsFavorite = useFavoriteStore((s) => s.showMetricsFavorite);
+
+  const [search, searchDebounce, setSearch] = useDebounceState(value);
+  const [noSearch, setNoSearch] = useState(true);
+  const favoriteList = useMemo(
+    () =>
+      list
+        .filter((v) => metricsFavorite[v.name])
+        .map(({ name }) => ({
+          value: name,
+          checked: name === value,
+        })),
+    [list, metricsFavorite, value]
+  );
+
+  const filterOptions = useMemo<SelectOptionProps[]>(() => {
+    let l = [...list];
+    if (searchDebounce && !noSearch) {
+      l = l.filter(SearchFabric(searchDebounce, ['name']));
     }
-  }, []);
+    return l.map(({ name }) => ({
+      value: name,
+      checked: name === value,
+    }));
+  }, [list, noSearch, searchDebounce, value]);
+
+  const onOpen = useCallback(() => {
+    setSearch(value ?? '');
+    setNoSearch(true);
+  }, [setSearch, value]);
+
+  const onSearch = useCallback(
+    (v: string) => {
+      setNoSearch(false);
+      setSearch(v);
+    },
+    [setSearch]
+  );
+  const onChangeValue = useCallback(
+    (values: SelectOptionProps[], index: number) => {
+      onChange?.(values[0]?.value);
+    },
+    [onChange]
+  );
+  useEffect(() => {
+    if (!favoriteList.length) {
+      toggleShowMetricsFavorite(false);
+    }
+  }, [favoriteList.length, showMetricsFavorite]);
+
   return (
-    <Select
-      value={value}
-      placeholder={placeholder}
-      showSelected={!placeholder}
-      options={metricsOptions}
-      onChange={onChange}
-      valueToInput={true}
-      className={cn('sh-select form-control', className)}
-      classNameList="dropdown-menu"
-      onSearch={onSearchMetrics}
-      loading={loading}
-    />
+    <>
+      <Select<SelectOptionProps>
+        className={cn(className)}
+        options={showMetricsFavorite && noSearch && favoriteList.length ? favoriteList : filterOptions}
+        search={search}
+        placeholder={placeholder ?? value}
+        onSearch={onSearch}
+        onOpen={onOpen}
+        onClose={onOpen}
+        onChange={onChangeValue}
+        minWidth={300}
+        itemSize={30}
+        loading={loading}
+        selectButtons={
+          favoriteList.length || showMetricsFavorite ? (
+            <ToggleShowMetricsFavorite status={noSearch && showMetricsFavorite && !!favoriteList.length} />
+          ) : undefined
+        }
+      >
+        {SelectMetricRow}
+      </Select>
+    </>
   );
 }
+
+export const SelectMetric = memo(_SelectMetric);

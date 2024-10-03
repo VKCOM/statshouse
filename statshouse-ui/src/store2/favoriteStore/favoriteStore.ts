@@ -21,12 +21,13 @@ export const favoriteStateStorage: StateStorage = {
 
 export type FavoriteStore = {
   dashboardsFavorite: Partial<Record<number, boolean>>;
-  metricsFavorite: Partial<Record<number, boolean>>;
+  metricsFavorite: Partial<Record<string, boolean>>;
+  showMetricsFavorite: boolean;
 };
 
 export const useFavoriteStore = create<FavoriteStore>()(
   persist(
-    immer(() => ({ dashboardsFavorite: {}, metricsFavorite: {} })),
+    immer(() => ({ dashboardsFavorite: {}, metricsFavorite: {}, showMetricsFavorite: false }) as FavoriteStore),
     {
       name: 'sh-favorite',
       version: 0,
@@ -42,17 +43,25 @@ export const useFavoriteStore = create<FavoriteStore>()(
                 }, {});
               }
               return {};
+            // case 'showMetricsFavorite':
+            //   return false;
           }
           return value;
         },
         replacer: (key, value) => {
           switch (key) {
             case 'dashboardsFavorite':
-            case 'metricsFavorite':
               if (isObject(value)) {
                 return Object.keys(value).map(Number).filter(isNotNil);
               }
               return [];
+            case 'metricsFavorite':
+              if (isObject(value)) {
+                return Object.keys(value);
+              }
+              return [];
+            // case 'showMetricsFavorite':
+            //   return 0;
           }
           return value;
         },
@@ -71,12 +80,18 @@ export function toggleDashboardsFavorite(id: number) {
   });
 }
 
-export function toggleMetricsFavorite(id: number) {
+export function toggleMetricsFavorite(name: string) {
   useFavoriteStore.setState((s) => {
-    if (s.metricsFavorite[id]) {
-      delete s.metricsFavorite[id];
+    if (s.metricsFavorite[name]) {
+      delete s.metricsFavorite[name];
     } else {
-      s.metricsFavorite[id] = true;
+      s.metricsFavorite[name] = true;
     }
+  });
+}
+
+export function toggleShowMetricsFavorite(status?: boolean) {
+  useFavoriteStore.setState((s) => {
+    s.showMetricsFavorite = status ?? !s.showMetricsFavorite;
   });
 }

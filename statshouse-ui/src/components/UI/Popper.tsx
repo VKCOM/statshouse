@@ -30,8 +30,9 @@ export type PopperHorizontal = (typeof POPPER_HORIZONTAL)[keyof typeof POPPER_HO
 type refElement = Element | HTMLElement | SVGElement | null | undefined;
 
 export type PopperProps = {
-  children?: ReactNode;
+  children?: ReactNode | ((size: { width: number; height: number; maxWidth: number; maxHeight: number }) => ReactNode);
   className?: string;
+  classNameInner?: string;
   targetRef?: RefObject<refElement>;
   vertical?: PopperVertical;
   horizontal?: PopperHorizontal;
@@ -100,6 +101,7 @@ const threshold = buildThresholdList(1);
 export function _Popper({
   children,
   className,
+  classNameInner,
   targetRef,
   horizontal = POPPER_HORIZONTAL.center,
   vertical = POPPER_VERTICAL.outTop,
@@ -109,10 +111,10 @@ export function _Popper({
 }: PopperProps) {
   const [firstInit, setFirstInit] = useState(false);
   const visible = useIntersectionObserver(targetRef?.current, threshold);
-  const [targetRect, updateTargetRect] = useRectObserver(targetRef?.current, fixed);
+  const [targetRect, updateTargetRect] = useRectObserver(targetRef?.current, fixed, show, false);
   const [innerRef, setInnerRef] = useState<HTMLDivElement | null>(null);
   const innerVisible = useIntersectionObserver(innerRef, threshold);
-  const [innerRect] = useRectObserver(innerRef, fixed);
+  const [innerRect] = useRectObserver(innerRef, fixed, show);
   const windowRect = useWindowSize();
 
   const [horizontalClass, setHorizontalClass] = useState(horizontal);
@@ -132,8 +134,27 @@ export function _Popper({
       const middle = targetRect.y + targetRect.height / 2;
       return Math.min(middle, windowRect.height - middle) * 2;
     }
-    return Math.max(targetRect.y, windowRect.height - (targetRect.y + targetRect.height));
-  }, [targetRect.height, targetRect.y, verticalClass, windowRect.height]);
+    return Math.min(
+      windowRect.height,
+      Math.max(
+        windowRect.height / 2,
+        targetRect.y - windowRect.scrollY,
+        windowRect.scrollY + windowRect.height - targetRect.y - targetRect.height
+      )
+    );
+  }, [targetRect, verticalClass, windowRect]);
+
+  // useEffect(() => {
+  //   console.log({
+  //     targetRef: targetRef?.current,
+  //     targetRect: { ...targetRect.toJSON() },
+  //     windowRect: { ...windowRect },
+  //   });
+  //   console.log({
+  //     topHeight: targetRect.y - windowRect.scrollY,
+  //     bottomHeight: windowRect.scrollY + windowRect.height - targetRect.y - targetRect.height,
+  //   });
+  // }, [targetRect, targetRef, windowRect]);
 
   useEffect(() => {
     if ((innerVisible >= 1 && !always) || !show) {
@@ -216,7 +237,7 @@ export function _Popper({
   }, [show, updateTargetRect]);
   return (
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
-      {!!visible && show && (
+      {(!!visible || always) && show && (
         <div
           className={cn(css.popperItem, !firstInit && 'visually-hidden', className)}
           style={
@@ -229,8 +250,18 @@ export function _Popper({
             } as React.CSSProperties
           }
         >
-          <div ref={setInnerRef} className={cn(css.popperItemInner, css[verticalClass], css[horizontalClass])}>
-            {children}
+          <div
+            ref={setInnerRef}
+            className={cn(css.popperItemInner, css[verticalClass], css[horizontalClass], classNameInner)}
+          >
+            {typeof children === 'function'
+              ? children({
+                  height: targetRect.height,
+                  width: targetRect.width,
+                  maxWidth: maxWidth,
+                  maxHeight: maxHeight,
+                })
+              : children}
           </div>
         </div>
       )}
