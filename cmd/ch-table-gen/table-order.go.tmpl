@@ -3,13 +3,10 @@ ORDER BY (
     `metric`,
     `pre_tag`,
     `pre_stag`,
-    `time`,
-	{{range $i := .RawTags }}
-    `rtag{{$i}}`,
-	{{- end}}
+    `time`
 	{{range $i := .BasicTags }}
-    `tag{{$i}}`, 
-    `stag{{$i}}`,
+    ,
+    `tag{{$i}}`,
+    `stag{{$i}}`
 	{{- end}}
-    `raw_flags`
 )

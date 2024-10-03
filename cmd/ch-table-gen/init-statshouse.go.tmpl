@@ -1,4 +1,4 @@
-CREATE TABLE {{.IncomingTable.NamePrefix}}{{.IncomingTable.NamePostfix}} ON CLUSTER {{.IncomingTable.Cluster}}
+CREATE TABLE IF NOT EXISTS {{.IncomingTable.NamePrefix}}{{.IncomingTable.NamePostfix}} ON CLUSTER {{.IncomingTable.Cluster}}
 {{template "table-schema.go.tmpl" .IncomingTable.Schema -}}
 ENGINE = Null;
 
