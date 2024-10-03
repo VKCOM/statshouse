@@ -1,17 +1,13 @@
 # New schema
 
 - number of tags increased 16 -> 48
-- separate `r0..r3` `Int64` columns for raw tags
 - `flags` bitfield to indicate in which tables we want to write
 	- new + old table or just new table (for migration to a new pipeline)
 	- prekey, basic or both tables
 	- hour table with TTL or default hour table
 		- to store short lived metrics that live only for 1mo (like pod telemetry)
-- `raw_flags UInt64` column to indicate that tag is raw
-	- idea here is to write all number tags as raw tags automatically when we can
 - each tag followed by unmapped stag option, only one them should be set at a time
 - add `pre_stag` to store unmapped prekeys
-- `pre_tag` is now 64 bit to support `r0..r3` tags
 - `index_type UInt8` to merge basic and `pre_tag` tables into a single one
 	- 0 - basic index
 	- 2 - `pre_tag` index
@@ -57,24 +53,20 @@ end
 ### input_table
 1. `insert_flags UInt8`
 2. `metric Int32`
-3. `pre_tag Int64`
-4. `pre_stag Int64`
+3. `pre_tag Int32`
+4. `pre_stag String`
 5. `time DateTime`
-6. `rtag0 Int64`
-7. ...
-8. `rtag3 Int64`
-9. `tag0 Int64`
-10. `stag0 String`
-11. ...
-12. `tag47 Int64`
-13. `stag47 String`
-14. `raw_flags UInt64`
-15. `min_host AggregateFunction(argMax, String, Float32)`
-16. `max_host AggregateFunction(argMax, String, Float32)`
-17. `max_count_host AggregateFunction(argMax, String, Float32)`
-18. `min_host_legacy AggregateFunction(argMin, Int32, Float32)`
-19. `max_host_legacy AggregateFunction(argMax, Int32, Float32)`
-20. ... (rest of digest)
+6. `tag0 Int64`
+7. `stag0 String`
+8. ...
+9. `tag47 Int64`
+10. `stag47 String`
+11. `min_host AggregateFunction(argMax, String, Float32)`
+12. `max_host AggregateFunction(argMax, String, Float32)`
+13. `max_count_host AggregateFunction(argMax, String, Float32)`
+14. `min_host_legacy AggregateFunction(argMin, Int32, Float32)`
+15. `max_host_legacy AggregateFunction(argMax, Int32, Float32)`
+16. ... (rest of digest)
 
 `insert_flags` - bitfield with 2 defined flags and 6 reserved ones
 1. write to main index
@@ -83,39 +75,25 @@ end
 We have separate columns `insert_flags` and `index_type` because `insert_flags` could be used not only to distinguinsh between pre_tag and main index
 but also to route between different tables.
 
-`raw_flags`  - bitfield to indicate which tags are written as a raw tags
-
 ### table_1x
 1. `index_type UInt8`
 2. `metric Int32`
-3. `pre_tag Int64`
+3. `pre_tag Int32`
 4. `pre_stag String`
 5. `time DateTime`
-6. `rtag0 Int64`
-7. ...
-8. `rtag3 Int64`
-9. `tag0 Int64`
-10. `stag0 String`
-11. ...
-12. `tag47 Int64`
-13. `stag47 String`
-14. `raw_flags UInt64`
-15. `min_host AggregateFunction(argMax, String, Float32)`
-16. `max_host AggregateFunction(argMax, String, Float32)`
-17. `max_count_host AggregateFunction(argMax, String, Float32)`
-18. ... (rest of digest)
+6. `tag0 Int64`
+7. `stag0 String`
+8. ...
+9. `tag47 Int64`
+10. `stag47 String`
+11. `min_host AggregateFunction(argMax, String, Float32)`
+12. `max_host AggregateFunction(argMax, String, Float32)`
+13. `max_count_host AggregateFunction(argMax, String, Float32)`
+14. ... (rest of digest)
 
 index_type 
 - 0 - main index (pre_tag is empty)
 - 1 - pre_tag index
-
-## Automatic raw tags
-Problem: raw tags are confusing for users and has to be set up in advance. Changing tag  raw flag breaks all existing tags.
-
-Idea is to detect that tag value in an allowed range: `[-2^31, 2^31-1]`  and automatically save it as a raw tag. To distinguish mapped tags from raw tags we add `raw_flags` field. 
-All existing raw tags will be simply copied into new ones.
-
-For people who actually know that we want to write `UInt64` values  we have separate `Int64` row tag fields.
 
 # Old schema
 
