@@ -14,7 +14,7 @@ ENGINE = ReplicatedAggregatingMergeTree('/clickhouse/tables/{shard}/{table}', '{
 CREATE MATERIALIZED VIEW IF NOT EXISTS {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}_matview ON CLUSTER {{.Cluster}} TO {{.NamePrefix}}{{.Resolution}}{{.NamePostfix}}
 {{template "table-schema.go.tmpl" .Schema -}}
 AS SELECT
-    bitTest(`insert_flags`, 0) AS `index_type`,
+    `index_type`,
     `metric`,
     `pre_tag`,
     `pre_stag`,
