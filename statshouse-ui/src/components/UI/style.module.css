@@ -73,3 +73,117 @@
 .middle.center {
   transform: translate(-50%, -50%);
 }
+
+/** Select component */
+.select {
+  display: flex;
+  flex-direction: row;
+  /*justify-items: center;*/
+  align-items: center;
+  position: relative;
+  /*left: 0;*/
+  /*top: 0;*/
+  outline: none 0 !important;
+  color: inherit;
+  width: 100%;
+}
+
+.selectFocus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.selectSearchInput {
+  width: 0;
+  flex-grow: 1;
+  display: inline-block;
+  background-image: none;
+  border: solid 0 transparent;
+  outline: none 0;
+  line-height: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 0;
+  margin: 0;
+  background-color: inherit;
+  color: inherit;
+}
+
+.selectSearchChevron {
+  display: inline-block;
+  position: relative;
+  padding: 0.25em 0.5em 0.25em 0.5em;
+  margin: -0.25em -0.5em -0.25em 0;
+  background-color: inherit;
+  border-radius: inherit;
+  border: none 0;
+}
+
+.selectPopper {
+  min-width: 100%;
+}
+
+.selectDropdown {
+  --selectItemHeight: 30px;
+  --selectItemDisabled: var(--bs-tertiary-color);
+  --selectItemChecked: var(--bs-primary-bg-subtle);
+  --selectItemCursor: var(--bs-secondary-bg);
+  --selectItemCursorChecked: var(--bs-primary-border-subtle);
+  display: flex;
+  flex-direction: column;
+}
+
+.selectList {
+  border-radius: inherit;
+}
+
+.selectList {
+  /*--scroll-size: 8px;*/
+  -webkit-overflow-scrolling: touch;
+  /*scrollbar-width: thin;*/
+  /*scrollbar-gutter: auto;*/
+}
+.selectList::-webkit-scrollbar {
+  /*height: var(--scroll-size);*/
+  /*width: var(--scroll-size);*/
+  /*background: transparent;*/
+}
+.selectList::-webkit-scrollbar-thumb {
+  /*background: var(--bs-tertiary-color);*/
+  /*border-radius: calc(var(--scroll-size) / 2);*/
+}
+.selectList::-webkit-scrllbar-track {
+  /*background: transparent;*/
+}
+.selectList::-webkit-scrollbar-corner {
+  /*background-color: var(--bs-tertiary-color);*/
+}
+
+.selectItem {
+  height: var(--selectItemHeight);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+.selectDisabled {
+  background-color: var(--selectItemDisabled);
+}
+
+.selectChecked {
+  background-color: var(--selectItemChecked);
+}
+
+/*.selectItem:hover,*/
+.selectCursor {
+  background-color: var(--selectItemCursor);
+}
+
+/*.selectChecked:hover,*/
+.selectCursor.selectChecked {
+  background-color: var(--selectItemCursorChecked);
+}
+/** Select component end */

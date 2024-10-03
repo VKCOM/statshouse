@@ -116,7 +116,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
           </NavLink>
         </li>
         <li className={css.splitter}></li>
-        <li className={css.subItem}>
+        {/*<li className={css.subItem}>
           <a
             className={css.link}
             href="https://github.com/VKCOM/statshouse/discussions/categories/announcements"
@@ -125,7 +125,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
           >
             News
           </a>
-        </li>
+        </li>*/}
         <li className={css.subItem}>
           <a className={css.link} href="https://vkcom.github.io/statshouse/" target="_blank" rel="noreferrer">
             Documentation

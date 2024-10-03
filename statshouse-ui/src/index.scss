@@ -49,6 +49,9 @@
   textarea {
     color-scheme: dark;
   }
+  .text-primary {
+    color: rgba(var(--bs-link-color-rgb), var(--bs-text-opacity)) !important;
+  }
 }
 
 #root {
