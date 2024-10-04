@@ -17,6 +17,11 @@ import (
 	"github.com/vkcom/statshouse/internal/util"
 )
 
+type maybeMappedTag struct {
+	Value  string
+	Mapped int32
+}
+
 type preparedTagValuesQuery struct {
 	version     string
 	metricID    int32
@@ -25,6 +30,9 @@ type preparedTagValuesQuery struct {
 	numResults  int
 	filterIn    map[string][]interface{}
 	filterNotIn map[string][]interface{}
+
+	filterInV3    map[string][]maybeMappedTag
+	filterNotInV3 map[string][]maybeMappedTag
 }
 
 func (q *preparedTagValuesQuery) stringTag() bool {
@@ -132,6 +140,7 @@ SELECT {{.MappedColumnName}} AS _mapped, {{.UnmappedColumnName}} AS _unmapped, t
 FROM {{.TableName}}
 WHERE metric = {{.MetricId}}
   AND time >= {{.From}} AND time < {{.To}}
+{{.TagConditions}}
 GROUP BY _mapped, _unmapped
 HAVING _count > 0
 ORDER BY _count DESC, _mapped, _unmapped
@@ -146,10 +155,12 @@ SETTINGS optimize_aggregation_in_order = 1
 		UnmappedColumnName string
 		TableName          string
 		MetricId           int32
+		TagConditions      string
 		From               int64
 		To                 int64
 		Limit              int
 	}
+
 	p := &templParams{
 		MappedColumnName:   mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
 		UnmappedColumnName: unmappedColumnName(pq.tagID),
@@ -159,12 +170,67 @@ SETTINGS optimize_aggregation_in_order = 1
 		To:                 lod.ToSec,
 		Limit:              pq.numResults + 1,
 	}
+	cond := strings.Builder{}
+	writeTagCond(&cond, pq.filterInV3, true)
+	writeTagCond(&cond, pq.filterNotInV3, false)
+	p.TagConditions = cond.String()
+	cond.Reset()
+
 	var b bytes.Buffer
 	err = qt.Execute(&b, p)
 	if err != nil {
 		return "", tagValuesQueryMeta{}, fmt.Errorf("failed to execute query template: %v", err)
 	}
 	return b.String(), tagValuesQueryMeta{}, nil
+}
+
+func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool) {
+	strValues := make([]string, 0, 16)
+	intValues := make([]string, 0, 16)
+	for tag, values := range f {
+		if len(values) == 0 {
+			continue
+		}
+		for _, valPair := range values {
+			if len(valPair.Value) > 0 {
+				strValues = append(strValues, "'"+valPair.Value+"'")
+			}
+			if valPair.Mapped != 0 {
+				intValues = append(intValues, fmt.Sprint(valPair.Mapped))
+			}
+		}
+		cond.WriteString("  AND (")
+		if len(intValues) > 0 {
+			cond.WriteString(mappedColumnName(false, tag, ""))
+			if in {
+				cond.WriteString(" IN (")
+			} else {
+				cond.WriteString(" NOT IN (")
+			}
+			cond.WriteString(strings.Join(intValues, ", "))
+			cond.WriteString(")")
+			if len(strValues) > 0 {
+				if in {
+					cond.WriteString(" OR ")
+				} else {
+					cond.WriteString(" AND ")
+				}
+			}
+		}
+		if len(strValues) > 0 {
+			cond.WriteString(unmappedColumnName(tag))
+			if in {
+				cond.WriteString(" IN (")
+			} else {
+				cond.WriteString(" NOT IN (")
+			}
+			cond.WriteString(strings.Join(strValues, ", "))
+			cond.WriteString(")")
+		}
+		cond.WriteString(")\n")
+	}
+	strValues = nil
+	intValues = nil
 }
 
 type pointsQueryMeta struct {
