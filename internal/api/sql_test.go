@@ -21,9 +21,9 @@ const utcOffset = 3600 * 3 // GMT+3
 
 var location = time.FixedZone("MSK", utcOffset)
 
-func getLod(t *testing.T) data_model.LOD {
+func getLod(t *testing.T, version string) data_model.LOD {
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:     Version2,
+		Version:     version,
 		Start:       10_000,
 		End:         20_000,
 		ScreenWidth: 100,
@@ -47,7 +47,7 @@ func TestTagValuesQueryV2(t *testing.T) {
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t)
+	lod := getLod(t, pq.version)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -87,7 +87,7 @@ func TestTagValuesQueryV2_stringTop(t *testing.T) {
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t)
+	lod := getLod(t, pq.version)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -120,14 +120,16 @@ SETTINGS
 func TestTagValuesQueryV3(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		version:     Version3,
-		metricID:    metricID,
-		tagID:       "2",
-		numResults:  5,
-		filterIn:    map[string][]any{"1": {"one", "two"}},
-		filterNotIn: map[string][]any{"0": {"staging"}},
+		version:       Version3,
+		metricID:      metricID,
+		tagID:         "2",
+		numResults:    5,
+		filterIn:      map[string][]any{"1": {"one", "two"}},
+		filterNotIn:   map[string][]any{"0": {"staging"}},
+		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
+		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
 	}
-	lod := getLod(t)
+	lod := getLod(t, pq.version)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -137,9 +139,12 @@ func TestTagValuesQueryV3(t *testing.T) {
 	assert.False(t, meta.stringValue)
 	assert.Equal(t, `
 SELECT key2 AS _mapped, skey2 AS _unmapped, toFloat64(sum(count)) AS _count
-FROM statshouse_value_1m_dist
+FROM statshouse_v3_1m_dist
 WHERE metric = 1000
   AND time >= 9957 AND time < 20037
+  AND (key1 IN (1, 2) OR skey1 IN ('one', 'two'))
+  AND (skey0 NOT IN ('staging'))
+
 GROUP BY _mapped, _unmapped
 HAVING _count > 0
 ORDER BY _count DESC, _mapped, _unmapped
@@ -159,7 +164,7 @@ func TestLoadPointsQueryV2(t *testing.T) {
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t)
+	lod := getLod(t, pq.version)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
@@ -204,7 +209,7 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t)
+	lod := getLod(t, pq.version)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
