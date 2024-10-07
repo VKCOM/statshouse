@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -20,11 +21,11 @@ const dashboardTempl = `
 {
   "dashboard":{
     "name":"Random walk",
-	{{if ge .Version 0 }}
-	"dashboard_id": {{.Id}},
-	"version": {{.Version}},
-	"update_time": {{.NowTs}},
-	{{end}}
+    {{if ge .Version 0 }}
+    "dashboard_id": {{.Id}},
+    "version": {{.Version}},
+    "update_time": {{.NowTs}},
+    {{end}}
     "description":"",
     "data":{
       "live":true,
@@ -40,8 +41,8 @@ const dashboardTempl = `
       "eventFrom":0,
       "tagSync":[ ],
       "plots":[
-	  {{range $index, $element := .Plots }}
-	  {{if $index}},{{end}}
+      {{range $index, $element := .Plots }}
+      {{if $index}},{{end}}
         {
           "id":"{{.Id}}",
           "metricName":"{{.Name}}",
@@ -75,12 +76,17 @@ const dashboardTempl = `
           "totalLine":false,
           "filledGraph":true
         }
-	  {{end}}
+      {{end}}
       ],
       "timeShifts":[ ],
       "tabNum":-1,
       "variables":[ ],
-      "searchParams":[ ]
+      "searchParams":[
+        {{range $index, $element := .SearchParams }}
+        {{if $index}},{{end}}
+        ["{{$element.Key}}", "{{$element.Value}}"]
+        {{end}}
+      ]
     }
   }
 }
@@ -89,6 +95,11 @@ const dashboardTempl = `
 type plot struct {
 	Id   int
 	Name string
+}
+
+type searchParam struct {
+	Key   string
+	Value string
 }
 
 type dashboardListResponse struct {
@@ -117,17 +128,35 @@ type dashboardMetaResponse struct {
 }
 
 type dashboardTemplData struct {
-	Id      int
-	Version int
-	Plots   []plot
-	NowTs   int64
+	Id           int
+	Version      int
+	Plots        []plot
+	NowTs        int64
+	SearchParams []searchParam
 }
 
-func renderDashboardCreatePayload(dashboardId, dashboardVerson int, plots []plot) *bytes.Buffer {
+func renderDashboardCreatePayload(dashboardId, dashboardVersion int, plots []plot) *bytes.Buffer {
 	dash := template.New(randomWalkDashboard)
 	dash.Parse(dashboardTempl)
 	buffer := new(bytes.Buffer)
-	err := dash.Execute(buffer, dashboardTemplData{dashboardId, dashboardVerson, plots, time.Now().Unix()})
+
+	// Prepare searchParams
+	searchParams := []searchParam{
+		{"tn", "-2"},
+		{"dn", randomWalkDashboard},
+		{"t", "0"},
+		{"f", "-300"},
+	}
+	op := make([]string, 0, len(plots))
+	for i, plot := range plots {
+		searchParams = append(searchParams, searchParam{fmt.Sprintf("t%d.s", i), plot.Name})
+		searchParams = append(searchParams, searchParam{fmt.Sprintf("t%d.qw", i), "avg"})
+		op = append(op, fmt.Sprintf("%d", i))
+	}
+	searchParams = append(searchParams, searchParam{"op", strings.Join(op, ".")})
+	searchParams = append(searchParams, searchParam{"g0.n", fmt.Sprint(len(plots))})
+
+	err := dash.Execute(buffer, dashboardTemplData{dashboardId, dashboardVersion, plots, time.Now().Unix(), searchParams})
 	if err != nil {
 		panic(err)
 	}
