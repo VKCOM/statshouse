@@ -1757,6 +1757,14 @@ func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 	return c
 }
 
+func newTagValuesSelectColsV3() *tagValuesSelectCols {
+	c := &tagValuesSelectCols{}
+	c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
+	c.res = append(c.res, proto.ResultColumn{Name: "_value", Data: &c.valID})
+	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
+	return c
+}
+
 func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	row := selectRow{cnt: c.cnt[i]}
 	if c.meta.stringValue {
@@ -1847,7 +1855,13 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 			if err != nil {
 				return nil, false, err
 			}
-			cols := newTagValuesSelectCols(args)
+			var cols *tagValuesSelectCols
+			switch pq.version {
+			case Version3:
+				cols = newTagValuesSelectColsV3()
+			case Version1, Version2:
+				cols = newTagValuesSelectCols(args)
+			}
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
 				IsFast:  isFast,
