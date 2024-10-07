@@ -383,7 +383,7 @@ func parseVersion(s string) (string, error) {
 		return Version1, nil
 	}
 
-	for _, v := range []string{Version1, Version2} {
+	for _, v := range []string{Version1, Version2, Version3} {
 		if s == v {
 			return v, nil
 		}
