@@ -483,7 +483,7 @@ func encodeFromRows(row *RowMarker) (string, error) {
 }
 
 func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
-	if _, ok := format.BuiltinMetrics[metricMeta.MetricID]; ok && version != Version2 {
+	if _, ok := format.BuiltinMetrics[metricMeta.MetricID]; ok && version == Version1 {
 		return httpErr(http.StatusBadRequest, fmt.Errorf("can't use builtin metric %q with version %q", metricMeta.Name, version))
 	}
 	return nil
