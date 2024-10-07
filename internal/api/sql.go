@@ -162,8 +162,8 @@ SETTINGS optimize_aggregation_in_order = 1
 	}
 
 	p := &templParams{
-		MappedColumnName:   mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
-		UnmappedColumnName: unmappedColumnName(pq.tagID),
+		MappedColumnName:   mappedColumnNameV3(pq.tagID),
+		UnmappedColumnName: unmappedColumnNameV3(pq.tagID),
 		TableName:          pq.preKeyTableName(lod),
 		MetricId:           pq.metricID,
 		From:               lod.FromSec,
@@ -201,7 +201,7 @@ func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool)
 		}
 		cond.WriteString("  AND (")
 		if len(intValues) > 0 {
-			cond.WriteString(mappedColumnName(false, tag, ""))
+			cond.WriteString(mappedColumnNameV3(tag))
 			if in {
 				cond.WriteString(" IN (")
 			} else {
@@ -218,7 +218,7 @@ func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool)
 			}
 		}
 		if len(strValues) > 0 {
-			cond.WriteString(unmappedColumnName(tag))
+			cond.WriteString(unmappedColumnNameV3(tag))
 			if in {
 				cond.WriteString(" IN (")
 			} else {
@@ -603,8 +603,12 @@ func mappedColumnName(hasPreKey bool, tagID string, preKeyTagID string) string {
 	}
 }
 
-func unmappedColumnName(tagID string) string {
-	return "skey" + tagID
+func mappedColumnNameV3(tagID string) string {
+	return "tag" + tagID
+}
+
+func unmappedColumnNameV3(tagID string) string {
+	return "stag" + tagID
 }
 
 func expandBindVars(n int) string {
