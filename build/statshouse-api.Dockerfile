@@ -1,5 +1,4 @@
 FROM node:18-bullseye AS build-node
-ENV NODE_ENV=production
 WORKDIR /src/statshouse-ui
 COPY statshouse-ui/package.json statshouse-ui/package-lock.json ./
 RUN npm clean-install
@@ -10,6 +9,7 @@ RUN npm clean-install
 # ENV BUILD_VERSION=$BUILD_VERSION
 # ENV REACT_APP_BUILD_VERSION=$REACT_APP_BUILD_VERSION
 COPY statshouse-ui .
+ENV NODE_ENV=production
 RUN --mount=type=cache,target="/root/.npm" npm run build
 
 
