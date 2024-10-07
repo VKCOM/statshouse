@@ -543,6 +543,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		ch: map[string]*util.ClickHouse{
 			Version1: chV1,
 			Version2: chV2,
+			Version3: chV2,
 		},
 		metricsStorage: metricStorage,
 		tagValueCache: &pcache.Cache{
@@ -1759,8 +1760,8 @@ func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 
 func newTagValuesSelectColsV3() *tagValuesSelectCols {
 	c := &tagValuesSelectCols{}
-	c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
-	c.res = append(c.res, proto.ResultColumn{Name: "_value", Data: &c.valID})
+	c.res = append(c.res, proto.ResultColumn{Name: "_mapped", Data: &c.valID})
+	c.res = append(c.res, proto.ResultColumn{Name: "_unmapped", Data: &c.val})
 	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
 	return c
 }
