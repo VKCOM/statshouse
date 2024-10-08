@@ -248,3 +248,86 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, query)
 }
+
+func TestLoadPointsQueryV3(t *testing.T) {
+	// prepare
+	pq := &preparedPointsQuery{
+		user:          "test-user",
+		version:       Version3,
+		metricID:      metricID,
+		isStringTop:   false,
+		kind:          data_model.DigestCountSec.Kind(false),
+		filterIn:      map[string][]any{"1": {"one", "two"}},
+		filterNotIn:   map[string][]any{"0": {"staging"}},
+		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
+		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
+	}
+	lod := getLod(t, pq.version)
+
+	// execute
+	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
+
+	// checks
+	assert.NoError(t, err)
+	assert.Equal(t, 2, meta.vals)
+	assert.False(t, meta.minMaxHost)
+	assert.Equal(t, "3", meta.version)
+	assert.Empty(t, meta.tags)
+	assert.Equal(t, `SELECT
+  toInt64(toStartOfInterval(time + 10800, INTERVAL 60 second)) - 10800 AS _time,
+  toInt64(60) AS _stepSec, 
+  toFloat64(sum(count)) AS _count,
+  toFloat64(sum(1)) AS _val0,
+  toFloat64(max(max)) AS _val1
+FROM statshouse_v3_1m_dist
+WHERE index_type = 0 AND metric = 1000 AND time >= 9957 AND time < 20037  AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
+  AND (stag0 NOT IN ('staging'))
+
+GROUP BY _time
+LIMIT 10000000
+SETTINGS optimize_aggregation_in_order = 1`, query)
+}
+
+func TestLoadPointsQueryV3_maxHost(t *testing.T) {
+	// prepare
+	pq := &preparedPointsQuery{
+		user:          "test-user",
+		version:       Version3,
+		metricID:      metricID,
+		isStringTop:   false,
+		kind:          data_model.DigestCountSec.Kind(true),
+		filterIn:      map[string][]any{"1": {"one", "two"}},
+		filterNotIn:   map[string][]any{"0": {"staging"}},
+		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
+		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
+	}
+	lod := getLod(t, pq.version)
+
+	// execute
+	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
+
+	// checks
+	assert.NoError(t, err)
+	assert.Equal(t, 6, meta.vals)
+	assert.True(t, meta.minMaxHost)
+	assert.Equal(t, "3", meta.version)
+	assert.Empty(t, meta.tags)
+	assert.Equal(t, `SELECT
+  toInt64(toStartOfInterval(time + 10800, INTERVAL 60 second)) - 10800 AS _time,
+  toInt64(60) AS _stepSec, 
+  toFloat64(sum(count)) AS _count,
+  toFloat64(min(min)) AS _val0,
+  toFloat64(max(max)) AS _val1,
+  toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,
+  toFloat64(sum(sum)) AS _val3,
+  if(sum(count) < 2, 0, sqrt(greatest(   (sum(sumsquare) - pow(sum(sum), 2) / sum(count)) / (sum(count) - 1)   , 0))) AS _val4,
+  toFloat64(sum(1)) AS _val5,
+  argMinMerge(min_host) as _minHost, argMaxMerge(max_host) as _maxHost
+FROM statshouse_v3_1m_dist
+WHERE index_type = 0 AND metric = 1000 AND time >= 9957 AND time < 20037  AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
+  AND (stag0 NOT IN ('staging'))
+
+GROUP BY _time
+LIMIT 10000000
+SETTINGS optimize_aggregation_in_order = 1`, query)
+}

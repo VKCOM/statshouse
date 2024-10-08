@@ -2711,6 +2711,7 @@ type pointsSelectCols struct {
 	tagStr       proto.ColStr
 	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
 	minMaxHostV2 [2]proto.ColInt32 // "min" at [0], "max" at [1]
+	minMaxHostV3 [2]proto.ColStr   // "min" at [0], "max" at [1]
 	shardNum     proto.ColUInt32
 	res          proto.Results
 }
@@ -2745,12 +2746,16 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
 	if meta.minMaxHost {
-		if meta.version == Version1 {
+		switch meta.version {
+		case Version1:
 			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV1[0]})
 			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV1[1]})
-		} else {
+		case Version2:
 			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV2[0]})
 			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV2[1]})
+		case Version3:
+			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV3[0]})
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV3[1]})
 		}
 	}
 	return c
