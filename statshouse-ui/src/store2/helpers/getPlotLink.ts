@@ -79,6 +79,7 @@ export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string
         urlEncode(
           produce(params, (p) => {
             p.tabNum = plotKey;
+            p.dashboardId = undefined;
           })
         )
       ).toString()

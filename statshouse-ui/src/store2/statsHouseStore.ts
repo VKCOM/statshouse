@@ -48,7 +48,7 @@ useLiveModeStore.setState(updateLiveMode(useStatsHouse.getState()));
 
 useStatsHouse.subscribe((state, prevState) => {
   const {
-    params: { tabNum, plots, orderPlot, dashboardName, variables, orderVariables },
+    params: { tabNum, plots, dashboardName, variables, orderVariables },
     plotsData,
     dashboardLayoutEdit,
   } = state;
@@ -93,7 +93,9 @@ useStatsHouse.subscribe((state, prevState) => {
   }
   if (state.params !== prevState.params) {
     if (!dequal({ ...state.params, tabNum: '0' }, { ...prevState.params, tabNum: '0' })) {
+      // setTimeout(() => {
       useLinkPlots.setState({ plotLinks: {}, singlePlotLinks: {}, addPlotLink: undefined }, true);
+      // }, 0);
     }
   }
   if (state.params.theme !== prevState.params.theme) {

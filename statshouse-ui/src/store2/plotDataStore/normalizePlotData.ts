@@ -82,13 +82,17 @@ export function normalizePlotData(
     if (response.metric?.name) {
       uniqueName.add(response.metric.name);
     }
-
+    if (response.metric?.metric_type != null) {
+      uniqueMetricType.add(response.metric.metric_type);
+    }
     for (const meta of series_meta) {
       if (isQueryWhat(meta.what)) {
         uniqueWhat.add(meta.what);
       }
-      meta.name && uniqueName.add(meta.name);
-      if (meta.metric_type) {
+      if (meta.name) {
+        uniqueName.add(meta.name);
+      }
+      if (meta.metric_type && meta.name !== plot.metricName) {
         uniqueMetricType.add(meta.metric_type);
       }
     }
@@ -158,7 +162,8 @@ export function normalizePlotData(
       const prefColor = '9'; // it`s magic prefix
       const metricName = isValue ? `${meta.name || (plot.metricName !== promQLMetric ? plot.metricName : '')}: ` : '';
       const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
-      const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+      // client select color line
+      const baseColor = /*meta.color ?? */ baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
       baseColors[colorKey] = baseColor;
       // if (baseColor !== currentPrevSeries[indexMeta]?.stroke) {
       //   changeColor = true;
