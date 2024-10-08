@@ -19,7 +19,7 @@ export function updatePlotYLock(
     if (plot) {
       const prevYLock = plot.yLock;
       const prevStatus = prevYLock.max !== 0 || prevYLock.min !== 0;
-      if (prevStatus !== status) {
+      if (prevStatus !== status || prevYLock.max !== (yLock?.max ?? 0) || prevYLock.min !== (yLock?.min ?? 0)) {
         if (status) {
           if (yLock != null) {
             plot.yLock = yLock;
