@@ -56,7 +56,9 @@ type preparedPointsQuery struct {
 }
 
 type tagValuesQueryMeta struct {
-	stringValue bool
+	stag bool
+	// both mapped and unmapped values for v3 requests
+	mixed bool
 }
 
 func (pq *preparedPointsQuery) isLight() bool {
@@ -74,7 +76,7 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (string, t
 	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
-		meta.stringValue = true
+		meta.stag = true
 		valueName = "_string_value"
 	}
 
@@ -181,7 +183,7 @@ SETTINGS optimize_aggregation_in_order = 1
 	if err != nil {
 		return "", tagValuesQueryMeta{}, fmt.Errorf("failed to execute query template: %v", err)
 	}
-	return b.String(), tagValuesQueryMeta{}, nil
+	return b.String(), tagValuesQueryMeta{mixed: true}, nil
 }
 
 func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool) {

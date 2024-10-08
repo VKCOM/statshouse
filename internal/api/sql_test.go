@@ -54,7 +54,7 @@ func TestTagValuesQueryV2(t *testing.T) {
 
 	// checks
 	assert.NoError(t, err)
-	assert.False(t, meta.stringValue)
+	assert.False(t, meta.stag)
 	assert.Equal(t, `
 SELECT
   key2 AS _value, toFloat64(sum(count)) AS _count
@@ -94,7 +94,7 @@ func TestTagValuesQueryV2_stringTop(t *testing.T) {
 
 	// checks
 	assert.NoError(t, err)
-	assert.True(t, meta.stringValue)
+	assert.True(t, meta.stag)
 	assert.Equal(t, `
 SELECT
   skey AS _string_value, toFloat64(sum(count)) AS _count
@@ -136,14 +136,15 @@ func TestTagValuesQueryV3(t *testing.T) {
 
 	// checks
 	assert.NoError(t, err)
-	assert.False(t, meta.stringValue)
+	assert.False(t, meta.stag)
+	assert.True(t, meta.mixed)
 	assert.Equal(t, `
-SELECT key2 AS _mapped, skey2 AS _unmapped, toFloat64(sum(count)) AS _count
+SELECT tag2 AS _mapped, stag2 AS _unmapped, toFloat64(sum(count)) AS _count
 FROM statshouse_v3_1m_dist
 WHERE metric = 1000
   AND time >= 9957 AND time < 20037
-  AND (key1 IN (1, 2) OR skey1 IN ('one', 'two'))
-  AND (skey0 NOT IN ('staging'))
+  AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
+  AND (stag0 NOT IN ('staging'))
 
 GROUP BY _mapped, _unmapped
 HAVING _count > 0
