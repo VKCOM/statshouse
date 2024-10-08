@@ -7,7 +7,7 @@
 import { getHomePlot, QueryParams, readTimeRange } from 'url2';
 import { produce } from 'immer';
 import { globalSettings } from 'common/settings';
-import { TIME_RANGE_KEYS_TO } from '../../api/enum';
+import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '../../api/enum';
 import { addPlot, timeRangeAbbrevExpand } from '../helpers';
 import { defaultBaseRange } from '../constants';
 
@@ -26,7 +26,7 @@ export function resetDefaultParams(params: QueryParams) {
     if (globalSettings.disabled_v1) {
       Object.values(p.plots).forEach((plot) => {
         if (plot) {
-          plot.useV2 = true;
+          plot.backendVersion = METRIC_VALUE_BACKEND_VERSION.v2;
           reset = true;
         }
       });

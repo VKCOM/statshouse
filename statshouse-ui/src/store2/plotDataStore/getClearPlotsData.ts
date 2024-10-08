@@ -14,7 +14,7 @@ const clearProps: (keyof PlotParams)[] = [
   // 'filterIn',
   // 'filterNotIn',
   // 'groupBy',
-  'useV2',
+  'backendVersion',
 ];
 
 export function getClearPlotsData(state: StatsHouseStore, prevState: StatsHouseStore): PlotKey[] {

@@ -227,7 +227,7 @@ export function getLoadTableUrlParams(
     [GET_PARAMS.toTime]: params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
     [GET_PARAMS.width]: width,
-    [GET_PARAMS.version]: plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
+    [GET_PARAMS.version]: plot.backendVersion,
     [GET_PARAMS.metricFilter]: urlEncodePlotFilters('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: uniqueArray([...plot.groupBy.map(freeKeyPrefix), ...plot.eventsBy]),
     // [GET_PARAMS.metricAgg]: plot.customAgg.toString(),

@@ -162,11 +162,8 @@ export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNew
     paramArr.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
   }
 
-  if (defaultPlot.useV2 !== plot.useV2) {
-    paramArr.push([
-      prefix + GET_PARAMS.version,
-      plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
-    ]);
+  if (defaultPlot.backendVersion !== plot.backendVersion) {
+    paramArr.push([prefix + GET_PARAMS.version, plot.backendVersion]);
   }
 
   if (defaultPlot.yLock.min !== plot.yLock.min) {

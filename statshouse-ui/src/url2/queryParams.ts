@@ -1,4 +1,11 @@
-import { type MetricType, type PlotType, type QueryWhat, type TagKey, type TimeRangeKeysTo } from 'api/enum';
+import {
+  type MetricType,
+  MetricValueBackendVersion,
+  type PlotType,
+  type QueryWhat,
+  type TagKey,
+  type TimeRangeKeysTo,
+} from 'api/enum';
 
 export type PlotKey = string;
 
@@ -50,7 +57,7 @@ export type PlotParams = {
   filterIn: FilterTag;
   filterNotIn: FilterTag;
   numSeries: number;
-  useV2: boolean;
+  backendVersion: MetricValueBackendVersion;
   yLock: {
     min: number;
     max: number;

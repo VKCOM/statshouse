@@ -18,6 +18,7 @@ import {
   METRIC_VALUE_BACKEND_VERSION,
   metricTypeUrlToMetricType,
   PLOT_TYPE,
+  toMetricValueBackendVersion,
   toPlotType,
   toTagKey,
 } from 'api/enum';
@@ -216,7 +217,7 @@ export function urlDecodePlot(
     numSeries:
       toNumber(searchParams?.[GET_PARAMS.numResults]?.[treeParamsObjectValueSymbol]?.[0]) ??
       (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries),
-    useV2: rawUseV2 != null ? rawUseV2 !== METRIC_VALUE_BACKEND_VERSION.v1 : defaultPlot.useV2,
+    backendVersion: toMetricValueBackendVersion(rawUseV2) ?? defaultPlot.backendVersion,
     yLock: {
       min:
         toNumber(searchParams?.[GET_PARAMS.metricLockMin]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.min,

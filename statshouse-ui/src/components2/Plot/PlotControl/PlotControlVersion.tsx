@@ -10,28 +10,56 @@ import { SwitchBox } from 'components/UI';
 import { globalSettings } from 'common/settings';
 import { getNewPlot, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from '../../../store2';
+import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from '../../../api/enum';
+import { useStoreDev } from '../../../store/dev';
 
 export type PlotControlVersionProps = {
   plotKey: PlotKey;
 };
 
-const defaultUseV2 = getNewPlot().useV2;
+const defaultBackendVersion = getNewPlot().backendVersion;
 
 export function _PlotControlVersion({ plotKey }: PlotControlVersionProps) {
-  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    value: plots[plotKey]?.useV2 ?? defaultUseV2,
-    setPlot,
-  }));
+  const devMode = useStoreDev((s) => s.enabled);
+  const { value, setPlot, isDeveloper } = useStatsHouseShallow(
+    ({ params: { plots }, setPlot, user: { developer } }) => ({
+      value: plots[plotKey]?.backendVersion ?? defaultBackendVersion,
+      isDeveloper: developer,
+      setPlot,
+    })
+  );
   const onChange = useCallback(
     (status: boolean) => {
       setPlot(plotKey, (s) => {
-        s.useV2 = status;
+        s.backendVersion = status ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1;
       });
     },
     [plotKey, setPlot]
   );
+  const onChangeSelect = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = toMetricValueBackendVersion(event.currentTarget.value, METRIC_VALUE_BACKEND_VERSION.v2);
+      setPlot(plotKey, (s) => {
+        s.backendVersion = value;
+      });
+    },
+    [plotKey, setPlot]
+  );
+  if (devMode && isDeveloper) {
+    return (
+      <select className="form-select" style={{ width: 70 }} value={value} onChange={onChangeSelect}>
+        <option value={METRIC_VALUE_BACKEND_VERSION.v1}>v1</option>
+        <option value={METRIC_VALUE_BACKEND_VERSION.v2}>v2</option>
+        <option value={METRIC_VALUE_BACKEND_VERSION.v3}>v3</option>
+      </select>
+    );
+  }
   return (
-    <SwitchBox checked={value} disabled={globalSettings.disabled_v1} onChange={onChange}>
+    <SwitchBox
+      checked={value === METRIC_VALUE_BACKEND_VERSION.v2}
+      disabled={globalSettings.disabled_v1}
+      onChange={onChange}
+    >
       <SVGLightning />
     </SwitchBox>
   );

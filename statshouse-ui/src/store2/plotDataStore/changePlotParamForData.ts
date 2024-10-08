@@ -14,7 +14,7 @@ export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams)
     plot.promQL !== prevPlot.promQL ||
     plot.customAgg !== prevPlot.customAgg ||
     plot.maxHost !== prevPlot.maxHost ||
-    plot.useV2 !== prevPlot.useV2 ||
+    plot.backendVersion !== prevPlot.backendVersion ||
     plot.type !== prevPlot.type
   );
 }

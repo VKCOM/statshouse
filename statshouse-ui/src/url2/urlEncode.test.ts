@@ -13,7 +13,14 @@ import {
   urlEncodeVariableSource,
 } from './urlEncode';
 import { GroupInfo, PlotParams, QueryParams, VariableParams } from './queryParams';
-import { GET_PARAMS, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, TIME_RANGE_KEYS_TO } from 'api/enum';
+import {
+  GET_PARAMS,
+  METRIC_TYPE,
+  METRIC_VALUE_BACKEND_VERSION,
+  PLOT_TYPE,
+  QUERY_WHAT,
+  TIME_RANGE_KEYS_TO,
+} from 'api/enum';
 import { THEMES } from 'store/theme';
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
 import { promQLMetric, removeValueChar } from './constants';
@@ -280,7 +287,7 @@ describe('urlStore urlEncode', () => {
       filterIn: { '0': ['val'] },
       filterNotIn: { '1': ['noval'] },
       numSeries: 10,
-      useV2: false,
+      backendVersion: METRIC_VALUE_BACKEND_VERSION.v1,
       yLock: {
         min: -100,
         max: 100,
@@ -330,7 +337,7 @@ describe('urlStore urlEncode', () => {
       urlEncodePlot(
         {
           ...dParam2,
-          useV2: true,
+          backendVersion: METRIC_VALUE_BACKEND_VERSION.v2,
           maxHost: false,
           totalLine: false,
           filledGraph: true,

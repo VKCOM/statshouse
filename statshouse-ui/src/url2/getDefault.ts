@@ -1,5 +1,5 @@
 import type { GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { PLOT_TYPE, QUERY_WHAT, TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
+import { METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE, QUERY_WHAT, TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
 import { deepClone } from 'common/helpers';
 import { globalSettings } from 'common/settings';
 
@@ -44,7 +44,7 @@ export function getNewPlot(): PlotParams {
     filterIn: {},
     filterNotIn: {},
     numSeries: 5,
-    useV2: true,
+    backendVersion: METRIC_VALUE_BACKEND_VERSION.v2,
     yLock: {
       min: 0,
       max: 0,
