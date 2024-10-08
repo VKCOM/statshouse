@@ -50,6 +50,9 @@ type preparedPointsQuery struct {
 	filterIn    map[string][]interface{}
 	filterNotIn map[string][]interface{}
 
+	filterInV3    map[string][]maybeMappedTag
+	filterNotInV3 map[string][]maybeMappedTag
+
 	// for table view requests
 	orderBy bool
 	desc    bool
@@ -313,6 +316,15 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 }
 
 func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+	switch pq.version {
+	case Version3:
+		return loadPointsQueryV3(pq, lod, utcOffset)
+	default:
+		return loadPointsQueryV2V1(pq, lod, utcOffset)
+	}
+}
+
+func loadPointsQueryV2V1(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
@@ -413,6 +425,72 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, having, oderBy, limit)
 	q, err := util.BindQuery(query, args...)
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
+}
+
+func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+	what, cnt, err := loadPointsSelectWhat(pq)
+	if err != nil {
+		return "", pointsQueryMeta{}, err
+	}
+
+	var byTags string
+	if len(pq.by) > 0 {
+		for _, b := range pq.by {
+			byTags += fmt.Sprintf(", %s AS key%s", mappedColumnNameV3(b), b)
+		}
+	}
+
+	var timeInterval string
+	if lod.StepSec == _1M {
+		timeInterval = fmt.Sprintf(`
+  toInt64(toDateTime(toStartOfInterval(time, INTERVAL 1 MONTH, '%s'), '%s')) AS _time, 
+  toInt64(toDateTime(_time, '%s') + INTERVAL 1 MONTH) - _time AS _stepSec`, lod.Location.String(), lod.Location.String(), lod.Location.String())
+	} else {
+		timeInterval = fmt.Sprintf(`
+  toInt64(toStartOfInterval(time + %d, INTERVAL %d second)) - %d AS _time,
+  toInt64(%d) AS _stepSec`, utcOffset, lod.StepSec, utcOffset, lod.StepSec)
+	}
+
+	queryBuilder := strings.Builder{}
+	queryBuilder.WriteString("SELECT")
+	queryBuilder.WriteString(timeInterval)
+	queryBuilder.WriteString(byTags)
+	queryBuilder.WriteString(", ")
+	queryBuilder.WriteString(what)
+	queryBuilder.WriteString("\nFROM ")
+	queryBuilder.WriteString(pq.preKeyTableName(lod))
+	queryBuilder.WriteString("\nWHERE index_type = 0 AND metric = ")
+	queryBuilder.WriteString(fmt.Sprint(pq.metricID))
+	queryBuilder.WriteString(" AND time >= ")
+	queryBuilder.WriteString(fmt.Sprint(lod.FromSec))
+	queryBuilder.WriteString(" AND time < ")
+	queryBuilder.WriteString(fmt.Sprint(lod.ToSec))
+	writeTagCond(&queryBuilder, pq.filterInV3, true)
+	writeTagCond(&queryBuilder, pq.filterNotInV3, false)
+	queryBuilder.WriteString("\nGROUP BY _time")
+	queryBuilder.WriteString(byTags)
+	if pq.orderBy {
+		queryBuilder.WriteString("\n HAVING _count > 0")
+		switch pq.kind {
+		case data_model.DigestKindPercentiles:
+			queryBuilder.WriteString("AND not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3) AND isNaN(_val4) AND isNaN(_val5) AND isNaN(_val6))")
+		case data_model.DigestKindPercentilesLow:
+			queryBuilder.WriteString("AND not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3))")
+		}
+		queryBuilder.WriteString("\nORDER BY _time")
+		queryBuilder.WriteString(byTags)
+		if pq.desc {
+			queryBuilder.WriteString(" DESC")
+		}
+		queryBuilder.WriteString("\nLIMIT ")
+		queryBuilder.WriteString(fmt.Sprint(maxTableRows))
+	} else {
+		queryBuilder.WriteString("\nLIMIT ")
+		queryBuilder.WriteString(fmt.Sprint(maxSeriesRows))
+	}
+	queryBuilder.WriteString("\nSETTINGS optimize_aggregation_in_order = 1")
+	q := queryBuilder.String()
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
 }
 
