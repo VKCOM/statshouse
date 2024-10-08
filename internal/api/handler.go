@@ -1749,7 +1749,7 @@ type tagValuesSelectCols struct {
 func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &tagValuesSelectCols{meta: meta}
-	if meta.stringValue {
+	if meta.stag {
 		c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
 	} else {
 		c.res = append(c.res, proto.ResultColumn{Name: "_value", Data: &c.valID})
@@ -1758,8 +1758,8 @@ func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 	return c
 }
 
-func newTagValuesSelectColsV3() *tagValuesSelectCols {
-	c := &tagValuesSelectCols{}
+func newTagValuesSelectColsV3(meta tagValuesQueryMeta) *tagValuesSelectCols {
+	c := &tagValuesSelectCols{meta: meta}
 	c.res = append(c.res, proto.ResultColumn{Name: "_mapped", Data: &c.valID})
 	c.res = append(c.res, proto.ResultColumn{Name: "_unmapped", Data: &c.val})
 	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
@@ -1768,7 +1768,13 @@ func newTagValuesSelectColsV3() *tagValuesSelectCols {
 
 func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	row := selectRow{cnt: c.cnt[i]}
-	if c.meta.stringValue {
+	if c.meta.mixed {
+		pos := c.val.Pos[i]
+		row.val = string(c.val.Buf[pos.Start:pos.End])
+		row.valID = c.valID[i]
+		return row
+	}
+	if c.meta.stag {
 		pos := c.val.Pos[i]
 		row.val = string(c.val.Buf[pos.Start:pos.End])
 	} else {
@@ -1852,16 +1858,16 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query, args, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
+			query, meta, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
 			if err != nil {
 				return nil, false, err
 			}
 			var cols *tagValuesSelectCols
 			switch pq.version {
 			case Version3:
-				cols = newTagValuesSelectColsV3()
+				cols = newTagValuesSelectColsV3(meta)
 			case Version1, Version2:
-				cols = newTagValuesSelectCols(args)
+				cols = newTagValuesSelectCols(meta)
 			}
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
@@ -1902,7 +1908,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	}
 	for _, d := range data {
 		v := d.val
-		if pq.stringTag() {
+		if len(v) > 0 {
 			v = emptyToUnspecified(v)
 		} else {
 			v = h.getRichTagValue(metricMeta, version, tagID, d.valID)
