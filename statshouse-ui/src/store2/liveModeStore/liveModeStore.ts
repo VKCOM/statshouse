@@ -9,7 +9,7 @@ import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
 import { isValidPath, type ProduceUpdate } from '../helpers';
 import { appHistory } from 'common/appHistory';
 import { debug } from 'common/debug';
-import { TIME_RANGE_KEYS_TO } from 'api/enum';
+import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from 'api/enum';
 import { useShallow } from 'zustand/react/shallow';
 
 export type LiveModeStore = {
@@ -66,7 +66,9 @@ export const useLiveModeStore = createStore<LiveModeStore>(liveModeStore);
 
 export function updateLiveMode(state: StatsHouseStore): ProduceUpdate<LiveModeStore> {
   return (s) => {
-    s.disabled = !state.params.orderPlot.every((plotKey) => state.params.plots[plotKey]?.useV2 ?? true);
+    s.disabled = !state.params.orderPlot.every(
+      (plotKey) => state.params.plots[plotKey]?.backendVersion !== METRIC_VALUE_BACKEND_VERSION.v1
+    );
     s.interval = getLiveModeInterval(state.params.timeRange.from);
     s.status = (s.status && !state.params.timeRange.absolute) || state.params.live;
   };

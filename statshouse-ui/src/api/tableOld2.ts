@@ -138,7 +138,7 @@ export function queryTableURL(
     ];
   } else {
     params = [
-      [GET_PARAMS.version, v2Value(sel.useV2)],
+      [GET_PARAMS.version, sel.backendVersion],
       [GET_PARAMS.metricName, sel.metricName],
       [GET_PARAMS.fromTime, timeRange.from.toString()],
       [GET_PARAMS.toTime, (timeRange.to + 1).toString()],

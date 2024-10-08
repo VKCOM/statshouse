@@ -92,8 +92,12 @@ export type GetParams = Enum<typeof GET_PARAMS>;
 export const METRIC_VALUE_BACKEND_VERSION = {
   v1: '1',
   v2: '2',
+  v3: '3',
 } as const;
 export type MetricValueBackendVersion = Enum<typeof METRIC_VALUE_BACKEND_VERSION>;
+
+export const isMetricValueBackendVersion = isEnum<MetricValueBackendVersion>(METRIC_VALUE_BACKEND_VERSION);
+export const toMetricValueBackendVersion = toEnum(isMetricValueBackendVersion);
 
 export const GET_BOOLEAN = {
   true: '1',

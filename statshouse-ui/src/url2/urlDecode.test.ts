@@ -12,7 +12,15 @@ import {
   urlDecodeVariables,
   urlDecodeVariableSource,
 } from './urlDecode';
-import { GET_PARAMS, METRIC_TYPE, METRIC_TYPE_URL, PLOT_TYPE, QUERY_WHAT, TIME_RANGE_KEYS_TO } from 'api/enum';
+import {
+  GET_PARAMS,
+  METRIC_TYPE,
+  METRIC_TYPE_URL,
+  METRIC_VALUE_BACKEND_VERSION,
+  PLOT_TYPE,
+  QUERY_WHAT,
+  TIME_RANGE_KEYS_TO,
+} from 'api/enum';
 import { THEMES } from 'store/theme';
 import { QueryParams, VariableParams, VariableParamsSource } from './queryParams';
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
@@ -217,7 +225,7 @@ describe('urlStore urlDecode', () => {
           [GET_PARAMS.metricGroupBy]: ['5', '2key', 'key2', '_s', '12', '4'],
           [GET_PARAMS.metricFilter]: [],
           [GET_PARAMS.numResults]: ['10'],
-          [GET_PARAMS.version]: ['1'],
+          [GET_PARAMS.version]: [METRIC_VALUE_BACKEND_VERSION.v1],
           [GET_PARAMS.metricLockMin]: ['-100'],
           [GET_PARAMS.metricLockMax]: ['200'],
           [GET_PARAMS.metricMaxHost]: ['1'],
@@ -245,7 +253,7 @@ describe('urlStore urlDecode', () => {
       filterIn: {},
       filterNotIn: {},
       numSeries: 10,
-      useV2: false,
+      backendVersion: METRIC_VALUE_BACKEND_VERSION.v1,
       yLock: {
         min: -100,
         max: 200,

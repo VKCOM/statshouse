@@ -10,7 +10,7 @@ import cn from 'classnames';
 import { Tooltip } from 'components/UI';
 import { getNewPlot, type PlotKey, promQLMetric } from 'url2';
 import { useStatsHouseShallow } from 'store2';
-import { toTagKey } from 'api/enum';
+import { METRIC_VALUE_BACKEND_VERSION, toTagKey } from 'api/enum';
 import { formatTagValue } from 'view/api';
 
 const emptyPlot = getNewPlot();
@@ -60,7 +60,9 @@ export function PlotHeaderBadges({ plotKey, compact, className }: PlotHeaderBadg
           {meta?.resolution}s
         </Tooltip>
       )}
-      {!plot.useV2 && <span className={cn(className, 'badge bg-danger')}>legacy data, production only</span>}
+      {plot.backendVersion === METRIC_VALUE_BACKEND_VERSION.v1 && (
+        <span className={cn(className, 'badge bg-danger')}>legacy data, production only</span>
+      )}
       {compact && (
         <>
           {

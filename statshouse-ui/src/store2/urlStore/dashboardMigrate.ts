@@ -9,7 +9,7 @@ import {
 } from 'url/queryParams';
 import { type PlotKey, type QueryParams } from 'url2';
 import { deepClone, toNumber } from '../../common/helpers';
-import { METRIC_TYPE, PLOT_TYPE } from '../../api/enum';
+import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '../../api/enum';
 import { normalizeDashboard as normalizeDashboardOld } from '../../view/normalizeDashboard';
 
 export function dashboardMigrate(data: unknown) {
@@ -38,7 +38,7 @@ export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
       filterIn: deepClone(params.plots[pK]?.filterIn ?? {}),
       filterNotIn: deepClone(params.plots[pK]?.filterNotIn ?? {}),
       numSeries: params.plots[pK]?.numSeries ?? 5,
-      useV2: params.plots[pK]?.useV2 ?? true,
+      useV2: params.plots[pK]?.backendVersion === METRIC_VALUE_BACKEND_VERSION.v2,
       yLock: {
         min: params.plots[pK]?.yLock.min ?? 0,
         max: params.plots[pK]?.yLock.max ?? 0,

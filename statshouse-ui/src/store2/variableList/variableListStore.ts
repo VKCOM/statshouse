@@ -331,8 +331,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
   const params = {
     [GET_PARAMS.metricName]: plot.metricName,
     [GET_PARAMS.metricTagID]: tagKey,
-    [GET_PARAMS.version]:
-      globalSettings.disabled_v1 || plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
+    [GET_PARAMS.version]: plot.backendVersion,
     [GET_PARAMS.numResults]: limit.toString(),
     [GET_PARAMS.fromTime]: store.params.timeRange.from.toString(),
     [GET_PARAMS.toTime]: (store.params.timeRange.to + 1).toString(),
@@ -379,7 +378,9 @@ export async function loadValuableSourceList(variableParam: VariableParams) {
 
 export async function loadSourceList(variableParamSource: VariableParamsSource, limit = 25000) {
   const store = useStatsHouse.getState();
-  const useV2 = store.params.orderPlot.every((pK) => store.params.plots[pK]?.useV2);
+  const useV2 = store.params.orderPlot.every(
+    (pK) => store.params.plots[pK]?.backendVersion === METRIC_VALUE_BACKEND_VERSION.v2
+  );
   // const tagKey = variableParamSource.tag;
   // const indexTag = toIndexTag(variableParamSource.tag);
 

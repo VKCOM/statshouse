@@ -20,7 +20,7 @@ export function clonePlot(plot?: PlotParams): PlotParams | undefined {
     filterIn: deepClone(plot.filterIn),
     filterNotIn: deepClone(plot.filterNotIn),
     numSeries: plot.numSeries,
-    useV2: plot.useV2,
+    backendVersion: plot.backendVersion,
     yLock: {
       min: plot.yLock.min,
       max: plot.yLock.max,
