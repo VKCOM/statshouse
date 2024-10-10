@@ -245,7 +245,7 @@ func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, cou
 	mi.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
@@ -253,7 +253,7 @@ func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.Tail.AddCounterHost(s.rng, count, hostTag)
+	mi.Tail.AddCounterHost(s.rng, count, hostTagId)
 }
 
 func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {

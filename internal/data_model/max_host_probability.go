@@ -28,18 +28,18 @@ func (s *ItemCounter) AddCounter(count float64) {
 	s.counter += count
 }
 
-func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTag int32) {
+func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTagId int32) {
 	// optimization, can be implemented as
-	// s.Merge(rng, ItemCounter{count, CounterHostDistribution(count), hostTag})
+	// s.Merge(rng, ItemCounter{count, CounterHostDistribution(count), hostTagId})
 	if count <= 0 {
 		return
 	}
 	if s.counter <= 0 {
-		s.MaxCounterHostTag = hostTag
+		s.MaxCounterHostTagId = hostTagId
 		s.counter = count
 		return
 	}
-	if s.MaxCounterHostTag == hostTag {
+	if s.MaxCounterHostTagId == hostTagId {
 		// useful optimization to save rng call on agents where most host tags are 0
 		// (and set by aggregator much later)
 		s.counter += count
@@ -49,7 +49,7 @@ func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTag int3
 	otherWeight := CounterHostDistribution(count) // clamped
 	totalWeight := weight + otherWeight           // so always fits
 	if rng.Uint64n(totalWeight) >= weight {
-		s.MaxCounterHostTag = hostTag
+		s.MaxCounterHostTagId = hostTagId
 	}
 	s.counter += count
 }
@@ -59,11 +59,11 @@ func (s *ItemCounter) Merge(rng *rand.Rand, other ItemCounter) {
 		return
 	}
 	if s.counter <= 0 {
-		s.MaxCounterHostTag = other.MaxCounterHostTag
+		s.MaxCounterHostTagId = other.MaxCounterHostTagId
 		s.counter = other.counter
 		return
 	}
-	if s.MaxCounterHostTag == other.MaxCounterHostTag {
+	if s.MaxCounterHostTagId == other.MaxCounterHostTagId {
 		// useful optimization to save rng call on agents where most host tags are 0
 		// (and set by aggregator much later)
 		s.counter += other.counter
@@ -73,26 +73,26 @@ func (s *ItemCounter) Merge(rng *rand.Rand, other ItemCounter) {
 	otherWeight := CounterHostDistribution(other.counter) // clamped
 	totalWeight := weight + otherWeight                   // so always fits
 	if rng.Uint64n(totalWeight) >= weight {
-		s.MaxCounterHostTag = other.MaxCounterHostTag
+		s.MaxCounterHostTagId = other.MaxCounterHostTagId
 	}
 	s.counter += other.counter
 }
 
-func argMaxClickhouse(s *ItemCounter, count float64, hostTag int32) {
+func argMaxClickhouse(s *ItemCounter, count float64, hostTagId int32) {
 	if count > s.counter {
 		s.counter = count
-		s.MaxCounterHostTag = hostTag
+		s.MaxCounterHostTagId = hostTagId
 	}
 }
 
 func aggregateLocalTest(rng *rand.Rand, perm []int, examples []ItemCounter) (ff ItemCounter, bb ItemCounter, pp ItemCounter) {
 	// our distribution must not depend on order of events
 	for i, e := range examples {
-		ff.AddCounterHost(rng, e.Count(), e.MaxCounterHostTag)
+		ff.AddCounterHost(rng, e.Count(), e.MaxCounterHostTagId)
 		b := examples[len(examples)-i-1]
-		bb.AddCounterHost(rng, b.Count(), b.MaxCounterHostTag)
+		bb.AddCounterHost(rng, b.Count(), b.MaxCounterHostTagId)
 		p := examples[perm[i]]
-		pp.AddCounterHost(rng, p.Count(), p.MaxCounterHostTag)
+		pp.AddCounterHost(rng, p.Count(), p.MaxCounterHostTagId)
 	}
 	return
 }
@@ -112,11 +112,11 @@ func SkewMaxCounterHost(rng *rand.Rand, count float64) float64 {
 func clickhouseTest(rng *rand.Rand, perm []int, examples []ItemCounter) (ff ItemCounter, bb ItemCounter, pp ItemCounter) {
 	// our distribution must not depend on order of events
 	for i, e := range examples {
-		argMaxClickhouse(&ff, SkewMaxCounterHost(rng, e.Count()), e.MaxCounterHostTag)
+		argMaxClickhouse(&ff, SkewMaxCounterHost(rng, e.Count()), e.MaxCounterHostTagId)
 		b := examples[len(examples)-i-1]
-		argMaxClickhouse(&bb, SkewMaxCounterHost(rng, b.Count()), b.MaxCounterHostTag)
+		argMaxClickhouse(&bb, SkewMaxCounterHost(rng, b.Count()), b.MaxCounterHostTagId)
 		p := examples[perm[i]]
-		argMaxClickhouse(&pp, SkewMaxCounterHost(rng, p.Count()), p.MaxCounterHostTag)
+		argMaxClickhouse(&pp, SkewMaxCounterHost(rng, p.Count()), p.MaxCounterHostTagId)
 	}
 	return
 }
@@ -158,9 +158,9 @@ func PrintLinearMaxHostProbabilities() {
 	countP := make([]int, len(examples)+1)
 	for i := 0; i < 1000_000; i++ {
 		f, b, p := aggregateLocalTest(rng, perm, examples)
-		countF[f.MaxCounterHostTag]++
-		countB[b.MaxCounterHostTag]++
-		countP[p.MaxCounterHostTag]++
+		countF[f.MaxCounterHostTagId]++
+		countB[b.MaxCounterHostTagId]++
+		countP[p.MaxCounterHostTagId]++
 	}
 	printHistogram("forward", countF, examples)
 	printHistogram("backward", countB, examples)
@@ -170,9 +170,9 @@ func PrintLinearMaxHostProbabilities() {
 	countP = make([]int, len(examples)+1)
 	for i := 0; i < 1000_000; i++ {
 		f, b, p := clickhouseTest(rng, perm, examples)
-		countF[f.MaxCounterHostTag]++
-		countB[b.MaxCounterHostTag]++
-		countP[p.MaxCounterHostTag]++
+		countF[f.MaxCounterHostTagId]++
+		countB[b.MaxCounterHostTagId]++
+		countP[p.MaxCounterHostTagId]++
 	}
 	printHistogram("clickhouse forward", countF, examples)
 	printHistogram("clickhouse backward", countB, examples)

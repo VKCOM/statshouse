@@ -627,7 +627,7 @@ func (s *Agent) AddCounter(key data_model.Key, count float64, metricInfo *format
 	s.AddCounterHost(key, count, 0, metricInfo)
 }
 
-func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
 	if count <= 0 {
 		return
 	}
@@ -637,12 +637,12 @@ func (s *Agent) AddCounterHost(key data_model.Key, count float64, hostTag int32,
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(key, keyHash, count, hostTagId, metricInfo)
 }
 
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
 // count should be > 0 and not NaN
-func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
 	if count <= 0 {
 		return
 	}
@@ -652,10 +652,10 @@ func (s *Agent) AddCounterHostStringBytes(key data_model.Key, str []byte, count 
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(key, keyHash, str, count, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(key, keyHash, str, count, hostTagId, metricInfo)
 }
 
-func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
 	if counter <= 0 {
 		return
 	}
@@ -665,7 +665,7 @@ func (s *Agent) AddValueCounterHost(key data_model.Key, value float64, counter f
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, keyHash, value, counter, hostTag, nil)
+	shard.AddValueCounterHost(key, keyHash, value, counter, hostTagId, nil)
 }
 
 // value should be not NaN.
@@ -682,7 +682,7 @@ func (s *Agent) AddValueCounter(key data_model.Key, value float64, counter float
 	shard.AddValueCounterHost(key, keyHash, value, counter, 0, metricInfo)
 }
 
-func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values []float64, mult float64, hostTagId int32, str []byte, metricInfo *format.MetricMetaValue) {
 	if len(values) == 0 || mult < 0 {
 		return
 	}
@@ -692,10 +692,10 @@ func (s *Agent) AddValueArrayCounterHostStringBytes(key data_model.Key, values [
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTag, str, metricInfo)
+	shard.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTagId, str, metricInfo)
 }
 
-func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64, counter float64, hostTagId int32, str []byte, metricInfo *format.MetricMetaValue) {
 	if counter <= 0 {
 		return
 	}
@@ -705,7 +705,7 @@ func (s *Agent) AddValueCounterHostStringBytes(key data_model.Key, value float64
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTag, str, nil)
+	shard.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTagId, str, nil)
 }
 
 func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
@@ -721,7 +721,7 @@ func (s *Agent) MergeItemValue(key data_model.Key, item *data_model.ItemValue, m
 	shard.MergeItemValue(key, keyHash, item, metricInfo)
 }
 
-func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTagId int32, str []byte, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
 	if len(hashes) == 0 || count < 0 {
 		return
 	}
@@ -731,7 +731,7 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.ApplyUnique(key, keyHash, str, hashes, count, hostTag, metricInfo)
+	shard.ApplyUnique(key, keyHash, str, hashes, count, hostTagId, metricInfo)
 }
 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) data_model.Key {

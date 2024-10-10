@@ -279,12 +279,12 @@ func appendValueStat(rng *rand.Rand, res []byte, key data_model.Key, skey string
 		if skipMinHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTagId, float32(v.ValueMin))
 		}
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag, float32(v.ValueMax))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTagId, float32(v.ValueMax))
 		}
 	} else {
 		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
@@ -292,7 +292,7 @@ func appendValueStat(rng *rand.Rand, res []byte, key data_model.Key, skey string
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
 			cc := float32(data_model.SkewMaxCounterHost(rng, count)) // explanation is in Skew function
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTag, cc)
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTagId, cc)
 		}
 	}
 	// min_host, max_host
@@ -351,12 +351,12 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 		if skipMinHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTag, float32(value.Value.ValueMin))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTagId, float32(value.Value.ValueMin))
 		}
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.ValueMax))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTagId, float32(value.Value.ValueMax))
 		}
 	} else {
 		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res) // counters do not have min_host set
@@ -364,7 +364,7 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
 			cc := float32(data_model.SkewMaxCounterHost(rng, counter)) // explanation is in Skew function
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTag, cc)
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTagId, cc)
 		}
 	}
 	// min_host, max_host
