@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
+
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -117,7 +118,7 @@ func main() {
 	pflag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
 	pflag.StringSliceVar(&argv.chV2Addrs, "clickhouse-v2-addrs", nil, "comma-separated list of ClickHouse-v2 addresses")
 	pflag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
-	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 24, "maximum number of ClickHouse-v2 connections (light fast)")
+	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 40, "maximum number of ClickHouse-v2 connections (light fast)")
 	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 12, "maximum number of ClickHouse-v2 connections (light slow)")
 	pflag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (heavy fast)")
 	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")
