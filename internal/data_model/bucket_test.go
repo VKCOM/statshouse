@@ -15,7 +15,7 @@ func testEqual(t testing.TB, a ItemValue, b ItemValue) {
 }
 
 func testEqualNB(t testing.TB, a ItemValue, b ItemValue) {
-	a.MaxCounterHostTag = b.MaxCounterHostTag // NB
+	a.MaxCounterHostTagId = b.MaxCounterHostTagId // NB
 	testEqual(t, a, b)
 }
 
@@ -24,8 +24,8 @@ func TestItemValue(t *testing.T) {
 	// create
 	initialSc := ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           2,
-			MaxCounterHostTag: 7,
+			counter:             2,
+			MaxCounterHostTagId: 7,
 		},
 	}
 	sc := SimpleItemCounter(2, 7)
@@ -47,23 +47,23 @@ func TestItemValue(t *testing.T) {
 	sc2.AddCounterHost(rng, 3, 9)
 	testEqualNB(t, sc2, ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           5,
-			MaxCounterHostTag: 9,
+			counter:             5,
+			MaxCounterHostTagId: 9,
 		},
 	})
 
 	// create
 	initialIV := ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           2,
-			MaxCounterHostTag: 7,
+			counter:             2,
+			MaxCounterHostTagId: 7,
 		},
 		ValueMin:       5,
 		ValueMax:       5,
 		ValueSum:       10,
 		ValueSumSquare: 50,
-		MinHostTag:     7,
-		MaxHostTag:     7,
+		MinHostTagId:   7,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	}
 	iv := SimpleItemValue(5, 2, 7)
@@ -85,15 +85,15 @@ func TestItemValue(t *testing.T) {
 	iv2.AddValueCounter(3, 3)
 	testEqual(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           5,
-			MaxCounterHostTag: 7,
+			counter:             5,
+			MaxCounterHostTagId: 7,
 		},
 		ValueMin:       3,
 		ValueMax:       5,
 		ValueSum:       19,
 		ValueSumSquare: 77,
-		MinHostTag:     0,
-		MaxHostTag:     7,
+		MinHostTagId:   0,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	})
 	// add
@@ -101,15 +101,15 @@ func TestItemValue(t *testing.T) {
 	iv2.AddValueCounterHost(rng, 3, 3, 6)
 	addIV := ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           5,
-			MaxCounterHostTag: 6,
+			counter:             5,
+			MaxCounterHostTagId: 6,
 		},
 		ValueMin:       3,
 		ValueMax:       5,
 		ValueSum:       19,
 		ValueSumSquare: 77,
-		MinHostTag:     6,
-		MaxHostTag:     7,
+		MinHostTagId:   6,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	}
 	testEqualNB(t, iv2, addIV)
@@ -122,15 +122,15 @@ func TestItemValue(t *testing.T) {
 	iv2.AddValueArrayHost(rng, []float64{1, 4}, 0.5, 6)
 	addIVArray := ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           3,
-			MaxCounterHostTag: 6,
+			counter:             3,
+			MaxCounterHostTagId: 6,
 		},
 		ValueMin:       1,
 		ValueMax:       5,
 		ValueSum:       12.5,
 		ValueSumSquare: 58.5,
-		MinHostTag:     6,
-		MaxHostTag:     7,
+		MinHostTagId:   6,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	}
 	testEqualNB(t, iv2, addIVArray)
@@ -139,15 +139,15 @@ func TestItemValue(t *testing.T) {
 	iv2.Merge(rng, &sc)
 	testEqualNB(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           4,
-			MaxCounterHostTag: 6,
+			counter:             4,
+			MaxCounterHostTagId: 6,
 		},
 		ValueMin:       5,
 		ValueMax:       5,
 		ValueSum:       10,
 		ValueSumSquare: 50,
-		MinHostTag:     7,
-		MaxHostTag:     7,
+		MinHostTagId:   7,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	})
 	// merge counter with value
@@ -155,15 +155,15 @@ func TestItemValue(t *testing.T) {
 	iv2.Merge(rng, &iv)
 	testEqualNB(t, iv2, ItemValue{
 		ItemCounter: ItemCounter{
-			counter:           4,
-			MaxCounterHostTag: 6,
+			counter:             4,
+			MaxCounterHostTagId: 6,
 		},
 		ValueMin:       5,
 		ValueMax:       5,
 		ValueSum:       10,
 		ValueSumSquare: 50,
-		MinHostTag:     7,
-		MaxHostTag:     7,
+		MinHostTagId:   7,
+		MaxHostTagId:   7,
 		ValueSet:       true,
 	})
 

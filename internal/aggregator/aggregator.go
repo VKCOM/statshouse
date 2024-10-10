@@ -442,9 +442,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 		for i, cc := range v.contributorsMetric {
 			for j, bb := range cc {
 				// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
-				bucketsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), bb.Count(), bb.MaxCounterHostTag)
+				bucketsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), bb.Count(), bb.MaxCounterHostTagId)
 				if bb.Count() > 0 {
-					secondsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), 1, bb.MaxCounterHostTag)
+					secondsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), 1, bb.MaxCounterHostTagId)
 				}
 			}
 		}

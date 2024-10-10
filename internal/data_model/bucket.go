@@ -30,15 +30,15 @@ type (
 	}
 
 	ItemCounter struct {
-		counter           float64
-		MaxCounterHostTag int32 // Mapped example hostname randomized according to distribution
+		counter             float64
+		MaxCounterHostTagId int32 // Mapped example hostname randomized according to distribution
 	}
 
 	ItemValue struct {
 		ItemCounter
 		ValueMin, ValueMax, ValueSum float64 // Aggregates of Value
 		ValueSumSquare               float64 // Aggregates of Value
-		MinHostTag, MaxHostTag       int32   // Mapped hostname responsible for ValueMin and ValueMax
+		MinHostTagId, MaxHostTagId   int32   // Mapped hostname responsible for ValueMin and ValueMax
 		ValueSet                     bool    // first value is assigned to Min&Max
 	}
 
@@ -83,9 +83,9 @@ func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchT
 	return k
 }
 
-func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTag int32, shardTag int32, replicaTag int32) Key {
+func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) Key {
 	key := Key{Timestamp: t, Metric: m, Keys: k}
-	key.Keys[format.AggHostTag] = hostTag
+	key.Keys[format.AggHostTag] = hostTagId
 	key.Keys[format.AggShardTag] = shardTag
 	key.Keys[format.AggReplicaTag] = replicaTag
 	return key
@@ -124,31 +124,31 @@ func (k *Key) HashSafe() uint64 {
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }
 
-func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
-	item := SimpleItemCounter(count, hostTag)
-	item.addOnlyValue(value, count, hostTag)
+func SimpleItemValue(value float64, count float64, hostTagId int32) ItemValue {
+	item := SimpleItemCounter(count, hostTagId)
+	item.addOnlyValue(value, count, hostTagId)
 	return item
 }
 
-func SimpleItemCounter(count float64, hostTag int32) ItemValue {
-	return ItemValue{ItemCounter: ItemCounter{counter: count, MaxCounterHostTag: hostTag}}
+func SimpleItemCounter(count float64, hostTagId int32) ItemValue {
+	return ItemValue{ItemCounter: ItemCounter{counter: count, MaxCounterHostTagId: hostTagId}}
 }
 
 func (s *ItemValue) AddValue(value float64) {
 	s.AddValueCounter(value, 1)
 }
 
-func (s *ItemValue) addOnlyValue(value float64, count float64, hostTag int32) {
+func (s *ItemValue) addOnlyValue(value float64, count float64, hostTagId int32) {
 	s.ValueSum += value * count
 	s.ValueSumSquare += value * value * count
 
 	if !s.ValueSet || value < s.ValueMin {
 		s.ValueMin = value
-		s.MinHostTag = hostTag
+		s.MinHostTagId = hostTagId
 	}
 	if !s.ValueSet || value > s.ValueMax {
 		s.ValueMax = value
-		s.MaxHostTag = hostTag
+		s.MaxHostTagId = hostTagId
 	}
 	s.ValueSet = true
 }
@@ -158,15 +158,15 @@ func (s *ItemValue) AddValueCounter(value float64, count float64) {
 	s.addOnlyValue(value, count, 0)
 }
 
-func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag int32) {
-	s.AddCounterHost(rng, count, hostTag)
-	s.addOnlyValue(value, count, hostTag)
+func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTagId int32) {
+	s.AddCounterHost(rng, count, hostTagId)
+	s.addOnlyValue(value, count, hostTagId)
 }
 
-func (s *ItemValue) AddValueArrayHost(rng *rand.Rand, values []float64, mult float64, hostTag int32) {
-	s.AddCounterHost(rng, mult*float64(len(values)), hostTag)
+func (s *ItemValue) AddValueArrayHost(rng *rand.Rand, values []float64, mult float64, hostTagId int32) {
+	s.AddCounterHost(rng, mult*float64(len(values)), hostTagId)
 	for _, value := range values {
-		s.addOnlyValue(value, mult, hostTag)
+		s.addOnlyValue(value, mult, hostTagId)
 	}
 }
 
@@ -190,11 +190,11 @@ func (s *ItemValue) Merge(rng *rand.Rand, s2 *ItemValue) {
 
 	if !s.ValueSet || s2.ValueMin < s.ValueMin {
 		s.ValueMin = s2.ValueMin
-		s.MinHostTag = s2.MinHostTag
+		s.MinHostTagId = s2.MinHostTagId
 	}
 	if !s.ValueSet || s2.ValueMax > s.ValueMax {
 		s.ValueMax = s2.ValueMax
-		s.MaxHostTag = s2.MaxHostTag
+		s.MaxHostTagId = s2.MaxHostTagId
 	}
 	s.ValueSet = true
 }
@@ -337,24 +337,24 @@ func (s *MultiValue) Empty() bool {
 	return s.Value.Count() <= 0
 }
 
-func (s *MultiValue) AddCounterHost(rng *rand.Rand, count float64, hostTag int32) {
-	s.Value.AddCounterHost(rng, count, hostTag)
+func (s *MultiValue) AddCounterHost(rng *rand.Rand, count float64, hostTagId int32) {
+	s.Value.AddCounterHost(rng, count, hostTagId)
 }
 
-func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag int32) {
-	s.Value.AddValueCounterHost(rng, value, count, hostTag)
+func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTagId int32) {
+	s.Value.AddValueCounterHost(rng, value, count, hostTagId)
 }
 
-func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64, count float64, hostTag int32, compression float64) {
-	s.Value.AddValueCounterHost(rng, value, count, hostTag)
+func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64, count float64, hostTagId int32, compression float64) {
+	s.Value.AddValueCounterHost(rng, value, count, hostTagId)
 	if s.ValueTDigest == nil {
 		s.ValueTDigest = tdigest.NewWithCompression(compression)
 	}
 	s.ValueTDigest.Add(value, count)
 }
 
-func (s *MultiValue) AddValueArrayHostPercentile(rng *rand.Rand, values []float64, mult float64, hostTag int32, compression float64) {
-	s.Value.AddValueArrayHost(rng, values, mult, hostTag)
+func (s *MultiValue) AddValueArrayHostPercentile(rng *rand.Rand, values []float64, mult float64, hostTagId int32, compression float64) {
+	s.Value.AddValueArrayHost(rng, values, mult, hostTagId)
 	if s.ValueTDigest == nil && len(values) != 0 {
 		s.ValueTDigest = tdigest.NewWithCompression(compression)
 	}
@@ -363,7 +363,7 @@ func (s *MultiValue) AddValueArrayHostPercentile(rng *rand.Rand, values []float6
 	}
 }
 
-func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag int32, compression float64, hasPercentiles bool) {
+func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTagId int32, compression float64, hasPercentiles bool) {
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
@@ -376,12 +376,12 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 	if count != totalCount {
 		mult = count / totalCount
 	}
-	tmp := SimpleItemCounter(count, hostTag)
+	tmp := SimpleItemCounter(count, hostTagId)
 	for _, fv := range values {
 		if hasPercentiles {
 			s.ValueTDigest.Add(fv, mult)
 		}
-		tmp.addOnlyValue(fv, 1, hostTag)
+		tmp.addOnlyValue(fv, 1, hostTagId)
 	}
 	for _, kv := range histogram {
 		fv := kv[0]
@@ -389,7 +389,7 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 		if hasPercentiles {
 			s.ValueTDigest.Add(fv, mult*cc)
 		}
-		tmp.addOnlyValue(fv, cc, hostTag)
+		tmp.addOnlyValue(fv, cc, hostTagId)
 	}
 	if count != totalCount {
 		tmp.ValueSum *= count
@@ -402,16 +402,16 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 	s.Value.Merge(rng, &tmp)
 }
 
-func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag int32) {
+func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTagId int32) {
 	totalCount := float64(len(hashes))
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
-	tmp := SimpleItemCounter(count, hostTag)
+	tmp := SimpleItemCounter(count, hostTagId)
 	for _, hash := range hashes {
 		s.HLL.Insert(uint64(hash))
 		fv := float64(hash) // hashes are also values
-		tmp.addOnlyValue(fv, 1, hostTag)
+		tmp.addOnlyValue(fv, 1, hostTagId)
 	}
 	// if both uniques and counter are set, we might get unique [1 2 2 100] with count 20,
 	// We do not know how many times each item was repeated,
