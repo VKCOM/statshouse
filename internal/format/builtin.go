@@ -2676,7 +2676,7 @@ func init() {
 	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
-		v.Resolution = 5
+		v.Resolution = 15
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}
