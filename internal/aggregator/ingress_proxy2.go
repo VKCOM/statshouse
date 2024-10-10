@@ -42,7 +42,6 @@ type ingressProxy2 struct {
 	uniqueStartTime atomic.Uint32
 	сonnectionCount atomic.Int64
 	requestMemory   atomic.Int64
-	responseMemory  atomic.Int64
 
 	*agent.Agent
 	cluster      string
@@ -77,11 +76,6 @@ type proxyConn struct {
 	reqBuf     []byte
 	reqTip     uint32
 	reqBufCap  int // last buffer capacity
-
-	// no synchronization, owned by "responseLoop"
-	respBuf    []byte
-	respTip    uint32
-	respBufCap int // last buffer capacity
 }
 
 func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd string) (*ingressProxy2, error) {
@@ -160,7 +154,6 @@ func (p *ingressProxy2) Run() {
 	p.regularMeasurementID = statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 		p.сonnectionCountMetric.Count(float64(p.сonnectionCount.Load()))
 		p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
-		p.responseMemoryMetric.Value(float64(p.responseMemory.Load()))
 	})
 	p.wg.Add(len(p.listeners)) // start listening
 	for i := range p.listeners {
@@ -263,7 +256,6 @@ func (p *proxyConn) run() {
 	defer p.clientConn.Close() // upstream connection will be closed at "responseLoop" exit
 	defer func() {
 		p.requestMemory.Sub(int64(p.reqBufCap))
-		p.responseMemory.Sub(int64(p.respBufCap))
 	}()
 	// handshake client
 	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
@@ -359,21 +351,17 @@ func (p *proxyConn) responseLoop() error {
 	// exit means inability to deliver a response
 	// "requestLoop" terminates on next upstream write
 	defer p.upstreamConn.Close()
-	for {
-		if err := p.shutdownCtx.Err(); err != nil {
-			return err // shutdown proxy connection
-		}
-		if err := p.readResponse(); err != nil {
-			p.rareLog("Upstream read error: %v\n", err)
-			return nil // reconnect upstream
-		}
-		if err := p.forwardResponse(); err != nil {
-			p.rareLog("Client write error: %v\n", err)
-			p.reportClientConnError(err)
-			return err // shutdown proxy connection
-		}
-		p.reportResponseBufferSizeChange()
+	writeErr, readErr := rpc.ForwardPackets(p.shutdownCtx, p.clientConn, p.upstreamConn)
+	if readErr != nil {
+		p.rareLog("Upstream read error: %v\n", readErr)
+		return nil // reconnect upstream
 	}
+	if writeErr != nil {
+		p.rareLog("Client write error: %v\n", writeErr)
+		p.reportClientConnError(writeErr)
+		return writeErr // shutdown proxy connection
+	}
+	return nil
 }
 
 func (p *proxyConn) readRequest() error {
@@ -449,27 +437,10 @@ func (p *proxyConn) forwardRequest() error {
 	return p.req.ForwardAndFlush(p.upstreamConn, p.reqTip, rpc.DefaultPacketTimeout)
 }
 
-func (p *proxyConn) readResponse() error {
-	var err error
-	p.respTip, p.respBuf, err = p.upstreamConn.ReadPacket(p.respBuf[:0], time.Duration(0))
-	return err
-}
-
-func (p *proxyConn) forwardResponse() error {
-	return p.clientConn.WritePacket(p.respTip, p.respBuf, rpc.DefaultPacketTimeout)
-}
-
 func (p *proxyConn) reportRequestBufferSizeChange() {
 	if v := int64(cap(p.reqBuf) - p.reqBufCap); v != 0 {
 		p.requestMemory.Add(v)
 		p.reqBufCap = cap(p.reqBuf)
-	}
-}
-
-func (p *proxyConn) reportResponseBufferSizeChange() {
-	if v := int64(cap(p.respBuf) - p.respBufCap); v != 0 {
-		p.responseMemory.Add(v)
-		p.respBufCap = cap(p.respBuf)
 	}
 }
 
