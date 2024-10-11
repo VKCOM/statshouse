@@ -1,6 +1,6 @@
 import { type PlotKey } from 'url2';
-import { useStatsHouse, viewPath } from 'store2';
-import { useEffect } from 'react';
+import { useStatsHouse, useStatsHouseShallow, viewPath } from 'store2';
+import { useEffect, useMemo } from 'react';
 import { getAddPlotLink, getPlotLink, getPlotSingleLink } from 'store2/helpers';
 import { To } from 'react-router-dom';
 import { create } from 'zustand';
@@ -71,12 +71,12 @@ export function useLinkPlot(plotKey: PlotKey, visible?: boolean, single?: boolea
 }
 
 export function useAddLinkPlot(visible: boolean): To {
-  const tabNum = useStatsHouse((s) => s.params.tabNum);
-  const link = useLinkPlots((s) => s.addPlotLink ?? '');
-  useEffect(() => {
-    if (visible && !link) {
-      createAddPlotLink();
-    }
-  }, [visible, tabNum, link]);
-  return link;
+  const { params, saveParams } = useStatsHouseShallow(({ params, saveParams }) => ({ params, saveParams }));
+  return useMemo<To>(
+    () => ({
+      pathname: viewPath[0],
+      ...getUrlObject(getAddPlotLink(params, saveParams)),
+    }),
+    [params, saveParams]
+  );
 }
