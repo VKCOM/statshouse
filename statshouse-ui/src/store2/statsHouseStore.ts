@@ -20,6 +20,9 @@ import { useVariableChangeStatusStore } from './variableChangeStatusStore';
 import { dequal } from 'dequal/lite';
 import { useLinkPlots } from 'hooks/useLinkPlot';
 import { updateTheme } from './themeStore';
+import { viewPath } from './constants';
+import { getUrlObject } from '../common/getUrlObject';
+import { getAddPlotLink } from './helpers';
 
 export type StatsHouseStore = UrlStore &
   UserStore &
@@ -53,13 +56,7 @@ useStatsHouse.subscribe((state, prevState) => {
     dashboardLayoutEdit,
   } = state;
   const {
-    params: {
-      tabNum: prevTabNum,
-      plots: prevPlots,
-      dashboardName: prevDashboardName,
-      variables: prevVariables,
-      // orderVariables: prevOrderVariables,
-    },
+    params: { tabNum: prevTabNum, plots: prevPlots, dashboardName: prevDashboardName, variables: prevVariables },
     plotsData: prevPlotsData,
   } = prevState;
 
@@ -93,9 +90,10 @@ useStatsHouse.subscribe((state, prevState) => {
   }
   if (state.params !== prevState.params) {
     if (!dequal({ ...state.params, tabNum: '0' }, { ...prevState.params, tabNum: '0' })) {
-      // setTimeout(() => {
-      useLinkPlots.setState({ plotLinks: {}, singlePlotLinks: {}, addPlotLink: undefined }, true);
-      // }, 0);
+      useLinkPlots.setState({
+        plotLinks: {},
+        singlePlotLinks: {},
+      });
     }
   }
   if (state.params.theme !== prevState.params.theme) {

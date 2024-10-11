@@ -17,11 +17,20 @@ export type LeftMenuItemProps = {
   icon: React.FC<{ className?: string }>;
   title?: React.ReactNode;
   to?: To;
+  reloadDocument?: boolean;
   children?: React.ReactNode;
   active?: boolean;
   className?: string;
 };
-export function _LeftMenuItem({ children, icon: Icon, title, to, active = false, className }: LeftMenuItemProps) {
+export function _LeftMenuItem({
+  children,
+  icon: Icon,
+  title,
+  to,
+  active = false,
+  reloadDocument,
+  className,
+}: LeftMenuItemProps) {
   const itemRef = useRef(null);
   const sub = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useStateBoolean(false);
@@ -48,7 +57,7 @@ export function _LeftMenuItem({ children, icon: Icon, title, to, active = false,
       onClick={setOpen.off}
     >
       {to != null ? (
-        <Link className={css.link} to={to} onClick={onClick}>
+        <Link className={css.link} to={to} reloadDocument={reloadDocument} onClick={onClick}>
           <Icon className={css.icon} />
         </Link>
       ) : (

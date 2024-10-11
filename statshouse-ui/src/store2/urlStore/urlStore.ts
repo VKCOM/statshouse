@@ -45,6 +45,7 @@ import { setLiveMode } from '../liveModeStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import { fixMessageTrouble } from 'url/fixMessageTrouble';
 import { isNotNil } from '../../common/helpers';
+import { getUrlObject } from '../../common/getUrlObject';
 
 export type UrlStore = {
   params: QueryParams;
@@ -119,10 +120,11 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     const search = fixMessageTrouble('?' + getUrl(state));
     if (prevSearch !== search) {
       prevSearch = search;
+      const to = getUrlObject(search);
       if (replace) {
-        appHistory.replace({ search });
+        appHistory.replace(to);
       } else {
-        appHistory.push({ search });
+        appHistory.push(to);
       }
     }
   }

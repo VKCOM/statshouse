@@ -108,7 +108,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
   }, []);
   return (
     <ul className={cn(css.leftMenu, className)}>
-      <LeftMenuItem to="view" icon={SVGLightning} title="StatsHouse">
+      <LeftMenuItem to="view" icon={SVGLightning} reloadDocument title="StatsHouse">
         <li className={css.splitter}></li>
         <li className={css.subItem}>
           <NavLink className={css.link} to="/admin/create" end>
