@@ -10,7 +10,7 @@ import { debug } from '../../common/debug';
 import { deepClone } from '../../common/helpers';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 
-export type LegendItem<T = Object> = {
+export type LegendItem<T = {}> = {
   label: string;
   width: number;
   fill?: string;

@@ -40,7 +40,6 @@ import {
 
 const rightPad = 16;
 
-// const themeDark = false;
 // const xAxisSize = 16;
 const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
@@ -61,7 +60,6 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     series,
     timeRangeTo,
     timeRangeFrom,
-    // scales,
     seriesShow,
     plotWhat,
     plotDataWhat,
@@ -70,59 +68,32 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
     isActive,
-    // setPlotVisibility,
-    // setPlotYLock,
-    // setTimeRange,
-    // createPlotPreview,
-    // setPlotShow,
-    // resetZoom,
-  } = useStatsHouseShallow(
-    ({
-      plotsData,
-      params: { tabNum, plots, timeRange },
-      metricMeta,
+  } = useStatsHouseShallow(({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
+    const plot = plots[plotKey];
+    const plotData = plotsData[plotKey];
+    return {
+      plotWhat: plot?.what,
+      plotDataWhat: plotData?.whats,
+      topInfo: plotData?.topInfo,
+      yLock: plot?.yLock,
+      timeRangeTo: timeRange.to,
+      timeRangeFrom: timeRange.from,
+      numSeries: plot?.numSeries ?? 0,
+      error403: plotData?.error403 ?? '',
+      metricUnit: plot?.metricUnit,
+      metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
+      data: plotData?.data,
+      series: plotData?.series,
+      seriesShow: plotData?.seriesShow,
+      legendNameWidth: plotData?.legendNameWidth,
+      legendValueWidth: plotData?.legendValueWidth,
+      legendMaxHostWidth: plotData?.legendMaxHostWidth,
+      legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
       isEmbed,
       baseRange,
-      // setPlotVisibility,
-      // setPlotYLock,
-      // setTimeRange,
-      // createPlotPreview,
-      // setPlotShow,
-      // resetZoom,
-    }) => {
-      const plot = plots[plotKey];
-      const plotData = plotsData[plotKey];
-      return {
-        plotWhat: plot?.what,
-        plotDataWhat: plotData?.whats,
-        topInfo: plotData?.topInfo,
-        yLock: plot?.yLock,
-        timeRangeTo: timeRange.to,
-        timeRangeFrom: timeRange.from,
-        numSeries: plot?.numSeries ?? 0,
-        error403: plotData?.error403 ?? '',
-        metricUnit: plot?.metricUnit,
-        metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-        data: plotData?.data,
-        series: plotData?.series,
-        // scales: plotData?.scales,
-        seriesShow: plotData?.seriesShow,
-        legendNameWidth: plotData?.legendNameWidth,
-        legendValueWidth: plotData?.legendValueWidth,
-        legendMaxHostWidth: plotData?.legendMaxHostWidth,
-        legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-        isEmbed,
-        baseRange,
-        isActive: tabNum === plotKey,
-        // setPlotVisibility,
-        // setPlotYLock,
-        // setTimeRange,
-        // createPlotPreview,
-        // setPlotShow,
-        // resetZoom,
-      };
-    }
-  );
+      isActive: tabNum === plotKey,
+    };
+  });
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
@@ -135,7 +106,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   const [cursorLock, setCursorLock] = useState(false);
 
   const uPlotRef = useRef<uPlot>();
-  const [legend, setLegend] = useState<LegendItem[]>([]);
+  const [legend, setLegend] = useState<LegendItem<PlotValues>[]>([]);
 
   const [pluginEventOverlay, pluginEventOverlayHooks] = useUPlotPluginHooks();
 
@@ -308,7 +279,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     }
     uPlotRef.current?.setSeries(index, { focus }, true);
   }, []);
-  //
+
   const onLegendShow = useCallback(
     (index: number, show: boolean, single: boolean) => {
       setPlotShow(plotKey, index - 1, show, single);
@@ -329,11 +300,15 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     }
   }, [isActive, isDashboard, plotKey, visibleBool]);
 
-  const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem[]>>>(
+  const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem<any>[]>>>(
     (legend) => {
-      if (fixHeight > 0 || !isDashboard) {
-        setLegend(legend);
-      }
+      setLegend((prevLegend) => {
+        const nextLegend = typeof legend === 'function' ? legend(prevLegend) : legend;
+        if (fixHeight > 0 || !isDashboard || nextLegend.some((v, index) => v.label !== prevLegend[index]?.label)) {
+          return nextLegend;
+        }
+        return prevLegend;
+      });
     },
     [fixHeight, isDashboard]
   );
@@ -420,7 +395,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           <div className="plot-legend">
             <PlotLegend
               plotKey={plotKey}
-              legend={legend as LegendItem<PlotValues>[]}
+              legend={legend}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && isDashboard)}

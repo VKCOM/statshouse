@@ -6,11 +6,12 @@ import { To } from 'react-router-dom';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { usePlotVisibilityStore } from 'store2/plotVisibilityStore';
+import { getUrlObject } from '../common/getUrlObject';
 
 type LinkPlot = {
   plotLinks: Partial<Record<PlotKey, To>>;
   singlePlotLinks: Partial<Record<PlotKey, To>>;
-  addPlotLink?: To;
+  addPlotLink?: { pathname?: string; hash?: string; search?: string };
 };
 
 export const useLinkPlots = create<LinkPlot>()(
@@ -27,14 +28,14 @@ export function createPlotLink(plotKey: PlotKey, single?: boolean) {
       if (!s.singlePlotLinks[plotKey]) {
         s.singlePlotLinks[plotKey] = {
           pathname: viewPath[0],
-          search: getPlotSingleLink(plotKey, params),
+          ...getUrlObject(getPlotSingleLink(plotKey, params)),
         };
       }
     } else {
       if (!s.plotLinks[plotKey]) {
         s.plotLinks[plotKey] = {
           pathname: viewPath[0],
-          search: getPlotLink(plotKey, params, saveParams),
+          ...getUrlObject(getPlotLink(plotKey, params, saveParams)),
         };
       }
     }
@@ -43,8 +44,14 @@ export function createPlotLink(plotKey: PlotKey, single?: boolean) {
 
 export function createAddPlotLink() {
   const { params, saveParams } = useStatsHouse.getState();
+  const nextUrl = getUrlObject(getAddPlotLink(params, saveParams));
   useLinkPlots.setState((s) => {
-    s.addPlotLink = getAddPlotLink(params, saveParams);
+    if (!s.addPlotLink || (nextUrl.hash !== s.addPlotLink?.hash && nextUrl.search !== s.addPlotLink?.search)) {
+      s.addPlotLink = {
+        pathname: viewPath[0],
+        ...nextUrl,
+      };
+    }
   });
 }
 
@@ -67,7 +74,7 @@ export function useAddLinkPlot(visible: boolean): To {
   const tabNum = useStatsHouse((s) => s.params.tabNum);
   const link = useLinkPlots((s) => s.addPlotLink ?? '');
   useEffect(() => {
-    if (visible || !link) {
+    if (visible && !link) {
       createAddPlotLink();
     }
   }, [visible, tabNum, link]);
