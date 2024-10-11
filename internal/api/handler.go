@@ -9,6 +9,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -2781,6 +2782,18 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	if len(c.minMaxHostV2[1]) != 0 {
 		row.host[1] = c.minMaxHostV2[1][i]
+	}
+	if c.minMaxHostV3[0].Rows() != 0 {
+		mm3 := c.minMaxHostV3[0]
+		if mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
+			row.host[0] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
+		}
+	}
+	if c.minMaxHostV3[1].Rows() != 0 {
+		mm3 := c.minMaxHostV3[1]
+		if mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
+			row.host[1] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
+		}
 	}
 	if c.shardNum != nil {
 		row.shardNum = c.shardNum[i]
