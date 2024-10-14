@@ -1599,13 +1599,13 @@ func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
 	x = 4
 	tags[x] = "1" // "query_parsing"
 	value := ev.timeQueryParseEnd.Sub(ev.timeStart).Seconds()
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
+	statshouse.Value(format.BuiltinMetricNamePromQLEngineTime, tags, value)
 	tags[x] = "2" // "data_access"
 	value = ev.dataAccessDuration.Seconds()
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
+	statshouse.Value(format.BuiltinMetricNamePromQLEngineTime, tags, value)
 	tags[x] = "3" // "data_processing"
 	value = (timeEnd.Sub(ev.timeQueryParseEnd) - ev.dataAccessDuration).Seconds()
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
+	statshouse.Value(format.BuiltinMetricNamePromQLEngineTime, tags, value)
 }
 
 func (qry *SeriesQuery) empty() bool {

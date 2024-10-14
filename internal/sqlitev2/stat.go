@@ -39,35 +39,35 @@ func (s *StatsOptions) measureSqliteQueryDurationSince(typ, name string, status 
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name, 6: status}).Value(time.Since(start).Seconds())
+	statshouse.Value(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name, 6: status}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureWaitDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(waitDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Value(waitDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureActionDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(actionDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Value(actionDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureSqliteTxDurationSince(typ, name string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
+	statshouse.Value(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) engineBrokenEvent() {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(engineBrokenMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Count(1)
+	statshouse.Count(engineBrokenMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}, 1)
 }
 
 func (s *StatsOptions) walSwitchSize(iApp int, maxFrame uint) {
@@ -78,12 +78,12 @@ func (s *StatsOptions) walSwitchSize(iApp int, maxFrame uint) {
 	if iApp > 0 {
 		k = "wal2"
 	}
-	statshouse.Metric(walCheckpointSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: k}).Value(float64(maxFrame))
+	statshouse.Value(walCheckpointSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: k}, float64(maxFrame))
 }
 
 func (s *StatsOptions) walCheckpointDuration(status string, dur time.Duration) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(walCheckpointDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: status}).Value(dur.Seconds())
+	statshouse.Value(walCheckpointDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: status}, dur.Seconds())
 }

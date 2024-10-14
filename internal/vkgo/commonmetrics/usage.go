@@ -63,9 +63,9 @@ func (u *usage) report(client *statshouse.Client) {
 		userTime = statTimeToDuration(stat.UTime)
 		systemTime = statTimeToDuration(stat.STime)
 	}
-	client.Metric(memUsageMetricName, AttachBase(statshouse.Tags{})).Value(float64(rssBytes))
-	client.Metric(cpuUsageMetricName, AttachBase(statshouse.Tags{4: CPUUser})).Value((userTime - u.lastUserTime).Seconds())
-	client.Metric(cpuUsageMetricName, AttachBase(statshouse.Tags{4: CPUSystem})).Value((systemTime - u.lastSystemTime).Seconds())
+	client.Value(memUsageMetricName, AttachBase(statshouse.Tags{}), float64(rssBytes))
+	client.Value(cpuUsageMetricName, AttachBase(statshouse.Tags{4: CPUUser}), (userTime - u.lastUserTime).Seconds())
+	client.Value(cpuUsageMetricName, AttachBase(statshouse.Tags{4: CPUSystem}), (systemTime - u.lastSystemTime).Seconds())
 	u.lastUserTime = userTime
 	u.lastSystemTime = systemTime
 }

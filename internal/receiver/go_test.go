@@ -175,7 +175,7 @@ func (g *goMachine) Counter(t *rapid.T) {
 		return
 	}
 
-	g.send.Metric(name, ks).Count(value)
+	g.send.Count(name, ks, value)
 	g.counterMetrics.count(k, value)
 }
 
@@ -190,7 +190,7 @@ func (g *goMachine) CounterNamed(t *rapid.T) {
 	if len(k) > maxTSSize {
 		return
 	}
-	g.send.MetricNamed(name, tags).Count(value)
+	g.send.NamedCount(name, tags, value)
 	g.counterMetrics.count(k, value)
 }
 
@@ -206,7 +206,7 @@ func (g *goMachine) Values(t *rapid.T) {
 		return
 	}
 
-	g.send.Metric(name, ks).Values(values)
+	g.send.Values(name, ks, values)
 	g.valueMetrics.merge(k, values)
 }
 
@@ -222,7 +222,7 @@ func (g *goMachine) ValuesNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.MetricNamed(name, tags).Values(values)
+	g.send.NamedValues(name, tags, values)
 	g.valueMetrics.merge(k, values)
 }
 
@@ -238,7 +238,7 @@ func (g *goMachine) Uniques(t *rapid.T) {
 		return
 	}
 
-	g.send.Metric(name, ks).Uniques(values)
+	g.send.Uniques(name, ks, values)
 	g.uniqueMetrics.merge(k, values)
 }
 
@@ -254,7 +254,7 @@ func (g *goMachine) UniquesNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.MetricNamed(name, tags).Uniques(values)
+	g.send.NamedUniques(name, tags, values)
 	g.uniqueMetrics.merge(k, values)
 }
 
@@ -268,7 +268,7 @@ func (g *goMachine) STops(t *rapid.T) {
 	if len(k) > maxTSSize {
 		return
 	}
-	g.send.Metric(name, ks).StringsTop(values)
+	g.send.StringsTop(name, ks, values)
 	for _, skey := range values {
 		g.counterMetrics.count(ts(name, toTags(ks, skey, g.envIsSet)), 1)
 	}
@@ -286,7 +286,7 @@ func (g *goMachine) STopsNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.MetricNamed(name, tags).StringsTop(values)
+	g.send.NamedStringsTop(name, tags, values)
 	for _, skey := range values {
 		g.counterMetrics.count(ts(name, toTagsStruct(tags, skey, g.envIsSet)), 1)
 	}

@@ -77,31 +77,31 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 				invalidatedAtNano: map[int64]int64{},
 				lastDrop:          now,
 				dropEvery:         drop,
-				bytesAlloc: statshouse.Metric(format.BuiltinMetricAPICacheBytesAlloc, statshouse.Tags{
+				bytesAlloc: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesAlloc, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
 				}),
-				bytesFreeStale: statshouse.Metric(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
+				bytesFreeStale: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "1",
 				}),
-				bytesFreeLRU: statshouse.Metric(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
+				bytesFreeLRU: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "2",
 				}),
-				bytesFreeOverride: statshouse.Metric(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
+				bytesFreeOverride: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesFree, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "3",
 				}),
-				bytesTotal: statshouse.Metric(format.BuiltinMetricAPICacheBytesTotal, statshouse.Tags{
+				bytesTotal: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesTotal, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
 				}),
-				ageTotal: statshouse.Metric(format.BuiltinMetricAPICacheAgeTotal, statshouse.Tags{
+				ageTotal: statshouse.GetMetricRef(format.BuiltinMetricAPICacheAgeTotal, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
 				}),
-				ageEvictStale: statshouse.Metric(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
+				ageEvictStale: statshouse.GetMetricRef(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "1",
 				}),
-				ageEvictLRU: statshouse.Metric(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
+				ageEvictLRU: statshouse.GetMetricRef(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "2",
 				}),
-				ageEvictOverride: statshouse.Metric(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
+				ageEvictOverride: statshouse.GetMetricRef(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "3",
 				}),
 			}
@@ -202,15 +202,15 @@ type tsCache struct {
 	invalidatedAtNano map[int64]int64
 	lastDrop          time.Time
 	dropEvery         time.Duration
-	bytesAlloc        *statshouse.MetricRef
-	bytesFreeStale    *statshouse.MetricRef
-	bytesFreeLRU      *statshouse.MetricRef
-	bytesFreeOverride *statshouse.MetricRef
-	bytesTotal        *statshouse.MetricRef
-	ageTotal          *statshouse.MetricRef
-	ageEvictStale     *statshouse.MetricRef
-	ageEvictLRU       *statshouse.MetricRef
-	ageEvictOverride  *statshouse.MetricRef
+	bytesAlloc        statshouse.MetricRef
+	bytesFreeStale    statshouse.MetricRef
+	bytesFreeLRU      statshouse.MetricRef
+	bytesFreeOverride statshouse.MetricRef
+	bytesTotal        statshouse.MetricRef
+	ageTotal          statshouse.MetricRef
+	ageEvictStale     statshouse.MetricRef
+	ageEvictLRU       statshouse.MetricRef
+	ageEvictOverride  statshouse.MetricRef
 }
 
 type tsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)

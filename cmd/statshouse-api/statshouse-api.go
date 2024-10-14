@@ -440,12 +440,12 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 			heartbeatTags[4] = fmt.Sprint(int32(binary.BigEndian.Uint32(commitRaw)))
 		}
 	}
-	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(0)
+	statshouse.Value(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags, 0)
 
 	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
 		uptime := float64(time.Now().Unix() - startTimestamp)
-		c.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(uptime)
+		c.Value(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags, uptime)
 	}))
 
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)

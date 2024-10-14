@@ -51,13 +51,13 @@ func ResponseTime(r InputRequest, value time.Duration) {
 }
 
 func ResponseSizeRaw(tags statshouse.Tags, value int) {
-	statshouse.Metric(responseSizeMetricName, tags).Value(float64(value))
+	statshouse.Value(responseSizeMetricName, tags, float64(value))
 }
 
 func RequestSizeRaw(tags statshouse.Tags, value int) {
-	statshouse.Metric(requestSizeMetricName, tags).Value(float64(value))
+	statshouse.Value(requestSizeMetricName, tags, float64(value))
 }
 
 func ResponseTimeRaw(tags statshouse.Tags, value time.Duration) {
-	statshouse.Metric(responseTimeMetricName, tags).Value(value.Seconds())
+	statshouse.Value(responseTimeMetricName, tags, value.Seconds())
 }
