@@ -2785,13 +2785,13 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	if c.minMaxHostV3[0].Rows() != 0 {
 		mm3 := c.minMaxHostV3[0]
-		if mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
+		if i < len(mm3.Pos) && mm3.Pos[i].End-mm3.Pos[i].Start == 5 && mm3.Pos[i].Start < len(mm3.Buf) && mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
 			row.host[0] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
 		}
 	}
 	if c.minMaxHostV3[1].Rows() != 0 {
 		mm3 := c.minMaxHostV3[1]
-		if mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
+		if i < len(mm3.Pos) && mm3.Pos[i].End-mm3.Pos[i].Start == 5 && mm3.Pos[i].Start < len(mm3.Buf) && mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
 			row.host[1] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
 		}
 	}
