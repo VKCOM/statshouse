@@ -1,5 +1,5 @@
 import { FilterTag, GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, metricTypeToMetricTypeUrl, PLOT_TYPE, TagKey } from 'api/enum';
+import { GET_PARAMS, metricTypeToMetricTypeUrl, PLOT_TYPE, TagKey } from 'api/enum';
 import { dequal } from 'dequal/lite';
 
 import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
@@ -138,9 +138,13 @@ export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNew
     paramArr.push([prefix + GET_PARAMS.metricAgg, plot.customAgg.toString()]);
   }
   if (!dequal(defaultPlot.groupBy, plot.groupBy)) {
-    plot.groupBy.forEach((g) => {
-      paramArr.push([prefix + GET_PARAMS.metricGroupBy, g]);
-    });
+    if (plot.groupBy.length === 0 && defaultPlot.groupBy.length > 0) {
+      paramArr.push([prefix + GET_PARAMS.metricGroupBy, removeValueChar]);
+    } else {
+      plot.groupBy.forEach((g) => {
+        paramArr.push([prefix + GET_PARAMS.metricGroupBy, g]);
+      });
+    }
   }
   if (!dequal(defaultPlot.filterIn, plot.filterIn) || !dequal(defaultPlot.filterNotIn, plot.filterNotIn)) {
     paramArr.push(...urlEncodePlotFilters(prefix, plot.filterIn, plot.filterNotIn));
