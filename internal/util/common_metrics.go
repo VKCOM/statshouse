@@ -10,11 +10,11 @@ import (
 )
 
 type RPCServerMetrics struct {
-	сonnCount       *statshouse.MetricRef
-	workerPoolSize  *statshouse.MetricRef
-	longPollWaiting *statshouse.MetricRef
-	requestMemory   *statshouse.MetricRef
-	responseMemory  *statshouse.MetricRef
+	сonnCount       statshouse.MetricRef
+	workerPoolSize  statshouse.MetricRef
+	longPollWaiting statshouse.MetricRef
+	requestMemory   statshouse.MetricRef
+	responseMemory  statshouse.MetricRef
 	commonTags      statshouse.Tags
 }
 
@@ -27,11 +27,11 @@ func NewRPCServerMetrics(service string) *RPCServerMetrics {
 		env.DataCenter,
 	}
 	return &RPCServerMetrics{
-		сonnCount:       statshouse.Metric("common_rpc_server_conn", tag),
-		workerPoolSize:  statshouse.Metric("common_rpc_server_worker_pool_size", tag),
-		longPollWaiting: statshouse.Metric("common_rpc_server_longpoll_waiting", tag),
-		requestMemory:   statshouse.Metric("common_rpc_server_request_mem", tag),
-		responseMemory:  statshouse.Metric("common_rpc_server_response_mem", tag),
+		сonnCount:       statshouse.GetMetricRef("common_rpc_server_conn", tag),
+		workerPoolSize:  statshouse.GetMetricRef("common_rpc_server_worker_pool_size", tag),
+		longPollWaiting: statshouse.GetMetricRef("common_rpc_server_longpoll_waiting", tag),
+		requestMemory:   statshouse.GetMetricRef("common_rpc_server_request_mem", tag),
+		responseMemory:  statshouse.GetMetricRef("common_rpc_server_response_mem", tag),
 		commonTags:      tag,
 	}
 }
@@ -61,13 +61,13 @@ func (s *RPCServerMetrics) Run(server *rpc.Server) func() {
 func (s *RPCServerMetrics) handleAcceptError(err error) {
 	tags := s.commonTags
 	tags[4] = rpc.ErrorTag(err)
-	statshouse.Metric("common_rpc_server_accept_error", tags).Count(1)
+	statshouse.Count("common_rpc_server_accept_error", tags, 1)
 }
 
 func (s *RPCServerMetrics) handleConnError(err error) {
 	tags := s.commonTags // copy
 	tags[4] = rpc.ErrorTag(err)
-	statshouse.Metric("common_rpc_server_conn_error", tags).Count(1)
+	statshouse.Count("common_rpc_server_conn_error", tags, 1)
 }
 
 func (s *RPCServerMetrics) handleResponse(hctx *rpc.HandlerContext, err error) {

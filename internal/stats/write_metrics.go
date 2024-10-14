@@ -107,44 +107,44 @@ func (p *MetricWriterRemoteImpl) fillCommonTags(tags *statshouse.Tags) {
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(true, tagsList...)
 	p.fillCommonTags(&tags)
-	statshouse.Metric(name, tags).Value(value)
+	statshouse.Value(name, tags, value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32) {
 	tags := buildTags(true, tagsList...)
 	p.fillCommonTags(&tags)
-	statshouse.Metric(name, tags).Count(count)
-	statshouse.Metric(name, tags).Value(value)
+	statshouse.Count(name, tags, count)
+	statshouse.Value(name, tags, value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValueWithoutHost(nowUnix int64, name string, count, value float64, tagsList ...int32) {
 	tags := buildTags(false, tagsList...)
-	statshouse.Metric(name, tags).Value(value)
-	statshouse.Metric(name, tags).Count(count)
+	statshouse.Value(name, tags, value)
+	statshouse.Count(name, tags, count)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(false, tagsList...)
-	statshouse.Metric(name, tags).Value(value)
+	statshouse.Value(name, tags, value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32) {
 	tags := buildTags(true, tagsList...)
 	p.fillCommonTags(&tags)
-	statshouse.Metric(name, tags).Count(count)
+	statshouse.Count(name, tags, count)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag) {
 	tags := buildTags(true, tagsList...)
 	p.fillCommonTags(&tags)
-	statshouse.Metric(name, tags).Count(count)
-	statshouse.Metric(name, tags).Value(value)
+	statshouse.Count(name, tags, count)
+	statshouse.Value(name, tags, value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag) {
 	tags := buildTags(true, tagsList...)
 	p.fillCommonTags(&tags)
-	statshouse.Metric(name, tags).Count(count)
+	statshouse.Count(name, tags, count)
 }
 
 func fillTag[T string | []byte](m *tlstatshouse.MetricBytes, i int, key string, value T) {

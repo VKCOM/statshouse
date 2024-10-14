@@ -192,11 +192,11 @@ type (
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
 		promEngine            promql.Engine
-		bufferBytesAlloc      *statshouse.MetricRef
-		bufferBytesFree       *statshouse.MetricRef
-		bufferPoolBytesAlloc  *statshouse.MetricRef
-		bufferPoolBytesFree   *statshouse.MetricRef
-		bufferPoolBytesTotal  *statshouse.MetricRef
+		bufferBytesAlloc      statshouse.MetricRef
+		bufferBytesFree       statshouse.MetricRef
+		bufferPoolBytesAlloc  statshouse.MetricRef
+		bufferPoolBytesFree   statshouse.MetricRef
+		bufferPoolBytesTotal  statshouse.MetricRef
 	}
 
 	//easyjson:json
@@ -588,11 +588,11 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		jwtHelper:             jwtHelper,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
-		bufferBytesAlloc:      statshouse.Metric(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferBytesFree:       statshouse.Metric(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferPoolBytesAlloc:  statshouse.Metric(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesFree:   statshouse.Metric(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesTotal:  statshouse.Metric(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
+		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferBytesFree:       statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferPoolBytesAlloc:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -609,30 +609,30 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		userTime := float64(h.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 		sysTime := float64(h.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-		userMetric := client.Metric(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
+		userMetric := client.MetricRef(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
 		userMetric.Value(userTime)
-		sysMetric := client.Metric(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
+		sysMetric := client.MetricRef(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
 		sysMetric.Value(sysTime)
 
 		var rss float64
 		if st, _ := srvfunc.GetMemStat(0); st != nil {
 			rss = float64(st.Res)
 		}
-		memMetric := client.Metric(format.BuiltinMetricNameUsageMemory, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)})
+		memMetric := client.MetricRef(format.BuiltinMetricNameUsageMemory, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)})
 		memMetric.Value(rss)
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {
-				fastLight := client.Metric(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
+				fastLight := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
 				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
 
-				fastHeavy := client.Metric(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), 4: srvfunc.HostnameForStatshouse()})
+				fastHeavy := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), 4: srvfunc.HostnameForStatshouse()})
 				fastHeavy.Value(float64(ch.SemaphoreCountFastHeavy()))
 
-				slowLight := client.Metric(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), 4: srvfunc.HostnameForStatshouse()})
+				slowLight := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), 4: srvfunc.HostnameForStatshouse()})
 				slowLight.Value(float64(ch.SemaphoreCountSlowLight()))
 
-				slowHeavy := client.Metric(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
+				slowHeavy := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
 				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
 			}
 		}
@@ -2025,7 +2025,7 @@ func (h *Handler) HandleFrontendStat(w http.ResponseWriter, r *http.Request) {
 		for _, v := range v.Tags {
 			tags = append(tags, [2]string{string(v.Key), string(v.Value)})
 		}
-		metric := statshouse.MetricNamed(string(v.Name), tags)
+		metric := statshouse.MetricNamedRef(string(v.Name), tags)
 		switch {
 		case v.IsSetUnique():
 			metric.Uniques(v.Unique)

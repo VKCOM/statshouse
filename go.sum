@@ -602,6 +602,12 @@ github.com/valyala/fastrand v1.1.0 h1:f+5HkLW4rsgzdNoleUOB69hyT9IlD2ZQh9GyDMfb5G
 github.com/valyala/fastrand v1.1.0/go.mod h1:HWqCzkrkg6QXT8V2EXWvXCoow7vLwOFN002oeRzjapQ=
 github.com/vkcom/statshouse-go v0.3.0 h1:kB0DMcCPpFITgP2xILGjj+7y8rahHW9M45hy11LGlv4=
 github.com/vkcom/statshouse-go v0.3.0/go.mod h1:lFONjxTctTxIj9NNcbA7sKH1zbYOqWuGtBjbzLnvNb0=
+github.com/vkcom/statshouse-go v0.4.0 h1:oAETxEski6DzhesSYDw2TdanNNcwzYneZ+yJ2FLIVQs=
+github.com/vkcom/statshouse-go v0.4.0/go.mod h1:1pEw44x7av+j5Ag1wjD9SQSTu3VByC5XV+QseOQpXwE=
+github.com/vkcom/statshouse-go v0.5.0 h1:HJ/zpTLphJp3dvd/OMf86HrZ3c1o0E8WnhvrmdSsjaY=
+github.com/vkcom/statshouse-go v0.5.0/go.mod h1:1pEw44x7av+j5Ag1wjD9SQSTu3VByC5XV+QseOQpXwE=
+github.com/vkcom/statshouse-go v0.5.1 h1:vnICsK6CNvEBkO6yXQglqsiWb7hHEAn0skjt3cla1MM=
+github.com/vkcom/statshouse-go v0.5.1/go.mod h1:1pEw44x7av+j5Ag1wjD9SQSTu3VByC5XV+QseOQpXwE=
 github.com/vultr/govultr/v2 v2.17.0 h1:BHa6MQvQn4YNOw+ecfrbISOf4+3cvgofEQHKBSXt6t0=
 github.com/vultr/govultr/v2 v2.17.0/go.mod h1:ZFOKGWmgjytfyjeyAdhQlSWwTjh2ig+X49cAp50dzXI=
 github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 h1:nIPpBwaJSVYIxUFsDv3M8ofmx9yWTog9BfvIu0q41lo=

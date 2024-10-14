@@ -19,6 +19,5 @@ func rpcDurationStat(host, method string, duration time.Duration, err error, que
 	if err != nil && !rpc.IsHijackedResponse(err) {
 		status = "error"
 	}
-	statshouse.Metric(format.BuiltinMetricNameMetaServiceTime, statshouse.Tags{1: host, 2: method, 3: queryType, 4: status}).Value(duration.Seconds())
-
+	statshouse.Value(format.BuiltinMetricNameMetaServiceTime, statshouse.Tags{1: host, 2: method, 3: queryType, 4: status}, duration.Seconds())
 }

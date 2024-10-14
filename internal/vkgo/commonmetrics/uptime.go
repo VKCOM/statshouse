@@ -69,17 +69,17 @@ func (u *uptimeMetricsKeeper) rawTags(name string) statshouse.Tags {
 }
 
 func (u *uptimeMetricsKeeper) start() {
-	statshouse.Metric(u.name, u.rawTags(HeartbeatStart)).Value(time.Since(u.startTime).Seconds())
+	statshouse.Value(u.name, u.rawTags(HeartbeatStart), time.Since(u.startTime).Seconds())
 }
 
 func (u *uptimeMetricsKeeper) Warmup() {
-	statshouse.Metric(u.name, u.rawTags(HeartbeatWarmup)).Value(time.Since(u.startTime).Seconds())
+	statshouse.Value(u.name, u.rawTags(HeartbeatWarmup), time.Since(u.startTime).Seconds())
 }
 
 func (u *uptimeMetricsKeeper) heartbeat(client *statshouse.Client) {
-	client.Metric(u.name, u.rawTags(HeartbeatRunning)).Value(time.Since(u.startTime).Seconds())
+	client.Value(u.name, u.rawTags(HeartbeatRunning), time.Since(u.startTime).Seconds())
 }
 
 func (u *uptimeMetricsKeeper) shutdown() {
-	statshouse.Metric(u.name, u.rawTags(HeartbeatShutdown)).Value(time.Since(u.startTime).Seconds())
+	statshouse.Value(u.name, u.rawTags(HeartbeatShutdown), time.Since(u.startTime).Seconds())
 }

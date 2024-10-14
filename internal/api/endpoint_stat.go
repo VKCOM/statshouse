@@ -89,14 +89,13 @@ func newEndpointStatRPC(endpoint, method string) *endpointStat {
 
 func (es *endpointStat) reportServiceTime(code int, err error) {
 	if len(es.metric) != 0 {
-		statshouse.Metric(
+		statshouse.Count(
 			format.BuiltinMetricNameAPIMetricUsage,
 			statshouse.Tags{
 				1: strconv.FormatInt(int64(es.protocol), 10),
 				2: es.user,
 				3: es.metric,
-			},
-		).Count(1)
+			}, 1)
 	}
 	if es.protocol == format.TagValueIDRPC && code == 0 {
 		switch e := err.(type) {
@@ -139,7 +138,7 @@ func (es *endpointStat) report(code int, metric string) {
 		8:  strconv.Itoa(code),
 		10: strconv.Itoa(es.priority),
 	}
-	statshouse.Metric(metric, t).Value(v)
+	statshouse.Value(metric, t, v)
 }
 
 func getStatTokenName(user string) string {
@@ -151,12 +150,12 @@ func getStatTokenName(user string) string {
 
 func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	return func(c *statshouse.Client) {
-		c.Metric(
+		c.Value(
 			format.BuiltinMetricNameAPIBRS,
 			statshouse.Tags{
 				1: srvfunc.HostnameForStatshouse(),
 			},
-		).Value(float64(brs.Count()))
+			float64(brs.Count()))
 	}
 }
 
@@ -165,7 +164,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 	if err != nil {
 		ok = "error"
 	}
-	statshouse.Metric(
+	statshouse.Value(
 		format.BuiltinMetricNameAPISelectDuration,
 		statshouse.Tags{
 			1: modeStr(isFast, isLight),
@@ -177,7 +176,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 			7: user,
 			8: strconv.Itoa(int(uint32(metricID) % 16)), // experimental to see load distribution if we shard data by metricID
 		},
-	).Value(duration.Seconds())
+		duration.Seconds())
 }
 
 func ChSelectProfile(isFast, isLight bool, info proto.Profile, err error) {
@@ -199,7 +198,7 @@ func modeStr(isFast, isLight bool) string {
 }
 
 func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err error) {
-	m := statshouse.Metric(
+	m := statshouse.GetMetricRef(
 		metric,
 		statshouse.Tags{
 			1: modeStr(isFast, isLight),
@@ -212,7 +211,7 @@ func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err e
 }
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
-	statshouse.Metric(
+	statshouse.Value(
 		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "cache",
@@ -220,9 +219,9 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 			3: table,
 			4: kind,
 		},
-	).Value(float64(cachedRows))
+		float64(cachedRows))
 
-	statshouse.Metric(
+	statshouse.Value(
 		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "clickhouse",
@@ -230,5 +229,5 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 			3: table,
 			4: kind,
 		},
-	).Value(float64(chRows))
+		float64(chRows))
 }

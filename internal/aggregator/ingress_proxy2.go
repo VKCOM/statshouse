@@ -59,9 +59,9 @@ type ingressProxy2 struct {
 
 	// metrics
 	commonMetricTags      statshouse.Tags
-	сonnectionCountMetric *statshouse.MetricRef
-	requestMemoryMetric   *statshouse.MetricRef
-	responseMemoryMetric  *statshouse.MetricRef
+	сonnectionCountMetric statshouse.MetricRef
+	requestMemoryMetric   statshouse.MetricRef
+	responseMemoryMetric  statshouse.MetricRef
 	regularMeasurementID  int
 }
 
@@ -109,9 +109,9 @@ func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd stri
 	p.uniqueStartTime.Store(p.startTime)
 	rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.clientOpts)
 	rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.serverOpts)
-	p.сonnectionCountMetric = statshouse.Metric("common_rpc_server_conn", p.commonMetricTags)
-	p.requestMemoryMetric = statshouse.Metric("common_rpc_server_request_mem", p.commonMetricTags)
-	p.responseMemoryMetric = statshouse.Metric("common_rpc_server_response_mem", p.commonMetricTags)
+	p.сonnectionCountMetric = statshouse.GetMetricRef("common_rpc_server_conn", p.commonMetricTags)
+	p.requestMemoryMetric = statshouse.GetMetricRef("common_rpc_server_request_mem", p.commonMetricTags)
+	p.responseMemoryMetric = statshouse.GetMetricRef("common_rpc_server_response_mem", p.commonMetricTags)
 	p.shutdownCtx, p.shutdownFunc = context.WithCancel(context.Background())
 	var succeeded bool
 	defer func() {
@@ -206,7 +206,7 @@ func (p *ingressProxy2) listenAndServe(ln net.Listener) {
 		// report accept failure then backoff
 		tags := p.commonMetricTags
 		tags[4] = rpc.ErrorTag(err)
-		statshouse.Metric("common_rpc_server_accept_error", tags).Count(1)
+		statshouse.Count("common_rpc_server_accept_error", tags, 1)
 		if acceptDelay == 0 {
 			acceptDelay = minAcceptDelay
 		} else {
@@ -225,7 +225,7 @@ func (p *ingressProxy2) reportClientConnError(err error) {
 	}
 	tags := p.commonMetricTags // copy
 	tags[4] = rpc.ErrorTag(err)
-	statshouse.Metric("common_rpc_server_conn_error", tags).Count(1)
+	statshouse.Count("common_rpc_server_conn_error", tags, 1)
 }
 
 func (p *ingressProxy2) rareLog(format string, args ...any) {

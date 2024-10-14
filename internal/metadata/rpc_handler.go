@@ -60,7 +60,7 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 }
 
 func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
-	statshouse.Metric("meta_cancel_hijack", statshouse.Tags{1: h.host}).Count(1)
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host}, 1)
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, hctx)
@@ -133,7 +133,7 @@ func (h *Handler) initStats() {
 		h.getJournalMx.Lock()
 		qLength := len(h.getJournalClients)
 		h.getJournalMx.Unlock()
-		client.Metric(format.BuiltinMetricNameMetaClientWaits, statshouse.Tags{1: h.host}).Value(float64(qLength))
+		client.Value(format.BuiltinMetricNameMetaClientWaits, statshouse.Tags{1: h.host}, float64(qLength))
 	})
 }
 

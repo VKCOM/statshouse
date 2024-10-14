@@ -38,33 +38,33 @@ func (s *StatsOptions) measureSqliteQueryDurationSince(typ, name string, start t
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
+	statshouse.Value(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureWaitDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(waitDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Value(waitDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureActionDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(actionDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Value(actionDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureSqliteTxDurationSince(typ, name string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
+	statshouse.Value(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}, time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) applyQueueSize(registry *statshouse.Client, size int64) {
 	if s.checkEmpty() {
 		return
 	}
-	registry.Metric(applyQueueSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Value(float64(size))
+	registry.Value(applyQueueSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}, float64(size))
 }

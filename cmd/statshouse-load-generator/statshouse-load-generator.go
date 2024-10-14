@@ -41,7 +41,7 @@ func randomWalk(ctx context.Context, client *statshouse.Client, tags statshouse.
 				if randomTag {
 					metricTags = append(metricTags, [2]string{"random", randomString(rng)})
 				}
-				client.MetricNamed(fmt.Sprint(metricPrefix, m), metricTags).Value(values[m])
+				client.NamedValue(fmt.Sprint(metricPrefix, m), metricTags, values[m])
 				sign := float64(1)
 				if rng.Int31n(2) == 1 {
 					sign = float64(-1)

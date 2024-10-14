@@ -174,8 +174,8 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		pool.userWait[meta.User]++
 		uniqWait := len(pool.userWait)
 		allWait := pool.countOfReqLocked(pool.userWait)
-		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniqWait))
-		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(allWait))
+		statshouse.Value("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}, float64(uniqWait))
+		statshouse.Value("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}, float64(allWait))
 		pool.waitMx.Unlock()
 		err = pool.sem.Acquire(ctx, meta.User)
 		waitLockDuration := time.Since(startTime)
@@ -185,7 +185,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 			delete(pool.userWait, meta.User)
 		}
 		pool.waitMx.Unlock()
-		statshouse.Metric("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User}).Value(waitLockDuration.Seconds())
+		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User}, waitLockDuration.Seconds())
 		if err != nil {
 			return info, err
 		}
@@ -194,8 +194,8 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		uniq := len(pool.userActive)
 		all := pool.countOfReqLocked(pool.userActive)
 		pool.mx.Unlock()
-		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniq))
-		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(all))
+		statshouse.Value("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}, float64(uniq))
+		statshouse.Value("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}, float64(all))
 
 		start := time.Now()
 		err = servers[i].Do(ctx, query)
