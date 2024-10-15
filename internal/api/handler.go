@@ -996,6 +996,27 @@ func (h *Handler) resolveFilter(metricMeta *format.MetricMetaValue, version stri
 	return m, nil
 }
 
+func (h *Handler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
+	m := make(map[string][]maybeMappedTag, len(f))
+	for k, values := range f {
+		if k == format.StringTopTagID {
+			for _, val := range values {
+				m[k] = append(m[k], maybeMappedTag{Value: unspecifiedToEmpty(val)})
+			}
+		} else {
+			ids, err := h.getRichTagValueIDs(metricMeta, Version3, k, values)
+			if err != nil {
+				return nil, err
+			}
+			m[k] = []maybeMappedTag{}
+			for i := range ids {
+				m[k] = append(m[k], maybeMappedTag{values[i], ids[i]})
+			}
+		}
+	}
+	return m, nil
+}
+
 func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 	origPath := r.URL.Path
 	switch r.URL.Path {
@@ -1829,6 +1850,18 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	if err != nil {
 		return nil, false, err
 	}
+	var filterInV3 map[string][]maybeMappedTag
+	var filterNotInV3 map[string][]maybeMappedTag
+	if version == Version3 {
+		filterInV3, err = h.resolveFilterV3(metricMeta, filterIn)
+		if err != nil {
+			return nil, false, err
+		}
+		filterNotInV3, err = h.resolveFilterV3(metricMeta, filterNotIn)
+		if err != nil {
+			return nil, false, err
+		}
+	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Version:     req.version,
@@ -1845,13 +1878,15 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	}
 
 	pq := &preparedTagValuesQuery{
-		version:     version,
-		metricID:    metricMeta.MetricID,
-		preKeyTagID: metricMeta.PreKeyTagID,
-		tagID:       tagID,
-		numResults:  numResults,
-		filterIn:    mappedFilterIn,
-		filterNotIn: mappedFilterNotIn,
+		version:       version,
+		metricID:      metricMeta.MetricID,
+		preKeyTagID:   metricMeta.PreKeyTagID,
+		tagID:         tagID,
+		numResults:    numResults,
+		filterIn:      mappedFilterIn,
+		filterNotIn:   mappedFilterNotIn,
+		filterInV3:    filterInV3,
+		filterNotInV3: filterNotInV3,
 	}
 
 	tagInfo := map[selectRow]float64{}
