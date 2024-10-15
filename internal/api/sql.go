@@ -200,9 +200,8 @@ func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool)
 			if len(valPair.Value) > 0 {
 				strValues = append(strValues, "'"+valPair.Value+"'")
 			}
-			if valPair.Mapped != 0 {
-				intValues = append(intValues, fmt.Sprint(valPair.Mapped))
-			}
+			// we allow 0 here because it is a valid value for raw tags
+			intValues = append(intValues, fmt.Sprint(valPair.Mapped))
 		}
 		cond.WriteString("  AND (")
 		if len(intValues) > 0 {
