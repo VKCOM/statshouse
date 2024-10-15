@@ -43,6 +43,7 @@ const (
 	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
 	StringTopTagID            = "_s"
+	StringTopTagIDV3          = "47" // for backward compatibility with v2 we write "_s" into "47"
 	HostTagID                 = "_h"
 	ShardTagID                = "_shard_num"
 	EnvTagID                  = "0"
@@ -54,9 +55,10 @@ const (
 	HistogramBucketsEndMark   = "$"
 	HistogramBucketsEndMarkC  = '$'
 
-	LETagIndex        = 15
-	StringTopTagIndex = -1 // used as flag during mapping
-	HostTagIndex      = -2 // used as flag during mapping
+	LETagIndex          = 15
+	StringTopTagIndex   = -1 // used as flag during mapping
+	StringTopTagIndexV3 = 47
+	HostTagIndex        = -2 // used as flag during mapping
 
 	// added for lots of built-in metrics automatically
 	BuildArchTag  = 10

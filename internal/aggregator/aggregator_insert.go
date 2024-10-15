@@ -173,8 +173,8 @@ func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexC
 	}
 	tagsN := format.NewMaxTags
 	for ki := 0; ki < tagsN; ki++ {
-		// stag is an alias for stag47
-		if ki == format.NewMaxTags-1 {
+		// backward compatibility with an old format
+		if ki == format.StringTopTagIndexV3 {
 			res = binary.LittleEndian.AppendUint32(res, 0)
 			res = rowbinary.AppendString(res, stag)
 			continue
