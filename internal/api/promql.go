@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -763,26 +764,31 @@ type handlerWhat struct {
 func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[data_model.DigestKind]handlerArgs {
 	// filtering
 	var (
-		filterIn  = make(map[string][]string)
-		filterInM = make(map[string][]any) // mapped
+		filterIn   = make(map[string][]string)
+		filterInM  = make(map[string][]any) // mapped
+		filterInV3 = make(map[string][]maybeMappedTag)
 	)
 	for i, m := range qry.FilterIn {
 		if i == 0 && qry.Options.Version == Version1 {
 			continue
 		}
-		tagID := format.TagID(i)
+		tagName := format.TagID(i)
 		for tagValueID, tagValue := range m {
-			filterIn[tagID] = append(filterIn[tagID], tagValue)
-			filterInM[tagID] = append(filterInM[tagID], tagValueID)
+			filterIn[tagName] = append(filterIn[tagName], tagValue)
+			filterInM[tagName] = append(filterInM[tagName], tagValueID)
+			log.Printf("for tag %s value is %s and mapped id is %d\n", tagName, tagValue, tagValueID)
+			filterInV3[tagName] = append(filterInV3[tagName], maybeMappedTag{tagValue, tagValueID})
 		}
 	}
 	for _, tagValue := range qry.SFilterIn {
 		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterInM[format.StringTopTagID] = append(filterInM[format.StringTopTagID], tagValue)
+		filterInV3[format.StringTopTagIDV3] = append(filterInV3[format.StringTopTagIDV3], maybeMappedTag{Value: tagValue})
 	}
 	var (
-		filterOut  = make(map[string][]string)
-		filterOutM = make(map[string][]any) // mapped
+		filterOut   = make(map[string][]string)
+		filterOutM  = make(map[string][]any) // mapped
+		filterOutV3 = make(map[string][]maybeMappedTag)
 	)
 	for i, m := range qry.FilterOut {
 		if i == 0 && qry.Options.Version == Version1 {
@@ -792,11 +798,13 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 		for tagValueID, tagValue := range m {
 			filterOut[tagID] = append(filterOut[tagID], tagValue)
 			filterOutM[tagID] = append(filterOutM[tagID], tagValueID)
+			filterOutV3[tagID] = append(filterOutV3[tagID], maybeMappedTag{tagValue, tagValueID})
 		}
 	}
 	for _, tagValue := range qry.SFilterOut {
 		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterOutM[format.StringTopTagID] = append(filterOutM[format.StringTopTagID], tagValue)
+		filterOutV3[format.StringTopTagIDV3] = append(filterOutV3[format.StringTopTagIDV3], maybeMappedTag{Value: tagValue})
 	}
 	// grouping
 	var groupBy []string
@@ -847,16 +855,19 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 	}
 	// cache key & query
 	for kind, args := range res {
+		// TODO switch to v3 filters, for now we always use v2
 		args.qs = normalizedQueryString(qry.Metric.Name, kind, groupBy, filterIn, filterOut, false)
 		args.pq = preparedPointsQuery{
-			user:        ai.user,
-			version:     data_model.VersionOrDefault(qry.Options.Version),
-			metricID:    qry.Metric.MetricID,
-			preKeyTagID: qry.Metric.PreKeyTagID,
-			kind:        kind,
-			by:          qry.GroupBy,
-			filterIn:    filterInM,
-			filterNotIn: filterOutM,
+			user:          ai.user,
+			version:       data_model.VersionOrDefault(qry.Options.Version),
+			metricID:      qry.Metric.MetricID,
+			preKeyTagID:   qry.Metric.PreKeyTagID,
+			kind:          kind,
+			by:            qry.GroupBy,
+			filterIn:      filterInM,
+			filterNotIn:   filterOutM,
+			filterInV3:    filterInV3,
+			filterNotInV3: filterOutV3,
 		}
 		res[kind] = args
 	}
