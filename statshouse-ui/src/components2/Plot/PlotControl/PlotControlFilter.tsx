@@ -6,7 +6,6 @@
 
 import React, { useMemo } from 'react';
 import { type PlotControlProps } from './PlotControl';
-import { ErrorMessages } from 'components/ErrorMessages';
 import { PLOT_TYPE, TAG_KEY, type TagKey } from 'api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
@@ -45,7 +44,6 @@ export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
 
   return (
     <div className={className}>
-      <ErrorMessages />
       <div className="d-flex flex-column gap-2">
         <div className="d-flex flex-row gap-3">
           {/*<div className="d-flex flex-row input-group">*/}
