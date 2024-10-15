@@ -193,6 +193,8 @@ func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool)
 	strValues := make([]string, 0, 16)
 	intValues := make([]string, 0, 16)
 	for tag, values := range f {
+		strValues = strValues[:0]
+		intValues = intValues[:0]
 		if len(values) == 0 {
 			continue
 		}
