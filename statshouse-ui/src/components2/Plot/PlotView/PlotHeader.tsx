@@ -24,6 +24,7 @@ import { PlotName } from './PlotName';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
 import { PlotLink } from '../PlotLink';
+import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
 
 export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
 
@@ -174,22 +175,16 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
                   <PlotLink plotKey={plotKey} className="text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
                     <PlotName plotKey={plotKey} />
                   </PlotLink>
-                  {/*<Link className="text-decoration-none" to={link} target={isEmbed ? '_blank' : '_self'}>
-                    <PlotName plotKey={plotKey} />
-                  </Link>*/}
                 </Tooltip>
                 {!isEmbed && (
                   <PlotLink plotKey={plotKey} className="ms-2" single target="_blank">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </PlotLink>
-                  /*<Link to={singleLink} target="_blank" className="ms-2">
-                    <SVGBoxArrowUpRight width={10} height={10} />
-                  </Link>*/
                 )}
               </>
             )}
           </div>
-          {!dashboardLayoutEdit && !plot?.customName && (
+          {!dashboardLayoutEdit && !plot?.customName ? (
             <>
               <div
                 className={cn(
@@ -212,6 +207,8 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
                 {showTags ? <SVGChevronUp width="12px" height="12px" /> : <SVGChevronDown width="12px" height="12px" />}
               </div>
             </>
+          ) : (
+            <PlotHeaderBadgeResolution resolution={meta?.resolution} customAgg={plot?.customAgg} />
           )}
         </div>
         {!compact && (

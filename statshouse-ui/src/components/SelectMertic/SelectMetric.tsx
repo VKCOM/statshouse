@@ -4,7 +4,7 @@ import cn from 'classnames';
 import { Select, SelectOptionProps } from '../UI/Select';
 import { useDebounceState } from 'hooks';
 import { SearchFabric } from 'common/helpers';
-import { toggleMetricsFavorite, toggleShowMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
+import { toggleShowMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
 import { SelectMetricRow } from './SelectMetricRow';
 import { ToggleShowMetricsFavorite } from './ToggleShowMetricsFavorite';
 
@@ -56,16 +56,16 @@ export function _SelectMetric({ value, onChange, className, placeholder }: Selec
     [setSearch]
   );
   const onChangeValue = useCallback(
-    (values: SelectOptionProps[], index: number) => {
+    (values: SelectOptionProps[]) => {
       onChange?.(values[0]?.value);
     },
     [onChange]
   );
   useEffect(() => {
-    if (!favoriteList.length) {
+    if (!favoriteList.length && !loading) {
       toggleShowMetricsFavorite(false);
     }
-  }, [favoriteList.length, showMetricsFavorite]);
+  }, [favoriteList.length, loading, showMetricsFavorite]);
 
   return (
     <>
@@ -83,7 +83,7 @@ export function _SelectMetric({ value, onChange, className, placeholder }: Selec
         loading={loading}
         selectButtons={
           favoriteList.length || showMetricsFavorite ? (
-            <ToggleShowMetricsFavorite status={noSearch && showMetricsFavorite && !!favoriteList.length} />
+            <ToggleShowMetricsFavorite status={noSearch && showMetricsFavorite && (!!favoriteList.length || loading)} />
           ) : undefined
         }
       >

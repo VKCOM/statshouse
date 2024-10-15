@@ -8,10 +8,12 @@ import React, { useMemo } from 'react';
 import cn from 'classnames';
 
 import { Tooltip } from 'components/UI';
-import { getNewPlot, type PlotKey, promQLMetric } from 'url2';
+import { getNewPlot, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { METRIC_VALUE_BACKEND_VERSION, toTagKey } from 'api/enum';
 import { formatTagValue } from 'view/api';
+import { getMetricMeta } from 'store2/helpers';
+import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
 
 const emptyPlot = getNewPlot();
 
@@ -20,9 +22,7 @@ export type PlotHeaderBadgesProps = { plotKey: PlotKey; compact?: boolean; dashb
 export function PlotHeaderBadges({ plotKey, compact, className }: PlotHeaderBadgesProps) {
   const { meta, plot } = useStatsHouseShallow(({ params: { plots }, plotsData, metricMeta }) => ({
     plot: plots[plotKey] ?? emptyPlot,
-    meta: metricMeta[
-      (plots[plotKey]?.metricName !== promQLMetric ? plots[plotKey]?.metricName : plotsData[plotKey]?.metricName) ?? ''
-    ],
+    meta: getMetricMeta(metricMeta, plots[plotKey], plotsData[plotKey]),
   }));
   const filters = useMemo(
     () =>
@@ -39,27 +39,13 @@ export function PlotHeaderBadges({ plotKey, compact, className }: PlotHeaderBadg
               .join(', '),
           };
         })
-        .filter((f, index) => f.in || f.notIn),
+        .filter((f) => f.in || f.notIn),
     [meta?.tags, plot.filterIn, plot.filterNotIn]
   );
 
   return (
     <>
-      {meta?.resolution !== undefined && meta?.resolution !== 1 && (
-        <Tooltip<'span'>
-          as="span"
-          className={cn(
-            className,
-            'badge',
-            meta?.resolution && plot.customAgg > 0 && meta?.resolution > plot.customAgg
-              ? 'bg-danger'
-              : 'bg-warning text-black'
-          )}
-          title="Custom resolution"
-        >
-          {meta?.resolution}s
-        </Tooltip>
-      )}
+      <PlotHeaderBadgeResolution resolution={meta?.resolution} customAgg={plot.customAgg} className={className} />
       {plot.backendVersion === METRIC_VALUE_BACKEND_VERSION.v1 && (
         <span className={cn(className, 'badge bg-danger')}>legacy data, production only</span>
       )}
