@@ -144,7 +144,7 @@ FROM statshouse_v3_1m_dist
 WHERE metric = 1000
   AND time >= 9957 AND time < 20037
   AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
-  AND (stag0 NOT IN ('staging'))
+  AND (tag0 NOT IN (0) AND stag0 NOT IN ('staging'))
 
 GROUP BY _mapped, _unmapped
 HAVING _count > 0
@@ -281,7 +281,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
   toFloat64(max(max)) AS _val1
 FROM statshouse_v3_1m_dist
 WHERE index_type = 0 AND metric = 1000 AND time >= 9957 AND time < 20037  AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
-  AND (stag0 NOT IN ('staging'))
+  AND (tag0 NOT IN (0) AND stag0 NOT IN ('staging'))
 
 GROUP BY _time
 LIMIT 10000000
@@ -325,7 +325,7 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
   argMinMerge(min_host) as _minHost, argMaxMerge(max_host) as _maxHost
 FROM statshouse_v3_1m_dist
 WHERE index_type = 0 AND metric = 1000 AND time >= 9957 AND time < 20037  AND (tag1 IN (1, 2) OR stag1 IN ('one', 'two'))
-  AND (stag0 NOT IN ('staging'))
+  AND (tag0 NOT IN (0) AND stag0 NOT IN ('staging'))
 
 GROUP BY _time
 LIMIT 10000000
