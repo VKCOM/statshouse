@@ -773,7 +773,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 			continue
 		}
 		tagName := format.TagID(i)
-		for tagValueID, tagValue := range m {
+		for tagValue, tagValueID := range m {
 			filterIn[tagName] = append(filterIn[tagName], tagValue)
 			filterInM[tagName] = append(filterInM[tagName], tagValueID)
 			log.Printf("for tag %s value is %s and mapped id is %d\n", tagName, tagValue, tagValueID)
@@ -795,7 +795,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 			continue
 		}
 		tagID := format.TagID(i)
-		for tagValueID, tagValue := range m {
+		for tagValue, tagValueID := range m {
 			filterOut[tagID] = append(filterOut[tagID], tagValue)
 			filterOutM[tagID] = append(filterOutM[tagID], tagValueID)
 			filterOutV3[tagID] = append(filterOutV3[tagID], maybeMappedTag{tagValue, tagValueID})

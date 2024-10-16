@@ -1128,8 +1128,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	}
 	// filtering
 	var (
-		filterIn   [format.MaxTags]map[int32]string // tag index -> tag value ID -> tag value
-		filterOut  [format.MaxTags]map[int32]string // as above
+		filterIn   [format.MaxTags]map[string]int32 // tag index -> tag value -> tag value ID
+		filterOut  [format.MaxTags]map[string]int32 // as above
 		sFilterIn  []string
 		sFilterOut []string
 		emptyCount [format.MaxTags + 1]int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
@@ -1183,40 +1183,59 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
 					if errors.Is(err, ErrNotFound) {
-						// string is not mapped, result is guaranteed to be empty
-						emptyCount[i]++
-						continue
+						if ev.opt.Version == data_model.Version3 {
+							// we allow unmapped values for v3 requests
+							if filterIn[i] != nil {
+								filterIn[i][matcher.Value] = 0
+							} else {
+								filterIn[i] = map[string]int32{matcher.Value: 0}
+							}
+						} else {
+							// string is not mapped, result is guaranteed to be empty
+							emptyCount[i]++
+							continue
+						}
 					} else {
 						return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
 				}
 				if filterIn[i] != nil {
-					filterIn[i][id] = matcher.Value
+					filterIn[i][matcher.Value] = id
 				} else {
-					filterIn[i] = map[int32]string{id: matcher.Value}
+					filterIn[i] = map[string]int32{matcher.Value: id}
 				}
 			case labels.MatchNotEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
 					if errors.Is(err, ErrNotFound) {
-						continue // ignore values with no mapping
+						// we allow unmapped values for v3 requests
+						if ev.opt.Version == data_model.Version3 {
+							if filterOut[i] != nil {
+								filterOut[i][matcher.Value] = 0
+							} else {
+								filterOut[i] = map[string]int32{matcher.Value: 0}
+							}
+						} else {
+							continue // ignore values with no mapping
+						}
+					} else {
+						return SeriesQuery{}, err
 					}
-					return SeriesQuery{}, err
 				}
 				if filterOut[i] != nil {
-					filterOut[i][id] = matcher.Value
+					filterOut[i][matcher.Value] = id
 				} else {
-					filterOut[i] = map[int32]string{id: matcher.Value}
+					filterOut[i] = map[string]int32{matcher.Value: id}
 				}
 			case labels.MatchRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
 				if err != nil {
 					return SeriesQuery{}, err
 				}
-				in := make(map[int32]string)
+				in := make(map[string]int32)
 				for id, str := range m {
 					if matcher.Matches(str) {
-						in[id] = str
+						in[str] = id
 					}
 				}
 				if len(in) == 0 {
@@ -1230,10 +1249,10 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if err != nil {
 					return SeriesQuery{}, err
 				}
-				out := make(map[int32]string)
+				out := make(map[string]int32)
 				for id, str := range m {
 					if !matcher.Matches(str) {
-						out[id] = str
+						out[str] = id
 					}
 				}
 				filterOut[i] = out
