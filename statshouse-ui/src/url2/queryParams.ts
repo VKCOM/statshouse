@@ -69,6 +69,7 @@ export type PlotParams = {
   totalLine: boolean;
   filledGraph: boolean;
   timeShifts: number[];
+  prometheusCompat: boolean;
 };
 export type TimeRange = {
   to: number;

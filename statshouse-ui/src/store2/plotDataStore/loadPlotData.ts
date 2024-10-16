@@ -57,6 +57,9 @@ export function getLoadPlotUrlParams(
   if (plot.maxHost) {
     urlParams[GET_PARAMS.metricMaxHost] = '1';
   }
+  if (plot.prometheusCompat) {
+    urlParams[GET_PARAMS.prometheusCompat] = '1';
+  }
   if (priority) {
     urlParams[GET_PARAMS.priority] = priority.toString();
   }

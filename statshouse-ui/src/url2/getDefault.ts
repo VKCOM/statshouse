@@ -57,6 +57,7 @@ export function getNewPlot(): PlotParams {
     totalLine: false,
     filledGraph: true,
     timeShifts: [],
+    prometheusCompat: false,
   };
 }
 

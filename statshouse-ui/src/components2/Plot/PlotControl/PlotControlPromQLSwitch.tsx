@@ -49,6 +49,7 @@ export function _PlotControlPromQLSwitch({ plotKey, className }: PlotControlProm
           p.metricUnit = undefined;
           p.promQL = '';
           p.numSeries = homePlot.numSeries;
+          p.prometheusCompat = false;
         } else {
           return { ...homePlot, id: p.id, maxHost: p.maxHost };
         }

@@ -16,6 +16,8 @@ import { PlotControlUnit } from './PlotControlUnit';
 import { PlotControlPromQLEditor } from './PlotControlPromQLEditor';
 import { PlotControlFilterVariable } from './PlotControlFilterVariable';
 import { useVariablesPlotByPromQL } from 'hooks/useVariablesPlotByPromQL';
+import { PlotControlView } from './PlotControlView';
+import { PlotControlEventOverlay } from './PlotControlEventOverlay';
 
 export function PlotControlPromQL({ plotKey }: PlotControlProps) {
   const plotVariables = useVariablesPlotByPromQL(plotKey);
@@ -32,11 +34,13 @@ export function PlotControlPromQL({ plotKey }: PlotControlProps) {
       </div>
 
       <div className="d-flex flex-column gap-2">
-        <PlotControlFrom />
-        <div className="align-items-baseline w-100">
-          <PlotControlTo />
+        <div className="d-flex flex-row gap-1 w-100">
+          <PlotControlFrom />
+          <PlotControlView plotKey={plotKey} />
         </div>
+        <PlotControlTo />
         <PlotControlGlobalTimeShifts className="w-100" />
+        <PlotControlEventOverlay plotKey={plotKey} className="input-group-sm" />
       </div>
       <div className="d-flex flex-column gap-2">
         {plotVariables.map((variable) => (
