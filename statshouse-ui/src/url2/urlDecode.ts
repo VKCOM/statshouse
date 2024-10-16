@@ -191,6 +191,7 @@ export function urlDecodePlot(
   const rawMaxHost = searchParams?.[GET_PARAMS.metricMaxHost]?.[treeParamsObjectValueSymbol]?.[0];
   const rawTotalLine = searchParams?.[GET_PARAMS.viewTotalLine]?.[treeParamsObjectValueSymbol]?.[0];
   const rawFilledGraph = searchParams?.[GET_PARAMS.viewFilledGraph]?.[treeParamsObjectValueSymbol]?.[0];
+  const rawPrometheusCompat = searchParams?.[GET_PARAMS.prometheusCompat]?.[treeParamsObjectValueSymbol]?.[0];
   const metricName = searchParams?.[GET_PARAMS.metricName]?.[treeParamsObjectValueSymbol]?.[0];
   const promQL = searchParams?.[GET_PARAMS.metricPromQL]?.[treeParamsObjectValueSymbol]?.[0];
   const type = toPlotType(searchParams?.[GET_PARAMS.metricType]?.[treeParamsObjectValueSymbol]?.[0], defaultPlot.type);
@@ -241,6 +242,7 @@ export function urlDecodePlot(
     ),
     totalLine: rawTotalLine != null ? rawTotalLine === '1' : defaultPlot.totalLine,
     filledGraph: rawFilledGraph != null ? rawFilledGraph !== '0' : defaultPlot.filledGraph,
+    prometheusCompat: rawPrometheusCompat != null ? rawPrometheusCompat === '1' : defaultPlot.prometheusCompat,
     timeShifts:
       searchParams?.[GET_PARAMS.metricLocalTimeShifts]?.[treeParamsObjectValueSymbol]
         ?.map(toNumberM)

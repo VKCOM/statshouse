@@ -15,6 +15,7 @@ export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams)
     plot.customAgg !== prevPlot.customAgg ||
     plot.maxHost !== prevPlot.maxHost ||
     plot.backendVersion !== prevPlot.backendVersion ||
-    plot.type !== prevPlot.type
+    plot.type !== prevPlot.type ||
+    plot.prometheusCompat !== prevPlot.prometheusCompat
   );
 }

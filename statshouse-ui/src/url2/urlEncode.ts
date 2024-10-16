@@ -211,6 +211,11 @@ export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNew
   if (defaultPlot.filledGraph !== plot.filledGraph) {
     paramArr.push([prefix + GET_PARAMS.viewFilledGraph, plot.filledGraph ? '1' : '0']);
   }
+
+  if (defaultPlot.prometheusCompat !== plot.prometheusCompat) {
+    paramArr.push([prefix + GET_PARAMS.prometheusCompat, plot.prometheusCompat ? '1' : '0']);
+  }
+
   if (!dequal(defaultPlot.timeShifts, plot.timeShifts)) {
     plot.timeShifts.forEach((t) => {
       paramArr.push([prefix + GET_PARAMS.metricLocalTimeShifts, t.toString()]);

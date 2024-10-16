@@ -86,6 +86,7 @@ export const GET_PARAMS = {
   orderPlot: 'op',
   orderGroup: 'og',
   orderVariable: 'ov',
+  prometheusCompat: 'compat',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 

@@ -44,21 +44,12 @@ export function normalizePlotData(
     let series_data = [...response.series.series_data];
     const totalLineId = plot.totalLine ? series_meta.length : null;
     const totalLineLabel = 'Total';
-    if (plot.totalLine) {
-      const totalLineData = response.series.time.map((time, idx) =>
-        series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)
-      );
-      series_meta.push({
-        name: totalLineLabel,
-        time_shift: 0,
-        tags: { '0': { value: totalLineLabel } },
-        max_hosts: null,
-        what: QUERY_WHAT.sum,
-        total: 0,
-        color: '#333333',
-      });
-      series_data.push(totalLineData);
-    }
+    const totalLineColor = '#333333';
+    const prefColor = '9'; // it`s magic prefix
+    const usedDashes = {};
+    const usedBaseColors = {};
+    const baseColors: Record<string, string> = {};
+
     if (plot.type === PLOT_TYPE.Event) {
       series_meta = [];
       series_data = [];
@@ -96,6 +87,23 @@ export function normalizePlotData(
         uniqueMetricType.add(meta.metric_type);
       }
     }
+
+    if (plot.totalLine) {
+      const totalLineData = response.series.time.map((time, idx) =>
+        series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)
+      );
+      series_meta.push({
+        name: totalLineLabel,
+        time_shift: 0,
+        tags: { '0': { value: totalLineLabel } },
+        max_hosts: null,
+        what: QUERY_WHAT.sum,
+        total: 0,
+        color: totalLineColor,
+      });
+      baseColors[`${prefColor}${totalLineLabel}`] = totalLineColor;
+      series_data.push(totalLineData);
+    }
     // const currentPrevState = getState();
 
     // const currentPrevSeries = getState().plotsData[index].series.map((s) => ({ ...s, values: undefined }));
@@ -130,9 +138,6 @@ export function normalizePlotData(
       plotData.dataView = stacked.data;
       plotData.bands = stacked.bands;
     }
-    const usedDashes = {};
-    const usedBaseColors = {};
-    const baseColors: Record<string, string> = {};
     // let changeColor = false;
     // let changeType = currentPrevLastPlotParams?.type !== plot.type;
     // const changeView =
@@ -159,7 +164,7 @@ export function normalizePlotData(
       const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
       const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
       const isValue = baseLabel.indexOf('Value') === 0;
-      const prefColor = '9'; // it`s magic prefix
+
       const metricName = isValue ? `${meta.name || (plot.metricName !== promQLMetric ? plot.metricName : '')}: ` : '';
       const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
       // client select color line

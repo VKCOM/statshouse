@@ -11,18 +11,25 @@ import { useOnClickOutside } from 'hooks';
 import cn from 'classnames';
 import { useStatsHouseShallow } from 'store2';
 import { getNewPlot, PlotKey } from 'url2';
+import { isPromQL } from '../../../store2/helpers';
 
 export type PlotControlViewProps = {
   plotKey: PlotKey;
   className?: string;
 };
 
-const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine } = getNewPlot();
+const {
+  filledGraph: defaultFilledGraph,
+  totalLine: defaultTotalLine,
+  prometheusCompat: defaultPrometheusCompat,
+} = getNewPlot();
 
 export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
-  const { filledGraph, totalLine, setPlot } = useStatsHouseShallow((s) => ({
+  const { filledGraph, totalLine, prometheusCompat, isPlotPromQL, setPlot } = useStatsHouseShallow((s) => ({
     filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
     totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
+    prometheusCompat: s.params.plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
+    isPlotPromQL: isPromQL(s.params.plots[plotKey]),
     setPlot: s.setPlot,
   }));
   const [dropdown, setDropdown] = useState(false);
@@ -50,6 +57,14 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
     },
     [plotKey, setPlot]
   );
+  const setPrometheusCompat = useCallback(
+    (status: boolean) => {
+      setPlot(plotKey, (p) => {
+        p.prometheusCompat = status;
+      });
+    },
+    [plotKey, setPlot]
+  );
   return (
     <Tooltip
       as="button"
@@ -72,6 +87,18 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
               Filled graph
             </SwitchBox>
           </div>
+          {isPlotPromQL && (
+            <div>
+              <SwitchBox
+                className="text-nowrap my-1 mx-2 user-select-none"
+                checked={prometheusCompat}
+                onChange={setPrometheusCompat}
+                title="Prometeus cumulative counters mode"
+              >
+                Prometeus mode
+              </SwitchBox>
+            </div>
+          )}
         </div>
       }
       open={dropdown}

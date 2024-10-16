@@ -33,5 +33,6 @@ export function clonePlot(plot?: PlotParams): PlotParams | undefined {
     totalLine: plot.totalLine,
     filledGraph: plot.filledGraph,
     timeShifts: [...plot.timeShifts],
+    prometheusCompat: plot.prometheusCompat,
   };
 }
