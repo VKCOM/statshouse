@@ -64,8 +64,8 @@ type SeriesQuery struct {
 	Offset    int64
 
 	// Filtering
-	FilterIn   [format.MaxTags]map[int32]string // tag index -> tag value ID -> tag value
-	FilterOut  [format.MaxTags]map[int32]string // as above
+	FilterIn   [format.MaxTags]map[string]int32 // tag index -> tag value -> tag value ID
+	FilterOut  [format.MaxTags]map[string]int32 // as above
 	SFilterIn  []string
 	SFilterOut []string
 
