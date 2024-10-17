@@ -43,187 +43,115 @@ type ingressProxy2 struct {
 	сonnectionCount atomic.Int64
 	requestMemory   atomic.Int64
 
-	*agent.Agent
-	cluster      string
-	config       tlstatshouse.GetConfigResult
-	serverKeys   []string
-	serverOpts   rpc.ServerOptions
-	clientOpts   rpc.ClientOptions
-	listeners    []net.Listener
-	wg           sync.WaitGroup
-	shutdownCtx  context.Context
-	shutdownFunc func()
-	startTime    uint32
-	rareLogLast  time.Time
-	rareLogMu    sync.Mutex
+	ctx        context.Context
+	agent      *agent.Agent
+	group      sync.WaitGroup
+	cluster    string
+	startTime  uint32
+	serverKeys []string
+	serverOpts rpc.ServerOptions
+	clientOpts rpc.ClientOptions
+
+	// logging
+	rareLogLast time.Time
+	rareLogMu   sync.Mutex
 
 	// metrics
-	commonMetricTags      statshouse.Tags
+	commonTags            statshouse.Tags
 	сonnectionCountMetric statshouse.MetricRef
 	requestMemoryMetric   statshouse.MetricRef
 	responseMemoryMetric  statshouse.MetricRef
-	regularMeasurementID  int
+}
+
+type proxyServer struct {
+	*ingressProxy2
+	config    tlstatshouse.GetConfigResult
+	listeners []net.Listener
 }
 
 type proxyConn struct {
-	*ingressProxy2
+	*proxyServer
 	clientConn   *rpc.PacketConn
 	upstreamConn *rpc.PacketConn
 
 	// no synchronization, owned by "requestLoop"
-	clientAddr uint32 // readonly after init
+	clientAddr [4]uint32 // readonly after init
 	req        rpc.ServerRequest
 	reqBuf     []byte
 	reqTip     uint32
 	reqBufCap  int // last buffer capacity
 }
 
-func NewIngressProxy2(config ConfigIngressProxy, agent *agent.Agent, aesPwd string) (*ingressProxy2, error) {
-	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
-	if len(config.ExternalAddresses) == 0 {
-		return nil, fmt.Errorf("at least one ingress-external-addr must be provided")
-	}
-	if len(agent.GetConfigResult.Addresses)%len(config.ExternalAddresses) != 0 {
-		return nil, fmt.Errorf("number of servers must be multiple of number of ingress-external-addr")
-	}
+func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngressProxy, aesPwd string) error {
 	env := env.ReadEnvironment("statshouse_proxy_v2")
-	p := &ingressProxy2{
-		Agent:   agent,
-		cluster: config.Cluster,
-		config: tlstatshouse.GetConfigResult{
-			Addresses:         make([]string, 0, len(agent.GetConfigResult.Addresses)),
-			MaxAddressesCount: agent.GetConfigResult.MaxAddressesCount,
-			PreviousAddresses: agent.GetConfigResult.PreviousAddresses,
-		},
-		clientOpts: rpc.ClientOptions{CryptoKey: aesPwd},
-		serverKeys: config.IngressKeys,
-		listeners:  make([]net.Listener, len(agent.GetConfigResult.Addresses)/len(config.ExternalAddresses)),
-		startTime:  uint32(time.Now().Unix()),
-		commonMetricTags: statshouse.Tags{
-			env.Name,
-			env.Service,
-			env.Cluster,
-			env.DataCenter,
-		},
+	commonTags := statshouse.Tags{
+		env.Name,
+		env.Service,
+		env.Cluster,
+		env.DataCenter,
+	}
+	p := ingressProxy2{
+		ctx:                   ctx,
+		agent:                 agent,
+		cluster:               config.Cluster,
+		clientOpts:            rpc.ClientOptions{CryptoKey: aesPwd},
+		serverKeys:            config.IngressKeys,
+		startTime:             uint32(time.Now().Unix()),
+		commonTags:            commonTags,
+		сonnectionCountMetric: statshouse.GetMetricRef("common_rpc_server_conn", commonTags),
+		requestMemoryMetric:   statshouse.GetMetricRef("common_rpc_server_request_mem", commonTags),
+		responseMemoryMetric:  statshouse.GetMetricRef("common_rpc_server_response_mem", commonTags),
 	}
 	p.uniqueStartTime.Store(p.startTime)
 	rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.clientOpts)
 	rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.serverOpts)
-	p.сonnectionCountMetric = statshouse.GetMetricRef("common_rpc_server_conn", p.commonMetricTags)
-	p.requestMemoryMetric = statshouse.GetMetricRef("common_rpc_server_request_mem", p.commonMetricTags)
-	p.responseMemoryMetric = statshouse.GetMetricRef("common_rpc_server_response_mem", p.commonMetricTags)
-	p.shutdownCtx, p.shutdownFunc = context.WithCancel(context.Background())
-	var succeeded bool
-	defer func() {
-		if !succeeded {
-			p.Shutdown()
-		}
-	}()
-	// parse listen address
-	listenAddr, err := net.ResolveTCPAddr(config.Network, config.ListenAddr)
-	if err != nil {
-		return nil, err
+	defer statshouse.StopRegularMeasurement(
+		statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
+			p.сonnectionCountMetric.Count(float64(p.сonnectionCount.Load()))
+			p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
+		}))
+	// listen on IPv4
+	tcp4 := p.newProxyServer()
+	tcp6 := p.newProxyServer()
+	shutdown := func() {
+		tcp4.shutdown()
+		tcp6.shutdown()
 	}
-	// parse external addresses
-	externalAddresses := make([]*net.TCPAddr, len(config.ExternalAddresses))
-	for i := range config.ExternalAddresses {
-		externalAddresses[i], err = net.ResolveTCPAddr(config.Network, config.ExternalAddresses[i])
+	if len(config.ExternalAddresses) != 0 && config.ExternalAddresses[0] != "" {
+		err := tcp4.listen("tcp4", config.ListenAddr, config.ExternalAddresses)
 		if err != nil {
-			return nil, err
+			shutdown()
+			return err
 		}
 	}
-	// open ports
-	for i := range p.listeners {
-		log.Printf("Listen addr %v\n", listenAddr)
-		p.listeners[i], err = rpc.Listen(listenAddr.Network(), listenAddr.AddrPort().String(), false)
+	// listen on IPv6
+	defer tcp6.shutdown()
+	if len(config.ExternalAddressesIPv6) != 0 && config.ExternalAddressesIPv6[0] != "" {
+		err := tcp6.listen("tcp6", config.ListenAddrIPV6, config.ExternalAddressesIPv6)
 		if err != nil {
-			return nil, err
-		}
-		listenAddr.Port++
-		for j := range externalAddresses {
-			p.config.Addresses = append(p.config.Addresses, externalAddresses[j].AddrPort().String())
-			externalAddresses[j].Port++
+			shutdown()
+			return err
 		}
 	}
-	log.Printf("External addr %s\n", strings.Join(p.config.Addresses, ", "))
-	succeeded = true
-	return p, nil
-}
-
-func (p *ingressProxy2) Run() {
-	p.regularMeasurementID = statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
-		p.сonnectionCountMetric.Count(float64(p.сonnectionCount.Load()))
-		p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
-	})
-	p.wg.Add(len(p.listeners)) // start listening
-	for i := range p.listeners {
-		go p.listenAndServe(p.listeners[i])
+	if len(tcp4.listeners) == 0 && len(tcp6.listeners) == 0 {
+		return fmt.Errorf("at least one ingress-external-addr must be provided")
 	}
-}
-
-func (p *ingressProxy2) Shutdown() {
+	// run
+	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
+	tcp4.run()
+	tcp6.run()
+	<-ctx.Done()
 	log.Printf("Shutdown %v connection(s)\n", p.сonnectionCount.Load())
-	statshouse.StopRegularMeasurement(p.regularMeasurementID)
-	p.shutdownFunc()
-	for i := range p.listeners {
-		if p.listeners[i] != nil {
-			_ = p.listeners[i].Close()
-		}
-	}
-}
-
-func (p *ingressProxy2) WaitStopped(timeout time.Duration) error {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
-	defer cancel()
-	done := make(chan bool)
-	go func() {
-		p.wg.Wait()
-		done <- true
-	}()
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		// reading from both client and upstream is done with infinite timeout, checking shutdown flag when possible
-		log.Printf("Shutdown failed to complete in %v, %d connection(s) left\n", timeout, p.сonnectionCount.Load())
-		return ctx.Err()
-	}
-}
-
-func (p *ingressProxy2) listenAndServe(ln net.Listener) {
-	defer p.wg.Done() // stop listening
-	var acceptDelay time.Duration
-	for {
-		clientConn, err := ln.Accept()
-		if err == nil {
-			acceptDelay = 0
-			go p.newProxyConn(clientConn).run()
-			continue
-		}
-		if p.shutdownCtx.Err() != nil {
-			return
-		}
-		// report accept failure then backoff
-		tags := p.commonMetricTags
-		tags[4] = rpc.ErrorTag(err)
-		statshouse.Count("common_rpc_server_accept_error", tags, 1)
-		if acceptDelay == 0 {
-			acceptDelay = minAcceptDelay
-		} else {
-			acceptDelay *= 2
-		}
-		if acceptDelay > maxAcceptDelay {
-			acceptDelay = maxAcceptDelay
-		}
-		time.Sleep(acceptDelay)
-	}
+	shutdown()
+	p.group.Wait()
+	return nil
 }
 
 func (p *ingressProxy2) reportClientConnError(err error) {
 	if err == nil {
 		return
 	}
-	tags := p.commonMetricTags // copy
+	tags := p.commonTags // copy
 	tags[4] = rpc.ErrorTag(err)
 	statshouse.Count("common_rpc_server_conn_error", tags, 1)
 }
@@ -238,20 +166,115 @@ func (p *ingressProxy2) rareLog(format string, args ...any) {
 	}
 }
 
-func (p *ingressProxy2) newProxyConn(c net.Conn) *proxyConn {
-	clientAddr, _ := addrIPString(c.RemoteAddr())
+func (p *ingressProxy2) newProxyServer() proxyServer {
+	return proxyServer{
+		ingressProxy2: p,
+		config: tlstatshouse.GetConfigResult{
+			Addresses:         make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
+			MaxAddressesCount: p.agent.GetConfigResult.MaxAddressesCount,
+			PreviousAddresses: p.agent.GetConfigResult.PreviousAddresses,
+		},
+	}
+}
+
+func (p *proxyServer) listen(network, addr string, externalAddr []string) error {
+	if len(p.agent.GetConfigResult.Addresses)%len(externalAddr) != 0 {
+		return fmt.Errorf("number of servers must be multiple of number of ingress-external-addr")
+	}
+	// parse listen address
+	listenAddr, err := net.ResolveTCPAddr(network, addr)
+	if err != nil {
+		return err
+	}
+	// parse external addresses
+	externalTCPAddr := make([]*net.TCPAddr, len(externalAddr))
+	for i := range externalAddr {
+		externalTCPAddr[i], err = net.ResolveTCPAddr(network, externalAddr[i])
+		if err != nil {
+			return err
+		}
+	}
+	// open ports
+	p.listeners = make([]net.Listener, len(p.agent.GetConfigResult.Addresses)/len(externalAddr))
+	for i := range p.listeners {
+		log.Printf("Listen addr %v\n", listenAddr)
+		p.listeners[i], err = rpc.Listen(network, listenAddr.String(), false)
+		if err != nil {
+			return err
+		}
+		listenAddr.Port++
+		for j := range externalTCPAddr {
+			p.config.Addresses = append(p.config.Addresses, externalTCPAddr[j].String())
+			externalTCPAddr[j].Port++
+		}
+	}
+	log.Printf("External %s addr %s\n", network, strings.Join(p.config.Addresses, ", "))
+	return nil
+}
+
+func (p *proxyServer) shutdown() {
+	for i := range p.listeners {
+		if p.listeners[i] != nil {
+			_ = p.listeners[i].Close()
+		}
+	}
+}
+
+func (p *proxyServer) run() {
+	p.group.Add(len(p.listeners))
+	for i := range p.listeners {
+		go p.serve(p.listeners[i])
+	}
+}
+
+func (p *proxyServer) serve(listener net.Listener) {
+	defer p.group.Done() // stop listening
+	var acceptDelay time.Duration
+	for {
+		clientConn, err := listener.Accept()
+		if err == nil {
+			acceptDelay = 0
+			go p.newProxyConn(clientConn).run()
+			continue
+		}
+		if p.ctx.Err() != nil {
+			return
+		}
+		// report accept failure then backoff
+		tags := p.commonTags
+		tags[4] = rpc.ErrorTag(err)
+		statshouse.Count("common_rpc_server_accept_error", tags, 1)
+		if acceptDelay == 0 {
+			acceptDelay = minAcceptDelay
+		} else {
+			acceptDelay *= 2
+		}
+		if acceptDelay > maxAcceptDelay {
+			acceptDelay = maxAcceptDelay
+		}
+		time.Sleep(acceptDelay)
+	}
+}
+
+func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
+	var clientAddr [4]uint32
+	if addr, ok := c.RemoteAddr().(*net.TCPAddr); ok {
+		for i, j := 0, 0; i < len(clientAddr) && j+3 < len(addr.IP); i, j = i+1, j+4 {
+			clientAddr[i] = binary.BigEndian.Uint32(addr.IP[j:])
+		}
+	}
 	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
-	p.wg.Add(1)
+	p.group.Add(1)
 	p.сonnectionCount.Inc()
 	return &proxyConn{
-		ingressProxy2: p,
-		clientAddr:    clientAddr,
-		clientConn:    clientConn,
+		proxyServer: p,
+		clientAddr:  clientAddr,
+		clientConn:  clientConn,
 	}
 }
 
 func (p *proxyConn) run() {
-	defer p.wg.Done()
+	defer p.group.Done()
 	defer p.сonnectionCount.Dec()
 	defer p.clientConn.Close() // upstream connection will be closed at "responseLoop" exit
 	defer func() {
@@ -271,7 +294,7 @@ func (p *proxyConn) run() {
 			p.reportClientConnError(err)
 			return
 		}
-		if p.shutdownCtx.Err() != nil {
+		if p.ctx.Err() != nil {
 			return
 		}
 		if p.reqTip == rpcInvokeReqHeaderTLTag {
@@ -280,11 +303,11 @@ func (p *proxyConn) run() {
 		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", p.reqTip, p.clientConn.RemoteAddr())
 	}
 	shardReplica := binary.LittleEndian.Uint32(p.req.Request[8:])
-	shardReplica %= uint32(len(p.GetConfigResult.Addresses))
-	upstreamAddr := p.GetConfigResult.Addresses[shardReplica]
+	shardReplica %= uint32(len(p.agent.GetConfigResult.Addresses))
+	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
 	defer p.shutdownClientConn()
 	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
-	for p.shutdownCtx.Err() == nil {
+	for p.ctx.Err() == nil {
 		// (re)connect upstream
 		if err := p.connectUpstream(upstreamAddr); err != nil {
 			break
@@ -303,7 +326,7 @@ func (p *proxyConn) run() {
 }
 
 func (p *proxyConn) connectUpstream(addr string) error {
-	conn, err := net.DialTimeout("tcp4", addr, rpc.DefaultPacketTimeout)
+	conn, err := net.DialTimeout("tcp", addr, rpc.DefaultPacketTimeout)
 	if err != nil {
 		p.rareLog("Upstream connect error: %v\n", err)
 		return err
@@ -329,10 +352,10 @@ func (p *proxyConn) requestLoop() error {
 		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(p.req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
 	}
 	for {
-		if err := p.shutdownCtx.Err(); err != nil {
+		if err := p.ctx.Err(); err != nil {
 			return err // shutdown proxy connection
 		}
-		p.AddValueCounter(requestSize, float64(len(p.req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
+		p.agent.AddValueCounter(requestSize, float64(len(p.req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
 		p.reportRequestBufferSizeChange()
 		if err := p.forwardRequest(); err != nil {
 			p.rareLog("Upstream write error: %v\n", err)
@@ -351,7 +374,7 @@ func (p *proxyConn) responseLoop() error {
 	// exit means inability to deliver a response
 	// "requestLoop" terminates on next upstream write
 	defer p.upstreamConn.Close()
-	writeErr, readErr := rpc.ForwardPackets(p.shutdownCtx, p.clientConn, p.upstreamConn)
+	writeErr, readErr := rpc.ForwardPackets(p.ctx, p.clientConn, p.upstreamConn)
 	if readErr != nil {
 		p.rareLog("Upstream read error: %v\n", readErr)
 		return nil // reconnect upstream
@@ -408,7 +431,10 @@ func (p *proxyConn) readRequest() error {
 					fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
 					fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 					binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
-					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr)
+					binary.LittleEndian.PutUint32(req.Request[16:], p.clientAddr[0])
+					binary.LittleEndian.PutUint32(req.Request[20:], p.clientAddr[1])
+					binary.LittleEndian.PutUint32(req.Request[24:], p.clientAddr[2])
+					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr[3])
 					p.req, p.reqTip, p.reqBuf = req, tip, req.Response
 					return nil
 				default:

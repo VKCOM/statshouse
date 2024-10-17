@@ -63,12 +63,14 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster             string
-	Network             string
-	ListenAddr          string
-	ExternalAddresses   []string // exactly 3 comma-separated external ingress points
-	IngressKeys         []string
-	ResponseMemoryLimit int
+	Cluster               string
+	Network               string
+	ListenAddr            string
+	ListenAddrIPV6        string
+	ExternalAddresses     []string // exactly 3 comma-separated external ingress points
+	ExternalAddressesIPv6 []string
+	IngressKeys           []string
+	ResponseMemoryLimit   int
 }
 
 func newClientPool(aesPwd string) *clientPool {
