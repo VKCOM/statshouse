@@ -600,6 +600,7 @@ func mainIngressProxy(aesPwd string) {
 	config.Network = "tcp"
 	config.Cluster = argv.cluster
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
+	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
 
 	// Ensure agent configuration is valid
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
