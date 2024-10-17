@@ -395,6 +395,8 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 			t.yl = first(v)
 		case paramYH:
 			t.yh = first(v)
+		case paramCompat:
+			t.compat = first(v) == "1"
 		}
 		if err != nil {
 			return nil, err

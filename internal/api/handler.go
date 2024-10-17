@@ -109,6 +109,7 @@ const (
 	paramDashboardID  = "id"
 	paramShowDisabled = "sd"
 	paramPriority     = "priority"
+	paramCompat       = "compat"
 	paramYL, paramYH  = "yl", "yh" // Y scale range
 
 	Version1       = "1"
@@ -361,6 +362,7 @@ type (
 		avoidCache       bool
 		verbose          bool
 		excessPoints     bool
+		compat           bool // Prometheus compatibility mode
 		format           string
 		yl, yh           string // Y scale range
 
@@ -2497,7 +2499,8 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 						opt.metricCallback(metric)
 					}
 				},
-				Vars: req.vars,
+				Vars:   req.vars,
+				Compat: req.compat,
 			},
 		})
 	if err != nil {
