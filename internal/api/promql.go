@@ -622,13 +622,17 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						})
 					default:
 						if m, ok := qry.Metric.Name2Tag[groupBy]; ok && m.Index < len(v.tag) {
-							res.AddTagAt(i+j, &promql.SeriesTag{
+							st := &promql.SeriesTag{
 								Metric: qry.Metric,
 								Index:  m.Index + promql.SeriesTagIndexOffset,
 								ID:     format.TagID(m.Index),
 								Name:   m.Name,
 								Value:  v.tag[m.Index],
-							})
+							}
+							if qry.Options.Version == Version3 && m.Index < len(v.stag) {
+								st.SValue = v.stag[m.Index]
+							}
+							res.AddTagAt(i+j, st)
 						}
 					}
 				}
