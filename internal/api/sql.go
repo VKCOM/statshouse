@@ -321,11 +321,11 @@ func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int6
 	case Version3:
 		return loadPointsQueryV3(pq, lod, utcOffset)
 	default:
-		return loadPointsQueryV2V1(pq, lod, utcOffset)
+		return loadPointsQueryV2(pq, lod, utcOffset)
 	}
 }
 
-func loadPointsQueryV2V1(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
@@ -435,12 +435,14 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		return "", pointsQueryMeta{}, err
 	}
 
-	var byTags string
+	var byTagsB strings.Builder
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			byTags += fmt.Sprintf(", %s AS key%s", mappedColumnNameV3(b), b)
+			byTagsB.WriteString(fmt.Sprintf(", %s AS tag%s", mappedColumnNameV3(b), b))
+			byTagsB.WriteString(fmt.Sprintf(", %s AS stag%s", unmappedColumnNameV3(b), b))
 		}
 	}
+	byTags := byTagsB.String()
 
 	var timeInterval string
 	if lod.StepSec == _1M {

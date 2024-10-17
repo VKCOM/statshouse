@@ -2088,6 +2088,7 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 			Step:  req.step,
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
+				Version:          req.version,
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
@@ -2746,6 +2747,7 @@ type pointsSelectCols struct {
 	cnt          proto.ColFloat64
 	val          []proto.ColFloat64
 	tag          []proto.ColInt32
+	stag         []proto.ColStr
 	tagIx        []int
 	tagStr       proto.ColStr
 	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
@@ -2755,7 +2757,53 @@ type pointsSelectCols struct {
 	res          proto.Results
 }
 
-func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
+func newPointsSelectCols(meta pointsQueryMeta, useTime bool, version string) *pointsSelectCols {
+	if version == Version3 {
+		return newPointsSelectColsV3(meta, useTime)
+	}
+	return newPointsSelectColsV2(meta, useTime)
+}
+
+func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
+	// NB! Keep columns selection order and names is sync with sql.go code
+	c := &pointsSelectCols{
+		val:   make([]proto.ColFloat64, meta.vals),
+		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
+		stag:  make([]proto.ColStr, 0, len(meta.tags)),
+		tagIx: make([]int, 0, len(meta.tags)),
+	}
+	if useTime {
+		c.res = proto.Results{
+			{Name: "_time", Data: &c.time},
+			{Name: "_stepSec", Data: &c.step},
+		}
+	}
+	for _, id := range meta.tags {
+		switch id {
+		case format.StringTopTagID:
+			c.res = append(c.res, proto.ResultColumn{Name: "key_s", Data: &c.tagStr})
+		case format.ShardTagID:
+			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
+		default:
+			c.tag = append(c.tag, proto.ColInt32{})
+			c.res = append(c.res, proto.ResultColumn{Name: "tag" + id, Data: &c.tag[len(c.tag)-1]})
+			c.stag = append(c.stag, proto.ColStr{})
+			c.res = append(c.res, proto.ResultColumn{Name: "stag" + id, Data: &c.stag[len(c.tag)-1]})
+			c.tagIx = append(c.tagIx, format.TagIndex(id))
+		}
+	}
+	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
+	for i := 0; i < meta.vals; i++ {
+		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
+	}
+	if meta.minMaxHost {
+		c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV3[0]})
+		c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV3[1]})
+	}
+	return c
+}
+
+func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &pointsSelectCols{
 		val:   make([]proto.ColFloat64, meta.vals),
@@ -2792,9 +2840,6 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 		case Version2:
 			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV2[0]})
 			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV2[1]})
-		case Version3:
-			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV3[0]})
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV3[1]})
 		}
 	}
 	return c
@@ -2811,6 +2856,13 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	for j := range c.tag {
 		row.tag[c.tagIx[j]] = c.tag[j][i]
+	}
+	for j := range c.stag {
+		st := c.stag[j]
+		if st.Buf == nil || len(st.Pos) < i || len(st.Buf) < st.Pos[i].End {
+			break
+		}
+		row.stag[c.tagIx[j]] = string(st.Buf[st.Pos[i].Start:st.Pos[i].End])
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
@@ -2914,7 +2966,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(args, true)
+	cols := newPointsSelectCols(args, true, pq.version)
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
@@ -2979,7 +3031,7 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod da
 	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
-	cols := newPointsSelectCols(args, false)
+	cols := newPointsSelectColsV2(args, false) // loadPoint doesn't yet have v3 query
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
