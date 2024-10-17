@@ -114,6 +114,27 @@
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/statshouse-client-test/",
             "args": [],
-        }
+        },
+        {
+            "name": "proxy",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/statshouse/",
+            "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
+            "args": [
+                "ingress_proxy",
+                "--ingress-version=2",
+                "--hostname=ingress",
+                "--cluster=default",
+                "--agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356",
+                "--ingress-addr=127.0.0.1:13327",
+                "--ingress-external-addr=127.0.0.1:13327",
+                "--ingress-addr-ipv6=[::1]:13327",
+                "--ingress-external-addr-ipv6=[::1]:13327",
+                "--ingress-pwd-dir=${workspaceFolder}/localdebug/ingress_keys",
+            ],
+        },
     ]
 }

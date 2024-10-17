@@ -600,6 +600,7 @@ func mainIngressProxy(aesPwd string) {
 	config.Network = "tcp"
 	config.Cluster = argv.cluster
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
+	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
 
 	// Ensure agent configuration is valid
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
@@ -617,19 +618,26 @@ func mainIngressProxy(aesPwd string) {
 	}
 	sh2.Run(0, 0, 0)
 	if argv.ingressVersion == "2" {
-		p, err := aggregator.NewIngressProxy2(config, sh2, aesPwd)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		p.Run()
-		sigINT := make(chan os.Signal, 1)
-		signal.Notify(sigINT, syscall.SIGINT)
-		for range sigINT {
-			p.Shutdown()
-			_ = p.WaitStopped(5 * time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
+		exit := make(chan error, 1)
+		go func() {
+			exit <- aggregator.RunIngressProxy2(ctx, sh2, config, aesPwd)
+		}()
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, syscall.SIGINT)
+		select {
+		case <-sigint:
+			cancel()
+			select {
+			case <-exit:
+			case <-time.After(5 * time.Second):
+			}
 			logOk.Println("Buy")
-			return
+		case err := <-exit:
+			logErr.Println(err)
+			cancel()
 		}
+		return
 	}
 
 	// Ensure proxy configuration is valid
