@@ -59,7 +59,7 @@ func main() {
 		randomTag bool
 		signals   = make(chan os.Signal, 1)
 	)
-	flag.IntVar(&metricsN, "m", 6, "number of metrics")
+	flag.IntVar(&metricsN, "m", 4, "number of metrics")
 	flag.IntVar(&clientsN, "c", 2, "number of clients")
 	flag.BoolVar(&randomTag, "r", false, "add random tag")
 	flag.Parse()
@@ -101,7 +101,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 			shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
-			randomWalk(ctx, shClient, statshouse.NamedTags{{"client", fmt.Sprint(ci)}}, metricsN, randomTag)
+			randomWalk(ctx, shClient, statshouse.NamedTags{{"raw_tag", fmt.Sprint(ci)}, {"mapped_tag", fmt.Sprintf("mapped%d", ci)}}, metricsN, randomTag)
 		}()
 	}
 

@@ -30,18 +30,18 @@ const metricTempl = `{
         "raw":false
       },
       {
-        "name":"client",
+        "name":"raw_tag",
         "description":"client id - raw tag",
         "raw":true
       },
       {
-        "name":"random",
-        "description":"random sting used to test mapping flood",
+        "name":"mapped_tag",
+        "description":"client id - mapped tag",
         "raw":false
       },
       {
-        "name":"",
-        "description":"",
+        "name":"random",
+        "description":"random sting used to test mapping flood",
         "raw":false
       },
       {
