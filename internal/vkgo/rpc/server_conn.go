@@ -237,10 +237,10 @@ func (req *ServerRequest) WriteReponseAndFlush(conn *PacketConn, err error, rare
 
 func (req *ServerRequest) ForwardAndFlush(conn *PacketConn, tip uint32, timeout time.Duration) error {
 	switch tip {
-	case tl.RpcCancelReq{}.TLTag():
+	case tl.RpcCancelReq{}.TLTag(), tl.RpcClientWantsFin{}.TLTag():
 		conn.writeMu.Lock()
 		defer conn.writeMu.Unlock()
-		err := writeCustomPacketUnlocked(conn, tl.RpcCancelReq{}.TLTag(), req.Request, timeout)
+		err := writeCustomPacketUnlocked(conn, tip, req.Request, timeout)
 		if err != nil {
 			return err
 		}

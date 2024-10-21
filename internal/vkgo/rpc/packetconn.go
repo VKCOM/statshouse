@@ -232,9 +232,13 @@ func ForwardPackets(ctx context.Context, dst, src *PacketConn) (error, error) {
 	for i := 0; ctx.Err() == nil; i++ {
 		var header packetHeader
 		src.readMu.Lock()
-		_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, time.Duration(0))
+		_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, DefaultPacketTimeout)
 		src.readMu.Unlock()
+		var netErr net.Error
 		if err != nil {
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				continue
+			}
 			return nil, err // read error
 		}
 		if isBuiltin {

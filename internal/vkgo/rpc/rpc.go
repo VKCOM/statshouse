@@ -111,7 +111,7 @@ func ErrorTag(err error) string {
 	if e := errors.Unwrap(err); e != nil {
 		return ErrorTag(e)
 	}
-	return err.Error() // TODO - return "" instead
+	return ""
 }
 
 func (err *tagError) Error() string {
