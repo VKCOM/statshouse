@@ -25,7 +25,7 @@ export function resetDefaultParams(params: QueryParams) {
 
     if (globalSettings.disabled_v1) {
       Object.values(p.plots).forEach((plot) => {
-        if (plot) {
+        if (plot && plot.backendVersion === METRIC_VALUE_BACKEND_VERSION.v1) {
           plot.backendVersion = METRIC_VALUE_BACKEND_VERSION.v2;
           reset = true;
         }
