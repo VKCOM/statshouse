@@ -2972,7 +2972,12 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
-	metricName := h.metricsStorage.GetMetaMetric(pq.metricID).Name
+	var metricName string
+	if m, ok := format.BuiltinMetrics[pq.metricID]; ok {
+		metricName = m.Name
+	} else if m := h.metricsStorage.GetMetaMetric(pq.metricID); m != nil {
+		metricName = m.Name
+	}
 	start := time.Now()
 	mappings := make(map[string]int32)
 	err = h.doSelect(ctx, util.QueryMetaInto{
@@ -2992,18 +2997,20 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAt(i)
-				for k := range row.stag {
-					// check if tag value is mapped
-					if v, ok := mappings[row.stag[k]]; ok && v != 0 {
-						row.tag[k] = v
-						row.stag[k] = ""
-					}
-					// call GetTagMapping only first time for each tag value, since it's expensive
-					v, _, _, _ := h.metadataLoader.GetTagMapping(ctx, row.stag[k], metricName, false)
-					mappings[row.stag[k]] = v
-					if v != 0 {
-						row.tag[k] = v
-						row.stag[k] = ""
+				if metricName != "" { // should be always true
+					for k := range row.stag {
+						// check if tag value is mapped
+						if v, ok := mappings[row.stag[k]]; ok && v != 0 {
+							row.tag[k] = v
+							row.stag[k] = ""
+						}
+						// call GetTagMapping only first time for each tag value, since it's expensive
+						v, _, _, _ := h.metadataLoader.GetTagMapping(ctx, row.stag[k], metricName, false)
+						mappings[row.stag[k]] = v
+						if v != 0 {
+							row.tag[k] = v
+							row.stag[k] = ""
+						}
 					}
 				}
 				ix, err := lod.IndexOf(row.time)
