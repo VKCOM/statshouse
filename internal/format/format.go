@@ -22,7 +22,6 @@ import (
 	"go4.org/mem"
 
 	"github.com/mailru/easyjson/opt"
-
 	"github.com/vkcom/statshouse-go"
 )
 
@@ -97,7 +96,9 @@ const (
 	MetricMicrosecond = "microsecond"
 	MetricNanosecond  = "nanosecond"
 
-	MetricByte = "byte"
+	MetricByte       = "byte"
+	MetricByteAsBits = "byte_as_bits"
+
 	/*
 		MetricBit = "bit"
 		MetricKilobyte = "kilobyte"
@@ -1132,7 +1133,7 @@ func ISO8601Date2BuildDateKey(str string) int32 {
 
 func IsValidMetricType(typ_ string) bool {
 	switch typ_ {
-	case MetricSecond, MetricMillisecond, MetricMicrosecond, MetricNanosecond, MetricByte, "":
+	case MetricSecond, MetricMillisecond, MetricMicrosecond, MetricNanosecond, MetricByte, MetricByteAsBits, "":
 		return true
 	}
 	return false
