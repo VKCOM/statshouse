@@ -2860,7 +2860,7 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	for j := range c.stag {
 		st := c.stag[j]
 		if st.Buf == nil || len(st.Pos) < i || len(st.Buf) < st.Pos[i].End {
-			break
+			continue
 		}
 		row.stag[c.tagIx[j]] = string(st.Buf[st.Pos[i].Start:st.Pos[i].End])
 	}
@@ -2972,7 +2972,9 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
+	metricName := h.metricsStorage.GetMetaMetric(pq.metricID).Name
 	start := time.Now()
+	mappings := make(map[string]int32)
 	err = h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:  isFast,
 		IsLight: isLight,
@@ -2990,6 +2992,20 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAt(i)
+				for k := range row.stag {
+					// check if tag value is mapped
+					if v, ok := mappings[row.stag[k]]; ok && v != 0 {
+						row.tag[k] = v
+						row.stag[k] = ""
+					}
+					// call GetTagMapping only first time for each tag value, since it's expensive
+					v, _, _, _ := h.metadataLoader.GetTagMapping(ctx, row.stag[k], metricName, false)
+					mappings[row.stag[k]] = v
+					if v != 0 {
+						row.tag[k] = v
+						row.stag[k] = ""
+					}
+				}
 				ix, err := lod.IndexOf(row.time)
 				if err != nil {
 					return err
