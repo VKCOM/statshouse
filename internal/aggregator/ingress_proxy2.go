@@ -3,7 +3,9 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -21,7 +23,6 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"go.uber.org/atomic"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -33,9 +34,8 @@ const (
 	rpcInvokeReqHeaderTLTag = 0x2374df3d
 	rpcCancelReqTLTag       = 0x193f1b22
 	rpcServerWantsFinTLTag  = 0xa8ddbc46
+	rpcClientWantsFinTLTag  = 0x0b73429e
 )
-
-var errProxyConnShutdown = fmt.Errorf("proxy connection shutdown")
 
 type ingressProxy2 struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
@@ -76,10 +76,13 @@ type proxyConn struct {
 
 	// no synchronization, owned by "requestLoop"
 	clientAddr [4]uint32 // readonly after init
-	req        rpc.ServerRequest
 	reqBuf     []byte
-	reqTip     uint32
 	reqBufCap  int // last buffer capacity
+}
+
+type proxyRequest struct {
+	tip uint32
+	rpc.ServerRequest
 }
 
 func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngressProxy, aesPwd string) error {
@@ -147,10 +150,11 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 	return nil
 }
 
-func (p *ingressProxy2) reportClientConnError(err error) {
-	if err == nil {
+func (p *ingressProxy2) reportClientConnError(format string, err error) {
+	if err == nil || errors.Is(err, io.EOF) {
 		return
 	}
+	p.rareLog(format, err)
 	tags := p.commonTags // copy
 	tags[4] = rpc.ErrorTag(err)
 	statshouse.Count("common_rpc_server_conn_error", tags, 1)
@@ -240,7 +244,7 @@ func (p *proxyServer) serve(listener net.Listener) {
 		if p.ctx.Err() != nil {
 			return
 		}
-		// report accept failure then backoff
+		// report accept error then backoff
 		tags := p.commonTags
 		tags[4] = rpc.ErrorTag(err)
 		statshouse.Count("common_rpc_server_accept_error", tags, 1)
@@ -276,139 +280,94 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 func (p *proxyConn) run() {
 	defer p.group.Done()
 	defer p.сonnectionCount.Dec()
-	defer p.clientConn.Close() // upstream connection will be closed at "responseLoop" exit
+	defer p.clientConn.Close()
 	defer func() {
 		p.requestMemory.Sub(int64(p.reqBufCap))
 	}()
 	// handshake client
 	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.rareLog("Client handshake error: %v\n", err)
-		p.reportClientConnError(err)
+		p.reportClientConnError("Client handshake error: %v\n", err)
 		return
 	}
 	// read first request to get shardReplica
+	var req proxyRequest
 	for {
-		if err = p.readRequest(); err != nil {
-			p.rareLog("Client read error: %v\n", err)
-			p.reportClientConnError(err)
+		req, err = p.readRequest(p.ctx)
+		if err != nil {
+			p.reportClientConnError("Client read error: %v\n", err)
 			return
 		}
 		if p.ctx.Err() != nil {
-			return
+			return // server shutdown
 		}
-		if p.reqTip == rpcInvokeReqHeaderTLTag {
+		if req.tip == rpcInvokeReqHeaderTLTag {
 			break
 		}
-		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", p.reqTip, p.clientConn.RemoteAddr())
+		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", req.tip, p.clientConn.RemoteAddr())
 	}
-	shardReplica := binary.LittleEndian.Uint32(p.req.Request[8:])
+	shardReplica := binary.LittleEndian.Uint32(req.Request[8:])
 	shardReplica %= uint32(len(p.agent.GetConfigResult.Addresses))
 	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
-	defer p.shutdownClientConn()
 	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
-	for p.ctx.Err() == nil {
-		// (re)connect upstream
-		if err := p.connectUpstream(upstreamAddr); err != nil {
-			break
-		}
-		// upstream connection will be closed at "responseLoop" exit, serve
-		var responseLoop errgroup.Group
-		responseLoop.Go(p.responseLoop)
-		clientReadErr := p.requestLoop()
-		clientWriteErr := responseLoop.Wait()
-		if clientReadErr != nil || clientWriteErr != nil {
-			break
-		}
-	}
-	// done serving
-	p.rareLog("Disconnect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
-}
-
-func (p *proxyConn) connectUpstream(addr string) error {
-	conn, err := net.DialTimeout("tcp", addr, rpc.DefaultPacketTimeout)
+	defer p.rareLog("Disconnect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
+	// connect upstream
+	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
 		p.rareLog("Upstream connect error: %v\n", err)
-		return err
+		return
 	}
-	packetConn := rpc.NewPacketConn(conn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
-	err = packetConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
+	defer upstreamConn.Close()
+	p.upstreamConn = rpc.NewPacketConn(upstreamConn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
+	err = p.upstreamConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
 	if err != nil {
 		p.rareLog("Upstream handshake error: %v\n", err)
-		conn.Close()
-		return err
+		return
 	}
-	p.upstreamConn = packetConn
-	return nil
+	// serve
+	for ctx, shutdown := p.ctx, false; ; {
+		var respLoop sync.WaitGroup
+		var respLoopErr error
+		respLoop.Add(1)
+		go func() {
+			defer respLoop.Done()
+			respLoopErr = p.responseLoop(ctx)
+		}()
+		var reqLoopErr error
+		req, reqLoopErr = p.requestLoop(ctx, req)
+		respLoop.Wait()
+		if shutdown || reqLoopErr != nil || respLoopErr != nil {
+			return // either graceful shutdown attempt completed or error occurred
+		}
+		// graceful shutdown
+		shutdown = true
+		if err = p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
+			p.reportClientConnError("Client write error: %v\n", err)
+			return
+		}
+		ctx = context.Background() // server "main" exits after timeout
+	}
 }
 
-func (p *proxyConn) requestLoop() error {
-	// exit means inability to deliver a request
-	// "responseLoop" terminates when server done sending responses
-	defer p.upstreamConn.ShutdownWrite()
+func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyRequest, err error) {
+	defer func() {
+		// do not close upstream on server shutdown, calling side initiates graceful shutdown
+		if err != nil {
+			p.upstreamConn.ShutdownWrite()
+		}
+	}()
 	cryptoKeyID := p.clientConn.KeyID()
 	requestSize := data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(p.req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
+		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
 	}
-	for {
-		if err := p.ctx.Err(); err != nil {
-			return err // shutdown proxy connection
-		}
-		p.agent.AddValueCounter(requestSize, float64(len(p.req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
-		p.reportRequestBufferSizeChange()
-		if err := p.forwardRequest(); err != nil {
-			p.rareLog("Upstream write error: %v\n", err)
-			return nil // reconnect upstream
-		}
-		if err := p.readRequest(); err != nil {
-			p.rareLog("Client read error: %v\n", err)
-			p.reportClientConnError(err)
-			return err // shutdown proxy connection
-		}
-		requestSize.Keys[2] = int32(p.req.RequestTag())
-	}
-}
-
-func (p *proxyConn) responseLoop() error {
-	// exit means inability to deliver a response
-	// "requestLoop" terminates on next upstream write
-	defer p.upstreamConn.Close()
-	writeErr, readErr := rpc.ForwardPackets(p.ctx, p.clientConn, p.upstreamConn)
-	if readErr != nil {
-		p.rareLog("Upstream read error: %v\n", readErr)
-		return nil // reconnect upstream
-	}
-	if writeErr != nil {
-		p.rareLog("Client write error: %v\n", writeErr)
-		p.reportClientConnError(writeErr)
-		return writeErr // shutdown proxy connection
-	}
-	return nil
-}
-
-func (p *proxyConn) readRequest() error {
-	buf := p.reqBuf
-	for {
-		var tip uint32
-		var req rpc.ServerRequest
-		var err error
-		tip, req.Request, err = p.clientConn.ReadPacket(buf[:0], time.Duration(0))
-		if err != nil {
-			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
-			return err
-		}
-		switch tip {
-		case rpcCancelReqTLTag:
-			p.req, p.reqTip, p.reqBuf = req, tip, req.Request
-			return nil
-		case rpcInvokeReqHeaderTLTag:
-			req.Response = req.Request
-			if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
-				// goto WriteReponseAndFlush
-			} else if len(req.Request) < 32 {
-				err = fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", req.RequestTag(), len(req.Request))
-			} else {
+	for i := uint(0); ; i++ {
+		// request (tip) must be set except maybe graceful shutdown first iteration
+		if i > 0 || req.tip != 0 {
+			p.agent.AddValueCounter(requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
+			p.reportRequestBufferSizeChange()
+			switch req.tip {
+			case rpcInvokeReqHeaderTLTag:
 				switch req.RequestTag() {
 				case constants.StatshouseGetConfig2:
 					var args tlstatshouse.GetConfig2
@@ -416,18 +375,18 @@ func (p *proxyConn) readRequest() error {
 						if args.Cluster != p.cluster {
 							err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
 						} else {
-							req.Response, _ = args.WriteResult(req.Response[:0], p.config)
+							req.Response, _ = args.WriteResult(p.reqBuf[:0], p.config)
+							p.reqBuf = req.Response
 						}
 					}
-				case constants.StatshouseGetTagMapping2,
-					constants.StatshouseSendKeepAlive2,
-					constants.StatshouseSendSourceBucket2,
-					constants.StatshouseTestConnection2,
-					constants.StatshouseGetTargets2,
-					constants.StatshouseGetTagMappingBootstrap,
-					constants.StatshouseGetMetrics3,
-					constants.StatshouseAutoCreate:
-					// pass
+					if err = req.WriteReponseAndFlush(p.clientConn, err, p.rareLog); err != nil {
+						p.reportClientConnError("Client write error: %v\n", err)
+						// "requestLoop" exits on request read-write errors only, read next request
+					}
+				case rpcClientWantsFinTLTag:
+					// no more client requests expected
+					return proxyRequest{}, io.EOF
+				default:
 					fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
 					fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 					binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
@@ -435,32 +394,85 @@ func (p *proxyConn) readRequest() error {
 					binary.LittleEndian.PutUint32(req.Request[20:], p.clientAddr[1])
 					binary.LittleEndian.PutUint32(req.Request[24:], p.clientAddr[2])
 					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr[3])
-					p.req, p.reqTip, p.reqBuf = req, tip, req.Response
-					return nil
-				default:
-					err = rpc.ErrNoHandler
+					if err = req.ForwardAndFlush(p.upstreamConn, req.tip, rpc.DefaultPacketTimeout); err != nil {
+						p.rareLog("Upstream write error: %v\n", err)
+						return proxyRequest{}, err
+					}
 				}
 			}
-		default:
-			err = fmt.Errorf("unknown packet %d", tip)
 		}
-		// at this point either len(req.Response) != 0 or err != nil
-		if err = req.WriteReponseAndFlush(p.clientConn, err, p.rareLog); err != nil {
-			p.rareLog("Client write error: %v\n", err)
-			p.reportClientConnError(err)
-			p.req, p.reqTip, p.reqBuf = req, tip, req.Response
-			return err
+		if req, err = p.readRequest(ctx); err != nil {
+			p.reportClientConnError("Client read error: %v\n", err)
+			return proxyRequest{}, err
 		}
-		buf = req.Response // buffer reuse
+		if ctx.Err() != nil {
+			return req, nil // server shutdown
+		}
+		requestSize.Keys[2] = int32(req.RequestTag())
 	}
 }
 
-func (p *proxyConn) replyError(err error) error {
-	return p.req.WriteReponseAndFlush(p.clientConn, err, p.rareLog)
+func (p *proxyConn) responseLoop(ctx context.Context) (err error) {
+	defer func() {
+		// do not close client on server shutdown, calling side initiates graceful shutdown
+		if err != nil {
+			p.clientConn.ShutdownWrite()
+		}
+	}()
+	clientErr, upstreamErr := rpc.ForwardPackets(ctx, p.clientConn, p.upstreamConn)
+	if upstreamErr != nil {
+		return upstreamErr
+	}
+	if clientErr != nil {
+		return clientErr
+	}
+	return nil
 }
 
-func (p *proxyConn) forwardRequest() error {
-	return p.req.ForwardAndFlush(p.upstreamConn, p.reqTip, rpc.DefaultPacketTimeout)
+func (p *proxyConn) readRequest(ctx context.Context) (proxyRequest, error) {
+	var tip uint32
+	var err error
+	for {
+		if ctx.Err() != nil {
+			return proxyRequest{}, nil
+		}
+		if tip, p.reqBuf, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err == nil {
+			break
+		}
+		var netErr net.Error
+		if timeout := errors.As(err, &netErr) && netErr.Timeout(); !timeout {
+			return proxyRequest{}, err
+		}
+	}
+	switch tip {
+	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
+		return proxyRequest{tip, rpc.ServerRequest{Request: p.reqBuf}}, nil
+	case rpcInvokeReqHeaderTLTag:
+		req := rpc.ServerRequest{Request: p.reqBuf}
+		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
+			return proxyRequest{}, err
+		}
+		if len(req.Request) < 32 {
+			return proxyRequest{}, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", req.RequestTag(), len(req.Request))
+		}
+		switch req.RequestTag() {
+		case constants.StatshouseGetConfig2,
+			constants.StatshouseGetTagMapping2,
+			constants.StatshouseSendKeepAlive2,
+			constants.StatshouseSendSourceBucket2,
+			constants.StatshouseTestConnection2,
+			constants.StatshouseGetTargets2,
+			constants.StatshouseGetTagMappingBootstrap,
+			constants.StatshouseGetMetrics3,
+			constants.StatshouseAutoCreate:
+			// pass
+			return proxyRequest{tip, req}, nil
+		default:
+			return proxyRequest{}, rpc.ErrNoHandler
+		}
+	default:
+		return proxyRequest{}, fmt.Errorf("unknown packet %d", tip)
+	}
 }
 
 func (p *proxyConn) reportRequestBufferSizeChange() {
@@ -468,22 +480,4 @@ func (p *proxyConn) reportRequestBufferSizeChange() {
 		p.requestMemory.Add(v)
 		p.reqBufCap = cap(p.reqBuf)
 	}
-}
-
-func (p *proxyConn) shutdownClientConn() {
-	// request connection shutdown
-	if err := p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
-		p.rareLog("Client write FIN error: %v\n", err)
-		return
-	}
-	// respond to all remaining requests witn an error until client closes conection
-	for {
-		if err := p.readRequest(); err != nil {
-			break
-		}
-		if err := p.replyError(errProxyConnShutdown); err != nil {
-			break
-		}
-	}
-	p.rareLog("Client shutdown completed, addr %v\n", p.clientConn.RemoteAddr())
 }
