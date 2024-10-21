@@ -527,7 +527,7 @@ type closeWriter interface {
 	CloseWrite() error
 }
 
-// Motivation - you call ShutdownWrite, and your blocking ReadPacket* will stop after receiveing FIN with compatible sockets
+// Motivation - you call ShutdownWrite, and your blocking ReadPacket* will stop after receiving FIN with compatible sockets
 // if you receive error for this method, you should call Close()
 func (pc *PacketConn) ShutdownWrite() error {
 	if err := pc.Flush(); err != nil { // Rare, so no problem to make excess locked call

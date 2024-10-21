@@ -9,6 +9,7 @@ package tlmetadata
 
 import (
 	"context"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
@@ -60,7 +61,8 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID int64 // should be non-zero when using rpc-proxy
+	ActorID int64         // should be >0 for routing via rpc-proxy
+	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
 func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *rpc.InvokeReqExtra, ret *Event) (err error) {
@@ -68,13 +70,18 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.editEntitynew"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.editEntitynew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
@@ -93,13 +100,18 @@ func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.Invok
 	req.ReadOnly = true
 	req.FunctionName = "metadata.getEntity"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getEntity", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getEntity", c.Network, c.ActorID, c.Address, err)
@@ -117,13 +129,18 @@ func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortIn
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.getHistoryShortInfo"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getHistoryShortInfo", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getHistoryShortInfo", c.Network, c.ActorID, c.Address, err)
@@ -142,13 +159,18 @@ func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, ex
 	req.ReadOnly = true
 	req.FunctionName = "metadata.getInvertMapping"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getInvertMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getInvertMapping", c.Network, c.ActorID, c.Address, err)
@@ -167,13 +189,18 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 	req.ReadOnly = true
 	req.FunctionName = "metadata.getJournalnew"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getJournalnew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getJournalnew", c.Network, c.ActorID, c.Address, err)
@@ -191,13 +218,18 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.getMapping"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMapping", c.Network, c.ActorID, c.Address, err)
@@ -216,13 +248,18 @@ func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.Inv
 	req.ReadOnly = true
 	req.FunctionName = "metadata.getMetrics"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getMetrics", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMetrics", c.Network, c.ActorID, c.Address, err)
@@ -240,13 +277,18 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.getTagMappingBootstrap"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -264,13 +306,18 @@ func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.putMapping"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.putMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putMapping", c.Network, c.ActorID, c.Address, err)
@@ -288,13 +335,18 @@ func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingB
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.putTagMappingBootstrap"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.putTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -312,13 +364,18 @@ func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.resetFlood"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.resetFlood", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood", c.Network, c.ActorID, c.Address, err)
@@ -336,13 +393,18 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.resetFlood2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("metadata.resetFlood2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood2", c.Network, c.ActorID, c.Address, err)

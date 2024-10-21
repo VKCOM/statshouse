@@ -23,6 +23,11 @@ func (item *VectorDictionaryFieldLong) Reset() {
 	BuiltinVectorDictionaryFieldLongReset(*ptr)
 }
 
+func (item *VectorDictionaryFieldLong) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]int64)(item)
+	BuiltinVectorDictionaryFieldLongFillRandom(rg, ptr)
+}
+
 func (item *VectorDictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]int64)(item)
 	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
@@ -100,6 +105,11 @@ func (VectorDictionaryFieldString) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorDictionaryFieldString) Reset() {
 	ptr := (*map[string]string)(item)
 	BuiltinVectorDictionaryFieldStringReset(*ptr)
+}
+
+func (item *VectorDictionaryFieldString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]string)(item)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
 }
 
 func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
@@ -181,6 +191,11 @@ func (item *VectorInt) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorInt) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]int32)(item)
+	BuiltinVectorIntFillRandom(rg, ptr)
+}
+
 func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
 	return BuiltinVectorIntRead(w, ptr)
@@ -260,6 +275,11 @@ func (item *VectorLong) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorLong) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]int64)(item)
+	BuiltinVectorLongFillRandom(rg, ptr)
+}
+
 func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
 	return BuiltinVectorLongRead(w, ptr)
@@ -337,6 +357,11 @@ func (VectorString) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorString) Reset() {
 	ptr := (*[]string)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]string)(item)
+	BuiltinVectorStringFillRandom(rg, ptr)
 }
 
 func (item *VectorString) Read(w []byte) (_ []byte, err error) {

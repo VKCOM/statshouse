@@ -26,6 +26,11 @@ func (item *RpcReqResultErrorWrapped) Reset() {
 	item.Error = ""
 }
 
+func (item *RpcReqResultErrorWrapped) FillRandom(rg *basictl.RandGenerator) {
+	item.ErrorCode = basictl.RandomInt(rg)
+	item.Error = basictl.RandomString(rg)
+}
+
 func (item *RpcReqResultErrorWrapped) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.ErrorCode); err != nil {
 		return w, err

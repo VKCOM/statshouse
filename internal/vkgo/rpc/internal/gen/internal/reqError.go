@@ -26,6 +26,11 @@ func (item *ReqError) Reset() {
 	item.Error = ""
 }
 
+func (item *ReqError) FillRandom(rg *basictl.RandGenerator) {
+	item.ErrorCode = basictl.RandomInt(rg)
+	item.Error = basictl.RandomString(rg)
+}
+
 func (item *ReqError) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.ErrorCode); err != nil {
 		return w, err

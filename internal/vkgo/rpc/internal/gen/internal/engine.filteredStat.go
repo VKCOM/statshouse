@@ -24,6 +24,10 @@ func (item *EngineFilteredStat) Reset() {
 	item.StatNames = item.StatNames[:0]
 }
 
+func (item *EngineFilteredStat) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStringFillRandom(rg, &item.StatNames)
+}
+
 func (item *EngineFilteredStat) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringRead(w, &item.StatNames)
 }

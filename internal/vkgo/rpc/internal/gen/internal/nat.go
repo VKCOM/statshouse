@@ -19,6 +19,14 @@ func BuiltinTuple8Reset(vec *[8]uint32) {
 	}
 }
 
+func BuiltinTuple8FillRandom(rg *basictl.RandGenerator, vec *[8]uint32) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomUint(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple8Read(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.NatRead(w, &(*vec)[i]); err != nil {

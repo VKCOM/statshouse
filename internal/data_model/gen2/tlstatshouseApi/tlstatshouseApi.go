@@ -9,6 +9,7 @@ package tlstatshouseApi
 
 import (
 	"context"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
@@ -78,7 +79,8 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID int64 // should be non-zero when using rpc-proxy
+	ActorID int64         // should be >0 for routing via rpc-proxy
+	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
 func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeReqExtra, ret *GetChunkResponse) (err error) {
@@ -87,13 +89,18 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 	req.ReadOnly = true
 	req.FunctionName = "statshouseApi.getChunk"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getChunk", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
@@ -111,13 +118,18 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouseApi.getQuery"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQuery", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
@@ -136,13 +148,18 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 	req.ReadOnly = true
 	req.FunctionName = "statshouseApi.getQueryPoint"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.getQueryPoint", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
@@ -160,13 +177,18 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouseApi.releaseChunks"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouseApi.releaseChunks", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)

@@ -24,6 +24,10 @@ func (item *RpcReqResultHeader) Reset() {
 	item.QueryId = 0
 }
 
+func (item *RpcReqResultHeader) FillRandom(rg *basictl.RandGenerator) {
+	item.QueryId = basictl.RandomLong(rg)
+}
+
 func (item *RpcReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.QueryId)
 }

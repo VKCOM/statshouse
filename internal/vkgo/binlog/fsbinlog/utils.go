@@ -226,5 +226,5 @@ var _ binlog.ReindexOperator = &EmptyReindexOperator{}
 func (f *EmptyReindexOperator) FinishedError() {
 }
 
-func (f *EmptyReindexOperator) FinishedOk() {
+func (f *EmptyReindexOperator) FinishedOk(bool) {
 }

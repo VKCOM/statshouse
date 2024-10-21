@@ -28,6 +28,12 @@ func (item *RpcReqResultError) Reset() {
 	item.Error = ""
 }
 
+func (item *RpcReqResultError) FillRandom(rg *basictl.RandGenerator) {
+	item.QueryId = basictl.RandomLong(rg)
+	item.ErrorCode = basictl.RandomInt(rg)
+	item.Error = basictl.RandomString(rg)
+}
+
 func (item *RpcReqResultError) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.QueryId); err != nil {
 		return w, err

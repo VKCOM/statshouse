@@ -55,7 +55,8 @@ type EngineStatus struct { // copy of tlbarsic.EngineStatus
 }
 
 type ReindexOperator interface {
-	FinishedOk()
+	// if snapshotCreated == false, barsic will not try to find new snapshot on fs
+	FinishedOk(snapshotCreated bool)
 	FinishedError()
 }
 

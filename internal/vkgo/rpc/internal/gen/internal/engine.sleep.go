@@ -24,6 +24,10 @@ func (item *EngineSleep) Reset() {
 	item.TimeMs = 0
 }
 
+func (item *EngineSleep) FillRandom(rg *basictl.RandGenerator) {
+	item.TimeMs = basictl.RandomInt(rg)
+}
+
 func (item *EngineSleep) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.TimeMs)
 }

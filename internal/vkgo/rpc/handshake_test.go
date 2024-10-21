@@ -288,7 +288,7 @@ func TestResultExtraRoundtrip(t *testing.T) {
 			Utime:   rapid.Uint32().Draw(t, "time"),
 		}
 
-		extra1 := ReqResultExtra{}
+		extra1 := ResponseExtra{}
 		if rapid.Bool().Draw(t, "BinlogPos") {
 			extra1.SetBinlogPos(rapid.Int64().Draw(t, "BinlogPos"))
 		}
@@ -325,7 +325,7 @@ func TestResultExtraRoundtrip(t *testing.T) {
 
 		b1 := extra1.Write(nil)
 
-		var extra2 ReqResultExtra
+		var extra2 ResponseExtra
 		if _, err := extra2.Read(b1); err != nil {
 			t.Fatal(err)
 		}

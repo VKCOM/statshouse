@@ -21,6 +21,8 @@ func (RpcServerWantsFin) TLTag() uint32  { return 0xa8ddbc46 }
 
 func (item *RpcServerWantsFin) Reset() {}
 
+func (item *RpcServerWantsFin) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *RpcServerWantsFin) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 // This method is general version of Write, use it instead!

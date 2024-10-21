@@ -24,6 +24,10 @@ func (item *ReqResultHeader) Reset() {
 	item.Extra.Reset()
 }
 
+func (item *ReqResultHeader) FillRandom(rg *basictl.RandGenerator) {
+	item.Extra.FillRandom(rg)
+}
+
 func (item *ReqResultHeader) Read(w []byte) (_ []byte, err error) {
 	return item.Extra.Read(w)
 }

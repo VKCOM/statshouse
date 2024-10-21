@@ -156,6 +156,94 @@ func (item *RpcReqResultExtra) Reset() {
 	item.ViewNumber = 0
 }
 
+func (item *RpcReqResultExtra) FillRandom(rg *basictl.RandGenerator) {
+	var maskFlags uint32
+	maskFlags = basictl.RandomUint(rg)
+	item.Flags = 0
+	if maskFlags&(1<<0) != 0 {
+		item.Flags |= (1 << 0)
+	}
+	if maskFlags&(1<<1) != 0 {
+		item.Flags |= (1 << 1)
+	}
+	if maskFlags&(1<<2) != 0 {
+		item.Flags |= (1 << 2)
+	}
+	if maskFlags&(1<<3) != 0 {
+		item.Flags |= (1 << 3)
+	}
+	if maskFlags&(1<<4) != 0 {
+		item.Flags |= (1 << 4)
+	}
+	if maskFlags&(1<<5) != 0 {
+		item.Flags |= (1 << 5)
+	}
+	if maskFlags&(1<<6) != 0 {
+		item.Flags |= (1 << 6)
+	}
+	if maskFlags&(1<<7) != 0 {
+		item.Flags |= (1 << 8)
+	}
+	if maskFlags&(1<<8) != 0 {
+		item.Flags |= (1 << 27)
+	}
+	if item.Flags&(1<<0) != 0 {
+		item.BinlogPos = basictl.RandomLong(rg)
+	} else {
+		item.BinlogPos = 0
+	}
+	if item.Flags&(1<<1) != 0 {
+		item.BinlogTime = basictl.RandomLong(rg)
+	} else {
+		item.BinlogTime = 0
+	}
+	if item.Flags&(1<<2) != 0 {
+		item.EnginePid.FillRandom(rg)
+	} else {
+		item.EnginePid.Reset()
+	}
+	if item.Flags&(1<<3) != 0 {
+		item.RequestSize = basictl.RandomInt(rg)
+	} else {
+		item.RequestSize = 0
+	}
+	if item.Flags&(1<<3) != 0 {
+		item.ResponseSize = basictl.RandomInt(rg)
+	} else {
+		item.ResponseSize = 0
+	}
+	if item.Flags&(1<<4) != 0 {
+		item.FailedSubqueries = basictl.RandomInt(rg)
+	} else {
+		item.FailedSubqueries = 0
+	}
+	if item.Flags&(1<<5) != 0 {
+		item.CompressionVersion = basictl.RandomInt(rg)
+	} else {
+		item.CompressionVersion = 0
+	}
+	if item.Flags&(1<<6) != 0 {
+		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Stats)
+	} else {
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
+	}
+	if item.Flags&(1<<8) != 0 {
+		BuiltinVectorDictionaryFieldLongFillRandom(rg, &item.ShardsBinlogPos)
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if item.Flags&(1<<27) != 0 {
+		item.EpochNumber = basictl.RandomLong(rg)
+	} else {
+		item.EpochNumber = 0
+	}
+	if item.Flags&(1<<27) != 0 {
+		item.ViewNumber = basictl.RandomLong(rg)
+	} else {
+		item.ViewNumber = 0
+	}
+}
+
 func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err

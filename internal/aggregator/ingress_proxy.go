@@ -303,7 +303,7 @@ func (proxy *IngressProxy) fillProxyRequest(hctx *rpc.HandlerContext) (request *
 	client = proxy.pool.getClient(hostName, hctx.RemoteAddr().String())
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
-	req.Extra.FailIfNoConnection = true
+	req.FailIfNoConnection = true
 	return req, client, address, nil
 }
 

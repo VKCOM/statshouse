@@ -55,7 +55,7 @@ func preparePacket(req *Request) error {
 	return nil
 }
 
-func parseResponseExtra(extra *ReqResultExtra, respBody []byte) (_ []byte, err error) {
+func parseResponseExtra(extra *ResponseExtra, respBody []byte) (_ []byte, err error) {
 	var tag uint32
 	var afterTag []byte
 	extraSet := 0

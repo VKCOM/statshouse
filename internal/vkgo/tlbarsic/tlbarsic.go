@@ -72,7 +72,8 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.applyPayload"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -80,6 +81,9 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
@@ -97,7 +101,8 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.applyPayload"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -105,6 +110,9 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
@@ -122,7 +130,8 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.changeRole"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -130,6 +139,9 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 		return internal.ErrorClientWrite("barsic.changeRole", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.changeRole", c.Network, c.ActorID, c.Address, err)
@@ -147,7 +159,8 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.commit"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -155,6 +168,9 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.commit", c.Network, c.ActorID, c.Address, err)
@@ -172,7 +188,8 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.commit"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -180,6 +197,9 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.commit", c.Network, c.ActorID, c.Address, err)
@@ -197,7 +217,8 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.engineStarted"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -205,6 +226,9 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
@@ -222,7 +246,8 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.engineStarted"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -230,6 +255,9 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
@@ -247,7 +275,8 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.engineStatus"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -255,6 +284,9 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
@@ -272,7 +304,8 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.engineStatus"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -280,6 +313,9 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
@@ -297,7 +333,8 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.engineWantsRestart"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -305,6 +342,9 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 		return internal.ErrorClientWrite("barsic.engineWantsRestart", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.engineWantsRestart", c.Network, c.ActorID, c.Address, err)
@@ -322,7 +362,8 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.reindex"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -330,6 +371,9 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 		return internal.ErrorClientWrite("barsic.reindex", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.reindex", c.Network, c.ActorID, c.Address, err)
@@ -347,7 +391,8 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.revert"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -355,6 +400,9 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 		return internal.ErrorClientWrite("barsic.revert", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.revert", c.Network, c.ActorID, c.Address, err)
@@ -372,7 +420,8 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.shutdown"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -380,6 +429,9 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 		return internal.ErrorClientWrite("barsic.shutdown", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.shutdown", c.Network, c.ActorID, c.Address, err)
@@ -397,7 +449,8 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.skip"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -405,6 +458,9 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 		return internal.ErrorClientWrite("barsic.skip", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.skip", c.Network, c.ActorID, c.Address, err)
@@ -422,7 +478,8 @@ func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.split"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -430,6 +487,9 @@ func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.Inv
 		return internal.ErrorClientWrite("barsic.split", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
@@ -447,7 +507,8 @@ func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtr
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.split"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -455,6 +516,9 @@ func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientWrite("barsic.split", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
@@ -472,7 +536,8 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.start"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -480,6 +545,9 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 		return internal.ErrorClientWrite("barsic.start", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.start", c.Network, c.ActorID, c.Address, err)
@@ -497,7 +565,8 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 	req.ActorID = c.ActorID
 	req.FunctionName = "barsic.start"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
@@ -505,6 +574,9 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientWrite("barsic.start", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("barsic.start", c.Network, c.ActorID, c.Address, err)

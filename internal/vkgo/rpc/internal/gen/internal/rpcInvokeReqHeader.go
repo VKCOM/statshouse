@@ -24,6 +24,10 @@ func (item *RpcInvokeReqHeader) Reset() {
 	item.QueryId = 0
 }
 
+func (item *RpcInvokeReqHeader) FillRandom(rg *basictl.RandGenerator) {
+	item.QueryId = basictl.RandomLong(rg)
+}
+
 func (item *RpcInvokeReqHeader) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.QueryId)
 }

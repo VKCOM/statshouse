@@ -31,13 +31,9 @@ type serverConn struct {
 
 	longpollResponses map[int64]hijackedResponse
 
-	userData any // single common instance for handlers called from receiveLoopImpl
-	// We swap userData back here from contexts, because often sync handler and normal handlers set different
-	// parts of user data. If we disallow mixing them, they will use less memory
-
 	hctxPool     []*HandlerContext // TODO - move to Server?
 	hctxCreated  int
-	readFINFlag  bool // reader quit, writer continues until hctxCreated == len(hctxPool) and empty queue
+	readFINFlag  bool // writer continues until canGracefullyShutdown and empty queue
 	closedFlag   bool
 	conn         *PacketConn
 	writeQ       []*HandlerContext // never contains noResult responses
@@ -62,7 +58,6 @@ type HijackResponseCanceller interface {
 
 func (sc *serverConn) HijackResponse(hctx *HandlerContext, canceller HijackResponseCanceller) error {
 	// if hctx.noResult - we cannot return any other error from here because caller already updated its state. TODO - cancel immediately
-	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	sc.releaseRequest(hctx)
 	sc.makeLongpollResponse(hctx, canceller)
 	return errHijackResponse
@@ -107,7 +102,6 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 		sc.mu.Unlock()
 		sc.releaseHandlerCtx(hctx)
 		if closedFlag {
-			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
 			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
 		}
 		return
@@ -189,7 +183,7 @@ func (sc *serverConn) WaitClosed() error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
-	for sc.hctxCreated != len(sc.hctxPool) {
+	for !sc.canGracefullyShutdown() {
 		sc.closeWaitCond.Wait()
 	}
 	if len(sc.writeQ) != 0 {
@@ -218,6 +212,11 @@ func (hctx *ServerRequest) writeReponseUnlocked(conn *PacketConn) error {
 	}
 	conn.writePacketTrailerUnlocked()
 	return nil
+}
+
+// do not take into account long poll responses, as 1) they are not valuable 2) waiting for them can be... long
+func (sc *serverConn) canGracefullyShutdown() bool {
+	return sc.hctxCreated == len(sc.hctxPool)+len(sc.longpollResponses)
 }
 
 func (req *ServerRequest) WriteReponseAndFlush(conn *PacketConn, err error, rareLog func(format string, args ...any)) error {
@@ -316,7 +315,7 @@ func (sc *serverConn) releaseHandlerCtx(hctx *HandlerContext) {
 	wakeupAcquireHandlerCtx := len(sc.hctxPool) == 0
 	sc.hctxPool = append(sc.hctxPool, hctx)
 	wasReadFINFlag := sc.readFINFlag
-	wakeupWaitClosed := sc.hctxCreated == len(sc.hctxPool)
+	wakeupWaitClosed := sc.canGracefullyShutdown()
 	sc.mu.Unlock() // unlock without defer to try to reduce lock contention
 
 	if wakeupAcquireHandlerCtx {

@@ -9,6 +9,7 @@ package tlstatshouse
 
 import (
 	"context"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
@@ -72,7 +73,8 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID int64 // should be non-zero when using rpc-proxy
+	ActorID int64         // should be >0 for routing via rpc-proxy
+	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
 func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchBytes, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
@@ -80,13 +82,18 @@ func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchB
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.addMetricsBatch"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
@@ -104,13 +111,18 @@ func (c *Client) AddMetricsBatch(ctx context.Context, args AddMetricsBatch, extr
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.addMetricsBatch"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
@@ -128,13 +140,18 @@ func (c *Client) AutoCreateBytes(ctx context.Context, args AutoCreateBytes, extr
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.autoCreate"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
@@ -152,13 +169,18 @@ func (c *Client) AutoCreate(ctx context.Context, args AutoCreate, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.autoCreate"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
@@ -176,13 +198,18 @@ func (c *Client) GetConfig2Bytes(ctx context.Context, args GetConfig2Bytes, extr
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getConfig2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
@@ -200,13 +227,18 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getConfig2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
@@ -224,13 +256,18 @@ func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, ex
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getMetrics3"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
@@ -248,13 +285,18 @@ func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.I
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getMetrics3"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
@@ -272,13 +314,18 @@ func (c *Client) GetTagMapping2Bytes(ctx context.Context, args GetTagMapping2Byt
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTagMapping2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
@@ -296,13 +343,18 @@ func (c *Client) GetTagMapping2(ctx context.Context, args GetTagMapping2, extra 
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTagMapping2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
@@ -320,13 +372,18 @@ func (c *Client) GetTagMappingBootstrapBytes(ctx context.Context, args GetTagMap
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTagMappingBootstrap"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -344,13 +401,18 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTagMappingBootstrap"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -368,13 +430,18 @@ func (c *Client) GetTargets2Bytes(ctx context.Context, args GetTargets2Bytes, ex
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTargets2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
@@ -392,13 +459,18 @@ func (c *Client) GetTargets2(ctx context.Context, args GetTargets2, extra *rpc.I
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.getTargets2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
@@ -416,13 +488,18 @@ func (c *Client) SendKeepAlive2Bytes(ctx context.Context, args SendKeepAlive2Byt
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.sendKeepAlive2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
@@ -440,13 +517,18 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.sendKeepAlive2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
@@ -464,13 +546,18 @@ func (c *Client) SendSourceBucket2Bytes(ctx context.Context, args SendSourceBuck
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.sendSourceBucket2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
@@ -488,13 +575,18 @@ func (c *Client) SendSourceBucket2(ctx context.Context, args SendSourceBucket2, 
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.sendSourceBucket2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
@@ -512,13 +604,18 @@ func (c *Client) TestConnection2Bytes(ctx context.Context, args TestConnection2B
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.testConnection2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
@@ -536,13 +633,18 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouse.testConnection2"
 	if extra != nil {
-		req.Extra = *extra
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteBoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
 	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
