@@ -55,7 +55,7 @@ build-deb:
 # if tlgen is not installed, replace tlgen with full path, for example ~/go/src/gitlab.mvk.com/go/vkgo/projects/vktl/cmd/tlgen/tlgen
 .PHONY: gen
 gen:
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.7 --language=go --outdir=./internal/data_model/gen2 -v \
+	go run github.com/vkcom/tl/cmd/tlgen@v1.1.10 --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/vkcom/statshouse/internal/data_model/gen2/tl \
  		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
@@ -72,7 +72,7 @@ gen:
 	@go build ./internal/data_model/gen2/...
 
 gen-sqlite:
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.7 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+	go run github.com/vkcom/tl/cmd/tlgen@v1.1.10 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
  		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \

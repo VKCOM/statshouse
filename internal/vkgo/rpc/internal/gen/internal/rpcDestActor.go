@@ -24,6 +24,10 @@ func (item *RpcDestActor) Reset() {
 	item.ActorId = 0
 }
 
+func (item *RpcDestActor) FillRandom(rg *basictl.RandGenerator) {
+	item.ActorId = basictl.RandomLong(rg)
+}
+
 func (item *RpcDestActor) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.ActorId)
 }

@@ -21,6 +21,8 @@ func (EngineVersion) TLTag() uint32  { return 0x1a2e06fa }
 
 func (item *EngineVersion) Reset() {}
 
+func (item *EngineVersion) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineVersion) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 // This method is general version of Write, use it instead!

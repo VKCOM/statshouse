@@ -24,6 +24,10 @@ func (item *EngineSetVerbosity) Reset() {
 	item.Verbosity = 0
 }
 
+func (item *EngineSetVerbosity) FillRandom(rg *basictl.RandGenerator) {
+	item.Verbosity = basictl.RandomInt(rg)
+}
+
 func (item *EngineSetVerbosity) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Verbosity)
 }

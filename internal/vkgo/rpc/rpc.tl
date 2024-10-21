@@ -25,6 +25,26 @@ boolTrue#997275b5 = Bool;
 
 true = True;
 
+exactlyOnce.uuid#c97c16b2 lo:long hi:long = exactlyOnce.Uuid;
+
+// if the query header specifies exactlyOnce.prepareRequest, then the engine will respond with this type
+exactlyOnce.slotResponse#95f25c81 persistent_query_uuid:%exactlyOnce.Uuid persistent_slot_uuid:%exactlyOnce.Uuid = exactlyOnce.SlotResponse;
+
+// if the query header specifies exactlyOnce.commitRequest, then the engine will respond with this type
+exactlyOnce.ackResponse#17641550 persistent_query_uuid:%exactlyOnce.Uuid = exactlyOnce.AckResponse;
+
+exactlyOnce.prepareRequest#c8d71b66 persistent_query_uuid:%exactlyOnce.Uuid = exactlyOnce.PersistentRequest;
+exactlyOnce.commitRequest#6836b983 persistent_query_uuid:%exactlyOnce.Uuid persistent_slot_uuid:%exactlyOnce.Uuid = exactlyOnce.PersistentRequest;
+
+allocSlotEvent#2abb2c70
+  key:exactlyOnce.uuid
+  slot:exactlyOnce.uuid
+= AllocSlotEvent;
+
+releaseSlotEvent#7f045ccc
+  key:exactlyOnce.uuid
+= ReleaseSlotEvent;
+
 rpcInvokeReqExtra#f3ef81a9
   flags:#
 
@@ -46,7 +66,8 @@ rpcInvokeReqExtra#f3ef81a9
   custom_timeout_ms:flags.23?int  // Custom timeout for query
   supported_compression_version:flags.25?int // note, that client support compression, to possibly compress answers
   random_delay:flags.26?double // starting query would be delayed by random number, not grater than given
-  return_view_number:flags.27?%True // GMS2 related parameter: return view number in response
+  return_view_number:flags.27?%True // Barsic related parameter: return view number in response
+  persistent_query:flags.28?exactlyOnce.PersistentRequest
   = RpcInvokeReqExtra;
 
 rpcReqResultExtra#c5011709
@@ -85,11 +106,14 @@ rpcInvokeReqHeader#2374df3d query_id:long = RpcInvokeReqHeader;
 // Supported by vkgo rpc.Server/rpc.Client for now. Support is advertised during PacketConn handshake with flag bit.
 rpcCancelReq#193f1b22 query_id:long = RpcCancelReq;
 
-// Experimental. Top-level packet magic. Server sends once per connection to ask for gracefully close connection.
-// No response from client is sent. Client should finish sending last request and then send FIN (::shutdown(SHUT_WR)).
-// Server will send all responses, then close connection. Client will send all new requests to a new connection.
+// Top-level packet magic. Server sends RpcServerWantsFin once per connection to ask for gracefully closing connection.
+// Client should finish sending current request, send RpcClientWantsFin, send no more requests and wait connection to be closed by server.
+// Server will send all non-longpoll responses, then close connection. Client will send all new requests to a new connection.
+// Long poll requests make this protocol more complicated, as client does not know which requests have been added to long poll map,
+// hence client cannot rely on waiting to finish all responses.
 // Supported by vkgo rpc.Server/rpc.Client for now. Support is advertised during PacketConn handshake with flag bit.
 rpcServerWantsFin#a8ddbc46 = RpcServerWantsFin;
+rpcClientWantsFin#0b73429e = RpcClientWantsFin;
 
 netUdpPacket.unencHeader#00a8e945
   flags:#

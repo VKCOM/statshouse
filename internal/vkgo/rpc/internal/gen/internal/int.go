@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorIntFillRandom(rg *basictl.RandGenerator, vec *[]int32) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*vec = make([]int32, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomInt(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {

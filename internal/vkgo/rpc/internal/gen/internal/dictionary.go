@@ -23,6 +23,11 @@ func (item *DictionaryLong) Reset() {
 	BuiltinVectorDictionaryFieldLongReset(*ptr)
 }
 
+func (item *DictionaryLong) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]int64)(item)
+	BuiltinVectorDictionaryFieldLongFillRandom(rg, ptr)
+}
+
 func (item *DictionaryLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]int64)(item)
 	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
@@ -100,6 +105,11 @@ func (DictionaryString) TLTag() uint32  { return 0x1f4c618f }
 func (item *DictionaryString) Reset() {
 	ptr := (*map[string]string)(item)
 	BuiltinVectorDictionaryFieldStringReset(*ptr)
+}
+
+func (item *DictionaryString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]string)(item)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
 }
 
 func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {

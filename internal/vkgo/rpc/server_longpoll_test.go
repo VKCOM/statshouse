@@ -80,9 +80,7 @@ func testLongpollServer(t *rapid.T) {
 				go func() {
 					n := rand.New().Int31()
 					req := c.GetRequest()
-					req.Extra = InvokeReqExtra{
-						FailIfNoConnection: true,
-					}
+					req.FailIfNoConnection = true
 					req.Body = basictl.NatWrite(req.Body, requestType)
 					req.Body = basictl.IntWrite(req.Body, n)
 

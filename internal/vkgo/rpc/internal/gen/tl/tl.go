@@ -12,13 +12,16 @@ import (
 )
 
 type (
+	AllocSlotEvent              = internal.AllocSlotEvent
 	DictionaryFieldLong         = internal.DictionaryFieldLong
 	DictionaryFieldString       = internal.DictionaryFieldString
 	DictionaryLong              = internal.DictionaryLong
 	DictionaryString            = internal.DictionaryString
+	ReleaseSlotEvent            = internal.ReleaseSlotEvent
 	ReqError                    = internal.ReqError
 	ReqResultHeader             = internal.ReqResultHeader
 	RpcCancelReq                = internal.RpcCancelReq
+	RpcClientWantsFin           = internal.RpcClientWantsFin
 	RpcDestActor                = internal.RpcDestActor
 	RpcDestActorFlags           = internal.RpcDestActorFlags
 	RpcDestFlags                = internal.RpcDestFlags

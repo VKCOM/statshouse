@@ -96,6 +96,54 @@ func (item *NetUdpPacketUnencHeader) Reset() {
 	BuiltinTuple8Reset(&item.RandomKey)
 }
 
+func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
+	var maskFlags uint32
+	maskFlags = basictl.RandomUint(rg)
+	item.Flags = 0
+	if maskFlags&(1<<0) != 0 {
+		item.Flags |= (1 << 0)
+	}
+	if maskFlags&(1<<1) != 0 {
+		item.Flags |= (1 << 2)
+	}
+	if maskFlags&(1<<2) != 0 {
+		item.Flags |= (1 << 3)
+	}
+	if maskFlags&(1<<3) != 0 {
+		item.Flags |= (1 << 5)
+	}
+	if item.Flags&(1<<0) != 0 {
+		item.RemotePid.FillRandom(rg)
+	} else {
+		item.RemotePid.Reset()
+	}
+	if item.Flags&(1<<0) != 0 {
+		item.LocalPid.FillRandom(rg)
+	} else {
+		item.LocalPid.Reset()
+	}
+	if item.Flags&(1<<0) != 0 {
+		item.Generation = basictl.RandomInt(rg)
+	} else {
+		item.Generation = 0
+	}
+	if item.Flags&(1<<2) != 0 {
+		item.PidHash = basictl.RandomLong(rg)
+	} else {
+		item.PidHash = 0
+	}
+	if item.Flags&(1<<3) != 0 {
+		item.CryptoInit = basictl.RandomInt(rg)
+	} else {
+		item.CryptoInit = 0
+	}
+	if item.Flags&(1<<5) != 0 {
+		BuiltinTuple8FillRandom(rg, &item.RandomKey)
+	} else {
+		BuiltinTuple8Reset(&item.RandomKey)
+	}
+}
+
 func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err

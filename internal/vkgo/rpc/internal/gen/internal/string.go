@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStringFillRandom(rg *basictl.RandGenerator, vec *[]string) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*vec = make([]string, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomString(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -90,6 +99,11 @@ func (String) TLTag() uint32  { return 0xb5286e24 }
 func (item *String) Reset() {
 	ptr := (*string)(item)
 	*ptr = ""
+}
+
+func (item *String) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*string)(item)
+	*ptr = basictl.RandomString(rg)
 }
 
 func (item *String) Read(w []byte) (_ []byte, err error) {

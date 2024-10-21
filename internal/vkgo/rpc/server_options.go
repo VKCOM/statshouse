@@ -160,7 +160,7 @@ func ServerWithMaxConns(maxConns int) ServerOptionsFunc {
 		if maxConns > 0 {
 			opts.MaxConns = maxConns
 		} else {
-			opts.MaxConns = 1
+			opts.MaxConns = DefaultMaxConns
 		}
 	}
 }
@@ -176,7 +176,7 @@ func ServerWithMaxInflightPackets(maxInflightPackets int) ServerOptionsFunc {
 		if maxInflightPackets > 0 {
 			opts.MaxInflightPackets = maxInflightPackets
 		} else {
-			opts.MaxInflightPackets = 1
+			opts.MaxInflightPackets = DefaultMaxInflightPackets
 		}
 	}
 }
@@ -206,7 +206,7 @@ func ServerWithConnReadBufSize(size int) ServerOptionsFunc {
 		if size > 0 {
 			opts.ConnReadBufSize = size
 		} else {
-			opts.ConnReadBufSize = 1 // for tests
+			opts.ConnReadBufSize = DefaultServerConnReadBufSize
 		}
 	}
 }
@@ -216,7 +216,7 @@ func ServerWithConnWriteBufSize(size int) ServerOptionsFunc {
 		if size > 0 {
 			opts.ConnWriteBufSize = size
 		} else {
-			opts.ConnWriteBufSize = 1 // for tests
+			opts.ConnWriteBufSize = DefaultServerConnWriteBufSize
 		}
 	}
 }

@@ -156,6 +156,94 @@ func (item *NetUdpPacketEncHeader) Reset() {
 	item.NextParts = 0
 }
 
+func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
+	var maskFlags uint32
+	maskFlags = basictl.RandomUint(rg)
+	item.Flags = 0
+	if maskFlags&(1<<0) != 0 {
+		item.Flags |= (1 << 9)
+	}
+	if maskFlags&(1<<1) != 0 {
+		item.Flags |= (1 << 10)
+	}
+	if maskFlags&(1<<2) != 0 {
+		item.Flags |= (1 << 13)
+	}
+	if maskFlags&(1<<3) != 0 {
+		item.Flags |= (1 << 14)
+	}
+	if maskFlags&(1<<4) != 0 {
+		item.Flags |= (1 << 15)
+	}
+	if maskFlags&(1<<5) != 0 {
+		item.Flags |= (1 << 20)
+	}
+	if maskFlags&(1<<6) != 0 {
+		item.Flags |= (1 << 21)
+	}
+	if maskFlags&(1<<7) != 0 {
+		item.Flags |= (1 << 22)
+	}
+	if maskFlags&(1<<8) != 0 {
+		item.Flags |= (1 << 23)
+	}
+	if item.Flags&(1<<9) != 0 {
+		item.Time = basictl.RandomInt(rg)
+	} else {
+		item.Time = 0
+	}
+	if item.Flags&(1<<10) != 0 {
+		item.Version = basictl.RandomInt(rg)
+	} else {
+		item.Version = 0
+	}
+	if item.Flags&(1<<13) != 0 {
+		item.PacketAckPrefix = basictl.RandomInt(rg)
+	} else {
+		item.PacketAckPrefix = 0
+	}
+	if item.Flags&(1<<14) != 0 {
+		item.PacketAckFrom = basictl.RandomInt(rg)
+	} else {
+		item.PacketAckFrom = 0
+	}
+	if item.Flags&(1<<14) != 0 {
+		item.PacketAckTo = basictl.RandomInt(rg)
+	} else {
+		item.PacketAckTo = 0
+	}
+	if item.Flags&(1<<15) != 0 {
+		BuiltinVectorIntFillRandom(rg, &item.PacketAckSet)
+	} else {
+		item.PacketAckSet = item.PacketAckSet[:0]
+	}
+	if item.Flags&(1<<20) != 0 {
+		item.PacketNum = basictl.RandomInt(rg)
+	} else {
+		item.PacketNum = 0
+	}
+	if item.Flags&(1<<21) != 0 {
+		item.PacketsFrom = basictl.RandomInt(rg)
+	} else {
+		item.PacketsFrom = 0
+	}
+	if item.Flags&(1<<21) != 0 {
+		item.PacketsTo = basictl.RandomInt(rg)
+	} else {
+		item.PacketsTo = 0
+	}
+	if item.Flags&(1<<22) != 0 {
+		item.PrevParts = basictl.RandomInt(rg)
+	} else {
+		item.PrevParts = 0
+	}
+	if item.Flags&(1<<23) != 0 {
+		item.NextParts = basictl.RandomInt(rg)
+	} else {
+		item.NextParts = 0
+	}
+}
+
 func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err

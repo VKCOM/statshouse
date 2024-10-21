@@ -33,9 +33,9 @@ type ServerRequest struct {
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
-	RequestExtra           InvokeReqExtra // every proxy adds bits it needs to client extra, sends it to server, then clears all bits in response so client can interpret all bits
-	ResponseExtra          ReqResultExtra // everything we set here will be sent if client requested it (bit of RequestExtra.flags set)
-	requestExtraFieldsmask uint32         // defensive copy
+	RequestExtra           RequestExtra  // every proxy adds bits it needs to client extra, sends it to server, then clears all bits in response so client can interpret all bits
+	ResponseExtra          ResponseExtra // everything we set here will be sent if client requested it (bit of RequestExtra.flags set)
+	requestExtraFieldsmask uint32        // defensive copy
 
 	reqTag   uint32 // actual request can be wrapped 0 or more times within reqHeader
 	noResult bool   // defensive copy
@@ -88,8 +88,8 @@ func (hctx *HandlerContext) ListenAddr() net.Addr      { return hctx.listenAddr 
 func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.localAddr }
 func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.remoteAddr }
 
-// this is for testing UDP transport, will be removed soon
-func (hctx *HandlerContext) FillHandlerContextDoNotUse(
+// for implementing servers, also for tests with server mock ups
+func (hctx *HandlerContext) ResetTo(
 	commonConn HandlerContextConnection, listenAddr net.Addr, localAddr net.Addr, remoteAddr net.Addr,
 	keyID [4]byte, protocolVersion uint32, protocolTransport string,
 	options *ServerOptions) {
@@ -132,6 +132,7 @@ func (hctx *HandlerContext) HijackResponse(canceller HijackResponseCanceller) er
 	return hctx.commonConn.HijackResponse(hctx, canceller)
 }
 
+// Be careful, it's responsibility of the caller to synchronize SendHijackedResponse and CancelHijack
 func (hctx *HandlerContext) SendHijackedResponse(err error) {
 	hctx.commonConn.SendHijackedResponse(hctx, err)
 }

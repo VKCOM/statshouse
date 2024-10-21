@@ -39,9 +39,10 @@ var (
 )
 
 type Request struct {
-	Body    []byte
-	ActorID int64
-	Extra   InvokeReqExtra
+	Body               []byte
+	ActorID            int64
+	Extra              RequestExtra
+	FailIfNoConnection bool
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
@@ -64,7 +65,7 @@ func (req *Request) HookState() ClientHooks {
 type Response struct {
 	body  *[]byte // slice for reuse, always len 0
 	Body  []byte  // rest of body after parsing various extras
-	Extra ReqResultExtra
+	Extra ResponseExtra
 
 	// We use Response as a call context to reduce # of allocations. Fields below represent call context.
 	queryID            int64
@@ -196,7 +197,6 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 }
 
 // Experimental API, can change any moment. For high-performance clients, like ingress proxy
-// TODO - most arguments are in resp already
 type ClientCallback func(client *Client, resp *Response, err error)
 
 type CallbackContext struct {
@@ -320,7 +320,7 @@ func (c *Client) fillRequestTimeout(ctx context.Context, req *Request) (time.Tim
 	if deadline, ok := ctx.Deadline(); ok {
 		to := time.Until(deadline)
 		if to <= 0 { // local timeout, <= is the only correct comparison
-			return time.Time{}, fmt.Errorf("context timeout expired before call is made")
+			return time.Time{}, context.DeadlineExceeded
 		}
 		if req.Extra.CustomTimeoutMs == 0 || to < time.Millisecond*time.Duration(req.Extra.CustomTimeoutMs) {
 			// there is no point to set timeout larger than set in context, as client will fail locally before server returns response
@@ -390,7 +390,7 @@ func (c *Client) GetRequest() *Request {
 	req := c.getRequest()
 	for {
 		req.queryID = int64(c.lastQueryID.Inc() & math.MaxInt64)
-		// We like positive query IDs, but not 0, so users can user QueryID as a flag
+		// We like positive query IDs, but not 0, so users can use QueryID as a flag
 		if req.queryID != 0 {
 			break
 		}
@@ -462,6 +462,7 @@ func (c *Client) PutResponse(cctx *Response) {
 	c.responsePool.Put(cctx)
 }
 
+// naive rounding can round tiny to infinite
 func roundTimeoutToInt32(timeout time.Duration) int32 {
 	if timeout <= 0 {
 		return 0 // infinite
@@ -478,7 +479,7 @@ func roundTimeoutToInt32(timeout time.Duration) int32 {
 
 // We have several hierarchical timeouts, we update from high to lower priority.
 // So if high priority timeout is set (even to 0 (infinite)), subsequent calls do nothing.
-func UpdateExtraTimeout(extra *InvokeReqExtra, timeout time.Duration) {
+func UpdateExtraTimeout(extra *RequestExtra, timeout time.Duration) {
 	if extra.IsSetCustomTimeoutMs() {
 		return
 	}

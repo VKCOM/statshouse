@@ -24,6 +24,10 @@ func (item *RpcPing) Reset() {
 	item.PingId = 0
 }
 
+func (item *RpcPing) FillRandom(rg *basictl.RandGenerator) {
+	item.PingId = basictl.RandomLong(rg)
+}
+
 func (item *RpcPing) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PingId)
 }

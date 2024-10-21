@@ -24,6 +24,10 @@ func (item *GoPprof) Reset() {
 	item.Params = ""
 }
 
+func (item *GoPprof) FillRandom(rg *basictl.RandGenerator) {
+	item.Params = basictl.RandomString(rg)
+}
+
 func (item *GoPprof) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Params)
 }

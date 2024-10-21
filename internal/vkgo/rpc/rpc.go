@@ -58,14 +58,17 @@ const (
 	// We optimize excess SetDeadline calls
 )
 
-type ReqResultExtra = tl.RpcReqResultExtra
+type RequestExtra = tl.RpcInvokeReqExtra
+type ResponseExtra = tl.RpcReqResultExtra
 
-type InvokeReqExtra struct {
-	tl.RpcInvokeReqExtra
+type InvokeReqExtra struct { // additional parameters to auto generated client code
+	RequestExtra // embedded for historic reasons
 
 	// Requests fail immediately when connection fails, so that switch to fallback is faster
 	// Here, because generated code calls GetRequest() so caller has no access to request
 	FailIfNoConnection bool
+
+	ResponseExtra ResponseExtra // after call, response extra is available here
 }
 
 type UnencHeader = tlnetUdpPacket.UnencHeader // TODO - move to better place when UDP impl is ready
@@ -140,11 +143,11 @@ type packetHeader struct {
 // then can contain 0 to 3 values of uint32(4), aligning packet to multiple of AES encryption block.
 
 func humanByteCountIEC(b int64) string {
-	const unit = 1024
+	const unit int64 = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
 	}
-	div, exp := int64(unit), 0
+	div, exp := unit, 0
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++

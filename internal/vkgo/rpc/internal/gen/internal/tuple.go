@@ -23,6 +23,11 @@ func (item *Tuple8) Reset() {
 	BuiltinTuple8Reset(ptr)
 }
 
+func (item *Tuple8) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[8]uint32)(item)
+	BuiltinTuple8FillRandom(rg, ptr)
+}
+
 func (item *Tuple8) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[8]uint32)(item)
 	return BuiltinTuple8Read(w, ptr)

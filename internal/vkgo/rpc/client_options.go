@@ -65,7 +65,7 @@ func ClientWithConnReadBufSize(size int) ClientOptionsFunc {
 		if size > 0 {
 			o.ConnReadBufSize = size
 		} else {
-			o.ConnReadBufSize = 1 // for tests
+			o.ConnReadBufSize = DefaultClientConnReadBufSize
 		}
 	}
 }
@@ -75,7 +75,7 @@ func ClientWithConnWriteBufSize(size int) ClientOptionsFunc {
 		if size > 0 {
 			o.ConnWriteBufSize = size
 		} else {
-			o.ConnWriteBufSize = 1 // for tests
+			o.ConnWriteBufSize = DefaultClientConnWriteBufSize
 		}
 	}
 }

@@ -21,6 +21,17 @@ func BuiltinVectorDictionaryFieldLongReset(m map[string]int64) {
 	}
 }
 
+func BuiltinVectorDictionaryFieldLongFillRandom(rg *basictl.RandGenerator, m *map[string]int64) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*m = make(map[string]int64, l)
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldLong
+		elem.FillRandom(rg)
+		(*m)[elem.Key] = elem.Value
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorDictionaryFieldLongRead(w []byte, m *map[string]int64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -130,6 +141,17 @@ func BuiltinVectorDictionaryFieldStringReset(m map[string]string) {
 	}
 }
 
+func BuiltinVectorDictionaryFieldStringFillRandom(rg *basictl.RandGenerator, m *map[string]string) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*m = make(map[string]string, l)
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldString
+		elem.FillRandom(rg)
+		(*m)[elem.Key] = elem.Value
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorDictionaryFieldStringRead(w []byte, m *map[string]string) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -244,6 +266,11 @@ func (DictionaryFieldLong) TLTag() uint32  { return 0x239c1b62 }
 func (item *DictionaryFieldLong) Reset() {
 	item.Key = ""
 	item.Value = 0
+}
+
+func (item *DictionaryFieldLong) FillRandom(rg *basictl.RandGenerator) {
+	item.Key = basictl.RandomString(rg)
+	item.Value = basictl.RandomLong(rg)
 }
 
 func (item *DictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
@@ -382,6 +409,11 @@ func (DictionaryFieldString) TLTag() uint32  { return 0x239c1b62 }
 func (item *DictionaryFieldString) Reset() {
 	item.Key = ""
 	item.Value = ""
+}
+
+func (item *DictionaryFieldString) FillRandom(rg *basictl.RandGenerator) {
+	item.Key = basictl.RandomString(rg)
+	item.Value = basictl.RandomString(rg)
 }
 
 func (item *DictionaryFieldString) Read(w []byte) (_ []byte, err error) {

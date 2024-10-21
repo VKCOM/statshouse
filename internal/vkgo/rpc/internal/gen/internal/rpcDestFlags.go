@@ -24,6 +24,10 @@ func (item *RpcDestFlags) Reset() {
 	item.Extra.Reset()
 }
 
+func (item *RpcDestFlags) FillRandom(rg *basictl.RandGenerator) {
+	item.Extra.FillRandom(rg)
+}
+
 func (item *RpcDestFlags) Read(w []byte) (_ []byte, err error) {
 	return item.Extra.Read(w)
 }

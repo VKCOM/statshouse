@@ -14,12 +14,18 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
+func SchemaGenerator() string { return "v1.1.10" }
+func SchemaURL() string       { return "" }
+func SchemaCommit() string    { return "" }
+func SchemaTimestamp() uint32 { return 0 }
+
 // We can create only types which have zero type arguments and zero nat arguments
 type Object interface {
 	TLName() string // returns type's TL name. For union, returns constructor name depending on actual union value
 	TLTag() uint32  // returns type's TL tag. For union, returns constructor tag depending on actual union value
 	String() string // returns type's representation for debugging (JSON for now)
 
+	FillRandom(rg *basictl.RandGenerator)
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
 	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
@@ -90,13 +96,46 @@ func CreateObjectFromName(name string) Object {
 	return nil
 }
 
+func CreateFunctionBytes(tag uint32) Function {
+	if item := FactoryItemByTLTag(tag); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+func CreateObjectBytes(tag uint32) Object {
+	if item := FactoryItemByTLTag(tag); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateFunctionFromNameBytes(name string) Function {
+	if item := FactoryItemByTLName(name); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateObjectFromNameBytes(name string) Object {
+	if item := FactoryItemByTLName(name); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
 type TLItem struct {
-	tag                uint32
-	annotations        uint32
-	tlName             string
-	createFunction     func() Function
-	createFunctionLong func() Function
-	createObject       func() Object
+	tag                     uint32
+	annotations             uint32
+	tlName                  string
+	createFunction          func() Function
+	createFunctionLong      func() Function
+	createObject            func() Object
+	createFunctionBytes     func() Function
+	createFunctionLongBytes func() Function
+	createObjectBytes       func() Object
 }
 
 func (item TLItem) TLTag() uint32            { return item.tag }
@@ -116,6 +155,7 @@ func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x4 != 0
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                                {}
+func (item *TLItem) FillRandom(rg *basictl.RandGenerator)  {}
 func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
 func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
 func (item *TLItem) Write(w []byte) []byte                 { return w }
@@ -196,6 +236,40 @@ func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item.createObject = func() Object { return item }
 }
 
+func SetGlobalFactoryCreateForFunctionBytes(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+	item.createFunctionBytes = createFunction
+	item.createFunctionLongBytes = createFunctionLong
+}
+
+func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Object) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForEnumElementBytes(itemTag uint32) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = func() Object { return item }
+}
+
+func pleaseImportFactoryBytesObject() Object {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
+func pleaseImportFactoryBytesFunction() Function {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
 func pleaseImportFactoryObject() Object {
 	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory' instead of 'gen/meta'.")
 }
@@ -210,6 +284,7 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	itemsByName[n1] = item
 	itemsByName[n2] = item
 	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
 	// code below is as fast, but allocates some extra strings which are already in binary const segment due to JSON code
 	// itemsByName[fmt.Sprintf("%s#%08x", item.tlName, item.tag)] = item
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
@@ -218,9 +293,11 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
+	item.createFunctionBytes = pleaseImportFactoryBytesFunction
 }
 
 func init() {
+	fillObject("allocSlotEvent#2abb2c70", "#2abb2c70", &TLItem{tag: 0x2abb2c70, annotations: 0x0, tlName: "allocSlotEvent"})
 	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep"})
 	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat"})
 	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid"})
@@ -228,13 +305,20 @@ func init() {
 	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep"})
 	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat"})
 	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version"})
+	fillObject("exactlyOnce.ackResponse#17641550", "#17641550", &TLItem{tag: 0x17641550, annotations: 0x0, tlName: "exactlyOnce.ackResponse"})
+	fillObject("exactlyOnce.commitRequest#6836b983", "#6836b983", &TLItem{tag: 0x6836b983, annotations: 0x0, tlName: "exactlyOnce.commitRequest"})
+	fillObject("exactlyOnce.prepareRequest#c8d71b66", "#c8d71b66", &TLItem{tag: 0xc8d71b66, annotations: 0x0, tlName: "exactlyOnce.prepareRequest"})
+	fillObject("exactlyOnce.slotResponse#95f25c81", "#95f25c81", &TLItem{tag: 0x95f25c81, annotations: 0x0, tlName: "exactlyOnce.slotResponse"})
+	fillObject("exactlyOnce.uuid#c97c16b2", "#c97c16b2", &TLItem{tag: 0xc97c16b2, annotations: 0x0, tlName: "exactlyOnce.uuid"})
 	fillFunction("go.pprof#ea2876a6", "#ea2876a6", &TLItem{tag: 0xea2876a6, annotations: 0x4, tlName: "go.pprof"})
 	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid"})
 	fillObject("netUdpPacket.encHeader#251a7bfd", "#251a7bfd", &TLItem{tag: 0x251a7bfd, annotations: 0x0, tlName: "netUdpPacket.encHeader"})
 	fillObject("netUdpPacket.unencHeader#00a8e945", "#00a8e945", &TLItem{tag: 0x00a8e945, annotations: 0x0, tlName: "netUdpPacket.unencHeader"})
+	fillObject("releaseSlotEvent#7f045ccc", "#7f045ccc", &TLItem{tag: 0x7f045ccc, annotations: 0x0, tlName: "releaseSlotEvent"})
 	fillObject("reqError#b527877d", "#b527877d", &TLItem{tag: 0xb527877d, annotations: 0x0, tlName: "reqError"})
 	fillObject("reqResultHeader#8cc84ce1", "#8cc84ce1", &TLItem{tag: 0x8cc84ce1, annotations: 0x0, tlName: "reqResultHeader"})
 	fillObject("rpcCancelReq#193f1b22", "#193f1b22", &TLItem{tag: 0x193f1b22, annotations: 0x0, tlName: "rpcCancelReq"})
+	fillObject("rpcClientWantsFin#0b73429e", "#0b73429e", &TLItem{tag: 0x0b73429e, annotations: 0x0, tlName: "rpcClientWantsFin"})
 	fillObject("rpcDestActor#7568aabd", "#7568aabd", &TLItem{tag: 0x7568aabd, annotations: 0x0, tlName: "rpcDestActor"})
 	fillObject("rpcDestActorFlags#f0a5acf7", "#f0a5acf7", &TLItem{tag: 0xf0a5acf7, annotations: 0x0, tlName: "rpcDestActorFlags"})
 	fillObject("rpcDestFlags#e352035e", "#e352035e", &TLItem{tag: 0xe352035e, annotations: 0x0, tlName: "rpcDestFlags"})

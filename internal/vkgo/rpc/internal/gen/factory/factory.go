@@ -31,6 +31,7 @@ func CreateObjectFromName(name string) meta.Object {
 }
 
 func init() {
+	meta.SetGlobalFactoryCreateForObject(0x2abb2c70, func() meta.Object { var ret internal.AllocSlotEvent; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x60e50d3d, func() meta.Object { var ret internal.EngineAsyncSleep; return &ret }, func() meta.Function { var ret internal.EngineAsyncSleep; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x594870d6, func() meta.Object { var ret internal.EngineFilteredStat; return &ret }, func() meta.Function { var ret internal.EngineFilteredStat; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x559d6e36, func() meta.Object { var ret internal.EnginePid; return &ret }, func() meta.Function { var ret internal.EnginePid; return &ret }, nil)
@@ -38,13 +39,20 @@ func init() {
 	meta.SetGlobalFactoryCreateForFunction(0x3d3bcd48, func() meta.Object { var ret internal.EngineSleep; return &ret }, func() meta.Function { var ret internal.EngineSleep; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0xefb3c36b, func() meta.Object { var ret internal.EngineStat; return &ret }, func() meta.Function { var ret internal.EngineStat; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x1a2e06fa, func() meta.Object { var ret internal.EngineVersion; return &ret }, func() meta.Function { var ret internal.EngineVersion; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForObject(0x17641550, func() meta.Object { var ret internal.ExactlyOnceAckResponse; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x6836b983, func() meta.Object { var ret internal.ExactlyOnceCommitRequest; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0xc8d71b66, func() meta.Object { var ret internal.ExactlyOncePrepareRequest; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x95f25c81, func() meta.Object { var ret internal.ExactlyOnceSlotResponse; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0xc97c16b2, func() meta.Object { var ret internal.ExactlyOnceUuid; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0xea2876a6, func() meta.Object { var ret internal.GoPprof; return &ret }, func() meta.Function { var ret internal.GoPprof; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x46409ccf, func() meta.Object { var ret internal.NetPid; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x251a7bfd, func() meta.Object { var ret internal.NetUdpPacketEncHeader; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x00a8e945, func() meta.Object { var ret internal.NetUdpPacketUnencHeader; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x7f045ccc, func() meta.Object { var ret internal.ReleaseSlotEvent; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xb527877d, func() meta.Object { var ret internal.ReqError; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x8cc84ce1, func() meta.Object { var ret internal.ReqResultHeader; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x193f1b22, func() meta.Object { var ret internal.RpcCancelReq; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x0b73429e, func() meta.Object { var ret internal.RpcClientWantsFin; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x7568aabd, func() meta.Object { var ret internal.RpcDestActor; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xf0a5acf7, func() meta.Object { var ret internal.RpcDestActorFlags; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xe352035e, func() meta.Object { var ret internal.RpcDestFlags; return &ret })

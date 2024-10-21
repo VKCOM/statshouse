@@ -62,7 +62,7 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 	}
 	cctx.cb = cb
 	cctx.userData = userData
-	cctx.failIfNoConnection = req.Extra.FailIfNoConnection
+	cctx.failIfNoConnection = req.FailIfNoConnection
 	cctx.readonly = req.ReadOnly
 	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
@@ -70,7 +70,7 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 		return cctx, ErrClientClosed
 	}
 
-	if req.Extra.FailIfNoConnection && pc.waitingToReconnect {
+	if req.FailIfNoConnection && pc.waitingToReconnect {
 		return cctx, ErrClientConnClosedNoSideEffect
 	}
 	if debugPrint {
@@ -352,15 +352,30 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 		fmt.Printf("%v sendLoop %p conn %p start\n", time.Now(), pc.client, pc)
 	}
 	var buf []writeReq
-	writeFin := false
-	writeBuiltin := false
 	var customBody []byte
+	sent := false // true if there is data to flush
+	pc.mu.Lock()
 	for {
-		writeFin, writeBuiltin, buf = pc.writeQAcquire(buf[:0])
-		if !writeFin && !writeBuiltin && len(buf) == 0 {
+		if !(sent || pc.conn == nil || len(pc.writeQ) != 0 || pc.writeFin || pc.writeBuiltin) {
+			pc.writeQCond.Wait()
+			continue
+		}
+		shouldStop := pc.conn == nil
+		writeFin := pc.writeFin
+		pc.writeFin = false
+		writeBuiltin := pc.writeBuiltin
+		pc.writeBuiltin = false
+		buf = buf[:0]
+		if !writeFin { // do not send more requests if server wants to shut down
+			buf = pc.moveRequestsToSend(buf)
+		}
+		pc.mu.Unlock()
+		if shouldStop {
 			return nil
 		}
+		sentNow := false
 		if writeBuiltin {
+			sentNow = true
 			err := conn.WritePacketBuiltinNoFlushUnlocked(pc.client.opts.PacketTimeout)
 			if err != nil {
 				if !commonConnCloseError(err) {
@@ -370,6 +385,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 			}
 		}
 		for _, wr := range buf {
+			sentNow = true
 			if wr.cctx == nil {
 				ret := tl.RpcCancelReq{QueryId: wr.cancelQueryID}
 				customBody = ret.Write(customBody[:0])
@@ -391,9 +407,20 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 				}
 			}
 		}
-
-		// TODO - use sent flag instead, like in rpc.Server
-		if pc.writeQFlush() { // before writeFIN we must flush regardless of policy set by writeQFlush
+		if writeFin {
+			sentNow = true
+			if debugPrint {
+				fmt.Printf("%v client %p conn %p writes FIN\n", time.Now(), pc.client, pc)
+			}
+			err := writeCustomPacketUnlocked(conn, tl.RpcClientWantsFin{}.TLTag(), nil, pc.client.opts.PacketTimeout)
+			if err != nil {
+				if !commonConnCloseError(err) {
+					pc.client.opts.Logf("rpc: failed to send custom packet to %v, disconnecting: %v", conn.remoteAddr, err)
+				}
+				return err
+			}
+		}
+		if sent && !sentNow {
 			if err := conn.FlushUnlocked(); err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to flush packets to %v, disconnecting: %v", conn.remoteAddr, err)
@@ -401,18 +428,45 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 				return err
 			}
 		}
+		sent = sentNow
+		pc.mu.Lock()
 		if writeFin {
-			if debugPrint {
-				fmt.Printf("%v client %p conn %p writes FIN\n", time.Now(), pc.client, pc)
+			break
+		}
+	}
+	for { // subset of code above without taking into account writeFin and writeQ
+		if !(sent || pc.conn == nil || pc.writeBuiltin) {
+			pc.writeQCond.Wait()
+			continue
+		}
+		shouldStop := pc.conn == nil
+		writeBuiltin := pc.writeBuiltin
+		pc.writeBuiltin = false
+		pc.mu.Unlock()
+		if shouldStop {
+			return nil
+		}
+		sentNow := false
+		if writeBuiltin {
+			sentNow = true
+			err := conn.WritePacketBuiltinNoFlushUnlocked(pc.client.opts.PacketTimeout)
+			if err != nil {
+				if !commonConnCloseError(err) {
+					pc.client.opts.Logf("rpc: failed to send ping/pong to %v, disconnecting: %v", conn.remoteAddr, err)
+				}
+				return err
 			}
-			if err := conn.ShutdownWrite(); err != nil {
+		}
+		if sent && !sentNow {
+			if err := conn.FlushUnlocked(); err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to flush packets to %v, disconnecting: %v", conn.remoteAddr, err)
 				}
 				return err
 			}
-			return nil
 		}
+		sent = sentNow
+		pc.mu.Lock()
 	}
 }
 
@@ -472,8 +526,8 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 		pc.writeFin = true
 		pc.mu.Unlock()
 		pc.writeQCond.Signal()
-		// goWrite will take last bunch of requests plus fin from writeQ, write them and quit.
-		// all requests put into writeQ after writer quits will wait there until the next reconnect
+		// goWrite will send ClientWantsFIN, then send only built in packets
+		// all requests put into writeQ after that will wait there until the next reconnect
 		return nil, nil
 	case tl.RpcReqResultError{}.TLTag():
 		var reqResultError tl.RpcReqResultError
@@ -536,47 +590,20 @@ func writeRequestUnlocked(conn *PacketConn, req *Request, writeTimeout time.Dura
 	return nil
 }
 
-func (pc *clientConn) writeQAcquire(q []writeReq) (writeFin bool, writeBuiltin bool, _ []writeReq) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-
-	for {
-		if !(pc.conn == nil || len(pc.writeQ) != 0 || pc.writeFin || pc.writeBuiltin) {
-			pc.writeQCond.Wait()
-			continue
-		}
-
-		if pc.conn == nil {
-			return false, false, nil
-		}
-
-		ret := q
-		for i, wr := range pc.writeQ {
-			if wr.cctx != nil {
-				if wr.cctx.stale {
-					pc.putStaleRequest(wr) // avoid sending stale requests
-					pc.writeQ[i] = writeReq{}
-					continue
-				}
-				wr.cctx.sent = true // point of potential side effect
-				// TODO - we want to move side effect just before WritePacket, but this would require
+func (pc *clientConn) moveRequestsToSend(ret []writeReq) []writeReq {
+	for i, wr := range pc.writeQ {
+		if wr.cctx != nil {
+			if wr.cctx.stale {
+				pc.putStaleRequest(wr) // avoid sending stale requests
+				pc.writeQ[i] = writeReq{}
+				continue
 			}
-			pc.writeQ[i] = writeReq{}
-			ret = append(ret, wr)
+			wr.cctx.sent = true // point of potential side effect
+			// TODO - we want to move side effect just before WritePacket, but this would require locking there
 		}
-		pc.writeQ = pc.writeQ[:0]
-		writeBuiltin := pc.writeBuiltin
-		pc.writeBuiltin = false
-		if pc.writeFin || writeBuiltin || len(ret) != 0 {
-			return pc.writeFin, writeBuiltin, ret // We do not clear writeFin, because it must be cleared on reconnect anyway
-		}
-		// All requests were stale, wait for more requests
+		pc.writeQ[i] = writeReq{}
+		ret = append(ret, wr)
 	}
-}
-
-func (pc *clientConn) writeQFlush() bool {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-
-	return pc.conn == nil || len(pc.writeQ) == 0
+	pc.writeQ = pc.writeQ[:0]
+	return ret
 }
