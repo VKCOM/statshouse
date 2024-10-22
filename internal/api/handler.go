@@ -1519,6 +1519,9 @@ func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*Ge
 }
 
 func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
+	if ai.service {
+		return &DashboardInfo{}, httpErr(http.StatusForbidden, fmt.Errorf("services mustn't create or modify dashboards")) // TODO unify according to SH access policy
+	}
 	if !create {
 		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
