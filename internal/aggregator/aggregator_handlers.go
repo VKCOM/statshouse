@@ -60,9 +60,21 @@ func (a *Aggregator) getConfigResult() tlstatshouse.GetConfigResult {
 	}
 }
 
-func (a *Aggregator) getAgentEnv(isEnvStaging bool) int32 {
-	if isEnvStaging {
-		return format.TagValueIDStaging
+func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
+	mask := 0
+	if isSetStaging0 {
+		mask |= 1
+	}
+	if isSetStaging1 {
+		mask |= 2
+	}
+	switch mask {
+	case 1:
+		return format.TagValueIDStaging1
+	case 2:
+		return format.TagValueIDStaging2
+	case 3:
+		return format.TagValueIDStaging3
 	}
 	return format.TagValueIDProduction
 }
@@ -75,7 +87,7 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	host := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricNameBudgetHost, false)
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
+	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	route := int32(format.TagValueIDRouteDirect)
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
@@ -142,7 +154,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	if args.IsSetOwner() {
 		owner = a.tagsMapper.mapOrFlood(now, args.Owner, format.BuiltinMetricNameBudgetOwner, false)
 	}
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
+	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
 	route := int32(format.TagValueIDRouteDirect)
@@ -461,7 +473,7 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	host := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
+	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	route := int32(format.TagValueIDRouteDirect)
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {

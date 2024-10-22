@@ -151,7 +151,7 @@ func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatsh
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
 	}
-	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
+	data_model.SetProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
 
 func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeader) {
@@ -162,7 +162,7 @@ func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
 	}
-	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
+	data_model.SetProxyHeaderStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
 
 // We see no reason to carefully stop/wait this loop at shutdown

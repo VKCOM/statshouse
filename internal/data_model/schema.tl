@@ -87,7 +87,9 @@ statshouse.getConfigResult#0c803d07 {fields_mask:#}
 statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     // header uses bits backward to reduce conflicts with request fields
     ingress_proxy:fields_mask.31?true     // simply set to 1 by ingress proxy for all passing requests
-    agent_env_staging:fields_mask.30?true // set by test version of agents to help with debug
+    agent_env_staging_0:fields_mask.30?true // set by test version of agents to help with debug
+    agent_env_staging_1:fields_mask.29?true
+
     shard_replica:int // Aggregator will only accept correct shard/replica conbinations
     shard_replica_total:int
     agent_ip:4*[int] // filled by proxy. ipv4 is in ipv6-compatible format, source_ip[3] holds ipv4 address bits.

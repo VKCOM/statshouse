@@ -10,6 +10,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
@@ -157,6 +158,16 @@ func SilentRPCError(err error) bool {
 	default:
 		return false
 	}
+}
+
+func SetProxyHeaderStagingLevel(header *tlstatshouse.CommonProxyHeader, fieldsMask *uint32, stagingLevel int) {
+	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
+	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
+}
+
+func SetProxyHeaderBytesStagingLevel(header *tlstatshouse.CommonProxyHeaderBytes, fieldsMask *uint32, stagingLevel int) {
+	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
+	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
 }
 
 func RemoteConfigMetric(name string) bool {

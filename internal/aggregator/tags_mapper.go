@@ -174,7 +174,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	}
 	now := time.Now()
 	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
-	agentEnv := ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
+	agentEnv := ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	route := int32(format.TagValueIDRouteDirect) // all config routes are direct
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
