@@ -75,7 +75,7 @@ type Agent struct {
 	metricStorage format.MetaStorageInterface
 
 	componentTag    int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
-	isEnvStaging    bool
+	stagingLevel    int
 	commitDateTag   int32
 	commitTimestamp int32
 	buildArchTag    int32
@@ -143,13 +143,17 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 
 	switch config.StatsHouseEnv {
 	case "production":
-		result.isEnvStaging = false
-	case "staging":
-		result.isEnvStaging = true
+		result.stagingLevel = 0
+	case "staging", "staging1":
+		result.stagingLevel = 1
+	case "staging2":
+		result.stagingLevel = 2
+	case "staging3":
+		result.stagingLevel = 3
 	default:
 		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
 		// Also we protect built-in metrics from sampling, so must ensure their cardinality is limited
-		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be either 'production' or 'staging' ", config.StatsHouseEnv)
+		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be 'production', 'staging1', 'staging2' or 'staging3'", config.StatsHouseEnv)
 	}
 	logF("Configuration: detected build arch key as %d for string %q", result.buildArchTag, runtime.GOARCH)
 	if getConfigResult != nil {
@@ -158,7 +162,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		if len(config.AggregatorAddresses) < 3 {
 			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
-		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
+		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.stagingLevel, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
 	nowUnix := uint32(time.Now().Unix())

@@ -198,7 +198,9 @@ const (
 	TagValueIDRPCRequestsStatusErrCancel   = 6 // on proxy, agent request was cancelled before response from aggregator arrived
 
 	TagValueIDProduction = 1
-	TagValueIDStaging    = 2
+	TagValueIDStaging1   = 2
+	TagValueIDStaging2   = 3
+	TagValueIDStaging3   = 4
 
 	TagValueIDAPILaneFastLight = 1
 	TagValueIDAPILaneFastHeavy = 2
@@ -2745,7 +2747,9 @@ func init() {
 				Description: "statshouse_env",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDProduction: "statshouse.production",
-					TagValueIDStaging:    "statshouse.staging",
+					TagValueIDStaging1:   "statshouse.staging1",
+					TagValueIDStaging2:   "statshouse.staging2",
+					TagValueIDStaging3:   "statshouse.staging3",
 				}),
 			}
 			m.Tags[BuildArchTag] = MetricMetaTag{

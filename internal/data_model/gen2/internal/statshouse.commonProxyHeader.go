@@ -15,7 +15,8 @@ var _ = basictl.NatWrite
 
 type StatshouseCommonProxyHeader struct {
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
-	// AgentEnvStaging (TrueType) // Conditional: nat_fields_mask.30
+	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
+	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -40,7 +41,7 @@ func (item StatshouseCommonProxyHeader) IsSetIngressProxy(nat_fields_mask uint32
 	return nat_fields_mask&(1<<31) != 0
 }
 
-func (item *StatshouseCommonProxyHeader) SetAgentEnvStaging(v bool, nat_fields_mask *uint32) {
+func (item *StatshouseCommonProxyHeader) SetAgentEnvStaging0(v bool, nat_fields_mask *uint32) {
 	if nat_fields_mask != nil {
 		if v {
 			*nat_fields_mask |= 1 << 30
@@ -49,8 +50,21 @@ func (item *StatshouseCommonProxyHeader) SetAgentEnvStaging(v bool, nat_fields_m
 		}
 	}
 }
-func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging0(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<30) != 0
+}
+
+func (item *StatshouseCommonProxyHeader) SetAgentEnvStaging1(v bool, nat_fields_mask *uint32) {
+	if nat_fields_mask != nil {
+		if v {
+			*nat_fields_mask |= 1 << 29
+		} else {
+			*nat_fields_mask &^= 1 << 29
+		}
+	}
+}
+func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging1(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<29) != 0
 }
 
 func (item *StatshouseCommonProxyHeader) Reset() {
@@ -132,8 +146,10 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 			switch key {
 			case "ingress_proxy":
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'ingress_proxy' cannot be defined, set fieldmask instead")
-			case "agent_env_staging":
-				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging' cannot be defined, set fieldmask instead")
+			case "agent_env_staging_0":
+				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_0' cannot be defined, set fieldmask instead")
+			case "agent_env_staging_1":
+				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_1' cannot be defined, set fieldmask instead")
 			case "shard_replica":
 				if propShardReplicaPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "shard_replica")
@@ -266,7 +282,8 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short b
 
 type StatshouseCommonProxyHeaderBytes struct {
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
-	// AgentEnvStaging (TrueType) // Conditional: nat_fields_mask.30
+	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
+	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -291,7 +308,7 @@ func (item StatshouseCommonProxyHeaderBytes) IsSetIngressProxy(nat_fields_mask u
 	return nat_fields_mask&(1<<31) != 0
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) SetAgentEnvStaging(v bool, nat_fields_mask *uint32) {
+func (item *StatshouseCommonProxyHeaderBytes) SetAgentEnvStaging0(v bool, nat_fields_mask *uint32) {
 	if nat_fields_mask != nil {
 		if v {
 			*nat_fields_mask |= 1 << 30
@@ -300,8 +317,21 @@ func (item *StatshouseCommonProxyHeaderBytes) SetAgentEnvStaging(v bool, nat_fie
 		}
 	}
 }
-func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging0(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<30) != 0
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) SetAgentEnvStaging1(v bool, nat_fields_mask *uint32) {
+	if nat_fields_mask != nil {
+		if v {
+			*nat_fields_mask |= 1 << 29
+		} else {
+			*nat_fields_mask &^= 1 << 29
+		}
+	}
+}
+func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging1(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<29) != 0
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Reset() {
@@ -383,8 +413,10 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 			switch key {
 			case "ingress_proxy":
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'ingress_proxy' cannot be defined, set fieldmask instead")
-			case "agent_env_staging":
-				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging' cannot be defined, set fieldmask instead")
+			case "agent_env_staging_0":
+				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_0' cannot be defined, set fieldmask instead")
+			case "agent_env_staging_1":
+				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_1' cannot be defined, set fieldmask instead")
 			case "shard_replica":
 				if propShardReplicaPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "shard_replica")

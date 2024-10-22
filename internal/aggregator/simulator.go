@@ -48,7 +48,7 @@ func TestMapper(aggAddr []string, mapString string, client *rpc.Client) {
 			From:  0,
 			Limit: 1,
 		}
-		args.Header.SetAgentEnvStaging(true, &args.FieldsMask) // let's consider such requests staging
+		args.Header.SetAgentEnvStaging0(true, &args.FieldsMask) // let's consider such requests staging
 		var ret tlmetadata.GetJournalResponsenewBytes
 		// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
 
@@ -72,7 +72,7 @@ func TestMapper(aggAddr []string, mapString string, client *rpc.Client) {
 				Key:    mapString,
 				Metric: "", // we are not going to create mappings
 			}
-			args.Header.SetAgentEnvStaging(true, &args.FieldsMask) // let's consider such requests staging
+			args.Header.SetAgentEnvStaging0(true, &args.FieldsMask) // let's consider such requests staging
 
 			var ret2 tlstatshouse.GetTagMappingResult
 
@@ -111,7 +111,7 @@ func testLongPoll(addr string, shardReplica int, shardsTotal int, client *rpc.Cl
 		ResponseSize:       128,
 		ResponseTimeoutSec: timeoutSec,
 	}
-	args.Header.SetAgentEnvStaging(true, &args.FieldsMask) // let's consider such requests staging
+	args.Header.SetAgentEnvStaging0(true, &args.FieldsMask) // let's consider such requests staging
 	var ret string
 	// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
 
