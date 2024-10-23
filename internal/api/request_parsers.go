@@ -508,7 +508,7 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		}
 	}
 	// build resulting slice
-	if tabX != -1 {
+	if tabX != -1 && tabX < len(tabs) {
 		if tabs[tabX].strType == "1" {
 			return nil, nil
 		}
