@@ -16,6 +16,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -146,7 +147,7 @@ func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
-	recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil, nil)
 	//recv, err := receiver.ListenUDP("unixgram", goStatsHouseAddrUnix, receiver.DefaultConnBufSize, true, nil, nil)
 	require.NoError(t, err)
 	g.recv = recv

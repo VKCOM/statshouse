@@ -64,7 +64,7 @@ func mainTestParser() int {
 
 	build.FlagParseShowVersionHelp()
 
-	u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, false, nil, log.Printf)
+	u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, false, nil, nil, log.Printf)
 	if err != nil {
 		logErr.Printf("ListenUDP: %v", err)
 		return 1
@@ -254,11 +254,11 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	metricStorage.Journal().Start(nil, nil, dolphinLoader)
 	mapper := mapping.NewMapper("", pmcLoader, nil, nil, 1000, handleMappedMetric)
 
-	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
+	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil, nil)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	recv2, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil)
+	recv2, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil, nil)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

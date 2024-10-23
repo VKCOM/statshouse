@@ -317,11 +317,23 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--log-level should be either 'trace', 'info' or empty (which is synonym for 'info')")
 		return 1
 	}
+	var mirrorUdpConn net.Conn
+	if argv.mirrorUdpAddr != "" {
+		logOk.Printf("mirror UDP addr %q", argv.mirrorUdpAddr)
+		var err error
+		mirrorUdpConn, err = net.Dial("udp", argv.mirrorUdpAddr)
+		if err != nil {
+			logErr.Printf("failed to connect to mirror UDP addr %q: %v", argv.mirrorUdpAddr, err)
+			// not fatal, we can continue without mirror
+		} else {
+			defer func() { _ = mirrorUdpConn.Close() }()
+		}
+	}
 	listenUDP := func(network string, addr string) error {
 		if argv.coresUDP == 0 || addr == "" {
 			return nil
 		}
-		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, false, sh2, logPackets)
+		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, false, sh2, mirrorUdpConn, logPackets)
 		if err != nil {
 			logErr.Printf("listen %q failed: %v", network, err)
 			return err

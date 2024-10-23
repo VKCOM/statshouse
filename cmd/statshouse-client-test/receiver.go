@@ -36,7 +36,7 @@ func (handler) HandleParseError(pkt []byte, err error) {
 
 func listenUDP(args argv, ch chan series) (func(), error) {
 	addr := ":13337"
-	ln, err := receiver.ListenUDP("udp4", addr, 16*1024*1024, false, nil, nil)
+	ln, err := receiver.ListenUDP("udp4", addr, 16*1024*1024, false, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
