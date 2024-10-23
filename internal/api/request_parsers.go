@@ -64,9 +64,6 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		tabs  = make([]seriesRequestEx, 0, maxTabs)
 		tabX  = -1
 		tabAt = func(i int) *seriesRequestEx {
-			if i >= maxTabs {
-				return nil
-			}
 			for j := len(tabs) - 1; j < i; j++ {
 				tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
 					version: Version2,
@@ -515,12 +512,12 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		return []seriesRequest{tabs[tabX].seriesRequest}, nil
 	}
 	res = make([]seriesRequest, 0, len(tabs))
-	for _, t := range tabs {
-		if t.strType == "1" {
+	for i := 0; i < len(tabs) && len(res) < maxTabs; i++ {
+		if tabs[i].strType == "1" {
 			continue
 		}
-		if len(t.metricName) != 0 || len(t.promQL) != 0 {
-			res = append(res, t.seriesRequest)
+		if len(tabs[i].metricName) != 0 || len(tabs[i].promQL) != 0 {
+			res = append(res, tabs[i].seriesRequest)
 		}
 	}
 	return res, nil
