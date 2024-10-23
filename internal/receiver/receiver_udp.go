@@ -9,16 +9,18 @@ import (
 	"os"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"golang.org/x/sys/unix"
 )
 
 type UDP struct {
 	parser
 
-	conn    net.Conn
-	rawConn syscall.RawConn
+	conn          net.Conn
+	rawConn       syscall.RawConn
+	mirrorUdpConn net.Conn
 }
 
 func listenPacket(network string, address string, fn func(int) error) (conn net.PacketConn, err error) {
@@ -36,7 +38,7 @@ func listenPacket(network string, address string, fn func(int) error) (conn net.
 	return conn, err
 }
 
-func ListenUDP(network string, address string, bufferSize int, reusePort bool, sh2 *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
+func ListenUDP(network string, address string, bufferSize int, reusePort bool, sh2 *agent.Agent, mirrorUdpConn net.Conn, logPacket func(format string, args ...interface{})) (*UDP, error) {
 	packetConn, err := listenPacket(network, address, func(fd int) error {
 		setSocketReceiveBufferSize(fd, bufferSize)
 		if reusePort {
@@ -54,9 +56,10 @@ func ListenUDP(network string, address string, bufferSize int, reusePort bool, s
 		return nil, err
 	}
 	result := &UDP{
-		parser:  parser{logPacket: logPacket, sh2: sh2, network: network},
-		conn:    conn,
-		rawConn: rawConn,
+		parser:        parser{logPacket: logPacket, sh2: sh2, network: network},
+		conn:          conn,
+		rawConn:       rawConn,
+		mirrorUdpConn: mirrorUdpConn,
 	}
 	result.parser.createMetrics()
 	return result, nil
@@ -86,9 +89,10 @@ func (u *UDP) Duplicate() (*UDP, error) {
 		return nil, err
 	}
 	result := &UDP{
-		parser:  parser{logPacket: u.logPacket, sh2: u.sh2, network: u.network},
-		conn:    conn,
-		rawConn: rawConn,
+		parser:        parser{logPacket: u.logPacket, sh2: u.sh2, network: u.network},
+		conn:          conn,
+		rawConn:       rawConn,
+		mirrorUdpConn: u.mirrorUdpConn,
 	}
 	result.parser.createMetrics() // do not want receivers to collide on mutex inside builtin metric
 	return result, nil
@@ -116,6 +120,10 @@ func (u *UDP) Serve(h Handler) error {
 		u.statPacketsTotal.Inc()
 		u.statBytesTotal.Add(uint64(pktLen))
 		pkt := data[:pktLen]
+		if u.mirrorUdpConn != nil {
+			// we intentionally ignore errors here
+			u.mirrorUdpConn.Write(pkt)
+		}
 
 		_ = u.parse(h, nil, nil, nil, pkt, &batch) // ignore errors and read the next packet
 	}

@@ -118,7 +118,7 @@ func receiveBenchmark() int {
 			u, err = receiversUDP[0].Duplicate()
 			action = "duplicated"
 		} else {
-			u, err = receiver.ListenUDP(network, listenAddr, 10000000, coresUDP > 1 && mode == 0, nil, nil)
+			u, err = receiver.ListenUDP(network, listenAddr, 10000000, coresUDP > 1 && mode == 0, nil, nil, nil)
 		}
 		if err != nil {
 			log.Printf("ListenUDP: %v", err)

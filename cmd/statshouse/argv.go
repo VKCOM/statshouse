@@ -50,6 +50,7 @@ var (
 		listenAddr                   string
 		listenAddrIPv6               string
 		listenAddrUnix               string
+		mirrorUdpAddr                string
 		coresUDP                     int
 		bufferSizeUDP                int
 		promRemoteMod                bool
@@ -132,6 +133,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
 	flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
 	flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "", "Unix datagram listen address.")
+	flag.StringVar(&argv.mirrorUdpAddr, "mirror-udp", "", "mirrors UDP datagrams to the given address")
 
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
