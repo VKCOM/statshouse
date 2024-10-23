@@ -69,40 +69,70 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 
 	var commitOffset = re.GetCommitOffset()
 	log.Println("load commit offset", commitOffset)
-
-	err = os.Rename(wals[1].path, wals[1].restartPah)
-	if err != nil {
-		return fmt.Errorf("failed to rename second wal to restart path: %w", err)
-	}
-
 	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
 	if err != nil {
 		return fmt.Errorf("failed to open 1 wal db: %w", err)
 	}
-	var withoutSecondWalDBOffset int64
+
+	var fullWalDBOffset int64
 	isExists := false
-	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
+	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
 	for rows.Next() {
 		isExists = true
-		withoutSecondWalDBOffset = rows.ColumnInteger(0)
+		fullWalDBOffset = rows.ColumnInteger(0)
 	}
 	if rows.Error() != nil {
-		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.Error())
+		return fmt.Errorf("failed to select binlog pos from 2 wal: %w", rows.Error())
 	}
-	log.Println("db offset 1 wal:", withoutSecondWalDBOffset)
 
-	var skipCheckpoint = !isExists || withoutSecondWalDBOffset == 0
-
-	if !skipCheckpoint && withoutSecondWalDBOffset <= commitOffset {
-		log.Println("do checkpoint to sync 1 wal")
-		err = conn.conn.Checkpoint()
-		if err != nil {
-			return fmt.Errorf("failed to checkpoint 1 wal: %w", err)
-		}
+	log.Println("db offset 2 wal:", fullWalDBOffset)
+	skipCheckpoint := !isExists || fullWalDBOffset == 0
+	shouldCheckOneWal := true
+	if !skipCheckpoint && fullWalDBOffset <= commitOffset {
+		shouldCheckOneWal = false
+		log.Println("do checkpoint to sync 1st wal")
+		// TODO close with checkpoint
 	}
 	err = conn.Close()
 	if err != nil {
 		return fmt.Errorf("failed to close 1 wal conn: %w", err)
+	}
+	if shouldCheckOneWal {
+		err = os.Rename(wals[1].path, wals[1].restartPah)
+		if err != nil {
+			return fmt.Errorf("failed to rename second wal to restart path: %w", err)
+		}
+
+		conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, 100, opt.PageSize, opt.StatsOptions, log)
+		if err != nil {
+			return fmt.Errorf("failed to open 1 wal db: %w", err)
+		}
+
+		var withoutSecondWalDBOffset int64
+		isExists = false
+		rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
+		for rows.Next() {
+			isExists = true
+			withoutSecondWalDBOffset = rows.ColumnInteger(0)
+		}
+		if rows.Error() != nil {
+			return fmt.Errorf("failed to select binlog pos from 1st wal: %w", rows.Error())
+		}
+		log.Println("db offset 1 wal:", withoutSecondWalDBOffset)
+
+		var skipCheckpoint = !isExists || withoutSecondWalDBOffset == 0
+
+		if !skipCheckpoint && withoutSecondWalDBOffset <= commitOffset {
+			log.Println("do checkpoint to sync 1 wal")
+			err = conn.conn.Checkpoint()
+			if err != nil {
+				return fmt.Errorf("failed to checkpoint 1 wal: %w", err)
+			}
+		}
+		err = conn.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close 1 wal conn: %w", err)
+		}
 	}
 
 	// База консистента, удаляем оба вала
