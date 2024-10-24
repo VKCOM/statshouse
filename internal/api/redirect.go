@@ -34,7 +34,7 @@ type legacyRedirectReq struct {
 	keys        map[string]string
 }
 
-func (h *Handler) HandleLegacyRedirect(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleLegacyRedirect(w *ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	req := legacyRedirectReq{
 		name:        strings.TrimSpace(r.FormValue("name")),

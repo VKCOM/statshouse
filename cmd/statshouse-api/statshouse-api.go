@@ -352,7 +352,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	m := mux.NewRouter()
+	m := api.Router{Handler: f, Router: mux.NewRouter()}
 	a := m.PathPrefix(api.RoutePrefix).Subrouter()
 	a.Path("/"+api.EndpointLegacyRedirect).Methods("GET", "HEAD", "POST").HandlerFunc(f.HandleLegacyRedirect)
 	a.Path("/" + api.EndpointMetricList).Methods("GET").HandlerFunc(f.HandleGetMetricsList)
@@ -389,7 +389,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
 	m.Path("/prom/api/v1/series").Methods("GET").HandlerFunc(f.HandlePromSeriesQuery)
 	m.Path("/prom/api/v1/series").Methods("POST").HandlerFunc(f.HandlePromSeriesQuery)
-	m.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
+	m.Router.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
 	h = handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(h)
