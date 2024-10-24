@@ -99,9 +99,8 @@ func cacheSeconds(d time.Duration) int {
 	return s
 }
 
-func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *endpointStat) {
-	es.reportServiceTime(http.StatusOK, nil)
-	defer es.reportResponseTime(http.StatusOK)
+func exportCSV(w *ResponseWriter, resp *SeriesResponse, metric string) {
+	w.endpointStat.reportServiceTime(http.StatusOK, nil)
 
 	w.Header().Set(
 		"Content-Disposition",
@@ -149,13 +148,11 @@ func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *e
 	}
 }
 
-func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, cacheStale time.Duration, err error, verbose bool, user string, es *endpointStat) {
+func respondJSON(w *ResponseWriter, resp interface{}, cache time.Duration, cacheStale time.Duration, err error) {
 	code := httpCode(err)
 	r := Response{}
 
-	if es != nil {
-		es.reportServiceTime(code, nil)
-	}
+	w.endpointStat.reportServiceTime(code, nil)
 
 	if err != nil {
 		if code == 500 {
@@ -169,23 +166,21 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	var jw jwriter.Writer
 	r.MarshalEasyJSON(&jw)
 	if jw.Error != nil {
-		log.Printf("[error] failed to marshal JSON response for %q: %v", user, jw.Error)
+		log.Printf("[error] failed to marshal JSON response for %q: %v", w.endpointStat.user, jw.Error)
 		msg := `{"error": "failed to marshal JSON response"}`
 		w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
 		w.Header().Set("Content-Type", "application/json")
-		if es != nil {
-			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
-		}
+		w.Header().Set(ServerTimingHeaderKey, w.endpointStat.timings.String())
 		code = http.StatusInternalServerError
 		w.WriteHeader(code)
 		_, err := w.Write([]byte(msg))
 		if err != nil {
-			log.Printf("[error] failed to write HTTP response for %q: %v", user, err)
+			log.Printf("[error] failed to write HTTP response for %q: %v", w.endpointStat.user, err)
 		}
 	} else {
 		size := jw.Size()
-		if verbose {
-			log.Printf("[debug] serialized %v bytes of JSON for %q in %v", size, user, time.Since(start))
+		if w.verbose {
+			log.Printf("[debug] serialized %v bytes of JSON for %q in %v", size, w.endpointStat.user, time.Since(start))
 		}
 		w.Header().Set("Content-Length", strconv.Itoa(size))
 		w.Header().Set("Content-Type", "application/json")
@@ -199,31 +194,23 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 				w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d, stale-while-revalidate=%d", cacheSeconds(cache), cacheSeconds(cacheStale)))
 			}
 		}
-		if es != nil {
-			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
-		}
+		w.Header().Set(ServerTimingHeaderKey, w.endpointStat.timings.String())
 		w.WriteHeader(code)
 		start := time.Now()
 		_, err := jw.DumpTo(w)
-		if verbose && err == nil {
-			log.Printf("[debug] dumped %v bytes of JSON for %q in %v", size, user, time.Since(start))
+		if w.verbose && err == nil {
+			log.Printf("[debug] dumped %v bytes of JSON for %q in %v", size, w.endpointStat.user, time.Since(start))
 		}
 		if err != nil {
-			log.Printf("[error] failed to write HTTP response for %q: %v", user, err)
+			log.Printf("[error] failed to write HTTP response for %q: %v", w.endpointStat.user, err)
 		}
-	}
-
-	if es != nil {
-		es.reportResponseTime(code)
 	}
 }
 
-func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, verbose bool, user string, es *endpointStat) {
+func respondPlot(w *ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, user string) {
 	code := http.StatusOK
-	if es != nil {
-		es.reportServiceTime(code, nil)
-		w.Header().Set(ServerTimingHeaderKey, es.timings.String())
-	}
+	w.endpointStat.reportServiceTime(code, nil)
+	w.Header().Set(ServerTimingHeaderKey, w.endpointStat.timings.String())
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
 	switch format {
@@ -246,15 +233,11 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 
 	start := time.Now()
 	_, err := w.Write(resp)
-	if verbose && err == nil {
+	if w.verbose && err == nil {
 		log.Printf("[debug] dumped %v bytes of %s render for %q in %v", len(resp), format, user, time.Since(start))
 	}
 	if err != nil {
 		log.Printf("[error] failed to write HTTP response for %q: %v", user, err)
-	}
-
-	if es != nil {
-		es.reportResponseTime(code)
 	}
 }
 

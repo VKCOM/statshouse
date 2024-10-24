@@ -59,22 +59,8 @@ type endpointStat struct {
 	metric    string
 	tokenName string
 	user      string
-	priority  int
+	priority  string
 	timings   ServerTimingHeader
-}
-
-func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
-	priority, _ := strconv.Atoi(priorityStr)
-	return &endpointStat{
-		timestamp:  time.Now(),
-		endpoint:   endpoint,
-		protocol:   format.TagValueIDHTTP,
-		method:     method,
-		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
-		dataFormat: dataFormat,
-		priority:   priority,
-		timings:    ServerTimingHeader{Timings: make(map[string][]time.Duration), started: time.Now()},
-	}
 }
 
 func newEndpointStatRPC(endpoint, method string) *endpointStat {
@@ -121,10 +107,6 @@ func (es *endpointStat) setMetricMeta(metricMeta *format.MetricMetaValue) {
 	}
 }
 
-func (es *endpointStat) reportResponseTime(code int) {
-	es.report(code, format.BuiltinMetricNameAPIResponseTime)
-}
-
 func (es *endpointStat) report(code int, metric string) {
 	v := time.Since(es.timestamp).Seconds()
 	t := statshouse.Tags{
@@ -136,7 +118,8 @@ func (es *endpointStat) report(code int, metric string) {
 		6:  srvfunc.HostnameForStatshouse(),
 		7:  es.tokenName,
 		8:  strconv.Itoa(code),
-		10: strconv.Itoa(es.priority),
+		9:  es.metric,
+		10: es.priority,
 	}
 	statshouse.Value(metric, t, v)
 }

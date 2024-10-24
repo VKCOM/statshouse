@@ -34,11 +34,11 @@ import (
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", data_model.MaxSlice)
 var errAccessViolation = fmt.Errorf("metric access violation")
 
-func (h *Handler) HandleInstantQuery(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleInstantQuery(w *ResponseWriter, r *http.Request) {
 	// parse access token
-	ai, err := h.parseAccessToken(r, nil)
+	ai, err := h.parseAccessToken(r, &w.endpointStat)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err)
 		return
 	}
 	// parse query
@@ -54,6 +54,7 @@ func (h *Handler) HandleInstantQuery(w http.ResponseWriter, r *http.Request) {
 	if t := r.FormValue("time"); t == "" {
 		q.Start = q.Options.TimeNow
 	} else {
+		var err error
 		q.Start, err = parseTime(t)
 		if err != nil {
 			promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
@@ -73,11 +74,11 @@ func (h *Handler) HandleInstantQuery(w http.ResponseWriter, r *http.Request) {
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func (h *Handler) HandleRangeQuery(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleRangeQuery(w *ResponseWriter, r *http.Request) {
 	// parse access token
-	ai, err := h.parseAccessToken(r, nil)
+	ai, err := h.parseAccessToken(r, &w.endpointStat)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err)
 		return
 	}
 	// parse query
@@ -116,10 +117,10 @@ func (h *Handler) HandleRangeQuery(w http.ResponseWriter, r *http.Request) {
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func (h *Handler) HandlePromSeriesQuery(w http.ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, nil)
+func (h *Handler) HandlePromSeriesQuery(w *ResponseWriter, r *http.Request) {
+	ai, err := h.parseAccessToken(r, &w.endpointStat)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err)
 		return
 	}
 	_ = r.ParseForm()
@@ -175,10 +176,10 @@ func (h *Handler) HandlePromSeriesQuery(w http.ResponseWriter, r *http.Request) 
 	promRespond(w, res)
 }
 
-func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, nil)
+func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request) {
+	ai, err := h.parseAccessToken(r, &w.endpointStat)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err)
 		return
 	}
 	namespace := r.Header.Get("X-StatsHouse-Namespace")
