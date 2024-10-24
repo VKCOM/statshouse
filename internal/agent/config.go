@@ -49,7 +49,8 @@ type Config struct {
 	DisableRemoteConfig  bool
 	DisableNoSampleAgent bool
 
-	HardwareMetricResolution int
+	HardwareMetricResolution     int
+	HardwareSlowMetricResolution int
 }
 
 func DefaultConfig() Config {
@@ -74,6 +75,7 @@ func DefaultConfig() Config {
 		DisableRemoteConfig:              false,
 		DisableNoSampleAgent:             false,
 		HardwareMetricResolution:         5,
+		HardwareSlowMetricResolution:     15,
 	}
 }
 
@@ -107,6 +109,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	}
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
+	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
 }
 
 func (c *Config) updateFromRemoteDescription(description string) error {
@@ -159,6 +162,9 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if format.AllowedResolution(c.HardwareMetricResolution) != c.HardwareMetricResolution {
 		return fmt.Errorf("--hardware-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", c.HardwareMetricResolution)
+	}
+	if format.AllowedResolution(c.HardwareSlowMetricResolution) != c.HardwareSlowMetricResolution {
+		return fmt.Errorf("--hardware-slow-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", c.HardwareSlowMetricResolution)
 	}
 
 	return nil

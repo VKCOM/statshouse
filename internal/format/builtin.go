@@ -384,6 +384,7 @@ const (
 	TagValueIDSystemMetricVMStat    = 8
 	TagValueIDSystemMetricDMesgStat = 9
 	TagValueIDSystemMetricGCStats   = 10
+	TagValueIDSystemMetricNetClass  = 11
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
@@ -1721,6 +1722,7 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDSystemMetricVMStat:    "vmstat",
 					TagValueIDSystemMetricDMesgStat: "dmesg",
 					TagValueIDSystemMetricGCStats:   "gc",
+					TagValueIDSystemMetricNetClass:  "netclass",
 				}),
 			}},
 		},
@@ -2678,7 +2680,11 @@ func init() {
 	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
-		v.Resolution = 15
+		if slowHostMetricID[k] {
+			v.Resolution = 15
+		} else {
+			v.Resolution = 15
+		}
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}

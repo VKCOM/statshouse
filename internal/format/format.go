@@ -263,20 +263,20 @@ type MetricMetaValue struct {
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 
-	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
-	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
-	EffectiveResolution int                      `json:"-"` // Should be restored from Tags after reading
-	PreKeyIndex         int                      `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
-	FairKey             []int                    `json:"-"`
-	EffectiveWeight     int64                    `json:"-"`
-	HasPercentiles      bool                     `json:"-"`
-	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
-	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
-	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
-	WhalesOff           bool                     `json:"-"` // "whales" sampling algorithm disabled
-	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
-
-	GroupID int32 `json:"-"`
+	RawTagMask           uint32                   `json:"-"` // Should be restored from Tags after reading
+	Name2Tag             map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
+	EffectiveResolution  int                      `json:"-"` // Should be restored from Tags after reading
+	PreKeyIndex          int                      `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
+	FairKey              []int                    `json:"-"`
+	EffectiveWeight      int64                    `json:"-"`
+	HasPercentiles       bool                     `json:"-"`
+	RoundSampleFactors   bool                     `json:"-"` // Experimental, set if magic word in description is found
+	ShardUniqueValues    bool                     `json:"-"` // Experimental, set if magic word in description is found
+	NoSampleAgent        bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
+	WhalesOff            bool                     `json:"-"` // "whales" sampling algorithm disabled
+	HistorgamBuckets     []float32                `json:"-"` // Prometheus histogram buckets
+	IsHardwareSlowMetric bool                     `json:"-"`
+	GroupID              int32                    `json:"-"`
 
 	Group     *MetricsGroup  `json:"-"` // don't use directly
 	Namespace *NamespaceMeta `json:"-"` // don't use directly
@@ -541,6 +541,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			sh.StrategyId = id
 		}
 	}
+
+	if slowHostMetricID[m.MetricID] {
+		m.IsHardwareSlowMetric = true
+	}
+
 	return err
 }
 
