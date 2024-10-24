@@ -95,8 +95,11 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, envLoa
 	if err != nil {
 		return nil, err
 	}
-
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats, gcStats} // TODO add modules
+	netClassStats, err := NewNetClassStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats, gcStats, netClassStats} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {
@@ -125,6 +128,7 @@ func (m *CollectorManager) RunCollector() error {
 					m.logErr.Println("panic:", r)
 				}
 			}()
+			m.logErr.Printf("start %s collector", collector.Name())
 			for {
 				now := time.Now()
 				err := collector.WriteMetrics(now.Unix())

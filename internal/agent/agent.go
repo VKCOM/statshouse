@@ -191,6 +191,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			rng:                 rnd,
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
+		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
 		for r := range shard.CurrentBuckets {
 			if r != format.AllowedResolution(r) {
 				continue
@@ -426,6 +427,8 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		shardReplica.mu.Lock()
 		shardReplica.config = config
 		shardReplica.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
+		shardReplica.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
+
 		shardReplica.mu.Unlock()
 	}
 }

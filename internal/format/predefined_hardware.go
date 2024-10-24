@@ -35,6 +35,7 @@ const (
 	BuiltinMetricIDOOMKillDetailed = -1033
 	BuiltinMetricIDMemSLAB         = -1034
 	BuiltinMetricIDBlockIOBusyTime = -1035
+	BuiltinMetricIDNetDevSpeed     = -1036
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -67,6 +68,7 @@ const (
 
 	BuiltinMetricNameNetDevErrors  = "host_net_dev_error"
 	BuiltinMetricNameNetDevDropped = "host_net_dev_drop"
+	BuiltinMetricNameNetDevSpeed   = "host_net_dev_speed"
 
 	BuiltinMetricNameSocketMemory    = "host_socket_memory"
 	BuiltinMetricNameTCPSocketStatus = "host_tcp_socket_status"
@@ -378,6 +380,15 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				RawIDTagSent:     "transmit",
 			}),
 		}, {
+			Description: "device",
+		}},
+	},
+	BuiltinMetricIDNetDevSpeed: {
+		Name:        BuiltinMetricNameNetDevSpeed,
+		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
+		Description: "The interface speed value",
+		Tags: []MetricMetaTag{{
 			Description: "device",
 		}},
 	},
@@ -773,4 +784,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				})},
 		},
 	},
+}
+
+var slowHostMetricID = map[int32]bool{
+	BuiltinMetricIDDiskUsage:   true,
+	BuiltinMetricIDINodeUsage:  true,
+	BuiltinMetricIDNetDevSpeed: true,
 }

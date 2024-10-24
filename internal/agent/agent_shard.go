@@ -32,9 +32,10 @@ type (
 		rng      *rand.Rand
 		perm     []int
 
-		mu                               sync.Mutex
-		config                           Config       // can change if remotely updated
-		hardwareMetricResolutionResolved atomic.Int32 // depends on config
+		mu                                   sync.Mutex
+		config                               Config       // can change if remotely updated
+		hardwareMetricResolutionResolved     atomic.Int32 // depends on config
+		hardwareSlowMetricResolutionResolved atomic.Int32 // depends on config
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
@@ -147,7 +148,11 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, keyHash uint6
 		if !format.HardwareMetric(metricInfo.MetricID) {
 			resolution = metricInfo.EffectiveResolution
 		} else {
-			resolution = int(s.hardwareMetricResolutionResolved.Load())
+			if metricInfo.IsHardwareSlowMetric {
+				resolution = int(s.hardwareSlowMetricResolutionResolved.Load())
+			} else {
+				resolution = int(s.hardwareMetricResolutionResolved.Load())
+			}
 		}
 	}
 	resolutionShardNum := 0
