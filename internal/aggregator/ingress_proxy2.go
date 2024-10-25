@@ -22,6 +22,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"go.uber.org/atomic"
 )
 
@@ -75,9 +76,10 @@ type proxyConn struct {
 	upstreamConn *rpc.PacketConn
 
 	// no synchronization, owned by "requestLoop"
-	clientAddr [4]uint32 // readonly after init
-	reqBuf     []byte
-	reqBufCap  int // last buffer capacity
+	clientAddr  [4]uint32 // readonly after init
+	clientAddrS string    // readonly after init
+	reqBuf      []byte
+	reqBufCap   int // last buffer capacity
 }
 
 type proxyRequest struct {
@@ -246,7 +248,9 @@ func (p *proxyServer) serve(listener net.Listener) {
 		}
 		// report accept error then backoff
 		tags := p.commonTags
-		tags[4] = rpc.ErrorTag(err)
+		if tags[4] = rpc.ErrorTag(err); tags[4] == "" {
+			tags[4] = err.Error()
+		}
 		statshouse.Count("common_rpc_server_accept_error", tags, 1)
 		if acceptDelay == 0 {
 			acceptDelay = minAcceptDelay
@@ -262,7 +266,9 @@ func (p *proxyServer) serve(listener net.Listener) {
 
 func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 	var clientAddr [4]uint32
+	var clientAddrS string
 	if addr, ok := c.RemoteAddr().(*net.TCPAddr); ok {
+		clientAddrS = addr.AddrPort().Addr().String()
 		for i, j := 0, 0; i < len(clientAddr) && j+3 < len(addr.IP); i, j = i+1, j+4 {
 			clientAddr[i] = binary.BigEndian.Uint32(addr.IP[j:])
 		}
@@ -273,6 +279,7 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 	return &proxyConn{
 		proxyServer: p,
 		clientAddr:  clientAddr,
+		clientAddrS: clientAddrS,
 		clientConn:  clientConn,
 	}
 }
@@ -285,9 +292,22 @@ func (p *proxyConn) run() {
 		p.requestMemory.Sub(int64(p.reqBufCap))
 	}()
 	// handshake client
-	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
+	magic_head, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.reportClientConnError("Client handshake error: %v\n", err)
+		p.rareLog("Client handshake error: %v\n", err)
+		errStr := rpc.ErrorTag(err)
+		if errStr == "" {
+			errStr = err.Error()
+		}
+		tags := statshouse.Tags{
+			p.commonTags[0], // env
+			srvfunc.HostnameForStatshouse(),
+			errStr,
+			string(magic_head),
+		}
+		// TODO: remove when deployed
+		statshouse.StringTop("igp_accept_handshake_error", tags, p.clientAddrS)
+		statshouse.StringTop(format.BuiltinMetricNameProxyAcceptHandshakeError, tags, p.clientAddrS)
 		return
 	}
 	// read first request to get shardReplica
