@@ -20,12 +20,13 @@ type Route struct {
 	*Handler
 	*mux.Route
 	endpoint    string
-	handlerFunc func(*ResponseWriter, *http.Request)
+	handlerFunc func(*HTTPRequestHandler, *http.Request)
 }
 
-type ResponseWriter struct {
+type HTTPRequestHandler struct {
 	*Handler
-	http           http.ResponseWriter
+	responseWriter http.ResponseWriter
+	accessInfo     accessInfo
 	endpointStat   endpointStat
 	statusCode     int
 	statusCodeSent bool
@@ -58,7 +59,7 @@ func (r *Route) Methods(methods ...string) *Route {
 	return r
 }
 
-func (r *Route) HandlerFunc(f func(*ResponseWriter, *http.Request)) *Route {
+func (r *Route) HandlerFunc(f func(*HTTPRequestHandler, *http.Request)) *Route {
 	r.handlerFunc = f
 	r.Route.HandlerFunc(r.handle)
 	return r
@@ -78,9 +79,9 @@ func (r *Route) handle(http http.ResponseWriter, req *http.Request) {
 	} else {
 		dataFormat = "json"
 	}
-	w := &ResponseWriter{
-		Handler: r.Handler,
-		http:    http,
+	w := &HTTPRequestHandler{
+		Handler:        r.Handler,
+		responseWriter: http,
 		endpointStat: endpointStat{
 			timestamp:  timeNow,
 			endpoint:   r.endpoint,
@@ -99,7 +100,7 @@ func (r *Route) handle(http http.ResponseWriter, req *http.Request) {
 	r.handlerFunc(w, req)
 }
 
-func (r *Route) reportStatistics(w *ResponseWriter) {
+func (r *Route) reportStatistics(w *HTTPRequestHandler) {
 	if err := recover(); err != nil {
 		if !w.statusCodeSent {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
@@ -108,16 +109,16 @@ func (r *Route) reportStatistics(w *ResponseWriter) {
 	w.endpointStat.report(w.statusCode, format.BuiltinMetricNameAPIResponseTime)
 }
 
-func (w *ResponseWriter) Header() http.Header {
-	return w.http.Header()
+func (h *HTTPRequestHandler) Header() http.Header {
+	return h.responseWriter.Header()
 }
 
-func (w *ResponseWriter) Write(s []byte) (int, error) {
-	return w.http.Write(s)
+func (h *HTTPRequestHandler) Write(s []byte) (int, error) {
+	return h.responseWriter.Write(s)
 }
 
-func (w *ResponseWriter) WriteHeader(statusCode int) {
-	w.statusCode = statusCode
-	w.http.WriteHeader(statusCode)
-	w.statusCodeSent = true
+func (h *HTTPRequestHandler) WriteHeader(statusCode int) {
+	h.statusCode = statusCode
+	h.responseWriter.WriteHeader(statusCode)
+	h.statusCodeSent = true
 }
