@@ -50,7 +50,7 @@ export function normalizePlotData(
     const usedBaseColors = {};
     const baseColors: Record<string, string> = {};
 
-    if (plot.type === PLOT_TYPE.Event) {
+    if (plot.type === PLOT_TYPE.Event && response.series.series_meta.length > 0) {
       series_meta = [];
       series_data = [];
       const colorIndex = new Map<string, number>();
@@ -130,10 +130,12 @@ export function normalizePlotData(
 
     plotData.legendMaxHostWidth = 0;
     plotData.legendMaxHostPercentWidth = 0;
+
     const localData: uPlot.AlignedData = [response.series.time, ...series_data];
     plotData.dataView = plotData.data = localData;
+    plotData.bands = undefined;
 
-    if (currentPrevLastPlotParams?.type === PLOT_TYPE.Event) {
+    if (plot?.type === PLOT_TYPE.Event) {
       const stacked = stackData(plotData.data);
       plotData.dataView = stacked.data;
       plotData.bands = stacked.bands;
@@ -323,6 +325,7 @@ export function normalizePlotData(
     plotData.promQL = response.promql;
     plotData.lastPlotParams = deepClone(plot);
     plotData.lastTimeRange = deepClone(timeRange);
+    plotData.lastTimeShifts = deepClone(timeShifts);
 
     const maxLengthValue = plotData.series.reduce(
       (res, s, indexSeries) => {

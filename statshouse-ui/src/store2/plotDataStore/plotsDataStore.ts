@@ -245,7 +245,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           getState().loadPlotData(iPlot, true);
         }
       });
-      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum) {
+      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum && update) {
         const { params } = getState();
         const from =
           params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom

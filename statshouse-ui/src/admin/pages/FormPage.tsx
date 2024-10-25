@@ -139,6 +139,12 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
       }, [] as number[]),
     [values.tags, values.tagsSize]
   );
+  const otherResolution = useMemo(() => {
+    if ([1, 5, 15, 60].indexOf(values.resolution) < 0) {
+      return values.resolution;
+    }
+    return false;
+  }, [values.resolution]);
 
   return (
     <form key={values.version}>
@@ -231,17 +237,18 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
             disabled={isReadonly}
           >
             <option value="1">1 second (native, default)</option>
-            <option value="2">2 seconds</option>
-            <option value="3">3 seconds</option>
-            <option value="4">4 seconds</option>
+            {/*<option value="2">2 seconds</option>*/}
+            {/*<option value="3">3 seconds</option>*/}
+            {/*<option value="4">4 seconds</option>*/}
             <option value="5">5 seconds (native)</option>
-            <option value="6">6 seconds</option>
-            <option value="10">10 seconds</option>
-            <option value="12">12 seconds</option>
+            {/*<option value="6">6 seconds</option>*/}
+            {/*<option value="10">10 seconds</option>*/}
+            {/*<option value="12">12 seconds</option>*/}
             <option value="15">15 seconds (native)</option>
-            <option value="20">20 seconds</option>
-            <option value="30">30 seconds</option>
+            {/*<option value="20">20 seconds</option>*/}
+            {/*<option value="30">30 seconds</option>*/}
             <option value="60">60 seconds (native)</option>
+            {otherResolution !== false && <option value={otherResolution}>{otherResolution} seconds</option>}
           </select>
         </div>
         <div id="resolutionHelpBlock" className="form-text">

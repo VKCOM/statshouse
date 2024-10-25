@@ -87,6 +87,29 @@ describe('formatByMetricType', () => {
     expect(formatter(100 * p)).toEqual('102400YiB');
     expect(formatter(1000 * p)).toEqual('1024000YiB');
   });
+  test('byte_as_bits', () => {
+    const formatter = formatByMetricType(METRIC_TYPE.byte_as_bits);
+    expect(formatter(0)).toEqual('0');
+    expect(formatter(0.01111)).toEqual('0.088b');
+    expect(formatter(0.001111)).toEqual('8.888mb');
+    expect(formatter(0.000001111)).toEqual('8.888μb');
+    expect(formatter(0.000000001111)).toEqual('8.888nb');
+    expect(formatter(0.000000000001111)).toEqual('8.888pb');
+    expect(formatter(0.000000000000001111)).toEqual('8.888fb');
+    expect(formatter(0.000000000000000001111)).toEqual('8.888ab');
+    expect(formatter(0.000000000000000000001111)).toEqual('8.888zb');
+    expect(formatter(0.000000000000000000000001111)).toEqual('8.888yb');
+    expect(formatter(0.000000000000000000000000001111)).toEqual('0.008yb');
+    expect(formatter(1111)).toEqual('8.888Kb');
+    expect(formatter(1111100)).toEqual('8.888Mb');
+    expect(formatter(1111100000)).toEqual('8.888Gb');
+    expect(formatter(1111100000000)).toEqual('8.888Tb');
+    expect(formatter(1111100000000000)).toEqual('8.888Pb');
+    expect(formatter(1111100000000000000)).toEqual('8.888Eb');
+    expect(formatter(1111100000000000000000)).toEqual('8.888Zb');
+    expect(formatter(1111100000000000000000000)).toEqual('8.888Yb');
+    expect(formatter(1111100000000000000000000000)).toEqual('8888.8Yb');
+  });
   test('second', () => {
     const formatter = formatByMetricType(METRIC_TYPE.second);
     expect(formatter(0)).toEqual('0');
@@ -347,6 +370,24 @@ describe('formatByMetricType', () => {
     ]);
     expect(split(null, 1, 0, 1024 * 1024 * 1024, 200000000, 0)).toEqual([
       0, 201326592, 402653184, 603979776, 805306368, 1006632960,
+    ]);
+  });
+  test('splitByMetricType byte_as_bits', () => {
+    const split = splitByMetricType(METRIC_TYPE.byte_as_bits);
+    expect(split(null, 1, 0, 1, 0.1, 0)).toEqual([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]);
+    expect(split(null, 1, 0, 2, 0.25, 0)).toEqual([0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]);
+    expect(split(null, 1, 0, 10, 1, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(split(null, 1, 0, 120, 10, 0)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
+    expect(split(null, 1, 0, 1024, 100, 0)).toEqual([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]);
+    expect(split(null, 1, 0, 100 * 1024, 10000, 0)).toEqual([
+      0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000,
+    ]);
+    expect(split(null, 1, 0, 1024 * 1024, 200000, 0)).toEqual([0, 200000, 400000, 600000, 800000, 1000000]);
+    expect(split(null, 1, 0, 100 * 1024 * 1024, 10000000, 0)).toEqual([
+      0, 10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000,
+    ]);
+    expect(split(null, 1, 0, 1024 * 1024 * 1024, 200000000, 0)).toEqual([
+      0, 200000000, 400000000, 600000000, 800000000, 1000000000,
     ]);
   });
 });

@@ -56,7 +56,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     metricUnit,
     metricUnitData,
     topInfo,
-    data,
+    dataView,
     series,
     timeRangeTo,
     timeRangeFrom,
@@ -82,7 +82,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       error403: plotData?.error403 ?? '',
       metricUnit: plot?.metricUnit,
       metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-      data: plotData?.data,
+      dataView: plotData?.dataView,
       series: plotData?.series,
       seriesShow: plotData?.seriesShow,
       legendNameWidth: plotData?.legendNameWidth,
@@ -371,7 +371,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           ) : (
             <UPlotWrapper
               opts={opts}
-              data={data}
+              data={dataView}
               series={series}
               scales={scales}
               onReady={onReady}

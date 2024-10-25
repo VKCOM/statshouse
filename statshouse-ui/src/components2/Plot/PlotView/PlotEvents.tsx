@@ -78,7 +78,7 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
     [eventColumns, plotEventsData?.what]
   );
   const loadPrev = useCallback(() => {
-    !!plotEventsData?.prevKey &&
+    if (!!plotEventsData?.prevKey) {
       loadPlotEvents(plotKey, plotEventsData.prevKey, true)
         .then((res) => {
           if (gridRef.current?.element && res) {
@@ -91,10 +91,13 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
           }
         })
         .catch(() => undefined);
+    }
   }, [loadPlotEvents, plotEventsData?.chunks.length, plotEventsData?.prevKey, plotKey]);
 
   const loadNext = useCallback(() => {
-    !!plotEventsData?.nextKey && loadPlotEvents(plotKey, plotEventsData.nextKey, false).catch(() => undefined);
+    if (!!plotEventsData?.nextKey) {
+      loadPlotEvents(plotKey, plotEventsData.nextKey, false).catch(() => undefined);
+    }
   }, [loadPlotEvents, plotEventsData?.nextKey, plotKey]);
 
   const onScroll = useCallback(
@@ -111,7 +114,9 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
         }
       } else {
         setParams((p) => {
-          p.eventFrom = 0;
+          if (p.eventFrom !== 0) {
+            p.eventFrom = 0;
+          }
         }, true);
       }
       if (
