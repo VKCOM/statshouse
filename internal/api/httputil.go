@@ -99,7 +99,7 @@ func cacheSeconds(d time.Duration) int {
 	return s
 }
 
-func exportCSV(w *ResponseWriter, resp *SeriesResponse, metric string) {
+func exportCSV(w *HTTPRequestHandler, resp *SeriesResponse, metric string) {
 	w.endpointStat.reportServiceTime(http.StatusOK, nil)
 
 	w.Header().Set(
@@ -148,7 +148,7 @@ func exportCSV(w *ResponseWriter, resp *SeriesResponse, metric string) {
 	}
 }
 
-func respondJSON(w *ResponseWriter, resp interface{}, cache time.Duration, cacheStale time.Duration, err error) {
+func respondJSON(w *HTTPRequestHandler, resp interface{}, cache time.Duration, cacheStale time.Duration, err error) {
 	code := httpCode(err)
 	r := Response{}
 
@@ -207,7 +207,7 @@ func respondJSON(w *ResponseWriter, resp interface{}, cache time.Duration, cache
 	}
 }
 
-func respondPlot(w *ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, user string) {
+func respondPlot(w *HTTPRequestHandler, format string, resp []byte, cache time.Duration, cacheStale time.Duration, user string) {
 	code := http.StatusOK
 	w.endpointStat.reportServiceTime(code, nil)
 	w.Header().Set(ServerTimingHeaderKey, w.endpointStat.timings.String())

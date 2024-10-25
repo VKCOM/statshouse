@@ -34,11 +34,11 @@ import (
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", data_model.MaxSlice)
 var errAccessViolation = fmt.Errorf("metric access violation")
 
-func (h *Handler) HandleInstantQuery(w *ResponseWriter, r *http.Request) {
+func HandleInstantQuery(h *HTTPRequestHandler, r *http.Request) {
 	// parse access token
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	// parse query
@@ -57,7 +57,7 @@ func (h *Handler) HandleInstantQuery(w *ResponseWriter, r *http.Request) {
 		var err error
 		q.Start, err = parseTime(t)
 		if err != nil {
-			promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
+			promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
 			return
 		}
 	}
@@ -65,20 +65,20 @@ func (h *Handler) HandleInstantQuery(w *ResponseWriter, r *http.Request) {
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &ai), q)
+	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &h.accessInfo), q)
 	if err != nil {
-		promRespondError(w, promErrorExec, err)
+		promRespondError(h, promErrorExec, err)
 		return
 	}
 	defer dispose()
-	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
+	promRespond(h, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func (h *Handler) HandleRangeQuery(w *ResponseWriter, r *http.Request) {
+func HandleRangeQuery(h *HTTPRequestHandler, r *http.Request) {
 	// parse access token
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	// parse query
@@ -91,52 +91,52 @@ func (h *Handler) HandleRangeQuery(w *ResponseWriter, r *http.Request) {
 	}
 	q.Start, err = parseTime(r.FormValue("start"))
 	if err != nil {
-		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 		return
 	}
 	q.End, err = parseTime(r.FormValue("end"))
 	if err != nil {
-		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 		return
 	}
 	q.End++ // handler expects half open interval [start, end)
 	q.Step, err = parseDuration(r.FormValue("step"))
 	if err != nil {
-		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter step: %w", err))
+		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter step: %w", err))
 		return
 	}
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &ai), q)
+	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &h.accessInfo), q)
 	if err != nil {
-		promRespondError(w, promErrorExec, err)
+		promRespondError(h, promErrorExec, err)
 		return
 	}
 	defer dispose()
-	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
+	promRespond(h, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func (h *Handler) HandlePromSeriesQuery(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandlePromSeriesQuery(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	_ = r.ParseForm()
 	match := r.Form["match[]"]
 	if len(match) == 0 {
-		promRespondError(w, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
+		promRespondError(h, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
 		return
 	}
 	start, err := parseTime(r.FormValue("start"))
 	if err != nil {
-		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 		return
 	}
 	end, err := parseTime(r.FormValue("end"))
 	if err != nil {
-		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 		return
 	}
 	if start < end-300 {
@@ -147,7 +147,7 @@ func (h *Handler) HandlePromSeriesQuery(w *ResponseWriter, r *http.Request) {
 	for _, expr := range match {
 		func() {
 			val, cancel, err := h.promEngine.Exec(
-				withAccessInfo(r.Context(), &ai),
+				withAccessInfo(r.Context(), &h.accessInfo),
 				promql.Query{
 					Start: start,
 					End:   end,
@@ -173,13 +173,13 @@ func (h *Handler) HandlePromSeriesQuery(w *ResponseWriter, r *http.Request) {
 			}
 		}()
 	}
-	promRespond(w, res)
+	promRespond(h, res)
 }
 
-func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	namespace := r.Header.Get("X-StatsHouse-Namespace")
@@ -195,7 +195,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request)
 	if tagName == "__name__" {
 		for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 			trimmed := strings.TrimPrefix(meta.Name, prefix)
-			if meta.Name != trimmed && ai.CanViewMetric(*meta) {
+			if meta.Name != trimmed && h.accessInfo.CanViewMetric(*meta) {
 				res = append(res, trimmed)
 			}
 		}
@@ -209,12 +209,12 @@ func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request)
 			_ = r.ParseForm()
 			start, err := parseTime(r.FormValue("start"))
 			if err != nil {
-				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+				promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 				return
 			}
 			end, err := parseTime(r.FormValue("end"))
 			if err != nil {
-				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+				promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 				return
 			}
 			if start < end-300 {
@@ -224,7 +224,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request)
 			for _, expr := range r.Form["match[]"] {
 				func() {
 					val, cancel, err := h.promEngine.Exec(
-						withAccessInfo(r.Context(), &ai),
+						withAccessInfo(r.Context(), &h.accessInfo),
 						promql.Query{
 							Start: start,
 							End:   end,
@@ -251,7 +251,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w *ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	promRespond(w, res)
+	promRespond(h, res)
 }
 
 // region Request

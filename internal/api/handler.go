@@ -822,11 +822,12 @@ func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
 	return v.Name, nil
 }
 
-func (h *Handler) getMetricID(ai accessInfo, metricName string) (int32, error) {
+func (h *Handler) getMetricID(metricName string) (int32, error) {
 	if metricName == format.CodeTagValue(format.TagValueIDUnspecified) {
 		return format.TagValueIDUnspecified, nil
 	}
-	meta, err := h.getMetricMeta(ai, metricName)
+	// metric ID is not considered private
+	meta, err := h.getMetricMeta(accessInfo{insecureMode: true}, metricName)
 	if err != nil {
 		return 0, err
 	}
@@ -846,6 +847,10 @@ func (h *Handler) getMetricMeta(ai accessInfo, metricName string) (*format.Metri
 		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricName))
 	}
 	return v, nil
+}
+
+func (h *HTTPRequestHandler) getMetricMeta(metricName string) (*format.MetricMetaValue, error) {
+	return h.Handler.getMetricMeta(h.accessInfo, metricName)
 }
 
 func (h *Handler) getMetricNameByID(metricID int32) string {
@@ -942,7 +947,7 @@ func (h *Handler) getRichTagValueID(tag *format.MetricMetaTag, version string, t
 		return id, nil
 	}
 	if tag.IsMetric {
-		return h.getMetricID(accessInfo{insecureMode: true}, tagValue) // we don't consider metric ID to be private
+		return h.getMetricID(tagValue) // we don't consider metric ID to be private
 	}
 	if tag.IsNamespace {
 		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
@@ -973,7 +978,7 @@ func (h *Handler) getRichTagValueID(tag *format.MetricMetaTag, version string, t
 	return h.getTagValueID(tagValue)
 }
 
-func (h *Handler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
+func (h *HTTPRequestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
 	tag, ok := metricMeta.Name2Tag[tagID]
 	if !ok {
 		return nil, fmt.Errorf("tag with name %s not found for metric %s", tagID, metricMeta.Name)
@@ -998,7 +1003,7 @@ func formValueParamMetric(r *http.Request) string {
 	return mergeMetricNamespace(ns, str)
 }
 
-func (h *Handler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
+func (h *HTTPRequestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
 	m := make(map[string][]interface{}, len(f))
 	for k, values := range f {
 		if version == Version1 && k == format.EnvTagID {
@@ -1022,7 +1027,7 @@ func (h *Handler) resolveFilter(metricMeta *format.MetricMetaValue, version stri
 	return m, nil
 }
 
-func (h *Handler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
+func (h *HTTPRequestHandler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
 	m := make(map[string][]maybeMappedTag, len(f))
 	for k, values := range f {
 		if k == format.StringTopTagID {
@@ -1093,100 +1098,85 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) parseAccessToken(r *http.Request, es *endpointStat) (accessInfo, error) {
-	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
-	if es != nil {
-		es.setAccessInfo(ai)
-	}
-	return ai, err
-}
-
-func (h *Handler) HandleGetMetricsList(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetMetricsList(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	resp, cache, err := h.handleGetMetricsList(ai)
-	respondJSON(w, resp, cache, queryClientCacheStale, err)
-}
-
-func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time.Duration, error) {
-	ret := &GetMetricsListResp{
+	resp := &GetMetricsListResp{
 		Metrics: []metricShortInfo{},
 	}
 	for _, m := range format.BuiltinMetrics {
 		if !h.showInvisible && !m.Visible { // we have invisible builtin metrics
 			continue
 		}
-		ret.Metrics = append(ret.Metrics, metricShortInfo{Name: m.Name})
+		resp.Metrics = append(resp.Metrics, metricShortInfo{Name: m.Name})
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.CanViewMetric(*v) {
-			ret.Metrics = append(ret.Metrics, metricShortInfo{Name: v.Name})
+		if h.accessInfo.CanViewMetric(*v) {
+			resp.Metrics = append(resp.Metrics, metricShortInfo{Name: v.Name})
 		}
 	}
-
-	sort.Slice(ret.Metrics, func(i int, j int) bool { return ret.Metrics[i].Name < ret.Metrics[j].Name })
-
-	return ret, defaultCacheTTL, nil
+	sort.Slice(resp.Metrics, func(i int, j int) bool { return resp.Metrics[i].Name < resp.Metrics[j].Name })
+	respondJSON(h, resp, defaultCacheTTL, queryClientCacheStale, err)
 }
 
-func (h *Handler) HandleGetMetric(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetMetric(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	resp, cache, err := h.handleGetMetric(r.Context(), ai, formValueParamMetric(r), r.FormValue(ParamID), r.FormValue(ParamEntityVersion))
-	respondJSON(w, resp, cache, 0, err) // we don't want clients to see stale metadata
+	resp, cache, err := h.handleGetMetric(r.Context(), formValueParamMetric(r), r.FormValue(ParamID), r.FormValue(ParamEntityVersion))
+	respondJSON(h, resp, cache, 0, err) // we don't want clients to see stale metadata
 }
 
-func (h *Handler) HandleGetPromConfig(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetPromConfig(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	s, err := aggregator.DeserializeScrapeConfig([]byte(h.metricsStorage.PromConfig().Data), h.metricsStorage)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	respondJSON(w, s, 0, 0, err)
+	respondJSON(h, s, 0, 0, err)
 }
 
-func (h *Handler) HandleGetPromConfigGenerated(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetPromConfigGenerated(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	s, err := aggregator.DeserializeScrapeConfig([]byte(h.metricsStorage.PromConfigGenerated().Data), nil)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	respondJSON(w, s, 0, 0, err)
+	respondJSON(h, s, 0, 0, err)
 }
 
-func (h *Handler) HandlePostMetric(w *ResponseWriter, r *http.Request) {
-	if h.checkReadOnlyMode(w, r) {
+func HandlePostMetric(h *HTTPRequestHandler, r *http.Request) {
+	if h.checkReadOnlyMode(h, r) {
 		return
 	}
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	rd := &io.LimitedReader{
@@ -1196,34 +1186,34 @@ func (h *Handler) HandlePostMetric(w *ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	if len(res) >= maxEntityHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxEntityHTTPBodySize)))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxEntityHTTPBodySize)))
 		return
 	}
 	var metric MetricInfo
 	if err := easyjson.Unmarshal(res, &metric); err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	m, err := h.handlePostMetric(r.Context(), ai, formValueParamMetric(r), metric.Metric)
+	m, err := h.handlePostMetric(r.Context(), h.accessInfo, formValueParamMetric(r), metric.Metric)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), m.Version)
-	respondJSON(w, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err)
+	respondJSON(h, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err)
 }
 
-func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w *ResponseWriter, r *http.Request, entity T, handleCallback func(ctx context.Context, ai accessInfo, entity T, create bool) (resp interface{}, versionToWait int64, err error)) {
-	if h.checkReadOnlyMode(w, r) {
+func handlePostEntity[T easyjson.Unmarshaler](h *HTTPRequestHandler, r *http.Request, entity T, handleCallback func(ctx context.Context, ai accessInfo, entity T, create bool) (resp interface{}, versionToWait int64, err error)) {
+	if h.checkReadOnlyMode(h, r) {
 		return
 	}
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	rd := &io.LimitedReader{
@@ -1233,29 +1223,29 @@ func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w *ResponseWriter, r *
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	if len(res) >= maxEntityHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("entity body too big. Max size is %d bytes", maxEntityHTTPBodySize)))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("entity body too big. Max size is %d bytes", maxEntityHTTPBodySize)))
 		return
 	}
 	if err := easyjson.Unmarshal(res, entity); err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	d, version, err := handleCallback(r.Context(), ai, entity, r.Method == http.MethodPut)
+	d, version, err := handleCallback(r.Context(), h.accessInfo, entity, r.Method == http.MethodPut)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), version)
-	respondJSON(w, d, defaultCacheTTL, 0, err)
+	respondJSON(h, d, defaultCacheTTL, 0, err)
 }
 
-func (h *Handler) HandlePutPostGroup(w *ResponseWriter, r *http.Request) {
+func HandlePutPostGroup(h *HTTPRequestHandler, r *http.Request) {
 	var groupInfo MetricsGroupInfo
-	handlePostEntity(h, w, r, &groupInfo, func(ctx context.Context, ai accessInfo, entity *MetricsGroupInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+	handlePostEntity(h, r, &groupInfo, func(ctx context.Context, ai accessInfo, entity *MetricsGroupInfo, create bool) (resp interface{}, versionToWait int64, err error) {
 		response, err := h.handlePostGroup(ctx, ai, entity.Group, create)
 		if err != nil {
 			return nil, 0, err
@@ -1264,9 +1254,9 @@ func (h *Handler) HandlePutPostGroup(w *ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) HandlePostNamespace(w *ResponseWriter, r *http.Request) {
+func HandlePostNamespace(h *HTTPRequestHandler, r *http.Request) {
 	var namespaceInfo NamespaceInfo
-	handlePostEntity(h, w, r, &namespaceInfo, func(ctx context.Context, ai accessInfo, entity *NamespaceInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+	handlePostEntity(h, r, &namespaceInfo, func(ctx context.Context, ai accessInfo, entity *NamespaceInfo, create bool) (resp interface{}, versionToWait int64, err error) {
 		response, err := h.handlePostNamespace(ctx, ai, entity.Namespace, create)
 		if err != nil {
 			return nil, 0, err
@@ -1275,25 +1265,25 @@ func (h *Handler) HandlePostNamespace(w *ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) HandlePostResetFlood(w *ResponseWriter, r *http.Request) {
-	if h.checkReadOnlyMode(w, r) {
+func HandlePostResetFlood(h *HTTPRequestHandler, r *http.Request) {
+	if h.checkReadOnlyMode(h, r) {
 		return
 	}
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err := httpErr(http.StatusForbidden, fmt.Errorf("admin access required"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	var limit int32
 	if v := r.FormValue("limit"); v != "" {
 		i, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
-			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err))
+			respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, err))
 			return
 		}
 		limit = int32(i)
@@ -1302,24 +1292,24 @@ func (h *Handler) HandlePostResetFlood(w *ResponseWriter, r *http.Request) {
 	if err == nil && !del {
 		err = fmt.Errorf("metric flood counter was empty (no flood)")
 	}
-	respondJSON(w, &struct {
+	respondJSON(h, &struct {
 		Before int32 `json:"before"`
 		After  int32 `json:"after"`
 	}{Before: before, After: after}, 0, 0, err)
 }
 
-func (h *Handler) HandlePostPromConfig(w *ResponseWriter, r *http.Request) {
-	if h.checkReadOnlyMode(w, r) {
+func HandlePostPromConfig(h *HTTPRequestHandler, r *http.Request) {
+	if h.checkReadOnlyMode(h, r) {
 		return
 	}
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	rd := &io.LimitedReader{
@@ -1329,43 +1319,43 @@ func (h *Handler) HandlePostPromConfig(w *ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	if len(res) >= maxPromConfigHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)))
 		return
 	}
 	_, err = aggregator.DeserializeScrapeConfig(res, h.metricsStorage)
 	if err != nil {
 		err = httpErr(http.StatusBadRequest, fmt.Errorf("invalid prometheus config syntax: %v", err))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	event, err := h.metadataLoader.SaveScrapeConfig(r.Context(), h.metricsStorage.PromConfig().Version, string(res), ai.toMetadata())
+	event, err := h.metadataLoader.SaveScrapeConfig(r.Context(), h.metricsStorage.PromConfig().Version, string(res), h.accessInfo.toMetadata())
 	if err != nil {
 		err = fmt.Errorf("failed to save prometheus config: %w", err)
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), event.Version)
-	respondJSON(w, struct {
+	respondJSON(h, struct {
 		Version int64 `json:"version"`
 	}{event.Version}, defaultCacheTTL, 0, err)
 }
 
-func (h *Handler) HandlePostKnownTags(w *ResponseWriter, r *http.Request) {
-	if h.checkReadOnlyMode(w, r) {
+func HandlePostKnownTags(h *HTTPRequestHandler, r *http.Request) {
+	if h.checkReadOnlyMode(h, r) {
 		return
 	}
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err = httpErr(http.StatusNotFound, fmt.Errorf("not found"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	rd := &io.LimitedReader{
@@ -1375,69 +1365,69 @@ func (h *Handler) HandlePostKnownTags(w *ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	if len(res) >= maxPromConfigHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("config body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("config body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)))
 		return
 	}
 	_, err = aggregator.ParseKnownTags(res, h.metricsStorage)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	event, err := h.metadataLoader.SaveKnownTagsConfig(r.Context(), h.metricsStorage.KnownTags().Version, string(res))
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), event.Version)
-	respondJSON(w, struct {
+	respondJSON(h, struct {
 		Version int64 `json:"version"`
 	}{event.Version}, defaultCacheTTL, 0, err)
 }
 
-func (h *Handler) HandleGetKnownTags(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetKnownTags(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if !ai.isAdmin() {
+	if !h.accessInfo.isAdmin() {
 		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	var res map[string]aggregator.KnownTagsJSON
 	err = json.Unmarshal([]byte(h.metricsStorage.KnownTags().Data), &res)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	respondJSON(w, res, 0, 0, err)
+	respondJSON(h, res, 0, 0, err)
 }
 
-func (h *Handler) HandleGetHistory(w *ResponseWriter, r *http.Request) {
-	_, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetHistory(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	var id int64
 	if idStr := r.FormValue(ParamID); idStr != "" {
 		id, err = strconv.ParseInt(idStr, 10, 32)
 		if err != nil {
-			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err))
+			respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, err))
 			return
 		}
 	} else {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("%s is must be set", ParamID)))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("%s is must be set", ParamID)))
 		return
 	}
 	hist, err := h.metadataLoader.GetShortHistory(r.Context(), id)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	resp := GetHistoryShortInfoResp{Events: make([]HistoryEvent, 0, len(hist.Events))}
@@ -1449,10 +1439,10 @@ func (h *Handler) HandleGetHistory(w *ResponseWriter, r *http.Request) {
 			Metadata: m,
 		})
 	}
-	respondJSON(w, resp, defaultCacheTTL, 0, err)
+	respondJSON(h, resp, defaultCacheTTL, 0, err)
 }
 
-func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName string, metricIDStr string, versionStr string) (*MetricInfo, time.Duration, error) {
+func (h *HTTPRequestHandler) handleGetMetric(ctx context.Context, metricName string, metricIDStr string, versionStr string) (*MetricInfo, time.Duration, error) {
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
@@ -1477,7 +1467,7 @@ func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName
 			}, defaultCacheTTL, nil
 		}
 	}
-	v, err := h.getMetricMeta(ai, metricName)
+	v, err := h.getMetricMeta(metricName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1742,10 +1732,10 @@ func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
 	return false
 }
 
-func (h *Handler) HandleGetMetricTagValues(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetMetricTagValues(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 
@@ -1756,7 +1746,7 @@ func (h *Handler) HandleGetMetricTagValues(w *ResponseWriter, r *http.Request) {
 	resp, immutable, err := h.handleGetMetricTagValues(
 		ctx,
 		getMetricTagValuesReq{
-			ai:         ai,
+			ai:         h.accessInfo,
 			version:    r.FormValue(ParamVersion),
 			numResults: r.FormValue(ParamNumResults),
 			metricName: formValueParamMetric(r),
@@ -1768,7 +1758,7 @@ func (h *Handler) HandleGetMetricTagValues(w *ResponseWriter, r *http.Request) {
 		})
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
-	respondJSON(w, resp, cache, cacheStale, err)
+	respondJSON(h, resp, cache, cacheStale, err)
 }
 
 type selectRow struct {
@@ -1822,7 +1812,7 @@ func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	return row
 }
 
-func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (resp *GetMetricTagValuesResp, immutable bool, err error) {
+func (h *HTTPRequestHandler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (resp *GetMetricTagValuesResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
 		return nil, false, err
@@ -1835,7 +1825,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	metricMeta, err := h.getMetricMeta(req.ai, req.metricName)
+	metricMeta, err := h.getMetricMeta(req.metricName)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1988,16 +1978,17 @@ func sumSeries(data *[]float64, missingValue float64) float64 {
 	return result
 }
 
-func (h *Handler) HandleGetTable(w *ResponseWriter, r *http.Request) {
+func HandleGetTable(h *HTTPRequestHandler, r *http.Request) {
 	var err error
 	var req seriesRequest
 	if req, err = parseHTTPRequest(r, h.location, h.metricsStorage.GetDashboardMeta); err == nil {
-		if req.ai, err = h.parseAccessToken(r, &w.endpointStat); err == nil {
+		if err = h.parseAccessToken(r); err == nil {
+			req.ai = h.accessInfo
 			err = req.validate()
 		}
 	}
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 
@@ -2007,68 +1998,69 @@ func (h *Handler) HandleGetTable(w *ResponseWriter, r *http.Request) {
 	if req.numResults <= 0 || maxTableRowsPage < req.numResults {
 		req.numResults = maxTableRowsPage
 	}
-	respTable, immutable, err := h.handleGetTable(ctx, req.ai, true, req)
+	respTable, immutable, err := h.handleGetTable(ctx, true, req)
 	if h.verbose && err == nil {
-		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), w.endpointStat.user, time.Since(w.endpointStat.timestamp))
+		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), h.endpointStat.user, time.Since(h.endpointStat.timestamp))
 	}
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
-	respondJSON(w, respTable, cache, cacheStale, err)
+	respondJSON(h, respTable, cache, cacheStale, err)
 }
 
-func (h *Handler) HandleSeriesQuery(w *ResponseWriter, r *http.Request) {
+func HandleSeriesQuery(h *HTTPRequestHandler, r *http.Request) {
 	var err error
 	var req seriesRequest
 	if req, err = parseHTTPRequest(r, h.location, h.metricsStorage.GetDashboardMeta); err == nil {
-		if req.ai, err = h.parseAccessToken(r, &w.endpointStat); err == nil {
+		if err = h.parseAccessToken(r); err == nil {
+			req.ai = h.accessInfo
 			err = req.validate()
 		}
 	}
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	s, cancel, err := h.handleSeriesRequestS(withEndpointStat(r.Context(), &w.endpointStat), req, &w.endpointStat, make([]seriesResponse, 2))
+	s, cancel, err := h.handleSeriesRequestS(withEndpointStat(r.Context(), &h.endpointStat), req, &h.endpointStat, make([]seriesResponse, 2))
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	defer cancel()
 	switch {
 	case r.FormValue(paramDataFormat) == dataFormatCSV:
-		exportCSV(w, h.buildSeriesResponse(s...), req.metricName)
+		exportCSV(h, h.buildSeriesResponse(s...), req.metricName)
 	default:
 		res := h.buildSeriesResponse(s...)
 		cache, cacheStale := queryClientCacheDuration(res.immutable)
-		respondJSON(w, res, cache, cacheStale, nil)
+		respondJSON(h, res, cache, cacheStale, nil)
 	}
 }
 
-func (h *Handler) HandleFrontendStat(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleFrontendStat(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if ai.service {
+	if h.accessInfo.service {
 		// statistics from bots isn't welcome
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")))
+		respondJSON(h, nil, 0, 0, httpErr(404, fmt.Errorf("")))
 		return
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	var batch tlstatshouse.AddMetricsBatchBytes
 	err = batch.UnmarshalJSON(body)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	for _, v := range batch.Metrics {
 		if string(v.Name) != format.BuiltinMetricNameIDUIErrors { // metric whitelist
-			respondJSON(w, nil, 0, 0, fmt.Errorf("metric is not in whitelist"))
+			respondJSON(h, nil, 0, 0, fmt.Errorf("metric is not in whitelist"))
 			return
 		}
 		tags := make(statshouse.NamedTags, 0, len(v.Tags))
@@ -2085,7 +2077,7 @@ func (h *Handler) HandleFrontendStat(w *ResponseWriter, r *http.Request) {
 			metric.Count(v.Counter)
 		}
 	}
-	respondJSON(w, nil, 0, 0, nil)
+	respondJSON(h, nil, 0, 0, nil)
 }
 
 func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *format.MetricMetaValue) (seriesResponse, func(), error) {
@@ -2114,40 +2106,41 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 	return res, cleanup, nil
 }
 
-func (h *Handler) HandlePointQuery(w *ResponseWriter, r *http.Request) {
+func HandlePointQuery(h *HTTPRequestHandler, r *http.Request) {
 	var err error
 	var req seriesRequest
 	if req, err = parseHTTPRequest(r, h.location, h.metricsStorage.GetDashboardMeta); err == nil {
-		if req.ai, err = h.parseAccessToken(r, &w.endpointStat); err == nil {
+		if err = h.parseAccessToken(r); err == nil {
+			req.ai = h.accessInfo
 			err = req.validate()
 		}
 	}
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	s, cancel, err := h.handleSeriesRequest(
-		withEndpointStat(r.Context(), &w.endpointStat), req,
+		withEndpointStat(r.Context(), &h.endpointStat), req,
 		seriesRequestOptions{mode: data_model.PointQuery, trace: true})
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	defer cancel()
 	switch {
 	case r.FormValue(paramDataFormat) == dataFormatCSV:
-		respondJSON(w, h.buildPointResponse(s), 0, 0, httpErr(http.StatusBadRequest, nil))
+		respondJSON(h, h.buildPointResponse(s), 0, 0, httpErr(http.StatusBadRequest, nil))
 	default:
 		immutable := req.to.Before(time.Now().Add(invalidateFrom))
 		cache, cacheStale := queryClientCacheDuration(immutable)
-		respondJSON(w, h.buildPointResponse(s), cache, cacheStale, err)
+		respondJSON(h, h.buildPointResponse(s), cache, cacheStale, err)
 	}
 }
 
-func (h *Handler) HandleGetRender(w *ResponseWriter, r *http.Request) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetRender(h *HTTPRequestHandler, r *http.Request) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 
@@ -2156,36 +2149,36 @@ func (h *Handler) HandleGetRender(w *ResponseWriter, r *http.Request) {
 
 	s, err := parseHTTPRequestS(r, 12, h.location, h.metricsStorage.GetDashboardMeta)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 
 	resp, immutable, err := h.handleGetRender(
-		ctx, ai,
+		ctx, h.accessInfo,
 		renderRequest{
 			seriesRequest: s,
 			renderWidth:   r.FormValue(paramRenderWidth),
 			renderFormat:  r.FormValue(paramDataFormat),
-		}, &w.endpointStat)
+		}, &h.endpointStat)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
-	respondPlot(w, resp.format, resp.data, cache, cacheStale, ai.user)
+	respondPlot(h, resp.format, resp.data, cache, cacheStale, h.accessInfo.user)
 }
 
-func HandleGetEntity[T any](w *ResponseWriter, r *http.Request, h *Handler, handle func(ctx context.Context, ai accessInfo, id int32, version int64) (T, time.Duration, error)) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetEntity[T any](h *HTTPRequestHandler, r *http.Request, handle func(ctx context.Context, ai accessInfo, id int32, version int64) (T, time.Duration, error)) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	idStr := r.FormValue(ParamID)
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err))
+		respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, err))
 		return
 	}
 	verStr := r.FormValue(ParamEntityVersion)
@@ -2193,56 +2186,56 @@ func HandleGetEntity[T any](w *ResponseWriter, r *http.Request, h *Handler, hand
 	if verStr != "" {
 		ver, err = strconv.ParseInt(verStr, 10, 64)
 		if err != nil {
-			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err))
+			respondJSON(h, nil, 0, 0, httpErr(http.StatusBadRequest, err))
 			return
 		}
 	}
-	resp, cache, err := handle(r.Context(), ai, int32(id), ver)
-	respondJSON(w, resp, cache, 0, err)
+	resp, cache, err := handle(r.Context(), h.accessInfo, int32(id), ver)
+	respondJSON(h, resp, cache, 0, err)
 }
 
-func (h *Handler) HandleGetDashboard(w *ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, h.handleGetDashboard)
+func HandleGetDashboard(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntity(h, r, h.handleGetDashboard)
 }
 
-func (h *Handler) HandleGetGroup(w *ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, func(ctx context.Context, ai accessInfo, id int32, _ int64) (*MetricsGroupInfo, time.Duration, error) {
+func HandleGetGroup(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntity(h, r, func(ctx context.Context, ai accessInfo, id int32, _ int64) (*MetricsGroupInfo, time.Duration, error) {
 		return h.handleGetGroup(ai, id)
 	})
 }
 
-func (h *Handler) HandleGetNamespace(w *ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, func(_ context.Context, ai accessInfo, id int32, _ int64) (*NamespaceInfo, time.Duration, error) {
+func HandleGetNamespace(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntity(h, r, func(_ context.Context, ai accessInfo, id int32, _ int64) (*NamespaceInfo, time.Duration, error) {
 		return h.handleGetNamespace(ai, id)
 	})
 }
 
-func HandleGetEntityList[T any](w *ResponseWriter, r *http.Request, h *Handler, handle func(ai accessInfo, showInvisible bool) (T, time.Duration, error)) {
-	ai, err := h.parseAccessToken(r, &w.endpointStat)
+func HandleGetEntityList[T any](h *HTTPRequestHandler, r *http.Request, handle func(ai accessInfo, showInvisible bool) (T, time.Duration, error)) {
+	err := h.parseAccessToken(r)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err)
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
 	sd := r.URL.Query().Has(paramShowDisabled)
-	resp, cache, err := handle(ai, sd)
-	respondJSON(w, resp, cache, 0, err)
+	resp, cache, err := handle(h.accessInfo, sd)
+	respondJSON(h, resp, cache, 0, err)
 }
 
-func (h *Handler) HandleGetGroupsList(w *ResponseWriter, r *http.Request) {
-	HandleGetEntityList(w, r, h, h.handleGetGroupsList)
+func HandleGetGroupsList(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntityList(h, r, h.handleGetGroupsList)
 }
 
-func (h *Handler) HandleGetDashboardList(w *ResponseWriter, r *http.Request) {
-	HandleGetEntityList(w, r, h, h.handleGetDashboardList)
+func HandleGetDashboardList(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntityList(h, r, h.handleGetDashboardList)
 }
 
-func (h *Handler) HandleGetNamespaceList(w *ResponseWriter, r *http.Request) {
-	HandleGetEntityList(w, r, h, h.handleGetNamespaceList)
+func HandleGetNamespaceList(h *HTTPRequestHandler, r *http.Request) {
+	HandleGetEntityList(h, r, h.handleGetNamespaceList)
 }
 
-func (h *Handler) HandlePutPostDashboard(w *ResponseWriter, r *http.Request) {
+func HandlePutPostDashboard(h *HTTPRequestHandler, r *http.Request) {
 	var dashboard DashboardInfo
-	handlePostEntity(h, w, r, &dashboard, func(ctx context.Context, ai accessInfo, entity *DashboardInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+	handlePostEntity(h, r, &dashboard, func(ctx context.Context, ai accessInfo, entity *DashboardInfo, create bool) (resp interface{}, versionToWait int64, err error) {
 		response, err := h.handlePostDashboard(ctx, ai, entity.Dashboard, create, entity.Delete)
 		if err != nil {
 			return nil, 0, err
@@ -2251,7 +2244,7 @@ func (h *Handler) HandlePutPostDashboard(w *ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req renderRequest, es *endpointStat) (*renderResponse, bool, error) {
+func (h *HTTPRequestHandler) handleGetRender(ctx context.Context, ai accessInfo, req renderRequest, es *endpointStat) (*renderResponse, bool, error) {
 	width, err := parseRenderWidth(req.renderWidth)
 	if err != nil {
 		return nil, false, err
@@ -2323,8 +2316,8 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	}, immutable, nil
 }
 
-func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
-	metricMeta, err := h.getMetricMeta(ai, req.metricName)
+func (h *HTTPRequestHandler) handleGetTable(ctx context.Context, debugQueries bool, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
+	metricMeta, err := h.getMetricMeta(req.metricName)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2373,7 +2366,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	}
 	queryRows, hasMore, err := getTableFromLODs(ctx, lods, tableReqParams{
 		req:               req,
-		user:              ai.user,
+		user:              h.accessInfo.user,
 		metricMeta:        metricMeta,
 		isStringTop:       metricMeta.StringTopDescription != "",
 		mappedFilterIn:    mappedFilterIn,
@@ -2614,7 +2607,7 @@ func (h *Handler) buildSeriesResponse(s ...seriesResponse) *SeriesResponse {
 	return res
 }
 
-func (h *Handler) buildPointResponse(s seriesResponse) *GetPointResp {
+func (h *HTTPRequestHandler) buildPointResponse(s seriesResponse) *GetPointResp {
 	res := &GetPointResp{
 		PointMeta:    make([]QueryPointsMeta, 0),
 		PointData:    make([]float64, 0),
@@ -3358,4 +3351,10 @@ func mergeMetricNamespace(namespace string, metric string) string {
 		return metric
 	}
 	return format.NamespaceName(namespace, metric)
+}
+
+func (h *HTTPRequestHandler) parseAccessToken(r *http.Request) (err error) {
+	h.accessInfo, err = parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
+	h.endpointStat.setAccessInfo(h.accessInfo)
+	return err
 }
