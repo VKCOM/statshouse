@@ -60,6 +60,35 @@ const baseMetricTypeSi: ConfigConvertMetric = {
     '8': 'Y',
   },
 };
+const baseMetricTypeByteAsBits: ConfigConvertMetric = {
+  baseOffset: 0,
+  getBase(n) {
+    return Math.max(-8, Math.min(8, getMetricTypeBase(n)));
+  },
+  format(n) {
+    const base = this.getBase(8 * n);
+    return floor((8 * n) / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
+  },
+  suffix: {
+    '-8': 'yb',
+    '-7': 'zb',
+    '-6': 'ab',
+    '-5': 'fb',
+    '-4': 'pb',
+    '-3': 'nb',
+    '-2': 'μb',
+    '-1': 'mb',
+    '0': 'b',
+    '1': 'Kb',
+    '2': 'Mb',
+    '3': 'Gb',
+    '4': 'Tb',
+    '5': 'Pb',
+    '6': 'Eb',
+    '7': 'Zb',
+    '8': 'Yb',
+  },
+};
 const baseMetricTypeSecond: ConfigConvertMetric = {
   baseOffset: 0,
   getBase(n) {
@@ -140,6 +169,9 @@ export const suffixesByMetricType: Record<MetricType, ConfigConvertMetric> = {
   [METRIC_TYPE.none]: {
     ...baseMetricTypeSi,
   },
+  [METRIC_TYPE.byte_as_bits]: {
+    ...baseMetricTypeByteAsBits,
+  },
   [METRIC_TYPE.byte]: {
     ...baseMetricTypeByte,
   },
@@ -181,7 +213,7 @@ export function splitByMetricType(metricType: MetricType) {
   ): number[] => {
     let splits: number[] = [];
     const conf = suffixesByMetricType[metricType];
-    const base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
+    let base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
     function fixFloat(v: number) {
       return round(v, 14);
     }
@@ -198,6 +230,9 @@ export function splitByMetricType(metricType: MetricType) {
         break;
       case METRIC_TYPE.millisecond:
         p = 0.001;
+        break;
+      case METRIC_TYPE.byte_as_bits:
+        p = 8;
         break;
     }
     let incr = fixFloat(foundIncr);
@@ -218,17 +253,21 @@ export function splitByMetricType(metricType: MetricType) {
           end = scaleMax + incr / 100;
         }
         break;
+
       case METRIC_TYPE.byte:
-      default:
         if (base > 0) {
-          const r1 = Math.pow(2, 10 * base - base - 1); //?
-          const r2 = Math.pow(2, 10 * base); //?
-          const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2; //?
-          incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p; //?
-          start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p; //?
-          end = scaleMax + incr / 100; //?
+          const r1 = Math.pow(2, 10 * base - base - 1);
+          const r2 = Math.pow(2, 10 * base);
+          const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2;
+          incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p;
+          start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p;
+          end = scaleMax + incr / 100;
         }
         break;
+      case METRIC_TYPE.byte_as_bits:
+        // base = conf.getBase(Math.max(Math.abs(8 * scaleMin), Math.abs(8 * scaleMax)));
+        break;
+      default:
     }
     if (incr > 0) {
       for (let val = start; val <= end; val = val + incr) {

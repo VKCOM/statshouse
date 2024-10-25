@@ -236,6 +236,7 @@ export const METRIC_TYPE = {
   nanosecond: 'nanosecond',
   // data size
   byte: 'byte',
+  byte_as_bits: 'byte_as_bits',
 } as const;
 export type MetricType = Enum<typeof METRIC_TYPE>;
 export const isMetricType = isEnum<MetricType>(METRIC_TYPE);
@@ -248,6 +249,7 @@ export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
   [METRIC_TYPE.microsecond]: 'microsecond',
   [METRIC_TYPE.nanosecond]: 'nanosecond',
   [METRIC_TYPE.byte]: 'byte',
+  [METRIC_TYPE.byte_as_bits]: 'byte (shown as bits)',
 };
 
 export const METRIC_TYPE_URL = {
@@ -259,6 +261,7 @@ export const METRIC_TYPE_URL = {
   [METRIC_TYPE.nanosecond]: 'ns',
   // data size
   [METRIC_TYPE.byte]: 'b',
+  [METRIC_TYPE.byte_as_bits]: 'bbt',
 } as const;
 export type MetricTypeUrl = Enum<typeof METRIC_TYPE_URL>;
 export const isMetricTypeUrl = isEnum<MetricTypeUrl>(METRIC_TYPE_URL);

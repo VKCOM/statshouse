@@ -55,7 +55,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
     metricUnit,
     metricUnitData,
 
-    data,
+    dataView,
+    bands,
     series,
     // scales,
     timeRangeTo,
@@ -99,7 +100,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         error403: plotData?.error403 ?? '',
         metricUnit: plot?.metricUnit,
         metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-        data: plotData?.data,
+        dataView: plotData?.dataView,
+        bands: plotData?.bands,
         series: plotData?.series,
         // scales: plotData?.scales,
         seriesShow: plotData?.seriesShow,
@@ -398,7 +400,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           className="position-relative w-100 z-1"
           style={
             {
-              paddingTop: '15%',
+              // paddingTop: '15%',
+              paddingTop: '55%',
               '--plot-padding-top': `${topPad}px`,
             } as React.CSSProperties
           }
@@ -410,7 +413,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           ) : (
             <UPlotWrapper
               opts={opts}
-              data={data}
+              data={dataView}
+              bands={bands}
               series={series}
               scales={scales}
               onReady={onReady}

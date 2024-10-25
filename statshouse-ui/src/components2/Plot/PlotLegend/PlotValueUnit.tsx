@@ -21,7 +21,7 @@ export function PlotValueUnit({ unit, value }: PlotValueUnitProps) {
   }
   return value != null ? (
     <span className="small text-secondary">
-      {format(value)}&nbsp;({value})
+      {unit} {format(value)}&nbsp;({value})
     </span>
   ) : null;
 }
