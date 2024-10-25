@@ -120,20 +120,21 @@ const (
 	BuiltinMetricIDAgentDiskCacheSize         = -96
 	BuiltinMetricIDAggContributors            = -97
 	// BuiltinMetricIDAggAgentSharding           = -98  // deprecated
-	BuiltinMetricIDAPICacheBytesAlloc      = -99
-	BuiltinMetricIDAPICacheBytesFree       = -100
-	BuiltinMetricIDAPICacheBytesTotal      = -101
-	BuiltinMetricIDAPICacheAgeEvict        = -102
-	BuiltinMetricIDAPICacheAgeTotal        = -103
-	BuiltinMetricIDAPIBufferBytesAlloc     = -104
-	BuiltinMetricIDAPIBufferBytesFree      = -105
-	BuiltinMetricIDAPIBufferBytesTotal     = -106
-	BuiltinMetricIDAutoCreateMetric        = -107
-	BuiltinMetricIDRestartTimings          = -108
-	BuiltinMetricIDGCDuration              = -109
-	BuiltinMetricIDAggHistoricHostsWaiting = -110
-	BuiltinMetricIDAggSamplingEngineTime   = -111
-	BuiltinMetricIDAggSamplingEngineKeys   = -112
+	BuiltinMetricIDAPICacheBytesAlloc        = -99
+	BuiltinMetricIDAPICacheBytesFree         = -100
+	BuiltinMetricIDAPICacheBytesTotal        = -101
+	BuiltinMetricIDAPICacheAgeEvict          = -102
+	BuiltinMetricIDAPICacheAgeTotal          = -103
+	BuiltinMetricIDAPIBufferBytesAlloc       = -104
+	BuiltinMetricIDAPIBufferBytesFree        = -105
+	BuiltinMetricIDAPIBufferBytesTotal       = -106
+	BuiltinMetricIDAutoCreateMetric          = -107
+	BuiltinMetricIDRestartTimings            = -108
+	BuiltinMetricIDGCDuration                = -109
+	BuiltinMetricIDAggHistoricHostsWaiting   = -110
+	BuiltinMetricIDAggSamplingEngineTime     = -111
+	BuiltinMetricIDAggSamplingEngineKeys     = -112
+	BuiltinMetricIDProxyAcceptHandshakeError = -113
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -182,6 +183,7 @@ const (
 	BuiltinMetricAPIBufferBytesFree             = "__api_buffer_bytes_free"
 	BuiltinMetricAPIBufferBytesTotal            = "__api_buffer_bytes_total"
 	BuiltinMetricNameGCDuration                 = "__gc_duration"
+	BuiltinMetricNameProxyAcceptHandshakeError  = "__igp_accept_handshake_error"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -2288,6 +2290,19 @@ Value is delta between second value and time it was inserted.`,
 				ValueComments: convertToValueComments(routeToValue),
 			}},
 		},
+		BuiltinMetricIDProxyAcceptHandshakeError: {
+			Name:                 BuiltinMetricNameProxyAcceptHandshakeError,
+			Kind:                 MetricKindCounter,
+			Description:          "Proxy refused to accept incoming connection because of failed  handshake.",
+			StringTopDescription: "remote_ip",
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description: "magic_head",
+			}, {
+				Description: "error",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2328,6 +2343,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
 		BuiltinMetricIDAutoCreateMetric:           true,
 		BuiltinMetricIDGCDuration:                 true,
+		BuiltinMetricIDProxyAcceptHandshakeError:  true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2442,6 +2458,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIBufferBytesTotal:        true,
 		BuiltinMetricIDRestartTimings:             true,
 		BuiltinMetricIDGCDuration:                 true,
+		BuiltinMetricIDProxyAcceptHandshakeError:  true,
 	}
 
 	insertKindToValue = map[int32]string{
