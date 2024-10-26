@@ -135,6 +135,18 @@ const (
 	BuiltinMetricIDAggSamplingEngineTime     = -111
 	BuiltinMetricIDAggSamplingEngineKeys     = -112
 	BuiltinMetricIDProxyAcceptHandshakeError = -113
+	BuiltinMetricIDProxyVmSize               = -114
+	BuiltinMetricIDProxyVmRSS                = -115
+	BuiltinMetricIDProxyHeapAlloc            = -116
+	BuiltinMetricIDProxyHeapSys              = -117
+	BuiltinMetricIDProxyHeapIdle             = -118
+	BuiltinMetricIDProxyHeapInuse            = -119
+	BuiltinMetricIDApiVmSize                 = -120
+	BuiltinMetricIDApiVmRSS                  = -121
+	BuiltinMetricIDApiHeapAlloc              = -122
+	BuiltinMetricIDApiHeapSys                = -123
+	BuiltinMetricIDApiHeapIdle               = -124
+	BuiltinMetricIDApiHeapInuse              = -125
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -184,6 +196,18 @@ const (
 	BuiltinMetricAPIBufferBytesTotal            = "__api_buffer_bytes_total"
 	BuiltinMetricNameGCDuration                 = "__gc_duration"
 	BuiltinMetricNameProxyAcceptHandshakeError  = "__igp_accept_handshake_error"
+	BuiltinMetricNameApiVmSize                  = "__api_vm_size"
+	BuiltinMetricNameApiVmRSS                   = "__api_vm_rss"
+	BuiltinMetricNameApiHeapAlloc               = "__api_heap_alloc"
+	BuiltinMetricNameApiHeapSys                 = "__api_heap_sys"
+	BuiltinMetricNameApiHeapIdle                = "__api_heap_idle"
+	BuiltinMetricNameApiHeapInuse               = "__api_heap_inuse"
+	BuiltinMetricNameProxyVmSize                = "__igp_vm_size"
+	BuiltinMetricNameProxyVmRSS                 = "__igp_vm_rss"
+	BuiltinMetricNameProxyHeapAlloc             = "__igp_heap_alloc"
+	BuiltinMetricNameProxyHeapSys               = "__igp_heap_sys"
+	BuiltinMetricNameProxyHeapIdle              = "__igp_heap_idle"
+	BuiltinMetricNameProxyHeapInuse             = "__igp_heap_inuse"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -2303,6 +2327,114 @@ Value is delta between second value and time it was inserted.`,
 				Description: "error",
 			}},
 		},
+		BuiltinMetricIDApiVmSize: {
+			Name:        BuiltinMetricNameApiVmSize,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API virtual memory size.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDApiVmRSS: {
+			Name:        BuiltinMetricNameApiVmRSS,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API resident set size.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDApiHeapAlloc: {
+			Name:        BuiltinMetricNameApiHeapAlloc,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API bytes of allocated heap objects.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDApiHeapSys: {
+			Name:        BuiltinMetricNameApiHeapSys,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API bytes of heap memory obtained from the OS.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDApiHeapIdle: {
+			Name:        BuiltinMetricNameApiHeapIdle,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API bytes in idle (unused) spans.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDApiHeapInuse: {
+			Name:        BuiltinMetricNameApiHeapInuse,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse API bytes in in-use spans.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyVmSize: {
+			Name:        BuiltinMetricNameProxyVmSize,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy virtual memory size.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyVmRSS: {
+			Name:        BuiltinMetricNameProxyVmRSS,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy resident set size.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyHeapAlloc: {
+			Name:        BuiltinMetricNameProxyHeapAlloc,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy bytes of allocated heap objects.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyHeapSys: {
+			Name:        BuiltinMetricNameProxyHeapSys,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy bytes of heap memory obtained from the OS.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyHeapIdle: {
+			Name:        BuiltinMetricNameProxyHeapIdle,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy bytes in idle (unused) spans.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDProxyHeapInuse: {
+			Name:        BuiltinMetricNameProxyHeapInuse,
+			Kind:        MetricKindValue,
+			Description: "StatsHouse proxy bytes in in-use spans.",
+			Resolution:  60,
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2344,6 +2476,18 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAutoCreateMetric:           true,
 		BuiltinMetricIDGCDuration:                 true,
 		BuiltinMetricIDProxyAcceptHandshakeError:  true,
+		BuiltinMetricIDProxyVmSize:                true,
+		BuiltinMetricIDProxyVmRSS:                 true,
+		BuiltinMetricIDProxyHeapAlloc:             true,
+		BuiltinMetricIDProxyHeapSys:               true,
+		BuiltinMetricIDProxyHeapIdle:              true,
+		BuiltinMetricIDProxyHeapInuse:             true,
+		BuiltinMetricIDApiVmSize:                  true,
+		BuiltinMetricIDApiVmRSS:                   true,
+		BuiltinMetricIDApiHeapAlloc:               true,
+		BuiltinMetricIDApiHeapSys:                 true,
+		BuiltinMetricIDApiHeapIdle:                true,
+		BuiltinMetricIDApiHeapInuse:               true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2459,6 +2603,18 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDRestartTimings:             true,
 		BuiltinMetricIDGCDuration:                 true,
 		BuiltinMetricIDProxyAcceptHandshakeError:  true,
+		BuiltinMetricIDProxyVmSize:                true,
+		BuiltinMetricIDProxyVmRSS:                 true,
+		BuiltinMetricIDProxyHeapAlloc:             true,
+		BuiltinMetricIDProxyHeapSys:               true,
+		BuiltinMetricIDProxyHeapIdle:              true,
+		BuiltinMetricIDProxyHeapInuse:             true,
+		BuiltinMetricIDApiVmSize:                  true,
+		BuiltinMetricIDApiVmRSS:                   true,
+		BuiltinMetricIDApiHeapAlloc:               true,
+		BuiltinMetricIDApiHeapSys:                 true,
+		BuiltinMetricIDApiHeapIdle:                true,
+		BuiltinMetricIDApiHeapInuse:               true,
 	}
 
 	insertKindToValue = map[int32]string{

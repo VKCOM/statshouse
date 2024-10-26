@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -114,6 +115,27 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 		statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 			p.сonnectionCountMetric.Count(float64(p.сonnectionCount.Load()))
 			p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
+			var vmSize, vmRSS float64
+			if st, _ := srvfunc.GetMemStat(0); st != nil {
+				vmSize = float64(st.Size)
+				vmRSS = float64(st.Res)
+			}
+			client.Value(format.BuiltinMetricNameProxyVmSize, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
+			client.Value(format.BuiltinMetricNameProxyVmRSS, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+			var memStats runtime.MemStats
+			runtime.ReadMemStats(&memStats)
+			client.Value(format.BuiltinMetricNameProxyHeapAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
+			client.Value(format.BuiltinMetricNameProxyHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
+			client.Value(format.BuiltinMetricNameProxyHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
+			client.Value(format.BuiltinMetricNameProxyHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+			//-- TODO: remove when deployed
+			client.Value("igp_vm_size", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
+			client.Value("igp_vm_rss", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+			client.Value("igp_heap_alloc", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
+			client.Value("igp_heap_sys", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
+			client.Value("igp_heap_idle", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
+			client.Value("igp_heap_inuse", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+			//--
 		}))
 	// listen on IPv4
 	tcp4 := p.newProxyServer()
