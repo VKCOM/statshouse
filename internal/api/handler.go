@@ -19,6 +19,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -616,12 +617,29 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		sysMetric := client.MetricRef(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
 		sysMetric.Value(sysTime)
 
-		var rss float64
+		var vmSize, vmRSS float64
 		if st, _ := srvfunc.GetMemStat(0); st != nil {
-			rss = float64(st.Res)
+			vmSize = float64(st.Size)
+			vmRSS = float64(st.Res)
 		}
-		memMetric := client.MetricRef(format.BuiltinMetricNameUsageMemory, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)})
-		memMetric.Value(rss)
+		client.Value(format.BuiltinMetricNameApiVmSize, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
+		client.Value(format.BuiltinMetricNameApiVmRSS, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+		client.Value(format.BuiltinMetricNameUsageMemory, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)}, vmRSS)
+
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		client.Value(format.BuiltinMetricNameApiHeapAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
+		client.Value(format.BuiltinMetricNameApiHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
+		client.Value(format.BuiltinMetricNameApiHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
+		client.Value(format.BuiltinMetricNameApiHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+		//-- TODO: remove when deployed
+		client.Value("api_vm_size", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
+		client.Value("api_vm_rss", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+		client.Value("api_heap_alloc", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
+		client.Value("api_heap_sys", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
+		client.Value("api_heap_idle", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
+		client.Value("api_heap_inuse", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+		//--
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {

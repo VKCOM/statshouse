@@ -20,9 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	pagesize = 4096 // замена C.sysconf(C._SC_PAGESIZE)
-)
+var pagesize int
 
 type (
 	// MemStats содержит статистику по использованию памяти в байтах
@@ -53,6 +51,12 @@ type (
 		prevNumGC uint64
 	}
 )
+
+func init() {
+	if pagesize = os.Getpagesize(); pagesize <= 0 {
+		pagesize = 4096
+	}
+}
 
 // SetMaxRLimitNoFile пробует выставить текущие nofile лимиты (ulimit -n) в максимально разрешенные
 // Вернет в случае успеха кортеж (cur, max) значений лимита
@@ -145,13 +149,13 @@ func GetMemStat(pid int) (*MemStats, error) {
 		return nil, err
 	}
 
-	m.Size *= pagesize
-	m.Res *= pagesize
-	m.Share *= pagesize
-	m.Text *= pagesize
-	m.Lib *= pagesize
-	m.Data *= pagesize
-	m.Dt *= pagesize
+	m.Size *= uint64(pagesize)
+	m.Res *= uint64(pagesize)
+	m.Share *= uint64(pagesize)
+	m.Text *= uint64(pagesize)
+	m.Lib *= uint64(pagesize)
+	m.Data *= uint64(pagesize)
+	m.Dt *= uint64(pagesize)
 
 	return &m, nil
 }
