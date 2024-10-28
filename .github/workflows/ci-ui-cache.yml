@@ -11,20 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 20.x
       - name: Cache NPM dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache-primes
         with:
           path: statshouse-ui/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('statshouse-ui/package-lock.json') }}
       - name: Install
         if: steps.cache-primes.outputs.cache-hit != 'true'
-        run: npm ci
+        run: NODE_ENV=production npm ci
         working-directory: statshouse-ui
