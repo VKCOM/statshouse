@@ -58,10 +58,12 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	}
 	w.fillTime(args, &h)
 	if done = w.getMetricMeta(args, &h); done {
+		w.mapper.MapEnvironment(args.MetricBytes, &h)
 		return h, done
 	}
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
+		w.mapper.MapEnvironment(args.MetricBytes, &h)
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
 		return h, true
 	}

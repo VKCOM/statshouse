@@ -41,11 +41,11 @@ func (mp *mapPipeline) stop() {
 
 func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
 	done = mp.doMap(args, h)
-	// We map environment in all 3 cases
+	// We call MapEnvironment in all 3 cases
 	// done and no errors - very fast NOP
 	// done and errors - try to find environment in tags after error tag
 	// not done - when making requests to map, we want to send our environment to server, so it can record it in builtin metric
-	mp.mapEnvironment(h, args.MetricBytes)
+	mp.MapEnvironment(args.MetricBytes, h)
 	return done
 }
 
@@ -183,13 +183,11 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 	return true
 }
 
-// We wish to know which environment generates 'metric not found' events and other errors
-// Also we need to know which environment generates mapping create events. So we do it before adding to mapping queue
 // If environment is not in cache, we will not detect it, but this should be relatively rare
 // We might wish to load in background, but this must be fair with normal mapping queues, and
 // we do not know metric here. So we decided to only load environments from cache.
 // If called after mapTags consumed env, h.Tags[0] is already set by mapTags, otherwise will set h.Tags[0] here
-func (mp *mapPipeline) mapEnvironment(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) {
+func (mp *mapPipeline) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
 	// fast NOP when all tags already mapped
 	// must not change h.CheckedTagIndex or h.IsKeySet because mapTags will be called after this func by mapping queue in slow path
 	for i := h.CheckedTagIndex; i < len(metric.Tags); i++ {

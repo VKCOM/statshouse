@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 )
@@ -60,4 +61,10 @@ func (m *Mapper) Stop() {
 // cb.MetricInfo must be set from journal. If nil, will lookup allowed built-in metric, otherwise set ingestion status not found
 func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
 	return m.pipeline.Map(args, metricInfo, h)
+}
+
+// We wish to know which environment generates 'metric not found' events and other errors
+// so we call it even if we had an error
+func (m *Mapper) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
+	m.pipeline.MapEnvironment(metric, h)
 }
