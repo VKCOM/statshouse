@@ -8,13 +8,13 @@ import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display
 import React, { memo, useCallback } from 'react';
 import { SwitchBox } from 'components/UI';
 import { useStatsHouseShallow } from 'store2';
-import { getNewPlot, type PlotKey } from 'url2';
+import { getNewMetric, type PlotKey } from 'url2';
 
 export type PlotControlMaxHostProps = {
   plotKey: PlotKey;
 };
 
-const defaultMaxHost = getNewPlot().maxHost;
+const defaultMaxHost = getNewMetric().maxHost;
 
 export function _PlotControlMaxHost({ plotKey }: PlotControlMaxHostProps) {
   const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({

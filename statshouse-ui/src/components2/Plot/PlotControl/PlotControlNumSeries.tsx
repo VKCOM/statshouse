@@ -5,14 +5,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback } from 'react';
-import { useStatsHouseShallow } from '../../../store2';
-import { getNewPlot, PlotKey } from '../../../url2';
+import { useStatsHouseShallow } from 'store2';
+import { getNewMetric, type PlotKey } from 'url2';
 
 export type PlotControlNumSeriesProps = {
   plotKey: PlotKey;
 };
 
-const defaultNumSeries = getNewPlot().numSeries;
+const defaultNumSeries = getNewMetric().numSeries;
 
 export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
   const { numSeries, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({

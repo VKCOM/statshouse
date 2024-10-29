@@ -11,7 +11,7 @@ import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
-import { getNewPlot, type PlotKey } from 'url2';
+import { getNewMetric, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { PrometheusSwitch } from './PrometheusSwitch';
 
@@ -32,7 +32,7 @@ export type PlotControlPromQLEditorProps = {
   plotKey: PlotKey;
 };
 
-const { prometheusCompat: defaultPrometheusCompat } = getNewPlot();
+const { prometheusCompat: defaultPrometheusCompat } = getNewMetric();
 
 export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlPromQLEditorProps) {
   const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(

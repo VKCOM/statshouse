@@ -1,24 +1,17 @@
-import { FilterTag, GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS, metricTypeToMetricTypeUrl, PLOT_TYPE, TagKey } from 'api/enum';
+import { GroupInfo, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
+import { GET_PARAMS } from 'api/enum';
 import { dequal } from 'dequal/lite';
 
-import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
-import {
-  filterInSep,
-  filterNotInSep,
-  orderGroupSplitter,
-  orderPlotSplitter,
-  orderVariableSplitter,
-  promQLMetric,
-  removeValueChar,
-} from './constants';
-import { toGroupInfoPrefix, toPlotPrefix, toVariablePrefix, toVariableValuePrefix } from './urlHelpers';
+import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
+import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './constants';
+import { toGroupInfoPrefix, toVariablePrefix, toVariableValuePrefix } from './urlHelpers';
+import { metricFilterEncode, widgetsParamsEncode } from './widgetsParams';
 
 export function urlEncode(params: QueryParams, defaultParams?: QueryParams): [string, string][] {
   return [
     ...urlEncodeGlobalParam(params, defaultParams),
     ...urlEncodeTimeRange(params, defaultParams),
-    ...urlEncodePlots(params, defaultParams),
+    ...widgetsParamsEncode(params, defaultParams),
     ...urlEncodeGroups(params, defaultParams),
     ...urlEncodeVariables(params, defaultParams),
   ];
@@ -78,169 +71,6 @@ export function urlEncodeTimeRange(
   if (defaultParams.timeRange.from !== params.timeRange.from) {
     paramArr.push([GET_PARAMS.fromTime, params.timeRange.from.toString()]);
   }
-  return paramArr;
-}
-
-export function urlEncodePlots(
-  params: QueryParams,
-  defaultParams: QueryParams = getDefaultParams()
-): [string, string][] {
-  const paramArr: [string, string][] = [];
-  if (defaultParams.plots !== params.plots) {
-    Object.values(params.plots).forEach((p) => {
-      if (p) {
-        paramArr.push(...urlEncodePlot(p, defaultParams.plots[p.id]));
-      }
-    });
-    //remove plots
-    Object.values(defaultParams.plots).forEach((dPlot) => {
-      if (dPlot && !params.plots[dPlot.id]) {
-        paramArr.push([GET_PARAMS.plotPrefix + dPlot.id, removeValueChar]);
-      }
-    });
-  }
-  if (!dequal(defaultParams.orderPlot, params.orderPlot)) {
-    paramArr.push([GET_PARAMS.orderPlot, params.orderPlot.join(orderPlotSplitter)]);
-  }
-  return paramArr;
-}
-
-export function urlEncodePlot(plot: PlotParams, defaultPlot: PlotParams = getNewPlot()): [string, string][] {
-  const paramArr: [string, string][] = [];
-  if (defaultPlot.id === '' && plot.type === PLOT_TYPE.Event) {
-    defaultPlot.numSeries = 0;
-  }
-  if (defaultPlot === plot) {
-    return paramArr;
-  }
-  const prefix = toPlotPrefix(plot.id);
-  if (defaultPlot.metricName !== plot.metricName && plot.metricName !== promQLMetric) {
-    paramArr.push([prefix + GET_PARAMS.metricName, plot.metricName]);
-  }
-  if (defaultPlot.promQL !== plot.promQL && (plot.promQL || defaultPlot.promQL)) {
-    paramArr.push([prefix + GET_PARAMS.metricPromQL, plot.promQL]);
-  }
-  if (defaultPlot.customName !== plot.customName) {
-    paramArr.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
-  }
-  if (defaultPlot.customDescription !== plot.customDescription) {
-    paramArr.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
-  }
-  if (defaultPlot.metricUnit !== plot.metricUnit) {
-    paramArr.push([prefix + GET_PARAMS.metricMetricUnit, metricTypeToMetricTypeUrl(plot.metricUnit)]);
-  }
-  if (!dequal(defaultPlot.what, plot.what)) {
-    plot.what.forEach((w) => {
-      paramArr.push([prefix + GET_PARAMS.metricWhat, w]);
-    });
-  }
-  if (defaultPlot.customAgg !== plot.customAgg) {
-    paramArr.push([prefix + GET_PARAMS.metricAgg, plot.customAgg.toString()]);
-  }
-  if (!dequal(defaultPlot.groupBy, plot.groupBy)) {
-    if (plot.groupBy.length === 0 && defaultPlot.groupBy.length > 0) {
-      paramArr.push([prefix + GET_PARAMS.metricGroupBy, removeValueChar]);
-    } else {
-      plot.groupBy.forEach((g) => {
-        paramArr.push([prefix + GET_PARAMS.metricGroupBy, g]);
-      });
-    }
-  }
-  if (!dequal(defaultPlot.filterIn, plot.filterIn) || !dequal(defaultPlot.filterNotIn, plot.filterNotIn)) {
-    paramArr.push(...urlEncodePlotFilters(prefix, plot.filterIn, plot.filterNotIn));
-
-    //remove filter
-    Object.entries(plot.filterIn).forEach(([keyTag, valuesTag]) => {
-      if (defaultPlot.filterIn[keyTag as TagKey]?.length && !valuesTag.length) {
-        paramArr.push([prefix + GET_PARAMS.metricFilter, removeValueChar]);
-      }
-    });
-    Object.entries(plot.filterNotIn).forEach(([keyTag, valuesTag]) => {
-      if (defaultPlot.filterNotIn[keyTag as TagKey]?.length && !valuesTag.length) {
-        paramArr.push([prefix + GET_PARAMS.metricFilter, removeValueChar]);
-      }
-    });
-  }
-
-  if (defaultPlot.numSeries !== plot.numSeries) {
-    paramArr.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
-  }
-
-  if (defaultPlot.backendVersion !== plot.backendVersion) {
-    paramArr.push([prefix + GET_PARAMS.version, plot.backendVersion]);
-  }
-
-  if (defaultPlot.yLock.min !== plot.yLock.min) {
-    paramArr.push([prefix + GET_PARAMS.metricLockMin, plot.yLock.min.toString()]);
-  }
-
-  if (defaultPlot.yLock.max !== plot.yLock.max) {
-    paramArr.push([prefix + GET_PARAMS.metricLockMax, plot.yLock.max.toString()]);
-  }
-
-  if (defaultPlot.maxHost !== plot.maxHost) {
-    paramArr.push([prefix + GET_PARAMS.metricMaxHost, plot.maxHost ? '1' : '0']);
-  }
-
-  if (defaultPlot.type !== plot.type) {
-    paramArr.push([prefix + GET_PARAMS.metricType, plot.type]);
-  }
-
-  if (!dequal(defaultPlot.events, plot.events)) {
-    plot.events.forEach((e) => {
-      paramArr.push([prefix + GET_PARAMS.metricEvent, e]);
-    });
-  }
-
-  if (!dequal(defaultPlot.eventsBy, plot.eventsBy)) {
-    plot.eventsBy.forEach((e) => {
-      paramArr.push([prefix + GET_PARAMS.metricEventBy, e]);
-    });
-  }
-
-  if (!dequal(defaultPlot.eventsHide, plot.eventsHide)) {
-    plot.eventsHide.forEach((e) => {
-      paramArr.push([prefix + GET_PARAMS.metricEventHide, e]);
-    });
-  }
-
-  if (defaultPlot.totalLine !== plot.totalLine) {
-    paramArr.push([prefix + GET_PARAMS.viewTotalLine, plot.totalLine ? '1' : '0']);
-  }
-
-  if (defaultPlot.filledGraph !== plot.filledGraph) {
-    paramArr.push([prefix + GET_PARAMS.viewFilledGraph, plot.filledGraph ? '1' : '0']);
-  }
-
-  if (defaultPlot.prometheusCompat !== plot.prometheusCompat) {
-    paramArr.push([prefix + GET_PARAMS.prometheusCompat, plot.prometheusCompat ? '1' : '0']);
-  }
-
-  if (!dequal(defaultPlot.timeShifts, plot.timeShifts)) {
-    plot.timeShifts.forEach((t) => {
-      paramArr.push([prefix + GET_PARAMS.metricLocalTimeShifts, t.toString()]);
-    });
-  }
-  if (!paramArr.length && !defaultPlot.id) {
-    if (plot.metricName === promQLMetric) {
-      paramArr.push([prefix + GET_PARAMS.metricPromQL, plot.promQL]);
-    } else {
-      paramArr.push([prefix + GET_PARAMS.metricName, plot.metricName]);
-    }
-  }
-  return paramArr;
-}
-
-export function urlEncodePlotFilters(prefix: string, filterIn: FilterTag, filterNotIn: FilterTag): [string, string][] {
-  const paramArr: [string, string][] = [];
-  Object.entries(filterIn).forEach(([keyTag, valuesTag]) =>
-    valuesTag.forEach((valueTag) => paramArr.push([prefix + GET_PARAMS.metricFilter, keyTag + filterInSep + valueTag]))
-  );
-  Object.entries(filterNotIn).forEach(([keyTag, valuesTag]) =>
-    valuesTag.forEach((valueTag) =>
-      paramArr.push([prefix + GET_PARAMS.metricFilter, keyTag + filterNotInSep + valueTag])
-    )
-  );
   return paramArr;
 }
 
@@ -411,7 +241,7 @@ export function urlEncodeVariableSource(
       { filterIn: source.filterIn, filterNotIn: source.filterNotIn }
     )
   ) {
-    paramArr.push(...urlEncodePlotFilters(prefix, source.filterIn, source.filterNotIn));
+    paramArr.push(...metricFilterEncode(prefix, source.filterIn, source.filterNotIn));
   }
 
   if (!paramArr.length && !defaultSource.id) {

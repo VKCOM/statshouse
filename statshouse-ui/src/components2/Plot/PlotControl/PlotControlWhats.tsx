@@ -9,7 +9,7 @@ import { Select, type SelectOptionProps } from 'components/Select';
 import cn from 'classnames';
 import { type QueryWhat } from 'api/enum';
 import { metricKindToWhat } from 'view/api';
-import { getNewPlot, type PlotKey } from 'url2';
+import { getNewMetric, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { whatToWhatDesc } from 'view/whatToWhatDesc';
 
@@ -17,7 +17,7 @@ export type PlotControlWhatsProps = {
   plotKey: PlotKey;
 };
 
-const defaultWhats = getNewPlot().what;
+const defaultWhats = getNewMetric().what;
 
 export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
   const { what, meta, setPlot } = useStatsHouseShallow((s) => ({

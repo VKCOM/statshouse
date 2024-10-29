@@ -1,48 +1,19 @@
 import {
-  FilterTag,
   GroupInfo,
   GroupKey,
-  PlotKey,
-  PlotParams,
   QueryParams,
   VariableKey,
   VariableParams,
   VariableParamsSource,
   VariableSourceKey,
 } from './queryParams';
-import { isNotNil, sortEntity, toNumber, toNumberM, uniqueArray } from 'common/helpers';
-import {
-  GET_PARAMS,
-  isQueryWhat,
-  isTagKey,
-  METRIC_VALUE_BACKEND_VERSION,
-  metricTypeUrlToMetricType,
-  PLOT_TYPE,
-  toMetricValueBackendVersion,
-  toPlotType,
-  toTagKey,
-} from 'api/enum';
-import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
-import {
-  filterInSep,
-  filterNotInSep,
-  orderGroupSplitter,
-  orderPlotSplitter,
-  orderVariableSplitter,
-  promQLMetric,
-  removeValueChar,
-} from './constants';
-import {
-  freeKeyPrefix,
-  isKeyId,
-  isNotNilVariableLink,
-  isPlotKey,
-  sortUniqueKeys,
-  toPlotKey,
-  TreeParamsObject,
-  treeParamsObjectValueSymbol,
-} from './urlHelpers';
+import { isNotNil, toNumber, toNumberM, uniqueArray } from 'common/helpers';
+import { GET_PARAMS, toTagKey } from 'api/enum';
+import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
+import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './constants';
+import { isKeyId, isNotNilVariableLink, TreeParamsObject, treeParamsObjectValueSymbol } from './urlHelpers';
 import { readTimeRange } from './timeRangeHelpers';
+import { metricFilterDecode, widgetsParamsDecode } from './widgetsParams';
 
 export function urlDecode(
   searchParams: TreeParamsObject,
@@ -72,7 +43,11 @@ export function urlDecode(
   });
   const global = urlDecodeGlobalParam(searchParams, defaultParams);
   const timeRange = urlDecodeTimeRange(searchParams, defaultParams);
-  const plots = urlDecodePlots(searchParams, uniqueArray([...plotKeys, ...defaultParams.orderPlot]), defaultParams);
+  const plots = widgetsParamsDecode(
+    searchParams,
+    uniqueArray([...plotKeys, ...defaultParams.orderPlot]),
+    defaultParams
+  );
   const groups = urlDecodeGroups(searchParams, uniqueArray([...groupKeys, ...defaultParams.orderGroup]), defaultParams);
   const variables = urlDecodeVariables(
     searchParams,
@@ -141,145 +116,6 @@ export function urlDecodeTimeRange(
       searchParams[GET_PARAMS.toTime]?.[treeParamsObjectValueSymbol]?.[0] ?? defaultParams.timeRange.urlTo
     ),
   };
-}
-
-export function urlDecodePlots(
-  searchParams: TreeParamsObject,
-  keys: PlotKey[],
-  defaultParams: QueryParams
-): Pick<QueryParams, 'plots' | 'orderPlot'> {
-  const orderPlot = uniqueArray([
-    ...(searchParams[GET_PARAMS.orderPlot]?.[treeParamsObjectValueSymbol]?.[0]
-      ?.split(orderPlotSplitter)
-      .filter((s) => isPlotKey(s)) ?? defaultParams.orderPlot),
-    ...keys,
-  ]);
-  const plots: Partial<Record<PlotKey, PlotParams>> = {};
-  keys.forEach((key) => {
-    const p = urlDecodePlot(
-      key,
-      searchParams[GET_PARAMS.plotPrefix + key] ?? (key === '0' ? searchParams : undefined),
-      defaultParams.plots[key]
-    );
-    if (p) {
-      plots[key] = p;
-    } else {
-      const remove = orderPlot.indexOf(key);
-      if (remove > -1) {
-        orderPlot.splice(remove, 1);
-      }
-    }
-  });
-  //fix event link
-  orderPlot.forEach((pK) => {
-    if (plots[pK]) {
-      plots[pK]!.events = plots[pK]!.events.filter((eK) => !!plots[eK]);
-    }
-  });
-  return { plots, orderPlot };
-}
-
-export function urlDecodePlot(
-  plotKey: PlotKey,
-  searchParams?: TreeParamsObject,
-  defaultPlot: PlotParams = getNewPlot()
-): PlotParams | undefined {
-  if (searchParams?.[treeParamsObjectValueSymbol]?.[0] === removeValueChar) {
-    return undefined;
-  }
-  const rawUseV2 = searchParams?.[GET_PARAMS.version]?.[treeParamsObjectValueSymbol]?.[0];
-  const rawMaxHost = searchParams?.[GET_PARAMS.metricMaxHost]?.[treeParamsObjectValueSymbol]?.[0];
-  const rawTotalLine = searchParams?.[GET_PARAMS.viewTotalLine]?.[treeParamsObjectValueSymbol]?.[0];
-  const rawFilledGraph = searchParams?.[GET_PARAMS.viewFilledGraph]?.[treeParamsObjectValueSymbol]?.[0];
-  const rawPrometheusCompat = searchParams?.[GET_PARAMS.prometheusCompat]?.[treeParamsObjectValueSymbol]?.[0];
-  const metricName = searchParams?.[GET_PARAMS.metricName]?.[treeParamsObjectValueSymbol]?.[0];
-  const promQL = searchParams?.[GET_PARAMS.metricPromQL]?.[treeParamsObjectValueSymbol]?.[0];
-  const type = toPlotType(searchParams?.[GET_PARAMS.metricType]?.[treeParamsObjectValueSymbol]?.[0], defaultPlot.type);
-  return {
-    id: plotKey,
-    metricName: metricName ?? ((promQL != null && promQLMetric) || defaultPlot.metricName),
-    promQL: promQL ?? defaultPlot.promQL,
-    customName:
-      searchParams?.[GET_PARAMS.metricCustomName]?.[treeParamsObjectValueSymbol]?.[0] ?? defaultPlot.customName,
-    customDescription:
-      searchParams?.[GET_PARAMS.metricCustomDescription]?.[treeParamsObjectValueSymbol]?.[0] ??
-      defaultPlot.customDescription,
-    metricUnit:
-      metricTypeUrlToMetricType(searchParams?.[GET_PARAMS.metricMetricUnit]?.[treeParamsObjectValueSymbol]?.[0]) ??
-      defaultPlot.metricUnit,
-    what: searchParams?.[GET_PARAMS.metricWhat]?.[treeParamsObjectValueSymbol]?.filter(isQueryWhat) ?? defaultPlot.what,
-    customAgg:
-      toNumber(searchParams?.[GET_PARAMS.metricAgg]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.customAgg,
-    groupBy: sortUniqueKeys(
-      searchParams?.[GET_PARAMS.metricGroupBy]?.[treeParamsObjectValueSymbol]?.map(freeKeyPrefix).filter(isTagKey) ??
-        defaultPlot.groupBy
-    ),
-    ...urlDecodePlotFilters(GET_PARAMS.metricFilter, searchParams, defaultPlot),
-    numSeries:
-      toNumber(searchParams?.[GET_PARAMS.numResults]?.[treeParamsObjectValueSymbol]?.[0]) ??
-      (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries),
-    backendVersion: toMetricValueBackendVersion(rawUseV2) ?? defaultPlot.backendVersion,
-    yLock: {
-      min:
-        toNumber(searchParams?.[GET_PARAMS.metricLockMin]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.min,
-      max:
-        toNumber(searchParams?.[GET_PARAMS.metricLockMax]?.[treeParamsObjectValueSymbol]?.[0]) ?? defaultPlot.yLock.max,
-    },
-    maxHost: rawMaxHost != null ? rawMaxHost === '1' : defaultPlot.maxHost,
-    type,
-    events: sortUniqueKeys(
-      searchParams?.[GET_PARAMS.metricEvent]?.[treeParamsObjectValueSymbol]
-        ?.map((s) => toPlotKey(s))
-        .filter(isNotNil) ?? defaultPlot.events
-    ),
-    eventsBy: sortUniqueKeys(
-      searchParams?.[GET_PARAMS.metricEventBy]?.[treeParamsObjectValueSymbol]?.map(freeKeyPrefix).filter(isTagKey) ??
-        defaultPlot.eventsBy
-    ),
-    eventsHide: sortUniqueKeys(
-      searchParams?.[GET_PARAMS.metricEventHide]?.[treeParamsObjectValueSymbol]?.map(freeKeyPrefix).filter(isTagKey) ??
-        defaultPlot.eventsHide
-    ),
-    totalLine: rawTotalLine != null ? rawTotalLine === '1' : defaultPlot.totalLine,
-    filledGraph: rawFilledGraph != null ? rawFilledGraph !== '0' : defaultPlot.filledGraph,
-    prometheusCompat: rawPrometheusCompat != null ? rawPrometheusCompat === '1' : defaultPlot.prometheusCompat,
-    timeShifts:
-      searchParams?.[GET_PARAMS.metricLocalTimeShifts]?.[treeParamsObjectValueSymbol]
-        ?.map(toNumberM)
-        .filter(isNotNil)
-        .sort() ?? defaultPlot.timeShifts,
-  };
-}
-
-export function urlDecodePlotFilters(
-  paramKey: string,
-  searchParams?: TreeParamsObject,
-  defaultFilter?: { filterIn: FilterTag; filterNotIn: FilterTag }
-) {
-  const filterIn: FilterTag = {};
-  const filterNotIn: FilterTag = {};
-  const filters = searchParams?.[paramKey]?.[treeParamsObjectValueSymbol];
-  if (!filters) {
-    return { filterIn: defaultFilter?.filterIn ?? filterIn, filterNotIn: defaultFilter?.filterNotIn ?? filterNotIn };
-  }
-  filters.forEach((s) => {
-    const pos = s.indexOf(filterInSep);
-    const pos2 = s.indexOf(filterNotInSep);
-    if (pos2 === -1 || (pos2 > pos && pos > -1)) {
-      const tagKey = toTagKey(freeKeyPrefix(String(s.substring(0, pos))));
-      const tagValue = String(s.substring(pos + 1));
-      if (tagKey && tagValue) {
-        filterIn[tagKey] = sortEntity(uniqueArray([...(filterIn[tagKey] ?? []), tagValue]));
-      }
-    } else if (pos === -1 || (pos > pos2 && pos2 > -1)) {
-      const tagKey = toTagKey(freeKeyPrefix(String(s.substring(0, pos2))));
-      const tagValue = String(s.substring(pos2 + 1));
-      if (tagKey && tagValue) {
-        filterNotIn[tagKey] = sortEntity(uniqueArray([...(filterNotIn[tagKey] ?? []), tagValue]));
-      }
-    }
-  });
-  return { filterIn, filterNotIn };
 }
 
 export function urlDecodeGroups(
@@ -449,6 +285,6 @@ export function urlDecodeVariableSource(
       searchParamsConfig?.[GET_PARAMS.variableSourceTag]?.[treeParamsObjectValueSymbol]?.[0],
       defaultSource.tag
     ),
-    ...urlDecodePlotFilters(GET_PARAMS.variableSourceFilter, searchParamsConfig, defaultSource),
+    ...metricFilterDecode(GET_PARAMS.variableSourceFilter, searchParamsConfig, defaultSource),
   };
 }

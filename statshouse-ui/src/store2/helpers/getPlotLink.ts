@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewGroup, getNewPlot, type PlotKey, type QueryParams, urlEncode } from 'url2';
+import { getNewMetric, getNewGroup, type PlotKey, type QueryParams, urlEncode } from 'url2';
 import { produce } from 'immer';
 import { clonePlot } from 'url2/clonePlot';
 import { fixMessageTrouble } from 'url/fixMessageTrouble';
@@ -68,7 +68,7 @@ export function getFreePlot(plotKey: PlotKey, params: QueryParams) {
     });
     return plot;
   }
-  return getNewPlot();
+  return getNewMetric();
 }
 
 export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string {
