@@ -40,13 +40,6 @@ func (mp *mapPipeline) stop() {
 }
 
 func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
-	// We do not check fields mask in code below, only field value, because
-	// sending 0 instead of manipulating field mask is more convenient for many clients
-	if args.MetricBytes.Ts != 0 {
-		h.Key.Timestamp = args.MetricBytes.Ts
-	} else { // we encourage users to mark events with explicit timestamp, so this branch must be rare
-		h.Key.Timestamp = uint32(h.ReceiveTime.Unix())
-	}
 	done = mp.doMap(args, h)
 	// We map environment in all 3 cases
 	// done and no errors - very fast NOP
@@ -57,11 +50,6 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 }
 
 func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
-	h.Key.Metric = h.MetricInfo.MetricID
-	if !h.MetricInfo.Visible {
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
-		return true
-	}
 	metric := args.MetricBytes
 	if done = mp.mapTags(h, metric, true); done {
 		return done

@@ -56,10 +56,16 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
-	h.ReceiveTime = time.Now() // receive time is set once for all functions
+	w.fillTime(args, &h)
 	if done = w.getMetricMeta(args, &h); done {
 		return h, done
 	}
+	h.Key.Metric = h.MetricInfo.MetricID
+	if !h.MetricInfo.Visible {
+		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
+		return h, true
+	}
+
 	done = w.mapper.Map(args, h.MetricInfo, &h)
 	if done {
 		if w.logPackets != nil {
@@ -68,6 +74,17 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached)
 	}
 	return h, done
+}
+
+func (w *worker) fillTime(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) {
+	h.ReceiveTime = time.Now() // receive time is set once for all functions
+	// We do not check fields mask in code below, only field value, because
+	// sending 0 instead of manipulating field mask is more convenient for many clients
+	if args.MetricBytes.Ts != 0 {
+		h.Key.Timestamp = args.MetricBytes.Ts
+	} else { // newer clients will mark events with explicit timestamp, so this branch must be rare
+		h.Key.Timestamp = uint32(h.ReceiveTime.Unix())
+	}
 }
 
 func (w *worker) getMetricMeta(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
