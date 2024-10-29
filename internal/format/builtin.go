@@ -228,15 +228,19 @@ const (
 	TagValueIDStaging2   = 3
 	TagValueIDStaging3   = 4
 
-	TagValueIDAPILaneFastLight = 1
-	TagValueIDAPILaneFastHeavy = 2
-	TagValueIDAPILaneSlowLight = 3
-	TagValueIDAPILaneSlowHeavy = 4
+	TagValueIDAPILaneFastLight    = 1
+	TagValueIDAPILaneFastHeavy    = 2
+	TagValueIDAPILaneSlowLight    = 3
+	TagValueIDAPILaneSlowHeavy    = 4
+	TagValueIDAPILaneFastHardware = 5
+	TagValueIDAPILaneSlowHardware = 6
 
-	TagValueIDAPILaneFastLightv2 = 0
-	TagValueIDAPILaneFastHeavyv2 = 1
-	TagValueIDAPILaneSlowLightv2 = 2
-	TagValueIDAPILaneSlowHeavyv2 = 3
+	TagValueIDAPILaneFastLightv2    = 0
+	TagValueIDAPILaneFastHeavyv2    = 1
+	TagValueIDAPILaneSlowLightv2    = 2
+	TagValueIDAPILaneSlowHeavyv2    = 3
+	TagValueIDAPILaneSlowHardwarev2 = 4
+	TagValueIDAPILaneFastHardwarev2 = 5
 
 	TagValueIDConveyorRecent   = 1
 	TagValueIDConveyorHistoric = 2
@@ -1364,10 +1368,13 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "lane",
 				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAPILaneFastLightv2: "fastlight",
-					TagValueIDAPILaneFastHeavyv2: "fastheavy",
-					TagValueIDAPILaneSlowLightv2: "slowlight",
-					TagValueIDAPILaneSlowHeavyv2: "slowheavy"}),
+					TagValueIDAPILaneFastLightv2:    "fast_light",
+					TagValueIDAPILaneFastHeavyv2:    "fast_heavy",
+					TagValueIDAPILaneSlowLightv2:    "slow_light",
+					TagValueIDAPILaneSlowHeavyv2:    "slow_heavy",
+					TagValueIDAPILaneSlowHardwarev2: "slow_hardware",
+					TagValueIDAPILaneFastHardwarev2: "fast_hardware",
+				}),
 			}, {
 				Description: "host",
 			}, {
@@ -1612,10 +1619,13 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}, {
 				Description: "lane",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAPILaneFastLight: "fastlight",
-					TagValueIDAPILaneFastHeavy: "fastheavy",
-					TagValueIDAPILaneSlowLight: "slowlight",
-					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
+					TagValueIDAPILaneFastLight:    "fast_light",
+					TagValueIDAPILaneFastHeavy:    "fast_heavy",
+					TagValueIDAPILaneSlowLight:    "slow_light",
+					TagValueIDAPILaneSlowHeavy:    "slow_heavy",
+					TagValueIDAPILaneFastHardware: "fast_hardware",
+					TagValueIDAPILaneSlowHardware: "slow_hardware",
+				}),
 			}, {
 				Description: "host",
 			}},

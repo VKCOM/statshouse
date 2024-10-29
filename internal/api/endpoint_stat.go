@@ -142,7 +142,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight, isHardware bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -150,7 +150,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 	statshouse.Value(
 		format.BuiltinMetricNameAPISelectDuration,
 		statshouse.Tags{
-			1: modeStr(isFast, isLight),
+			1: modeStr(isFast, isLight, isHardware),
 			2: strconv.Itoa(int(metricID)),
 			3: table,
 			4: kind,
@@ -162,15 +162,18 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 		duration.Seconds())
 }
 
-func ChSelectProfile(isFast, isLight bool, info proto.Profile, err error) {
-	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, isLight, float64(info.Bytes), err)
-	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, isLight, float64(info.Rows), err)
+func ChSelectProfile(isFast, isLight, isHardware bool, info proto.Profile, err error) {
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, isLight, isHardware, float64(info.Bytes), err)
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, isLight, isHardware, float64(info.Rows), err)
 }
 
-func modeStr(isFast, isLight bool) string {
+func modeStr(isFast, isLight, isHardware bool) string {
 	mode := "slow"
 	if isFast {
 		mode = "fast"
+	}
+	if isHardware {
+		return mode + "_hardware"
 	}
 	if isLight {
 		mode += "light"
@@ -180,11 +183,11 @@ func modeStr(isFast, isLight bool) string {
 	return mode
 }
 
-func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err error) {
+func chSelectPushMetric(metric string, isFast, isLight, isHardware bool, data float64, err error) {
 	m := statshouse.GetMetricRef(
 		metric,
 		statshouse.Tags{
-			1: modeStr(isFast, isLight),
+			1: modeStr(isFast, isLight, isHardware),
 		},
 	)
 	m.Value(data)

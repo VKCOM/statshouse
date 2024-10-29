@@ -69,6 +69,9 @@ type args struct {
 	chV2MaxHeavyFastConns    int
 	chV2MaxHeavySlowConns    int
 	chV2MaxLightSlowConns    int
+	chV2MaxHardwareFastConns int
+	chV2MaxHardwareSlowConns int
+
 	chV2Password             string
 	chV2User                 string
 	defaultMetric            string
@@ -122,6 +125,8 @@ func main() {
 	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 12, "maximum number of ClickHouse-v2 connections (light slow)")
 	pflag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (heavy fast)")
 	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")
+	pflag.IntVar(&argv.chV2MaxHardwareFastConns, "clickhouse-v2-max-hardware-fast-conns", 8, "maximum number of ClickHouse-v2 connections (hardware fast)")
+	pflag.IntVar(&argv.chV2MaxHardwareSlowConns, "clickhouse-v2-max-hardware-slow-conns", 4, "maximum number of ClickHouse-v2 connections (hardware slow)")
 
 	pflag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	pflag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
@@ -250,14 +255,16 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	}
 	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
 	chV2, err := util.OpenClickHouse(util.ChConnOptions{
-		Addrs:             argv.chV2Addrs,
-		User:              argv.chV2User,
-		Password:          argv.chV2Password,
-		DialTimeout:       chDialTimeout,
-		FastLightMaxConns: argv.chV2MaxLightFastConns,
-		FastHeavyMaxConns: argv.chV2MaxHeavyFastConns,
-		SlowLightMaxConns: argv.chV2MaxLightSlowConns,
-		SlowHeavyMaxConns: argv.chV2MaxHeavySlowConns,
+		Addrs:                argv.chV2Addrs,
+		User:                 argv.chV2User,
+		Password:             argv.chV2Password,
+		DialTimeout:          chDialTimeout,
+		FastLightMaxConns:    argv.chV2MaxLightFastConns,
+		FastHeavyMaxConns:    argv.chV2MaxHeavyFastConns,
+		SlowLightMaxConns:    argv.chV2MaxLightSlowConns,
+		SlowHeavyMaxConns:    argv.chV2MaxHeavySlowConns,
+		FastHardwareMaxConns: argv.chV2MaxHardwareFastConns,
+		SlowHardwareMaxConns: argv.chV2MaxHardwareSlowConns,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to open ClickHouse-v2: %w", err)
