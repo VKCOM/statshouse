@@ -654,6 +654,12 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 
 				slowHeavy := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
 				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
+
+				slowHardware := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHardware), 4: srvfunc.HostnameForStatshouse()})
+				slowHardware.Value(float64(ch.SemaphoreCountFastHardware()))
+
+				fastHardware := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHardware), 4: srvfunc.HostnameForStatshouse()})
+				fastHardware.Value(float64(ch.SemaphoreCountSlowHardware()))
 			}
 		}
 		writeActiveQuieries(chV1, "1")
@@ -788,7 +794,7 @@ func (h *Handler) doSelect(ctx context.Context, meta util.QueryMetaInto, version
 	saveDebugQuery(ctx, query.Body)
 
 	start := time.Now()
-	reportQueryKind(ctx, meta.IsFast, meta.IsLight)
+	reportQueryKind(ctx, meta.IsFast, meta.IsLight, meta.IsHardware)
 	info, err := h.ch[version].Select(ctx, meta, query)
 	duration := time.Since(start)
 	if h.verbose {
@@ -796,8 +802,8 @@ func (h *Handler) doSelect(ctx context.Context, meta util.QueryMetaInto, version
 	}
 
 	reportTiming(ctx, "ch-select", duration)
-	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, err)
-	ChSelectProfile(meta.IsFast, meta.IsLight, info.Profile, err)
+	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, meta.IsHardware, err)
+	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, info.Profile, err)
 
 	return err
 }
@@ -2972,6 +2978,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 	cols := newPointsSelectCols(args, true, pq.version)
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
+	IsHardware := pq.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
@@ -2984,12 +2991,13 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 	start := time.Now()
 	mappings := make(map[string]int32)
 	err = h.doSelect(ctx, util.QueryMetaInto{
-		IsFast:  isFast,
-		IsLight: isLight,
-		User:    pq.user,
-		Metric:  metric,
-		Table:   table,
-		Kind:    kind.String(),
+		IsFast:     isFast,
+		IsLight:    isLight,
+		IsHardware: IsHardware,
+		User:       pq.user,
+		Metric:     metric,
+		Table:      table,
+		Kind:       kind.String(),
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
@@ -3060,16 +3068,18 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod da
 	cols := newPointsSelectColsV2(args, false) // loadPoint doesn't yet have v3 query
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
+	isHardware := pq.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
 	err = h.doSelect(ctx, util.QueryMetaInto{
-		IsFast:  isFast,
-		IsLight: isLight,
-		User:    pq.user,
-		Metric:  metric,
-		Table:   table,
-		Kind:    kind.String(),
+		IsFast:     isFast,
+		IsLight:    isLight,
+		IsHardware: isHardware,
+		User:       pq.user,
+		Metric:     metric,
+		Table:      table,
+		Kind:       kind.String(),
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,

@@ -68,6 +68,10 @@ func (pq *preparedPointsQuery) isLight() bool {
 	return pq.kind != data_model.DigestKindUnique && pq.kind != data_model.DigestKindPercentiles
 }
 
+func (pq *preparedPointsQuery) IsHardware() bool {
+	return format.HardwareMetric(pq.metricID)
+}
+
 func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
 	if pq.version == Version3 {
 		return tagValuesQueryV3(pq, lod)
