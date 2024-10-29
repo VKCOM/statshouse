@@ -217,6 +217,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 	}
+	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
 		GetConfig2: a.handleGetConfig2,
 		RawGetMetrics3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
@@ -237,11 +238,13 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		RawGetTargets2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.scrape.handleGetTargets(ctx, hctx)
 		},
-	}
-	if a.autoCreate != nil {
-		a.h.RawAutoCreate = func(ctx context.Context, hctx *rpc.HandlerContext) error {
-			return a.autoCreate.handleAutoCreate(ctx, hctx)
-		}
+		RawAutoCreate: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			if a.autoCreate != nil {
+				return a.autoCreate.handleAutoCreate(ctx, hctx)
+			} else {
+				return errNoAutoCreate
+			}
+		},
 	}
 	if len(a.hostName) == 0 {
 		return nil, fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
