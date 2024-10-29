@@ -39,8 +39,7 @@ func (mp *mapPipeline) stop() {
 	mp.tagValueQueue.stop()
 }
 
-func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (h data_model.MappedMetricHeader, done bool) {
-	h.ReceiveTime = time.Now() // mapping time is set once for all functions
+func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
 	// We do not check fields mask in code below, only field value, because
 	// sending 0 instead of manipulating field mask is more convenient for many clients
 	if args.MetricBytes.Ts != 0 {
@@ -48,46 +47,22 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	} else { // we encourage users to mark events with explicit timestamp, so this branch must be rare
 		h.Key.Timestamp = uint32(h.ReceiveTime.Unix())
 	}
-	h.MetricInfo = metricInfo
-	done = mp.doMap(args, &h)
+	done = mp.doMap(args, h)
 	// We map environment in all 3 cases
 	// done and no errors - very fast NOP
 	// done and errors - try to find environment in tags after error tag
 	// not done - when making requests to map, we want to send our environment to server, so it can record it in builtin metric
-	mp.mapEnvironment(&h, args.MetricBytes)
-	if done {
-		return h, done
-	}
-	return h, done
+	mp.mapEnvironment(h, args.MetricBytes)
+	return done
 }
 
 func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
-	metric := args.MetricBytes
-	if h.MetricInfo == nil {
-		h.MetricInfo = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
-		if h.MetricInfo == nil {
-			if mp.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
-				// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
-				_ = mp.autoCreate.autoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
-			}
-			validName, err := format.AppendValidStringValue(metric.Name[:0], metric.Name)
-			if err != nil {
-				metric.Name = format.AppendHexStringValue(metric.Name[:0], metric.Name)
-				h.InvalidString = metric.Name
-				h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
-				return true
-			}
-			metric.Name = validName
-			h.InvalidString = metric.Name
-			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
-			return true
-		}
-	}
 	h.Key.Metric = h.MetricInfo.MetricID
 	if !h.MetricInfo.Visible {
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
 		return true
 	}
+	metric := args.MetricBytes
 	if done = mp.mapTags(h, metric, true); done {
 		return done
 	}
@@ -123,7 +98,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			}
 			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
 				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
-				_ = mp.autoCreate.autoCreateTag(metric, v.Key, h.ReceiveTime)
+				_ = mp.autoCreate.AutoCreateTag(metric, v.Key, h.ReceiveTime)
 			}
 			continue
 		}
