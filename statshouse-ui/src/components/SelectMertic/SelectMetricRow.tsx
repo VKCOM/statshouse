@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 import { SelectOptionProps, SelectRowEqual, SelectRowProps } from '../UI/Select';
 import { Tooltip } from '../UI';
 import { toggleMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
@@ -12,49 +12,45 @@ export const SelectMetricRow = memo(function _SelectMetricRow<T extends SelectOp
   data: { rows, cursor, onChecked, onHover },
   style,
 }: SelectRowProps<T>) {
-  const metricsFavorite = useFavoriteStore((s) => s.metricsFavorite);
-  const hover = useCallback(
-    (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-      if (index !== cursor) {
-        onHover(index);
-        event.stopPropagation();
-      }
-    },
-    [cursor, index, onHover]
-  );
-  const click = useCallback(
-    (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-      onChecked(index, undefined, true, false);
-      event.stopPropagation();
-    },
-    [index, onChecked]
-  );
+  const row = rows[index];
+  const isFavorite = useFavoriteStore((s) => s.metricsFavorite[row?.value]);
+  const isCursor = cursor === index;
 
-  const toggleFavorite = useCallback(
-    (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-      toggleMetricsFavorite(rows[index]?.value);
+  const handleHover = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    if (!isCursor) {
+      onHover(index);
       event.stopPropagation();
-      event.preventDefault();
-    },
-    [index, rows]
-  );
+    }
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    onChecked(index, undefined, true, false);
+    event.stopPropagation();
+  };
+
+  const handleToggleFavorite = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    toggleMetricsFavorite(row?.value);
+    event.stopPropagation();
+    event.preventDefault();
+  };
+
   return (
     <div
       style={style}
-      className={cn(css.selectItem, cursor === index && css.selectCursor, rows[index]?.checked && css.selectChecked)}
-      onClick={click}
-      onMouseOver={hover}
+      className={cn(css.selectItem, isCursor && css.selectCursor, row?.checked && css.selectChecked)}
+      onClick={handleClick}
+      onMouseOver={handleHover}
     >
       <div className="d-flex flex-row">
-        <Tooltip className="flex-grow-1 text-truncate" title={rows[index]?.value ?? `row ${index}`}>
-          {rows[index]?.value ?? `row ${index}`}
+        <Tooltip className="flex-grow-1 text-truncate me-2" title={row?.value ?? `row ${index}`}>
+          {row?.value ?? `row ${index}`}
         </Tooltip>
         <Tooltip
-          className="me-2"
-          title={metricsFavorite[rows[index]?.value] ? 'remove from favorites' : 'add to favorites'}
+          className={cn('me-2', !isFavorite && css.hoverVisible)}
+          title={isFavorite ? 'remove from favorites' : 'add to favorites'}
         >
-          <span className="text-primary" onClick={toggleFavorite}>
-            {metricsFavorite[rows[index]?.value] ? <SVGStarFill /> : <SVGStar />}
+          <span className="text-primary" onClick={handleToggleFavorite}>
+            {isFavorite ? <SVGStarFill /> : <SVGStar />}
           </span>
         </Tooltip>
       </div>

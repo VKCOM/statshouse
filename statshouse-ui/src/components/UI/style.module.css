@@ -169,9 +169,6 @@
   padding: 4px 8px;
   box-sizing: border-box;
 }
-.selectDisabled {
-  background-color: var(--selectItemDisabled);
-}
 
 .selectChecked {
   background-color: var(--selectItemChecked);
@@ -187,3 +184,12 @@
   background-color: var(--selectItemCursorChecked);
 }
 /** Select component end */
+
+.hoverVisible {
+  visibility: hidden;
+}
+
+.selectItem:hover .hoverVisible,
+.selectCursor:hover .hoverVisible {
+  visibility: visible;
+}
