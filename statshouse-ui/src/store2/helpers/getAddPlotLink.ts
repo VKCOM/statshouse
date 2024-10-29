@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewPlot, type QueryParams, urlEncode } from 'url2';
+import { getNewMetric, type QueryParams, urlEncode } from 'url2';
 import { getNextPlotKey, updateQueryParamsPlotStruct } from '../urlStore/updateParamsPlotStruct';
 import { produce } from 'immer';
 import { clonePlot } from 'url2/clonePlot';
@@ -20,7 +20,7 @@ export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): s
       const groupKey = plotStruct.mapPlotToGroup[tabNum]!;
       const groupIndex = plotStruct.mapGroupIndex[groupKey]!;
       const plotIndex = plotStruct.mapPlotIndex[tabNum]!;
-      const plotInfo = clonePlot(plotStruct.groups[groupIndex]?.plots[plotIndex].plotInfo) ?? getNewPlot();
+      const plotInfo = clonePlot(plotStruct.groups[groupIndex]?.plots[plotIndex].plotInfo) ?? getNewMetric();
       const variableLinks = plotStruct.groups[groupIndex]?.plots[plotIndex].variableLinks ?? [];
 
       if (plotStruct.groups[groupIndex]) {

@@ -4,29 +4,16 @@ import {
   urlDecodeGlobalParam,
   urlDecodeGroup,
   urlDecodeGroups,
-  urlDecodePlot,
-  urlDecodePlotFilters,
-  urlDecodePlots,
   urlDecodeTimeRange,
   urlDecodeVariable,
   urlDecodeVariables,
   urlDecodeVariableSource,
 } from './urlDecode';
-import {
-  GET_PARAMS,
-  METRIC_TYPE,
-  METRIC_TYPE_URL,
-  METRIC_VALUE_BACKEND_VERSION,
-  PLOT_TYPE,
-  QUERY_WHAT,
-  TIME_RANGE_KEYS_TO,
-} from 'api/enum';
+import { GET_PARAMS, TIME_RANGE_KEYS_TO } from 'api/enum';
 import { THEMES } from 'store/theme';
 import { QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
+import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import {
-  filterInSep,
-  filterNotInSep,
   orderGroupSplitter,
   orderPlotSplitter,
   orderVariableSplitter,
@@ -34,6 +21,7 @@ import {
   removeValueChar,
 } from './constants';
 import { toTreeObj, treeParamsObjectValueSymbol } from './urlHelpers';
+import { getNewMetric } from './widgetsParams/metric';
 
 jest.useFakeTimers().setSystemTime(new Date('2020-01-01 00:00:00'));
 
@@ -160,231 +148,6 @@ describe('urlStore urlDecode', () => {
         now: 1577826000,
         to: 1577826000,
         urlTo: 1577826000,
-      },
-    });
-  });
-  test('urlDecodePlotFilters', () => {
-    const dParams = {
-      ...getNewPlot(),
-      filterIn: {},
-      filterNotIn: {},
-    };
-    expect(urlDecodePlotFilters(GET_PARAMS.metricFilter, {}, dParams)).toEqual({ filterIn: {}, filterNotIn: {} });
-    expect(urlDecodePlotFilters(GET_PARAMS.metricFilter, {})).toEqual({ filterIn: {}, filterNotIn: {} });
-    expect(urlDecodePlotFilters(GET_PARAMS.metricFilter)).toEqual({ filterIn: {}, filterNotIn: {} });
-    expect(urlDecodePlotFilters(GET_PARAMS.metricFilter, { [GET_PARAMS.metricFilter]: {} }, dParams)).toEqual({
-      filterIn: {},
-      filterNotIn: {},
-    });
-    expect(
-      urlDecodePlotFilters(
-        GET_PARAMS.metricFilter,
-        toTreeObj({
-          [GET_PARAMS.metricFilter]: ['0' + filterInSep + 'tag-value', '1' + filterNotInSep + 'tag-value'],
-        }),
-        dParams
-      )
-    ).toEqual({ filterIn: { '0': ['tag-value'] }, filterNotIn: { '1': ['tag-value'] } });
-    expect(
-      urlDecodePlotFilters(
-        GET_PARAMS.metricFilter,
-        toTreeObj({
-          [GET_PARAMS.metricFilter]: [
-            '1' + filterNotInSep + 'tag4' + filterInSep + 'value',
-            '1' + filterNotInSep + 'tag2' + filterInSep + 'value',
-            '0' + filterInSep + 'tag4' + filterNotInSep + 'value',
-            '0' + filterInSep + 'tag3' + filterNotInSep + 'value',
-          ],
-        }),
-        dParams
-      )
-    ).toEqual({
-      filterIn: { '0': ['tag3' + filterNotInSep + 'value', 'tag4' + filterNotInSep + 'value'] },
-      filterNotIn: { '1': ['tag2' + filterInSep + 'value', 'tag4' + filterInSep + 'value'] },
-    });
-  });
-  test('urlDecodePlot', () => {
-    const dParams = {
-      ...getNewPlot(),
-      id: '0',
-    };
-    expect(urlDecodePlot('0')).toEqual({ ...dParams });
-    expect(urlDecodePlot('0', { [treeParamsObjectValueSymbol]: [removeValueChar] })).toEqual(undefined);
-    expect(urlDecodePlot('0', toTreeObj({}), dParams)).toEqual({ ...dParams });
-    expect(
-      urlDecodePlot(
-        '0',
-        toTreeObj({
-          [GET_PARAMS.metricName]: ['metric1'],
-          [GET_PARAMS.metricCustomName]: ['metric1custom'],
-          [GET_PARAMS.metricCustomDescription]: ['metric1customDesc'],
-          [GET_PARAMS.metricPromQL]: ['promql'],
-          [GET_PARAMS.metricMetricUnit]: [METRIC_TYPE_URL.byte],
-          [GET_PARAMS.metricWhat]: [QUERY_WHAT.count],
-          [GET_PARAMS.metricAgg]: ['5'],
-          [GET_PARAMS.metricGroupBy]: ['5', '2key', 'key2', '_s', '12', '4'],
-          [GET_PARAMS.metricFilter]: [],
-          [GET_PARAMS.numResults]: ['10'],
-          [GET_PARAMS.version]: [METRIC_VALUE_BACKEND_VERSION.v1],
-          [GET_PARAMS.metricLockMin]: ['-100'],
-          [GET_PARAMS.metricLockMax]: ['200'],
-          [GET_PARAMS.metricMaxHost]: ['1'],
-          [GET_PARAMS.metricType]: [PLOT_TYPE.Event],
-          [GET_PARAMS.metricEvent]: ['5', '2key', '2', '12', '4'],
-          [GET_PARAMS.metricEventBy]: ['5', '2key', 'key2', '_s', '12', '4'],
-          [GET_PARAMS.metricEventHide]: ['5', '2key', 'key2', '_s', '12', '4'],
-          [GET_PARAMS.viewTotalLine]: ['1'],
-          [GET_PARAMS.viewFilledGraph]: ['0'],
-          [GET_PARAMS.metricLocalTimeShifts]: ['200', '100'],
-        }),
-        dParams
-      )
-    ).toEqual({
-      ...dParams,
-      id: '0',
-      metricName: 'metric1',
-      customName: 'metric1custom',
-      customDescription: 'metric1customDesc',
-      promQL: 'promql',
-      metricUnit: METRIC_TYPE.byte,
-      what: [QUERY_WHAT.count],
-      customAgg: 5,
-      groupBy: ['2', '4', '5', '12', '_s'],
-      filterIn: {},
-      filterNotIn: {},
-      numSeries: 10,
-      backendVersion: METRIC_VALUE_BACKEND_VERSION.v1,
-      yLock: {
-        min: -100,
-        max: 200,
-      },
-      maxHost: true,
-      type: PLOT_TYPE.Event,
-      events: ['2', '4', '5', '12'],
-      eventsBy: ['2', '4', '5', '12', '_s'],
-      eventsHide: ['2', '4', '5', '12', '_s'],
-      totalLine: true,
-      filledGraph: false,
-      timeShifts: [100, 200],
-    });
-    expect(
-      urlDecodePlot(
-        '0',
-        {
-          [GET_PARAMS.metricName]: {},
-          [GET_PARAMS.metricCustomName]: {},
-          [GET_PARAMS.metricCustomDescription]: {},
-          [GET_PARAMS.metricPromQL]: {},
-          [GET_PARAMS.metricMetricUnit]: {},
-          [GET_PARAMS.metricWhat]: {},
-          [GET_PARAMS.metricAgg]: {},
-          [GET_PARAMS.metricGroupBy]: {},
-          [GET_PARAMS.metricFilter]: {},
-          [GET_PARAMS.numResults]: {},
-          [GET_PARAMS.version]: {},
-          [GET_PARAMS.metricLockMin]: {},
-          [GET_PARAMS.metricLockMax]: {},
-          [GET_PARAMS.metricMaxHost]: {},
-          [GET_PARAMS.metricType]: {},
-          [GET_PARAMS.metricEvent]: {},
-          [GET_PARAMS.metricEventBy]: {},
-          [GET_PARAMS.metricEventHide]: {},
-          [GET_PARAMS.viewTotalLine]: {},
-          [GET_PARAMS.viewFilledGraph]: {},
-          [GET_PARAMS.metricLocalTimeShifts]: {},
-        },
-        dParams
-      )
-    ).toEqual({
-      ...dParams,
-    });
-
-    expect(
-      urlDecodePlot(
-        '0',
-        toTreeObj({
-          [GET_PARAMS.metricName]: [''],
-          // [GET_PARAMS.metricPromQL]: [''],
-        }),
-        dParams
-      )
-    ).toEqual({
-      ...dParams,
-    });
-    expect(
-      urlDecodePlot(
-        '0',
-        toTreeObj({
-          // [GET_PARAMS.metricName]: [''],
-          [GET_PARAMS.metricPromQL]: [''],
-        }),
-        dParams
-      )
-    ).toEqual({
-      ...dParams,
-      metricName: promQLMetric,
-    });
-  });
-  test('urlDecodePlots', () => {
-    const dParams = {
-      ...getDefaultParams(),
-      plots: {
-        '0': {
-          ...getNewPlot(),
-          id: '0',
-        },
-        '2': {
-          ...getNewPlot(),
-          id: '2',
-        },
-      },
-      orderPlot: ['2', '0'],
-    };
-    expect(urlDecodePlots({}, ['0', '2'], dParams)).toEqual({
-      orderPlot: ['2', '0'],
-      plots: {
-        ...dParams.plots,
-      },
-    });
-    expect(urlDecodePlots({ [GET_PARAMS.orderPlot]: {} }, ['0', '2'], dParams)).toEqual({
-      orderPlot: ['2', '0'],
-      plots: {
-        ...dParams.plots,
-      },
-    });
-    expect(urlDecodePlots(toTreeObj({ [GET_PARAMS.orderPlot]: [] }), ['0', '2'], dParams)).toEqual({
-      orderPlot: ['2', '0'],
-      plots: {
-        ...dParams.plots,
-      },
-    });
-    expect(
-      urlDecodePlots(
-        toTreeObj({ [GET_PARAMS.orderPlot]: [['2', '0', '3er'].join(orderPlotSplitter)] }),
-        ['0', '2'],
-        dParams
-      )
-    ).toEqual({
-      orderPlot: ['2', '0'],
-      plots: {
-        ...dParams.plots,
-      },
-    });
-    expect(
-      urlDecodePlots(toTreeObj({ [GET_PARAMS.plotPrefix + '0']: [removeValueChar] }), ['0', '2'], dParams)
-    ).toEqual({
-      orderPlot: ['2'],
-      plots: {
-        '2': dParams.plots['2'],
-      },
-    });
-
-    expect(
-      urlDecodePlots(toTreeObj({ [GET_PARAMS.plotPrefix + '2']: [removeValueChar] }), ['0', '2'], dParams)
-    ).toEqual({
-      orderPlot: ['0'],
-      plots: {
-        '0': dParams.plots['0'],
       },
     });
   });
@@ -632,15 +395,15 @@ describe('urlStore urlDecode', () => {
       },
       plots: {
         '0': {
-          ...getNewPlot(),
+          ...getNewMetric(),
           id: '0',
         },
         '1': {
-          ...getNewPlot(),
+          ...getNewMetric(),
           id: '1',
         },
         '2': {
-          ...getNewPlot(),
+          ...getNewMetric(),
           id: '2',
         },
       },

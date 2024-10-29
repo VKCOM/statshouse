@@ -4,9 +4,6 @@ import {
   urlEncodeGlobalParam,
   urlEncodeGroup,
   urlEncodeGroups,
-  urlEncodePlot,
-  urlEncodePlotFilters,
-  urlEncodePlots,
   urlEncodeTimeRange,
   urlEncodeVariable,
   urlEncodeVariables,
@@ -22,8 +19,10 @@ import {
   TIME_RANGE_KEYS_TO,
 } from 'api/enum';
 import { THEMES } from 'store/theme';
-import { getDefaultParams, getNewGroup, getNewPlot, getNewVariable, getNewVariableSource } from './getDefault';
+import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { promQLMetric, removeValueChar } from './constants';
+import { getNewMetric, metricEncode, metricFilterEncode } from './widgetsParams/metric';
+import { widgetsParamsEncode } from './widgetsParams';
 
 jest.useFakeTimers().setSystemTime(new Date('2020-01-01 00:00:00'));
 
@@ -262,165 +261,7 @@ describe('urlStore urlEncode', () => {
       ['og', '1'],
     ]);
   });
-  test('urlEncodePlotFilters', () => {
-    expect(urlEncodePlotFilters(GET_PARAMS.plotPrefix + '1.', {}, {})).toEqual([]);
-    expect(urlEncodePlotFilters(GET_PARAMS.plotPrefix + '1.', { '0': ['val1'] }, { '1': ['val1'] })).toEqual([
-      ['t1.qf', '0-val1'],
-      ['t1.qf', '1~val1'],
-    ]);
-  });
-  test('urlEncodePlot', () => {
-    const dParam: PlotParams = {
-      ...getNewPlot(),
-      id: '0',
-    };
-    const dParam2: PlotParams = {
-      ...dParam,
-      metricName: 'm1',
-      customName: 'cn',
-      customDescription: 'cd',
-      promQL: 'promql',
-      metricUnit: METRIC_TYPE.microsecond,
-      what: [QUERY_WHAT.count, QUERY_WHAT.maxCountHost],
-      customAgg: 5,
-      groupBy: ['2', '3'],
-      filterIn: { '0': ['val'] },
-      filterNotIn: { '1': ['noval'] },
-      numSeries: 10,
-      backendVersion: METRIC_VALUE_BACKEND_VERSION.v1,
-      yLock: {
-        min: -100,
-        max: 100,
-      },
-      maxHost: true,
-      type: PLOT_TYPE.Event,
-      events: ['0', '1'],
-      eventsBy: ['0', '2'],
-      eventsHide: ['0', '2'],
-      totalLine: true,
-      filledGraph: false,
-      timeShifts: [200, 300],
-    };
-    expect(urlEncodePlot(dParam)).toEqual([['s', '']]);
-    expect(urlEncodePlot(dParam, dParam)).toEqual([]);
-    expect(urlEncodePlot(dParam2, dParam)).toEqual([
-      ['s', 'm1'],
-      ['q', 'promql'],
-      ['cn', 'cn'],
-      ['cd', 'cd'],
-      ['mt', 'mcs'],
-      ['qw', 'count'],
-      ['qw', 'max_count_host'],
-      ['g', '5'],
-      ['qb', '2'],
-      ['qb', '3'],
-      ['qf', '0-val'],
-      ['qf', '1~noval'],
-      ['n', '10'],
-      ['v', '1'],
-      ['yl', '-100'],
-      ['yh', '100'],
-      ['mh', '1'],
-      ['qt', '1'],
-      ['qe', '0'],
-      ['qe', '1'],
-      ['eb', '0'],
-      ['eb', '2'],
-      ['eh', '0'],
-      ['eh', '2'],
-      ['vtl', '1'],
-      ['vfg', '0'],
-      ['lts', '200'],
-      ['lts', '300'],
-    ]);
-    expect(
-      urlEncodePlot(
-        {
-          ...dParam2,
-          backendVersion: METRIC_VALUE_BACKEND_VERSION.v2,
-          maxHost: false,
-          totalLine: false,
-          filledGraph: true,
-        },
-        dParam2
-      )
-    ).toEqual([
-      ['v', '2'],
-      ['mh', '0'],
-      ['vtl', '0'],
-      ['vfg', '1'],
-    ]);
-    expect(
-      urlEncodePlot(
-        {
-          ...dParam,
-          promQL: 'promql',
-        },
-        dParam
-      )
-    ).toEqual([['q', 'promql']]);
-    expect(
-      urlEncodePlot(
-        {
-          ...dParam,
-          metricName: promQLMetric,
-          promQL: '',
-        },
-        { ...dParam, promQL: 'promql' }
-      )
-    ).toEqual([['q', '']]);
-    expect(
-      urlEncodePlot(
-        {
-          ...dParam,
-          promQL: '',
-        },
-        { ...dParam, promQL: 'promql' }
-      )
-    ).toEqual([['q', '']]);
-    expect(
-      urlEncodePlot({
-        ...dParam,
-        metricName: promQLMetric,
-      })
-    ).toEqual([['q', '']]);
-  });
-  test('urlEncodePlots', () => {
-    const params2: QueryParams = {
-      ...params,
-      plots: {
-        '0': {
-          ...getNewPlot(),
-          id: '0',
-        },
-        '1': {
-          ...getNewPlot(),
-          id: '1',
-        },
-      },
-      orderPlot: ['0', '1'],
-    };
-    expect(urlEncodePlots(params)).toEqual([]);
-    expect(urlEncodePlots(params, params)).toEqual([]);
-    expect(
-      urlEncodePlots(
-        {
-          ...params2,
-          plots: {
-            '1': {
-              ...getNewPlot(),
-              id: '1',
-            },
-          },
-          orderPlot: ['1'],
-        },
-        params2
-      )
-    ).toEqual([
-      ['t0', removeValueChar],
-      ['op', '1'],
-    ]);
-  });
+
   test('urlEncodeTimeRange', () => {
     expect(urlEncodeTimeRange(params)).toEqual([]);
     expect(urlEncodeTimeRange(params, params)).toEqual([]);

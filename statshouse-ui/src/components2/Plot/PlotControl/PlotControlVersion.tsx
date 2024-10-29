@@ -8,16 +8,16 @@ import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.
 import React, { memo, useCallback } from 'react';
 import { SwitchBox } from 'components/UI';
 import { globalSettings } from 'common/settings';
-import { getNewPlot, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from '../../../store2';
-import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from '../../../api/enum';
-import { useStoreDev } from '../../../store/dev';
+import { getNewMetric, type PlotKey } from 'url2';
+import { useStatsHouseShallow } from 'store2';
+import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from 'api/enum';
+import { useStoreDev } from 'store/dev';
 
 export type PlotControlVersionProps = {
   plotKey: PlotKey;
 };
 
-const defaultBackendVersion = getNewPlot().backendVersion;
+const defaultBackendVersion = getNewMetric().backendVersion;
 
 export function _PlotControlVersion({ plotKey }: PlotControlVersionProps) {
   const devMode = useStoreDev((s) => s.enabled);

@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import type { ProduceUpdate } from '../helpers';
-import { getNewPlot, GroupInfo, GroupKey, PlotKey, PlotParams, QueryParams, VariableKey, VariableParams } from 'url2';
+import { getNewMetric, GroupInfo, GroupKey, PlotKey, PlotParams, QueryParams, VariableKey, VariableParams } from 'url2';
 import type { StatsHouseStore } from '../statsHouseStore';
 import type { TagKey } from 'api/enum';
 import { isNotNil, toNumberM } from 'common/helpers';
@@ -48,7 +48,7 @@ export function getPlotStruct(params: QueryParams): PlotStruct {
           mapPlotIndex[plotKey] = plotIndex;
           mapPlotToGroup[plotKey] = groupKey;
           return {
-            plotInfo: clonePlot(params.plots[plotKey] ?? { ...getNewPlot(), id: plotKey }),
+            plotInfo: clonePlot(params.plots[plotKey] ?? { ...getNewMetric(), id: plotKey }),
             variableLinks: variableLinks[plotKey]?.map(({ variableKey, tag }) => ({ variableKey, tag })) ?? [],
           };
         }),

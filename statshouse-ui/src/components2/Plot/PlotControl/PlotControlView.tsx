@@ -10,15 +10,14 @@ import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import { useOnClickOutside } from 'hooks';
 import cn from 'classnames';
 import { useStatsHouseShallow } from 'store2';
-import { getNewPlot, PlotKey } from 'url2';
-import { isPromQL } from '../../../store2/helpers';
+import { getNewMetric, PlotKey } from 'url2';
 
 export type PlotControlViewProps = {
   plotKey: PlotKey;
   className?: string;
 };
 
-const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine } = getNewPlot();
+const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine } = getNewMetric();
 
 export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
   const { filledGraph, totalLine, setPlot } = useStatsHouseShallow((s) => ({

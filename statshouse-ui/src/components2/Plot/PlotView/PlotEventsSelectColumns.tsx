@@ -10,7 +10,7 @@ import { useOnClickOutside } from 'hooks';
 import { useEventTagColumns2 } from 'hooks/useEventTagColumns2';
 import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
 import { ReactComponent as SVGEyeSlash } from 'bootstrap-icons/icons/eye-slash.svg';
-import { getNewPlot, PlotKey } from 'url2';
+import { getNewMetric, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
 import { TagKey, toTagKey } from '../../../api/enum';
 
@@ -19,7 +19,7 @@ export type PlotEventsSelectColumnsProps = {
   className?: string;
   onClose?: () => void;
 };
-const emptyPlot = getNewPlot();
+const emptyPlot = getNewMetric();
 
 export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEventsSelectColumnsProps) {
   const { plot, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({

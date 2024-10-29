@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey, promQLMetric, type QueryParams, urlEncodePlotFilters, urlEncodeVariables } from 'url2';
+import { type PlotKey, promQLMetric, type QueryParams, metricFilterEncode, urlEncodeVariables } from 'url2';
 import { apiQueryFetch, type ApiQueryGet } from 'api/query';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
@@ -34,7 +34,7 @@ export function getLoadPlotUrlParams(
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
     [GET_PARAMS.width]: width,
     [GET_PARAMS.version]: plot.backendVersion,
-    [GET_PARAMS.metricFilter]: urlEncodePlotFilters('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
+    [GET_PARAMS.metricFilter]: metricFilterEncode('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: plot.groupBy,
     [GET_PARAMS.metricTimeShifts]: params.timeShifts.map((t) => t.toString()),
     [GET_PARAMS.excessPoints]: '1',
