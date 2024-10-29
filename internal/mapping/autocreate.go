@@ -65,7 +65,7 @@ func (ac *AutoCreate) Shutdown() {
 	ac.shutdownFn()
 }
 
-func (ac *AutoCreate) autoCreateMetric(bytes *tlstatshouse.MetricBytes, description string, resolution int, now time.Time) error {
+func (ac *AutoCreate) AutoCreateMetric(bytes *tlstatshouse.MetricBytes, description string, resolution int, now time.Time) error {
 	ac.mu.RLock()
 	task := ac.work[string(bytes.Name)]
 	taskCount := len(ac.work)
@@ -90,7 +90,7 @@ func (ac *AutoCreate) autoCreateMetric(bytes *tlstatshouse.MetricBytes, descript
 	return nil
 }
 
-func (ac *AutoCreate) autoCreateTag(bytes *tlstatshouse.MetricBytes, tagBytes []byte, now time.Time) error {
+func (ac *AutoCreate) AutoCreateTag(bytes *tlstatshouse.MetricBytes, tagBytes []byte, now time.Time) error {
 	ac.mu.RLock()
 	task := ac.work[string(bytes.Name)]
 	done := false

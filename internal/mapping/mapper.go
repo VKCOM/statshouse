@@ -58,6 +58,6 @@ func (m *Mapper) Stop() {
 }
 
 // cb.MetricInfo must be set from journal. If nil, will lookup allowed built-in metric, otherwise set ingestion status not found
-func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (data_model.MappedMetricHeader, bool) {
-	return m.pipeline.Map(args, metricInfo)
+func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
+	return m.pipeline.Map(args, metricInfo, h)
 }

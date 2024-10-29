@@ -317,7 +317,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 				if almostReceiveOnly && r%1024 != 0 {
 					return h, true
 				}
-				h, done = mapper.Map(data_model.HandlerArgs{MetricBytes: m, MapCallback: cb}, metricStorage.GetMetaMetricByNameBytes(m.Name))
+				done = mapper.Map(data_model.HandlerArgs{MetricBytes: m, MapCallback: cb}, metricStorage.GetMetaMetricByNameBytes(m.Name), &h)
 				if done {
 					handleMappedMetric(*m, h)
 				}

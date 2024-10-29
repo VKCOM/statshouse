@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"go4.org/mem"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -28,6 +30,7 @@ type worker struct {
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
 	mapper        *mapping.Mapper
+	autoCreate    *mapping.AutoCreate
 	logPackets    func(format string, args ...interface{})
 
 	floodTimeMu            sync.Mutex
@@ -38,6 +41,7 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pm
 	w := &worker{
 		sh2:           sh2,
 		metricStorage: metricStorage,
+		autoCreate:    ac,
 		logPackets:    logPackets,
 	}
 	w.mapper = mapping.NewMapper(suffix, pmcLoader, dc, ac, metricMapQueueSize, w.handleMappedMetricUnlocked)
@@ -52,7 +56,11 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
-	h, done = w.mapper.Map(args, w.metricStorage.GetMetaMetricByNameBytes(args.MetricBytes.Name))
+	h.ReceiveTime = time.Now() // receive time is set once for all functions
+	if done = w.getMetricMeta(args, &h); done {
+		return h, done
+	}
+	done = w.mapper.Map(args, h.MetricInfo, &h)
 	if done {
 		if w.logPackets != nil {
 			w.printMetric("cached", *args.MetricBytes, h)
@@ -60,6 +68,37 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached)
 	}
 	return h, done
+}
+
+func (w *worker) getMetricMeta(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
+	metric := args.MetricBytes
+	metricMeta := w.metricStorage.GetMetaMetricByNameBytes(metric.Name)
+	if metricMeta != nil {
+		h.MetricInfo = metricMeta
+		return false
+	}
+	metricMeta = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
+	if metricMeta != nil {
+		h.MetricInfo = metricMeta
+		return false
+	}
+
+	// TODO: we use possibly invalid and non-normalized string in AutoCreate, which is strange
+	if w.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
+		// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
+		_ = w.autoCreate.AutoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
+	}
+	validName, err := format.AppendValidStringValue(metric.Name[:0], metric.Name)
+	if err == nil {
+		metric.Name = validName
+		h.InvalidString = metric.Name
+		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
+		return true
+	}
+	metric.Name = format.AppendHexStringValue(metric.Name[:0], metric.Name)
+	h.InvalidString = metric.Name
+	h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
+	return true
 }
 
 func (w *worker) handleMappedMetricUnlocked(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
