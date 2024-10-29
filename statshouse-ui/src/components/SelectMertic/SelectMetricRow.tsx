@@ -49,7 +49,10 @@ export const SelectMetricRow = memo(function _SelectMetricRow<T extends SelectOp
         <Tooltip className="flex-grow-1 text-truncate" title={rows[index]?.value ?? `row ${index}`}>
           {rows[index]?.value ?? `row ${index}`}
         </Tooltip>
-        <Tooltip className="me-2" title={metricsFavorite[rows[index]?.value] ? 'remove favorite' : 'add favorite'}>
+        <Tooltip
+          className="me-2"
+          title={metricsFavorite[rows[index]?.value] ? 'remove from favorites' : 'add to favorites'}
+        >
           <span className="text-primary" onClick={toggleFavorite}>
             {metricsFavorite[rows[index]?.value] ? <SVGStarFill /> : <SVGStar />}
           </span>
