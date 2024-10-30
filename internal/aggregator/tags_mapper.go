@@ -156,7 +156,7 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 // safe only to access fields mask in args, other fields point to reused memory
 func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key data_model.Key, meta *format.MetricMetaValue) (err error) {
 	if r.Err != nil {
-		key.Keys[5] = format.TagValueIDAggMappingStatusErrUncached
+		key.Tags[5] = format.TagValueIDAggMappingStatusErrUncached
 		ms.sh2.AddCounter(key, 1, meta)
 		return r.Err
 	}
@@ -207,7 +207,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			ms.mu.Lock()
 			defer ms.mu.Unlock()
 			if *bb {
-				key.Keys[5] = format.TagValueIDAggMappingStatusOKUncached
+				key.Tags[5] = format.TagValueIDAggMappingStatusOKUncached
 				err := ms.sendCreateTagMappingResult(hctx, args, v, key, meta)
 				hctx.SendHijackedResponse(err)
 			}

@@ -244,7 +244,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 			wrongID.Inc()
 			return
 		}
-		if testFastPath && h.Key.Keys[1] != 1 {
+		if testFastPath && h.Key.Tags[1] != 1 {
 			wrongTag1.Inc()
 			return
 		}

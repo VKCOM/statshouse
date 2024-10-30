@@ -50,7 +50,7 @@ func shardByMappedTags(keyHash uint64, numShards int) uint32 {
 }
 
 func shardByTag(key data_model.Key, tagId uint32, numShards int) uint32 {
-	return uint32(key.Keys[tagId]) % uint32(numShards)
+	return uint32(key.Tags[tagId]) % uint32(numShards)
 }
 
 func shardByMetricId(key data_model.Key, numShards int) uint32 {

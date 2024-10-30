@@ -215,9 +215,9 @@ func TestFairKeySampling(t *testing.T) {
 		m := Key{Metric: 1}
 		n := rapid.IntRange(1, 16).Draw(t, "fair key value count")
 		for i, v := 1, 1; i <= n; i, v = i+1, v*2 {
-			m.Keys[0] = int32(i)
+			m.Tags[0] = int32(i)
 			for j := 1; j <= v; j++ {
-				m.Keys[1] = int32(j)
+				m.Tags[1] = int32(j)
 				v := &MultiItem{}
 				v.Tail.Value.AddValueCounter(0, 1)
 				b.series[m] = v
@@ -415,7 +415,7 @@ func (b *samplingTestBucket) generateSeriesCount(t *rapid.T, s samplingTestSpec)
 		)
 		for i := 0; i < seriesCount; i++ {
 			var (
-				k = Key{Metric: metricID, Keys: [format.MaxTags]int32{int32(i + 1)}}
+				k = Key{Metric: metricID, Tags: [format.MaxTags]int32{int32(i + 1)}}
 				v = &MultiItem{}
 			)
 			v.Tail.Value.AddValueCounter(0, 1)
@@ -442,7 +442,7 @@ func (b *samplingTestBucket) generateSeriesSize(t *rapid.T, s samplingTestSpec) 
 		)
 		for i := int32(1); size < sizeT; i++ {
 			var (
-				k = Key{Metric: metricID, Keys: [format.MaxTags]int32{i}}
+				k = Key{Metric: metricID, Tags: [format.MaxTags]int32{i}}
 				v = &MultiItem{}
 			)
 			v.Tail.Value.AddValueCounter(0, 1)
@@ -538,7 +538,7 @@ func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx)
 		metricID := int32(i + 1)
 		for i := 0; i < seriesCount; i++ {
 			var (
-				k = Key{Metric: metricID, Keys: [format.MaxTags]int32{int32(i + 1)}}
+				k = Key{Metric: metricID, Tags: [format.MaxTags]int32{int32(i + 1)}}
 				v = &MultiItem{}
 			)
 			v.Tail.Value.AddValueCounter(0, 1)
@@ -558,13 +558,13 @@ func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) []tlstatshouse.
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
-			if k.Keys[1] != 0 {
+			if k.Tags[1] != 0 {
 				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 				// So metrics are better isolated
-				accountMetric = k.Keys[1]
+				accountMetric = k.Tags[1]
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
-			if k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
+			if k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 				// These are so common, we have transfer optimization for them
 				sz = 3 * 4 // see statshouse.ingestion_status2
 			}
@@ -595,13 +595,13 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
-			if k.Keys[1] != 0 {
+			if k.Tags[1] != 0 {
 				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 				// So metrics are better isolated
-				accountMetric = k.Keys[1]
+				accountMetric = k.Tags[1]
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
-			if k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
+			if k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 				// These are so common, we have transfer optimization for them
 				sz = 3 * 4 // see statshouse.ingestion_status2
 			}

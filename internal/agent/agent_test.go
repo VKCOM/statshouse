@@ -27,8 +27,8 @@ func Benchmark_Hash(b *testing.B) {
 	var result uint64
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
 		result += k.Hash()
 	}
 }
@@ -38,8 +38,8 @@ func Benchmark_HashSafe(b *testing.B) {
 	var result uint64
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
 		result += k.HashSafe()
 	}
 }
@@ -47,8 +47,8 @@ func Benchmark_HashSafe(b *testing.B) {
 func Test_HashSafeUnsafe(t *testing.T) {
 	var k data_model.Key
 	for i := 0; i < 1000; i++ {
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
 		if k.Hash() != k.HashSafe() {
 			t.Fail()
 		}
@@ -173,8 +173,8 @@ func Benchmark_SampleFactor(b *testing.B) {
 	var result uint64
 	for i := 0; i < b.N; i++ {
 		k.Metric = int32(i & 2047)
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
 		_, ok := data_model.SampleFactor(rnd, sampleFactors, k.Metric)
 		if ok {
 			result++
@@ -192,8 +192,8 @@ func Benchmark_sampleFactorDeterministic(b *testing.B) {
 	var result uint64
 	for i := 0; i < b.N; i++ {
 		k.Metric = int32(i & 2047)
-		k.Keys[14]++
-		k.Keys[0] = int32(i)
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
 		_, ok := data_model.SampleFactorDeterministic(sampleFactors, k, uint32(i))
 		if ok {
 			result++
@@ -300,11 +300,11 @@ func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
 	key := data_model.Key{
 		Timestamp: ts,
 		Metric:    metricOffset + rng.Int31n(100_000),
-		Keys:      [16]int32{},
+		Tags:      [16]int32{},
 	}
 	tagsN := rng.Int31n(16)
 	for t := 0; t < int(tagsN); t++ {
-		key.Keys[t] = rng.Int31n(100_000)
+		key.Tags[t] = rng.Int31n(100_000)
 	}
 	return key
 }

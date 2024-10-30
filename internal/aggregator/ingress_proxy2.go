@@ -401,7 +401,7 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 	cryptoKeyID := p.clientConn.KeyID()
 	requestSize := data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
+		Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
 	}
 	for i := uint(0); ; i++ {
 		// request (tip) must be set except maybe graceful shutdown first iteration
@@ -450,7 +450,7 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 		if ctx.Err() != nil {
 			return req, nil // server shutdown
 		}
-		requestSize.Keys[2] = int32(req.RequestTag())
+		requestSize.Tags[2] = int32(req.RequestTag())
 	}
 }
 

@@ -145,7 +145,7 @@ func createBatchSizeValue(ag *agent.Agent, formatTagValueID int32, statusTagValu
 	if ag != nil {
 		return ag.CreateBuiltInItemValue(data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedBatchSize,
-			Keys:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
+			Tags:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
 		}, format.BuiltinMetricMetaAgentReceivedBatchSize)
 	}
 	return nil
@@ -155,7 +155,7 @@ func createPacketSizeValue(bm *agent.Agent, formatTagValueID int32, statusTagVal
 	if bm != nil {
 		return bm.CreateBuiltInItemValue(data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedPacketSize,
-			Keys:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
+			Tags:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
 		}, format.BuiltinMetricMetaAgentReceivedPacketSize)
 	}
 	return nil

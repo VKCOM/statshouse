@@ -161,8 +161,8 @@ func (h *sampler) Run(budget int64) {
 				n = maxFairKeyLen
 			}
 			for j := 0; j < n; j++ {
-				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Key.Keys) {
-					h.items[i].fairKey[j] = h.items[i].Key.Keys[x]
+				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Key.Tags) {
+					h.items[i].fairKey[j] = h.items[i].Key.Tags[x]
 				}
 			}
 			h.items[i].fairKeyLen = n

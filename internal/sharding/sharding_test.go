@@ -10,8 +10,8 @@ import (
 )
 
 func TestShard(t *testing.T) {
-	metric1 := data_model.Key{Timestamp: 1000, Metric: 1, Keys: [format.MaxTags]int32{1, 2, 3}}
-	metric2 := data_model.Key{Timestamp: 1000, Metric: 2, Keys: [format.MaxTags]int32{5, 6}}
+	metric1 := data_model.Key{Timestamp: 1000, Metric: 1, Tags: [format.MaxTags]int32{1, 2, 3}}
+	metric2 := data_model.Key{Timestamp: 1000, Metric: 2, Tags: [format.MaxTags]int32{5, 6}}
 	metricBuiltin := data_model.Key{Timestamp: 1000, Metric: -1000}
 	pastTs := uint32(900)
 	futureTs := uint32(1100)

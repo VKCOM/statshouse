@@ -295,7 +295,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			if dc != nil {
 				s, err := dc.DiskSizeBytes()
 				if err == nil {
-					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Keys: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
+					a.AddValueCounter(data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Tags: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
 				}
 			}
 		},
