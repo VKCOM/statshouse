@@ -18,7 +18,7 @@ import (
 )
 
 func (k *Key) ToSlice() []int32 {
-	result := append([]int32{}, k.Keys[:]...)
+	result := append([]int32{}, k.Tags[:]...)
 	i := format.MaxTags
 	for ; i != 0; i-- {
 		if result[i-1] != 0 {
@@ -45,14 +45,14 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 		// above checks can be moved below }, but they will always be NOP as bucketTimestamp is both <= newestTime and in beleive window
 	}
 	key.Metric = item.Metric
-	copy(key.Keys[:], item.Keys)
+	copy(key.Tags[:], item.Keys)
 	return key, int(sID)
 }
 
 func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	i := format.MaxTags
 	for ; i != 0; i-- {
-		if k.Keys[i-1] != 0 {
+		if k.Tags[i-1] != 0 {
 			break
 		}
 	}

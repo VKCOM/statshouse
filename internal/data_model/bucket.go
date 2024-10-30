@@ -26,7 +26,7 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Keys      [format.MaxTags]int32 // Unused keys are set to special 0-value
+		Tags      [format.MaxTags]int32 // Unused tags are set to special 0-value
 	}
 
 	ItemCounter struct {
@@ -75,19 +75,19 @@ func (s *ItemCounter) Count() float64 { return s.counter }
 func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
 	// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
-	if k.Keys[format.AgentEnvTag] == 0 {
-		k.Keys[format.AgentEnvTag] = agentEnvTag
-		k.Keys[format.RouteTag] = routeTag
-		k.Keys[format.BuildArchTag] = buildArchTag
+	if k.Tags[format.AgentEnvTag] == 0 {
+		k.Tags[format.AgentEnvTag] = agentEnvTag
+		k.Tags[format.RouteTag] = routeTag
+		k.Tags[format.BuildArchTag] = buildArchTag
 	}
 	return k
 }
 
 func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) Key {
-	key := Key{Timestamp: t, Metric: m, Keys: k}
-	key.Keys[format.AggHostTag] = hostTagId
-	key.Keys[format.AggShardTag] = shardTag
-	key.Keys[format.AggReplicaTag] = replicaTag
+	key := Key{Timestamp: t, Metric: m, Tags: k}
+	key.Tags[format.AggHostTag] = hostTagId
+	key.Tags[format.AggShardTag] = shardTag
+	key.Tags[format.AggReplicaTag] = replicaTag
 	return key
 }
 
@@ -104,22 +104,22 @@ func (k *Key) HashSafe() uint64 {
 	var b [4 + 4*format.MaxTags]byte
 	// timestamp is not part of shard
 	binary.LittleEndian.PutUint32(b[:], uint32(k.Metric))
-	binary.LittleEndian.PutUint32(b[4+0*4:], uint32(k.Keys[0]))
-	binary.LittleEndian.PutUint32(b[4+1*4:], uint32(k.Keys[1]))
-	binary.LittleEndian.PutUint32(b[4+2*4:], uint32(k.Keys[2]))
-	binary.LittleEndian.PutUint32(b[4+3*4:], uint32(k.Keys[3]))
-	binary.LittleEndian.PutUint32(b[4+4*4:], uint32(k.Keys[4]))
-	binary.LittleEndian.PutUint32(b[4+5*4:], uint32(k.Keys[5]))
-	binary.LittleEndian.PutUint32(b[4+6*4:], uint32(k.Keys[6]))
-	binary.LittleEndian.PutUint32(b[4+7*4:], uint32(k.Keys[7]))
-	binary.LittleEndian.PutUint32(b[4+8*4:], uint32(k.Keys[8]))
-	binary.LittleEndian.PutUint32(b[4+9*4:], uint32(k.Keys[9]))
-	binary.LittleEndian.PutUint32(b[4+10*4:], uint32(k.Keys[10]))
-	binary.LittleEndian.PutUint32(b[4+11*4:], uint32(k.Keys[11]))
-	binary.LittleEndian.PutUint32(b[4+12*4:], uint32(k.Keys[12]))
-	binary.LittleEndian.PutUint32(b[4+13*4:], uint32(k.Keys[13]))
-	binary.LittleEndian.PutUint32(b[4+14*4:], uint32(k.Keys[14]))
-	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Keys[15]))
+	binary.LittleEndian.PutUint32(b[4+0*4:], uint32(k.Tags[0]))
+	binary.LittleEndian.PutUint32(b[4+1*4:], uint32(k.Tags[1]))
+	binary.LittleEndian.PutUint32(b[4+2*4:], uint32(k.Tags[2]))
+	binary.LittleEndian.PutUint32(b[4+3*4:], uint32(k.Tags[3]))
+	binary.LittleEndian.PutUint32(b[4+4*4:], uint32(k.Tags[4]))
+	binary.LittleEndian.PutUint32(b[4+5*4:], uint32(k.Tags[5]))
+	binary.LittleEndian.PutUint32(b[4+6*4:], uint32(k.Tags[6]))
+	binary.LittleEndian.PutUint32(b[4+7*4:], uint32(k.Tags[7]))
+	binary.LittleEndian.PutUint32(b[4+8*4:], uint32(k.Tags[8]))
+	binary.LittleEndian.PutUint32(b[4+9*4:], uint32(k.Tags[9]))
+	binary.LittleEndian.PutUint32(b[4+10*4:], uint32(k.Tags[10]))
+	binary.LittleEndian.PutUint32(b[4+11*4:], uint32(k.Tags[11]))
+	binary.LittleEndian.PutUint32(b[4+12*4:], uint32(k.Tags[12]))
+	binary.LittleEndian.PutUint32(b[4+13*4:], uint32(k.Tags[13]))
+	binary.LittleEndian.PutUint32(b[4+14*4:], uint32(k.Tags[14]))
+	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Tags[15]))
 	const _ = uint(16 - format.MaxTags) // compile time assert to manually add new keys above
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }

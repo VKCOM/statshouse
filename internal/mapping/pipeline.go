@@ -125,7 +125,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				extra := format.CreateMappingExtra{ // Host and AgentEnv are added by source when sending
 					Metric:    string(metric.Name),
 					TagIDKey:  tagIDKey,
-					ClientEnv: h.Key.Keys[0], // mapEnvironment sets this, but only if already in cache, which is normally almost always.
+					ClientEnv: h.Key.Tags[0], // mapEnvironment sets this, but only if already in cache, which is normally almost always.
 				}
 				id, err := mp.getTagValueID(h.ReceiveTime, v.Value, extra)
 				if err != nil {
@@ -208,7 +208,7 @@ func (mp *mapPipeline) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_
 		if err != nil || !found {
 			return // do not bother if the first one set is crappy
 		}
-		h.Key.Keys[0] = id
+		h.Key.Tags[0] = id
 		return // we are ok with the first one
 	}
 }
@@ -247,7 +247,7 @@ func MapErrorFromHeader(m tlstatshouse.MetricBytes, h data_model.MappedMetricHea
 		return nil
 	}
 	ingestionTagName := format.TagIDTagToTagID(h.IngestionTagKey)
-	envTag := h.Key.Keys[0] // TODO - we do not want to remember original string value somewhere yet (to print better errors here)
+	envTag := h.Key.Tags[0] // TODO - we do not want to remember original string value somewhere yet (to print better errors here)
 	switch h.IngestionStatus {
 	case format.TagValueIDSrcIngestionStatusErrMetricNotFound:
 		return fmt.Errorf("metric %q not found (envTag %d)", m.Name, envTag)

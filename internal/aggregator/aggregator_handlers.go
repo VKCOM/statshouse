@@ -41,11 +41,11 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	key := a.aggKey(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol})
 	err := a.h.Handle(ctx, hctx)
 	if err == rpc.ErrNoHandler {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusNoHandler
+		key.Tags[3] = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if rpc.IsHijackedResponse(err) {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusHijack
+		key.Tags[3] = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
+		key.Tags[3] = format.TagValueIDRPCRequestsStatusErrLocal
 	}
 	a.sh2.AddValueCounter(key, float64(requestLen), 1, format.BuiltinMetricMetaRPCRequests)
 	return err
@@ -319,37 +319,37 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 			if k.Metric == format.BuiltinMetricIDAgentHeartbeatVersion {
 				// Remap legacy metric to a new one
 				k.Metric = format.BuiltinMetricIDHeartbeatVersion
-				k.Keys[2] = k.Keys[1]
-				k.Keys[1] = format.TagValueIDComponentAgent
+				k.Tags[2] = k.Tags[1]
+				k.Tags[1] = format.TagValueIDComponentAgent
 			}
 			if k.Metric == format.BuiltinMetricIDAgentHeartbeatArgs {
 				// Remap legacy metric to a new one
 				k.Metric = format.BuiltinMetricIDHeartbeatArgs
-				k.Keys[2] = k.Keys[1]
-				k.Keys[1] = format.TagValueIDComponentAgent
+				k.Tags[2] = k.Tags[1]
+				k.Tags[1] = format.TagValueIDComponentAgent
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
 				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
 				// In case of agent we need to set IP anyway, so set other keys here, not by source
 				// In case of api other tags are already set, so don't overwrite them
-				if k.Keys[4] == 0 {
-					k.Keys[4] = bcTag
+				if k.Tags[4] == 0 {
+					k.Tags[4] = bcTag
 				}
-				if k.Keys[5] == 0 {
-					k.Keys[5] = args.BuildCommitDate
+				if k.Tags[5] == 0 {
+					k.Tags[5] = args.BuildCommitDate
 				}
-				if k.Keys[6] == 0 {
-					k.Keys[6] = args.BuildCommitTs
+				if k.Tags[6] == 0 {
+					k.Tags[6] = args.BuildCommitTs
 				}
-				if k.Keys[7] == 0 {
-					k.Keys[7] = hostTagId
+				if k.Tags[7] == 0 {
+					k.Tags[7] = hostTagId
 				}
 				// Valid for api as well because it is on the same host as agent
-				k.Keys[8] = int32(addrIPV4)
-				k.Keys[9] = owner
+				k.Tags[8] = int32(addrIPV4)
+				k.Tags[9] = owner
 			}
 			if k.Metric == format.BuiltinMetricIDRPCRequests {
-				k.Keys[7] = hostTagId // agent cannot easily map its own host for now
+				k.Tags[7] = hostTagId // agent cannot easily map its own host for now
 			}
 		}
 		s := aggBucket.lockShard(&lockedShard, sID)
@@ -439,7 +439,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	}
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
-		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(rng, float64(value), hostTagId)
+		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(rng, float64(value), hostTagId)
 	}
 	for _, v := range bucket.IngestionStatusOk {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data

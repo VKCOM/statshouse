@@ -151,7 +151,7 @@ func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) (data_model.Key, *fo
 	protocol := int32(hctx.ProtocolVersion())
 	return data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(hctx.RequestTag()), resultTag, 0, 0, keyIDTag, 0, protocol},
+		Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(hctx.RequestTag()), resultTag, 0, 0, keyIDTag, 0, protocol},
 	}, format.BuiltinMetricMetaRPCRequests
 }
 

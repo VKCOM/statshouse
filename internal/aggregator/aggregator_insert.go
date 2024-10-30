@@ -132,7 +132,7 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 	res = binary.LittleEndian.AppendUint32(res, uint32(k.Metric))
 	prekeyIndex, prekeyOnly := metricCache.getPrekeyIndex(k.Metric)
 	if prekeyIndex >= 0 {
-		res = binary.LittleEndian.AppendUint32(res, uint32(k.Keys[prekeyIndex]))
+		res = binary.LittleEndian.AppendUint32(res, uint32(k.Tags[prekeyIndex]))
 		if prekeyOnly {
 			res = append(res, byte(2))
 		} else {
@@ -148,7 +148,7 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 	}
 	tagsN := format.MaxTags
 	for ki := 0; ki < tagsN; ki++ {
-		res = appendTag(res, uint32(k.Keys[ki]))
+		res = appendTag(res, uint32(k.Tags[ki]))
 	}
 	return res
 }
@@ -179,8 +179,8 @@ func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexC
 			res = rowbinary.AppendString(res, stag)
 			continue
 		}
-		if ki < len(k.Keys) {
-			res = appendTag(res, uint32(k.Keys[ki]))
+		if ki < len(k.Tags) {
+			res = appendTag(res, uint32(k.Tags[ki]))
 		} else {
 			res = appendTag(res, 0)
 		}
@@ -212,10 +212,10 @@ func appendBadge(rng *rand.Rand, res []byte, k data_model.Key, v data_model.Item
 	// TODO - deprecated legacy badges and use new badges
 	switch k.Metric {
 	case format.BuiltinMetricIDIngestionStatus:
-		if k.Keys[1] == 0 {
+		if k.Tags[1] == 0 {
 			return res
 		}
-		switch k.Keys[2] {
+		switch k.Tags[2] {
 		case format.TagValueIDSrcIngestionStatusOKCached,
 			format.TagValueIDSrcIngestionStatusOKUncached:
 			return res
@@ -225,21 +225,21 @@ func appendBadge(rng *rand.Rand, res []byte, k data_model.Key, v data_model.Item
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
 			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic,
 			format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:
-			return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", v, metricCache, usedTimestamps, newFormat)
+			return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Tags[1]}}, "", v, metricCache, usedTimestamps, newFormat)
 		}
-		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Keys[1]}}, "", v, metricCache, usedTimestamps, newFormat)
+		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Tags[1]}}, "", v, metricCache, usedTimestamps, newFormat)
 	case format.BuiltinMetricIDAgentSamplingFactor:
-		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAgentSamplingFactor, k.Keys[1]}}, "", v, metricCache, usedTimestamps, newFormat)
+		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeAgentSamplingFactor, k.Tags[1]}}, "", v, metricCache, usedTimestamps, newFormat)
 	case format.BuiltinMetricIDAggSamplingFactor:
-		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAggSamplingFactor, k.Keys[4]}}, "", v, metricCache, usedTimestamps, newFormat)
+		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeAggSamplingFactor, k.Tags[4]}}, "", v, metricCache, usedTimestamps, newFormat)
 	case format.BuiltinMetricIDAggMappingCreated:
-		if k.Keys[5] == format.TagValueIDAggMappingCreatedStatusOK ||
-			k.Keys[5] == format.TagValueIDAggMappingCreatedStatusCreated {
+		if k.Tags[5] == format.TagValueIDAggMappingCreatedStatusOK ||
+			k.Tags[5] == format.TagValueIDAggMappingCreatedStatusCreated {
 			return res
 		}
-		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAggMappingErrors, k.Keys[4]}}, "", v, metricCache, usedTimestamps, newFormat)
+		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeAggMappingErrors, k.Tags[4]}}, "", v, metricCache, usedTimestamps, newFormat)
 	case format.BuiltinMetricIDAggBucketReceiveDelaySec:
-		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeContributors, 0}}, "", v, metricCache, usedTimestamps, newFormat)
+		return appendValueStat(rng, res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [16]int32{0, format.TagValueIDBadgeContributors, 0}}, "", v, metricCache, usedTimestamps, newFormat)
 	}
 	return res
 }
@@ -524,10 +524,10 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 						})
 						continue
 					}
-					if ingestionStatus && k.Keys[1] != 0 {
+					if ingestionStatus && k.Tags[1] != 0 {
 						// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 						// So metrics are better isolated
-						accountMetric = k.Keys[1]
+						accountMetric = k.Tags[1]
 					}
 				}
 				sz := item.RowBinarySizeEstimate()
@@ -620,9 +620,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
-		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Keys: [16]int32{0, int32(t)}}
+		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Tags: [16]int32{0, int32(t)}}
 		res = appendSimpleValueStat(rnd, res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil, newFormat)
-		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Keys: [16]int32{0, int32(insertTimeUnix)}}
+		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [16]int32{0, int32(insertTimeUnix)}}
 		res = appendSimpleValueStat(rnd, res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil, newFormat)
 	}
 	dur := time.Since(startTime)

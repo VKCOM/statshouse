@@ -60,7 +60,7 @@ func (h *MappedMetricHeader) SetKey(index int, id int32, tagIDKey int32) {
 		}
 		h.IsHKeySet = true
 	} else {
-		h.Key.Keys[index] = id
+		h.Key.Tags[index] = id
 		if h.IsKeySet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}
