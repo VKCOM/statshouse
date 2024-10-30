@@ -17,11 +17,22 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func (k *Key) ToSlice() []int32 {
+func (k *Key) TagSlice() []int32 {
 	result := append([]int32{}, k.Tags[:]...)
 	i := format.MaxTags
 	for ; i != 0; i-- {
 		if result[i-1] != 0 {
+			break
+		}
+	}
+	return result[:i]
+}
+
+func (k *Key) STagSlice() []string {
+	result := append([]string{}, k.STags[:]...)
+	i := format.MaxTags
+	for ; i != 0; i-- {
+		if len(result[i-1]) != 0 {
 			break
 		}
 	}
@@ -79,7 +90,11 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 func (k *Key) TLMultiItemFromKey(defaultTimestamp uint32) tlstatshouse.MultiItem {
 	item := tlstatshouse.MultiItem{
 		Metric: k.Metric,
-		Keys:   k.ToSlice(),
+		Keys:   k.TagSlice(),
+	}
+	stags := k.STagSlice()
+	if len(stags) > 0 {
+		item.SetSkeys(stags)
 	}
 	// TODO - check that timestamp is never 0 here
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {
