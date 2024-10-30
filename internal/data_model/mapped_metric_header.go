@@ -32,7 +32,7 @@ type MappedMetricHeader struct {
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
 	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
 
-	IsKeySet  [format.MaxTags]bool // report setting keys more than once.
+	IsTagSet  [format.MaxTags]bool // report setting tags more than once.
 	IsSKeySet bool
 	IsHKeySet bool
 
@@ -61,11 +61,19 @@ func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
 		h.IsHKeySet = true
 	} else {
 		h.Key.Tags[index] = id
-		if h.IsKeySet[index] {
+		if h.IsTagSet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}
-		h.IsKeySet[index] = true
+		h.IsTagSet[index] = true
 	}
+}
+
+func (h *MappedMetricHeader) SetSTag(index int, value string, tagIDKey int32) {
+	h.Key.STags[index] = value
+	if h.IsTagSet[index] {
+		h.TagSetTwiceKey = tagIDKey
+	}
+	h.IsTagSet[index] = true
 }
 
 func (h *MappedMetricHeader) SetInvalidString(ingestionStatus int32, tagIDKey int32, invalidString []byte) {
