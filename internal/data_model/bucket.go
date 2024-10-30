@@ -90,10 +90,6 @@ func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTa
 	return key
 }
 
-func (k *Key) ClearedKeys() Key {
-	return Key{Timestamp: k.Timestamp, Metric: k.Metric}
-}
-
 func (k *Key) Hash() uint64 {
 	var b [4 + 4*format.MaxTags]byte
 	// timestamp is not part of shard
