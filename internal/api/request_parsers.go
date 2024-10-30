@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mailru/easyjson"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -43,6 +43,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 	}()
 	type seriesRequestEx struct {
 		seriesRequest
+		x             string
 		strFrom       string
 		strTo         string
 		strWidth      string
@@ -51,27 +52,38 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		strType       string
 		width         int
 		widthKind     int
+
+		sourceOfWhat int
+		sourceOfBy   int
 	}
 	var (
-		dash  DashboardData
-		first = func(s []string) string {
+		source int
+		dash   DashboardData
+		first  = func(s []string) string {
 			if len(s) != 0 {
 				return s[0]
 			}
 			return ""
 		}
 		env   = make(map[string]promql.Variable)
-		tabs  = make([]seriesRequestEx, 0, maxTabs)
-		tabX  = -1
-		tabAt = func(i int) *seriesRequestEx {
-			for j := len(tabs) - 1; j < i; j++ {
-				tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
-					vars: env,
-				}})
+		tabs  = make(map[string]*seriesRequestEx)
+		tabX  string
+		ord   []string
+		tabAt = func(i string) *seriesRequestEx {
+			if t := tabs[i]; t != nil {
+				return t
 			}
-			return &tabs[i]
+			t := &seriesRequestEx{
+				x: i,
+				seriesRequest: seriesRequest{
+					vars: env,
+				},
+			}
+			ord = append(ord, i)
+			tabs[i] = t
+			return t
 		}
-		tab0 = tabAt(0)
+		tab0 = tabAt("0")
 	)
 	// parse dashboard
 	if id, err := strconv.Atoi(first(r.Form[paramDashboardID])); err == nil {
@@ -89,10 +101,11 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 	}
 	var n int
 	for i, v := range dash.Plots {
-		tab := tabAt(i)
-		if tab == nil {
-			continue
+		id := v.ID
+		if id == "" {
+			id = strconv.Itoa(i)
 		}
+		tab := tabAt(id)
 		if v.UseV2 {
 			tab.version = Version2
 		}
@@ -149,12 +162,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			if len(link) != 2 {
 				continue
 			}
-			tabX := link[0]
-			if tabX < 0 || len(tabs) <= tabX {
-				continue
-			}
+			tagX, _ := strconv.Atoi(link[1])
 			var (
-				tagX  = link[1]
 				tagID string
 			)
 			if tagX < 0 {
@@ -164,7 +173,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			} else {
 				continue
 			}
-			tab := &tabs[tabX]
+			tab := tabs[link[0]]
 			if v.Args.Group {
 				tab.by = append(tab.by, tagID)
 			}
@@ -216,8 +225,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			tab0.strFrom = strconv.FormatInt(dash.TimeRange.From, 10)
 		}
 		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
-		for i := 1; i < len(tabs); i++ {
-			tabs[i].shifts = tab0.shifts
+		for _, tab := range tabs {
+			tab.shifts = tab0.shifts
 		}
 	}
 	// parse URL
@@ -225,7 +234,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 	type (
 		dashboardVar struct {
 			name string
-			link [][]int
+			link [][2]string
 		}
 		dashboardVarM struct {
 			val    []string
@@ -234,13 +243,6 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		}
 	)
 	var (
-		parseTabX = func(s string) (int, error) {
-			var i int
-			if i, err = strconv.Atoi(s); err != nil {
-				return 0, fmt.Errorf("invalid tab index %q", s)
-			}
-			return i, nil
-		}
 		vars  []dashboardVar
 		varM  = make(map[string]*dashboardVarM)
 		varAt = func(i int) *dashboardVar {
@@ -256,24 +258,52 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			}
 			return v
 		}
+		sourceOfVars           int
+		ensureSameSourceOfVars = func() {
+			if sourceOfVars == source {
+				return
+			}
+			for _, t := range tabs {
+				t.filterIn = nil
+				t.filterNotIn = nil
+				t.by = t.by[:0]
+				t.sourceOfBy = source
+			}
+			vars = vars[:0]
+			for k := range varM {
+				delete(varM, k)
+			}
+			for k := range env {
+				delete(env, k)
+			}
+			sourceOfVars = source
+		}
 	)
 	for i, v := range dash.Vars {
 		vv := varAt(i)
 		vv.name = v.Name
 		vv.link = append(vv.link, v.Link...)
 	}
+	searchParams := make(url.Values, len(dash.SearchParams))
+	for _, v := range dash.SearchParams {
+		if _, ok := r.Form[v[0]]; !ok {
+			searchParams[v[0]] = append(searchParams[v[0]], v[1])
+		}
+	}
+	for k, v := range searchParams {
+		r.Form[k] = v
+	}
+	source++
 	for k, v := range r.Form {
-		var i int
+		i := "0"
 		if strings.HasPrefix(k, "t") {
 			var dotX int
 			if dotX = strings.Index(k, "."); dotX != -1 {
-				var j int
-				if j, err = parseTabX(k[1:dotX]); err == nil && j > 0 {
-					i = j
-					k = k[dotX+1:]
-				}
+				i = k[1:dotX]
+				k = k[dotX+1:]
 			}
 		} else if len(k) > 1 && k[0] == 'v' { // variables, not version
+			ensureSameSourceOfVars()
 			var dotX int
 			if dotX = strings.Index(k, "."); dotX != -1 {
 				switch dotX {
@@ -299,16 +329,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 							vv.name = first(v)
 						case "l":
 							for _, s1 := range strings.Split(first(v), "-") {
-								links := make([]int, 0, 2)
-								for _, s2 := range strings.Split(s1, ".") {
-									if n, err := strconv.Atoi(s2); err == nil {
-										links = append(links, n)
-									} else {
-										break
-									}
-								}
-								if len(links) == 2 {
-									vv.link = append(vv.link, links)
+								if s2 := strings.Split(s1, "."); len(s2) == 2 {
+									vv.link = append(vv.link, [2]string{s2[0], s2[1]})
 								}
 							}
 						}
@@ -323,7 +345,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		}
 		switch k {
 		case paramTabNumber:
-			tabX, err = parseTabX(first(v))
+			tabX = first(v)
 		case ParamAvoidCache:
 			t.avoidCache = true
 		case ParamFromTime:
@@ -341,15 +363,21 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 				if err != nil {
 					return nil, err
 				}
+				ensureSameSourceOfVars()
 				t.by = append(t.by, tid)
 			}
 		case ParamQueryFilter:
+			ensureSameSourceOfVars()
 			t.filterIn, t.filterNotIn, err = parseQueryFilter(v)
 		case ParamQueryVerbose:
 			t.verbose = first(v) == "1"
 		case ParamQueryWhat:
 			for _, what := range v {
 				if fn, _ := ParseQueryFunc(what, &t.maxHost); fn.What != data_model.DigestUnspecified {
+					if t.sourceOfWhat != source {
+						t.what = t.what[:0]
+						t.sourceOfWhat = source
+					}
 					t.what = append(t.what, fn)
 				}
 			}
@@ -391,6 +419,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			t.yh = first(v)
 		case paramCompat:
 			t.compat = first(v) == "1"
+		case "op":
+			ord = strings.Split(first(v), ".")
 		}
 		if err != nil {
 			return nil, err
@@ -414,11 +444,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 				continue
 			}
 			tabX := link[0]
-			if tabX < 0 || len(tabs) <= tabX {
-				continue
-			}
+			tagX, _ := strconv.Atoi(link[1])
 			var (
-				tagX  = link[1]
 				tagID string
 			)
 			if tagX < 0 {
@@ -428,7 +455,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			} else {
 				continue
 			}
-			tab := &tabs[tabX]
+			tab := tabs[tabX]
 			if vv.group == "1" {
 				tab.by = append(tab.by, tagID)
 			}
@@ -469,7 +496,14 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 					t.numResults = math.MaxInt
 				}
 			}
-			if len(t.strWidth) != 0 || len(t.strWidthAgg) != 0 {
+			if len(t.strWidth) == 0 {
+				if t.strWidthAgg == "-1" {
+					t.width = 60 // a minute for "Auto (low)" resolution
+				} else {
+					t.width = 1 // a second for "Auto" resolution
+				}
+				t.widthKind = widthLODRes
+			} else {
 				t.width, t.widthKind, err = parseWidth(t.strWidth, t.strWidthAgg)
 				if err != nil {
 					return err
@@ -480,6 +514,12 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			} else {
 				t.step = int64(t.width)
 			}
+			if len(t.what) == 0 {
+				t.what = append(t.what, QueryFunc{
+					Name: ParamQueryFnCountNorm,
+					What: data_model.DigestCountSec,
+				})
+			}
 			return nil
 		}
 	)
@@ -489,12 +529,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			return nil, err
 		}
 	}
-	err = finalize(tab0)
-	if err != nil {
-		return nil, err
-	}
-	for i := range tabs[1:] {
-		t := &tabs[i+1]
+	for _, t := range tabs {
 		t.from = tab0.from
 		t.to = tab0.to
 		err = finalize(t)
@@ -503,19 +538,20 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		}
 	}
 	// build resulting slice
-	if tabX != -1 && tabX < len(tabs) {
-		if tabs[tabX].strType == "1" {
+	if tab := tabs[tabX]; tab != nil {
+		if tab.strType == "1" {
 			return nil, nil
 		}
-		return []seriesRequest{tabs[tabX].seriesRequest}, nil
+		return []seriesRequest{tab.seriesRequest}, nil
 	}
 	res = make([]seriesRequest, 0, len(tabs))
-	for i := 0; i < len(tabs) && len(res) < maxTabs; i++ {
-		if tabs[i].strType == "1" {
+	for i := 0; i < len(ord) && len(res) < maxTabs; i++ {
+		tab := tabs[ord[i]]
+		if tab.strType == "1" {
 			continue
 		}
-		if len(tabs[i].metricName) != 0 || len(tabs[i].promQL) != 0 {
-			res = append(res, tabs[i].seriesRequest)
+		if len(tab.metricName) != 0 || len(tab.promQL) != 0 {
+			res = append(res, tab.seriesRequest)
 		}
 	}
 	return res, nil

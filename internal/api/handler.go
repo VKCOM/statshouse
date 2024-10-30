@@ -288,11 +288,12 @@ type (
 
 	//easyjson:json
 	DashboardData struct {
-		Plots      []DashboardPlot     `json:"plots"`
-		Vars       []DashboardVar      `json:"variables"`
-		TabNum     int                 `json:"tabNum"`
-		TimeRange  DashboardTimeRange  `json:"timeRange"`
-		TimeShifts DashboardTimeShifts `json:"timeShifts"`
+		Plots        []DashboardPlot     `json:"plots"`
+		Vars         []DashboardVar      `json:"variables"`
+		TabNum       int                 `json:"tabNum"`
+		TimeRange    DashboardTimeRange  `json:"timeRange"`
+		TimeShifts   DashboardTimeShifts `json:"timeShifts"`
+		SearchParams [][2]string         `json:"searchParams"`
 	}
 
 	DashboardPlot struct {
@@ -308,13 +309,14 @@ type (
 		FilterNotIn map[string][]string `json:"filterNotIn"`
 		MaxHost     bool                `json:"maxHost"`
 		Type        int                 `json:"type"`
+		ID          string              `json:"id"`
 	}
 
 	DashboardVar struct {
 		Name string           `json:"name"`
 		Args DashboardVarArgs `json:"args"`
 		Vals []string         `json:"values"`
-		Link [][]int          `json:"link"`
+		Link [][2]string      `json:"link"`
 	}
 
 	DashboardVarArgs struct {
