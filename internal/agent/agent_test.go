@@ -33,28 +33,6 @@ func Benchmark_Hash(b *testing.B) {
 	}
 }
 
-func Benchmark_HashSafe(b *testing.B) {
-	var k data_model.Key
-	var result uint64
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		k.Tags[14]++
-		k.Tags[0] = int32(i)
-		result += k.HashSafe()
-	}
-}
-
-func Test_HashSafeUnsafe(t *testing.T) {
-	var k data_model.Key
-	for i := 0; i < 1000; i++ {
-		k.Tags[14]++
-		k.Tags[0] = int32(i)
-		if k.Hash() != k.HashSafe() {
-			t.Fail()
-		}
-	}
-}
-
 func Test_BelieveTimestampWindow(t *testing.T) {
 	// we shift rounded time by this amount in func (s *Shard) resolutionShardFromHashLocked,
 	// so it must be multiple of 60.
