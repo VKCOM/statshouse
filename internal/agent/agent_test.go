@@ -281,7 +281,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 		Value:   make([]float64, 1),
 	}
 	h := data_model.MappedMetricHeader{
-		MetricInfo: &format.MetricMetaValue{
+		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: 1,
 			Sharding:            []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}},
 		},
@@ -321,11 +321,11 @@ func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, upd
 	key := randKey(rng, ts, offset)
 	h := data_model.MappedMetricHeader{
 		Key: key,
-		MetricInfo: &format.MetricMetaValue{
+		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
 		},
 	}
-	h.MetricInfo = updateMeta(h.MetricInfo, key)
+	h.MetricMeta = updateMeta(h.MetricMeta, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
 
@@ -341,11 +341,11 @@ func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, upd
 	key := randKey(rng, ts, offset)
 	h := data_model.MappedMetricHeader{
 		Key: key,
-		MetricInfo: &format.MetricMetaValue{
+		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
 		},
 	}
-	h.MetricInfo = updateMeta(h.MetricInfo, key)
+	h.MetricMeta = updateMeta(h.MetricMeta, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
 
@@ -361,12 +361,12 @@ func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, up
 	key := randKey(rng, ts, offset)
 	h := data_model.MappedMetricHeader{
 		Key: key,
-		MetricInfo: &format.MetricMetaValue{
+		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: randResolution(rng),
 			ShardUniqueValues:   false, // for predictability of total sum in shards
 		},
 	}
-	h.MetricInfo = updateMeta(h.MetricInfo, key)
+	h.MetricMeta = updateMeta(h.MetricMeta, key)
 	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 }
 

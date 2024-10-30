@@ -69,7 +69,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for ; h.CheckedTagIndex < len(metric.Tags); h.CheckedTagIndex++ {
 		v := &metric.Tags[h.CheckedTagIndex]
-		tagInfo, ok, legacyName := h.MetricInfo.APICompatGetTagFromBytes(v.Key)
+		tagInfo, ok, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
 		if !ok {
 			validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
 			if err != nil {
@@ -79,7 +79,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				return true
 			}
 			v.Key = validKey
-			if _, ok := h.MetricInfo.GetTagDraft(v.Key); ok {
+			if _, ok := h.MetricMeta.GetTagDraft(v.Key); ok {
 				h.FoundDraftTagName = v.Key
 			} else {
 				h.NotFoundTagName = v.Key
