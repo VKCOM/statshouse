@@ -830,6 +830,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Le
 				}
 				in.Delim('}')
 			}
+		case "skip_mapping":
+			out.SkipMapping = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -927,6 +929,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.
 			}
 			out.RawByte('}')
 		}
+	}
+	if in.SkipMapping {
+		const prefix string = ",\"skip_mapping\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Bool(bool(in.SkipMapping))
 	}
 	out.RawByte('}')
 }
