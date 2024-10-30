@@ -57,18 +57,18 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
 	w.fillTime(args, &h)
-	if done = w.getMetricMeta(args, &h); done {
+	metaOk := w.fillMetricMeta(args, &h)
+	if metaOk {
+		h.Key.Metric = h.MetricInfo.MetricID
+		if !h.MetricInfo.Visible {
+			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
+		}
+		done = w.mapper.Map(args, h.MetricInfo, &h)
+	} else {
 		w.mapper.MapEnvironment(args.MetricBytes, &h)
-		return h, done
-	}
-	h.Key.Metric = h.MetricInfo.MetricID
-	if !h.MetricInfo.Visible {
-		w.mapper.MapEnvironment(args.MetricBytes, &h)
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
-		return h, true
+		done = true
 	}
 
-	done = w.mapper.Map(args, h.MetricInfo, &h)
 	if done {
 		if w.logPackets != nil {
 			w.printMetric("cached", *args.MetricBytes, h)
@@ -89,17 +89,17 @@ func (w *worker) fillTime(args data_model.HandlerArgs, h *data_model.MappedMetri
 	}
 }
 
-func (w *worker) getMetricMeta(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
+func (w *worker) fillMetricMeta(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (ok bool) {
 	metric := args.MetricBytes
 	metricMeta := w.metricStorage.GetMetaMetricByNameBytes(metric.Name)
 	if metricMeta != nil {
 		h.MetricInfo = metricMeta
-		return false
+		return true
 	}
 	metricMeta = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
 	if metricMeta != nil {
 		h.MetricInfo = metricMeta
-		return false
+		return true
 	}
 
 	// TODO: we use possibly invalid and non-normalized string in AutoCreate, which is strange
@@ -112,12 +112,12 @@ func (w *worker) getMetricMeta(args data_model.HandlerArgs, h *data_model.Mapped
 		metric.Name = validName
 		h.InvalidString = metric.Name
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNotFound
-		return true
+		return false
 	}
 	metric.Name = format.AppendHexStringValue(metric.Name[:0], metric.Name)
 	h.InvalidString = metric.Name
 	h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
-	return true
+	return false
 }
 
 func (w *worker) handleMappedMetricUnlocked(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
