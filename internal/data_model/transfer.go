@@ -56,7 +56,20 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 			break
 		}
 	}
-	sz := 4 + 4 + 4*i // metric, # of keys, keys
+	sz := 4 + 4 + 4*i // metric, # of tags, tags
+	i = format.MaxTags
+	for ; i != 0; i-- {
+		if len(k.STags[i-1]) != 0 {
+			break
+		}
+	}
+	// we send stags only if we have at least one
+	if i > 0 {
+		sz += 4 // # of stags
+		for ; i != 0; i-- {
+			sz += 1 + len(k.STags[i-1]) // stag len + data
+		}
+	}
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {
 		sz += 4 // timestamp
 	}
