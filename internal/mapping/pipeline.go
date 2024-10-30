@@ -117,9 +117,9 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.SetKey(tagMeta.Index, id, tagIDKey)
+			h.SetTag(tagMeta.Index, id, tagIDKey)
 		case len(v.Value) == 0: // TODO - move knowledge about "" <-> 0 mapping to more general place
-			h.SetKey(tagMeta.Index, 0, tagIDKey) // we interpret "0" => "vasya", "0" => "" as second one overriding the first, generating a warning
+			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "0" => "vasya", "0" => "" as second one overriding the first, generating a warning
 		default:
 			if !cached { // We need to map single tag and exit. Slow path.
 				extra := format.CreateMappingExtra{ // Host and AgentEnv are added by source when sending
@@ -133,7 +133,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 					h.CheckedTagIndex++
 					return true
 				}
-				h.SetKey(tagMeta.Index, id, tagIDKey)
+				h.SetTag(tagMeta.Index, id, tagIDKey)
 				h.CheckedTagIndex++          // CheckedTagIndex is advanced each time we return, so early or later mapStatusDone is returned
 				h.IngestionTagKey = tagIDKey // so we know which tag causes "uncached" status
 				return false
@@ -147,7 +147,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			if !found {
 				return false
 			}
-			h.SetKey(tagMeta.Index, id, tagIDKey)
+			h.SetTag(tagMeta.Index, id, tagIDKey)
 		}
 	}
 	// We validate values here, because we want errors to contain metric ID
