@@ -189,7 +189,10 @@
   visibility: hidden;
 }
 
-.selectItem:hover .hoverVisible,
-.selectCursor:hover .hoverVisible {
+.selectItem:hover .hoverVisible {
+  visibility: visible;
+}
+
+.selectCursor .hoverVisible {
   visibility: visible;
 }
