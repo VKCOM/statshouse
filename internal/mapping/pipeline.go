@@ -69,7 +69,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for ; h.CheckedTagIndex < len(metric.Tags); h.CheckedTagIndex++ {
 		v := &metric.Tags[h.CheckedTagIndex]
-		tagInfo, ok, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
+		tagMeta, ok, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
 		if !ok {
 			validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
 			if err != nil {
@@ -90,7 +90,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			}
 			continue
 		}
-		tagIDKey := int32(tagInfo.Index + format.TagIDShift)
+		tagIDKey := int32(tagMeta.Index + format.TagIDShift)
 		if legacyName {
 			h.LegacyCanonicalTagKey = tagIDKey
 		}
@@ -103,13 +103,13 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		}
 		v.Value = validValue
 		switch {
-		case tagInfo.Index == format.StringTopTagIndex:
+		case tagMeta.Index == format.StringTopTagIndex:
 			h.SValue = v.Value
 			if h.IsSKeySet {
 				h.TagSetTwiceKey = tagIDKey
 			}
 			h.IsSKeySet = true
-		case tagInfo.Raw:
+		case tagMeta.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value)) // TODO - remove allocation in case of error
 			if !ok {
 				h.InvalidRawValue = v.Value
@@ -117,9 +117,9 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.SetKey(tagInfo.Index, id, tagIDKey)
+			h.SetKey(tagMeta.Index, id, tagIDKey)
 		case len(v.Value) == 0: // TODO - move knowledge about "" <-> 0 mapping to more general place
-			h.SetKey(tagInfo.Index, 0, tagIDKey) // we interpret "0" => "vasya", "0" => "" as second one overriding the first, generating a warning
+			h.SetKey(tagMeta.Index, 0, tagIDKey) // we interpret "0" => "vasya", "0" => "" as second one overriding the first, generating a warning
 		default:
 			if !cached { // We need to map single tag and exit. Slow path.
 				extra := format.CreateMappingExtra{ // Host and AgentEnv are added by source when sending
@@ -133,7 +133,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 					h.CheckedTagIndex++
 					return true
 				}
-				h.SetKey(tagInfo.Index, id, tagIDKey)
+				h.SetKey(tagMeta.Index, id, tagIDKey)
 				h.CheckedTagIndex++          // CheckedTagIndex is advanced each time we return, so early or later mapStatusDone is returned
 				h.IngestionTagKey = tagIDKey // so we know which tag causes "uncached" status
 				return false
@@ -147,7 +147,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			if !found {
 				return false
 			}
-			h.SetKey(tagInfo.Index, id, tagIDKey)
+			h.SetKey(tagMeta.Index, id, tagIDKey)
 		}
 	}
 	// We validate values here, because we want errors to contain metric ID
