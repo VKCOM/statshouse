@@ -59,11 +59,11 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	w.fillTime(args, &h)
 	metaOk := w.fillMetricMeta(args, &h)
 	if metaOk {
-		h.Key.Metric = h.MetricInfo.MetricID
-		if !h.MetricInfo.Visible {
+		h.Key.Metric = h.MetricMeta.MetricID
+		if !h.MetricMeta.Visible {
 			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricInvisible
 		}
-		done = w.mapper.Map(args, h.MetricInfo, &h)
+		done = w.mapper.Map(args, h.MetricMeta, &h)
 	} else {
 		w.mapper.MapEnvironment(args.MetricBytes, &h)
 		done = true
@@ -93,12 +93,12 @@ func (w *worker) fillMetricMeta(args data_model.HandlerArgs, h *data_model.Mappe
 	metric := args.MetricBytes
 	metricMeta := w.metricStorage.GetMetaMetricByNameBytes(metric.Name)
 	if metricMeta != nil {
-		h.MetricInfo = metricMeta
+		h.MetricMeta = metricMeta
 		return true
 	}
 	metricMeta = format.BuiltinMetricAllowedToReceive[string(metric.Name)]
 	if metricMeta != nil {
-		h.MetricInfo = metricMeta
+		h.MetricMeta = metricMeta
 		return true
 	}
 

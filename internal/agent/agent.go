@@ -512,7 +512,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		return
 	}
 	keyHash := h.Key.Hash()
-	shardId, strategy, err := sharding.Shard(h.Key, keyHash, h.MetricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, strategy, err := sharding.Shard(h.Key, keyHash, h.MetricMeta, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		s.AddCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
@@ -589,7 +589,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		// if we shard by metric all values of a given metric will go to the same shard anyway,
 		// so there is no need for special sharding for unique values
 		numShards := s.NumShards()
-		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 && strategy == format.ShardBy16MappedTagsHashId {
+		if h.MetricMeta != nil && h.MetricMeta.ShardUniqueValues && numShards > 1 && strategy == format.ShardBy16MappedTagsHashId {
 			// we want unique value sets to have no intersections
 			// so we first shard by unique value, then shard among 3 replicas by keys
 			skipShards := int(s.skipShards.Load())
@@ -601,7 +601,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			if len(m.Unique) == 1 { // very common case, optimize
 				uniqueShard := int(m.Unique[0] % int64(notSkippedShards)) // TODO - optimize %
 				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+				shard2.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
 				return
 			}
 			uniqueValuesCache := shard.getUniqueValuesCache(notSkippedShards) // TOO - better reuse without lock?
@@ -615,18 +615,18 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 					continue
 				}
 				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(h.Key, keyHash, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricInfo)
+				shard2.ApplyUnique(h.Key, keyHash, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricMeta)
 			}
 			return
 		}
-		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
 		return
 	}
 	if len(m.Histogram) != 0 || len(m.Value) != 0 {
-		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta)
 		return
 	}
-	shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
+	shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricMeta)
 }
 
 // count should be > 0 and not NaN
