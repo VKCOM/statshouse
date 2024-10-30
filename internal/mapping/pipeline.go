@@ -103,6 +103,8 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		}
 		v.Value = validValue
 		switch {
+		case tagMeta.SkipMapping:
+			h.SetSTag(tagMeta.Index, string(v.Value), tagIDKey)
 		case tagMeta.Index == format.StringTopTagIndex:
 			h.SValue = v.Value
 			if h.IsSKeySet {

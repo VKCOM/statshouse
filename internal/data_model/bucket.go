@@ -25,7 +25,8 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Tags      [format.MaxTags]int32 // Unused tags are set to special 0-value
+		Tags      [format.MaxTags]int32  // Unused tags are set to special 0-value
+		STags     [format.MaxTags]string // Unused stags are set to empty string
 	}
 
 	ItemCounter struct {
