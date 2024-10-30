@@ -147,6 +147,7 @@ const (
 	BuiltinMetricIDApiHeapSys                = -123
 	BuiltinMetricIDApiHeapIdle               = -124
 	BuiltinMetricIDApiHeapInuse              = -125
+	BuiltinMetricIDClientWriteError          = -126
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -208,6 +209,7 @@ const (
 	BuiltinMetricNameProxyHeapSys               = "__igp_heap_sys"
 	BuiltinMetricNameProxyHeapIdle              = "__igp_heap_idle"
 	BuiltinMetricNameProxyHeapInuse             = "__igp_heap_inuse"
+	BuiltinMetricNameClientWriteError           = "__src_client_write_err"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -2446,6 +2448,22 @@ Value is delta between second value and time it was inserted.`,
 				Description: "host",
 			}},
 		},
+		BuiltinMetricIDClientWriteError: {
+			Name:        BuiltinMetricNameClientWriteError,
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: "Bytes lost on StatsHouse clients.",
+			Tags: []MetricMetaTag{{
+				Description: "lang",
+				ValueComments: convertToValueComments(map[int32]string{
+					1: "golang",
+				})}, {
+				Description: "cause",
+				ValueComments: convertToValueComments(map[int32]string{
+					1: "would_block",
+				})},
+			},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2499,6 +2517,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDApiHeapSys:                 true,
 		BuiltinMetricIDApiHeapIdle:                true,
 		BuiltinMetricIDApiHeapInuse:               true,
+		BuiltinMetricIDClientWriteError:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -2626,6 +2645,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDApiHeapSys:                 true,
 		BuiltinMetricIDApiHeapIdle:                true,
 		BuiltinMetricIDApiHeapInuse:               true,
+		BuiltinMetricIDClientWriteError:           true,
 	}
 
 	insertKindToValue = map[int32]string{
