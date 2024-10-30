@@ -24,7 +24,7 @@ export const SelectMetricRow = memo(function _SelectMetricRow<T extends SelectOp
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    onChecked(index, undefined, true, false);
+    onChecked(index, undefined, true, true);
     event.stopPropagation();
   };
 
