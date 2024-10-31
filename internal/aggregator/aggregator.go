@@ -693,11 +693,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				break
 			}
 		}
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], false, 0)
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], false)
 
 		a.configMu.RLock()
 		mirrorChWrite := a.configR.MirrorChWrite
-		stringTagProb := a.configR.StringTagProb
 		a.configMu.RUnlock()
 
 		// Never empty, because adds value stats
@@ -748,7 +747,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
 
 		if mirrorChWrite {
-			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], true, stringTagProb)
+			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], true)
 			status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getNewTableDesc(), bodyStorage)
 			cancelSendToCh()
 			if sendErr != nil {
