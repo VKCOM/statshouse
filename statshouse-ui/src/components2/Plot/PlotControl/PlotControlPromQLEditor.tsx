@@ -11,8 +11,9 @@ import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
-import { type PlotKey } from 'url2';
+import { getNewPlot, type PlotKey } from 'url2';
 import { useStatsHouseShallow } from 'store2';
+import { PrometheusSwitch } from './PrometheusSwitch';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
   <div className="input-group">
@@ -30,23 +31,31 @@ export type PlotControlPromQLEditorProps = {
   className?: string;
   plotKey: PlotKey;
 };
+
+const { prometheusCompat: defaultPrometheusCompat } = getNewPlot();
+
 export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlPromQLEditorProps) {
-  const { promQLParam, promqlExpand, togglePromqlExpand, setPlot } = useStatsHouseShallow(
+  const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(
     ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
       promQLParam: plots[plotKey]?.promQL ?? '',
       promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
+      prometheusCompat: plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
       togglePromqlExpand,
       setPlot,
     })
   );
+
   const [promQL, setPromQL] = useState(promQLParam);
   const promQlRef = useStateToRef(promQL);
+
   const resetPromQL = useCallback(() => {
     setPromQL(promQLParam);
   }, [promQLParam]);
+
   const onTogglePromqlExpand = useCallback(() => {
     togglePromqlExpand(plotKey);
   }, [plotKey, togglePromqlExpand]);
+
   const sendPromQL = useCallback(() => {
     setPlot(plotKey, (p) => {
       p.promQL = promQlRef.current;
@@ -56,6 +65,15 @@ export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlProm
   useEffect(() => {
     setPromQL(promQLParam);
   }, [promQLParam]);
+
+  const setPrometheusCompat = useCallback(
+    (status: boolean) => {
+      setPlot(plotKey, (p) => {
+        p.prometheusCompat = status;
+      });
+    },
+    [plotKey, setPlot]
+  );
 
   return (
     <div className={cn('d-flex flex-column gap-2', className)}>
@@ -74,6 +92,7 @@ export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlProm
           <SVGArrowCounterclockwise />
         </Button>
         <span className="flex-grow-1"></span>
+        <PrometheusSwitch prometheusCompat={prometheusCompat} setPrometheusCompat={setPrometheusCompat} />
         <Button type="button" className="btn btn-outline-primary" onClick={sendPromQL}>
           Run
         </Button>
