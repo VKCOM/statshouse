@@ -61,13 +61,14 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 }
 
 func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
+	sz := 4 // field mask
 	i := format.MaxTags
 	for ; i != 0; i-- {
 		if k.Tags[i-1] != 0 {
 			break
 		}
 	}
-	sz := 4 + 4 + 4*i // metric, # of tags, tags
+	sz += 4 + 4 + 4*i // metric, # of tags, tags
 	i = format.MaxTags
 	for ; i != 0; i-- {
 		if len(k.STags[i-1]) != 0 {
@@ -78,7 +79,9 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	if i > 0 {
 		sz += 4 // # of stags
 		for ; i != 0; i-- {
-			sz += 1 + len(k.STags[i-1]) // stag len + data
+			l := 1 + len(k.STags[i-1]) // stag len + data
+			l += (4 - l%4) % 4         // align to 4 bytes
+			sz += l
 		}
 	}
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {
