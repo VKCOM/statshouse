@@ -57,6 +57,11 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 	}
 	key.Metric = item.Metric
 	copy(key.Tags[:], item.Keys)
+	if item.IsSetSkeys() {
+		for i := range item.Skeys {
+			key.STags[i] = string(item.Skeys[i])
+		}
+	}
 	return key, int(sID)
 }
 
