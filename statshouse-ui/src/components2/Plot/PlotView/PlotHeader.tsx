@@ -25,7 +25,6 @@ import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
 import { PlotLink } from '../PlotLink';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
-import Markdown from 'react-markdown';
 
 export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
 
@@ -131,10 +130,10 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
     setEditTitle(false);
   });
 
-  const plotTooltip = useMemo(() => {
-    const desc = description || '';
-    return <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={desc} />;
-  }, [description, plotKey]);
+  const plotTooltip = useMemo(
+    () => <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={description || ''} />,
+    [description, plotKey]
+  );
 
   if (isDashboard) {
     return (
@@ -221,7 +220,7 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            <Markdown>{description}</Markdown>
+            <>{description}</>
           </small>
         )}
       </div>
@@ -313,9 +312,9 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             autoHeight
           />
         ) : (
-          <Tooltip className="d-flex" title={<Markdown>{description}</Markdown>} hover>
+          <Tooltip className="d-flex" title={description} hover>
             <small className="text-secondary w-0 flex-grow-1 text-truncate no-tooltip-safari-fix">
-              <Markdown>{description}</Markdown>
+              <>{description}</>
             </small>
           </Tooltip>
         ))}
