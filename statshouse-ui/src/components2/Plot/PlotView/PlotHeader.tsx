@@ -25,6 +25,7 @@ import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
 import { PlotLink } from '../PlotLink';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
+import Markdown from 'react-markdown';
 
 export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
 
@@ -51,26 +52,28 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
         };
       }
     );
+
+  const description = plot?.customDescription || meta?.description;
   const compact = isDashboard || isEmbed;
   const id = useId();
 
+  const formRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const formTextAreaRef = useRef(null);
+  const autoSaveTimer = useRef<NodeJS.Timeout>();
+
+  const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
+  const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
+
   const [editTitle, setEditTitle] = useState(false);
   const [showTags, setShowTags] = useState(false);
+  const [localCustomName, setLocalCustomName] = useState(plot?.customName || metricFullName);
+  const [localCustomDescription, setLocalCustomDescription] = useState(plot?.customDescription ?? '');
 
   const toggleShowTags = useCallback(() => {
     setShowTags((s) => !s);
   }, []);
 
-  const formRef = useRef(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const formTextAreaRef = useRef(null);
-  const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
-
-  const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
-
-  const [localCustomName, setLocalCustomName] = useState(plot?.customName || metricFullName);
-  const [localCustomDescription, setLocalCustomDescription] = useState(plot?.customDescription ?? '');
-  const autoSaveTimer = useRef<NodeJS.Timeout>();
   const setCustomName = useCallback(
     (customName: string) => {
       setLocalCustomName(customName);
@@ -91,10 +94,11 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
   const onRemove = useCallback(() => {
     removePlot(plotKey);
   }, [plotKey, removePlot]);
+
   const onEdit = useCallback(
     (e: React.MouseEvent) => {
       setLocalCustomName(plot?.customName || metricFullName);
-      setLocalCustomDescription(plot?.customDescription || meta?.description || '');
+      setLocalCustomDescription(description || '');
       setEditTitle(true);
       setTimeout(() => {
         if (inputRef.current) {
@@ -104,7 +108,7 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
       }, 0);
       e.stopPropagation();
     },
-    [meta?.description, metricFullName, plot?.customDescription, plot?.customName]
+    [metricFullName, description, plot?.customName]
   );
 
   const onSave = useCallback(
@@ -128,9 +132,9 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
   });
 
   const plotTooltip = useMemo(() => {
-    const desc = plot?.customDescription || meta?.description || '';
+    const desc = description || '';
     return <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={desc} />;
-  }, [meta?.description, plot?.customDescription, plotKey]);
+  }, [description, plotKey]);
 
   if (isDashboard) {
     return (
@@ -217,7 +221,7 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            {plot?.customDescription || meta?.description}
+            <Markdown>{description}</Markdown>
           </small>
         )}
       </div>
@@ -309,9 +313,9 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             autoHeight
           />
         ) : (
-          <Tooltip className="d-flex" title={plot?.customDescription || meta?.description} hover>
+          <Tooltip className="d-flex" title={<Markdown>{description}</Markdown>} hover>
             <small className="text-secondary w-0 flex-grow-1 text-truncate no-tooltip-safari-fix">
-              {plot?.customDescription || meta?.description}
+              <Markdown>{description}</Markdown>
             </small>
           </Tooltip>
         ))}
