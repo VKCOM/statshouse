@@ -10,6 +10,7 @@ import cn from 'classnames';
 import { Tooltip } from 'components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
 import { useStatsHouseShallow } from 'store2';
+import Markdown from 'react-markdown';
 
 export function _DashboardName() {
   const { dashboardName, dashboardDescription } = useStatsHouseShallow(
@@ -33,7 +34,9 @@ export function _DashboardName() {
           {!!dashboardDescription && ':'}
         </div>
         {!!dashboardDescription && (
-          <div className="text-secondary flex-grow-1 w-0 overflow-hidden text-truncate">{dashboardDescription}</div>
+          <div className="text-secondary flex-grow-1 w-0 overflow-hidden text-truncate">
+            <Markdown>{dashboardDescription}</Markdown>
+          </div>
         )}
       </Tooltip>
     </div>

@@ -4,19 +4,30 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from 'classnames';
+import Markdown from 'react-markdown';
 
-export type PlotHeaderTooltipContentProps = { name: React.ReactNode; description?: string };
+export type PlotHeaderTooltipContentProps = {
+  name: React.ReactNode;
+  description?: string;
+};
+
 export function PlotHeaderTooltipContent({ name, description }: PlotHeaderTooltipContentProps) {
+  const hasDescription = !!description;
+
   return (
     <div className="small text-secondary overflow-auto">
-      <div className={cn('font-monospace fw-bold', description && 'mb-3')}>{name}</div>
-      {!!description && <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>{description}</div>}
-      {!!description && (
-        <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
-          {description}
-        </div>
+      <div className={cn('font-monospace fw-bold', hasDescription && 'mb-3')}>{name}</div>
+      {hasDescription && (
+        <>
+          <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>
+            <Markdown>{description}</Markdown>
+          </div>
+          <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
+            <Markdown>{description}</Markdown>
+          </div>
+        </>
       )}
     </div>
   );
