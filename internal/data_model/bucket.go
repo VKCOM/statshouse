@@ -25,8 +25,12 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Tags      [format.MaxTags]int32  // Unused tags are set to special 0-value
-		STags     [format.MaxTags]string // Unused stags are set to empty string
+		Tags      [format.MaxTags]int32 // Unused tags are set to special 0-value
+		sTags     *sTagsHolder          // If no stags are used then nil
+	}
+
+	sTagsHolder struct {
+		values [format.MaxTags]string
 	}
 
 	ItemCounter struct {
@@ -71,6 +75,34 @@ const sipKeyA = 0x3605bf49d8e3adf2
 const sipKeyB = 0xc302580679a8cef2
 
 func (s *ItemCounter) Count() float64 { return s.counter }
+
+func (k *Key) SetSTag(i int, s string) {
+	if k.sTags == nil {
+		k.sTags = new(sTagsHolder)
+	}
+	k.sTags.values[i] = s
+}
+
+func (k *Key) GetSTag(i int) string {
+	if k.sTags == nil {
+		return ""
+	}
+	return k.sTags.values[i]
+}
+
+func (k *Key) STagSlice() []string {
+	if k.sTags == nil {
+		return []string{}
+	}
+	result := append([]string{}, k.sTags.values[:]...)
+	i := format.MaxTags
+	for ; i != 0; i-- {
+		if len(result[i-1]) != 0 {
+			break
+		}
+	}
+	return result[:i]
+}
 
 func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,

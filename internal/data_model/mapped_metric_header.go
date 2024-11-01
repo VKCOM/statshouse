@@ -69,7 +69,7 @@ func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
 }
 
 func (h *MappedMetricHeader) SetSTag(index int, value string, tagIDKey int32) {
-	h.Key.STags[index] = value
+	h.Key.SetSTag(index, value)
 	if h.IsTagSet[index] {
 		h.TagSetTwiceKey = tagIDKey
 	}

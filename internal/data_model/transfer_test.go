@@ -50,14 +50,14 @@ func genKey() *rapid.Generator[Key] {
 			// STags already initialized as empty strings
 		case 1: // One non-empty
 			idx := rapid.IntRange(0, format.MaxTags-1).Draw(t, "stag_index")
-			key.STags[idx] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
+			key.SetSTag(idx, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
 		case 2: // Half filled
 			for i := 0; i < format.MaxTags/2; i++ {
-				key.STags[i] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
+				key.SetSTag(i, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
 			}
 		case 3: // All filled
-			for i := range key.STags {
-				key.STags[i] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
+			for i := range key.Tags {
+				key.SetSTag(i, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
 			}
 		}
 
@@ -117,13 +117,13 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 		{
 			name: "Single STag",
 			key: Key{
-				STags: [format.MaxTags]string{"test"},
+				sTags: &sTagsHolder{[format.MaxTags]string{"test"}},
 			},
 		},
 		{
 			name: "Single STag max length",
 			key: Key{
-				STags: [format.MaxTags]string{strings.Repeat("a", maxSTagLength)},
+				sTags: &sTagsHolder{[format.MaxTags]string{strings.Repeat("a", maxSTagLength)}},
 			},
 		},
 		{
@@ -132,12 +132,12 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 				Timestamp: 12345,
 				Metric:    67890,
 				Tags:      [format.MaxTags]int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-				STags: func() [format.MaxTags]string {
-					var stags [format.MaxTags]string
-					for i := range stags {
-						stags[i] = strings.Repeat("a", maxSTagLength)
+				sTags: func() *sTagsHolder {
+					var stags sTagsHolder
+					for i := 0; i < format.MaxTags; i++ {
+						stags.values[i] = strings.Repeat("a", maxSTagLength)
 					}
-					return stags
+					return &stags
 				}(),
 			},
 		},
@@ -151,12 +151,12 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 		{
 			name: "Mixed length STags",
 			key: Key{
-				STags: func() [format.MaxTags]string {
-					var stags [format.MaxTags]string
-					for i := range stags {
-						stags[i] = strings.Repeat("a", i) // Different lengths: 0, 8, 16, ...
+				sTags: func() *sTagsHolder {
+					var stags sTagsHolder
+					for i := 0; i < format.MaxTags; i++ {
+						stags.values[i] = strings.Repeat("a", i)
 					}
-					return stags
+					return &stags
 				}(),
 			},
 		},
@@ -235,7 +235,7 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 		// Verify key components
 		require.Equal(t, originalKey.Metric, reconstructedKey.Metric, "Metrics should match")
 		require.Equal(t, originalKey.Tags, reconstructedKey.Tags, "Tags should match")
-		require.Equal(t, originalKey.STags, reconstructedKey.STags, "STags should match")
+		require.Equal(t, originalKey.sTags, reconstructedKey.sTags, "STags should match")
 		timestampValid(t, originalKey.Timestamp, newestTime, reconstructedKey.Timestamp, bucketTimestamp)
 	})
 }

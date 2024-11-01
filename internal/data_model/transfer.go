@@ -28,17 +28,6 @@ func (k *Key) TagSlice() []int32 {
 	return result[:i]
 }
 
-func (k *Key) STagSlice() []string {
-	result := append([]string{}, k.STags[:]...)
-	i := format.MaxTags
-	for ; i != 0; i-- {
-		if len(result[i-1]) != 0 {
-			break
-		}
-	}
-	return result[:i]
-}
-
 func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key Key, shardID int) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	sID := item.FieldsMask >> 24
@@ -59,7 +48,7 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 	copy(key.Tags[:], item.Keys)
 	if item.IsSetSkeys() {
 		for i := range item.Skeys {
-			key.STags[i] = string(item.Skeys[i])
+			key.SetSTag(i, string(item.Skeys[i]))
 		}
 	}
 	return key, int(sID)
@@ -76,7 +65,7 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	sz += 4 + 4 + 4*i // metric, # of tags, tags
 	i = format.MaxTags
 	for ; i != 0; i-- {
-		if len(k.STags[i-1]) != 0 {
+		if len(k.GetSTag(i-1)) != 0 {
 			break
 		}
 	}
@@ -84,8 +73,8 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	if i > 0 {
 		sz += 4 // # of stags
 		for ; i != 0; i-- {
-			l := 1 + len(k.STags[i-1]) // stag len + data
-			l += (4 - l%4) % 4         // align to 4 bytes
+			l := 1 + len(k.GetSTag(i-1)) // stag len + data
+			l += (4 - l%4) % 4           // align to 4 bytes
 			sz += l
 		}
 	}
