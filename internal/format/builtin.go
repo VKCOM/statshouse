@@ -1034,6 +1034,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_mapping_time",
 			Kind:        MetricKindValue,
 			Description: "Time and status of mapping request.\nWritten by agent.",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "mapper",
 				ValueComments: convertToValueComments(map[int32]string{
