@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
-import Markdown from 'react-markdown';
 
 export type DashboardNameTitleProps = {
   name: string;
@@ -22,10 +21,10 @@ export function DashboardNameTitle({ name, description }: DashboardNameTitleProp
       {!!description && (
         <>
           <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>
-            <Markdown>{description}</Markdown>
+            <>{description}</>
           </div>
           <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
-            <Markdown>{description}</Markdown>
+            <>{description}</>
           </div>
         </>
       )}
