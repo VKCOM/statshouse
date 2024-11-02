@@ -14,7 +14,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	_ "net/http/pprof" // pprof HTTP handlers
 	"os"
 	"os/signal"
 	"strings"
@@ -396,6 +395,17 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(api.HandlePromLabelValuesQuery)
 	m.Path("/prom/api/v1/series").Methods("GET").HandlerFunc(api.HandlePromSeriesQuery)
 	m.Path("/prom/api/v1/series").Methods("POST").HandlerFunc(api.HandlePromSeriesQuery)
+	m.Path("/debug/pprof/").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/allocs").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/block").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/cmdline").Methods("GET").HandlerFunc(api.HandleProfCmdline)
+	m.Path("/debug/pprof/goroutine").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/heap").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/mutex").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/profile").Methods("GET").HandlerFunc(api.HandleProfProfile)
+	m.Path("/debug/pprof/threadcreate").Methods("GET").HandlerFunc(api.HandleProf)
+	m.Path("/debug/pprof/trace").Methods("GET").HandlerFunc(api.HandleProfTrace)
+	m.Path("/debug/pprof/symbol").Methods("GET").HandlerFunc(api.HandleProfSymbol)
 	m.Router.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
