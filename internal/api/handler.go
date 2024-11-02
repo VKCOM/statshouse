@@ -18,6 +18,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"runtime"
 	"sort"
@@ -3357,4 +3358,46 @@ func (h *HTTPRequestHandler) parseAccessToken(r *http.Request) (err error) {
 	h.accessInfo, err = parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
 	h.endpointStat.setAccessInfo(h.accessInfo)
 	return err
+}
+
+func HandleProf(w *HTTPRequestHandler, r *http.Request) {
+	if pprofAccessAllowed(w, r) {
+		pprof.Index(w, r)
+	}
+}
+
+func HandleProfCmdline(w *HTTPRequestHandler, r *http.Request) {
+	if pprofAccessAllowed(w, r) {
+		pprof.Cmdline(w, r)
+	}
+}
+
+func HandleProfProfile(w *HTTPRequestHandler, r *http.Request) {
+	if pprofAccessAllowed(w, r) {
+		pprof.Profile(w, r)
+	}
+}
+
+func HandleProfSymbol(w *HTTPRequestHandler, r *http.Request) {
+	if pprofAccessAllowed(w, r) {
+		pprof.Symbol(w, r)
+	}
+}
+
+func HandleProfTrace(w *HTTPRequestHandler, r *http.Request) {
+	if pprofAccessAllowed(w, r) {
+		pprof.Trace(w, r)
+	}
+}
+
+func pprofAccessAllowed(w *HTTPRequestHandler, r *http.Request) bool {
+	if err := w.parseAccessToken(r); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return false
+	}
+	if ok := w.accessInfo.insecureMode || w.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return false
+	}
+	return true
 }
