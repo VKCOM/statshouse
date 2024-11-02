@@ -200,6 +200,11 @@ type (
 		bufferPoolBytesAlloc  statshouse.MetricRef
 		bufferPoolBytesFree   statshouse.MetricRef
 		bufferPoolBytesTotal  statshouse.MetricRef
+
+		// Internal Server Errors
+		errorsMu sync.RWMutex
+		errors   [32]error500
+		errorX   int
 	}
 
 	//easyjson:json

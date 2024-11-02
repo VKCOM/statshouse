@@ -406,6 +406,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.Path("/debug/pprof/threadcreate").Methods("GET").HandlerFunc(api.HandleProf)
 	m.Path("/debug/pprof/trace").Methods("GET").HandlerFunc(api.HandleProfTrace)
 	m.Path("/debug/pprof/symbol").Methods("GET").HandlerFunc(api.HandleProfSymbol)
+	m.Path("/debug/500").Methods("GET").HandlerFunc(api.DumpInternalServerErrors)
 	m.Router.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)

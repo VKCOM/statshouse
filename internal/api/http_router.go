@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,12 @@ type HTTPRequestHandler struct {
 	endpointStat   endpointStat
 	statusCode     int
 	statusCodeSent bool
+}
+
+type error500 struct {
+	time  time.Time
+	what  any
+	stack []byte
 }
 
 func (r Router) Path(tpl string) *Route {
@@ -105,8 +112,35 @@ func (r *Route) reportStatistics(w *HTTPRequestHandler) {
 		if !w.statusCodeSent {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
+		v := error500{time.Now(), err, debug.Stack()}
+		w.errorsMu.Lock()
+		w.errors[w.errorX] = v
+		w.errorX = (w.errorX + 1) % len(w.errors)
+		w.errorsMu.Unlock()
 	}
 	w.endpointStat.report(w.statusCode, format.BuiltinMetricNameAPIResponseTime)
+}
+
+func DumpInternalServerErrors(w *HTTPRequestHandler, r *http.Request) {
+	if err := w.parseAccessToken(r); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if ok := w.accessInfo.insecureMode || w.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.errorsMu.RLock()
+	defer w.errorsMu.RUnlock()
+	for i := 0; i < len(w.errors) && w.errors[i].what != nil; i++ {
+		w.Write([]byte("# \n"))
+		w.Write([]byte(fmt.Sprintf("# %s \n", w.errors[i].what)))
+		w.Write([]byte("# " + w.errors[i].time.Format(time.RFC3339) + " \n"))
+		w.Write([]byte("# \n"))
+		w.Write(w.errors[i].stack)
+		w.Write([]byte("\n"))
+	}
 }
 
 func (h *HTTPRequestHandler) Header() http.Header {
