@@ -461,6 +461,9 @@ func GetLODs(args GetTimescaleArgs) ([]LOD, error) {
 }
 
 func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD {
+	if len(t.Time) == 0 {
+		return nil
+	}
 	start := t.Time[0]
 	if offset != 0 {
 		start = startOfLOD(start-offset, t.LODs[0].Step, t.Location, t.UTCOffset)
