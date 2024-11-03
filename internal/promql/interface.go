@@ -133,6 +133,12 @@ type Handler interface {
 
 	Alloc(int) *[]float64
 	Free(*[]float64)
+
+	//
+	// # Trace
+	//
+
+	Tracef(format string, a ...any)
 }
 
 // Used by 'Handler' implementation to signal that entity requested was just not found

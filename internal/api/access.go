@@ -17,19 +17,18 @@ import (
 )
 
 type accessInfo struct {
-	user                 string
-	service              bool
-	insecureMode         bool // full access to everything; can not be obtained from bits
-	protectedPrefixes    []string
-	bitAdmin             bool
-	bitDeveloper         bool
-	bitViewDefault       bool
-	bitEditDefault       bool
-	bitViewPrefix        map[string]bool
-	bitEditPrefix        map[string]bool
-	bitViewMetric        map[string]bool
-	bitEditMetric        map[string]bool
-	skipBadgesValidation bool
+	user              string
+	service           bool
+	insecureMode      bool // full access to everything; can not be obtained from bits
+	protectedPrefixes []string
+	bitAdmin          bool
+	bitDeveloper      bool
+	bitViewDefault    bool
+	bitEditDefault    bool
+	bitViewPrefix     map[string]bool
+	bitEditPrefix     map[string]bool
+	bitViewMetric     map[string]bool
+	bitEditMetric     map[string]bool
 }
 
 func parseAccessToken(jwtHelper *vkuth.JWTHelper,
@@ -122,9 +121,6 @@ func (ai *accessInfo) protectedMetric(name string) bool {
 }
 
 func (ai *accessInfo) CanViewMetricName(name string) bool {
-	if name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
-		return true
-	}
 	if ai.insecureMode {
 		return true
 	}

@@ -67,6 +67,7 @@ type Options struct {
 	MaxHost          bool
 	QuerySequential  bool
 	Compat           bool // Prometheus compatibilty mode
+	Debug            bool // trace verbose
 	Offsets          []int64
 	GroupBy          []string
 	Limit            int
@@ -88,13 +89,13 @@ type Variable struct {
 }
 
 type Engine struct {
-	Handler
 	location  *time.Location
 	utcOffset int64
 }
 
 type evaluator struct {
 	Engine
+	Handler
 	data_model.QueryStat
 
 	ctx context.Context
@@ -117,27 +118,13 @@ type evaluator struct {
 	cancellationList []func()
 
 	// diagnostics
-	trace              *[]string
-	debug              bool
 	timeStart          time.Time
 	timeQueryParseEnd  time.Time
 	dataAccessDuration time.Duration
 }
 
-type contextKey int
-
-type traceContext struct {
-	s *[]string // sink
-	v bool      // verbose
-}
-
-const (
-	offsetContextKey contextKey = iota
-	traceContextKey
-)
-
-func NewEngine(h Handler, loc *time.Location, utcOffset int64) Engine {
-	return Engine{h, loc, utcOffset}
+func NewEngine(loc *time.Location, utcOffset int64) Engine {
+	return Engine{location: loc, utcOffset: utcOffset}
 }
 
 func GetMetricNameMatchers(expr string, res []*labels.Matcher) ([]*labels.Matcher, error) {
@@ -159,9 +146,9 @@ func GetMetricNameMatchers(expr string, res []*labels.Matcher) ([]*labels.Matche
 	return res, nil
 }
 
-func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
+func (ng Engine) Exec(ctx context.Context, h Handler, qry Query) (parser.Value, func(), error) {
 	// parse query
-	ev, err := ng.newEvaluator(ctx, qry)
+	ev, err := ng.newEvaluator(ctx, h, qry)
 	if err != nil {
 		return nil, nil, Error{what: err}
 	}
@@ -172,11 +159,9 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), err
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
 	}
 	// evaluate query
-	if ev.trace != nil {
-		*ev.trace = append(*ev.trace, ev.ast.String())
-		if ev.debug {
-			ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
-		}
+	ev.Tracef(ev.ast.String())
+	if ev.opt.Debug {
+		ev.Tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
 	}
 	var ok bool
 	defer func() {
@@ -194,15 +179,13 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), err
 			tg.stringify(&ev)
 		}
 	}
-	if ev.trace != nil {
-		ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
-	}
+	ev.Tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
 	ev.reportStat(qry, time.Now())
 	ok = true // prevents deffered "cancel"
 	return &res, ev.cancel, nil
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
+func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evaluator, error) {
 	timeStart := time.Now()
 	if qry.Options.TimeNow == 0 {
 		// fix the time "now"
@@ -214,14 +197,10 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}
 	ev := evaluator{
 		Engine:    ng,
+		Handler:   h,
 		ctx:       ctx,
 		opt:       qry.Options,
 		timeStart: timeStart,
-	}
-	// init diagnostics
-	if v, ok := ctx.Value(traceContextKey).(*traceContext); ok {
-		ev.trace = v.s
-		ev.debug = v.v
 	}
 	// parse PromQL expression
 	var err error
@@ -352,8 +331,8 @@ func (ev *evaluator) bindVariables(sel *parser.VectorSelector) error {
 				ok bool
 			)
 			if vv, ok = ev.opt.Vars[vn]; !ok {
-				if ev.trace != nil && ev.debug {
-					ev.tracef("variable %q not specified", vn)
+				if ev.opt.Debug {
+					ev.Tracef("variable %q not specified", vn)
 				}
 				continue
 			}
@@ -393,13 +372,13 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 				return err
 			}
 			if len(metrics) == 0 {
-				if ev.trace != nil && ev.debug {
-					ev.tracef("no metric matches %v", matcher)
+				if ev.opt.Debug {
+					ev.Tracef("no metric matches %v", matcher)
 				}
 				return nil // metric does not exist, not an error
 			}
-			if ev.trace != nil && ev.debug {
-				ev.tracef("found %d metrics for %v", len(metrics), matcher)
+			if ev.opt.Debug {
+				ev.Tracef("found %d metrics for %v", len(metrics), matcher)
 			}
 			for _, m := range metrics {
 				var selOffset int64
@@ -538,8 +517,8 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 		return nil, ev.ctx.Err()
 	}
 	if e, ok := ev.ars[expr]; ok {
-		if ev.trace != nil && ev.debug {
-			ev.tracef("replace %s with %s", string(expr.Type()), string(e.Type()))
+		if ev.opt.Debug {
+			ev.Tracef("replace %s with %s", string(expr.Type()), string(e.Type()))
 		}
 		return ev.eval(e)
 	}
@@ -965,8 +944,8 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 		}
 		offset := ev.opt.Offsets[j]
 		for i, metric := range sel.MatchingMetrics {
-			if ev.trace != nil && ev.debug {
-				ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
+			if ev.opt.Debug {
+				ev.Tracef("#%d request %s: %s", i, metric.Name, sel.What)
 			}
 			for _, selOffset := range sel.Offsets {
 				qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.Whats, selOffset+offset)
@@ -974,8 +953,8 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					return err
 				}
 				if qry.empty() {
-					if ev.trace != nil && ev.debug {
-						ev.tracef("#%d query is empty", i)
+					if ev.opt.Debug {
+						ev.Tracef("#%d query is empty", i)
 					}
 					continue
 				}
@@ -992,8 +971,8 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					locked = true
 				}
 				ev.cancellationList = append(ev.cancellationList, cancel)
-				if ev.trace != nil && ev.debug {
-					ev.tracef("#%d series count %d", i, len(sr.Data))
+				if ev.opt.Debug {
+					ev.Tracef("#%d series count %d", i, len(sr.Data))
 				}
 				for k, s := range [2][]*labels.Matcher{sel.MinHostMatchers, sel.MaxHostMatchers} {
 					if len(s) != 0 {
@@ -1629,18 +1608,6 @@ func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
 
 func (qry *SeriesQuery) empty() bool {
 	return qry.Metric == nil
-}
-
-func TraceContext(ctx context.Context, s *[]string) context.Context {
-	return context.WithValue(ctx, traceContextKey, &traceContext{s, false})
-}
-
-func DebugContext(ctx context.Context, s *[]string) context.Context {
-	return context.WithValue(ctx, traceContextKey, &traceContext{s, true})
-}
-
-func (ev *evaluator) tracef(format string, a ...any) {
-	*ev.trace = append(*ev.trace, fmt.Sprintf(format, a...))
 }
 
 func evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {
