@@ -52,18 +52,6 @@ func randomWalk(ctx context.Context, client *statshouse.Client, tags statshouse.
 	}
 }
 
-func doesNotExist(ctx context.Context, client *statshouse.Client) {
-	ticker := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			client.Count("does_not_exist", statshouse.Tags{"dev"}, 100)
-		}
-	}
-}
-
 func main() {
 	var (
 		metricsN  int
@@ -120,7 +108,19 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		doesNotExist(ctx, shClient)
+		ticker := time.NewTicker(time.Second)
+		stagValues := []string{"one", "two", "three"}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				shClient.Count("does_not_exist", statshouse.Tags{"dev"}, 100)
+				for i := range stagValues {
+					shClient.StringsTop("string_top", statshouse.Tags{}, stagValues[i:])
+				}
+			}
+		}
 	}()
 
 	<-ctx.Done()
