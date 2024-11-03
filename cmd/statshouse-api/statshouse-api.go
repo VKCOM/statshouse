@@ -22,13 +22,11 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
 
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/util"
@@ -358,9 +356,9 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	m := api.Router{Handler: f, Router: mux.NewRouter()}
+	m := api.NewHTTPRouter(f)
 	a := m.PathPrefix(api.RoutePrefix).Subrouter()
-	a.Path("/"+api.EndpointLegacyRedirect).Methods("GET", "HEAD", "POST").HandlerFunc(api.HandleLegacyRedirect)
+	a.Router.Path("/"+api.EndpointLegacyRedirect).Methods("GET", "HEAD", "POST").HandlerFunc(f.HandleLegacyRedirect)
 	a.Path("/" + api.EndpointMetricList).Methods("GET").HandlerFunc(api.HandleGetMetricsList)
 	a.Path("/" + api.EndpointMetricTagValues).Methods("GET").HandlerFunc(api.HandleGetMetricTagValues)
 	a.Path("/" + api.EndpointMetric).Methods("GET").HandlerFunc(api.HandleGetMetric)
@@ -466,13 +464,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		c.Value(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags, uptime)
 	}))
 
-	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)
-	handlerRPC := &tlstatshouseApi.Handler{
-		GetChunk:         hr.GetChunk,
-		RawGetQuery:      hr.RawGetQuery,
-		ReleaseChunks:    hr.ReleaseChunks,
-		RawGetQueryPoint: hr.RawGetQueryPoint,
-	}
+	handlerRPC := api.NewRPCRouter(f, brs)
 	var hijackListener *rpc.HijackListener
 	metrics := util.NewRPCServerMetrics("statshouse_api")
 	srv := rpc.NewServer(

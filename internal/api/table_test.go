@@ -44,7 +44,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	nop := func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool {
 		return false
 	}
-	load := func(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
+	load := func(ctx context.Context, h *requestHandler, version string, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 		return rowsByTime, nil
 	}
 	type args struct {
@@ -63,6 +63,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	}{
 		{"full", args{rows, RowMarker{}, RowMarker{}, false, 10}, rows, false, nil},
 	}
+	h := requestHandler{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rows := tt.args.rows
@@ -71,7 +72,7 @@ func Test_getTableFromLODs(t *testing.T) {
 				i := row.time - 1
 				rowsByTime[i] = append(rowsByTime[i], row)
 			}
-			gotRes, gotHasMore, err := getTableFromLODs(context.Background(), []data_model.LOD{lod}, p, load, nop)
+			gotRes, gotHasMore, err := h.getTableFromLODs(context.Background(), []data_model.LOD{lod}, p, load, nop)
 			assert.Equalf(t, tt.wantRes, gotRes, "limitQueries(%v, %v, %v, %v, %v)", tt.args.rows, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
 			assert.Equalf(t, tt.wantHasMore, gotHasMore, "limitQueries(%v, %v, %v, %v, %v)", tt.args.rows, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
 			assert.NoError(t, err)

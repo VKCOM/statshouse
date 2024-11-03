@@ -16,6 +16,7 @@ import (
 
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
@@ -61,16 +62,6 @@ type endpointStat struct {
 	user      string
 	priority  string
 	timings   ServerTimingHeader
-}
-
-func newEndpointStatRPC(endpoint, method string) *endpointStat {
-	return &endpointStat{
-		timestamp:  time.Now(),
-		endpoint:   endpoint,
-		protocol:   format.TagValueIDRPC,
-		method:     method,
-		dataFormat: "TL",
-	}
 }
 
 func (es *endpointStat) reportServiceTime(code int, err error) {
@@ -122,6 +113,18 @@ func (es *endpointStat) report(code int, metric string) {
 		10: es.priority,
 	}
 	statshouse.Value(metric, t, v)
+}
+
+func (es *endpointStat) reportQueryKind(isFast, isLight, isHardware bool) {
+	es.laneMutex.Lock()
+	defer es.laneMutex.Unlock()
+	if len(es.lane) == 0 {
+		es.lane = strconv.Itoa(util.QueryKind(isFast, isLight, isHardware))
+	}
+}
+
+func (es *endpointStat) reportTiming(name string, dur time.Duration) {
+	es.timings.Report(name, dur)
 }
 
 func getStatTokenName(user string) string {

@@ -12,23 +12,34 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type Router struct {
+type httpRouter struct {
 	*Handler
 	*mux.Router
 }
 
-type Route struct {
+type httpRoute struct {
 	*Handler
 	*mux.Route
 	endpoint    string
-	handlerFunc func(*HTTPRequestHandler, *http.Request)
+	handlerFunc func(*httpRequestHandler)
 }
 
-type HTTPRequestHandler struct {
+type requestHandler struct {
 	*Handler
-	responseWriter http.ResponseWriter
-	accessInfo     accessInfo
-	endpointStat   endpointStat
+	accessInfo   accessInfo
+	endpointStat endpointStat
+	trace        []string
+	debug        bool
+}
+
+type httpRequestHandler struct {
+	requestHandler
+	*http.Request
+	w httpResponseWriter
+}
+
+type httpResponseWriter struct {
+	http.ResponseWriter
 	statusCode     int
 	statusCodeSent bool
 }
@@ -39,40 +50,47 @@ type error500 struct {
 	stack []byte
 }
 
-func (r Router) Path(tpl string) *Route {
-	return &Route{
+func NewHTTPRouter(h *Handler) httpRouter {
+	return httpRouter{
+		Handler: h,
+		Router:  mux.NewRouter(),
+	}
+}
+
+func (r httpRouter) Path(tpl string) *httpRoute {
+	return &httpRoute{
 		Handler:  r.Handler,
 		Route:    r.Router.Path(tpl),
 		endpoint: tpl[strings.LastIndex(tpl, "/")+1:],
 	}
 }
 
-func (r Router) PathPrefix(tpl string) *Route {
-	return &Route{
+func (r httpRouter) PathPrefix(tpl string) *httpRoute {
+	return &httpRoute{
 		Handler: r.Handler,
 		Route:   r.Router.PathPrefix(tpl),
 	}
 }
 
-func (r *Route) Subrouter() Router {
-	return Router{
+func (r *httpRoute) Subrouter() httpRouter {
+	return httpRouter{
 		Handler: r.Handler,
 		Router:  r.Route.Subrouter(),
 	}
 }
 
-func (r *Route) Methods(methods ...string) *Route {
+func (r *httpRoute) Methods(methods ...string) *httpRoute {
 	r.Route = r.Route.Methods(methods...)
 	return r
 }
 
-func (r *Route) HandlerFunc(f func(*HTTPRequestHandler, *http.Request)) *Route {
+func (r *httpRoute) HandlerFunc(f func(*httpRequestHandler)) *httpRoute {
 	r.handlerFunc = f
 	r.Route.HandlerFunc(r.handle)
 	return r
 }
 
-func (r *Route) handle(http http.ResponseWriter, req *http.Request) {
+func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 	timeNow := time.Now()
 	var metric string
 	if v := req.FormValue(ParamMetric); v != "" {
@@ -86,73 +104,76 @@ func (r *Route) handle(http http.ResponseWriter, req *http.Request) {
 	} else {
 		dataFormat = "json"
 	}
-	w := &HTTPRequestHandler{
-		Handler:        r.Handler,
-		responseWriter: http,
-		endpointStat: endpointStat{
-			timestamp:  timeNow,
-			endpoint:   r.endpoint,
-			protocol:   format.TagValueIDHTTP,
-			method:     req.Method,
-			dataFormat: dataFormat,
-			metric:     metric,
-			priority:   req.FormValue(paramPriority),
-			timings: ServerTimingHeader{
-				Timings: make(map[string][]time.Duration),
-				started: timeNow,
+	h := &httpRequestHandler{
+		requestHandler: requestHandler{
+			Handler: r.Handler,
+			endpointStat: endpointStat{
+				timestamp:  timeNow,
+				endpoint:   r.endpoint,
+				protocol:   format.TagValueIDHTTP,
+				method:     req.Method,
+				dataFormat: dataFormat,
+				metric:     metric,
+				priority:   req.FormValue(paramPriority),
+				timings: ServerTimingHeader{
+					Timings: make(map[string][]time.Duration),
+					started: timeNow,
+				},
 			},
+			debug: true,
 		},
+		Request: req,
+		w:       httpResponseWriter{ResponseWriter: w},
 	}
-	defer r.reportStatistics(w)
-	r.handlerFunc(w, req)
-}
-
-func (r *Route) reportStatistics(w *HTTPRequestHandler) {
-	if err := recover(); err != nil {
-		if !w.statusCodeSent {
-			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+	defer func() {
+		if err := recover(); err != nil {
+			if !h.w.statusCodeSent {
+				http.Error(&h.w, fmt.Sprint(err), http.StatusInternalServerError)
+			}
+			h.savePanic(err, debug.Stack())
 		}
-		v := error500{time.Now(), err, debug.Stack()}
-		w.errorsMu.Lock()
-		w.errors[w.errorX] = v
-		w.errorX = (w.errorX + 1) % len(w.errors)
-		w.errorsMu.Unlock()
-	}
-	w.endpointStat.report(w.statusCode, format.BuiltinMetricNameAPIResponseTime)
-}
-
-func DumpInternalServerErrors(w *HTTPRequestHandler, r *http.Request) {
-	if err := w.parseAccessToken(r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricNameAPIResponseTime)
+	}()
+	if err := h.parseAccessToken(req); err != nil {
+		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	if ok := w.accessInfo.insecureMode || w.accessInfo.bitAdmin; !ok {
+	r.handlerFunc(h)
+}
+
+func DumpInternalServerErrors(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.errorsMu.RLock()
-	defer w.errorsMu.RUnlock()
-	for i := 0; i < len(w.errors) && w.errors[i].what != nil; i++ {
+	r.errorsMu.RLock()
+	defer r.errorsMu.RUnlock()
+	for i := 0; i < len(r.errors) && r.errors[i].what != nil; i++ {
 		w.Write([]byte("# \n"))
-		w.Write([]byte(fmt.Sprintf("# %s \n", w.errors[i].what)))
-		w.Write([]byte("# " + w.errors[i].time.Format(time.RFC3339) + " \n"))
+		w.Write([]byte(fmt.Sprintf("# %s \n", r.errors[i].what)))
+		w.Write([]byte("# " + r.errors[i].time.Format(time.RFC3339) + " \n"))
 		w.Write([]byte("# \n"))
-		w.Write(w.errors[i].stack)
+		w.Write(r.errors[i].stack)
 		w.Write([]byte("\n"))
 	}
 }
 
-func (h *HTTPRequestHandler) Header() http.Header {
-	return h.responseWriter.Header()
+func (r *httpRequestHandler) Response() http.ResponseWriter {
+	return &r.w
 }
 
-func (h *HTTPRequestHandler) Write(s []byte) (int, error) {
-	return h.responseWriter.Write(s)
+func (h *httpResponseWriter) Header() http.Header {
+	return h.ResponseWriter.Header()
 }
 
-func (h *HTTPRequestHandler) WriteHeader(statusCode int) {
+func (h *httpResponseWriter) Write(s []byte) (int, error) {
+	return h.ResponseWriter.Write(s)
+}
+
+func (h *httpResponseWriter) WriteHeader(statusCode int) {
 	h.statusCode = statusCode
-	h.responseWriter.WriteHeader(statusCode)
+	h.ResponseWriter.WriteHeader(statusCode)
 	h.statusCodeSent = true
 }

@@ -34,7 +34,7 @@ type legacyRedirectReq struct {
 	keys        map[string]string
 }
 
-func HandleLegacyRedirect(h *HTTPRequestHandler, r *http.Request) {
+func (h *Handler) HandleLegacyRedirect(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	req := legacyRedirectReq{
 		name:        strings.TrimSpace(r.FormValue("name")),
@@ -54,8 +54,8 @@ func HandleLegacyRedirect(h *HTTPRequestHandler, r *http.Request) {
 
 	u := h.handleLegacyRedirect(req)
 
-	h.Header().Set("Location", u.String())
-	h.WriteHeader(http.StatusSeeOther)
+	w.Header().Set("Location", u.String())
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 func (h *Handler) handleLegacyRedirect(req legacyRedirectReq) *url.URL {

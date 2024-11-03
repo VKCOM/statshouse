@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -32,15 +31,8 @@ import (
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", data_model.MaxSlice)
-var errAccessViolation = fmt.Errorf("metric access violation")
 
-func HandleInstantQuery(h *HTTPRequestHandler, r *http.Request) {
-	// parse access token
-	err := h.parseAccessToken(r)
-	if err != nil {
-		respondJSON(h, nil, 0, 0, err)
-		return
-	}
+func HandleInstantQuery(r *httpRequestHandler) {
 	// parse query
 	q := promql.Query{
 		Expr: r.FormValue("query"),
@@ -51,36 +43,31 @@ func HandleInstantQuery(h *HTTPRequestHandler, r *http.Request) {
 			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
+	w := r.Response()
 	if t := r.FormValue("time"); t == "" {
 		q.Start = q.Options.TimeNow
 	} else {
 		var err error
 		q.Start, err = parseTime(t)
 		if err != nil {
-			promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
+			promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter time: %w", err))
 			return
 		}
 	}
 	q.End = q.Start + 1 // handler expects half open interval [start, end)
 	// execute query
-	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &h.accessInfo), q)
+	res, dispose, err := r.promEngine.Exec(ctx, r, q)
 	if err != nil {
-		promRespondError(h, promErrorExec, err)
+		promRespondError(w, promErrorExec, err)
 		return
 	}
 	defer dispose()
-	promRespond(h, promResponseData{ResultType: res.Type(), Result: res})
+	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func HandleRangeQuery(h *HTTPRequestHandler, r *http.Request) {
-	// parse access token
-	err := h.parseAccessToken(r)
-	if err != nil {
-		respondJSON(h, nil, 0, 0, err)
-		return
-	}
+func HandleRangeQuery(r *httpRequestHandler) {
 	// parse query
 	q := promql.Query{
 		Expr: r.FormValue("query"),
@@ -89,54 +76,52 @@ func HandleRangeQuery(h *HTTPRequestHandler, r *http.Request) {
 			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
+	var err error
 	q.Start, err = parseTime(r.FormValue("start"))
+	w := r.Response()
 	if err != nil {
-		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 		return
 	}
 	q.End, err = parseTime(r.FormValue("end"))
 	if err != nil {
-		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 		return
 	}
 	q.End++ // handler expects half open interval [start, end)
 	q.Step, err = parseDuration(r.FormValue("step"))
 	if err != nil {
-		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter step: %w", err))
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter step: %w", err))
 		return
 	}
 	// execute query
-	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &h.accessInfo), q)
+	res, dispose, err := r.promEngine.Exec(ctx, r, q)
 	if err != nil {
-		promRespondError(h, promErrorExec, err)
+		promRespondError(w, promErrorExec, err)
 		return
 	}
 	defer dispose()
-	promRespond(h, promResponseData{ResultType: res.Type(), Result: res})
+	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
-func HandlePromSeriesQuery(h *HTTPRequestHandler, r *http.Request) {
-	err := h.parseAccessToken(r)
-	if err != nil {
-		respondJSON(h, nil, 0, 0, err)
-		return
-	}
+func HandlePromSeriesQuery(r *httpRequestHandler) {
 	_ = r.ParseForm()
 	match := r.Form["match[]"]
+	w := r.Response()
 	if len(match) == 0 {
-		promRespondError(h, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
+		promRespondError(w, promErrorBadData, fmt.Errorf("no match[] parameter provided"))
 		return
 	}
 	start, err := parseTime(r.FormValue("start"))
 	if err != nil {
-		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 		return
 	}
 	end, err := parseTime(r.FormValue("end"))
 	if err != nil {
-		promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+		promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 		return
 	}
 	if start < end-300 {
@@ -146,8 +131,8 @@ func HandlePromSeriesQuery(h *HTTPRequestHandler, r *http.Request) {
 	var res []labels.Labels
 	for _, expr := range match {
 		func() {
-			val, cancel, err := h.promEngine.Exec(
-				withAccessInfo(r.Context(), &h.accessInfo),
+			val, cancel, err := r.promEngine.Exec(
+				r.Context(), r,
 				promql.Query{
 					Start: start,
 					End:   end,
@@ -173,15 +158,10 @@ func HandlePromSeriesQuery(h *HTTPRequestHandler, r *http.Request) {
 			}
 		}()
 	}
-	promRespond(h, res)
+	promRespond(w, res)
 }
 
-func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
-	err := h.parseAccessToken(r)
-	if err != nil {
-		respondJSON(h, nil, 0, 0, err)
-		return
-	}
+func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 	namespace := r.Header.Get("X-StatsHouse-Namespace")
 	var prefix string
 	switch namespace {
@@ -191,11 +171,12 @@ func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
 		prefix = namespace + format.NamespaceSeparator
 	}
 	var res []string
-	tagName := mux.Vars(r)["name"]
+	tagName := mux.Vars(r.Request)["name"]
+	w := r.Response()
 	if tagName == "__name__" {
-		for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+		for _, meta := range r.metricsStorage.GetMetaMetricList(r.showInvisible) {
 			trimmed := strings.TrimPrefix(meta.Name, prefix)
-			if meta.Name != trimmed && h.accessInfo.CanViewMetric(*meta) {
+			if meta.Name != trimmed && r.accessInfo.CanViewMetric(*meta) {
 				res = append(res, trimmed)
 			}
 		}
@@ -209,12 +190,12 @@ func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
 			_ = r.ParseForm()
 			start, err := parseTime(r.FormValue("start"))
 			if err != nil {
-				promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
+				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter start: %w", err))
 				return
 			}
 			end, err := parseTime(r.FormValue("end"))
 			if err != nil {
-				promRespondError(h, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
+				promRespondError(w, promErrorBadData, fmt.Errorf("invalid parameter end: %w", err))
 				return
 			}
 			if start < end-300 {
@@ -223,8 +204,8 @@ func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
 			end++ // handler expects half open interval [start, end)
 			for _, expr := range r.Form["match[]"] {
 				func() {
-					val, cancel, err := h.promEngine.Exec(
-						withAccessInfo(r.Context(), &h.accessInfo),
+					val, cancel, err := r.promEngine.Exec(
+						r.Context(), r,
 						promql.Query{
 							Start: start,
 							End:   end,
@@ -251,7 +232,7 @@ func HandlePromLabelValuesQuery(h *HTTPRequestHandler, r *http.Request) {
 			}
 		}
 	}
-	promRespond(h, res)
+	promRespond(w, res)
 }
 
 // region Request
@@ -365,21 +346,17 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 
 // endregion
 
-func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, error) {
-	ai := getAccessInfo(ctx)
-	if ai == nil {
-		return nil, errAccessViolation
-	}
+func (h *requestHandler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, error) {
 	res := h.metricsStorage.MatchMetrics(matcher, namespace, h.showInvisible, nil)
 	for _, metric := range res {
-		if !ai.CanViewMetric(*metric) {
+		if !h.accessInfo.CanViewMetric(*metric) {
 			return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 		}
 	}
 	return res, nil
 }
 
-func (h *Handler) GetHostName(hostID int32) string {
+func (h *requestHandler) GetHostName(hostID int32) string {
 	v, err := h.getTagValue(hostID)
 	if err != nil {
 		return format.CodeTagValue(hostID)
@@ -387,7 +364,7 @@ func (h *Handler) GetHostName(hostID int32) string {
 	return v
 }
 
-func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
+func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
 		tagID = format.TagID(qry.TagIndex)
@@ -397,7 +374,7 @@ func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	return h.getRichTagValue(qry.Metric, data_model.VersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
-func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
+func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
 	if err != nil {
 		var httpErr httpError
@@ -408,12 +385,8 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 	return res, err
 }
 
-func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
-	ai := getAccessInfo(ctx)
-	if ai == nil {
-		return promql.Series{}, nil, errAccessViolation
-	}
-	if !ai.CanViewMetricName(qry.Metric.Name) {
+func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
+	if !h.accessInfo.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	if qry.Options.Mode == data_model.PointQuery {
@@ -477,12 +450,12 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			cleanup()
 		}
 	}()
-	for _, args := range getHandlerArgs(qry, ai, step) {
+	for _, args := range getHandlerArgs(qry, &h.accessInfo, step) {
 		var tx int // time index
 		for _, lod := range lods {
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
-				data, err := h.pointsCache.get(ctx, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				data, err := h.pointsCache.get(ctx, h, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
 				}
@@ -537,7 +510,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				}
 				tx++
 			case data_model.RangeQuery, data_model.InstantQuery:
-				data, err := h.cache.Get(ctx, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				data, err := h.cache.Get(ctx, h, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
 				}
@@ -583,7 +556,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				}
 				tx += len(data)
 			case data_model.TagsQuery:
-				data, err := h.cache.Get(ctx, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				data, err := h.cache.Get(ctx, h, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
 				}
@@ -655,11 +628,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	return res, cleanup, nil
 }
 
-func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
-	ai := getAccessInfo(ctx)
-	if ai == nil {
-		return nil, errAccessViolation
-	}
+func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	var (
 		version = data_model.VersionOrDefault(qry.Options.Version)
 		pq      = &preparedTagValuesQuery{
@@ -681,7 +650,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		err = h.doSelect(ctx, util.QueryMetaInto{
 			IsFast:  isFast,
 			IsLight: true,
-			User:    ai.user,
+			User:    h.accessInfo.user,
 			Metric:  qry.Metric.MetricID,
 			Table:   lod.Table,
 			Kind:    "load_tags",
@@ -705,11 +674,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 	return res, nil
 }
 
-func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
-	ai := getAccessInfo(ctx)
-	if ai == nil {
-		return nil, errAccessViolation
-	}
+func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	var (
 		version = data_model.VersionOrDefault(qry.Options.Version)
 		pq      = &preparedTagValuesQuery{
@@ -731,7 +696,7 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 		err = h.doSelect(ctx, util.QueryMetaInto{
 			IsFast:  isFast,
 			IsLight: true,
-			User:    ai.user,
+			User:    h.accessInfo.user,
 			Metric:  qry.Metric.MetricID,
 			Table:   lod.Table,
 			Kind:    "load_stag",
@@ -753,6 +718,12 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 		ret = append(ret, id)
 	}
 	return ret, nil
+}
+
+func (h *requestHandler) Tracef(format string, a ...any) {
+	if h.debug {
+		h.trace = append(h.trace, fmt.Sprintf(format, a...))
+	}
 }
 
 type handlerArgs struct {
