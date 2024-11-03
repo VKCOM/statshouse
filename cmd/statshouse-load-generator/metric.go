@@ -37,6 +37,7 @@ const metricTempl = `{
       {
         "name":"random",
         "description":"random sting used to test mapping flood",
+		"skip_mapping": true,
         "raw":false
       },
       {
