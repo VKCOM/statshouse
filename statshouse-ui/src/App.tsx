@@ -10,6 +10,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 // import { Admin } from './admin/Admin';
 // import { ViewPage } from './view/ViewPage';
 import { currentAccessInfo } from './common/access';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { DashboardListView } from './view/DashboardListView';
 // import { SettingsPage } from './view/Settings/SettingsPage';
 // import { GroupPage } from './view/Settings/GroupPage';
@@ -28,72 +29,76 @@ const View2Page = React.lazy(() => import('./view2/ViewPage'));
 const Core = React.lazy(() => import('./view2/Core'));
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
+const queryClient = new QueryClient();
+
 function App() {
   const ai = currentAccessInfo();
   return (
-    <Routes>
-      <Route path="/" element={<Core />}>
-        <Route path="" element={<Navigate to="view" replace={true} />} />
-        <Route path="view" element={<View2Page />} />
-        <Route path="embed" element={<View2Page />} />
-        <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
-          <Route path="group" element={<GroupPage />} />
-          <Route path="namespace" element={<NamespacePage />} />
+    <QueryClientProvider client={queryClient}>
+      <Routes>
+        <Route path="/" element={<Core />}>
+          <Route path="" element={<Navigate to="view" replace={true} />} />
+          <Route path="view" element={<View2Page />} />
+          <Route path="embed" element={<View2Page />} />
+          <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
+            <Route path="group" element={<GroupPage />} />
+            <Route path="namespace" element={<NamespacePage />} />
+          </Route>
+          <Route
+            path="dash-list"
+            element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <DashboardListView />
+              </Suspense>
+            }
+          />
+          <Route
+            path="doc/faq"
+            element={
+              <Suspense fallback={<div>FAQ Loading...</div>}>
+                <FAQ yAxisSize={yAxisSize} />
+              </Suspense>
+            }
+          />
+          <Route
+            path="admin/*"
+            element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <Admin yAxisSize={yAxisSize} adminMode={ai.admin} />
+              </Suspense>
+            }
+          />
+          <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
+            <Route path="group" element={<GroupPage />} />
+            <Route path="namespace" element={<NamespacePage />} />
+            {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
+          </Route>
+          <Route path="*" element={<NotFound />} />
         </Route>
-        <Route
-          path="dash-list"
-          element={
-            <Suspense fallback={<div>Loading...</div>}>
-              <DashboardListView />
-            </Suspense>
-          }
-        />
-        <Route
-          path="doc/faq"
-          element={
-            <Suspense fallback={<div>FAQ Loading...</div>}>
-              <FAQ yAxisSize={yAxisSize} />
-            </Suspense>
-          }
-        />
-        <Route
-          path="admin/*"
-          element={
-            <Suspense fallback={<div>Loading...</div>}>
-              <Admin yAxisSize={yAxisSize} adminMode={ai.admin} />
-            </Suspense>
-          }
-        />
-        <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
-          <Route path="group" element={<GroupPage />} />
-          <Route path="namespace" element={<NamespacePage />} />
-          {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Route>
-      {/*<Route path="/" element={<Navigate to="view" replace={true} />} />*/}
-      {/*<Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />*/}
-      {/*<Route path="/" element={<NavbarApp />}>*/}
-      {/*  <Route*/}
-      {/*    path="doc/faq"*/}
-      {/*    element={*/}
-      {/*      <Suspense fallback={<div>FAQ Loading...</div>}>*/}
-      {/*        <FAQ yAxisSize={yAxisSize} />*/}
-      {/*      </Suspense>*/}
-      {/*    }*/}
-      {/*  />*/}
-      {/*  <Route path="admin/*" element={<Admin yAxisSize={yAxisSize} adminMode={ai.admin} />} />*/}
-      {/*  <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>*/}
-      {/*    <Route path="group" element={<GroupPage />} />*/}
-      {/*    <Route path="namespace" element={<NamespacePage />} />*/}
-      {/*    /!*<Route path="prometheus" element={<PrometheusPage />} />*!/*/}
-      {/*  </Route>*/}
+        {/*<Route path="/" element={<Navigate to="view" replace={true} />} />*/}
+        {/*<Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />*/}
+        {/*<Route path="/" element={<NavbarApp />}>*/}
+        {/*  <Route*/}
+        {/*    path="doc/faq"*/}
+        {/*    element={*/}
+        {/*      <Suspense fallback={<div>FAQ Loading...</div>}>*/}
+        {/*        <FAQ yAxisSize={yAxisSize} />*/}
+        {/*      </Suspense>*/}
+        {/*    }*/}
+        {/*  />*/}
+        {/*  <Route path="admin/*" element={<Admin yAxisSize={yAxisSize} adminMode={ai.admin} />} />*/}
+        {/*  <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>*/}
+        {/*    <Route path="group" element={<GroupPage />} />*/}
+        {/*    <Route path="namespace" element={<NamespacePage />} />*/}
+        {/*    /!*<Route path="prometheus" element={<PrometheusPage />} />*!/*/}
+        {/*  </Route>*/}
 
-      {/*  <Route path="view" element={<ViewPage yAxisSize={yAxisSize} />} />*/}
-      {/*  <Route path="dash-list" element={<DashboardListView />} />*/}
-      {/*  <Route path="*" element={<NotFound />} />*/}
-      {/*</Route>*/}
-    </Routes>
+        {/*  <Route path="view" element={<ViewPage yAxisSize={yAxisSize} />} />*/}
+        {/*  <Route path="dash-list" element={<DashboardListView />} />*/}
+        {/*  <Route path="*" element={<NotFound />} />*/}
+        {/*</Route>*/}
+      </Routes>
+    </QueryClientProvider>
   );
 }
 

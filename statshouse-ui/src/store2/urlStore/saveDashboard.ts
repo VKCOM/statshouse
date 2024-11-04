@@ -22,5 +22,5 @@ export async function saveDashboard(params: QueryParams, remove?: boolean) {
   if (remove) {
     dashboardParams.delete_mark = true;
   }
-  return apiDashboardSaveFetch(dashboardParams);
+  return apiDashboardSaveFetch(dashboardParams, `dashboardSave-${params.dashboardId}-${params.dashboardVersion}`);
 }

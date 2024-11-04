@@ -8,6 +8,7 @@ import * as React from 'react';
 import { FormPage } from './pages/FormPage';
 import { CreatePage } from './pages/CreatePage';
 import { Route, Routes } from 'react-router-dom';
+import { AdminDashControl } from './AdminDashControl';
 
 export function Admin(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
@@ -16,6 +17,7 @@ export function Admin(props: { yAxisSize: number; adminMode: boolean }) {
     <Routes>
       <Route path="create" element={<CreatePage yAxisSize={yAxisSize} />} />
       <Route path="edit/:metricName" element={<FormPage adminMode={adminMode} yAxisSize={yAxisSize} />} />
+      <Route path="dash/" element={<AdminDashControl />} />
     </Routes>
   );
 }
