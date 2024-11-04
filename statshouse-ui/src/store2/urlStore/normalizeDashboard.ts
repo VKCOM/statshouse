@@ -31,6 +31,7 @@ export function normalizeDashboard(data: unknown, defaultParams: QueryParams): Q
   //fix save page
   dashboardParam.tabNum = '-1';
   dashboardParam.dashboardVersion = defaultParams.dashboardVersion;
+  dashboardParam.dashboardId = defaultParams.dashboardId;
 
   return dashboardParam;
 }

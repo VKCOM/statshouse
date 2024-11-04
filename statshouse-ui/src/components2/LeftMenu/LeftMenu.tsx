@@ -30,10 +30,9 @@ import { addPlotByUrl } from 'store2/helpers';
 import { produce } from 'immer';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
 import { prepareItemsGroup } from 'common/prepareItemsGroup';
-import { AppVersionToggle } from '../AppVersionToggle';
 import { useAddLinkPlot, useLinkPlot } from 'hooks/useLinkPlot';
 import { setDevEnabled, useStoreDev } from 'store/dev';
-import { setTheme, THEMES, useThemeStore, toTheme } from 'store2/themeStore';
+import { setTheme, THEMES, toTheme, useThemeStore } from 'store2/themeStore';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -158,7 +157,11 @@ export function LeftMenu({ className }: LeftMenuProps) {
                 {devEnabled ? 'DEV ON' : 'DEV OFF'}
               </span>
             </li>
-            <AppVersionToggle />
+            <li className={css.subItem}>
+              <NavLink className={css.link} to="/admin/dash" end>
+                Admin Dashboard List
+              </NavLink>
+            </li>
           </>
         )}
         {!!user.login && (
