@@ -1,6 +1,5 @@
-import { type PlotParams, type VariableParams } from 'url2';
+import { type PlotParams } from 'url2';
 import { dequal } from 'dequal/lite';
-import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
 
 export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams) {
   return (
@@ -16,6 +15,8 @@ export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams)
     plot.maxHost !== prevPlot.maxHost ||
     plot.backendVersion !== prevPlot.backendVersion ||
     plot.type !== prevPlot.type ||
-    plot.prometheusCompat !== prevPlot.prometheusCompat
+    plot.prometheusCompat !== prevPlot.prometheusCompat ||
+    plot.totalLine !== prevPlot.totalLine ||
+    plot.filledGraph !== prevPlot.filledGraph
   );
 }

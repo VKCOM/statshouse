@@ -21,6 +21,7 @@ import { calcYRange2 } from '../../common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { deepClone } from '../../common/helpers';
 import { formatLegendValue, formatPercent, timeShiftToDash } from 'view/utils2';
+import { useThemeStore } from '../themeStore';
 
 export function normalizePlotData(
   response: SeriesResponse,
@@ -44,7 +45,7 @@ export function normalizePlotData(
     let series_data = [...response.series.series_data];
     const totalLineId = plot.totalLine ? series_meta.length : null;
     const totalLineLabel = 'Total';
-    const totalLineColor = '#333333';
+    const totalLineColor = useThemeStore.getState().dark ? '#999999' : '#333333';
     const prefColor = '9'; // it`s magic prefix
     const usedDashes = {};
     const usedBaseColors = {};
