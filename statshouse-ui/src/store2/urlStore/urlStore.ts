@@ -71,7 +71,6 @@ export type UrlStore = {
   addDashboardGroup(groupKey: GroupKey): void;
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
-  // moveDashboardPlot(index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null): void;
   setNextDashboardSchemePlot(nextScheme: { groupKey: GroupKey; plots: PlotKey[] }[]): void;
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(): Promise<void>;
@@ -276,42 +275,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setDashboardGroup(groupKey, next) {
       setUrlStore(updateGroup(groupKey, next));
     },
-    // moveDashboardPlot(plotKey, plotKeyTarget, groupKey) {
-    //   if (plotKey != null && groupKey != null) {
-    //     setUrlStore(
-    //       updateParamsPlotStruct((plotStruct) => {
-    //         const sourceGroupKey = plotStruct.mapPlotToGroup[plotKey] ?? '';
-    //         const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
-    //         const sourcePlotIndex = plotStruct.mapPlotIndex[plotKey];
-    //         const targetGroupIndex = plotStruct.mapGroupIndex[groupKey ?? sourceGroupKey];
-    //         let targetPlotIndex = plotStruct.mapPlotIndex[plotKeyTarget ?? plotKey];
-    //         if (sourceGroupIndex != null && sourcePlotIndex != null) {
-    //           const sourcePlots = plotStruct.groups[sourceGroupIndex].plots.splice(sourcePlotIndex, 1);
-    //           if (targetGroupIndex == null) {
-    //             plotStruct.groups.push({
-    //               plots: [...sourcePlots],
-    //               groupInfo: {
-    //                 ...getNewGroup(),
-    //                 id: groupKey,
-    //               },
-    //             });
-    //           } else {
-    //             if (targetPlotIndex) {
-    //               if (sourceGroupIndex === targetGroupIndex) {
-    //                 targetPlotIndex = plotStruct.groups[targetGroupIndex].plots.findIndex(
-    //                   ({ plotInfo }) => plotInfo.id === plotKeyTarget
-    //                 );
-    //               }
-    //               plotStruct.groups[targetGroupIndex].plots.splice(targetPlotIndex, 0, ...sourcePlots);
-    //             } else {
-    //               plotStruct.groups[targetGroupIndex].plots.push(...sourcePlots);
-    //             }
-    //           }
-    //         }
-    //       })
-    //     );
-    //   }
-    // },
     setNextDashboardSchemePlot(nextScheme) {
       setUrlStore(
         updateParamsPlotStruct((plotStruct) => {
@@ -358,6 +321,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         setUrlStore((store) => {
           store.saveParams = saveParams;
           store.params.dashboardVersion = saveParams.dashboardVersion;
+          store.params.dashboardId = saveParams.dashboardId;
         });
       }
     },

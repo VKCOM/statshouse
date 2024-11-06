@@ -57,11 +57,11 @@ const params2: QueryParams = {
 };
 
 describe('urlStore', () => {
-  test.skip('urlEncode => urlDecode', () => {
+  test('urlEncode => urlDecode', () => {
     expect(urlDecode(toTreeObj(arrToObj(urlEncode(params))), params)).toEqual(params);
   });
   test('urlEncode => urlDecode save', () => {
-    // expect(urlDecode(toTreeObj(arrToObj(urlEncode(params2, params))), params)).toEqual(params2);
+    expect(urlDecode(toTreeObj(arrToObj(urlEncode(params2, params))), params)).toEqual(params2);
     expect(urlDecode(toTreeObj(arrToObj(urlEncode(params, params2))), params2)).toEqual(params);
   });
 });

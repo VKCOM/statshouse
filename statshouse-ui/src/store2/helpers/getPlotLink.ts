@@ -80,6 +80,7 @@ export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string
           produce(params, (p) => {
             p.tabNum = plotKey;
             p.dashboardId = undefined;
+            p.dashboardVersion = undefined;
           })
         )
       ).toString()
