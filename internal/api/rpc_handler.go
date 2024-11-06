@@ -55,6 +55,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	timeNow := time.Now()
 	w := rpcRequestHandler{
 		requestHandler: requestHandler{
+			Handler: h.Handler,
 			endpointStat: endpointStat{
 				timestamp:  timeNow,
 				protocol:   format.TagValueIDRPC,
