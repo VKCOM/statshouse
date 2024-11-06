@@ -20,9 +20,7 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson/jwriter"
-
 	"github.com/vkcom/statshouse/internal/data_model"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 )
@@ -360,20 +358,6 @@ func parseTagID(tagID string) (string, error) {
 		return res, nil
 	}
 	return "", httpErr(http.StatusBadRequest, err)
-}
-
-func parseVersion(s string) (string, error) {
-	if s == "" {
-		return Version1, nil
-	}
-
-	for _, v := range []string{Version1, Version2, Version3} {
-		if s == v {
-			return v, nil
-		}
-	}
-
-	return "", httpErr(http.StatusBadRequest, fmt.Errorf("invalid version: %q", s))
 }
 
 func parseRenderWidth(s string) (int, error) {

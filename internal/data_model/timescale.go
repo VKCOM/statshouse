@@ -62,7 +62,6 @@ const (
 )
 
 type Timescale struct {
-	Version    string
 	Location   *time.Location
 	UTCOffset  int64
 	Time       []int64
@@ -74,8 +73,9 @@ type Timescale struct {
 }
 
 type TimescaleLOD struct {
-	Step int64
-	Len  int // number of elements LOD occupies in time array
+	Step    int64
+	Len     int // number of elements LOD occupies in time array
+	Version string
 }
 
 type QueryMode int
@@ -90,24 +90,26 @@ type QueryStat struct {
 
 type GetTimescaleArgs struct {
 	QueryStat
-	Version     string
-	Start       int64 // inclusive
-	End         int64 // exclusive
-	Step        int64
-	TimeNow     int64
-	ScreenWidth int64
-	Mode        QueryMode
-	Extend      bool
-	Metric      *format.MetricMetaValue
-	Offset      int64
-	Location    *time.Location
-	UTCOffset   int64
+	Version       string
+	Version3Start int64 // timestamp of schema version 3 start, zero means not set
+	Start         int64 // inclusive
+	End           int64 // exclusive
+	Step          int64
+	TimeNow       int64
+	ScreenWidth   int64
+	Mode          QueryMode
+	Extend        bool
+	Metric        *format.MetricMetaValue
+	Offset        int64
+	Location      *time.Location
+	UTCOffset     int64
 }
 
 type LOD struct {
 	FromSec    int64 // inclusive
 	ToSec      int64 // exclusive
 	StepSec    int64
+	Version    string
 	Table      string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
 	HasPreKey  bool
 	PreKeyOnly bool
@@ -277,15 +279,12 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			hasStringTop = true
 		}
 	}
-	var (
-		levels  []lodSwitch // depends on query and version
-		version = VersionOrDefault(args.Version)
-	)
 	// find appropriate LOD table
+	var levels []lodSwitch // depends on query and version
 	switch {
 	case args.Step == _1M:
 		switch {
-		case version == Version1:
+		case args.Version == Version1:
 			switch {
 			case hasUnique:
 				levels = lodLevelsV1MonthlyUnique
@@ -297,17 +296,17 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		default:
 			levels = lodLevelsV2Monthly
 		}
-	case version == Version1:
+	case args.Version == Version1:
 		switch {
 		case hasUnique:
 			levels = lodLevelsV1Unique
 		case hasStringTop:
 			levels = lodLevelsV1StringTop
 		default:
-			levels = lodLevels[version]
+			levels = lodLevels[args.Version]
 		}
 	default:
-		levels = lodLevels[version]
+		levels = lodLevels[args.Version]
 	}
 	// generate LODs
 	var minStep int64
@@ -324,7 +323,6 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	start := args.Start - int64(maxOffset)
 	end := args.End - int64(maxOffset)
 	res := Timescale{
-		Version:   version,
 		Location:  args.Location,
 		UTCOffset: args.UTCOffset,
 		Step:      args.Step,
@@ -339,13 +337,14 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		if end < edge || pointQuery {
 			edge = end
 		}
-		lod.Len = 0      // reset LOD length, keep last step
+		lod.Len = 0 // reset LOD length, keep last step
+		var lodStart int64
 		var lodEnd int64 // next "start"
 		for _, step := range levels[i].levels {
 			if 0 < lod.Step && lod.Step < step {
 				continue // step can not grow
 			}
-			lodStart := start
+			lodStart = start
 			if len(res.LODs) == 0 {
 				lodStart = startOfLOD(start, step, args.Location, args.UTCOffset)
 			}
@@ -353,7 +352,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			var lodLen, n int
 			lodEnd, lodLen = endOfLOD(lodStart, step, edge, false, args.Location)
 			if !pointQuery {
-				// plus up to the query and to ensure current "step" does not exceed "maxPoints" limit
+				// plus up to the query end to ensure current "step" does not exceed "maxPoints" limit
 				_, m := endOfLOD(lodEnd, step, end, false, args.Location)
 				n = resLen + lodLen + m
 				if maxPoints < n {
@@ -370,7 +369,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 					break
 				}
 			}
-			lod = TimescaleLOD{Step: step, Len: lodLen}
+			lod = TimescaleLOD{Step: step, Len: lodLen, Version: args.Version}
 			if step <= minStep || (args.ScreenWidth != 0 && int(args.ScreenWidth) < n) {
 				// use current "step" to the end
 				lodEnd, lodLen = endOfLOD(lodEnd, step, end, false, args.Location)
@@ -382,13 +381,27 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			// should not happen
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
-		start = lodEnd
-		resLen += lod.Len
-		if len(res.LODs) != 0 && res.LODs[len(res.LODs)-1].Step == lod.Step {
-			res.LODs[len(res.LODs)-1].Len += lod.Len
-		} else {
-			res.LODs = append(res.LODs, lod)
+		if lod.Version == Version3 {
+			version3StartBeforeLODEnd := args.Version3Start < lodEnd
+			switch {
+			case lodStart <= args.Version3Start && version3StartBeforeLODEnd:
+				// version 3 starts inside LOD, split
+				_, len := endOfLOD(lodStart, lod.Step, args.Version3Start, false, args.Location)
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version2})
+				resLen += len
+				lod.Len -= len
+			case args.Version3Start == 0 || !version3StartBeforeLODEnd:
+				// version 3 not available, switch to version 2
+				lod.Version = Version2
+			default:
+				// version 3 remains
+			}
 		}
+		if lod.Len != 0 {
+			resLen += lod.Len
+			res.appendLOD(lod)
+		}
+		start = lodEnd
 	}
 	if len(res.LODs) == 0 {
 		return Timescale{}, nil
@@ -478,7 +491,8 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			FromSec:    start,
 			ToSec:      end,
 			StepSec:    lod.Step,
-			Table:      LODTables[t.Version][lod.Step],
+			Version:    lod.Version,
+			Table:      LODTables[lod.Version][lod.Step],
 			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
 			PreKeyOnly: metric.PreKeyOnly,
 			Location:   t.Location,
@@ -490,6 +504,14 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 
 func (t *Timescale) Empty() bool {
 	return t.StartX == len(t.Time)
+}
+
+func (t *Timescale) appendLOD(lod TimescaleLOD) {
+	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Step == lod.Step {
+		t.LODs[len(t.LODs)-1].Len += lod.Len
+	} else {
+		t.LODs = append(t.LODs, lod)
+	}
 }
 
 func (lod LOD) IndexOf(timestamp int64) (int, error) {
@@ -580,11 +602,4 @@ func mathDiv(a int64, b int64) int64 {
 		return quo
 	}
 	return quo - 1
-}
-
-func VersionOrDefault(version string) string {
-	if len(version) != 0 {
-		return version
-	}
-	return Version2
 }

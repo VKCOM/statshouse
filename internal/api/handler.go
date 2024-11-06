@@ -174,6 +174,9 @@ type (
 	}
 
 	Handler struct {
+		Version3Start atomic.Int64
+		Version3Prob  atomic.Float64
+
 		HandlerOptions
 		showInvisible         bool
 		staticDir             http.FileSystem
@@ -328,7 +331,6 @@ type (
 
 	getMetricTagValuesReq struct {
 		ai         accessInfo
-		version    string
 		numResults string
 		metricName string
 		tagID      string
@@ -610,6 +612,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
+		h.Version3Start.Store(cfg.Version3Start)
+		h.Version3Prob.Store(cfg.Version3Prob)
 	})
 	go h.invalidateLoop()
 	h.rmID = statshouse.StartRegularMeasurement(func(client *statshouse.Client) { // TODO - stop
@@ -832,6 +836,25 @@ func (h *requestHandler) doSelect(ctx context.Context, meta util.QueryMetaInto, 
 	return err
 }
 
+func (r *requestHandler) effectiveVersion(version string) string {
+	switch version {
+	case "", Version2:
+		return r.version()
+	default:
+		return version
+	}
+}
+
+func (r *requestHandler) version() string {
+	if r.forceVersion != "" {
+		return r.forceVersion
+	}
+	if r.versionDice != nil {
+		return r.versionDice()
+	}
+	return Version2
+}
+
 func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
 	if metricID == format.TagValueIDUnspecified {
 		return format.CodeTagValue(format.TagValueIDUnspecified), nil
@@ -997,7 +1020,7 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 	return h.getTagValueID(tagValue)
 }
 
-func (h *httpRequestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
+func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
 	tag, ok := metricMeta.Name2Tag[tagID]
 	if !ok {
 		return nil, fmt.Errorf("tag with name %s not found for metric %s", tagID, metricMeta.Name)
@@ -1022,7 +1045,7 @@ func formValueParamMetric(r *http.Request) string {
 	return mergeMetricNamespace(ns, str)
 }
 
-func (h *httpRequestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
+func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
 	m := make(map[string][]interface{}, len(f))
 	for k, values := range f {
 		if version == Version1 && k == format.EnvTagID {
@@ -1046,7 +1069,7 @@ func (h *httpRequestHandler) resolveFilter(metricMeta *format.MetricMetaValue, v
 	return m, nil
 }
 
-func (h *httpRequestHandler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
+func (h *requestHandler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
 	m := make(map[string][]maybeMappedTag, len(f))
 	for k, values := range f {
 		if k == format.StringTopTagID {
@@ -1706,7 +1729,6 @@ func HandleGetMetricTagValues(r *httpRequestHandler) {
 		ctx,
 		getMetricTagValuesReq{
 			ai:         r.accessInfo,
-			version:    r.FormValue(ParamVersion),
 			numResults: r.FormValue(ParamNumResults),
 			metricName: formValueParamMetric(r.Request),
 			tagID:      r.FormValue(ParamTagID),
@@ -1771,12 +1793,7 @@ func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	return row
 }
 
-func (h *httpRequestHandler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (resp *GetMetricTagValuesResp, immutable bool, err error) {
-	version, err := parseVersion(req.version)
-	if err != nil {
-		return nil, false, err
-	}
-
+func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (resp *GetMetricTagValuesResp, immutable bool, err error) {
 	var numResults int
 	if req.numResults == "" || req.numResults == "0" {
 		numResults = defTagValues
@@ -1789,6 +1806,7 @@ func (h *httpRequestHandler) handleGetMetricTagValues(ctx context.Context, req g
 		return nil, false, err
 	}
 
+	version := h.version()
 	err = validateQuery(metricMeta, version)
 	if err != nil {
 		return nil, false, err
@@ -1830,21 +1848,21 @@ func (h *httpRequestHandler) handleGetMetricTagValues(ctx context.Context, req g
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:     req.version,
-		Start:       from.Unix(),
-		End:         to.Unix(),
-		ScreenWidth: 100, // really dumb
-		TimeNow:     time.Now().Unix(),
-		Metric:      metricMeta,
-		Location:    h.location,
-		UTCOffset:   h.utcOffset,
+		Version:       version,
+		Start:         from.Unix(),
+		End:           to.Unix(),
+		ScreenWidth:   100, // really dumb
+		TimeNow:       time.Now().Unix(),
+		Metric:        metricMeta,
+		Location:      h.location,
+		UTCOffset:     h.utcOffset,
+		Version3Start: h.Version3Start.Load(),
 	})
 	if err != nil {
 		return nil, false, err
 	}
 
 	pq := &preparedTagValuesQuery{
-		version:       version,
 		metricID:      metricMeta.MetricID,
 		preKeyTagID:   metricMeta.PreKeyTagID,
 		tagID:         tagID,
@@ -1865,7 +1883,7 @@ func (h *httpRequestHandler) handleGetMetricTagValues(ctx context.Context, req g
 				return nil, false, err
 			}
 			var cols *tagValuesSelectCols
-			switch pq.version {
+			switch lod.Version {
 			case Version3:
 				cols = newTagValuesSelectColsV3(meta)
 			case Version1, Version2:
@@ -1940,7 +1958,7 @@ func sumSeries(data *[]float64, missingValue float64) float64 {
 func HandleGetTable(r *httpRequestHandler) {
 	var err error
 	var req seriesRequest
-	if req, err = parseHTTPRequest(r.Request, r.location, r.metricsStorage.GetDashboardMeta); err == nil {
+	if req, err = r.parseSeriesRequest(); err == nil {
 		err = req.validate(&r.requestHandler)
 	}
 	if err != nil {
@@ -1966,7 +1984,7 @@ func HandleGetTable(r *httpRequestHandler) {
 func HandleSeriesQuery(r *httpRequestHandler) {
 	var err error
 	var req seriesRequest
-	if req, err = parseHTTPRequest(r.Request, r.location, r.metricsStorage.GetDashboardMeta); err == nil {
+	if req, err = r.parseSeriesRequest(); err == nil {
 		err = req.validate(&r.requestHandler)
 	}
 	if err != nil {
@@ -2044,7 +2062,9 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			user:       h.endpointStat.user,
 			priority:   h.endpointStat.priority,
 		},
-		debug: h.debug,
+		debug:        h.debug,
+		forceVersion: h.forceVersion,
+		versionDice:  h.versionDice,
 	}
 	var err error
 	defer func() {
@@ -2067,6 +2087,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
 				Version:          req.version,
+				Version3Start:    h.Version3Start.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
@@ -2083,7 +2104,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 func HandlePointQuery(r *httpRequestHandler) {
 	var err error
 	var req seriesRequest
-	if req, err = parseHTTPRequest(r.Request, r.location, r.metricsStorage.GetDashboardMeta); err == nil {
+	if req, err = r.parseSeriesRequest(); err == nil {
 		err = req.validate(&r.requestHandler)
 	}
 	if err != nil {
@@ -2111,7 +2132,7 @@ func HandlePointQuery(r *httpRequestHandler) {
 func HandleGetRender(r *httpRequestHandler) {
 	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
 	defer cancel()
-	s, err := parseHTTPRequestS(r.Request, 12, r.location, r.metricsStorage.GetDashboardMeta)
+	s, err := r.parseSeriesRequestS(12)
 	if err != nil {
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -2269,7 +2290,7 @@ func (h *httpRequestHandler) handleGetRender(ctx context.Context, ai accessInfo,
 	}, immutable, nil
 }
 
-func (h *httpRequestHandler) handleGetTable(ctx context.Context, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
+func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
 	metricMeta, err := h.getMetricMeta(req.metricName)
 	if err != nil {
 		return nil, false, err
@@ -2425,6 +2446,7 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 			Expr:  req.promQL,
 			Options: promql.Options{
 				Version:          req.version,
+				Version3Start:    h.Version3Start.Load(),
 				Mode:             opt.mode,
 				AvoidCache:       req.avoidCache,
 				TimeNow:          opt.timeNow.Unix(),
@@ -2550,7 +2572,7 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 	return res
 }
 
-func (h *httpRequestHandler) buildPointResponse(s seriesResponse) *GetPointResp {
+func (h *requestHandler) buildPointResponse(s seriesResponse) *GetPointResp {
 	res := &GetPointResp{
 		PointMeta:    make([]QueryPointsMeta, 0),
 		PointData:    make([]float64, 0),
@@ -2911,7 +2933,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *preparedPointsQuery,
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(args, true, pq.version)
+	cols := newPointsSelectCols(args, true, lod.Version)
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	IsHardware := pq.IsHardware()
@@ -2934,7 +2956,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *preparedPointsQuery,
 		Metric:     metric,
 		Table:      table,
 		Kind:       kind.String(),
-	}, pq.version, ch.Query{
+	}, lod.Version, ch.Query{
 		Body:   query,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
@@ -3016,7 +3038,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *preparedPointsQuery, 
 		Metric:     metric,
 		Table:      table,
 		Kind:       kind.String(),
-	}, pq.version, ch.Query{
+	}, lod.Version, ch.Query{
 		Body:   query,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
@@ -3297,10 +3319,8 @@ func mergeMetricNamespace(namespace string, metric string) string {
 	return format.NamespaceName(namespace, metric)
 }
 
-func (h *httpRequestHandler) parseAccessToken(r *http.Request) (err error) {
-	h.accessInfo, err = parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
-	h.endpointStat.setAccessInfo(h.accessInfo)
-	return err
+func (h *httpRequestHandler) init() error {
+	return h.requestHandler.init(vkuth.GetAccessToken(h.Request), h.Request.FormValue(ParamVersion))
 }
 
 func HandleProf(h *httpRequestHandler) {
@@ -3339,4 +3359,26 @@ func pprofAccessAllowed(h *httpRequestHandler) bool {
 		return false
 	}
 	return true
+}
+
+func (h *requestHandler) init(accessToken, version string) (err error) {
+	switch version {
+	case Version1, Version3:
+		h.forceVersion = version
+	case Version2, "":
+		h.versionDice = sync.OnceValue(func() string {
+			if rand.Float64() < h.Handler.Version3Prob.Load() {
+				return Version3
+			} else {
+				return Version2
+			}
+		})
+	default:
+		return fmt.Errorf("invalid version: %q", version)
+	}
+	if h.accessInfo, err = parseAccessToken(h.jwtHelper, accessToken, h.protectedMetricPrefixes, h.LocalMode, h.insecureMode); err != nil {
+		return err
+	}
+	h.endpointStat.setAccessInfo(h.accessInfo)
+	return nil
 }
