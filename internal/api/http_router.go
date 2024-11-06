@@ -30,6 +30,8 @@ type requestHandler struct {
 	endpointStat endpointStat
 	trace        []string
 	debug        bool
+	forceVersion string
+	versionDice  func() string
 }
 
 type httpRequestHandler struct {
@@ -134,7 +136,7 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 		}
 		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricNameAPIResponseTime)
 	}()
-	if err := h.parseAccessToken(req); err != nil {
+	if err := h.init(); err != nil {
 		respondJSON(h, nil, 0, 0, err)
 		return
 	}

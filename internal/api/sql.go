@@ -23,7 +23,6 @@ type maybeMappedTag struct {
 }
 
 type preparedTagValuesQuery struct {
-	version     string
 	metricID    int32
 	preKeyTagID string
 	tagID       string
@@ -41,7 +40,6 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 
 type preparedPointsQuery struct {
 	user        string
-	version     string
 	metricID    int32
 	preKeyTagID string
 	isStringTop bool
@@ -73,7 +71,7 @@ func (pq *preparedPointsQuery) IsHardware() bool {
 }
 
 func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
-	if pq.version == Version3 {
+	if lod.Version == Version3 {
 		return tagValuesQueryV3(pq, lod)
 	}
 	return tagValuesQueryV2(pq, lod)
@@ -98,13 +96,13 @@ WHERE
   AND time >= ? AND time < ?%s`,
 		mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
-		sqlAggFn(pq.version, "sum"),
+		sqlAggFn(lod.Version, "sum"),
 		pq.preKeyTableName(lod),
-		metricColumn(pq.version),
-		datePredicate(pq.version),
+		metricColumn(lod.Version),
+		datePredicate(lod.Version),
 	)
 	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
-	if pq.version == Version1 {
+	if lod.Version == Version1 {
 		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
@@ -250,9 +248,8 @@ type pointsQueryMeta struct {
 	version    string
 }
 
-func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
+func loadPointsSelectWhat(pq *preparedPointsQuery, version string) (string, int, error) {
 	var (
-		version     = pq.version
 		isStringTop = pq.isStringTop
 		kind        = pq.kind
 	)
@@ -321,7 +318,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 }
 
 func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
-	switch pq.version {
+	switch lod.Version {
 	case Version3:
 		return loadPointsQueryV3(pq, lod, utcOffset)
 	default:
@@ -330,7 +327,7 @@ func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int6
 }
 
 func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
-	what, cnt, err := loadPointsSelectWhat(pq)
+	what, cnt, err := loadPointsSelectWhat(pq, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -366,11 +363,11 @@ WHERE
 		commaBy,
 		what,
 		pq.preKeyTableName(lod),
-		metricColumn(pq.version),
-		datePredicate(pq.version),
+		metricColumn(lod.Version),
+		datePredicate(lod.Version),
 	)
 	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
-	if pq.version == Version1 {
+	if lod.Version == Version1 {
 		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
@@ -430,11 +427,11 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, having, oderBy, limit)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: lod.Version}, err
 }
 
 func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
-	what, cnt, err := loadPointsSelectWhat(pq)
+	what, cnt, err := loadPointsSelectWhat(pq, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -498,11 +495,11 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	}
 	queryBuilder.WriteString("\nSETTINGS optimize_aggregation_in_order = 1")
 	q := queryBuilder.String()
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: lod.Version}, err
 }
 
 func loadPointQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
-	what, cnt, err := loadPointsSelectWhat(pq)
+	what, cnt, err := loadPointsSelectWhat(pq, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -534,11 +531,11 @@ WHERE
 		commaBySelect,
 		what,
 		preKeyTableNameFromPoint(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
-		metricColumn(pq.version),
-		datePredicate(pq.version),
+		metricColumn(lod.Version),
+		datePredicate(lod.Version),
 	)
 	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
-	if pq.version == Version1 {
+	if lod.Version == Version1 {
 		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
@@ -574,7 +571,7 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, maxSeriesRows)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: lod.Version}, err
 }
 
 func sqlAggFn(version string, fn string) string {

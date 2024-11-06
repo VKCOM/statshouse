@@ -17,7 +17,8 @@ import (
 func TestParseApiQuery(t *testing.T) {
 	location := time.FixedZone("MSK", 3)
 	req, _ := http.NewRequest("GET", "https://statshouse.mvk.com/api/query?n=5&v=2&s=__src_ingestion_status&f=1725623910&t=1725627511&w=60s&qw=count_norm&ts=-86400&qb=2&qf=0-production&qf=1~+0&qf=2~+10&qf=2~+11&mh=1&ep=1&qv=1", nil)
-	seriesRequest, err := parseHTTPRequest(req, location, nil)
+	p := httpRequestHandler{Request: req, requestHandler: requestHandler{Handler: &Handler{HandlerOptions: HandlerOptions{location: location}}}}
+	seriesRequest, err := p.parseSeriesRequest()
 	require.NoError(t, err)
 	t.Log(seriesRequest)
 	// n=5 - get top 5 metircs

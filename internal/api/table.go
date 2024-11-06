@@ -29,7 +29,7 @@ type (
 	}
 )
 
-type loadPointsFunc func(ctx context.Context, h *requestHandler, version string, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
+type loadPointsFunc func(ctx context.Context, h *requestHandler, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
 type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
 
 func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams tableReqParams,
@@ -54,7 +54,6 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 		qs := normalizedQueryString(req.metricName, kind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
 			user:        tableReqParams.user,
-			version:     req.version,
 			metricID:    metricMeta.MetricID,
 			preKeyTagID: metricMeta.PreKeyTagID,
 			isStringTop: tableReqParams.isStringTop,
@@ -73,10 +72,11 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			m, err := loadPoints(ctx, h, req.version, qs, pq, data_model.LOD{
+			m, err := loadPoints(ctx, h, qs, pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
 				StepSec:    lod.StepSec,
+				Version:    req.version,
 				Table:      lod.Table,
 				HasPreKey:  lod.HasPreKey,
 				PreKeyOnly: lod.PreKeyOnly,

@@ -114,13 +114,12 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	return nil
 }
 
-func (h *rpcRequestHandler) parseAccessToken(token string) (err error) {
-	h.accessInfo, err = parseAccessToken(h.jwtHelper, token, h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
-	if err != nil {
-		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
-		return err
+func (h *rpcRequestHandler) init(accessToken string, version int32) (err error) {
+	var s string
+	if version != 0 {
+		s = strconv.Itoa(int(version))
 	}
-	return nil
+	return h.requestHandler.init(accessToken, s)
 }
 
 func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
@@ -138,7 +137,6 @@ func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.Hand
 		timeShift:   args.Query.TimeShift,
 		timeTo:      args.Query.TimeTo,
 		topN:        args.Query.TopN,
-		version:     args.Query.Version,
 		what:        args.Query.What,
 		whatFlagSet: args.Query.IsSetWhat(),
 	}
@@ -186,7 +184,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 		err = fmt.Errorf("failed to deserialize statshouseApi.getQuery request: %w", err)
 		return err
 	}
-	if err = h.parseAccessToken(args.AccessToken); err != nil {
+	if err = h.init(args.AccessToken, args.Query.Version); err != nil {
 		return err
 	}
 	qry := seriesRequestRPC{
@@ -200,7 +198,6 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 		timeShift:   args.Query.TimeShift,
 		timeTo:      args.Query.TimeTo,
 		topN:        args.Query.TopN,
-		version:     args.Query.Version,
 		what:        args.Query.What,
 		widthAgg:    args.Query.WidthAgg,
 		whatFlagSet: args.Query.IsSetWhat(),
@@ -282,7 +279,6 @@ type seriesRequestRPC struct {
 	timeShift   []int64
 	timeTo      int64
 	topN        int32
-	version     int32
 	what        []tlstatshouseApi.Function
 	widthAgg    string
 	whatFlagSet bool
@@ -293,7 +289,7 @@ func (h *rpcRequestHandler) rawGetChunk(ctx context.Context, hctx *rpc.HandlerCo
 	if _, err = args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize %s request: %w", args.TLName(), err)
 	}
-	if err = h.parseAccessToken(args.AccessToken); err != nil {
+	if err = h.init(args.AccessToken, 0); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return err
 	}
@@ -325,7 +321,7 @@ func (h *rpcRequestHandler) rawReleaseChunks(ctx context.Context, hctx *rpc.Hand
 	if _, err = args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize %s request: %w", args.TLName(), err)
 	}
-	if err = h.parseAccessToken(args.AccessToken); err != nil {
+	if err = h.init(args.AccessToken, 0); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return err
 	}
@@ -349,7 +345,7 @@ func (h *rpcRequestHandler) rawReleaseChunks(ctx context.Context, hctx *rpc.Hand
 
 func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesRequest, error) {
 	req := seriesRequest{
-		version:    strconv.FormatInt(int64(qry.version), 10),
+		version:    h.version(),
 		numResults: int(qry.topN),
 		metricName: qry.metricName,
 		from:       time.Unix(qry.timeFrom, 0),

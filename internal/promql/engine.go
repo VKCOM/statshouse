@@ -52,6 +52,7 @@ type Query struct {
 
 type Options struct {
 	Version          string
+	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Namespace        string
 	AvoidCache       bool
 	TimeNow          int64
@@ -252,17 +253,18 @@ func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	}
 	// init timescale
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
-		QueryStat:   ev.QueryStat,
-		Version:     qry.Options.Version,
-		Start:       qry.Start,
-		End:         qry.End,
-		Step:        qry.Step,
-		TimeNow:     qry.Options.TimeNow,
-		ScreenWidth: qry.Options.ScreenWidth,
-		Mode:        qry.Options.Mode,
-		Extend:      qry.Options.Extend,
-		Location:    ng.location,
-		UTCOffset:   ng.utcOffset,
+		QueryStat:     ev.QueryStat,
+		Version:       qry.Options.Version,
+		Version3Start: qry.Options.Version3Start,
+		Start:         qry.Start,
+		End:           qry.End,
+		Step:          qry.Step,
+		TimeNow:       qry.Options.TimeNow,
+		ScreenWidth:   qry.Options.ScreenWidth,
+		Mode:          qry.Options.Mode,
+		Extend:        qry.Options.Extend,
+		Location:      ng.location,
+		UTCOffset:     ng.utcOffset,
 	})
 
 	if err != nil || ev.t.Empty() {

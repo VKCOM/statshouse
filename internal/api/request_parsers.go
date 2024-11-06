@@ -23,8 +23,8 @@ import (
 	"github.com/vkcom/statshouse/internal/promql"
 )
 
-func parseHTTPRequest(r *http.Request, location *time.Location, getDashboardMeta func(dashId int32) *format.DashboardMeta) (seriesRequest, error) {
-	res, err := parseHTTPRequestS(r, 1, location, getDashboardMeta)
+func (r *httpRequestHandler) parseSeriesRequest() (seriesRequest, error) {
+	res, err := r.parseSeriesRequestS(1)
 	if err != nil {
 		return seriesRequest{}, err
 	}
@@ -34,7 +34,7 @@ func parseHTTPRequest(r *http.Request, location *time.Location, getDashboardMeta
 	return res[0], nil
 }
 
-func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, getDashboardMeta func(dashId int32) *format.DashboardMeta) (res []seriesRequest, err error) {
+func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesRequest, err error) {
 	defer func() {
 		var dummy httpError
 		if err != nil && !errors.As(err, &dummy) {
@@ -66,8 +66,7 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		tabAt = func(i int) *seriesRequestEx {
 			for j := len(tabs) - 1; j < i; j++ {
 				tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
-					version: Version2,
-					vars:    env,
+					vars: env,
 				}})
 			}
 			return &tabs[i]
@@ -78,7 +77,7 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 	if id, err := strconv.Atoi(first(r.Form[paramDashboardID])); err == nil {
 		var v *format.DashboardMeta
 		if v = format.BuiltinDashboardByID[int32(id)]; v == nil {
-			v = getDashboardMeta(int32(id))
+			v = r.metricsStorage.GetDashboardMeta(int32(id))
 		}
 		if v != nil {
 			// Ugly, but there is no other way because "metricsStorage" stores partially parsed dashboard!
@@ -96,8 +95,6 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 		}
 		if v.UseV2 {
 			tab.version = Version2
-		} else {
-			tab.version = Version1
 		}
 		tab.numResults = v.NumSeries
 		tab.metricName = v.MetricName
@@ -195,13 +192,13 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 	if n != 0 {
 		switch dash.TimeRange.To {
 		case "ed": // end of day
-			year, month, day := time.Now().In(location).Date()
-			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, location).Add(24 * time.Hour).UTC()
+			year, month, day := time.Now().In(r.location).Date()
+			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, r.location).Add(24 * time.Hour).UTC()
 			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		case "ew": // end of week
 			var (
-				year, month, day = time.Now().In(location).Date()
-				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, location)
+				year, month, day = time.Now().In(r.location).Date()
+				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, r.location)
 				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
 			)
 			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()
@@ -459,6 +456,7 @@ func parseHTTPRequestS(r *http.Request, maxTabs int, location *time.Location, ge
 	// parse dependent paramemeters
 	var (
 		finalize = func(t *seriesRequestEx) error {
+			t.version = r.effectiveVersion(t.version)
 			numResultsMax := maxSeries
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)

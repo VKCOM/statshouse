@@ -23,14 +23,15 @@ var location = time.FixedZone("MSK", utcOffset)
 
 func getLod(t *testing.T, version string) data_model.LOD {
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:     version,
-		Start:       10_000,
-		End:         20_000,
-		ScreenWidth: 100,
-		TimeNow:     20_000,
-		Location:    location,
-		UTCOffset:   3,
-		Metric:      format.BuiltinMetricMetaIngestionStatus,
+		Version:       version,
+		Version3Start: 1,
+		Start:         10_000,
+		End:           20_000,
+		ScreenWidth:   100,
+		TimeNow:       20_000,
+		Location:      location,
+		UTCOffset:     3,
+		Metric:        format.BuiltinMetricMetaIngestionStatus,
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(lods))
@@ -40,14 +41,13 @@ func getLod(t *testing.T, version string) data_model.LOD {
 func TestTagValuesQueryV2(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		version:     Version2,
 		metricID:    metricID,
 		tagID:       "2",
 		numResults:  5,
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version2)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -80,14 +80,13 @@ SETTINGS
 func TestTagValuesQueryV2_stringTop(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		version:     Version2,
 		metricID:    metricID,
 		tagID:       format.StringTopTagID,
 		numResults:  5,
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version2)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -120,7 +119,6 @@ SETTINGS
 func TestTagValuesQueryV3(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		version:       Version3,
 		metricID:      metricID,
 		tagID:         "2",
 		numResults:    5,
@@ -129,7 +127,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
 		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version3)
 
 	// execute
 	query, meta, err := tagValuesQuery(pq, lod)
@@ -158,14 +156,13 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
 	pq := &preparedPointsQuery{
 		user:        "test-user",
-		version:     Version2,
 		metricID:    metricID,
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(false),
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version2)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
@@ -203,14 +200,13 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// prepare
 	pq := &preparedPointsQuery{
 		user:        "test-user",
-		version:     Version2,
 		metricID:    metricID,
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(true),
 		filterIn:    map[string][]any{"1": {"one", "two"}},
 		filterNotIn: map[string][]any{"0": {"staging"}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version2)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
@@ -253,7 +249,6 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	// prepare
 	pq := &preparedPointsQuery{
 		user:          "test-user",
-		version:       Version3,
 		metricID:      metricID,
 		isStringTop:   false,
 		kind:          data_model.DigestCountSec.Kind(false),
@@ -262,7 +257,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
 		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version3)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
@@ -292,7 +287,6 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
 	pq := &preparedPointsQuery{
 		user:          "test-user",
-		version:       Version3,
 		metricID:      metricID,
 		isStringTop:   false,
 		kind:          data_model.DigestCountSec.Kind(true),
@@ -301,7 +295,7 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 		filterInV3:    map[string][]maybeMappedTag{"1": {{"one", 1}, {"two", 2}}},
 		filterNotInV3: map[string][]maybeMappedTag{"0": {{"staging", 0}}},
 	}
-	lod := getLod(t, pq.version)
+	lod := getLod(t, Version3)
 
 	// execute
 	query, meta, err := loadPointsQuery(pq, lod, utcOffset)
