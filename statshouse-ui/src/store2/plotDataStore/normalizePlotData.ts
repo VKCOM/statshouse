@@ -170,7 +170,7 @@ export function normalizePlotData(
       const metricName = isValue ? `${meta.name || (plot.metricName !== promQLMetric ? plot.metricName : '')}: ` : '';
       const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
       // client select color line
-      const baseColor = /*meta.color ?? */ baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+      const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
       baseColors[colorKey] = baseColor;
       // if (baseColor !== currentPrevSeries[indexMeta]?.stroke) {
       //   changeColor = true;
