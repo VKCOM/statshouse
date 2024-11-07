@@ -84,6 +84,22 @@ export function DashboardVariable() {
     setParams((p) => {
       p.variables = localVariable.variables;
       p.orderVariables = localVariable.orderVariables;
+      p.orderVariables.forEach((variabeKey) => {
+        p.variables[variabeKey]?.link.forEach(([plotKey, tagKey]) => {
+          const plot = p.plots[plotKey];
+          if (plot) {
+            if (plot.filterIn[tagKey]) {
+              delete plot.filterIn[tagKey];
+            }
+            if (plot.filterNotIn[tagKey]) {
+              delete plot.filterNotIn[tagKey];
+            }
+            if (plot.groupBy.indexOf(tagKey) > -1) {
+              plot.groupBy = plot.groupBy.filter((tagGroup) => tagGroup !== tagKey);
+            }
+          }
+        });
+      });
     });
   }, [localVariable.orderVariables, localVariable.variables, setParams]);
 
