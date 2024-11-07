@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from 'components/UI';
+import { Button, TextArea } from 'components/UI';
 import { useStatsHouseShallow } from 'store2';
 import { useGlobalLoader } from 'store2/plotQueryStore';
 
@@ -44,15 +44,12 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
     },
     [setParams]
   );
-  const inputDescription = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setParams((params) => {
-        params.dashboardDescription = value;
-      });
-    },
-    [setParams]
-  );
+
+  const inputDescription = (value: string) => {
+    setParams((params) => {
+      params.dashboardDescription = value;
+    });
+  };
 
   const onRemoveDashboard = useCallback(
     (event: React.MouseEvent) => {
@@ -95,13 +92,11 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
               Description
             </label>
             <div className="col-sm-10">
-              <input
-                id="dashboard-input-description"
-                type="text"
-                className="form-control"
-                aria-label="Name"
-                defaultValue={dashboardDescription ?? ''}
+              <TextArea
+                className="form-control-sm"
+                value={dashboardDescription || ''}
                 onInput={inputDescription}
+                autoHeight
               />
             </div>
           </div>

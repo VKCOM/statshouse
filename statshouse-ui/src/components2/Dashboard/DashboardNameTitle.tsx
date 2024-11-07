@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
+import { TooltipMarkdown } from 'components2/Plot/PlotView/TooltipMarkdown';
 
 export type DashboardNameTitleProps = {
   name: string;
@@ -18,16 +19,7 @@ export function DashboardNameTitle({ name, description }: DashboardNameTitleProp
         {name}
         {!!description && ':'}
       </div>
-      {!!description && (
-        <>
-          <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>
-            <>{description}</>
-          </div>
-          <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
-            <>{description}</>
-          </div>
-        </>
-      )}
+      {!!description && <TooltipMarkdown description={description} />}
     </div>
   );
 }

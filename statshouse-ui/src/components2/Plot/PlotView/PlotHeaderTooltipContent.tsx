@@ -6,6 +6,7 @@
 
 import React from 'react';
 import cn from 'classnames';
+import { TooltipMarkdown } from './TooltipMarkdown';
 
 export type PlotHeaderTooltipContentProps = {
   name: React.ReactNode;
@@ -18,16 +19,7 @@ export function PlotHeaderTooltipContent({ name, description }: PlotHeaderToolti
   return (
     <div className="small text-secondary overflow-auto">
       <div className={cn('font-monospace fw-bold', hasDescription && 'mb-3')}>{name}</div>
-      {hasDescription && (
-        <>
-          <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>
-            <>{description}</>
-          </div>
-          <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
-            <>{description}</>
-          </div>
-        </>
-      )}
+      {hasDescription && <TooltipMarkdown description={description} />}
     </div>
   );
 }

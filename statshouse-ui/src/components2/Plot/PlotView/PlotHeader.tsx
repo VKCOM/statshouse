@@ -11,6 +11,7 @@ import { useStatsHouseShallow } from 'store2';
 import { PlotNavigate } from '../PlotNavigate';
 import cn from 'classnames';
 import css from './style.module.css';
+import markdownStyles from '../../style.module.css';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
@@ -25,6 +26,8 @@ import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
 import { PlotLink } from '../PlotLink';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
+import { MarkdownRender } from './MarkdownRender';
+import { TooltipMarkdown } from './TooltipMarkdown';
 
 export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
 
@@ -130,10 +133,10 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
     setEditTitle(false);
   });
 
-  const plotTooltip = useMemo(
-    () => <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={description || ''} />,
-    [description, plotKey]
-  );
+  const plotTooltip = useMemo(() => {
+    const desc = description || '';
+    return <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={desc} />;
+  }, [description, plotKey]);
 
   if (isDashboard) {
     return (
@@ -220,7 +223,7 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            <>{description}</>
+            <MarkdownRender className={markdownStyles.markdownMargin}>{description}</MarkdownRender>
           </small>
         )}
       </div>
@@ -312,9 +315,26 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
             autoHeight
           />
         ) : (
-          <Tooltip className="d-flex" title={description} hover>
-            <small className="text-secondary w-0 flex-grow-1 text-truncate no-tooltip-safari-fix">
-              <>{description}</>
+          <Tooltip
+            className="d-flex"
+            title={
+              <div className="small text-secondary overflow-auto">
+                <TooltipMarkdown description={description} />
+              </div>
+            }
+            hover
+          >
+            <small className="text-secondary w-0 flex-grow-1 no-tooltip-safari-fix">
+              <MarkdownRender
+                className={markdownStyles.markdown}
+                allowedElements={['p', 'a']}
+                components={{
+                  p: ({ node, ...props }) => <span {...props} />,
+                }}
+                unwrapDisallowed
+              >
+                {description}
+              </MarkdownRender>
             </small>
           </Tooltip>
         ))}
