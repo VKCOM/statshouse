@@ -1,0 +1,29 @@
+/* Copyright 2024 V Kontakte LLC
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* referring to tag <p> because <Markdown> returns content inside tag <p> */
+.markdown {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.markdownMargin * {
+  margin: 0;
+}
+
+.markdownSpace p,
+.markdownSpace h1,
+.markdownSpace h2,
+.markdownSpace h3,
+.markdownSpace h4,
+.markdownSpace h5,
+.markdownSpace h6,
+.markdownSpace li {
+  white-space: break-spaces;
+}

@@ -10,6 +10,8 @@ import cn from 'classnames';
 import { Tooltip } from 'components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
 import { useStatsHouseShallow } from 'store2';
+import css from '../style.module.css';
+import { MarkdownRender } from 'components2/Plot/PlotView/MarkdownRender';
 
 export function _DashboardName() {
   const { dashboardName, dashboardDescription } = useStatsHouseShallow(
@@ -28,13 +30,22 @@ export function _DashboardName() {
         hover
         horizontal="left"
       >
-        <div>
+        <div className="overflow-hidden text-truncate">
           {dashboardName}
           {!!dashboardDescription && ':'}
         </div>
         {!!dashboardDescription && (
-          <div className="text-secondary flex-grow-1 w-0 overflow-hidden text-truncate">
-            <>{dashboardDescription}</>
+          <div className="text-secondary flex-grow-1 w-0 overflow-hidden">
+            <MarkdownRender
+              className={css.markdown}
+              allowedElements={['p', 'a']}
+              components={{
+                p: ({ node, ...props }) => <span {...props} />,
+              }}
+              unwrapDisallowed
+            >
+              {dashboardDescription}
+            </MarkdownRender>
           </div>
         )}
       </Tooltip>
