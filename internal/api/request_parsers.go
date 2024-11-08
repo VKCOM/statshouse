@@ -456,6 +456,9 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 				continue
 			}
 			tab := tabs[tabX]
+			if tab == nil {
+				continue
+			}
 			if vv.group == "1" {
 				tab.by = append(tab.by, tagID)
 			}
