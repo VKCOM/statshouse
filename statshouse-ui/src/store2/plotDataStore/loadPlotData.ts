@@ -19,6 +19,7 @@ import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
   params: QueryParams,
+  interval?: number,
   fetchBadges: boolean = false,
   priority?: number
 ): ApiQueryGet | null {
@@ -63,6 +64,9 @@ export function getLoadPlotUrlParams(
   if (priority) {
     urlParams[GET_PARAMS.priority] = priority.toString();
   }
+  if (interval) {
+    urlParams[GET_PARAMS.metricLive] = interval?.toString();
+  }
 
   return urlParams;
 }
@@ -70,10 +74,11 @@ export function getLoadPlotUrlParams(
 export async function loadPlotData(
   plotKey: PlotKey,
   params: QueryParams,
+  interval?: number,
   fetchBadges: boolean = false,
   priority?: number
 ): Promise<ProduceUpdate<StatsHouseStore> | null> {
-  const urlParams = getLoadPlotUrlParams(plotKey, params, fetchBadges, priority);
+  const urlParams = getLoadPlotUrlParams(plotKey, params, interval, fetchBadges, priority);
   const plot = params.plots[plotKey];
   if (!urlParams || !plot) {
     return null;

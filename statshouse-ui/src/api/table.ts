@@ -36,6 +36,7 @@ export type ApiTableGet = {
   [GET_PARAMS.metricFromEnd]?: string;
   [GET_PARAMS.metricFromRow]?: string;
   [GET_PARAMS.metricToRow]?: string;
+  [GET_PARAMS.metricLive]?: string;
 };
 
 export type GetTableResp = {

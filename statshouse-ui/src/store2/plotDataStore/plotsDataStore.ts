@@ -216,9 +216,14 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const loadBadges = fetchBadges && !getState().plotsData[plotKey]?.loadBadges;
       let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable || loadBadges;
       prepareEnd();
+
       if (update) {
         const queryEnd = queryStart(plotKey);
-        loadPlotData(plotKey, getState().params, fetchBadges, priority)
+
+        const { status, interval } = useLiveModeStore.getState();
+        const intervalParam = status ? interval : undefined;
+
+        loadPlotData(plotKey, getState().params, intervalParam, fetchBadges, priority)
           .then((updatePlotData) => {
             if (updatePlotData) {
               setState(updatePlotData);

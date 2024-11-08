@@ -40,6 +40,7 @@ export type ApiQueryGet =
       [GET_PARAMS.avoidCache]?: string;
       [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
       [GET_PARAMS.priority]?: string;
+      [GET_PARAMS.metricLive]?: string;
       // [GetParams.metricFromEnd]?:string;
       // [GetParams.metricFromRow]?:string;
       // [GetParams.metricToRow]?:string;
