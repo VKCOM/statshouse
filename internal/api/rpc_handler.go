@@ -74,12 +74,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 			code = rpc.TlErrorInternal
 			err = &rpc.Error{Code: rpc.TlErrorInternal}
 		} else if err != nil {
-			var rpcError *rpc.Error
-			if errors.As(err, &rpcError) {
-				code = int(rpcError.Code)
-			} else {
-				code = -1
-			}
+			code = rpcCode(err)
 		}
 		w.endpointStat.report(code, format.BuiltinMetricNameAPIResponseTime)
 	}()
@@ -145,6 +140,7 @@ func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.Hand
 		return err
 	}
 	sr, cancel, err := h.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery})
+	h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 	if err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return err
@@ -207,6 +203,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 		return err
 	}
 	srs, cancel, err := h.handleSeriesRequestS(ctx, req, make([]seriesResponse, 1))
+	h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 	if err != nil {
 		return err
 	}
@@ -296,16 +293,20 @@ func (h *rpcRequestHandler) rawGetChunk(ctx context.Context, hctx *rpc.HandlerCo
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
 		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 		return err
 	}
 	if br.owner != h.accessInfo.user {
 		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
+		h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 		return err
 	}
 	if int(args.ChunkId) > len(br.chunks)-1 {
 		err = &rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
+		h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 		return err
 	}
+	h.endpointStat.report(0, format.BuiltinMetricNameAPIServiceTime)
 	res := tlstatshouseApi.GetChunkResponse{
 		Series: br.chunks[int(args.ChunkId)],
 		Index:  args.ChunkId,
@@ -328,12 +329,15 @@ func (h *rpcRequestHandler) rawReleaseChunks(ctx context.Context, hctx *rpc.Hand
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
 		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 		return err
 	}
 	if br.owner != h.accessInfo.user {
 		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
+		h.endpointStat.report(rpcCode(err), format.BuiltinMetricNameAPIServiceTime)
 		return err
 	}
+	h.endpointStat.report(0, format.BuiltinMetricNameAPIServiceTime)
 	res := tlstatshouseApi.ReleaseChunksResponse{
 		ReleasedChunkCount: int32(h.brs.Release(args.ResponseId)),
 	}
@@ -487,4 +491,15 @@ func estimateResponseSize(data *SeriesResponse) (int, int, int) {
 	metaSize := (4 + 8 + 8 + 20*tagsCount) * len(data.Series.SeriesMeta) // (fields_mask + shift + what + avg_size(tag)*len(tags))*len(metas)
 
 	return columnSize, columnSize*len(data.Series.Time) + metaSize, metaSize
+}
+
+func rpcCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var rpcError *rpc.Error
+	if errors.As(err, &rpcError) {
+		return int(rpcError.Code)
+	}
+	return -1
 }
