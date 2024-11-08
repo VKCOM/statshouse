@@ -497,8 +497,12 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 				}
 			}
 			if len(t.strWidth) == 0 {
-				if t.strWidthAgg == "-1" {
-					t.width = 60 // a minute for "Auto (low)" resolution
+				if n, err := strconv.Atoi(t.strWidthAgg); err == nil {
+					if n < 0 {
+						t.width = 60 // a minute for "Auto (low)" resolution
+					} else {
+						t.width = n
+					}
 				} else {
 					t.width = 1 // a second for "Auto" resolution
 				}
