@@ -44,13 +44,19 @@ type autoCreate struct {
 type KnownTags map[int32]knownTags
 
 type knownTags struct {
-	namespace map[string]string           // namespace level tags
-	groups    map[int32]map[string]string // group level tags, by group ID
+	namespace map[string]KnownTag           // namespace level tags
+	groups    map[int32]map[string]KnownTag // group level tags, by group ID
 }
 
 type KnownTagsJSON struct {
-	Namespace map[string]string            `json:"known_tags,omitempty"` // tag name -> tag ID
-	Groups    map[string]map[string]string `json:"groups,omitempty"`     // group name -> tag name -> tag ID
+	Namespace map[string]KnownTag            `json:"known_tags,omitempty"` // tag name -> tag
+	Groups    map[string]map[string]KnownTag `json:"groups,omitempty"`     // group name -> tag name -> tag
+}
+
+type KnownTag struct {
+	ID          string `json:"id"`
+	RawKind     string `json:"raw_kind,omitempty"`
+	SkipMapping bool   `json:"skip_mapping,omitempty"`
 }
 
 func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
@@ -359,20 +365,33 @@ func (m KnownTags) PublishDraftTags(meta *format.MetricMetaValue) int {
 	return n
 }
 
-func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]string) int {
+func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]KnownTag) int {
 	var n int
 	for k, v := range meta.TagsDraft {
-		tagID, ok := knownTags[k]
-		if !ok || tagID == "" {
+		tag, ok := knownTags[k]
+		if !ok || tag.ID == "" {
 			continue
 		}
-		if tagID == format.StringTopTagID {
+		if tag.ID == format.StringTopTagID {
 			if meta.StringTopName == "" {
 				meta.StringTopName = v.Name
 				meta.StringTopDescription = v.Description
 				n++
 			}
-		} else if x := format.TagIndex(tagID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
+		} else if x := format.TagIndex(tag.ID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
+			if tag.RawKind != "" {
+				rawKind := tag.RawKind
+				if rawKind == "int" {
+					// The raw attribute is stored separately from the type string in metric meta,
+					// empty type implies "int" which is not allowed
+					rawKind = ""
+				}
+				if format.ValidRawKind(rawKind) {
+					v.Raw = true
+					v.RawKind = rawKind
+				}
+			}
+			v.SkipMapping = tag.SkipMapping
 			meta.Tags[x] = v
 			delete(meta.TagsDraft, k)
 			n++
@@ -399,7 +418,7 @@ func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags
 		if namespace.ID == format.BuiltinNamespaceIDDefault {
 			return nil, fmt.Errorf("namespace can not be __default")
 		}
-		knownTagsG := make(map[int32]map[string]string, len(v.Groups))
+		knownTagsG := make(map[int32]map[string]KnownTag, len(v.Groups))
 		for groupName, g := range v.Groups {
 			groupName := namespaceName + format.NamespaceSeparator + groupName
 			group := meta.GetGroupByName(groupName)
