@@ -258,8 +258,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		SampleKeys:       config.SampleKeys,
 		Meta:             s.agent.metricStorage,
 		Rand:             rnd,
-		DiscardF: func(key data_model.Key, item *data_model.MultiItem, _ uint32) {
-			bucket.DeleteMultiItem(&key)
+		DiscardF: func(item *data_model.MultiItem, _ uint32) {
+			bucket.DeleteMultiItem(&item.Key)
 		}, // remove from map
 	})
 	for _, item := range bucket.MultiItems {
@@ -279,7 +279,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 			}
 		}
 		sampler.Add(data_model.SamplingMultiItemPair{
-			Key:         item.Key,
 			Item:        item,
 			WhaleWeight: whaleWeight,
 			Size:        sz,
