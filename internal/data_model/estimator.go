@@ -9,9 +9,8 @@ package data_model
 import (
 	"sync"
 
-	"pgregory.net/rand"
-
 	"github.com/vkcom/statshouse/internal/format"
+	"pgregory.net/rand"
 )
 
 // Algorithm idea
@@ -76,7 +75,7 @@ func (e *Estimator) createEstimatorsLocked(time uint32) (map[int32]*ChUnique, ma
 	return ah, bh
 }
 
-func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, usedMetrics map[int32]struct{}, builtInStat *map[Key]*MultiItem, aggregatorHost int32, shardKey int32, replicaKey int32, numShards int) {
+func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *MultiItemMap, usedMetrics map[int32]struct{}, aggregatorHost int32, shardKey int32, replicaKey int32, numShards int) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -110,7 +109,7 @@ func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, usedMetri
 		// we cannot implement this, so we multiply by # of shards, expecting uniform load (which is wrong if skip shards option is given to agents)
 		// so avg() of this metric shows full estimate
 		key := AggKey((time/60)*60, format.BuiltinMetricIDAggHourCardinality, [format.MaxTags]int32{0, 0, 0, 0, k}, aggregatorHost, shardKey, replicaKey)
-		MapKeyItemMultiItem(builtInStat, key, AggregatorStringTopCapacity, nil, nil).Tail.AddValueCounterHost(rng, cardinality, 1, aggregatorHost)
+		miMap.MapKeyItemMultiItem(key, AggregatorStringTopCapacity, nil, nil).Tail.AddValueCounterHost(rng, cardinality, 1, aggregatorHost)
 	}
 }
 

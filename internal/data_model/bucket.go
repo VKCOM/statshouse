@@ -9,6 +9,7 @@ package data_model
 import (
 	"encoding/binary"
 	"sort"
+	"unsafe"
 
 	"pgregory.net/rand"
 
@@ -25,12 +26,8 @@ type (
 	Key struct {
 		Timestamp uint32
 		Metric    int32
-		Tags      [format.MaxTags]int32 // Unused tags are set to special 0-value
-		sTags     *sTagsHolder          // If no stags are used then nil
-	}
-
-	sTagsHolder struct {
-		values [format.MaxTags]string
+		Tags      [format.MaxTags]int32  // Unused tags are set to special 0-value
+		STags     [format.MaxTags]string // Unused stags are set to empty string
 	}
 
 	ItemCounter struct {
@@ -54,6 +51,7 @@ type (
 
 	// All our items are technically string tops, but most have empty Top map
 	MultiItem struct {
+		Key              Key
 		Top              map[string]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
@@ -66,7 +64,12 @@ type (
 		Time       uint32
 		Resolution int // for tracking during testing. 0 is merge of all resolutions
 
-		MultiItems map[Key]*MultiItem
+		MultiItemMap
+	}
+
+	MultiItemMap struct {
+		MultiItems map[string]*MultiItem
+		keysBuffer []byte
 	}
 )
 
@@ -77,24 +80,15 @@ const sipKeyB = 0xc302580679a8cef2
 func (s *ItemCounter) Count() float64 { return s.counter }
 
 func (k *Key) SetSTag(i int, s string) {
-	if k.sTags == nil {
-		k.sTags = new(sTagsHolder)
-	}
-	k.sTags.values[i] = s
+	k.STags[i] = s
 }
 
 func (k *Key) GetSTag(i int) string {
-	if k.sTags == nil {
-		return ""
-	}
-	return k.sTags.values[i]
+	return k.STags[i]
 }
 
 func (k *Key) STagSlice() []string {
-	if k.sTags == nil {
-		return []string{}
-	}
-	result := append([]string{}, k.sTags.values[:]...)
+	result := append([]string{}, k.STags[:]...)
 	i := format.MaxTags
 	for ; i != 0; i-- {
 		if len(result[i-1]) != 0 {
@@ -102,6 +96,40 @@ func (k *Key) STagSlice() []string {
 		}
 	}
 	return result[:i]
+}
+
+func (k *Key) Marshal(buffer []byte) (updatedBuffer []byte, newKey []byte) {
+	// compile time assert to ensure that 1 byte is enough for ]tags count
+	const _ = uint(255 - len(k.Tags))
+	const _ = uint(255 - len(k.STags))
+	tagsCount := len(k.Tags) // ignore empty tags
+	for ; tagsCount > 0 && k.Tags[tagsCount-1] == 0; tagsCount-- {
+	}
+	stagsCount := len(k.STags) // ignore empty stags
+	for ; stagsCount > 0 && len(k.STags[stagsCount-1]) == 0; stagsCount-- {
+	}
+	stagsSize := 0
+	for i := 0; i < stagsCount; i++ {
+		stagsSize += len(k.STags[i]) + 1 // zero terminated
+	}
+	// metric 4b + #tags 1b + tags 4b each + #stags 1b + stags zero term strings from 1 to 129 bytes each
+	updatedBuffer = append(buffer, make([]byte, 4+1+tagsCount*4+1+stagsSize)...)
+	newKey = updatedBuffer[len(buffer):]
+	binary.LittleEndian.PutUint32(newKey[0:], uint32(k.Metric))
+	newKey[4] = byte(tagsCount)
+	tagsPos := 5
+	for i := 0; i < tagsCount; i++ {
+		binary.LittleEndian.PutUint32(newKey[tagsPos+i*4:], uint32(k.Tags[i]))
+	}
+	newKey[tagsPos+tagsCount*4] = byte(stagsCount)
+	stagsPos := tagsPos + tagsCount*4
+	for i := 0; i < stagsCount; i++ {
+		copy(newKey[stagsPos:], k.STags[i])
+		stagsPos += len(k.STags[i])
+		newKey[stagsPos] = 0
+		stagsPos += 1
+	}
+	return
 }
 
 func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
@@ -226,19 +254,36 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func MapKeyItemMultiItem(other *map[Key]*MultiItem, key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, created *bool) *MultiItem {
-	if *other == nil {
-		*other = map[Key]*MultiItem{}
+func (b *MultiItemMap) MapKeyItemMultiItem(key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, created *bool) *MultiItem {
+	if b.MultiItems == nil {
+		b.MultiItems = make(map[string]*MultiItem)
 	}
-	item, ok := (*other)[key]
-	if !ok {
-		item = &MultiItem{Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
-		(*other)[key] = item
-	}
+	var keyBytes []byte
+	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
+	item, ok := b.MultiItems[keyString]
 	if created != nil {
 		*created = !ok
 	}
+	if ok {
+		b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]
+		return item
+	}
+	item = &MultiItem{Key: key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
+	b.MultiItems[keyString] = item
 	return item
+}
+
+func (b *MultiItemMap) DeleteMultiItem(key *Key) {
+	if b.MultiItems == nil {
+		return
+	}
+	var keyBytes []byte
+	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
+	delete(b.MultiItems, keyString)
+	b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]
+	// we do not clean keysBuffer, it has same lifetime as b and should be reused
 }
 
 func (s *MultiItem) MapStringTop(rng *rand.Rand, str string, count float64) *MultiValue {

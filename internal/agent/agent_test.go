@@ -125,14 +125,14 @@ func testEnsureFlush(t *testing.T, shard *Shard, time uint32) {
 		if b.Time != mustBeTime {
 			t.Fatalf("wrong bucket time")
 		}
-		for key := range b.MultiItems {
-			if key.Metric == 1 && key.Timestamp != mustBeTime {
+		for _, item := range b.MultiItems {
+			if item.Key.Metric == 1 && item.Key.Timestamp != mustBeTime {
 				t.Fatalf("wrong metric 1sec time")
 			}
-			if key.Metric == 5 && key.Timestamp != mustBeTime {
+			if item.Key.Metric == 5 && item.Key.Timestamp != mustBeTime {
 				t.Fatalf("wrong metric 5sec time")
 			}
-			if key.Timestamp < mustBeTime { // metric from the future
+			if item.Key.Timestamp < mustBeTime { // metric from the future
 				t.Fatalf("metric from the future")
 			}
 		}
@@ -224,18 +224,18 @@ func Test_AgentSharding(t *testing.T) {
 				if sh == nil {
 					continue
 				}
-				for key := range sh.MultiItems {
-					shardCount += int(sh.MultiItems[key].Tail.Value.Count())
+				for _, item := range sh.MultiItems {
+					shardCount += int(item.Tail.Value.Count())
 					expectedShardNum := uint32(0) // buitin metrics
-					if key.Metric > 0 && key.Metric < 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(key, key.Hash(), fixedShard(nil, key), agent.NumShards(), true)
-					} else if key.Metric >= 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(key, key.Hash(), byMappedTags(nil, key), agent.NumShards(), true)
-					} else if key.Metric == format.BuiltinMetricIDIngestionStatus {
-						expectedShardNum, _, _ = sharding.Shard(key, key.Hash(), byTagIngestion, agent.NumShards(), true)
+					if item.Key.Metric > 0 && item.Key.Metric < 300_001 {
+						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), fixedShard(nil, item.Key), agent.NumShards(), true)
+					} else if item.Key.Metric >= 300_001 {
+						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), byMappedTags(nil, item.Key), agent.NumShards(), true)
+					} else if item.Key.Metric == format.BuiltinMetricIDIngestionStatus {
+						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), byTagIngestion, agent.NumShards(), true)
 					}
 					if int(expectedShardNum) != si {
-						t.Fatalf("failed for metric %v expected shard %d but got %d", key, expectedShardNum, si)
+						t.Fatalf("failed for metric %v expected shard %d but got %d", item.Key, expectedShardNum, si)
 					}
 				}
 			}

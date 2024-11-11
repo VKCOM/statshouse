@@ -117,13 +117,13 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 		{
 			name: "Single STag",
 			key: Key{
-				sTags: &sTagsHolder{[format.MaxTags]string{"test"}},
+				STags: [format.MaxTags]string{"test"},
 			},
 		},
 		{
 			name: "Single STag max length",
 			key: Key{
-				sTags: &sTagsHolder{[format.MaxTags]string{strings.Repeat("a", maxSTagLength)}},
+				STags: [format.MaxTags]string{strings.Repeat("a", maxSTagLength)},
 			},
 		},
 		{
@@ -132,12 +132,12 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 				Timestamp: 12345,
 				Metric:    67890,
 				Tags:      [format.MaxTags]int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-				sTags: func() *sTagsHolder {
-					var stags sTagsHolder
+				STags: func() [format.MaxTags]string {
+					var stags [format.MaxTags]string
 					for i := 0; i < format.MaxTags; i++ {
-						stags.values[i] = strings.Repeat("a", maxSTagLength)
+						stags[i] = strings.Repeat("a", maxSTagLength)
 					}
-					return &stags
+					return stags
 				}(),
 			},
 		},
@@ -151,12 +151,12 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 		{
 			name: "Mixed length STags",
 			key: Key{
-				sTags: func() *sTagsHolder {
-					var stags sTagsHolder
+				STags: func() [format.MaxTags]string {
+					var stags [format.MaxTags]string
 					for i := 0; i < format.MaxTags; i++ {
-						stags.values[i] = strings.Repeat("a", i)
+						stags[i] = strings.Repeat("a", i)
 					}
-					return &stags
+					return stags
 				}(),
 			},
 		},
@@ -235,7 +235,7 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 		// Verify key components
 		require.Equal(t, originalKey.Metric, reconstructedKey.Metric, "Metrics should match")
 		require.Equal(t, originalKey.Tags, reconstructedKey.Tags, "Tags should match")
-		require.Equal(t, originalKey.sTags, reconstructedKey.sTags, "STags should match")
+		require.Equal(t, originalKey.STags, reconstructedKey.STags, "STags should match")
 		timestampValid(t, originalKey.Timestamp, newestTime, reconstructedKey.Timestamp, bucketTimestamp)
 	})
 }

@@ -65,7 +65,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 					Metric:    format.BuiltinMetricIDTimingErrors,
 					Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
 				}
-				mi := data_model.MapKeyItemMultiItem(&b.MultiItems, key, s.config.StringTopCapacity, nil, nil)
+				mi := b.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
 				mi.Tail.AddValueCounterHost(s.rng, float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
 			}
 			b.Time = currentTimeRounded + uint32(r)
@@ -155,13 +155,13 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	sizeCounter := 0
 	sizeStringTop := 0 // Of all types
 
-	for k, v := range bucket.MultiItems {
-		if k.Metric == format.BuiltinMetricIDIngestionStatus && k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
+	for _, v := range bucket.MultiItems {
+		if v.Key.Metric == format.BuiltinMetricIDIngestionStatus && v.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization.
-			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: k.Tags[0], Metric: k.Tags[1], Value: float32(v.Tail.Value.Count() * v.SF)})
+			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: v.Key.Tags[0], Metric: v.Key.Tags[1], Value: float32(v.Tail.Value.Count() * v.SF)})
 			continue
 		}
-		item := k.TLMultiItemFromKey(bucket.Time)
+		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, &marshalBuf)
 		sizeBuf = item.Write(sizeBuf[:0])
 		switch { // This is only an approximation
@@ -239,9 +239,9 @@ func (s *Shard) mergeBuckets(rng *rand.Rand, bucket *data_model.MetricsBucket, b
 		}
 	}
 	for _, b := range buckets {
-		for k, v := range b.MultiItems {
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, stringTopCapacity, nil, nil)
-			mi.Merge(rng, v)
+		for _, item := range b.MultiItems {
+			mi := bucket.MapKeyItemMultiItem(item.Key, stringTopCapacity, nil, nil)
+			mi.Merge(rng, item)
 		}
 	}
 }
@@ -258,26 +258,28 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		SampleKeys:       config.SampleKeys,
 		Meta:             s.agent.metricStorage,
 		Rand:             rnd,
-		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem, _ uint32) { delete(bucket.MultiItems, key) }, // remove from map
+		DiscardF: func(key data_model.Key, item *data_model.MultiItem, _ uint32) {
+			bucket.DeleteMultiItem(&key)
+		}, // remove from map
 	})
-	for k, item := range bucket.MultiItems {
+	for _, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
-		accountMetric := k.Metric
-		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
-		if k.Metric == format.BuiltinMetricIDIngestionStatus {
-			if k.Tags[1] != 0 {
+		accountMetric := item.Key.Metric
+		sz := item.Key.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
+		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus {
+			if item.Key.Tags[1] != 0 {
 				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 				// So metrics are better isolated
-				accountMetric = k.Tags[1]
+				accountMetric = item.Key.Tags[1]
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
-			if k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
+			if item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 				// These are so common, we have transfer optimization for them
 				sz = 3 * 4 // see statshouse.ingestion_status2
 			}
 		}
 		sampler.Add(data_model.SamplingMultiItemPair{
-			Key:         k,
+			Key:         item.Key,
 			Item:        item,
 			WhaleWeight: whaleWeight,
 			Size:        sz,
@@ -293,24 +295,24 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	for _, v := range sampler.MetricGroups {
 		// keep bytes
 		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		mi := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(rnd, &v.SumSizeKeep)
 		// discard bytes
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
-		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		mi = bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(rnd, &v.SumSizeDiscard)
 		// budget
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
-		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		item := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
 		item.Tail.Value.AddValue(v.Budget())
 	}
 	// report budget used
 	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
-	budgetItem := data_model.MapKeyItemMultiItem(&bucket.MultiItems, budgetKey, config.StringTopCapacity, nil, nil)
+	budgetItem := bucket.MapKeyItemMultiItem(budgetKey, config.StringTopCapacity, nil, nil)
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
-	mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+	mi := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
 	mi.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
 	return sampler.SampleFactors
 }

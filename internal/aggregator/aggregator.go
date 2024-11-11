@@ -44,8 +44,8 @@ type (
 	// When time tics, ticker takes writer lock, sets sending flag, then releases writer lock
 	// After that it can access shards and 100% know no one accesses them
 	aggregatorShard struct {
-		mu         sync.Mutex // Protects items
-		multiItems map[data_model.Key]*data_model.MultiItem
+		mu sync.Mutex // Protects items
+		data_model.MultiItemMap
 	}
 	aggregatorBucket struct {
 		time   uint32
@@ -639,7 +639,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Unlock()
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
-		a.estimator.ReportHourCardinality(rnd, aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -683,7 +683,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
-			a.estimator.ReportHourCardinality(rnd, historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
