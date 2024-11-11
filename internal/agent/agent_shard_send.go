@@ -65,7 +65,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 					Metric:    format.BuiltinMetricIDTimingErrors,
 					Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
 				}
-				mi := b.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
+				mi, _ := b.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 				mi.Tail.AddValueCounterHost(s.rng, float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
 			}
 			b.Time = currentTimeRounded + uint32(r)
@@ -240,7 +240,7 @@ func (s *Shard) mergeBuckets(rng *rand.Rand, bucket *data_model.MetricsBucket, b
 	}
 	for _, b := range buckets {
 		for _, item := range b.MultiItems {
-			mi := bucket.MapKeyItemMultiItem(item.Key, stringTopCapacity, nil, nil)
+			mi, _ := bucket.GetOrCreateMultiItem(item.Key, stringTopCapacity, nil)
 			mi.Merge(rng, item)
 		}
 	}
@@ -295,25 +295,25 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	for _, v := range sampler.MetricGroups {
 		// keep bytes
 		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
-		mi := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
-		mi.Tail.Value.Merge(rnd, &v.SumSizeKeep)
+		item, _ := bucket.GetOrCreateMultiItem(key, config.StringTopCapacity, nil)
+		item.Tail.Value.Merge(rnd, &v.SumSizeKeep)
 		// discard bytes
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
-		mi = bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
-		mi.Tail.Value.Merge(rnd, &v.SumSizeDiscard)
+		item, _ = bucket.GetOrCreateMultiItem(key, config.StringTopCapacity, nil)
+		item.Tail.Value.Merge(rnd, &v.SumSizeDiscard)
 		// budget
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
-		item := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
+		item, _ = bucket.GetOrCreateMultiItem(key, config.StringTopCapacity, nil)
 		item.Tail.Value.AddValue(v.Budget())
 	}
 	// report budget used
 	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
-	budgetItem := bucket.MapKeyItemMultiItem(budgetKey, config.StringTopCapacity, nil, nil)
+	budgetItem, _ := bucket.GetOrCreateMultiItem(budgetKey, config.StringTopCapacity, nil)
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
-	mi := bucket.MapKeyItemMultiItem(key, config.StringTopCapacity, nil, nil)
-	mi.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
+	item, _ := bucket.GetOrCreateMultiItem(key, config.StringTopCapacity, nil)
+	item.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
 	return sampler.SampleFactors
 }
 

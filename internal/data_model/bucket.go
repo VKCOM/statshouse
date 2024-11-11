@@ -254,7 +254,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) MapKeyItemMultiItem(key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, created *bool) *MultiItem {
+func (b *MultiItemMap) GetOrCreateMultiItem(key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue) (item *MultiItem, created bool) {
 	if b.MultiItems == nil {
 		b.MultiItems = make(map[string]*MultiItem)
 	}
@@ -262,16 +262,14 @@ func (b *MultiItemMap) MapKeyItemMultiItem(key Key, stringTopCapacity int, metri
 	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
 	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
 	item, ok := b.MultiItems[keyString]
-	if created != nil {
-		*created = !ok
-	}
+	created = !ok
 	if ok {
 		b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]
-		return item
+		return
 	}
 	item = &MultiItem{Key: key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
 	b.MultiItems[keyString] = item
-	return item
+	return
 }
 
 func (b *MultiItemMap) DeleteMultiItem(key *Key) {

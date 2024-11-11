@@ -209,8 +209,8 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mv := mi.MapStringTopBytes(s.rng, str, count)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	mv := item.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 }
 
@@ -231,8 +231,8 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, hist
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mv := mi.MapStringTopBytes(s.rng, str, count)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	mv := item.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
@@ -246,8 +246,8 @@ func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, cou
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
 }
 
 func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
@@ -257,8 +257,8 @@ func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.Tail.AddCounterHost(s.rng, count, hostTagId)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	item.Tail.AddCounterHost(s.rng, count, hostTagId)
 }
 
 func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
@@ -268,8 +268,8 @@ func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, st
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
 }
 
 func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
@@ -279,8 +279,8 @@ func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint6
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.MapStringTopBytes(s.rng, str, count).AddValueCounterHost(s.rng, value, count, hostTag)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	item.MapStringTopBytes(s.rng, str, count).AddValueCounterHost(s.rng, value, count, hostTag)
 }
 
 func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
@@ -290,11 +290,11 @@ func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value fl
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	if metricInfo != nil && metricInfo.HasPercentiles {
-		mi.Tail.AddValueCounterHostPercentile(s.rng, value, counter, hostTag, data_model.AgentPercentileCompression)
+		item.Tail.AddValueCounterHostPercentile(s.rng, value, counter, hostTag, data_model.AgentPercentileCompression)
 	} else {
-		mi.Tail.Value.AddValueCounterHost(s.rng, value, counter, hostTag)
+		item.Tail.Value.AddValueCounterHost(s.rng, value, counter, hostTag)
 	}
 }
 
@@ -305,11 +305,11 @@ func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, val
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	if metricInfo != nil && metricInfo.HasPercentiles {
-		mi.Tail.AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
+		item.Tail.AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
 	} else {
-		mi.Tail.Value.AddValueArrayHost(s.rng, values, mult, hostTag)
+		item.Tail.Value.AddValueArrayHost(s.rng, values, mult, hostTag)
 	}
 }
 
@@ -320,24 +320,24 @@ func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash 
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	count := float64(len(values)) * mult
 	if metricInfo != nil && metricInfo.HasPercentiles {
-		mi.MapStringTopBytes(s.rng, str, count).AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
+		item.MapStringTopBytes(s.rng, str, count).AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
 	} else {
-		mi.MapStringTopBytes(s.rng, str, count).Value.AddValueArrayHost(s.rng, values, mult, hostTag)
+		item.MapStringTopBytes(s.rng, str, count).Value.AddValueArrayHost(s.rng, values, mult, hostTag)
 	}
 }
 
-func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mi.Tail.Value.Merge(s.rng, item)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
+	item.Tail.Value.Merge(s.rng, itemValue)
 }
 
 func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
@@ -348,8 +348,8 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Count() > 0 {
-			mi := resolutionShard.MapKeyItemMultiItem(v.key, s.config.StringTopCapacity, nil, nil)
-			mi.Tail.Value.Merge(s.rng, &v.value)
+			item, _ := resolutionShard.GetOrCreateMultiItem(v.key, s.config.StringTopCapacity, nil)
+			item.Tail.Value.Merge(s.rng, &v.value)
 			v.value = data_model.ItemValue{} // Moving below 'if' would reset Counter if <0. Will complicate debugging, so no.
 		}
 		v.mu.Unlock()
@@ -366,8 +366,8 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	// standard metrics do not allow this, but heartbeats are magic.
 	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
 		key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
-		mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-		mi.MapStringTop(s.rng, hash, count).AddCounterHost(s.rng, count, 0)
+		item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+		item.MapStringTop(s.rng, hash, count).AddCounterHost(s.rng, count, 0)
 	}
 	if s.agent.metricStorage != nil { // nil only on ingress proxy for now
 		metricJournalVersion := s.agent.metricStorage.Version()
@@ -401,12 +401,12 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	sysTime := float64(s.agent.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
 	key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser})
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	mi.Tail.AddValueCounterHost(s.rng, userTime, 1, 0)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+	item.Tail.AddValueCounterHost(s.rng, userTime, 1, 0)
 
 	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys})
-	mi = resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	mi.Tail.AddValueCounterHost(s.rng, sysTime, 1, 0)
+	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+	item.Tail.AddValueCounterHost(s.rng, sysTime, 1, 0)
 
 	if nowUnix%60 != 0 {
 		// IF we sample once per minute, we do it right before sending to reduce latency
@@ -423,8 +423,8 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	}
 
 	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageMemory, [format.MaxTags]int32{0, s.agent.componentTag})
-	mi = resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	mi.Tail.AddValueCounterHost(s.rng, rss, 60, 0)
+	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+	item.Tail.AddValueCounterHost(s.rng, rss, 60, 0)
 
 	s.addBuiltInsHeartbeatsLocked(resolutionShard, nowUnix, 60) // heartbeat once per minute
 }
@@ -433,11 +433,11 @@ func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsB
 	uptimeSec := float64(nowUnix - s.agent.startTimestamp)
 
 	key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatVersion, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
-	mi := resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	mi.MapStringTop(s.rng, build.Commit(), count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+	item.MapStringTop(s.rng, build.Commit(), count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 
 	// we send format.BuiltinMetricIDHeartbeatArgs only. Args1, Args2, Args3 are deprecated
 	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatArgs, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
-	mi = resolutionShard.MapKeyItemMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	mi.MapStringTop(s.rng, s.agent.args, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
+	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+	item.MapStringTop(s.rng, s.agent.args, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 }
