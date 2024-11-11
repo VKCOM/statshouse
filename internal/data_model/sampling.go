@@ -20,7 +20,6 @@ const maxFairKeyLen = 3
 
 type (
 	SamplingMultiItemPair struct {
-		Key         Key // TODO: remove Key from here in favor of MultiItem
 		Item        *MultiItem
 		WhaleWeight float64 // whale selection criteria, for now sum Counters
 		Size        int
@@ -62,8 +61,8 @@ type (
 		SampleFactorF func(int32, float64)
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(Key, *MultiItem, uint32)
-		DiscardF func(Key, *MultiItem, uint32)
+		KeepF    func(*MultiItem, uint32)
+		DiscardF func(*MultiItem, uint32)
 
 		// Unit tests support
 		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
@@ -128,7 +127,7 @@ func (h *sampler) Add(p SamplingMultiItemPair) {
 	if p.Size < 1 {
 		p.Item.SF = math.MaxFloat32
 		if h.DiscardF != nil {
-			h.DiscardF(p.Key, p.Item, p.BucketTs)
+			h.DiscardF(p.Item, p.BucketTs)
 		}
 		h.sumSizeDiscard.AddValue(0)
 		return
@@ -161,8 +160,8 @@ func (h *sampler) Run(budget int64) {
 				n = maxFairKeyLen
 			}
 			for j := 0; j < n; j++ {
-				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Key.Tags) {
-					h.items[i].fairKey[j] = h.items[i].Key.Tags[x]
+				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Item.Key.Tags) {
+					h.items[i].fairKey[j] = h.items[i].Item.Key.Tags[x]
 				}
 			}
 			h.items[i].fairKeyLen = n
@@ -318,7 +317,7 @@ func (g samplerGroup) keep(h *sampler) {
 func (p *SamplingMultiItemPair) keep(sf float64, h *sampler) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.KeepF != nil {
-		h.KeepF(p.Key, p.Item, p.BucketTs)
+		h.KeepF(p.Item, p.BucketTs)
 	}
 	h.currentGroup.SumSizeKeep.AddValue(float64(p.Size))
 }
@@ -326,7 +325,7 @@ func (p *SamplingMultiItemPair) keep(sf float64, h *sampler) {
 func (p *SamplingMultiItemPair) discard(sf float64, h *sampler) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.DiscardF != nil {
-		h.DiscardF(p.Key, p.Item, p.BucketTs)
+		h.DiscardF(p.Item, p.BucketTs)
 	}
 	h.currentGroup.SumSizeDiscard.AddValue(float64(p.Size))
 }
