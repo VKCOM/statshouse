@@ -478,7 +478,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	var itemsCount int
 	for _, b := range buckets {
 		for si := 0; si < len(b.shards); si++ {
-			itemsCount += len(b.shards[si].multiItems)
+			itemsCount += len(b.shards[si].MultiItems)
 		}
 	}
 	recentTime := buckets[0].time // by convention first bucket is recent all other are historic
@@ -500,39 +500,39 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	for _, b := range buckets {
 		is := insertSize{}
 		for si := 0; si < len(b.shards); si++ {
-			for k, item := range b.shards[si].multiItems {
+			for _, item := range b.shards[si].MultiItems {
 				whaleWeight := item.FinishStringTop(rnd, config.StringTopCountInsert) // all excess items are baked into Tail
 
 				resPos := len(res)
-				res = appendMultiBadge(rnd, res, k, item, metricCache, usedTimestamps, newFormat)
+				res = appendMultiBadge(rnd, res, item.Key, item, metricCache, usedTimestamps, newFormat)
 				is.builtin += len(res) - resPos
 
-				accountMetric := k.Metric
-				if k.Metric < 0 {
-					ingestionStatus := k.Metric == format.BuiltinMetricIDIngestionStatus
-					hardwareMetric := format.HardwareMetric(k.Metric)
+				accountMetric := item.Key.Metric
+				if item.Key.Metric < 0 {
+					ingestionStatus := item.Key.Metric == format.BuiltinMetricIDIngestionStatus
+					hardwareMetric := format.HardwareMetric(item.Key.Metric)
 					if !ingestionStatus && !hardwareMetric {
 						// For now sample only ingestion statuses and hardware metrics on aggregator. Might be bad idea. TODO - check.
-						insertItem(k, item, 1, b.time)
+						insertItem(item.Key, item, 1, b.time)
 						sampler.KeepBuiltin(data_model.SamplingMultiItemPair{
-							Key:         k,
+							Key:         item.Key,
 							Item:        item,
 							WhaleWeight: whaleWeight,
 							Size:        item.RowBinarySizeEstimate(),
-							MetricID:    k.Metric,
+							MetricID:    item.Key.Metric,
 							BucketTs:    b.time,
 						})
 						continue
 					}
-					if ingestionStatus && k.Tags[1] != 0 {
+					if ingestionStatus && item.Key.Tags[1] != 0 {
 						// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 						// So metrics are better isolated
-						accountMetric = k.Tags[1]
+						accountMetric = item.Key.Tags[1]
 					}
 				}
 				sz := item.RowBinarySizeEstimate()
 				sampler.Add(data_model.SamplingMultiItemPair{
-					Key:         k,
+					Key:         item.Key,
 					Item:        item,
 					WhaleWeight: whaleWeight,
 					Size:        sz,

@@ -20,7 +20,7 @@ const maxFairKeyLen = 3
 
 type (
 	SamplingMultiItemPair struct {
-		Key         Key
+		Key         Key // TODO: remove Key from here in favor of MultiItem
 		Item        *MultiItem
 		WhaleWeight float64 // whale selection criteria, for now sum Counters
 		Size        int
