@@ -18,6 +18,7 @@ import { uniqueArray } from 'common/helpers';
 import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
 import { debug } from 'common/debug';
 import { fmtInputDateTime, formatLegendValue } from 'view/utils2';
+import { useLiveModeStore } from '../liveModeStore';
 
 type EventDataChunk = GetTableResp & { to: number; from: number; fromEnd: boolean };
 
@@ -69,7 +70,12 @@ export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStor
       prevEvent?.nextAbortController?.abort();
     }
     const controller = new AbortController();
-    const apiParams = getLoadTableUrlParams(plotKey, prevState.params, key, fromEnd);
+
+    const { status, interval } = useLiveModeStore.getState();
+    const intervalParam = status ? interval : undefined;
+
+    const apiParams = getLoadTableUrlParams(plotKey, prevState.params, intervalParam, key, fromEnd);
+
     if (apiParams) {
       setState((state) => {
         const plotEventsData = state.plotsEventsData[plotKey];
@@ -210,6 +216,7 @@ export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStor
 export function getLoadTableUrlParams(
   plotKey: PlotKey,
   params: QueryParams,
+  interval?: number,
   key?: string,
   fromEnd: boolean = false,
   limit: number = 1000
@@ -252,6 +259,10 @@ export function getLoadTableUrlParams(
   //   urlParams.push(...encodeVariableValues(allParams));
   //   urlParams.push(...encodeVariableConfig(allParams));
   // }
+
+  if (interval) {
+    urlParams[GET_PARAMS.metricLive] = interval?.toString();
+  }
 
   return urlParams;
 }
