@@ -204,6 +204,9 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 	if errors.Is(err, errInvalidMetricVersion) {
 		return "", data_model.ErrEntityInvalidVersion
 	}
+	if errors.Is(err, errMetricIsExist) {
+		return "", data_model.ErrEntityExists
+	}
 	if err != nil {
 		return "", fmt.Errorf("failed to create event: %w", err)
 	}

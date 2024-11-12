@@ -1518,10 +1518,11 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		if create {
 			s = "create"
 		}
+		err = fmt.Errorf("cannot %s dashboard: %w", s, err)
 		if metajournal.IsUserRequestError(err) {
-			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't %s dashboard: %w", s, err))
+			return &DashboardInfo{}, httpErr(http.StatusBadRequest, err)
 		}
-		return &DashboardInfo{}, fmt.Errorf("can't %s dashboard: %w", s, err)
+		return &DashboardInfo{}, err
 	}
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
 }
@@ -1595,7 +1596,7 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 		if create {
 			s = "create"
 		}
-		errReturn := fmt.Errorf("can't %s namespace: %w", s, err)
+		errReturn := fmt.Errorf("cannot %s namespace: %w", s, err)
 		if metajournal.IsUserRequestError(err) {
 			return &NamespaceInfo{}, httpErr(http.StatusBadRequest, errReturn)
 		}
@@ -1655,8 +1656,10 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
-			err = fmt.Errorf("error creating metric in sqlite engine: %w", err)
-			log.Println(err.Error())
+			if metajournal.IsUserRequestError(err) {
+				errReturn := fmt.Errorf("cannot create metric: %w", err)
+				return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, errReturn)
+			}
 			return format.MetricMetaValue{}, fmt.Errorf("failed to create metric: %w", err)
 		}
 	} else {
@@ -1678,8 +1681,10 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
-			err = fmt.Errorf("error saving metric in sqllite: %w", err)
-			log.Println(err.Error())
+			if metajournal.IsUserRequestError(err) {
+				errReturn := fmt.Errorf("cannot update metric: %w", err)
+				return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, errReturn)
+			}
 			return format.MetricMetaValue{}, fmt.Errorf("can't edit metric: %w", err)
 		}
 	}
