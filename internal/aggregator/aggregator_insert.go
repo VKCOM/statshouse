@@ -123,7 +123,7 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 
 func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool, rnd *rand.Rand, stag string) []byte {
 	if newFormat {
-		return appendKeysNewFormat(res, k, metricCache, usedTimestamps, rnd, stag)
+		return appendKeysNewFormat(res, k, metricCache, usedTimestamps, stag)
 	}
 	appendTag := func(res []byte, v uint32) []byte {
 		res = binary.LittleEndian.AppendUint32(res, v)
@@ -153,7 +153,7 @@ func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, use
 	return res
 }
 
-func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, rnd *rand.Rand, stag string) []byte {
+func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, stop string) []byte {
 	appendTag := func(res []byte, k data_model.Key, i int) []byte {
 		if i >= len(k.Tags) { // temporary while we in transition between 16 and 48 tags
 			res = binary.LittleEndian.AppendUint32(res, 0)
@@ -176,10 +176,18 @@ func appendKeysNewFormat(res []byte, k data_model.Key, metricCache *metricIndexC
 	if usedTimestamps != nil { // do not update map when writing map itself
 		usedTimestamps[k.Timestamp] = struct{}{} // TODO - optimize out bucket timestamp
 	}
-	// TODO: write stag to last string tag
-	tagsN := format.NewMaxTags
-	for ki := 0; ki < tagsN; ki++ {
+	for ki := 0; ki < format.NewMaxTags; ki++ {
+		if ki == format.StringTopTagIndexV3 {
+			continue
+		}
 		res = appendTag(res, k, ki)
+	}
+	// write string top
+	if stop != "" {
+		res = binary.LittleEndian.AppendUint32(res, 0)
+		res = rowbinary.AppendString(res, stop)
+	} else {
+		res = appendTag(res, k, format.StringTopTagIndexV3)
 	}
 	return res
 }

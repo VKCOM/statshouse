@@ -205,7 +205,9 @@ func writeTagCond(cond *strings.Builder, f map[string][]maybeMappedTag, in bool)
 				strValues = append(strValues, "'"+valPair.Value+"'")
 			}
 			// we allow 0 here because it is a valid value for raw tags
-			intValues = append(intValues, fmt.Sprint(valPair.Mapped))
+			if tag != format.StringTopTagID {
+				intValues = append(intValues, fmt.Sprint(valPair.Mapped))
+			}
 		}
 		cond.WriteString("  AND (")
 		if len(intValues) > 0 {
@@ -439,7 +441,9 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	var byTagsB strings.Builder
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			byTagsB.WriteString(fmt.Sprintf(", %s AS tag%s", mappedColumnNameV3(b), b))
+			if b != format.StringTopTagID {
+				byTagsB.WriteString(fmt.Sprintf(", %s AS tag%s", mappedColumnNameV3(b), b))
+			}
 			byTagsB.WriteString(fmt.Sprintf(", %s AS stag%s", unmappedColumnNameV3(b), b))
 		}
 	}
@@ -688,10 +692,16 @@ func mappedColumnName(hasPreKey bool, tagID string, preKeyTagID string) string {
 }
 
 func mappedColumnNameV3(tagID string) string {
+	if tagID == format.StringTopTagID {
+		return "tag" + format.StringTopTagIDV3
+	}
 	return "tag" + tagID
 }
 
 func unmappedColumnNameV3(tagID string) string {
+	if tagID == format.StringTopTagID {
+		return "stag" + format.StringTopTagIDV3
+	}
 	return "stag" + tagID
 }
 
