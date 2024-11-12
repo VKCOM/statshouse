@@ -67,8 +67,8 @@ type ingressProxy2 struct {
 
 type proxyServer struct {
 	*ingressProxy2
-	config    tlstatshouse.GetConfigResult
-	listeners []net.Listener
+	config   tlstatshouse.GetConfigResult
+	listener net.Listener
 }
 
 type proxyConn struct {
@@ -128,14 +128,6 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 			client.Value(format.BuiltinMetricNameProxyHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
 			client.Value(format.BuiltinMetricNameProxyHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
 			client.Value(format.BuiltinMetricNameProxyHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
-			//-- TODO: remove when deployed
-			client.Value("igp_vm_size", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
-			client.Value("igp_vm_rss", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
-			client.Value("igp_heap_alloc", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
-			client.Value("igp_heap_sys", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
-			client.Value("igp_heap_idle", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
-			client.Value("igp_heap_inuse", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
-			//--
 		}))
 	// listen on IPv4
 	tcp4 := p.newProxyServer()
@@ -160,10 +152,10 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 			return err
 		}
 	}
-	if len(tcp4.listeners) == 0 && len(tcp6.listeners) == 0 {
+	// run
+	if tcp4.listener == nil && tcp6.listener == nil {
 		return fmt.Errorf("at least one ingress-external-addr must be provided")
 	}
-	// run
 	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
 	tcp4.run()
 	tcp6.run()
@@ -214,45 +206,34 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string) error 
 	if err != nil {
 		return err
 	}
-	// parse external addresses
-	externalTCPAddr := make([]*net.TCPAddr, len(externalAddr))
-	for i := range externalAddr {
-		externalTCPAddr[i], err = net.ResolveTCPAddr(network, externalAddr[i])
-		if err != nil {
-			return err
-		}
-	}
 	// open ports
-	p.listeners = make([]net.Listener, len(p.agent.GetConfigResult.Addresses)/len(externalAddr))
-	for i := range p.listeners {
-		log.Printf("Listen addr %v\n", listenAddr)
-		p.listeners[i], err = rpc.Listen(network, listenAddr.String(), false)
-		if err != nil {
-			return err
-		}
-		listenAddr.Port++
-		for j := range externalTCPAddr {
-			p.config.Addresses = append(p.config.Addresses, externalTCPAddr[j].String())
-			externalTCPAddr[j].Port++
+	log.Printf("Listen addr %v\n", listenAddr)
+	p.listener, err = rpc.Listen(network, listenAddr.String(), false)
+	if err != nil {
+		return err
+	}
+	// build external address
+	n := len(p.agent.GetConfigResult.Addresses)
+	s := make([]string, 0, n)
+	for len(s) < n {
+		for i := 0; i < len(externalAddr) && len(s) < n; i++ {
+			s = append(s, externalAddr[i])
 		}
 	}
+	p.config.Addresses = s
 	log.Printf("External %s addr %s\n", network, strings.Join(p.config.Addresses, ", "))
 	return nil
 }
 
 func (p *proxyServer) shutdown() {
-	for i := range p.listeners {
-		if p.listeners[i] != nil {
-			_ = p.listeners[i].Close()
-		}
+	if p.listener != nil {
+		_ = p.listener.Close()
 	}
 }
 
 func (p *proxyServer) run() {
-	p.group.Add(len(p.listeners))
-	for i := range p.listeners {
-		go p.serve(p.listeners[i])
-	}
+	p.group.Add(1)
+	go p.serve(p.listener)
 }
 
 func (p *proxyServer) serve(listener net.Listener) {
@@ -327,8 +308,6 @@ func (p *proxyConn) run() {
 			errStr,
 			string(magic_head),
 		}
-		// TODO: remove when deployed
-		statshouse.StringTop("igp_accept_handshake_error", tags, p.clientAddrS)
 		statshouse.StringTop(format.BuiltinMetricNameProxyAcceptHandshakeError, tags, p.clientAddrS)
 		return
 	}
