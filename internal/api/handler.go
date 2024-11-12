@@ -2750,7 +2750,7 @@ func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 	for _, id := range meta.tags {
 		switch id {
 		case format.StringTopTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: "key_s", Data: &c.tagStr})
+			c.res = append(c.res, proto.ResultColumn{Name: "stag_s", Data: &c.tagStr})
 		case format.ShardTagID:
 			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
 		default:

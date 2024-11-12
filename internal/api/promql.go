@@ -755,7 +755,7 @@ func (h *requestHandler) getHandlerArgs(qry *promql.SeriesQuery, step int64) map
 	for _, tagValue := range qry.SFilterIn {
 		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterInM[format.StringTopTagID] = append(filterInM[format.StringTopTagID], tagValue)
-		filterInV3[format.StringTopTagIDV3] = append(filterInV3[format.StringTopTagIDV3], maybeMappedTag{Value: tagValue})
+		filterInV3[format.StringTopTagID] = append(filterInV3[format.StringTopTagID], maybeMappedTag{Value: tagValue})
 	}
 	var (
 		filterOut   = make(map[string][]string)
@@ -776,7 +776,7 @@ func (h *requestHandler) getHandlerArgs(qry *promql.SeriesQuery, step int64) map
 	for _, tagValue := range qry.SFilterOut {
 		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterOutM[format.StringTopTagID] = append(filterOutM[format.StringTopTagID], tagValue)
-		filterOutV3[format.StringTopTagIDV3] = append(filterOutV3[format.StringTopTagIDV3], maybeMappedTag{Value: tagValue})
+		filterOutV3[format.StringTopTagID] = append(filterOutV3[format.StringTopTagID], maybeMappedTag{Value: tagValue})
 	}
 	// grouping
 	var groupBy []string
