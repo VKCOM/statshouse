@@ -101,6 +101,7 @@ SUM
 TOPK
 SORT
 SORT_DESC
+AGGREGATE
 %token	aggregatorsEnd
 
 // Keywords.
@@ -562,7 +563,7 @@ metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES
  * Keyword lists.
  */
 
-aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC;
+aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | AGGREGATE;
 
 // inside of grouping options label names can be recognized as keywords by the lexer. This is a list of keywords that could also be a label name.
 maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | START | END | ATAN2 | NUMBER;

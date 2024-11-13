@@ -22,7 +22,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/data_model"
 )
 
 // Node is a generic interface for all nodes in an AST.
@@ -195,7 +195,7 @@ type VectorSelector struct {
 
 	PosRange PositionRange
 
-	MatchingMetrics []*format.MetricMetaValue
+	data_model.QueryFilter
 	Range           int64
 	What            string
 	Whats           []string

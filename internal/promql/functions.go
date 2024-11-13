@@ -44,7 +44,12 @@ func init() {
 		parser.TOPK:              funcTopK,
 		parser.SORT:              funcTopK,
 		parser.SORT_DESC:         funcTopK,
+		parser.AGGREGATE:         aggregateNOP,
 	}
+}
+
+func aggregateNOP(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
+	return ev.eval(expr.Expr)
 }
 
 func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {

@@ -16,8 +16,8 @@ type (
 		user              string
 		metricMeta        *format.MetricMetaValue
 		isStringTop       bool
-		mappedFilterIn    map[string][]interface{}
-		mappedFilterNotIn map[string][]interface{}
+		mappedFilterIn    data_model.TagFilters
+		mappedFilterNotIn data_model.TagFilters
 		rawValue          bool
 		desiredStepMul    int64
 		location          *time.Location
@@ -29,7 +29,7 @@ type (
 	}
 )
 
-type loadPointsFunc func(ctx context.Context, h *requestHandler, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
+type loadPointsFunc func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
 type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
 
 func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams tableReqParams,
@@ -51,19 +51,6 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 	for qIndex, q := range tableReqParams.req.what {
 		rowsCount := 0
 		kind := q.What.Kind(req.maxHost)
-		qs := normalizedQueryString(req.metricName, kind, req.by, req.filterIn, req.filterNotIn, true)
-		pq := &preparedPointsQuery{
-			user:        tableReqParams.user,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: tableReqParams.isStringTop,
-			kind:        kind,
-			by:          req.by,
-			filterIn:    tableReqParams.mappedFilterIn,
-			filterNotIn: tableReqParams.mappedFilterNotIn,
-			orderBy:     true,
-			desc:        req.fromEnd,
-		}
 		for k := range lods {
 			if tableReqParams.req.fromEnd {
 				k = len(lods) - k - 1
@@ -72,7 +59,23 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			m, err := loadPoints(ctx, h, qs, pq, data_model.LOD{
+			pq, err := loadPointsQuery(&preparedPointsQuery{
+				user:        tableReqParams.user,
+				metricID:    metricMeta.MetricID,
+				preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),
+				preKeyTagID: metricMeta.PreKeyTagID,
+				isStringTop: tableReqParams.isStringTop,
+				kind:        kind,
+				by:          req.by,
+				filterIn:    tableReqParams.mappedFilterIn,
+				filterNotIn: tableReqParams.mappedFilterNotIn,
+				orderBy:     true,
+				desc:        req.fromEnd,
+			}, lod, h.utcOffset)
+			if err != nil {
+				return nil, false, err
+			}
+			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
 				StepSec:    lod.StepSec,

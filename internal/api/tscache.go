@@ -171,7 +171,7 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
 }
 
-func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
+func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 	x, err := lod.IndexOf(lod.ToSec)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, key string, p
 	case format.BuiltinMetricIDGeneratorGapsCounter:
 		generateGapsCounter(lod, res)
 	default:
-		return g.pointCaches[lod.Version][lod.StepSec].get(ctx, h, key, pq, lod, avoidCache, res)
+		return g.pointCaches[lod.Version][lod.StepSec].get(ctx, h, pq, lod, avoidCache, res)
 	}
 	return res, nil
 }
@@ -212,7 +212,7 @@ type tsCache struct {
 	ageEvictOverride  statshouse.MetricRef
 }
 
-type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *preparedPointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
+type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
 
 type tsVersionedRows struct {
 	rows         []tsSelectRow
@@ -253,7 +253,7 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, h *requestHandler, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
@@ -261,6 +261,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, key string, pq *pr
 	cachedRows := 0
 	realLoadFrom := lod.FromSec
 	realLoadTo := lod.ToSec
+	key := pq.body
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(h, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {

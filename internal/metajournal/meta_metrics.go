@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -242,36 +242,13 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.Met
 	return li
 }
 
-func (ms *MetricsStorage) MatchMetrics(matcher *labels.Matcher, namespace string, includeInvisible bool, s []*format.MetricMetaValue) []*format.MetricMetaValue {
-	if namespace == "" || namespace == "__default" {
-		s = ms.matchMetrics(format.BuiltinMetricByName, matcher, namespace, includeInvisible, s)
+func (ms *MetricsStorage) MatchMetrics(f *data_model.QueryFilter) {
+	if f.Namespace == "" || f.Namespace == "__default" {
+		f.MatchMetrics(format.BuiltinMetricByName)
 	}
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	s = ms.matchMetrics(ms.metricsByName, matcher, namespace, includeInvisible, s)
-	return s
-}
-
-func (ms *MetricsStorage) matchMetrics(mertics map[string]*format.MetricMetaValue, matcher *labels.Matcher, namespace string, includeInvisible bool, s []*format.MetricMetaValue) []*format.MetricMetaValue {
-	if matcher.Type == labels.MatchEqual {
-		name := matcher.Value
-		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
-			name = namespace + format.NamespaceSeparator + name
-		}
-		if v := mertics[name]; v != nil {
-			s = append(s, v)
-		}
-		return s
-	}
-	for name, v := range mertics {
-		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
-			name = namespace + format.NamespaceSeparator + name
-		}
-		if matcher.Matches(name) {
-			s = append(s, v)
-		}
-	}
-	return s
+	f.MatchMetrics(ms.metricsByName)
 }
 
 func (ms *MetricsStorage) GetGroupBy(metric *format.MetricMetaValue) *format.MetricsGroup {
