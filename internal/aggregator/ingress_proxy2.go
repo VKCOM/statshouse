@@ -232,8 +232,10 @@ func (p *proxyServer) shutdown() {
 }
 
 func (p *proxyServer) run() {
-	p.group.Add(1)
-	go p.serve(p.listener)
+	if p.listener != nil {
+		p.group.Add(1)
+		go p.serve(p.listener)
+	}
 }
 
 func (p *proxyServer) serve(listener net.Listener) {
