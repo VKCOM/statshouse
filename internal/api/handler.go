@@ -644,14 +644,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		client.Value(format.BuiltinMetricNameApiHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
 		client.Value(format.BuiltinMetricNameApiHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
 		client.Value(format.BuiltinMetricNameApiHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
-		//-- TODO: remove when deployed
-		client.Value("api_vm_size", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
-		client.Value("api_vm_rss", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
-		client.Value("api_heap_alloc", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
-		client.Value("api_heap_sys", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
-		client.Value("api_heap_idle", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
-		client.Value("api_heap_inuse", statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
-		//--
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {

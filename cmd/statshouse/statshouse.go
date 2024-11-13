@@ -613,6 +613,7 @@ func mainIngressProxy(aesPwd string) {
 	config.Cluster = argv.cluster
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
+	config.Version = argv.ingressVersion
 
 	// Ensure agent configuration is valid
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
@@ -629,45 +630,24 @@ func mainIngressProxy(aesPwd string) {
 		logErr.Fatalf("error creating Agent instance: %v", err)
 	}
 	sh2.Run(0, 0, 0)
-	if argv.ingressVersion == "2" {
-		ctx, cancel := context.WithCancel(context.Background())
-		exit := make(chan error, 1)
-		go func() {
-			exit <- aggregator.RunIngressProxy2(ctx, sh2, config, aesPwd)
-		}()
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, syscall.SIGINT)
+	ctx, cancel := context.WithCancel(context.Background())
+	exit := make(chan error, 1)
+	go func() {
+		exit <- aggregator.RunIngressProxy2(ctx, sh2, config, aesPwd)
+	}()
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGINT)
+	select {
+	case <-sigint:
+		cancel()
 		select {
-		case <-sigint:
-			cancel()
-			select {
-			case <-exit:
-			case <-time.After(5 * time.Second):
-			}
-			logOk.Println("Buy")
-		case err := <-exit:
-			logErr.Println(err)
-			cancel()
+		case <-exit:
+		case <-time.After(5 * time.Second):
 		}
-		return
-	}
-
-	// Ensure proxy configuration is valid
-	if len(config.ExternalAddresses) != 3 {
-		logErr.Fatalf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))
-	}
-	if len(config.IngressKeys) == 0 {
-		logErr.Fatalf("ingress proxy must have non-empty list of ingress crypto keys")
-	}
-
-	// Run ingress proxy
-	ln, err := rpc.Listen(config.Network, config.ListenAddr, false)
-	if err != nil {
-		logErr.Fatalf("Failed to listen on %s %s: %v", config.Network, config.ListenAddr, err)
-	}
-	err = aggregator.RunIngressProxy(ln, sh2, aesPwd, config)
-	if err != nil {
-		logErr.Fatalf("error running ingress proxy: %v", err)
+		logOk.Println("Buy")
+	case err := <-exit:
+		logErr.Println(err)
+		cancel()
 	}
 }
 
