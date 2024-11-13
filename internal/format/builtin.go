@@ -2896,7 +2896,7 @@ func init() {
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
 	}
-	for i := 0; i < MaxTags; i++ {
+	for i := 0; i < NewMaxTags; i++ {
 		name := strconv.Itoa(i)
 		legacyName := legacyTagIDPrefix + name
 		tagIDsLegacy = append(tagIDsLegacy, legacyName)

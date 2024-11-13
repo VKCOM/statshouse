@@ -11,8 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-	"sort"
 	"strings"
 
 	jlexer "github.com/mailru/easyjson/jlexer"
@@ -398,59 +396,6 @@ func (fn *QueryFunc) UnmarshalEasyJSON(w *jlexer.Lexer) {
 	if !ok {
 		w.AddError(fmt.Errorf("unrecognized query function: %q", s))
 	}
-}
-
-func normalizedQueryString(
-	metricName string,
-	kind data_model.DigestKind,
-	by []string,
-	filterIn map[string][]string,
-	filterNoIn map[string][]string,
-	orderBy bool,
-) string {
-	sortedBy := append([]string(nil), by...)
-	sort.Strings(sortedBy)
-
-	var sortedFilter []string
-	for k, vv := range filterIn {
-		for _, v := range vv {
-			sortedFilter = append(sortedFilter, k+queryFilterInSep+v)
-		}
-	}
-	for k, vv := range filterNoIn {
-		for _, v := range vv {
-			sortedFilter = append(sortedFilter, k+queryFilterNotInSep+v)
-		}
-	}
-	sort.Strings(sortedFilter)
-
-	var buf strings.Builder
-	buf.WriteString(ParamMetric)
-	buf.WriteByte('=')
-	buf.WriteString(url.QueryEscape(metricName))
-	buf.WriteByte('&')
-	buf.WriteString(ParamQueryWhat)
-	buf.WriteByte('=')
-	buf.WriteString(url.QueryEscape(kind.String()))
-	for _, b := range sortedBy {
-		buf.WriteByte('&')
-		buf.WriteString(ParamQueryBy)
-		buf.WriteByte('=')
-		buf.WriteString(url.QueryEscape(b))
-	}
-	for _, f := range sortedFilter {
-		buf.WriteByte('&')
-		buf.WriteString(ParamQueryFilter)
-		buf.WriteByte('=')
-		buf.WriteString(url.QueryEscape(f))
-	}
-
-	if orderBy {
-		buf.WriteByte('&')
-		buf.WriteString("order_by")
-	}
-
-	return buf.String()
 }
 
 func parseFromRows(fromRows string) (RowMarker, error) {

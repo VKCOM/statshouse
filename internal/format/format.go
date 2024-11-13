@@ -405,9 +405,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	m.PreKeyIndex = -1
 	tags := m.Tags
-	if len(tags) > MaxTags { // prevent index out of range during mapping
-		tags = tags[:MaxTags]
-		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", MaxTags))
+	if len(tags) > NewMaxTags { // prevent index out of range during mapping
+		tags = tags[:NewMaxTags]
+		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", NewMaxTags))
 	}
 	for i := range tags {
 		var (

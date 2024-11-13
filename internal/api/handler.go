@@ -546,7 +546,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	cl := config.NewConfigListener(data_model.APIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, diskCache, nil, cl.ApplyEventCB)
-	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
 	h := &Handler{
 		HandlerOptions: opt,
 		showInvisible:  showInvisible,
@@ -607,8 +606,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
-	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
-
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints, cacheDefaultDropEvery)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
@@ -617,6 +614,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 	})
+	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
+	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
+
 	go h.invalidateLoop()
 	h.rmID = statshouse.StartRegularMeasurement(func(client *statshouse.Client) { // TODO - stop
 		prevRUsage := h.rUsage
@@ -1039,46 +1039,22 @@ func formValueParamMetric(r *http.Request) string {
 	return mergeMetricNamespace(ns, str)
 }
 
-func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
-	m := make(map[string][]interface{}, len(f))
+func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (data_model.TagFilters, error) {
+	var m data_model.TagFilters
 	for k, values := range f {
 		if version == Version1 && k == format.EnvTagID {
 			continue // we only support production tables for v1
 		}
 		if k == format.StringTopTagID {
 			for _, val := range values {
-				m[k] = append(m[k], unspecifiedToEmpty(val))
+				m.StringTop = append(m.StringTop, unspecifiedToEmpty(val))
 			}
 		} else {
 			ids, err := h.getRichTagValueIDs(metricMeta, version, k, values)
 			if err != nil {
-				return nil, err
+				return data_model.TagFilters{}, err
 			}
-			m[k] = []interface{}{}
-			for _, id := range ids {
-				m[k] = append(m[k], id)
-			}
-		}
-	}
-	return m, nil
-}
-
-func (h *requestHandler) resolveFilterV3(metricMeta *format.MetricMetaValue, f map[string][]string) (map[string][]maybeMappedTag, error) {
-	m := make(map[string][]maybeMappedTag, len(f))
-	for k, values := range f {
-		if k == format.StringTopTagID {
-			for _, val := range values {
-				m[k] = append(m[k], maybeMappedTag{Value: unspecifiedToEmpty(val)})
-			}
-		} else {
-			ids, err := h.getRichTagValueIDs(metricMeta, Version3, k, values)
-			if err != nil {
-				return nil, err
-			}
-			m[k] = []maybeMappedTag{}
-			for i := range ids {
-				m[k] = append(m[k], maybeMappedTag{values[i], ids[i]})
-			}
+			m.AppendMapped(metricMeta.Name2Tag[k].Index, ids...)
 		}
 	}
 	return m, nil
@@ -1828,18 +1804,6 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	if err != nil {
 		return nil, false, err
 	}
-	var filterInV3 map[string][]maybeMappedTag
-	var filterNotInV3 map[string][]maybeMappedTag
-	if version == Version3 {
-		filterInV3, err = h.resolveFilterV3(metricMeta, filterIn)
-		if err != nil {
-			return nil, false, err
-		}
-		filterNotInV3, err = h.resolveFilterV3(metricMeta, filterNotIn)
-		if err != nil {
-			return nil, false, err
-		}
-	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Version:       version,
@@ -1857,14 +1821,13 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	pq := &preparedTagValuesQuery{
-		metricID:      metricMeta.MetricID,
-		preKeyTagID:   metricMeta.PreKeyTagID,
-		tagID:         tagID,
-		numResults:    numResults,
-		filterIn:      mappedFilterIn,
-		filterNotIn:   mappedFilterNotIn,
-		filterInV3:    filterInV3,
-		filterNotInV3: filterNotInV3,
+		metricID:    metricMeta.MetricID,
+		preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),
+		preKeyTagID: metricMeta.PreKeyTagID,
+		tagID:       tagID,
+		numResults:  numResults,
+		filterIn:    mappedFilterIn,
+		filterNotIn: mappedFilterNotIn,
 	}
 
 	tagInfo := map[selectRow]float64{}
@@ -1872,16 +1835,20 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query, meta, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
+			query, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
+			if err != nil {
+				return nil, false, err
+			}
+			body, err := bindQuery(query.body, lod)
 			if err != nil {
 				return nil, false, err
 			}
 			var cols *tagValuesSelectCols
 			switch lod.Version {
 			case Version3:
-				cols = newTagValuesSelectColsV3(meta)
+				cols = newTagValuesSelectColsV3(query.meta)
 			case Version1, Version2:
-				cols = newTagValuesSelectCols(meta)
+				cols = newTagValuesSelectCols(query.meta)
 			}
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
@@ -1892,7 +1859,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 				Table:   lod.Table,
 				Kind:    "get_mapping",
 			}, version, ch.Query{
-				Body:   query,
+				Body:   body,
 				Result: cols.res,
 				OnResult: func(_ context.Context, b proto.Block) error {
 					for i := 0; i < b.Rows; i++ {
@@ -2920,14 +2887,14 @@ func replaceInfNan(v *float64) {
 	}
 }
 
-func loadPoints(ctx context.Context, h *requestHandler, pq *preparedPointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
+func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
+	body, err := bindQuery(pq.body, lod)
 	if err != nil {
 		return 0, err
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(args, true, lod.Version)
+	cols := newPointsSelectCols(pq.pointsQueryMeta, true, lod.Version)
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	IsHardware := pq.IsHardware()
@@ -2951,7 +2918,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *preparedPointsQuery,
 		Table:      table,
 		Kind:       kind.String(),
 	}, lod.Version, ch.Query{
-		Body:   query,
+		Body:   body,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
@@ -3010,14 +2977,14 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *preparedPointsQuery,
 	return rows, nil
 }
 
-func loadPoint(ctx context.Context, h *requestHandler, pq *preparedPointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
-	query, args, err := loadPointQuery(pq, lod, h.utcOffset)
+func loadPoint(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
+	body, err := bindQuery(pq.body, lod)
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
-	cols := newPointsSelectColsV2(args, false) // loadPoint doesn't yet have v3 query
+	cols := newPointsSelectColsV2(pq.pointsQueryMeta, false) // loadPoint doesn't yet have v3 query
 	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	isHardware := pq.IsHardware()
@@ -3033,7 +3000,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *preparedPointsQuery, 
 		Table:      table,
 		Kind:       kind.String(),
 	}, lod.Version, ch.Query{
-		Body:   query,
+		Body:   body,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {

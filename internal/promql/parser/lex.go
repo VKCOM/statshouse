@@ -122,6 +122,7 @@ var key = map[string]ItemType{
 	"sort":              SORT,
 	"sort_desc":         SORT_DESC,
 	"drop_empty_series": DROP_EMPTY_SERIES,
+	"dbag":              AGGREGATE,
 
 	// Keywords.
 	"offset":      OFFSET,

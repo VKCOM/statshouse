@@ -506,8 +506,17 @@ func (t *Timescale) Empty() bool {
 	return t.StartX == len(t.Time)
 }
 
+func (t *Timescale) Duration() time.Duration {
+	start := t.Time[t.ViewStartX]
+	end := start
+	if 0 < t.ViewEndX {
+		end = t.Time[t.ViewEndX-1] + 1
+	}
+	return time.Duration(end-start) * time.Second
+}
+
 func (t *Timescale) appendLOD(lod TimescaleLOD) {
-	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Step == lod.Step {
+	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].Step == lod.Step {
 		t.LODs[len(t.LODs)-1].Len += lod.Len
 	} else {
 		t.LODs = append(t.LODs, lod)

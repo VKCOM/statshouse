@@ -44,7 +44,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	nop := func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool {
 		return false
 	}
-	load := func(ctx context.Context, h *requestHandler, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
+	load := func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 		return rowsByTime, nil
 	}
 	type args struct {

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -64,10 +63,7 @@ type SeriesQuery struct {
 	Offset    int64
 
 	// Filtering
-	FilterIn   [format.MaxTags]map[string]int32 // tag index -> tag value -> tag value ID
-	FilterOut  [format.MaxTags]map[string]int32 // as above
-	SFilterIn  []string
-	SFilterOut []string
+	data_model.QueryFilter
 
 	// Transformations
 	Range     int64
@@ -117,7 +113,7 @@ type Handler interface {
 	// # Metric Metadata
 	//
 
-	MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, error)
+	MatchMetrics(f *data_model.QueryFilter) error
 
 	//
 	// # Storage
