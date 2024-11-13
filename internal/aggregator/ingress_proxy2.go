@@ -67,8 +67,8 @@ type ingressProxy2 struct {
 
 type proxyServer struct {
 	*ingressProxy2
-	config   tlstatshouse.GetConfigResult
-	listener net.Listener
+	config    tlstatshouse.GetConfigResult
+	listeners []net.Listener
 }
 
 type proxyConn struct {
@@ -137,7 +137,7 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 		tcp6.shutdown()
 	}
 	if len(config.ExternalAddresses) != 0 && config.ExternalAddresses[0] != "" {
-		err := tcp4.listen("tcp4", config.ListenAddr, config.ExternalAddresses)
+		err := tcp4.listen("tcp4", config.ListenAddr, config.ExternalAddresses, config.Version)
 		if err != nil {
 			shutdown()
 			return err
@@ -146,16 +146,16 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 	// listen on IPv6
 	defer tcp6.shutdown()
 	if len(config.ExternalAddressesIPv6) != 0 && config.ExternalAddressesIPv6[0] != "" {
-		err := tcp6.listen("tcp6", config.ListenAddrIPV6, config.ExternalAddressesIPv6)
+		err := tcp6.listen("tcp6", config.ListenAddrIPV6, config.ExternalAddressesIPv6, config.Version)
 		if err != nil {
 			shutdown()
 			return err
 		}
 	}
-	// run
-	if tcp4.listener == nil && tcp6.listener == nil {
+	if len(tcp4.listeners) == 0 && len(tcp6.listeners) == 0 {
 		return fmt.Errorf("at least one ingress-external-addr must be provided")
 	}
+	// run
 	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
 	tcp4.run()
 	tcp6.run()
@@ -197,7 +197,7 @@ func (p *ingressProxy2) newProxyServer() proxyServer {
 	}
 }
 
-func (p *proxyServer) listen(network, addr string, externalAddr []string) error {
+func (p *proxyServer) listen(network, addr string, externalAddr []string, version string) error {
 	if len(p.agent.GetConfigResult.Addresses)%len(externalAddr) != 0 {
 		return fmt.Errorf("number of servers must be multiple of number of ingress-external-addr")
 	}
@@ -206,35 +206,60 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string) error 
 	if err != nil {
 		return err
 	}
-	// open ports
-	log.Printf("Listen addr %v\n", listenAddr)
-	p.listener, err = rpc.Listen(network, listenAddr.String(), false)
-	if err != nil {
-		return err
-	}
-	// build external address
-	n := len(p.agent.GetConfigResult.Addresses)
-	s := make([]string, 0, n)
-	for len(s) < n {
-		for i := 0; i < len(externalAddr) && len(s) < n; i++ {
-			s = append(s, externalAddr[i])
+	// build external address and listen
+	if version == "2" {
+		externalTCPAddr := make([]*net.TCPAddr, len(externalAddr))
+		for i := range externalAddr {
+			externalTCPAddr[i], err = net.ResolveTCPAddr(network, externalAddr[i])
+			if err != nil {
+				return err
+			}
 		}
+		p.listeners = make([]net.Listener, len(p.agent.GetConfigResult.Addresses)/len(externalAddr))
+		for i := range p.listeners {
+			log.Printf("Listen addr %v\n", listenAddr)
+			p.listeners[i], err = rpc.Listen(network, listenAddr.String(), false)
+			if err != nil {
+				return err
+			}
+			listenAddr.Port++
+			for j := range externalTCPAddr {
+				p.config.Addresses = append(p.config.Addresses, externalTCPAddr[j].String())
+				externalTCPAddr[j].Port++
+			}
+		}
+	} else {
+		log.Printf("Listen addr %v\n", listenAddr)
+		p.listeners = make([]net.Listener, 1)
+		p.listeners[0], err = rpc.Listen(network, listenAddr.String(), false)
+		if err != nil {
+			return err
+		}
+		n := len(p.agent.GetConfigResult.Addresses)
+		s := make([]string, 0, n)
+		for len(s) < n {
+			for i := 0; i < len(externalAddr) && len(s) < n; i++ {
+				s = append(s, externalAddr[i])
+			}
+		}
+		p.config.Addresses = s
 	}
-	p.config.Addresses = s
 	log.Printf("External %s addr %s\n", network, strings.Join(p.config.Addresses, ", "))
 	return nil
 }
 
 func (p *proxyServer) shutdown() {
-	if p.listener != nil {
-		_ = p.listener.Close()
+	for i := range p.listeners {
+		if p.listeners[i] != nil {
+			_ = p.listeners[i].Close()
+		}
 	}
 }
 
 func (p *proxyServer) run() {
-	if p.listener != nil {
-		p.group.Add(1)
-		go p.serve(p.listener)
+	p.group.Add(len(p.listeners))
+	for i := range p.listeners {
+		go p.serve(p.listeners[i])
 	}
 }
 
