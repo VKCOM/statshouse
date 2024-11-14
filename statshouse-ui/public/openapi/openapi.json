@@ -756,7 +756,8 @@
           "timestamp_local",
           "ip",
           "ip_bswap",
-          "lexenc_float"
+          "lexenc_float",
+          "float"
         ]
       },
       "MetricMetaTag": {
@@ -918,7 +919,7 @@
           "data"
         ]
       },
-      "GetMetricsInfoResp": {
+      "GetMetricInfoResp": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
