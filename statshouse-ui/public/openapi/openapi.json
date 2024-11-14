@@ -894,18 +894,6 @@
           "name"
         ]
       },
-      "GetMetricsInfoResp": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/MetricInfo"
-          }
-        },
-        "required": [
-          "data"
-        ]
-      },
       "GetMetricsListResp": {
         "type": "object",
         "additionalProperties": false,
@@ -924,6 +912,18 @@
             "required": [
               "metrics"
             ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GetMetricsInfoResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MetricInfo"
           }
         },
         "required": [
