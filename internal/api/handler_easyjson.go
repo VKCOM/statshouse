@@ -528,6 +528,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 				}
 				in.Delim(']')
 			}
+		case "pipeline_version":
+			out.PipelineVersion = uint8(in.Uint8())
 		default:
 			in.SkipRecursive()
 		}
@@ -697,6 +699,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 			}
 			out.RawByte(']')
 		}
+	}
+	if in.PipelineVersion != 0 {
+		const prefix string = ",\"pipeline_version\":"
+		out.RawString(prefix)
+		out.Uint8(uint8(in.PipelineVersion))
 	}
 	out.RawByte('}')
 }

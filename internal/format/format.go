@@ -264,6 +264,7 @@ type MetricMetaValue struct {
 	MetricType           string                   `json:"metric_type"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
+	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
 	RawTagMask           uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag             map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -542,6 +543,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		} else {
 			sh.StrategyId = id
 		}
+	}
+	if m.PipelineVersion != 2 && m.PipelineVersion != 3 {
+		m.PipelineVersion = 2
 	}
 
 	if slowHostMetricID[m.MetricID] {
