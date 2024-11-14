@@ -99,7 +99,7 @@ func (k *Key) STagSlice() []string {
 }
 
 func (k *Key) Marshal(buffer []byte) (updatedBuffer []byte, newKey []byte) {
-	// compile time assert to ensure that 1 byte is enough for ]tags count
+	// compile time assert to ensure that 1 byte is enough for tags count
 	const _ = uint(255 - len(k.Tags))
 	const _ = uint(255 - len(k.STags))
 	tagsCount := len(k.Tags) // ignore empty tags
@@ -112,12 +112,13 @@ func (k *Key) Marshal(buffer []byte) (updatedBuffer []byte, newKey []byte) {
 	for i := 0; i < stagsCount; i++ {
 		stagsSize += len(k.STags[i]) + 1 // zero terminated
 	}
-	// metric 4b + #tags 1b + tags 4b each + #stags 1b + stags zero term strings from 1 to 129 bytes each
-	updatedBuffer = append(buffer, make([]byte, 4+1+tagsCount*4+1+stagsSize)...)
+	// ts 4b + metric 4b + #tags 1b + tags 4b each + #stags 1b + stags zero term strings from 1 to 129 bytes each
+	updatedBuffer = append(buffer, make([]byte, 4+4+1+tagsCount*4+1+stagsSize)...)
 	newKey = updatedBuffer[len(buffer):]
-	binary.LittleEndian.PutUint32(newKey[0:], uint32(k.Metric))
-	newKey[4] = byte(tagsCount)
-	tagsPos := 5
+	binary.LittleEndian.PutUint32(newKey[0:], uint32(k.Timestamp))
+	binary.LittleEndian.PutUint32(newKey[4:], uint32(k.Metric))
+	newKey[8] = byte(tagsCount)
+	const tagsPos = 9
 	for i := 0; i < tagsCount; i++ {
 		binary.LittleEndian.PutUint32(newKey[tagsPos+i*4:], uint32(k.Tags[i]))
 	}
