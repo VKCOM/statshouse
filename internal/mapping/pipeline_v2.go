@@ -18,15 +18,15 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 )
 
-type mapPipeline struct {
+type mapPipelineV2 struct {
 	mapCallback   data_model.MapCallbackFunc
 	tagValueQueue *metricQueue
 	tagValue      *pcache.Cache
 	autoCreate    *AutoCreate
 }
 
-func newMapPipeline(mapCallback data_model.MapCallbackFunc, tagValue *pcache.Cache, ac *AutoCreate, maxMetrics int, maxMetricRequests int) *mapPipeline {
-	mp := &mapPipeline{
+func newMapPipelineV2(mapCallback data_model.MapCallbackFunc, tagValue *pcache.Cache, ac *AutoCreate, maxMetrics int, maxMetricRequests int) *mapPipelineV2 {
+	mp := &mapPipelineV2{
 		mapCallback: mapCallback,
 		tagValue:    tagValue,
 		autoCreate:  ac,
@@ -35,11 +35,11 @@ func newMapPipeline(mapCallback data_model.MapCallbackFunc, tagValue *pcache.Cac
 	return mp
 }
 
-func (mp *mapPipeline) stop() {
+func (mp *mapPipelineV2) stop() {
 	mp.tagValueQueue.stop()
 }
 
-func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
+func (mp *mapPipelineV2) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
 	done = mp.doMap(args, h)
 	// We call MapEnvironment in all 3 cases
 	// done and no errors - very fast NOP
@@ -49,7 +49,7 @@ func (mp *mapPipeline) Map(args data_model.HandlerArgs, metricInfo *format.Metri
 	return done
 }
 
-func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
+func (mp *mapPipelineV2) doMap(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) (done bool) {
 	metric := args.MetricBytes
 	if done = mp.mapTags(h, metric, true); done {
 		return done
@@ -61,7 +61,7 @@ func (mp *mapPipeline) doMap(args data_model.HandlerArgs, h *data_model.MappedMe
 }
 
 // transforms not yet mapped tags from metric into header
-func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, cached bool) (done bool) {
+func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, cached bool) (done bool) {
 	if h.IngestionStatus != 0 {
 		return true // finished with error
 	}
@@ -189,7 +189,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 // We might wish to load in background, but this must be fair with normal mapping queues, and
 // we do not know metric here. So we decided to only load environments from cache.
 // If called after mapTags consumed env, h.Tags[0] is already set by mapTags, otherwise will set h.Tags[0] here
-func (mp *mapPipeline) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
+func (mp *mapPipelineV2) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
 	// fast NOP when all tags already mapped
 	// must not change h.CheckedTagIndex or h.IsKeySet because mapTags will be called after this func by mapping queue in slow path
 	for i := h.CheckedTagIndex; i < len(metric.Tags); i++ {
@@ -215,31 +215,31 @@ func (mp *mapPipeline) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_
 	}
 }
 
-func (mp *mapPipeline) doCallback(req *mapRequest) {
+func (mp *mapPipelineV2) doCallback(req *mapRequest) {
 	if req.cb != nil {
 		req.cb(req.metric, req.result)
 	}
 	mp.mapCallback(req.metric, req.result)
 }
 
-func (mp *mapPipeline) tagValueProgress(req *mapRequest) {
+func (mp *mapPipelineV2) tagValueProgress(req *mapRequest) {
 	_ = mp.mapTags(&req.result, &req.metric, false)
 }
 
-func (mp *mapPipeline) tagValueIsDone(req *mapRequest) bool {
+func (mp *mapPipelineV2) tagValueIsDone(req *mapRequest) bool {
 	return mp.mapTags(&req.result, &req.metric, true)
 }
 
-func (mp *mapPipeline) tagValueFinish(req *mapRequest) {
+func (mp *mapPipelineV2) tagValueFinish(req *mapRequest) {
 	mp.doCallback(req)
 }
 
-func (mp *mapPipeline) getTagValueIDCached(now time.Time, tagValue []byte) (int32, error, bool) {
+func (mp *mapPipelineV2) getTagValueIDCached(now time.Time, tagValue []byte) (int32, error, bool) {
 	r := mp.tagValue.GetCached(now, tagValue)
 	return pcache.ValueToInt32(r.Value), r.Err, r.Found()
 }
 
-func (mp *mapPipeline) getTagValueID(now time.Time, tagValue []byte, extra format.CreateMappingExtra) (int32, error) {
+func (mp *mapPipelineV2) getTagValueID(now time.Time, tagValue []byte, extra format.CreateMappingExtra) (int32, error) {
 	r := mp.tagValue.GetOrLoad(now, string(tagValue), extra)
 	return pcache.ValueToInt32(r.Value), r.Err
 }

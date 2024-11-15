@@ -263,6 +263,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: 1,
 			Sharding:            []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}},
+			PipelineVersion:     3,
 		},
 	}
 
