@@ -16,7 +16,8 @@ import (
 )
 
 type Mapper struct {
-	pipeline *mapPipeline
+	pipelineV2 *mapPipelineV2
+	pipelineV3 *mapPipelineV3
 }
 
 func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache) *pcache.Cache {
@@ -42,29 +43,39 @@ func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache,
 	tagValue := NewTagsCache(pmcLoader, suffix, dc)
 
 	return &Mapper{
-		pipeline: newMapPipeline(mapCallback, tagValue, ac, data_model.MappingMaxMetricsInQueue, metricMapQueueSize),
+		pipelineV2: newMapPipelineV2(mapCallback, tagValue, ac, data_model.MappingMaxMetricsInQueue, metricMapQueueSize),
+		pipelineV3: newMapPipelineV3(mapCallback, tagValue, ac),
 	}
 }
 
 func (m *Mapper) TagValueDiskCacheEmpty() bool {
-	return m.pipeline.tagValue.DiskCacheEmpty()
+	return m.pipelineV2.tagValue.DiskCacheEmpty()
 }
 
 func (m *Mapper) SetBootstrapValue(now time.Time, key string, v pcache.Value, ttl time.Duration) error {
-	return m.pipeline.tagValue.SetBootstrapValue(now, key, v, ttl)
+	return m.pipelineV2.tagValue.SetBootstrapValue(now, key, v, ttl)
 }
 
 func (m *Mapper) Stop() {
-	m.pipeline.stop()
+	m.pipelineV2.stop()
 }
 
-// cb.MetricInfo must be set from journal. If nil, will lookup allowed built-in metric, otherwise set ingestion status not found
+// Map chooses the appropriate pipeline based on PipelineVersion
 func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
-	return m.pipeline.Map(args, metricInfo, h)
+	if metricInfo != nil && metricInfo.PipelineVersion == 3 {
+		m.pipelineV3.Map(args, metricInfo, h)
+		// V3 pipeline doesn't get mappings from meta, so it always done immediately
+		// if there is an error it's passed via h.IngestionStatus
+		return true
+	}
+	return m.pipelineV2.Map(args, metricInfo, h)
 }
 
-// We wish to know which environment generates 'metric not found' events and other errors
-// so we call it even if we had an error
+// MapEnvironment chooses the appropriate pipeline based on PipelineVersion
 func (m *Mapper) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
-	m.pipeline.MapEnvironment(metric, h)
+	if h.MetricMeta != nil && h.MetricMeta.PipelineVersion == 3 {
+		m.pipelineV3.MapEnvironment(metric, h)
+	} else {
+		m.pipelineV2.MapEnvironment(metric, h)
+	}
 }
