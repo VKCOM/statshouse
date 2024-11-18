@@ -415,7 +415,7 @@ HAVING not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3))`
 			desc = " DESC"
 		}
 		if having != "" {
-			having += " && _count > 0"
+			having += " AND _count > 0"
 		} else {
 			having = `
 HAVING _count > 0`
