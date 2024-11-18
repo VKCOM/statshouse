@@ -158,7 +158,7 @@ func RunSimulator(simID int, metricsStorage *metajournal.MetricsStorage, storage
 }
 
 func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agent, totalRange int, key1range int32, key2range int32, key3range int32) {
-	mag := s.CreateBuiltInItemValue(data_model.Key{Metric: 100, Tags: [16]int32{0, int32(simID)}}, journal.GetMetaMetric(100))
+	mag := s.CreateBuiltInItemValue(&data_model.Key{Metric: 100, Tags: [16]int32{0, int32(simID)}}, journal.GetMetaMetric(100))
 
 	metricInfo1 := journal.GetMetaMetricByName(data_model.SimulatorMetricPrefix + "1")
 	metricInfo2 := journal.GetMetaMetricByName(data_model.SimulatorMetricPrefix + "2")
@@ -190,7 +190,7 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			kCounter1.Tags[3] = rng.Int31n(key3range)
 			cc := 1 + rng.Intn(4)
 			oneCounter += cc
-			s.AddCounterHost(kCounter1, float64(cc), 0, metricInfo1)
+			s.AddCounterHost(&kCounter1, float64(cc), 0, metricInfo1)
 		}
 		if spike {
 			for i := 0; i < totalRange; i++ {
@@ -200,14 +200,14 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 				kCounter1.Tags[4] = rng.Int31n(int32(totalRange))
 				cc := 1 + rng.Intn(4)
 				oneCounter += cc
-				s.AddCounterHost(kCounter1, float64(cc), 0, metricInfo1)
+				s.AddCounterHost(&kCounter1, float64(cc), 0, metricInfo1)
 			}
 		}
 		if oneCounter < 3*totalRange*5 {
 			kCounter1 := data_model.Key{
 				Metric: metricInfo1.MetricID,
 			}
-			s.AddCounterHost(kCounter1, float64(3*totalRange*5-oneCounter), 0, metricInfo1)
+			s.AddCounterHost(&kCounter1, float64(3*totalRange*5-oneCounter), 0, metricInfo1)
 		}
 
 		total = rng.Intn(totalRange)
@@ -232,10 +232,10 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			cc := 1 + rng.Intn(4)
 			for ci := 0; ci < cc; ci++ {
 				value := rng.Float64() * 100
-				s.AddValueCounter(kValue2, value, 1, metricInfo2)
-				s.AddValueCounter(kValue3, value, 1, metricInfo3)
-				s.AddValueArrayCounterHostStringBytes(kValue10, []float64{value}, 1, 0, sKey, metricInfo10)
-				s.AddValueArrayCounterHostStringBytes(kValue11, []float64{value}, 1, 0, sKey, metricInfo11)
+				s.AddValueCounter(&kValue2, value, 1, metricInfo2)
+				s.AddValueCounter(&kValue3, value, 1, metricInfo3)
+				s.AddValueArrayCounterHostStringBytes(&kValue10, []float64{value}, 1, 0, sKey, metricInfo10)
+				s.AddValueArrayCounterHostStringBytes(&kValue11, []float64{value}, 1, 0, sKey, metricInfo11)
 			}
 		}
 		total = rng.Intn(totalRange)
@@ -259,9 +259,9 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			for ci := 0; ci < cc; ci++ {
 				const D = 1000000
 				r := D + int64(rng.Intn(D))*int64(rng.Intn(D))
-				s.AddUniqueHostStringBytes(kUnique4, 0, nil, []int64{r}, 1, metricInfo4)
-				s.AddUniqueHostStringBytes(kUnique7, 0, nil, []int64{r}, 1, metricInfo7)
-				s.AddUniqueHostStringBytes(kUnique8, 0, sKey, []int64{r}, 1, metricInfo8)
+				s.AddUniqueHostStringBytes(&kUnique4, 0, nil, []int64{r}, 1, metricInfo4)
+				s.AddUniqueHostStringBytes(&kUnique7, 0, nil, []int64{r}, 1, metricInfo7)
+				s.AddUniqueHostStringBytes(&kUnique8, 0, sKey, []int64{r}, 1, metricInfo8)
 			}
 		}
 
@@ -274,11 +274,11 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			kValue5.Tags[2] = rng.Int31n(key2range)
 			sid := rng.Intn(len(stop) * 100)
 			if sid < len(stop) {
-				s.AddCounterHostStringBytes(kValue5, stop[sid], 1, 0, metricInfo5)
+				s.AddCounterHostStringBytes(&kValue5, stop[sid], 1, 0, metricInfo5)
 				continue
 			}
 			cc := 1 + rng.Intn(100000)
-			s.AddCounterHostStringBytes(kValue5, []byte(fmt.Sprintf("A_%d", cc)), 1, 0, metricInfo5)
+			s.AddCounterHostStringBytes(&kValue5, []byte(fmt.Sprintf("A_%d", cc)), 1, 0, metricInfo5)
 		}
 		total = rng.Intn(totalRange)
 		superTotal += total
@@ -290,10 +290,10 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			kCounter6.Tags[2] = rng.Int31n(key2range)
 			kCounter6.Tags[3] = rng.Int31n(key3range)
 			kCounter6.Tags[4] = rng.Int31n(1000)
-			s.AddCounterHost(kCounter6, 1, 0, metricInfo6)
+			s.AddCounterHost(&kCounter6, 1, 0, metricInfo6)
 		}
 
-		s.AddCounterHost(data_model.Key{Metric: metricInfo9.MetricID}, float64(superTotal), 0, metricInfo9)
+		s.AddCounterHost(&data_model.Key{Metric: metricInfo9.MetricID}, float64(superTotal), 0, metricInfo9)
 		// msec := rng.Int() % 1000
 		// time.Sleep(time.Duration(msec) * time.Millisecond)
 		time.Sleep(time.Second)

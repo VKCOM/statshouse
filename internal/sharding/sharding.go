@@ -8,7 +8,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func Shard(key data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, int, error) {
+func Shard(key *data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, int, error) {
 	if len(meta.Sharding) == 0 {
 		return 0, -1, fmt.Errorf("bad metric meta, no sharding defined")
 	}
@@ -49,15 +49,15 @@ func shardByMappedTags(keyHash uint64, numShards int) uint32 {
 	return uint32(mul)
 }
 
-func shardByTag(key data_model.Key, tagId uint32, numShards int) uint32 {
+func shardByTag(key *data_model.Key, tagId uint32, numShards int) uint32 {
 	return uint32(key.Tags[tagId]) % uint32(numShards)
 }
 
-func shardByMetricId(key data_model.Key, numShards int) uint32 {
+func shardByMetricId(key *data_model.Key, numShards int) uint32 {
 	return uint32(key.Metric) % uint32(numShards)
 }
 
-func choseShardingStrategy(key data_model.Key, meta *format.MetricMetaValue) (sh format.MetricSharding) {
+func choseShardingStrategy(key *data_model.Key, meta *format.MetricMetaValue) (sh format.MetricSharding) {
 	ts := key.Timestamp
 	if ts == 0 {
 		ts = uint32(time.Now().Unix())

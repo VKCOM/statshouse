@@ -84,16 +84,16 @@ func Test_AgentQueue(t *testing.T) {
 	testEnsureNoFlush(t, shard)
 	agent.goFlushIteration(startTime.Add(time.Second))
 	testEnsureNoFlush(t, shard)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix, Metric: 5}, 1, 0, metric5sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix, Metric: 1}, 1, 0, metric1sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix, Metric: 5}, 1, 0, metric5sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
 	agent.goFlushIteration(startTime.Add(time.Second + data_model.AgentWindow))
 	testEnsureFlush(t, shard, nowUnix)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, 0, metric1sec)
-	agent.AddCounterHost(data_model.Key{Timestamp: nowUnix + 2, Metric: 5}, 1, 0, metric5sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, 0, metric1sec)
+	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 2, Metric: 5}, 1, 0, metric5sec)
 	agent.goFlushIteration(startTime.Add(2 * time.Second))
 	testEnsureNoFlush(t, shard)
 	for i := 1; i < 12; i++ { // wait until 5-seconds metrics flushed
@@ -228,11 +228,11 @@ func Test_AgentSharding(t *testing.T) {
 					shardCount += int(item.Tail.Value.Count())
 					expectedShardNum := uint32(0) // buitin metrics
 					if item.Key.Metric > 0 && item.Key.Metric < 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), fixedShard(nil, item.Key), agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), fixedShard(nil, item.Key), agent.NumShards(), true)
 					} else if item.Key.Metric >= 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), byMappedTags(nil, item.Key), agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), byMappedTags(nil, item.Key), agent.NumShards(), true)
 					} else if item.Key.Metric == format.BuiltinMetricIDIngestionStatus {
-						expectedShardNum, _, _ = sharding.Shard(item.Key, item.Key.Hash(), byTagIngestion, agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), byTagIngestion, agent.NumShards(), true)
 					}
 					if int(expectedShardNum) != si {
 						t.Fatalf("failed for metric %v expected shard %d but got %d", item.Key, expectedShardNum, si)

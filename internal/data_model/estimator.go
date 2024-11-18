@@ -48,7 +48,7 @@ func (e *Estimator) Init(window int, maxCardinality int) {
 	e.halfHour = map[uint32]map[int32]*ChUnique{}
 }
 
-func (e *Estimator) UpdateWithKeys(time uint32, keys []Key) {
+func (e *Estimator) UpdateWithKeys(time uint32, keys []*Key) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	ah, bh := e.createEstimatorsLocked(time)
