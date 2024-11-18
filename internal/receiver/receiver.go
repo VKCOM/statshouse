@@ -143,7 +143,7 @@ func (u *parser) createMetrics() {
 
 func createBatchSizeValue(ag *agent.Agent, formatTagValueID int32, statusTagValueID int32, protocolTagValueID int32) *agent.BuiltInItemValue {
 	if ag != nil {
-		return ag.CreateBuiltInItemValue(data_model.Key{
+		return ag.CreateBuiltInItemValue(&data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedBatchSize,
 			Tags:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
 		}, format.BuiltinMetricMetaAgentReceivedBatchSize)
@@ -153,7 +153,7 @@ func createBatchSizeValue(ag *agent.Agent, formatTagValueID int32, statusTagValu
 
 func createPacketSizeValue(bm *agent.Agent, formatTagValueID int32, statusTagValueID int32, protocolTagValueID int32) *agent.BuiltInItemValue {
 	if bm != nil {
-		return bm.CreateBuiltInItemValue(data_model.Key{
+		return bm.CreateBuiltInItemValue(&data_model.Key{
 			Metric: format.BuiltinMetricIDAgentReceivedPacketSize,
 			Tags:   [format.MaxTags]int32{0 /* env */, formatTagValueID, statusTagValueID, protocolTagValueID},
 		}, format.BuiltinMetricMetaAgentReceivedPacketSize)

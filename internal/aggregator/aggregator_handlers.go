@@ -79,7 +79,7 @@ func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
 	return format.TagValueIDProduction
 }
 
-func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) data_model.Key {
+func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) *data_model.Key {
 	return data_model.AggKey(t, m, k, a.aggregatorHost, a.shardKey, a.replicaKey)
 }
 
@@ -298,7 +298,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	defer aggBucket.sendMu.RUnlock()
 
 	lockedShard := -1
-	var newKeys []data_model.Key
+	var newKeys []*data_model.Key
 	var usedMetrics []int32
 
 	// We do not want to decompress under lock, so we decompress before ifs, then rarely throw away decompressed data.
@@ -439,7 +439,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	}
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
-		mi, _ := s.GetOrCreateMultiItem((data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil)
+		mi, _ := s.GetOrCreateMultiItem((&data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil)
 		mi.Tail.AddCounterHost(rng, float64(value), hostTagId)
 	}
 	for _, v := range bucket.IngestionStatusOk {
@@ -510,8 +510,8 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 	s := aggBucket.lockShard(&lockedShard, 0)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
 	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
-	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil)
+	keyWithAgentEnv := key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	mi, _ := s.GetOrCreateMultiItem(keyWithAgentEnv, data_model.AggregatorStringTopCapacity, nil)
 	mi.Tail.AddCounterHost(rng, 1, host)
 	aggBucket.lockShard(&lockedShard, -1)
 

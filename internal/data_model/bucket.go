@@ -133,7 +133,7 @@ func (k *Key) Marshal(buffer []byte) (updatedBuffer []byte, newKey []byte) {
 	return
 }
 
-func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
+func (k *Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) *Key {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
 	// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
 	if k.Tags[format.AgentEnvTag] == 0 {
@@ -144,12 +144,12 @@ func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchT
 	return k
 }
 
-func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) Key {
+func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) *Key {
 	key := Key{Timestamp: t, Metric: m, Tags: k}
 	key.Tags[format.AggHostTag] = hostTagId
 	key.Tags[format.AggShardTag] = shardTag
 	key.Tags[format.AggReplicaTag] = replicaTag
-	return key
+	return &key
 }
 
 func (k *Key) Hash() uint64 {
@@ -255,7 +255,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) GetOrCreateMultiItem(key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue) (item *MultiItem, created bool) {
+func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue) (item *MultiItem, created bool) {
 	if b.MultiItems == nil {
 		b.MultiItems = make(map[string]*MultiItem)
 	}
@@ -268,7 +268,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key Key, stringTopCapacity int, metr
 		b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]
 		return
 	}
-	item = &MultiItem{Key: key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
+	item = &MultiItem{Key: *key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
 	b.MultiItems[keyString] = item
 	return
 }

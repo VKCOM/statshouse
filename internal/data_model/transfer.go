@@ -28,9 +28,10 @@ func (k *Key) TagSlice() []int32 {
 	return result[:i]
 }
 
-func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key Key, shardID int) {
+func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key *Key, shardID int) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	sID := item.FieldsMask >> 24
+	key = &Key{}
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
 		key.Timestamp = item.T

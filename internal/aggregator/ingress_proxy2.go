@@ -412,7 +412,7 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 	for i := uint(0); ; i++ {
 		// request (tip) must be set except maybe graceful shutdown first iteration
 		if i > 0 || req.tip != 0 {
-			p.agent.AddValueCounter(requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
+			p.agent.AddValueCounter(&requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
 			p.reportRequestBufferSizeChange()
 			switch req.tip {
 			case rpcInvokeReqHeaderTLTag:

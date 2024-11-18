@@ -188,15 +188,15 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, keyHash uint6
 	return nextShard
 }
 
-func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
+func (s *Shard) CreateBuiltInItemValue(key *data_model.Key) *BuiltInItemValue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result := &BuiltInItemValue{key: key}
+	result := &BuiltInItemValue{key: *key}
 	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
 	return result
 }
 
-func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyUnique(key *data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	if count == 0 {
 		count = float64(len(hashes))
 	}
@@ -208,13 +208,13 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	mv := item.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key *data_model.Key, keyHash uint64, str []byte, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
 		totalCount += kv[1] // all counts are validated to be >= 0
@@ -230,13 +230,13 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, hist
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	mv := item.MapStringTopBytes(s.rng, str, count)
 	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
-func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyCounter(key *data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	if count <= 0 {
 		return
 	}
@@ -245,51 +245,51 @@ func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, cou
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHost(key *data_model.Key, keyHash uint64, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	item.Tail.AddCounterHost(s.rng, count, hostTagId)
 }
 
-func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterHostStringBytes(key *data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	item.MapStringTopBytes(s.rng, str, count).AddValueCounterHost(s.rng, value, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterHost(key *data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		item.Tail.AddValueCounterHostPercentile(s.rng, value, counter, hostTag, data_model.AgentPercentileCompression)
@@ -298,13 +298,13 @@ func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value fl
 	}
 }
 
-func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueArrayCounterHost(key *data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		item.Tail.AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
@@ -313,13 +313,13 @@ func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, val
 	}
 }
 
-func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueArrayCounterHostStringBytes(key *data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	count := float64(len(values)) * mult
 	if metricInfo != nil && metricInfo.HasPercentiles {
@@ -329,13 +329,13 @@ func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash 
 	}
 }
 
-func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Shard) MergeItemValue(key *data_model.Key, keyHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopReceivingIncomingData {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(&key, keyHash, metricInfo)
+	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo)
 	item.Tail.Value.Merge(s.rng, itemValue)
 }
@@ -348,7 +348,7 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Count() > 0 {
-			item, _ := resolutionShard.GetOrCreateMultiItem(v.key, s.config.StringTopCapacity, nil)
+			item, _ := resolutionShard.GetOrCreateMultiItem(&v.key, s.config.StringTopCapacity, nil)
 			item.Tail.Value.Merge(s.rng, &v.value)
 			v.value = data_model.ItemValue{} // Moving below 'if' would reset Counter if <0. Will complicate debugging, so no.
 		}
