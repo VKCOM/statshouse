@@ -41,11 +41,16 @@ type autoCreate struct {
 	running bool // guard against double "run"
 }
 
-type KnownTags map[int32]knownTags
+type KnownTags map[int32]namespaceKnownTags
+
+type namespaceKnownTags struct {
+	knownTags                     // namespace level
+	groups    map[int32]knownTags // group level tags, by group ID
+}
 
 type knownTags struct {
-	namespace map[string]KnownTag           // namespace level tags
-	groups    map[int32]map[string]KnownTag // group level tags, by group ID
+	p string              // metric name prefix
+	m map[string]KnownTag // name to tag mapping
 }
 
 type KnownTagsJSON struct {
@@ -54,9 +59,10 @@ type KnownTagsJSON struct {
 }
 
 type KnownTag struct {
-	ID          string `json:"id"`
-	RawKind     string `json:"raw_kind,omitempty"`
-	SkipMapping bool   `json:"skip_mapping,omitempty"`
+	ID          string   `json:"id"`
+	RawKind     string   `json:"raw_kind,omitempty"`
+	SkipMapping bool     `json:"skip_mapping,omitempty"`
+	Whitelist   []string `json:"whitelist,omitempty"`
 }
 
 func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
@@ -351,24 +357,24 @@ func (m KnownTags) PublishDraftTags(meta *format.MetricMetaValue) int {
 		return 0
 	}
 	var n int
-	if len(c.namespace) != 0 {
-		n = publishDraftTags(meta, c.namespace)
+	if len(c.m) != 0 {
+		n = publishDraftTags(meta, c.knownTags)
 	}
 	if len(c.groups) == 0 ||
 		meta.GroupID == 0 ||
 		meta.GroupID == format.BuiltinGroupIDDefault {
 		return n
 	}
-	if v := c.groups[meta.GroupID]; len(v) != 0 {
+	if v := c.groups[meta.GroupID]; len(v.m) != 0 {
 		return n + publishDraftTags(meta, v)
 	}
 	return n
 }
 
-func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]KnownTag) int {
+func publishDraftTags(meta *format.MetricMetaValue, t knownTags) int {
 	var n int
 	for k, v := range meta.TagsDraft {
-		tag, ok := knownTags[k]
+		tag, ok := t.m[k]
 		if !ok || tag.ID == "" {
 			continue
 		}
@@ -379,6 +385,16 @@ func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]KnownTa
 				n++
 			}
 		} else if x := format.TagIndex(tag.ID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
+			allow := len(tag.Whitelist) == 0 // empty whitelist allows all
+			if !allow && strings.HasPrefix(meta.Name, t.p) {
+				name := meta.Name[len(t.p):]
+				for i := 0; i < len(tag.Whitelist) && !allow; i++ {
+					allow = tag.Whitelist[i] == name
+				}
+			}
+			if !allow {
+				continue
+			}
 			if tag.RawKind != "" {
 				rawKind := tag.RawKind
 				if rawKind == "int" {
@@ -406,7 +422,7 @@ func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags
 	if err != nil {
 		return nil, err
 	}
-	res := make(map[int32]knownTags)
+	res := make(map[int32]namespaceKnownTags)
 	for namespaceName, v := range s {
 		if namespaceName == "" {
 			return nil, fmt.Errorf("namespace not set")
@@ -418,7 +434,7 @@ func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags
 		if namespace.ID == format.BuiltinNamespaceIDDefault {
 			return nil, fmt.Errorf("namespace can not be __default")
 		}
-		knownTagsG := make(map[int32]map[string]KnownTag, len(v.Groups))
+		knownTagsG := make(map[int32]knownTags, len(v.Groups))
 		for groupName, g := range v.Groups {
 			groupName := namespaceName + format.NamespaceSeparator + groupName
 			group := meta.GetGroupByName(groupName)
@@ -428,11 +444,17 @@ func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags
 			if group.ID == format.BuiltinGroupIDDefault {
 				return nil, fmt.Errorf("scrape group can not be __default")
 			}
-			knownTagsG[group.ID] = g
+			knownTagsG[group.ID] = knownTags{
+				p: namespace.Name + format.NamespaceSeparator + groupName,
+				m: g,
+			}
 		}
-		res[namespace.ID] = knownTags{
-			namespace: v.Namespace,
-			groups:    knownTagsG,
+		res[namespace.ID] = namespaceKnownTags{
+			knownTags: knownTags{
+				p: namespace.Name + format.NamespaceSeparator,
+				m: v.Namespace,
+			},
+			groups: knownTagsG,
 		}
 	}
 	return res, nil
