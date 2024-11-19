@@ -156,32 +156,8 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 	if h.ValuesChecked {
 		return true
 	}
+	h.IngestionStatus = data_model.ValidateMetricData(metric)
 	h.ValuesChecked = true
-	if len(metric.Value)+len(metric.Histogram) != 0 && len(metric.Unique) != 0 {
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet
-		return true
-	}
-	var errorTag int32
-	if metric.Counter, errorTag = format.ClampCounter(metric.Counter); errorTag != 0 {
-		h.IngestionStatus = errorTag
-		return true
-	}
-	for i, v := range metric.Value {
-		if metric.Value[i], errorTag = format.ClampValue(v); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return true
-		}
-	}
-	for i, v := range metric.Histogram {
-		if metric.Histogram[i][0], errorTag = format.ClampValue(v[0]); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return true
-		}
-		if metric.Histogram[i][1], errorTag = format.ClampCounter(v[1]); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return true
-		}
-	}
 	return true
 }
 

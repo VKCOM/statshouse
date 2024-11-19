@@ -33,44 +33,18 @@ func newMapPipelineV3(mapCallback data_model.MapCallbackFunc, mappingCache *pcac
 }
 
 func (mp *mapPipelineV3) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) {
-	if !mp.mapAllTags(h, args.MetricBytes) {
+	mp.mapAllTags(h, args.MetricBytes)
+	if h.IngestionStatus != 0 {
 		return
 	}
-
-	// Validate values only after all tags are processed
-	if len(args.MetricBytes.Value)+len(args.MetricBytes.Histogram) != 0 && len(args.MetricBytes.Unique) != 0 {
-		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet
-		return
-	}
-	var errorTag int32
-	if args.MetricBytes.Counter, errorTag = format.ClampCounter(args.MetricBytes.Counter); errorTag != 0 {
-		h.IngestionStatus = errorTag
-		return
-	}
-	for i, v := range args.MetricBytes.Value {
-		if args.MetricBytes.Value[i], errorTag = format.ClampValue(v); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return
-		}
-	}
-	for i, v := range args.MetricBytes.Histogram {
-		if args.MetricBytes.Histogram[i][0], errorTag = format.ClampValue(v[0]); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return
-		}
-		if args.MetricBytes.Histogram[i][1], errorTag = format.ClampCounter(v[1]); errorTag != 0 {
-			h.IngestionStatus = errorTag
-			return
-		}
-	}
+	// validate values only if metirc is valid
+	h.IngestionStatus = data_model.ValidateMetricData(args.MetricBytes)
+	h.ValuesChecked = true // not used in v3, just to avoid confusion
 }
 
-// mapAllTags processes all tags in a single pass, including environment tags
-func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) bool {
-	if h.IngestionStatus != 0 {
-		return true // already finished with error
-	}
-
+// mapAllTags processes all tags in a single pass, including environment tag
+// unlike v2, it doesn't stop on the first invalid tag
+func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
 
@@ -139,9 +113,6 @@ func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tl
 			}
 		}
 	}
-
-	h.ValuesChecked = true
-	return true
 }
 
 func (mp *mapPipelineV3) handleEnvironmentTag(h *data_model.MappedMetricHeader, v *tl.DictionaryFieldStringBytes) {
