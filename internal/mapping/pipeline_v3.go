@@ -21,10 +21,10 @@ import (
 type mapPipelineV3 struct {
 	mapCallback  data_model.MapCallbackFunc
 	mappingCache *pcache.Cache
-	autoCreate   *AutoCreate
+	autoCreate   *data_model.AutoCreate
 }
 
-func newMapPipelineV3(mapCallback data_model.MapCallbackFunc, mappingCache *pcache.Cache, ac *AutoCreate) *mapPipelineV3 {
+func newMapPipelineV3(mapCallback data_model.MapCallbackFunc, mappingCache *pcache.Cache, ac *data_model.AutoCreate) *mapPipelineV3 {
 	return &mapPipelineV3{
 		mapCallback:  mapCallback,
 		mappingCache: mappingCache,
@@ -47,40 +47,10 @@ func (mp *mapPipelineV3) Map(args data_model.HandlerArgs, metricInfo *format.Met
 func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-
-		tagMeta, ok, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
-		if !ok {
-			validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
-			if err != nil {
-				v.Key = format.AppendHexStringValue(v.Key[:0], v.Key)
-				h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, v.Key)
-				continue
-			}
-			v.Key = validKey
-			if _, ok := h.MetricMeta.GetTagDraft(v.Key); ok {
-				h.FoundDraftTagName = v.Key
-			} else {
-				h.NotFoundTagName = v.Key
-			}
-			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
-				_ = mp.autoCreate.AutoCreateTag(metric, v.Key, h.ReceiveTime)
-			}
+		tagMeta, tagIDKey, valid := data_model.ValidateTag(v, metric, h, mp.autoCreate)
+		if !valid || tagIDKey == 0 {
 			continue
 		}
-
-		tagIDKey := int32(tagMeta.Index + format.TagIDShift)
-		if legacyName {
-			h.LegacyCanonicalTagKey = tagIDKey
-		}
-
-		validValue, err := format.AppendValidStringValue(v.Value[:0], v.Value)
-		if err != nil {
-			v.Value = format.AppendHexStringValue(v.Value[:0], v.Value)
-			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, v.Value)
-			continue
-		}
-		v.Value = validValue
-
 		switch {
 		case tagMeta.SkipMapping:
 			h.SetSTag(tagMeta.Index, string(v.Value), tagIDKey)
