@@ -30,7 +30,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
@@ -362,9 +361,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	sh2.Run(0, 0, 0)
 	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
 
-	var ac *mapping.AutoCreate
+	var ac *data_model.AutoCreate
 	if argv.configAgent.AutoCreate {
-		ac = mapping.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
+		ac = data_model.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
 		defer ac.Shutdown()
 	}
 

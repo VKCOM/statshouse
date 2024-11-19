@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package mapping
+package data_model
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -175,10 +174,10 @@ func (ac *AutoCreate) goWork() {
 			if err != nil {
 				// failed, double timer interval
 				d *= 2
-				if d > data_model.KeepAliveMaxBackoff {
-					d = data_model.KeepAliveMaxBackoff
+				if d > KeepAliveMaxBackoff {
+					d = KeepAliveMaxBackoff
 				}
-				if !data_model.SilentRPCError(err) {
+				if !SilentRPCError(err) {
 					log.Printf("metric auto-create failed {name: %q, kind: %q, tag count: %d}: %v", args.Metric, args.Kind, len(args.Tags), err)
 				}
 				break

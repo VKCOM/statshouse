@@ -30,14 +30,14 @@ type worker struct {
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
 	mapper        *mapping.Mapper
-	autoCreate    *mapping.AutoCreate
+	autoCreate    *data_model.AutoCreate
 	logPackets    func(format string, args ...interface{})
 
 	floodTimeMu            sync.Mutex
 	floodTimeHandlePkgFail time.Time
 }
 
-func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *mapping.AutoCreate, suffix string, logPackets func(format string, args ...interface{})) *worker {
+func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *data_model.AutoCreate, suffix string, logPackets func(format string, args ...interface{})) *worker {
 	w := &worker{
 		sh2:           sh2,
 		metricStorage: metricStorage,

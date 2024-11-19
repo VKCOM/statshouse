@@ -39,7 +39,7 @@ func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache)
 	return result
 }
 
-func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *AutoCreate, metricMapQueueSize int, mapCallback data_model.MapCallbackFunc) *Mapper {
+func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *data_model.AutoCreate, metricMapQueueSize int, mapCallback data_model.MapCallbackFunc) *Mapper {
 	tagValue := NewTagsCache(pmcLoader, suffix, dc)
 
 	return &Mapper{
