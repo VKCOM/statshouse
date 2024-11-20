@@ -150,21 +150,25 @@ func GetMetricNameMatchers(expr string, res []*labels.Matcher) ([]*labels.Matche
 }
 
 func (ng Engine) Exec(ctx context.Context, h Handler, qry Query) (parser.Value, func(), error) {
-	// parse query
-	ev, err := ng.newEvaluator(ctx, h, qry)
+	ev, err := ng.NewEvaluator(ctx, h, qry)
 	if err != nil {
-		return nil, nil, Error{what: err}
+		return nil, nil, err
 	}
+	return ev.Run()
+}
+
+func (ev *evaluator) Run() (parser.Value, func(), error) {
+	// parse query
 	if ev.t.Empty() {
 		return &TimeSeries{Time: []int64{}}, func() {}, nil
 	}
 	if e, ok := ev.ast.(*parser.StringLiteral); ok {
-		return String{T: qry.Start, V: e.Val}, func() {}, nil
+		return String{T: ev.t.Start, V: e.Val}, func() {}, nil
 	}
 	// evaluate query
 	ev.Tracef(ev.ast.String())
 	if ev.opt.Debug {
-		ev.Tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
+		ev.Tracef("requested from %d to %d, timescale from %d to %d", ev.t.Start, ev.t.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
 	}
 	var ok bool
 	defer func() {
@@ -179,16 +183,25 @@ func (ng Engine) Exec(ctx context.Context, h Handler, qry Query) (parser.Value, 
 	// resolve int32 tag values into strings
 	for _, dat := range res.Series.Data {
 		for _, tg := range dat.Tags.ID2Tag {
-			tg.stringify(&ev)
+			tg.stringify(ev)
 		}
 	}
 	ev.Tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
-	ev.reportStat(qry, time.Now())
+	ev.reportStat(time.Now())
 	ok = true // prevents deffered "cancel"
 	return &res, ev.cancel, nil
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evaluator, error) {
+func (ev *evaluator) QueryMetric() *format.MetricMetaValue {
+	if len(ev.QueryStat.MetricOffset) == 1 {
+		for v := range ev.QueryStat.MetricOffset {
+			return v
+		}
+	}
+	return nil
+}
+
+func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evaluator, error) {
 	timeStart := time.Now()
 	if qry.Options.TimeNow == 0 {
 		// fix the time "now"
@@ -209,7 +222,7 @@ func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	var err error
 	ev.ast, err = parser.ParseExpr(qry.Expr)
 	if err != nil {
-		return evaluator{}, err
+		return evaluator{}, Error{what: err}
 	}
 	if v, ok := evalLiteral(ev.ast); ok {
 		ev.ast = v
@@ -246,7 +259,7 @@ func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 		return err
 	})
 	if err != nil {
-		return evaluator{}, err
+		return evaluator{}, Error{what: err}
 	}
 	// widen time range to accommodate range selectors and ensure instant query won't return empty result
 	qry.Start -= maxRange
@@ -270,7 +283,7 @@ func (ng Engine) newEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	})
 
 	if err != nil || ev.t.Empty() {
-		return evaluator{}, err
+		return evaluator{}, Error{what: err}
 	}
 	// evaluate reduction rules
 	ev.ars = make(map[parser.Expr]parser.Expr)
@@ -1503,11 +1516,11 @@ func (ev *evaluator) newWindow(v []float64, s bool) window {
 	return newWindow(ev.time(), v, ev.r, ev.t.LODs[len(ev.t.LODs)-1].Step, s)
 }
 
-func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
+func (ev *evaluator) reportStat(timeEnd time.Time) {
 	tags := statshouse.Tags{
 		1: srvfunc.HostnameForStatshouse(),
 	}
-	r := qry.End - qry.Start
+	r := ev.t.End - ev.t.Start
 	x := 2
 	switch {
 	// add one because UI always requests one second more

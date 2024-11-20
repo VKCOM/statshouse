@@ -365,6 +365,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(api.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(api.HandlePostResetFlood)
 	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(api.HandleSeriesQuery)
+	a.Path("/badges").Methods("GET", "POST").HandlerFunc(api.HandleBadgesQuery)
 	a.Path("/" + api.EndpointPoint).Methods("GET").HandlerFunc(api.HandlePointQuery)
 	a.Path("/" + api.EndpointPoint).Methods("POST").HandlerFunc(api.HandlePointQuery)
 	a.Path("/" + api.EndpointTable).Methods("GET").HandlerFunc(api.HandleGetTable)

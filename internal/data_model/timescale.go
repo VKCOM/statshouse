@@ -66,6 +66,8 @@ type Timescale struct {
 	UTCOffset  int64
 	Time       []int64
 	LODs       []TimescaleLOD
+	Start      int64
+	End        int64
 	Step       int64 // aggregation interval requested (former "desiredStepMul")
 	StartX     int   // requested time interval starts at "Time[StartX]"
 	ViewStartX int
@@ -325,6 +327,8 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	res := Timescale{
 		Location:  args.Location,
 		UTCOffset: args.UTCOffset,
+		Start:     args.Start,
+		End:       args.End,
 		Step:      args.Step,
 	}
 	var resLen int
@@ -507,12 +511,7 @@ func (t *Timescale) Empty() bool {
 }
 
 func (t *Timescale) Duration() time.Duration {
-	start := t.Time[t.ViewStartX]
-	end := start
-	if 0 < t.ViewEndX {
-		end = t.Time[t.ViewEndX-1] + 1
-	}
-	return time.Duration(end-start) * time.Second
+	return time.Duration(t.End-t.Start) * time.Second
 }
 
 func (t *Timescale) appendLOD(lod TimescaleLOD) {
