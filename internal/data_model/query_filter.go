@@ -29,9 +29,17 @@ type TagFilters struct {
 type TagValues []TagValue
 
 type TagValue struct {
+	flags  TagValueFlags
 	Value  string
 	Mapped int32
 }
+
+type TagValueFlags int
+
+const (
+	tagHasValue TagValueFlags = 1 << iota
+	tagIsMapped
+)
 
 func MetricIDFilter(metricID int32) TagFilters {
 	return MetricFilter(&format.MetricMetaValue{MetricID: metricID})
@@ -90,7 +98,7 @@ func (f *QueryFilter) MatchMetrics(m map[string]*format.MetricMetaValue) {
 func (f *TagFilters) AppendValue(tag int, val ...string) {
 	s := make(TagValues, len(val))
 	for i := 0; i < len(val); i++ {
-		s[i].Value = val[i]
+		s[i] = NewTagValueS(val[i])
 	}
 	f.Append(tag, s...)
 }
@@ -98,7 +106,7 @@ func (f *TagFilters) AppendValue(tag int, val ...string) {
 func (f *TagFilters) AppendMapped(tag int, val ...int32) {
 	s := make(TagValues, len(val))
 	for i := 0; i < len(val); i++ {
-		s[i].Mapped = val[i]
+		s[i] = NewTagValueM(val[i])
 	}
 	f.Append(tag, s...)
 }
@@ -120,11 +128,41 @@ func (v TagValues) Sort() {
 	})
 }
 
+func NewTagValue(s string, n int32) TagValue {
+	return TagValue{
+		flags:  tagHasValue | tagIsMapped,
+		Value:  s,
+		Mapped: n,
+	}
+}
+
+func NewTagValueS(s string) TagValue {
+	return TagValue{
+		flags: tagHasValue,
+		Value: s,
+	}
+}
+
+func NewTagValueM(n int32) TagValue {
+	return TagValue{
+		flags:  tagIsMapped,
+		Mapped: n,
+	}
+}
+
+func (v TagValue) HasValue() bool {
+	return v.flags&tagHasValue != 0
+}
+
+func (v TagValue) IsMapped() bool {
+	return v.flags&tagIsMapped != 0
+}
+
 func (v TagValue) String() string {
-	if v.Value != "" {
+	if v.HasValue() {
 		return v.Value
 	}
-	if v.Mapped != 0 {
+	if v.IsMapped() {
 		return strconv.Itoa(int(v.Mapped))
 	}
 	return ""

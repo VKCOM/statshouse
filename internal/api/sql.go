@@ -166,11 +166,13 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 		}
 		tag := format.TagID(i)
 		for _, valPair := range values {
-			if len(valPair.Value) > 0 {
+			if valPair.HasValue() {
 				strValues = append(strValues, valPair.Value)
 			}
-			// we allow 0 here because it is a valid value for raw tags
-			if tag != format.StringTopTagID {
+			// zero mapped value is not valid filter when string value specified,
+			// because string filter value automatically excludes RAW tags
+			// and zero tag value might be only valid for RAW tags
+			if tag != format.StringTopTagID && (!valPair.HasValue() || valPair.Mapped != 0) {
 				intValues = append(intValues, valPair.Mapped)
 			}
 		}

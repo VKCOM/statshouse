@@ -1177,37 +1177,33 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			i := tag.Index
 			switch matcher.Type {
 			case labels.MatchEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
-				if err != nil {
-					if errors.Is(err, ErrNotFound) {
-						if ev.opt.Version == data_model.Version3 {
-							// we allow unmapped values for v3 requests
-							sel.FilterIn.AppendValue(i, matcher.Value)
-						} else {
-							// string is not mapped, result is guaranteed to be empty
-							emptyCount[i]++
-							continue
-						}
-					} else {
-						return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
-					}
-				}
-				sel.FilterIn.Append(i, data_model.TagValue{Value: matcher.Value, Mapped: id})
-			case labels.MatchNotEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
-				if err != nil {
-					if errors.Is(err, ErrNotFound) {
+				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+					sel.FilterIn.Append(i, v)
+				} else if errors.Is(err, ErrNotFound) {
+					if ev.opt.Version == data_model.Version3 {
 						// we allow unmapped values for v3 requests
-						if ev.opt.Version == data_model.Version3 {
-							sel.FilterNotIn.AppendValue(i, matcher.Value)
-						} else {
-							continue // ignore values with no mapping
-						}
+						sel.FilterIn.AppendValue(i, matcher.Value)
 					} else {
-						return SeriesQuery{}, err
+						// string is not mapped, result is guaranteed to be empty
+						emptyCount[i]++
+						continue
 					}
+				} else {
+					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 				}
-				sel.FilterNotIn.Append(i, data_model.TagValue{Value: matcher.Value, Mapped: id})
+			case labels.MatchNotEqual:
+				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+					sel.FilterNotIn.Append(i, v)
+				} else if errors.Is(err, ErrNotFound) {
+					// we allow unmapped values for v3 requests
+					if ev.opt.Version == data_model.Version3 {
+						sel.FilterNotIn.AppendValue(i, matcher.Value)
+					} else {
+						continue // ignore values with no mapping
+					}
+				} else {
+					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
+				}
 			case labels.MatchRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
 				if err != nil {
@@ -1333,28 +1329,28 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 		if s == " 0" {
 			s = ""
 		}
-		res = append(res, data_model.TagValue{Value: s, Mapped: id})
+		res = append(res, data_model.NewTagValue(s, id))
 	}
 	m2[offset] = res
 	return res, nil
 }
 
-func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tagV string) (int32, error) {
+func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV string) (data_model.TagValue, error) {
 	if tagV == "" {
-		return 0, nil
+		return data_model.NewTagValue("", 0), nil
 	}
 	if format.HasRawValuePrefix(tagV) {
-		return format.ParseCodeTagValue(tagV)
+		return data_model.NewTagValue("", 0), nil
 	}
 	if tagX < 0 || len(metric.Tags) <= tagX {
-		return 0, ErrNotFound
+		return data_model.TagValue{}, ErrNotFound
 	}
 	t := metric.Tags[tagX]
 	if t.Raw {
 		// histogram bucket label
 		if t.Name == labels.BucketLabel {
 			if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-				return statshouse.LexEncode(float32(v)), nil
+				return data_model.NewTagValueM(statshouse.LexEncode(float32(v))), nil
 			}
 		}
 		// mapping from raw value comments
@@ -1362,21 +1358,29 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 		for k, v := range t.ValueComments {
 			if v == tagV {
 				if s != "" {
-					return 0, fmt.Errorf("ambiguous comment to value mapping")
+					return data_model.TagValue{}, fmt.Errorf("ambiguous comment to value mapping")
 				}
 				s = k
 			}
 		}
 		if s != "" {
-			return format.ParseCodeTagValue(s)
+			v, err := format.ParseCodeTagValue(s)
+			if err != nil {
+				return data_model.TagValue{}, err
+			}
+			return data_model.NewTagValueM(v), nil
 		}
 	}
-	return ev.GetTagValueID(TagValueIDQuery{
+	v, err := ev.GetTagValueID(TagValueIDQuery{
 		Version:  ev.opt.Version,
 		Metric:   metric,
 		TagIndex: tagX,
 		TagValue: tagV,
 	})
+	if err != nil {
+		return data_model.TagValue{}, err
+	}
+	return data_model.NewTagValue(tagV, v), nil
 }
 
 func (ev *evaluator) getStringTop(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {
