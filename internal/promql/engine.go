@@ -158,12 +158,11 @@ func (ng Engine) Exec(ctx context.Context, h Handler, qry Query) (parser.Value, 
 }
 
 func (ev *evaluator) Run() (parser.Value, func(), error) {
-	// parse query
-	if ev.t.Empty() {
-		return &TimeSeries{Time: []int64{}}, func() {}, nil
-	}
 	if e, ok := ev.ast.(*parser.StringLiteral); ok {
 		return String{T: ev.t.Start, V: e.Val}, func() {}, nil
+	}
+	if ev.t.Empty() {
+		return &TimeSeries{Time: []int64{}}, func() {}, nil
 	}
 	// evaluate query
 	ev.Tracef(ev.ast.String())
@@ -281,9 +280,11 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 		Location:      ng.location,
 		UTCOffset:     ng.utcOffset,
 	})
-
-	if err != nil || ev.t.Empty() {
+	if err != nil {
 		return evaluator{}, Error{what: err}
+	}
+	if ev.t.Empty() {
+		return ev, nil
 	}
 	// evaluate reduction rules
 	ev.ars = make(map[parser.Expr]parser.Expr)
@@ -1344,7 +1345,11 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 		if err != nil {
 			return data_model.TagValue{}, err
 		}
-		return data_model.NewTagValueM(v), nil
+		if v != 0 {
+			return data_model.NewTagValueM(v), nil
+		} else {
+			return data_model.NewTagValue("", 0), nil
+		}
 	}
 	if tagX < 0 || len(metric.Tags) <= tagX {
 		return data_model.TagValue{}, ErrNotFound
