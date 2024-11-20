@@ -55,7 +55,6 @@ const (
 	HistogramBucketsEndMark   = "$"
 	HistogramBucketsEndMarkC  = '$'
 
-	LETagIndex          = 15
 	StringTopTagIndex   = -1 // used as flag during mapping
 	StringTopTagIndexV3 = 47
 	HostTagIndex        = -2 // used as flag during mapping

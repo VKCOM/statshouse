@@ -60,6 +60,7 @@ type KnownTagsJSON struct {
 
 type KnownTag struct {
 	ID          string   `json:"id"`
+	Description string   `json:"description,omitempty"`
 	RawKind     string   `json:"raw_kind,omitempty"`
 	SkipMapping bool     `json:"skip_mapping,omitempty"`
 	Whitelist   []string `json:"whitelist,omitempty"`
@@ -253,12 +254,6 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			continue // tag name is not valid
 		}
 		t := format.MetricMetaTag{Name: string(validName)}
-		if t.Name == format.LETagName {
-			t.Description = "histogram bucket label"
-			t.Index = format.LETagIndex
-			t.Raw = true
-			t.RawKind = "lexenc_float"
-		}
 		if value.TagsDraft == nil {
 			value.TagsDraft = map[string]format.MetricMetaTag{t.Name: t}
 		} else {
@@ -329,12 +324,8 @@ func (ac *autoCreate) namespaceAllowed(namespaceID int32) bool {
 	}
 	ac.configMu.RLock()
 	defer ac.configMu.RUnlock()
-	for _, v := range ac.scrapeNamespaces {
-		if v == namespaceID {
-			return true
-		}
-	}
-	return false
+	_, ok := ac.knownTags[namespaceID]
+	return ok
 }
 
 func (ac *autoCreate) done() bool {
@@ -373,42 +364,55 @@ func (m KnownTags) PublishDraftTags(meta *format.MetricMetaValue) int {
 
 func publishDraftTags(meta *format.MetricMetaValue, t knownTags) int {
 	var n int
-	for k, v := range meta.TagsDraft {
-		tag, ok := t.m[k]
-		if !ok || tag.ID == "" {
+	for k, draftTag := range meta.TagsDraft {
+		knownTag, ok := t.m[k]
+		if !ok || knownTag.ID == "" {
 			continue
 		}
-		if tag.ID == format.StringTopTagID {
+		if knownTag.ID == format.StringTopTagID {
 			if meta.StringTopName == "" {
-				meta.StringTopName = v.Name
-				meta.StringTopDescription = v.Description
+				meta.StringTopName = k
+				if knownTag.Description != "" {
+					meta.StringTopDescription = knownTag.Description
+				}
+				delete(meta.TagsDraft, k)
 				n++
 			}
-		} else if x := format.TagIndex(tag.ID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
-			allow := len(tag.Whitelist) == 0 // empty whitelist allows all
+		} else if x := format.TagIndex(knownTag.ID); 0 <= x && x < format.NewMaxTags && (len(meta.Tags) <= x || meta.Tags[x].Name == "") {
+			allow := len(knownTag.Whitelist) == 0 // empty whitelist allows all
 			if !allow && strings.HasPrefix(meta.Name, t.p) {
 				name := meta.Name[len(t.p):]
-				for i := 0; i < len(tag.Whitelist) && !allow; i++ {
-					allow = tag.Whitelist[i] == name
+				for i := 0; i < len(knownTag.Whitelist) && !allow; i++ {
+					allow = knownTag.Whitelist[i] == name
 				}
 			}
 			if !allow {
 				continue
 			}
-			if tag.RawKind != "" {
-				rawKind := tag.RawKind
+			draftTag.Name = k
+			if knownTag.Description != "" {
+				draftTag.Description = knownTag.Description
+			}
+			if knownTag.RawKind != "" {
+				rawKind := knownTag.RawKind
 				if rawKind == "int" {
 					// The raw attribute is stored separately from the type string in metric meta,
 					// empty type implies "int" which is not allowed
 					rawKind = ""
 				}
 				if format.ValidRawKind(rawKind) {
-					v.Raw = true
-					v.RawKind = rawKind
+					draftTag.Raw = true
+					draftTag.RawKind = rawKind
 				}
 			}
-			v.SkipMapping = tag.SkipMapping
-			meta.Tags[x] = v
+			if knownTag.SkipMapping {
+				draftTag.SkipMapping = true
+			}
+			if len(meta.Tags) <= x {
+				meta.Tags = append(make([]format.MetricMetaTag, 0, x+1), meta.Tags...)
+				meta.Tags = meta.Tags[:x+1]
+			}
+			meta.Tags[x] = draftTag
 			delete(meta.TagsDraft, k)
 			n++
 		}
