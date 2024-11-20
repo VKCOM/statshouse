@@ -92,11 +92,11 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID))
 	sb.WriteString(" AS ")
 	sb.WriteString(valueName)
-	sb.WriteString(", toFloat64(")
+	sb.WriteString(",toFloat64(")
 	sb.WriteString(sqlAggFn(lod.Version, "sum"))
 	sb.WriteString("(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time >= ? AND time < ?")
+	sb.WriteString(" WHERE time>=? AND time<?")
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	sb.WriteString(datePredicate(lod.Version))
 	for i, ids := range pq.filterIn.Tags {
@@ -129,7 +129,7 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	}
 	sb.WriteString(" GROUP BY ")
 	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID))
-	sb.WriteString(" HAVING _count > 0 ORDER BY _count DESC,")
+	sb.WriteString(" HAVING _count>0 ORDER BY _count DESC,")
 	sb.WriteString(valueName)
 	sb.WriteString(" LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
@@ -141,83 +141,108 @@ func tagValuesQueryV3(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	sb.WriteString(mappedColumnNameV3(pq.tagID))
-	sb.WriteString(" AS _mapped, ")
+	sb.WriteString(" AS _mapped,")
 	sb.WriteString(unmappedColumnNameV3(pq.tagID))
-	sb.WriteString(" AS _unmapped, toFloat64(sum(count)) AS _count FROM ")
+	sb.WriteString(" AS _unmapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time >= ? AND time < ?")
+	sb.WriteString(" WHERE time>=? AND time<?")
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
-	sb.WriteString(" GROUP BY _mapped, _unmapped HAVING _count > 0 ORDER BY _count, _mapped, _unmapped DESC LIMIT ")
+	sb.WriteString(" GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
 	return tagValuesQuery2{body: sb.String(), meta: tagValuesQueryMeta{mixed: true}}, nil
 }
 
 func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
-	strValues := make([]string, 0, 16)
-	intValues := make([]int32, 0, 16)
-	for i, values := range f.Tags {
-		strValues = strValues[:0]
-		intValues = intValues[:0]
-		if len(values) == 0 {
+	var sep, predicate string
+	if in {
+		sep, predicate = " OR ", " IN "
+	} else {
+		sep, predicate = " AND ", " NOT IN "
+	}
+	for i, filter := range f.Tags {
+		if len(filter) == 0 {
 			continue
 		}
-		tag := format.TagID(i)
-		for _, valPair := range values {
-			if valPair.HasValue() {
-				strValues = append(strValues, valPair.Value)
+		sb.WriteString(" AND (")
+		// mapped
+		tagID := format.TagID(i)
+		var hasMapped bool
+		var hasValue bool
+		var hasEmpty bool
+		var started bool
+		for _, v := range filter {
+			if v.Empty() {
+				hasEmpty = true
+				continue
 			}
-			// zero mapped value is not valid filter when string value specified,
-			// because string filter value automatically excludes RAW tags
-			// and zero tag value might be only valid for RAW tags
-			if tag != format.StringTopTagID && (!valPair.HasValue() || valPair.Mapped != 0) {
-				intValues = append(intValues, valPair.Mapped)
+			if v.HasValue() {
+				hasValue = true
+			}
+			if v.IsMapped() {
+				if !hasMapped {
+					if started {
+						sb.WriteString(sep)
+					} else {
+						started = true
+					}
+					sb.WriteString(mappedColumnNameV3(tagID))
+					sb.WriteString(predicate)
+					sb.WriteString("(")
+					hasMapped = true
+				} else {
+					sb.WriteString(",")
+				}
+				sb.WriteString(fmt.Sprint(v.Mapped))
 			}
 		}
-		sb.WriteString(" AND (")
-		if len(intValues) > 0 {
-			sb.WriteString(mappedColumnNameV3(tag))
-			if in {
-				sb.WriteString(" IN (")
-			} else {
-				sb.WriteString(" NOT IN (")
-			}
-			expandInt32s(sb, intValues)
+		if hasMapped {
 			sb.WriteString(")")
-			if len(strValues) > 0 {
-				if in {
-					sb.WriteString(" OR ")
-				} else {
-					sb.WriteString(" AND ")
+		}
+		// not mapped
+		if hasValue {
+			hasValue = false
+			for _, v := range filter {
+				if v.Empty() {
+					continue
+				}
+				if v.HasValue() {
+					if !hasValue {
+						if started {
+							sb.WriteString(sep)
+						} else {
+							started = true
+						}
+						sb.WriteString(unmappedColumnNameV3(tagID))
+						sb.WriteString(predicate)
+						sb.WriteString("('")
+						hasValue = true
+					} else {
+						sb.WriteString("','")
+					}
+					sb.WriteString(escapeReplacer.Replace(v.Value))
 				}
 			}
+			sb.WriteString("')")
 		}
-		if len(strValues) > 0 {
-			sb.WriteString(unmappedColumnNameV3(tag))
-			if in {
-				sb.WriteString(" IN (")
-			} else {
-				sb.WriteString(" NOT IN (")
+		// empty
+		if hasEmpty {
+			if started {
+				sb.WriteString(sep)
 			}
-			expandStrings(sb, strValues)
-			sb.WriteString(")")
+			if !in {
+				sb.WriteString("NOT ")
+			}
+			sb.WriteString("(")
+			sb.WriteString(mappedColumnNameV3(tagID))
+			sb.WriteString("=0 AND ")
+			sb.WriteString(unmappedColumnNameV3(tagID))
+			sb.WriteString("='')")
 		}
 		sb.WriteString(")")
 	}
-	if len(f.StringTop) > 0 {
-		sb.WriteString(" AND stag47")
-		if in {
-			sb.WriteString(" IN (")
-		} else {
-			sb.WriteString(" NOT IN (")
-		}
-		expandStrings(sb, f.StringTop)
-		sb.WriteString(")")
-	}
-	strValues = nil
-	intValues = nil
 }
 
 type queryMeta struct {
@@ -240,54 +265,54 @@ func loadPointsSelectWhat(sb *strings.Builder, pq *preparedPointsQuery, version 
 		kind        = pq.kind
 	)
 	if version == Version1 && isStringTop {
-		sb.WriteString(", toFloat64(sumMerge(count)) AS _count")
+		sb.WriteString(",toFloat64(sumMerge(count)) AS _count")
 		return 0, nil // count is the only column available
 	}
 
 	switch kind {
 	case data_model.DigestKindCount:
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(", toFloat64(sum(1)) AS _val0")
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
+		sb.WriteString(",toFloat64(sum(1)) AS _val0")
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
 		return 2, nil
 	case data_model.DigestKindValue:
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(min)) AS _val0", sqlAggFn(version, "min")))
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(sum))/toFloat64(%s(count)) AS _val2", sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(sum)) AS _val3", sqlAggFn(version, "sum")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(min)) AS _val0", sqlAggFn(version, "min")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(sum))/toFloat64(%s(count)) AS _val2", sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(sum)) AS _val3", sqlAggFn(version, "sum")))
 		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
-		sb.WriteString(fmt.Sprintf(", if(%s(count) < 2, 0, sqrt(greatest(   (%s(sumsquare) - pow(%s(sum), 2) / %s(count)) / (%s(count) - 1)   , 0))) AS _val4",
+		sb.WriteString(fmt.Sprintf(",if(%s(count)<2,0,sqrt(greatest((%s(sumsquare)-pow(%s(sum),2)/%s(count))/(%s(count)-1),0))) AS _val4",
 			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
-		sb.WriteString(", toFloat64(sum(1)) AS _val5")
-		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
+		sb.WriteString(",toFloat64(sum(1)) AS _val5")
+		sb.WriteString(fmt.Sprintf(",%s AS _minHost,%s AS _maxHost", sqlMinHost(version), sqlMaxHost(version)))
 		return 6, nil
 	case data_model.DigestKindPercentilesLow:
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(", toFloat64((quantilesTDigestMerge(0.001, 0.01, 0.05, 0.1)(percentiles) AS digest)[1]) AS _val0")
-		sb.WriteString(", toFloat64(digest[2]) AS _val1")
-		sb.WriteString(", toFloat64(digest[3]) AS _val2")
-		sb.WriteString(", toFloat64(digest[4]) AS _val3")
-		sb.WriteString(", toFloat64(0) AS _val4")
-		sb.WriteString(", toFloat64(0) AS _val5")
-		sb.WriteString(", toFloat64(0) AS _val6")
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
+		sb.WriteString(",toFloat64((quantilesTDigestMerge(0.001, 0.01, 0.05, 0.1)(percentiles) AS digest)[1]) AS _val0")
+		sb.WriteString(",toFloat64(digest[2]) AS _val1")
+		sb.WriteString(",toFloat64(digest[3]) AS _val2")
+		sb.WriteString(",toFloat64(digest[4]) AS _val3")
+		sb.WriteString(",toFloat64(0) AS _val4")
+		sb.WriteString(",toFloat64(0) AS _val5")
+		sb.WriteString(",toFloat64(0) AS _val6")
 		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
 		return 7, nil
 	case data_model.DigestKindPercentiles:
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(", toFloat64((quantilesTDigestMerge(0.25, 0.5, 0.75, 0.90, 0.95, 0.99, 0.999)(percentiles) AS digest)[1]) AS _val0")
-		sb.WriteString(", toFloat64(digest[2]) AS _val1")
-		sb.WriteString(", toFloat64(digest[3]) AS _val2")
-		sb.WriteString(", toFloat64(digest[4]) AS _val3")
-		sb.WriteString(", toFloat64(digest[5]) AS _val4")
-		sb.WriteString(", toFloat64(digest[6]) AS _val5")
-		sb.WriteString(", toFloat64(digest[7]) AS _val6")
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
+		sb.WriteString(",toFloat64((quantilesTDigestMerge(0.25, 0.5, 0.75, 0.90, 0.95, 0.99, 0.999)(percentiles) AS digest)[1]) AS _val0")
+		sb.WriteString(",toFloat64(digest[2]) AS _val1")
+		sb.WriteString(",toFloat64(digest[3]) AS _val2")
+		sb.WriteString(",toFloat64(digest[4]) AS _val3")
+		sb.WriteString(",toFloat64(digest[5]) AS _val4")
+		sb.WriteString(",toFloat64(digest[6]) AS _val5")
+		sb.WriteString(",toFloat64(digest[7]) AS _val6")
 		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
 		return 7, nil
 	case data_model.DigestKindUnique:
-		sb.WriteString(fmt.Sprintf(", toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(", toFloat64(uniqMerge(uniq_state)) AS _val0")
-		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
+		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
+		sb.WriteString(",toFloat64(uniqMerge(uniq_state)) AS _val0")
+		sb.WriteString(fmt.Sprintf(",%s AS _minHost, %s AS _maxHost", sqlMinHost(version), sqlMaxHost(version)))
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("unsupported operation kind: %q", kind)
@@ -305,16 +330,16 @@ func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int6
 
 func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (pointsQuery, error) {
 	var sb strings.Builder
-	sb.WriteString("SELECT")
+	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
-		sb.WriteString(fmt.Sprintf(" toInt64(toDateTime(toStartOfInterval(time, INTERVAL 1 MONTH, '%s'), '%s')) AS _time,", lod.Location.String(), lod.Location.String()))
-		sb.WriteString(fmt.Sprintf(" toInt64(toDateTime(_time, '%s') + INTERVAL 1 MONTH) - _time AS _stepSec", lod.Location.String()))
+		sb.WriteString(fmt.Sprintf("toInt64(toDateTime(toStartOfInterval(time, INTERVAL 1 MONTH, '%s'), '%s')) AS _time,", lod.Location.String(), lod.Location.String()))
+		sb.WriteString(fmt.Sprintf("toInt64(toDateTime(_time,'%s')+INTERVAL 1 MONTH)-_time AS _stepSec", lod.Location.String()))
 	} else {
-		sb.WriteString(fmt.Sprintf(" toInt64(toStartOfInterval(time + %d, INTERVAL %d second)) - %d AS _time,", utcOffset, lod.StepSec, utcOffset))
-		sb.WriteString(fmt.Sprintf(" toInt64(%d) AS _stepSec", lod.StepSec))
+		sb.WriteString(fmt.Sprintf("toInt64(toStartOfInterval(time+%d,INTERVAL %d second))-%d AS _time,", utcOffset, lod.StepSec, utcOffset))
+		sb.WriteString(fmt.Sprintf("toInt64(%d) AS _stepSec", lod.StepSec))
 	}
 	for _, b := range pq.by {
-		sb.WriteString(fmt.Sprintf(", %s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
+		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 	}
 	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
@@ -322,7 +347,7 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time >= ? AND time < ?")
+	sb.WriteString(" WHERE time>=? AND time<?")
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	sb.WriteString(datePredicate(lod.Version))
 	for i, ids := range pq.filterIn.Tags {
@@ -355,7 +380,7 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	}
 	sb.WriteString(" GROUP BY _time")
 	for _, b := range pq.by {
-		sb.WriteString(fmt.Sprintf(", %s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
+		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 	}
 	var having bool
 	switch pq.kind {
@@ -389,19 +414,19 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 
 func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (pointsQuery, error) {
 	var sb strings.Builder
-	sb.WriteString("SELECT")
+	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
-		sb.WriteString(fmt.Sprintf(" toInt64(toDateTime(toStartOfInterval(time, INTERVAL 1 MONTH, '%s'), '%s')) AS _time,", lod.Location.String(), lod.Location.String()))
-		sb.WriteString(fmt.Sprintf(" toInt64(toDateTime(_time, '%s') + INTERVAL 1 MONTH) - _time AS _stepSec", lod.Location.String()))
+		sb.WriteString(fmt.Sprintf("toInt64(toDateTime(toStartOfInterval(time,INTERVAL 1 MONTH,'%s'),'%s')) AS _time,", lod.Location.String(), lod.Location.String()))
+		sb.WriteString(fmt.Sprintf("toInt64(toDateTime(_time,'%s')+INTERVAL 1 MONTH)-_time AS _stepSec", lod.Location.String()))
 	} else {
-		sb.WriteString(fmt.Sprintf(" toInt64(toStartOfInterval(time + %d, INTERVAL %d second)) - %d AS _time,", utcOffset, lod.StepSec, utcOffset))
-		sb.WriteString(fmt.Sprintf(" toInt64(%d) AS _stepSec", lod.StepSec))
+		sb.WriteString(fmt.Sprintf("toInt64(toStartOfInterval(time+%d,INTERVAL %d second))-%d AS _time,", utcOffset, lod.StepSec, utcOffset))
+		sb.WriteString(fmt.Sprintf("toInt64(%d) AS _stepSec", lod.StepSec))
 	}
 	for _, b := range pq.by {
 		if b != format.StringTopTagID {
-			sb.WriteString(fmt.Sprintf(", %s AS tag%s", mappedColumnNameV3(b), b))
+			sb.WriteString(fmt.Sprintf(",%s AS tag%s", mappedColumnNameV3(b), b))
 		}
-		sb.WriteString(fmt.Sprintf(", %s AS stag%s", unmappedColumnNameV3(b), b))
+		sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 	}
 	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
@@ -409,25 +434,25 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE index_type = 0 AND time >= ? AND time < ?")
+	sb.WriteString(" WHERE index_type=0 AND time>=? AND time<?")
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
 	sb.WriteString(" GROUP BY _time")
 	for _, b := range pq.by {
 		if b != format.StringTopTagID {
-			sb.WriteString(", ")
+			sb.WriteString(",")
 			sb.WriteString(mappedColumnNameV3(b))
 			sb.WriteString(" AS tag")
 			sb.WriteString(b)
 		}
-		sb.WriteString(", ")
+		sb.WriteString(",")
 		sb.WriteString(unmappedColumnNameV3(b))
 		sb.WriteString(" AS stag")
 		sb.WriteString(b)
 	}
 	if pq.orderBy {
-		sb.WriteString(" HAVING _count > 0")
+		sb.WriteString(" HAVING _count>0")
 		switch pq.kind {
 		case data_model.DigestKindPercentiles:
 			sb.WriteString("AND not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3) AND isNaN(_val4) AND isNaN(_val5) AND isNaN(_val6))")
@@ -437,9 +462,9 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		sb.WriteString(" ORDER BY _time")
 		for _, b := range pq.by {
 			if b != format.StringTopTagID {
-				sb.WriteString(fmt.Sprintf(", %s AS tag%s", mappedColumnNameV3(b), b))
+				sb.WriteString(fmt.Sprintf(",%s AS tag%s", mappedColumnNameV3(b), b))
 			}
-			sb.WriteString(fmt.Sprintf(", %s AS stag%s", unmappedColumnNameV3(b), b))
+			sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 		}
 		if pq.desc {
 			sb.WriteString(" DESC")
@@ -479,7 +504,7 @@ func writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotI
 	if metricID != 0 {
 		sb.WriteString(" AND ")
 		sb.WriteString(metricColumn(version))
-		sb.WriteString(" = ")
+		sb.WriteString("=")
 		sb.WriteString(fmt.Sprint(metricID))
 		return
 	}
@@ -516,7 +541,7 @@ func metricColumn(version string) string {
 
 func datePredicate(version string) string {
 	if version == Version1 {
-		return " AND date >= toDate(?) AND date <= toDate(?)"
+		return " AND date>=toDate(?) AND date<=toDate(?)"
 	}
 	return ""
 }
@@ -611,7 +636,7 @@ func expandTagsMapped(sb *strings.Builder, s []data_model.TagValue) {
 	}
 	sb.WriteString(fmt.Sprint(s[0].Mapped))
 	for i := 1; i < len(s); i++ {
-		sb.WriteString(", ")
+		sb.WriteString(",")
 		sb.WriteString(fmt.Sprint(s[i].Mapped))
 	}
 }
@@ -626,20 +651,9 @@ func expandStrings(sb *strings.Builder, s []string) {
 	escapeReplacer.WriteString(sb, s[0])
 	sb.WriteString("'")
 	for i := 1; i < len(s); i++ {
-		sb.WriteString(", '")
+		sb.WriteString(",'")
 		escapeReplacer.WriteString(sb, s[i])
 		sb.WriteString("'")
-	}
-}
-
-func expandInt32s(sb *strings.Builder, s []int32) {
-	if len(s) == 0 {
-		return
-	}
-	sb.WriteString(fmt.Sprint(s[0]))
-	for i := 1; i < len(s); i++ {
-		sb.WriteString(", ")
-		sb.WriteString(fmt.Sprint(s[i]))
 	}
 }
 

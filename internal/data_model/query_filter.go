@@ -158,6 +158,10 @@ func (v TagValue) IsMapped() bool {
 	return v.flags&tagIsMapped != 0
 }
 
+func (v TagValue) Empty() bool {
+	return v.HasValue() && v.IsMapped() && v.Value == "" && v.Mapped == 0
+}
+
 func (v TagValue) String() string {
 	if v.HasValue() {
 		return v.Value
