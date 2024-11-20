@@ -1340,7 +1340,11 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 		return data_model.NewTagValue("", 0), nil
 	}
 	if format.HasRawValuePrefix(tagV) {
-		return data_model.NewTagValue("", 0), nil
+		v, err := format.ParseCodeTagValue(tagV)
+		if err != nil {
+			return data_model.TagValue{}, err
+		}
+		return data_model.NewTagValueM(v), nil
 	}
 	if tagX < 0 || len(metric.Tags) <= tagX {
 		return data_model.TagValue{}, ErrNotFound
