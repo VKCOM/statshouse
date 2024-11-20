@@ -70,7 +70,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	defer func() {
 		var code int // "0" means "success"
 		if r := recover(); r != nil {
-			w.savePanic(r, debug.Stack())
+			w.savePanic(hctx.RequestFunctionName, r, debug.Stack())
 			code = rpc.TlErrorInternal
 			err = &rpc.Error{Code: rpc.TlErrorInternal}
 		} else if err != nil {

@@ -676,8 +676,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	return h, nil
 }
 
-func (h *Handler) savePanic(err any, stack []byte) {
-	v := error500{time.Now(), err, stack}
+func (h *Handler) savePanic(requestURI string, err any, stack []byte) {
+	v := error500{time: time.Now(), requestURI: requestURI, what: err, stack: stack}
 	h.errorsMu.Lock()
 	h.errors[h.errorX] = v
 	h.errorX = (h.errorX + 1) % len(h.errors)
@@ -2031,7 +2031,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 	defer func() {
 		var code int
 		if r := recover(); r != nil {
-			h.savePanic(r, debug.Stack())
+			h.savePanic("/api/badges", r, debug.Stack())
 			code = 500
 		} else {
 			code = httpCode(err)

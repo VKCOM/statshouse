@@ -47,9 +47,10 @@ type httpResponseWriter struct {
 }
 
 type error500 struct {
-	time  time.Time
-	what  any
-	stack []byte
+	time       time.Time
+	requestURI string
+	what       any
+	stack      []byte
 }
 
 func NewHTTPRouter(h *Handler) httpRouter {
@@ -132,7 +133,7 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 			if !h.w.statusCodeSent {
 				http.Error(&h.w, fmt.Sprint(err), http.StatusInternalServerError)
 			}
-			h.savePanic(err, debug.Stack())
+			h.savePanic(req.RequestURI, err, debug.Stack())
 		}
 		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricNameAPIResponseTime)
 	}()
@@ -154,6 +155,7 @@ func DumpInternalServerErrors(r *httpRequestHandler) {
 	defer r.errorsMu.RUnlock()
 	for i := 0; i < len(r.errors) && r.errors[i].what != nil; i++ {
 		w.Write([]byte("# \n"))
+		w.Write([]byte("# " + r.errors[i].requestURI + " \n"))
 		w.Write([]byte(fmt.Sprintf("# %s \n", r.errors[i].what)))
 		w.Write([]byte("# " + r.errors[i].time.Format(time.RFC3339) + " \n"))
 		w.Write([]byte("# \n"))
