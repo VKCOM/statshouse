@@ -1968,6 +1968,88 @@ func HandleSeriesQuery(r *httpRequestHandler) {
 	}
 }
 
+func HandleBadgesQuery(r *httpRequestHandler) {
+	var err error
+	var req seriesRequest
+	if req, err = r.parseSeriesRequest(); err == nil {
+		err = req.validate(&r.requestHandler)
+	}
+	if err != nil {
+		respondJSON(r, nil, 0, 0, err)
+		return
+	}
+	var limit int
+	if len(req.promQL) == 0 {
+		if req.promQL, err = r.getPromQuery(req); err != nil {
+			respondJSON(r, nil, 0, 0, err)
+			return
+		}
+	} else {
+		limit = req.numResults
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	defer cancel()
+	var offsets = make([]int64, 0, len(req.shifts))
+	for _, v := range req.shifts {
+		offsets = append(offsets, -toSec(v))
+	}
+	ev, err := r.promEngine.NewEvaluator(
+		ctx, r,
+		promql.Query{
+			Start: req.from.Unix(),
+			End:   req.to.Unix(),
+			Step:  req.step,
+			Expr:  req.promQL,
+			Options: promql.Options{
+				Version:          req.version,
+				Version3Start:    r.Version3Start.Load(),
+				AvoidCache:       req.avoidCache,
+				Extend:           req.excessPoints,
+				ExplicitGrouping: true,
+				QuerySequential:  r.querySequential,
+				ScreenWidth:      req.screenWidth,
+				MaxHost:          req.maxHost,
+				Offsets:          offsets,
+				Limit:            limit,
+				Vars:             req.vars,
+				Compat:           req.compat,
+			},
+		})
+	if err != nil {
+		respondJSON(r, nil, 0, 0, err)
+		return
+	}
+	var res SeriesResponse
+	if metric := ev.QueryMetric(); metric != nil {
+		badges, cancel := r.queryBadges(ctx, req, metric)
+		defer cancel()
+		for _, d := range badges.Series.Data {
+			if t, ok := d.Tags.ID2Tag["2"]; !ok || t.SValue != metric.Name {
+				continue
+			}
+			if t, ok := d.Tags.ID2Tag["1"]; ok {
+				badgeType := t.Value
+				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
+					what := data_model.DigestWhat(t.Value)
+					switch {
+					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
+						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(badges.Time))
+					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
+						res.SamplingFactorAgg = sumSeries(d.Values, 1) / float64(len(badges.Time))
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
+						res.ReceiveErrors = sumSeries(d.Values, 0)
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
+						res.ReceiveWarnings = sumSeries(d.Values, 0)
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
+						res.MappingErrors = sumSeries(d.Values, 0)
+					}
+				}
+			}
+		}
+	}
+	respondJSON(r, res, queryClientCache, queryClientCacheStale, nil)
+}
+
 func HandleFrontendStat(r *httpRequestHandler) {
 	if r.accessInfo.service {
 		// statistics from bots isn't welcome
