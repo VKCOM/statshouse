@@ -100,11 +100,11 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	sb.WriteString(datePredicate(lod.Version))
 	for i, ids := range pq.filterIn.Tags {
-		if len(ids) > 0 {
+		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
 			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
 			sb.WriteString(" IN (")
-			expandTagsMapped(&sb, ids)
+			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
 		}
 	}
@@ -114,11 +114,11 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 		sb.WriteString(")")
 	}
 	for i, ids := range pq.filterNotIn.Tags {
-		if len(ids) > 0 {
+		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
 			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
 			sb.WriteString(" NOT IN (")
-			expandTagsMapped(&sb, ids)
+			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
 		}
 	}
@@ -163,7 +163,7 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 		sep, predicate = " AND ", " NOT IN "
 	}
 	for i, filter := range f.Tags {
-		if len(filter) == 0 {
+		if len(filter.Values) == 0 && filter.Re2 == "" {
 			continue
 		}
 		sb.WriteString(" AND (")
@@ -173,7 +173,7 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 		var hasValue bool
 		var hasEmpty bool
 		var started bool
-		for _, v := range filter {
+		for _, v := range filter.Values {
 			if v.Empty() {
 				hasEmpty = true
 				continue
@@ -202,9 +202,23 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 			sb.WriteString(")")
 		}
 		// not mapped
-		if hasValue {
+		if filter.Re2 != "" {
+			if started {
+				sb.WriteString(sep)
+			} else {
+				started = true
+			}
+			if !in {
+				sb.WriteString("NOT ")
+			}
+			sb.WriteString("match(")
+			sb.WriteString(unmappedColumnNameV3(tagID))
+			sb.WriteString(",'")
+			sb.WriteString(escapeReplacer.Replace(filter.Re2))
+			sb.WriteString("')")
+		} else if hasValue {
 			hasValue = false
-			for _, v := range filter {
+			for _, v := range filter.Values {
 				if v.Empty() {
 					continue
 				}
@@ -351,11 +365,11 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	sb.WriteString(datePredicate(lod.Version))
 	for i, ids := range pq.filterIn.Tags {
-		if len(ids) > 0 {
+		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
 			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
 			sb.WriteString(" IN (")
-			expandTagsMapped(&sb, ids)
+			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
 		}
 	}
@@ -365,11 +379,11 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		sb.WriteString(")")
 	}
 	for i, ids := range pq.filterNotIn.Tags {
-		if len(ids) > 0 {
+		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
 			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
 			sb.WriteString(" NOT IN (")
-			expandTagsMapped(&sb, ids)
+			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
 		}
 	}
