@@ -1163,6 +1163,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					emptyCount[format.MaxTags]++
 					continue
 				}
+				sel.FilterIn.StringTopRe2 = matcher.Value
 			case labels.MatchNotRegexp:
 				stop, err := ev.getStringTop(ctx, metric, offset)
 				if err != nil {
@@ -1173,6 +1174,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 						sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, v)
 					}
 				}
+				sel.FilterNotIn.StringTopRe2 = matcher.Value
 			}
 		} else {
 			i := tag.Index
@@ -1217,11 +1219,12 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 						matchCount++
 					}
 				}
-				if matchCount == 0 {
+				if matchCount == 0 && ev.opt.Version != data_model.Version3 {
 					// there no data satisfying the filter
 					emptyCount[i]++
 					continue
 				}
+				sel.FilterIn.Tags[i].Re2 = matcher.Value
 			case labels.MatchNotRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
 				if err != nil {
@@ -1232,6 +1235,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 						sel.FilterNotIn.Append(i, tag)
 					}
 				}
+				sel.FilterNotIn.Tags[i].Re2 = matcher.Value
 			}
 		}
 	}
@@ -1239,7 +1243,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if n == 0 {
 			continue
 		}
-		if m := len(sel.FilterIn.Tags[i]); m == 0 {
+		if m := len(sel.FilterIn.Tags[i].Values); m == 0 {
 			// All "MatchEqual" and "MatchRegexp" filters give an empty result and
 			// there are no other such filters, overall result is guaranteed to be empty
 			return SeriesQuery{}, nil

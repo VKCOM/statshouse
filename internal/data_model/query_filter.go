@@ -21,9 +21,15 @@ type QueryFilter struct {
 }
 
 type TagFilters struct {
-	Metrics   []*format.MetricMetaValue
-	Tags      [format.NewMaxTags]TagValues
-	StringTop []string
+	Metrics      []*format.MetricMetaValue
+	Tags         [format.NewMaxTags]TagFilter
+	StringTop    []string
+	StringTopRe2 string
+}
+
+type TagFilter struct {
+	Values TagValues
+	Re2    string
 }
 
 type TagValues []TagValue
@@ -112,11 +118,11 @@ func (f *TagFilters) AppendMapped(tag int, val ...int32) {
 }
 
 func (f *TagFilters) Append(tag int, filter ...TagValue) {
-	f.Tags[tag] = append(f.Tags[tag], filter...)
+	f.Tags[tag].Values = append(f.Tags[tag].Values, filter...)
 }
 
 func (f *TagFilters) Contains(tag int) bool {
-	return 0 <= tag && tag < len(f.Tags) && len(f.Tags[tag]) != 0
+	return 0 <= tag && tag < len(f.Tags) && len(f.Tags[tag].Values) != 0
 }
 
 func (v TagValues) Sort() {
