@@ -96,6 +96,14 @@ type Agent struct {
 	statDiskOverflow                *BuiltInItemValue
 	statMemoryOverflow              *BuiltInItemValue
 
+	TimingsMapping      *BuiltInItemValue
+	TimingsMappingSlow  *BuiltInItemValue
+	TimingsApplyMetric  *BuiltInItemValue
+	TimingsFlush        *BuiltInItemValue
+	TimingsPreprocess   *BuiltInItemValue
+	TimingsSendRecent   *BuiltInItemValue
+	TimingsSendHistoric *BuiltInItemValue
+
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
 }
@@ -165,7 +173,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.stagingLevel, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
-	nowUnix := uint32(time.Now().Unix())
+	now := time.Now()
+	nowUnix := uint32(now.Unix())
 	result.beforeFlushTime = nowUnix
 
 	result.startTimestamp = nowUnix
@@ -240,18 +249,30 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		result.ShardReplicas = append(result.ShardReplicas, shardReplica)
 	}
 
-	// TODO - remove those, simply write metrics to bucket as usual
-	result.statErrorsDiskWrite = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorWrite}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	result.statErrorsDiskRead = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorRead}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	result.statErrorsDiskErase = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorDelete}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	result.statErrorsDiskReadNotConfigured = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	result.statLongWindowOverflow = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	result.statDiskOverflow = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	result.statMemoryOverflow = result.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingThrownDueToMemory}}, format.BuiltinMetricMetaTimingErrors)
-
+	result.initBuiltInMetrics()
 	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil
+}
+
+func (s *Agent) initBuiltInMetrics() {
+	// TODO - remove those, simply write metrics to bucket as usual
+	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorWrite}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
+	s.statErrorsDiskRead = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorRead}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
+	s.statErrorsDiskErase = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorDelete}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
+	s.statErrorsDiskReadNotConfigured = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
+	s.statErrorsDiskCompressFailed = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
+	s.statLongWindowOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
+	s.statDiskOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
+	s.statMemoryOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingThrownDueToMemory}}, format.BuiltinMetricMetaTimingErrors)
+
+	s.TimingsMapping = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsMappingSlow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsApplyMetric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsFlush = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsPreprocess = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsSendRecent = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsSendHistoric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+
 }
 
 // Idea behind this semaphore is
@@ -470,6 +491,7 @@ func (s *Agent) goFlushIteration(now time.Time) {
 	for _, shard := range s.Shards {
 		shard.flushBuckets(now)
 	}
+	s.TimingsFlush.AddValueCounter(float64(time.Since(now).Nanoseconds()), 1)
 }
 
 // For counters, use AddValueCounter(0, 1)
@@ -499,6 +521,7 @@ func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, meta *format.MetricM
 }
 
 func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32) {
+	start := time.Now()
 	// Simply writing everything we know about metric ingestion errors would easily double how much metrics data we write
 	// So below is basically a compromise. All info is stored in MappingMetricHeader, if needed we can easily write more
 	// by changing code below
@@ -520,6 +543,10 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
+	// after this point we are sure that metric will be applied
+	defer func() {
+		s.TimingsApplyMetric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+	}()
 	// now set ok status
 	s.AddCounter(&data_model.Key{
 		Metric: format.BuiltinMetricIDIngestionStatus,

@@ -110,6 +110,7 @@ func (s *Shard) flushSingleStep(wasCurrentBucketTime uint32, currentTime uint32,
 func (s *Shard) FlushAllDataSingleStep() int {
 	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
 	currentTime := wasCurrentBucketTime + 1
+	var _ time.Time = time.Now()
 	return s.flushSingleStep(wasCurrentBucketTime, currentTime, false)
 }
 
@@ -217,6 +218,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	for pbd := range s.BucketsToPreprocess {
+		start := time.Now()
 		bucket := &data_model.MetricsBucket{Time: pbd.time}
 		// Due to !b.Empty() optimization during flushing into future queue, if no data is collected,
 		// nothing is in FutureQueue. If pbd.buckets is empty, we must still do processing and sending
@@ -225,6 +227,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 		s.mergeBuckets(rng, bucket, pbd.buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rng)
 		s.sendToSenders(bucket, sampleFactors)
+		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
@@ -409,6 +412,7 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 	defer wg.Done()
 	defer recentSendersSema.Release(1)
 	for cbd := range bucketsToSend {
+		start := time.Now()
 		s.mu.Lock()
 		saveSecondsImmediately := s.config.SaveSecondsImmediately
 		s.mu.Unlock()
@@ -422,6 +426,7 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
 			s.appendHistoricBucketsToSend(cbd)
 		}
+		s.agent.TimingsSendRecent.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 		// log.Printf("goSendRecent.sendRecent %d finish", num)
 	}
 	log.Printf("goSendRecent.sendRecent %d quit", num)
@@ -621,7 +626,8 @@ func (s *Shard) goSendHistoric(wg *sync.WaitGroup, cancelSendsCtx context.Contex
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for {
-		nowUnix := uint32(time.Now().Unix())
+		start := time.Now()
+		nowUnix := uint32(start.Unix())
 		cbd, ok := s.popOldestHistoricSecondLocked(nowUnix)
 		if !ok {
 			s.cond.Wait()
@@ -630,6 +636,7 @@ func (s *Shard) goSendHistoric(wg *sync.WaitGroup, cancelSendsCtx context.Contex
 		s.mu.Unlock()
 		s.sendHistoric(cancelSendsCtx, cbd, &scratchPad)
 		s.mu.Lock()
+		s.agent.TimingsSendHistoric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}
 }
 

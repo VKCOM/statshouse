@@ -76,6 +76,7 @@ func Test_AgentQueue(t *testing.T) {
 	shard.cond = sync.NewCond(&shard.mu)
 	shard.BucketsToPreprocess = make(chan preprocessorBucketData, 1)
 	agent.Shards = append(agent.Shards, shard)
+	agent.initBuiltInMetrics()
 
 	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1}
 	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5}
@@ -132,7 +133,7 @@ func testEnsureFlush(t *testing.T, shard *Shard, time uint32) {
 			if item.Key.Metric == 5 && item.Key.Timestamp != mustBeTime {
 				t.Fatalf("wrong metric 5sec time")
 			}
-			if item.Key.Timestamp < mustBeTime { // metric from the future
+			if item.Key.Timestamp > mustBeTime { // metric from the future
 				t.Fatalf("metric from the future")
 			}
 		}
@@ -375,5 +376,6 @@ func makeAgent(config Config, nowUnix uint32) *Agent {
 		shard.cond = sync.NewCond(&shard.mu)
 		agent.Shards[i] = shard
 	}
+	agent.initBuiltInMetrics()
 	return agent
 }
