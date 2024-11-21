@@ -1096,7 +1096,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		groupBy = ev.opt.GroupBy
 	} else if sel.GroupByAll {
 		if !sel.GroupWithout {
-			for i := 0; i < format.NewMaxTags; i++ {
+			for i := 0; i < format.MaxTags; i++ {
 				groupBy = append(groupBy, format.TagID(i))
 			}
 			groupBy = append(groupBy, format.StringTopTagID)
@@ -1109,7 +1109,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				skip[t.Index] = true
 			}
 		}
-		for i := 0; i < format.NewMaxTags; i++ {
+		for i := 0; i < format.MaxTags; i++ {
 			if !skip[i] {
 				groupBy = append(groupBy, format.TagID(i))
 			}
