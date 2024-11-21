@@ -37,7 +37,7 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 	return q.tagID == format.StringTopTagID
 }
 
-type preparedPointsQuery struct {
+type pointsQueryArgs struct {
 	version     string
 	user        string
 	metricID    int32
@@ -56,22 +56,22 @@ type preparedPointsQuery struct {
 
 type pointsQuery struct {
 	key string
-	preparedPointsQuery
+	pointsQueryArgs
 }
 
-func newPointsQuery(pq preparedPointsQuery) (pointsQuery, error) {
-	return pointsQuery{key: pq.cacheKey(), preparedPointsQuery: pq}, nil
+func newPointsQuery(args pointsQueryArgs) pointsQuery {
+	return pointsQuery{key: args.cacheKey(), pointsQueryArgs: args}
 }
 
-func (pq *preparedPointsQuery) cacheKey() string {
+func (pq *pointsQueryArgs) cacheKey() string {
 	var sb strings.Builder
 	sb.WriteString(";v=")
 	sb.WriteString(fmt.Sprint(pq.version))
 	sb.WriteString(";m=")
 	sb.WriteString(fmt.Sprint(pq.metricID))
-	sb.WriteString(";pkey=")
+	sb.WriteString(";pk=")
 	sb.WriteString(fmt.Sprint(pq.preKeyTagX))
-	sb.WriteString(";stop=")
+	sb.WriteString(";st=")
 	sb.WriteString(fmt.Sprint(pq.isStringTop))
 	sb.WriteString(";kind=")
 	sb.WriteString(fmt.Sprint(pq.kind))
@@ -340,7 +340,7 @@ type pointsQueryMeta struct {
 	version    string
 }
 
-func loadPointsSelectWhat(sb *strings.Builder, pq *preparedPointsQuery, version string) (int, error) {
+func loadPointsSelectWhat(sb *strings.Builder, pq *pointsQueryArgs, version string) (int, error) {
 	var (
 		isStringTop = pq.isStringTop
 		kind        = pq.kind
@@ -422,7 +422,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 	for _, b := range pq.by {
 		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, &pq.preparedPointsQuery, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, &pq.pointsQueryArgs, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -518,7 +518,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 		}
 		sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, &pq.preparedPointsQuery, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, &pq.pointsQueryArgs, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -677,7 +677,7 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func (pq *preparedPointsQuery) preKeyTableName(lod data_model.LOD) string {
+func (pq *pointsQueryArgs) preKeyTableName(lod data_model.LOD) string {
 	var usePreKey bool
 	if lod.HasPreKey {
 		usePreKey = lod.PreKeyOnly ||
