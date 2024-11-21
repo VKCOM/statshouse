@@ -38,6 +38,7 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 }
 
 type preparedPointsQuery struct {
+	version     string
 	user        string
 	metricID    int32
 	preKeyTagX  int
@@ -59,8 +60,14 @@ type pointsQuery struct {
 }
 
 func newPointsQuery(pq preparedPointsQuery) (pointsQuery, error) {
+	return pointsQuery{key: pq.cacheKey(), preparedPointsQuery: pq}, nil
+}
+
+func (pq *preparedPointsQuery) cacheKey() string {
 	var sb strings.Builder
-	sb.WriteString("metric=")
+	sb.WriteString(";v=")
+	sb.WriteString(fmt.Sprint(pq.version))
+	sb.WriteString(";m=")
 	sb.WriteString(fmt.Sprint(pq.metricID))
 	sb.WriteString(";pkey=")
 	sb.WriteString(fmt.Sprint(pq.preKeyTagX))
@@ -78,18 +85,18 @@ func newPointsQuery(pq preparedPointsQuery) (pointsQuery, error) {
 		}
 	}
 	sb.WriteString(";inc=")
-	writeTagFiltersKey(&sb, pq.filterIn)
+	s := make([]string, 0, 16)
+	s = writeTagFiltersCacheKey(&sb, pq.filterIn, s)
 	sb.WriteString(";exl=")
-	writeTagFiltersKey(&sb, pq.filterNotIn)
+	writeTagFiltersCacheKey(&sb, pq.filterNotIn, s)
 	sb.WriteString(";order=")
 	sb.WriteString(fmt.Sprint(pq.orderBy))
 	sb.WriteString(";desc=")
 	sb.WriteString(fmt.Sprint(pq.desc))
-	return pointsQuery{key: sb.String(), preparedPointsQuery: pq}, nil
+	return sb.String()
 }
 
-func writeTagFiltersKey(sb *strings.Builder, f data_model.TagFilters) {
-	s := make([]string, 0, 16)
+func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []string) []string {
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -114,6 +121,7 @@ func writeTagFiltersKey(sb *strings.Builder, f data_model.TagFilters) {
 		}
 		sb.WriteString("}")
 	}
+	return s
 }
 
 type tagValuesQueryMeta struct {
