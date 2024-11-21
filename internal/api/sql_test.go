@@ -101,7 +101,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
-	pq, _ := newPointsQuery(preparedPointsQuery{
+	pq := newPointsQuery(pointsQueryArgs{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
@@ -125,7 +125,7 @@ func TestLoadPointsQueryV2(t *testing.T) {
 
 func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// prepare
-	pq, _ := newPointsQuery(preparedPointsQuery{
+	pq := newPointsQuery(pointsQueryArgs{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
@@ -149,7 +149,7 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 
 func TestLoadPointsQueryV3(t *testing.T) {
 	// prepare
-	pq, _ := newPointsQuery(preparedPointsQuery{
+	pq := newPointsQuery(pointsQueryArgs{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
@@ -173,7 +173,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
-	pq, _ := newPointsQuery(preparedPointsQuery{
+	pq := newPointsQuery(pointsQueryArgs{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,

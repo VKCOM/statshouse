@@ -59,7 +59,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			pq, err := newPointsQuery(preparedPointsQuery{
+			pq := newPointsQuery(pointsQueryArgs{
 				version:     lod.Version,
 				user:        tableReqParams.user,
 				metricID:    metricMeta.MetricID,
@@ -73,9 +73,6 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				orderBy:     true,
 				desc:        req.fromEnd,
 			})
-			if err != nil {
-				return nil, false, err
-			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
