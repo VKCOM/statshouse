@@ -125,6 +125,10 @@ func (f *TagFilters) Contains(tag int) bool {
 	return 0 <= tag && tag < len(f.Tags) && len(f.Tags[tag].Values) != 0
 }
 
+func (f *TagFilter) Empty() bool {
+	return len(f.Values) == 0 && f.Re2 == ""
+}
+
 func (v TagValues) Sort() {
 	sort.Slice(v, func(i, j int) bool {
 		if n := cmp.Compare(v[i].Value, v[j].Value); n != 0 {
