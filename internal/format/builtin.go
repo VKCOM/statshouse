@@ -148,6 +148,7 @@ const (
 	BuiltinMetricIDApiHeapIdle               = -124
 	BuiltinMetricIDApiHeapInuse              = -125
 	BuiltinMetricIDClientWriteError          = -126
+	BuiltinMetricIDAgentTimings              = -127
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -370,6 +371,19 @@ const (
 	TagValueIDAggMappingCreatedStatusErrorInvariant        = 5
 	TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate = 6
 	TagValueIDAggMappingCreatedStatusErrorInvalidValue     = 7
+
+	TagValueIDAgentTimingGroupPipeline = 1
+	TagValueIDAgentTimingGroupSend     = 2
+
+	// pipeline
+	TagValueIDAgentTimingMapping     = 1
+	TagValueIDAgentTimingMappingSlow = 2
+	TagValueIDAgentTimingApplyMetric = 3
+	TagValueIDAgentTimingFlush       = 4
+	TagValueIDAgentTimingPreprocess  = 5
+	// send
+	TagValueIDAgentTimingSendRecent   = 101
+	TagValueIDAgentTimingSendHistoric = 102
 
 	TagValueIDComponentAgent        = 1
 	TagValueIDComponentAggregator   = 2
@@ -1053,6 +1067,35 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDAgentMappingStatusErrSingle: "error_single_alive",
 					TagValueIDAgentMappingStatusErrBoth:   "error_both_alive",
 				}),
+			}},
+		},
+		BuiltinMetricIDAgentTimings: {
+			Name:        "__src_timings",
+			Kind:        MetricKindValue,
+			Description: "Timings of agent operations",
+			MetricType:  MetricNanosecond,
+			Tags: []MetricMetaTag{{
+				Description: "group",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDAgentTimingGroupPipeline: "pipeline",
+					TagValueIDAgentTimingGroupSend:     "send",
+				}),
+			}, {
+				Description: "measure",
+				ValueComments: convertToValueComments(map[int32]string{
+					// pipeline
+					TagValueIDAgentTimingMapping:     "mapping",
+					TagValueIDAgentTimingMappingSlow: "mapping_slow",
+					TagValueIDAgentTimingApplyMetric: "apply_metric",
+					TagValueIDAgentTimingFlush:       "flush",
+					TagValueIDAgentTimingPreprocess:  "preprocess",
+					// send
+					TagValueIDAgentTimingSendRecent:   "send_recent",
+					TagValueIDAgentTimingSendHistoric: "send_historic",
+				}),
+			}, {
+				Description: "commit_timestamp",
+				RawKind:     "timestamp",
 			}},
 		},
 		BuiltinMetricIDAgentReceivedPacketSize: {
@@ -2589,6 +2632,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSrcSamplingGroupBudget:    true,
 		BuiltinMetricIDRestartTimings:            true,
 		BuiltinMetricIDGCDuration:                true,
+		BuiltinMetricIDAgentTimings:              true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -2646,6 +2690,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDApiHeapIdle:                true,
 		BuiltinMetricIDApiHeapInuse:               true,
 		BuiltinMetricIDClientWriteError:           true,
+		BuiltinMetricIDAgentTimings:               true,
 	}
 
 	insertKindToValue = map[int32]string{
@@ -2791,6 +2836,7 @@ Value is delta between second value and time it was inserted.`,
 	BuiltinMetricMetaAggHistoricSecondsWaiting  *MetricMetaValue
 	BuiltinMetricMetaAggInsertSizeReal          *MetricMetaValue
 	BuiltinMetricMetaAgentMapping               *MetricMetaValue
+	BuiltinMetricMetaAgentTimings               *MetricMetaValue
 	BuiltinMetricMetaAgentReceivedPacketSize    *MetricMetaValue
 	BuiltinMetricMetaAggMappingCreated          *MetricMetaValue
 	BuiltinMetricMetaVersions                   *MetricMetaValue
@@ -3026,6 +3072,7 @@ func init() {
 	BuiltinMetricMetaAggHistoricSecondsWaiting = BuiltinMetrics[BuiltinMetricIDAggHistoricSecondsWaiting]
 	BuiltinMetricMetaAggInsertSizeReal = BuiltinMetrics[BuiltinMetricIDAggInsertSizeReal]
 	BuiltinMetricMetaAgentMapping = BuiltinMetrics[BuiltinMetricIDAgentMapping]
+	BuiltinMetricMetaAgentTimings = BuiltinMetrics[BuiltinMetricIDAgentTimings]
 	BuiltinMetricMetaAgentReceivedPacketSize = BuiltinMetrics[BuiltinMetricIDAgentReceivedPacketSize]
 	BuiltinMetricMetaAggMappingCreated = BuiltinMetrics[BuiltinMetricIDAggMappingCreated]
 	BuiltinMetricMetaVersions = BuiltinMetrics[BuiltinMetricIDVersions]

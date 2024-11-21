@@ -73,6 +73,7 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		if w.logPackets != nil {
 			w.printMetric("cached", *args.MetricBytes, h)
 		}
+		w.sh2.TimingsMapping.AddValueCounter(float64(time.Since(h.ReceiveTime).Nanoseconds()), 1)
 		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached)
 	}
 	return h, done
@@ -124,6 +125,7 @@ func (w *worker) handleMappedMetricUnlocked(m tlstatshouse.MetricBytes, h data_m
 	if w.logPackets != nil {
 		w.printMetric("uncached", m, h)
 	}
+	w.sh2.TimingsMappingSlow.AddValueCounter(float64(time.Since(h.ReceiveTime).Nanoseconds()), 1)
 	w.sh2.ApplyMetric(m, h, format.TagValueIDSrcIngestionStatusOKUncached)
 }
 
