@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -53,8 +54,66 @@ type preparedPointsQuery struct {
 }
 
 type pointsQuery struct {
-	body string
-	pointsQueryMeta
+	key string
+	preparedPointsQuery
+}
+
+func newPointsQuery(pq preparedPointsQuery) (pointsQuery, error) {
+	var sb strings.Builder
+	sb.WriteString("metric=")
+	sb.WriteString(fmt.Sprint(pq.metricID))
+	sb.WriteString(";pkey=")
+	sb.WriteString(fmt.Sprint(pq.preKeyTagX))
+	sb.WriteString(";stop=")
+	sb.WriteString(fmt.Sprint(pq.isStringTop))
+	sb.WriteString(";kind=")
+	sb.WriteString(fmt.Sprint(pq.kind))
+	sb.WriteString(";by=")
+	if len(pq.by) != 0 {
+		sort.Strings(pq.by)
+		sb.WriteString(pq.by[0])
+		for i := 1; i < len(pq.by); i++ {
+			sb.WriteString(",")
+			sb.WriteString(pq.by[i])
+		}
+	}
+	sb.WriteString(";inc=")
+	writeTagFiltersKey(&sb, pq.filterIn)
+	sb.WriteString(";exl=")
+	writeTagFiltersKey(&sb, pq.filterNotIn)
+	sb.WriteString(";order=")
+	sb.WriteString(fmt.Sprint(pq.orderBy))
+	sb.WriteString(";desc=")
+	sb.WriteString(fmt.Sprint(pq.desc))
+	return pointsQuery{key: sb.String(), preparedPointsQuery: pq}, nil
+}
+
+func writeTagFiltersKey(sb *strings.Builder, f data_model.TagFilters) {
+	s := make([]string, 0, 16)
+	for i, filter := range f.Tags {
+		if filter.Empty() {
+			continue
+		}
+		sb.WriteString("{")
+		sb.WriteString(fmt.Sprint(i))
+		if filter.Re2 != "" {
+			sb.WriteString("~")
+			sb.WriteString(filter.Re2)
+		} else if len(filter.Values) != 0 {
+			sb.WriteString("=")
+			s := s[:0]
+			for _, v := range filter.Values {
+				s = append(s, v.String())
+			}
+			sort.Strings(s)
+			sb.WriteString(s[0])
+			for i := 1; i < len(s); i++ {
+				sb.WriteString(",")
+				sb.WriteString(s[i])
+			}
+		}
+		sb.WriteString("}")
+	}
 }
 
 type tagValuesQueryMeta struct {
@@ -96,9 +155,9 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	sb.WriteString(sqlAggFn(lod.Version, "sum"))
 	sb.WriteString("(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time>=? AND time<?")
+	writeWhereTimeFilter(&sb, &lod)
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	sb.WriteString(datePredicate(lod.Version))
+	writeV1DateFilter(&sb, &lod)
 	for i, ids := range pq.filterIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
@@ -145,7 +204,7 @@ func tagValuesQueryV3(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	sb.WriteString(unmappedColumnNameV3(pq.tagID))
 	sb.WriteString(" AS _unmapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time>=? AND time<?")
+	writeWhereTimeFilter(&sb, &lod)
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
@@ -163,7 +222,7 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 		sep, predicate = " AND ", " NOT IN "
 	}
 	for i, filter := range f.Tags {
-		if len(filter.Values) == 0 && filter.Re2 == "" {
+		if filter.Empty() {
 			continue
 		}
 		sb.WriteString(" AND (")
@@ -333,16 +392,16 @@ func loadPointsSelectWhat(sb *strings.Builder, pq *preparedPointsQuery, version 
 	}
 }
 
-func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (pointsQuery, error) {
+func (pq *pointsQuery) loadPointsQuery(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	switch lod.Version {
 	case Version3:
-		return loadPointsQueryV3(pq, lod, utcOffset)
+		return pq.loadPointsQueryV3(lod, utcOffset)
 	default:
-		return loadPointsQueryV2(pq, lod, utcOffset)
+		return pq.loadPointsQueryV2(lod, utcOffset)
 	}
 }
 
-func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (pointsQuery, error) {
+func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -355,15 +414,15 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 	for _, b := range pq.by {
 		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, &pq.preparedPointsQuery, lod.Version)
 	if err != nil {
-		return pointsQuery{}, err
+		return "", pointsQueryMeta{}, err
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE time>=? AND time<?")
+	writeWhereTimeFilter(&sb, &lod)
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	sb.WriteString(datePredicate(lod.Version))
+	writeV1DateFilter(&sb, &lod)
 	for i, ids := range pq.filterIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
@@ -422,11 +481,20 @@ func loadPointsQueryV2(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		}
 	}
 	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
-	log.Println(sb.String())
-	return pointsQuery{body: sb.String(), pointsQueryMeta: pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: lod.Version}}, err
+	return sb.String(), pointsQueryMeta{
+		queryMeta: queryMeta{
+			metricID: pq.metricID,
+			kind:     pq.kind,
+			user:     pq.user,
+		},
+		vals:       cnt,
+		tags:       pq.by,
+		minMaxHost: pq.kind != data_model.DigestKindCount,
+		version:    lod.Version,
+	}, err
 }
 
-func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (pointsQuery, error) {
+func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -442,13 +510,14 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		}
 		sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, &pq.preparedPointsQuery, lod.Version)
 	if err != nil {
-		return pointsQuery{}, err
+		return "", pointsQueryMeta{}, err
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	sb.WriteString(" WHERE index_type=0 AND time>=? AND time<?")
+	writeWhereTimeFilter(&sb, &lod)
+	sb.WriteString(" AND index_type=0")
 	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
@@ -490,7 +559,17 @@ func loadPointsQueryV3(pq *preparedPointsQuery, lod data_model.LOD, utcOffset in
 		sb.WriteString(fmt.Sprint(maxSeriesRows))
 	}
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
-	return pointsQuery{body: sb.String(), pointsQueryMeta: pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: lod.Version}}, err
+	return sb.String(), pointsQueryMeta{
+		queryMeta: queryMeta{
+			metricID: pq.metricID,
+			kind:     pq.kind,
+			user:     pq.user,
+		},
+		vals:       cnt,
+		tags:       pq.by,
+		minMaxHost: pq.kind != data_model.DigestKindCount,
+		version:    lod.Version,
+	}, err
 }
 
 func sqlAggFn(version string, fn string) string {
@@ -546,18 +625,29 @@ func writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotI
 	}
 }
 
+func writeWhereTimeFilter(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString(" WHERE time>=")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(" AND time<")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
+}
+
+func writeV1DateFilter(sb *strings.Builder, lod *data_model.LOD) {
+	if lod.Version != Version1 {
+		return
+	}
+	sb.WriteString(" AND date>=toDate(")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(") AND date<=toDate(")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
+	sb.WriteString(")")
+}
+
 func metricColumn(version string) string {
 	if version == Version1 {
 		return "stats"
 	}
 	return "metric"
-}
-
-func datePredicate(version string) string {
-	if version == Version1 {
-		return " AND date>=toDate(?) AND date<=toDate(?)"
-	}
-	return ""
 }
 
 type stringFixed [format.MaxStringLen]byte

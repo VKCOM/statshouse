@@ -59,7 +59,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			pq, err := loadPointsQuery(&preparedPointsQuery{
+			pq, err := newPointsQuery(preparedPointsQuery{
 				user:        tableReqParams.user,
 				metricID:    metricMeta.MetricID,
 				preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),
@@ -71,7 +71,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				filterNotIn: tableReqParams.mappedFilterNotIn,
 				orderBy:     true,
 				desc:        req.fromEnd,
-			}, lod, h.utcOffset)
+			})
 			if err != nil {
 				return nil, false, err
 			}

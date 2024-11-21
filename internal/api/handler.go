@@ -2970,16 +2970,16 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	body, err := bindQuery(pq.body, lod)
+	body, meta, err := pq.loadPointsQuery(lod, h.utcOffset)
 	if err != nil {
 		return 0, err
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(pq.pointsQueryMeta, true, lod.Version)
+	cols := newPointsSelectCols(meta, true, lod.Version)
 	isFast := lod.IsFast()
-	isLight := pq.isLight()
-	IsHardware := pq.IsHardware()
+	isLight := meta.isLight()
+	IsHardware := meta.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
@@ -3060,16 +3060,16 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
-	body, err := bindQuery(pq.body, lod)
+	body, meta, err := pq.loadPointsQuery(lod, h.utcOffset)
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
-	cols := newPointsSelectColsV2(pq.pointsQueryMeta, false) // loadPoint doesn't yet have v3 query
+	cols := newPointsSelectColsV2(meta, false) // loadPoint doesn't yet have v3 query
 	isFast := lod.IsFast()
-	isLight := pq.isLight()
-	isHardware := pq.IsHardware()
+	isLight := meta.isLight()
+	isHardware := meta.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
