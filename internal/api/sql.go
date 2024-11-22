@@ -37,7 +37,7 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 	return q.tagID == format.StringTopTagID
 }
 
-type pointsQueryArgs struct {
+type pointsQuery struct {
 	version     string
 	user        string
 	metricID    int32
@@ -48,22 +48,18 @@ type pointsQueryArgs struct {
 	by          []string
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
-
-	// for table view requests
-	orderBy bool
-	desc    bool
+	sort        pointsQuerySort // for table view requests
 }
 
-type pointsQuery struct {
-	key string
-	pointsQueryArgs
-}
+type pointsQuerySort int
 
-func newPointsQuery(args pointsQueryArgs) pointsQuery {
-	return pointsQuery{key: args.cacheKey(), pointsQueryArgs: args}
-}
+const (
+	sortNone pointsQuerySort = iota
+	sortAscending
+	sortDescending
+)
 
-func (pq *pointsQueryArgs) cacheKey() string {
+func (pq *pointsQuery) cacheKey() string {
 	var sb strings.Builder
 	sb.WriteString(";v=")
 	sb.WriteString(fmt.Sprint(pq.version))
@@ -74,7 +70,7 @@ func (pq *pointsQueryArgs) cacheKey() string {
 	sb.WriteString(";st=")
 	sb.WriteString(fmt.Sprint(pq.isStringTop))
 	sb.WriteString(";kind=")
-	sb.WriteString(fmt.Sprint(pq.kind))
+	sb.WriteString(fmt.Sprint(int(pq.kind)))
 	sb.WriteString(";by=")
 	if len(pq.by) != 0 {
 		sort.Strings(pq.by)
@@ -89,10 +85,8 @@ func (pq *pointsQueryArgs) cacheKey() string {
 	s = writeTagFiltersCacheKey(&sb, pq.filterIn, s)
 	sb.WriteString(";exl=")
 	writeTagFiltersCacheKey(&sb, pq.filterNotIn, s)
-	sb.WriteString(";order=")
-	sb.WriteString(fmt.Sprint(pq.orderBy))
-	sb.WriteString(";desc=")
-	sb.WriteString(fmt.Sprint(pq.desc))
+	sb.WriteString(";sort=")
+	sb.WriteString(fmt.Sprint(int(pq.sort)))
 	return sb.String()
 }
 
@@ -340,7 +334,7 @@ type pointsQueryMeta struct {
 	version    string
 }
 
-func loadPointsSelectWhat(sb *strings.Builder, pq *pointsQueryArgs, version string) (int, error) {
+func loadPointsSelectWhat(sb *strings.Builder, pq *pointsQuery, version string) (int, error) {
 	var (
 		isStringTop = pq.isStringTop
 		kind        = pq.kind
@@ -422,7 +416,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 	for _, b := range pq.by {
 		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, &pq.pointsQueryArgs, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -473,7 +467,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 		having = true
 	}
 	limit := maxSeriesRows
-	if pq.orderBy {
+	if pq.sort != sortNone {
 		limit = maxTableRows
 		if having {
 			sb.WriteString(" AND _count>0")
@@ -484,7 +478,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 		for _, b := range pq.by {
 			sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
 		}
-		if pq.desc {
+		if pq.sort == sortDescending {
 			sb.WriteString(" DESC")
 		}
 	}
@@ -518,7 +512,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 		}
 		sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, &pq.pointsQueryArgs, lod.Version)
+	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -542,7 +536,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 		sb.WriteString(" AS stag")
 		sb.WriteString(b)
 	}
-	if pq.orderBy {
+	if pq.sort != sortNone {
 		sb.WriteString(" HAVING _count>0")
 		switch pq.kind {
 		case data_model.DigestKindPercentiles:
@@ -557,7 +551,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 			}
 			sb.WriteString(fmt.Sprintf(",%s AS stag%s", unmappedColumnNameV3(b), b))
 		}
-		if pq.desc {
+		if pq.sort == sortDescending {
 			sb.WriteString(" DESC")
 		}
 		sb.WriteString(" LIMIT ")
@@ -677,7 +671,7 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func (pq *pointsQueryArgs) preKeyTableName(lod data_model.LOD) string {
+func (pq *pointsQuery) preKeyTableName(lod data_model.LOD) string {
 	var usePreKey bool
 	if lod.HasPreKey {
 		usePreKey = lod.PreKeyOnly ||

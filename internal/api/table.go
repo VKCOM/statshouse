@@ -59,7 +59,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			pq := newPointsQuery(pointsQueryArgs{
+			pq := pointsQuery{
 				version:     lod.Version,
 				user:        tableReqParams.user,
 				metricID:    metricMeta.MetricID,
@@ -70,9 +70,8 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				by:          req.by,
 				filterIn:    tableReqParams.mappedFilterIn,
 				filterNotIn: tableReqParams.mappedFilterNotIn,
-				orderBy:     true,
-				desc:        req.fromEnd,
-			})
+				sort:        req.tableSort(),
+			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
@@ -193,4 +192,12 @@ func inRange(row tsSelectRow, from, to RowMarker, fromEnd bool) bool {
 		}
 	}
 	return true
+}
+
+func (r *seriesRequest) tableSort() pointsQuerySort {
+	if r.fromEnd {
+		return sortDescending
+	} else {
+		return sortAscending
+	}
 }

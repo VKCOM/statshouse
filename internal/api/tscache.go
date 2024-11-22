@@ -261,7 +261,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *pointsQuery, l
 	cachedRows := 0
 	realLoadFrom := lod.FromSec
 	realLoadTo := lod.ToSec
-	key := pq.key
+	key := pq.cacheKey()
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(h, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
