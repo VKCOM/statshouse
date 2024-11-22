@@ -68,9 +68,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
     isActive,
+    isLogScale,
   } = useStatsHouseShallow(({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
     const plot = plots[plotKey];
     const plotData = plotsData[plotKey];
+
     return {
       plotWhat: plot?.what,
       plotDataWhat: plotData?.whats,
@@ -92,8 +94,10 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       isEmbed,
       baseRange,
       isActive: tabNum === plotKey,
+      isLogScale: plot?.logScale,
     };
   });
+
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
@@ -140,6 +144,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     }
     return getMetricType(plotDataWhat?.length ? plotDataWhat : plotWhat, metricUnitData);
   }, [metricUnit, metricUnitData, plotDataWhat, plotWhat]);
+
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: themeDark ? greyDark : grey,
@@ -200,6 +205,15 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
+          distr: isLogScale ? 100 : 1,
+          // log: isLogScale ? 2 : undefined,
+          // auto: (u) => false,
+          // range: (u, initMin, initMax, scaleKey) => {
+          //   if (u.scales['y']?.distr === 3) {
+          //     return [initMin <= 0 ? 1 : initMin, initMax];
+          //   }
+          //   return [initMin, initMax];
+          // },
           auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
@@ -225,7 +239,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, isDashboard, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yLockRef]);
+  }, [compact, getAxisStroke, isDashboard, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, isLogScale]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -253,14 +267,33 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     },
     [isDashboard, isEmbed, plotKey]
   );
+
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
     const res: UPlotWrapperPropsScales = {};
     res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
     if (yLock && (yLock.min !== 0 || yLock.max !== 0)) {
-      res.y = { ...yLock };
+      if (yLock.min <= 0) {
+        res.y = { max: yLock.max, min: 1 };
+      } else {
+        res.y = { ...yLock };
+      }
     }
     return res;
   }, [timeRangeFrom, timeRangeTo, yLock]);
+
+  //тест для log2 distr3 что бы не было нулем
+  // const scales = useMemo<UPlotWrapperPropsScales>(() => {
+  //   const res: UPlotWrapperPropsScales = {};
+  //   res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
+  //   if (yLock && (yLock.min !== 0 || yLock.max !== 0)) {
+  //     if (isLogScale && yLock.min <= 0) {
+  //       res.y = { max: yLock.max, min: 1 }; ////////// уже возможно не актуально с кастомной шкалой
+  //     } else {
+  //       res.y = { ...yLock };
+  //     }
+  //   }
+  //   return res;
+  // }, [timeRangeFrom, timeRangeTo, yLock, isLogScale]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
 
@@ -286,6 +319,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     },
     [plotKey]
   );
+
   useEffect(() => {
     seriesShow?.forEach((show, idx) => {
       if (uPlotRef.current?.series[idx + 1] && uPlotRef.current?.series[idx + 1].show !== show) {
@@ -374,6 +408,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
               data={dataView}
               series={series}
               scales={scales}
+              // scales={scales2}
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}

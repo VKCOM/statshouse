@@ -165,6 +165,7 @@ const baseMetricTypeByte: ConfigConvertMetric = {
     '8': 'YiB',
   },
 };
+
 export const suffixesByMetricType: Record<MetricType, ConfigConvertMetric> = {
   [METRIC_TYPE.none]: {
     ...baseMetricTypeSi,

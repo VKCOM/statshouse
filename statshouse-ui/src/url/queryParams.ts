@@ -153,6 +153,7 @@ export type PlotParams = {
   eventsHide: string[];
   totalLine: boolean;
   filledGraph: boolean;
+  logScale: boolean;
 };
 
 export type GroupInfo = {
@@ -278,6 +279,7 @@ export function getNewPlot(): PlotParams {
     eventsHide: [],
     totalLine: false,
     filledGraph: true,
+    logScale: false,
   };
 }
 
@@ -779,6 +781,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 
     const totalLine = plotParams[GET_PARAMS.viewTotalLine]?.[searchParamsObjectValueSymbol]?.[0] === '1';
     const filledGraph = plotParams[GET_PARAMS.viewFilledGraph]?.[searchParamsObjectValueSymbol]?.[0] !== '0';
+    const logScale = plotParams[GET_PARAMS.viewLogScale]?.[searchParamsObjectValueSymbol]?.[0] === '1';
 
     plots.push({
       id,
@@ -805,6 +808,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       eventsHide,
       totalLine,
       filledGraph,
+      logScale,
     });
   }
 

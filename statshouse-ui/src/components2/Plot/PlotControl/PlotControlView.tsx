@@ -17,19 +17,22 @@ export type PlotControlViewProps = {
   className?: string;
 };
 
-const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine } = getNewMetric();
+const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine, logScale: defaultLogScale } = getNewMetric();
 
 export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
-  const { filledGraph, totalLine, setPlot } = useStatsHouseShallow((s) => ({
+  const { filledGraph, totalLine, logScale, setPlot } = useStatsHouseShallow((s) => ({
     filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
     totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
+    logScale: s.params.plots[plotKey]?.logScale ?? defaultLogScale,
     setPlot: s.setPlot,
   }));
+
   const [dropdown, setDropdown] = useState(false);
   const refDropButton = useRef<HTMLButtonElement>(null);
   useOnClickOutside(refDropButton, () => {
     setDropdown(false);
   });
+
   const onShow = useCallback(() => {
     setDropdown((s) => !s);
   }, []);
@@ -42,10 +45,20 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
     },
     [plotKey, setPlot]
   );
+
   const setTotalLine = useCallback(
     (status: boolean) => {
       setPlot(plotKey, (p) => {
         p.totalLine = status;
+      });
+    },
+    [plotKey, setPlot]
+  );
+
+  const setLogScale = useCallback(
+    (status: boolean) => {
+      setPlot(plotKey, (p) => {
+        p.logScale = status;
       });
     },
     [plotKey, setPlot]
@@ -71,6 +84,11 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
               onChange={setFilledGraph}
             >
               Filled graph
+            </SwitchBox>
+          </div>
+          <div>
+            <SwitchBox className="text-nowrap my-1 mx-2 user-select-none" checked={logScale} onChange={setLogScale}>
+              Logarithmic scale
             </SwitchBox>
           </div>
         </div>

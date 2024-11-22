@@ -113,6 +113,10 @@ export function metricEncode(plot: PlotParams, defaultPlot: PlotParams = getNewM
     paramArr.push([prefix + GET_PARAMS.viewFilledGraph, plot.filledGraph ? '1' : '0']);
   }
 
+  if (defaultPlot.logScale !== plot.logScale) {
+    paramArr.push([prefix + GET_PARAMS.viewLogScale, plot.logScale ? '1' : '0']);
+  }
+
   if (defaultPlot.prometheusCompat !== plot.prometheusCompat) {
     paramArr.push([prefix + GET_PARAMS.prometheusCompat, plot.prometheusCompat ? '1' : '0']);
   }

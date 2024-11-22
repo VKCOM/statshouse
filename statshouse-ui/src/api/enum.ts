@@ -49,6 +49,7 @@ export const GET_PARAMS = {
   metricEventHide: 'eh',
   viewTotalLine: 'vtl',
   viewFilledGraph: 'vfg',
+  viewLogScale: 'log',
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',

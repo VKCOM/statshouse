@@ -62,6 +62,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.metricType ??= undefined;
       p.filledGraph ??= true;
       p.totalLine ??= false;
+      p.logScale ??= false;
       return p;
     }),
     timeShifts,

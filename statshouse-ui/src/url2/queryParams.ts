@@ -23,7 +23,9 @@ export type GroupInfo = {
 export type VariableParamsLink = [PlotKey, TagKey];
 
 export type VariableKey = string;
+
 export type VariableSourceKey = string;
+
 export type VariableParamsSource = {
   id: VariableSourceKey;
   metric: string;
@@ -31,6 +33,7 @@ export type VariableParamsSource = {
   filterIn: FilterTag;
   filterNotIn: FilterTag;
 };
+
 export type VariableParams = {
   id: VariableKey;
   name: string;
@@ -42,7 +45,9 @@ export type VariableParams = {
   source: Partial<Record<VariableSourceKey, VariableParamsSource>>;
   sourceOrder: VariableSourceKey[];
 };
+
 export type FilterTag = Partial<Record<TagKey, string[]>>;
+
 export type PlotParams = {
   id: PlotKey;
   metricName: string;
@@ -68,9 +73,11 @@ export type PlotParams = {
   eventsHide: TagKey[];
   totalLine: boolean;
   filledGraph: boolean;
+  logScale: boolean;
   timeShifts: number[];
   prometheusCompat: boolean;
 };
+
 export type TimeRange = {
   to: number;
   urlTo: number | TimeRangeKeysTo;
