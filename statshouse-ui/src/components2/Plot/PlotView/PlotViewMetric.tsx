@@ -272,11 +272,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     const res: UPlotWrapperPropsScales = {};
     res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
     if (yLock && (yLock.min !== 0 || yLock.max !== 0)) {
-      if (yLock.min <= 0) {
-        res.y = { max: yLock.max, min: 1 };
-      } else {
-        res.y = { ...yLock };
-      }
+      res.y = { ...yLock };
     }
     return res;
   }, [timeRangeFrom, timeRangeTo, yLock]);
