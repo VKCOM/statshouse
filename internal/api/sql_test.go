@@ -101,12 +101,12 @@ func TestTagValuesQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
-	pq := newPointsQuery(pointsQueryArgs{
+	pq := pointsQuery{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(false),
-	})
+	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
 	lod := getLod(t, Version2)
@@ -125,12 +125,12 @@ func TestLoadPointsQueryV2(t *testing.T) {
 
 func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// prepare
-	pq := newPointsQuery(pointsQueryArgs{
+	pq := pointsQuery{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(true),
-	})
+	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
 	lod := getLod(t, Version2)
@@ -149,12 +149,12 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 
 func TestLoadPointsQueryV3(t *testing.T) {
 	// prepare
-	pq := newPointsQuery(pointsQueryArgs{
+	pq := pointsQuery{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(false),
-	})
+	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
 	lod := getLod(t, Version3)
@@ -173,12 +173,12 @@ func TestLoadPointsQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
-	pq := newPointsQuery(pointsQueryArgs{
+	pq := pointsQuery{
 		metricID:    metricID,
 		user:        "test-user",
 		isStringTop: false,
 		kind:        data_model.DigestCountSec.Kind(true),
-	})
+	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
 	lod := getLod(t, Version3)

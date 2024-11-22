@@ -458,7 +458,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 	for kind, what := range h.getHandlerWhat(qry, step) {
 		var tx int // time index
 		for _, lod := range lods {
-			pq := newPointsQuery(pointsQueryArgs{
+			pq := pointsQuery{
 				version:     lod.Version,
 				user:        h.accessInfo.user,
 				metricID:    qry.Metric.MetricID,
@@ -468,7 +468,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				by:          qry.GroupBy,
 				filterIn:    qry.FilterIn,
 				filterNotIn: qry.FilterNotIn,
-			})
+			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
 				data, err := h.pointsCache.get(ctx, h, &pq, lod, qry.Options.AvoidCache)
