@@ -60,7 +60,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				continue
 			}
 			pq := pointsQuery{
-				version:     lod.Version,
+				version:     h.requestVersion,
 				user:        tableReqParams.user,
 				metricID:    metricMeta.MetricID,
 				preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),

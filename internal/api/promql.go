@@ -459,7 +459,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		var tx int // time index
 		for _, lod := range lods {
 			pq := pointsQuery{
-				version:     lod.Version,
+				version:     h.requestVersion,
 				user:        h.accessInfo.user,
 				metricID:    qry.Metric.MetricID,
 				preKeyTagX:  format.TagIndex(qry.Metric.PreKeyTagID),

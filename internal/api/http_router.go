@@ -26,12 +26,13 @@ type httpRoute struct {
 
 type requestHandler struct {
 	*Handler
-	accessInfo   accessInfo
-	endpointStat endpointStat
-	trace        []string
-	debug        bool
-	forceVersion string
-	versionDice  func() string
+	accessInfo     accessInfo
+	endpointStat   endpointStat
+	trace          []string
+	debug          bool
+	requestVersion string
+	forceVersion   string
+	versionDice    func() string
 }
 
 type httpRequestHandler struct {
