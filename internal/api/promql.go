@@ -656,22 +656,9 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 		tags = make(map[int32]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		query, err := tagValuesQuery(pq, lod)
-		if err != nil {
-			return nil, err
-		}
-		body, err := bindQuery(query.body, lod)
-		if err != nil {
-			return nil, err
-		}
-		var cols *tagValuesSelectCols
-		if lod.Version == Version3 {
-			cols = newTagValuesSelectColsV3(query.meta)
-		} else {
-			cols = newTagValuesSelectCols(query.meta)
-		}
+		query, cols := pq.tagValueIDsQuery(lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-		err = h.doSelect(ctx, util.QueryMetaInto{
+		err := h.doSelect(ctx, util.QueryMetaInto{
 			IsFast:  isFast,
 			IsLight: true,
 			User:    h.accessInfo.user,
@@ -679,7 +666,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 			Table:   lod.Table,
 			Kind:    "load_tags",
 		}, Version2, ch.Query{
-			Body:   body,
+			Body:   query,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
 				for i := 0; i < b.Rows; i++ {
@@ -710,22 +697,9 @@ func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValue
 		tags = make(map[string]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		query, err := tagValuesQuery(pq, lod)
-		if err != nil {
-			return nil, err
-		}
-		body, err := bindQuery(query.body, lod)
-		if err != nil {
-			return nil, err
-		}
-		var cols *tagValuesSelectCols
-		if lod.Version == Version3 {
-			cols = newTagValuesSelectColsV3(query.meta)
-		} else {
-			cols = newTagValuesSelectCols(query.meta)
-		}
+		body, cols := tagValuesQuery(pq, lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-		err = h.doSelect(ctx, util.QueryMetaInto{
+		err := h.doSelect(ctx, util.QueryMetaInto{
 			IsFast:  isFast,
 			IsLight: true,
 			User:    h.accessInfo.user,

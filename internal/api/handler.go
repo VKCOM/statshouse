@@ -1719,7 +1719,7 @@ type selectRow struct {
 }
 
 type tagValuesSelectCols struct {
-	meta  tagValuesQueryMeta
+	tagValuesQueryMeta
 	valID proto.ColInt32
 	val   proto.ColStr
 	cnt   proto.ColFloat64
@@ -1728,7 +1728,7 @@ type tagValuesSelectCols struct {
 
 func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
-	c := &tagValuesSelectCols{meta: meta}
+	c := &tagValuesSelectCols{tagValuesQueryMeta: meta}
 	if meta.stag {
 		c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
 	} else {
@@ -1739,7 +1739,7 @@ func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
 }
 
 func newTagValuesSelectColsV3(meta tagValuesQueryMeta) *tagValuesSelectCols {
-	c := &tagValuesSelectCols{meta: meta}
+	c := &tagValuesSelectCols{tagValuesQueryMeta: meta}
 	c.res = append(c.res, proto.ResultColumn{Name: "_mapped", Data: &c.valID})
 	c.res = append(c.res, proto.ResultColumn{Name: "_unmapped", Data: &c.val})
 	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
@@ -1748,13 +1748,13 @@ func newTagValuesSelectColsV3(meta tagValuesQueryMeta) *tagValuesSelectCols {
 
 func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	row := selectRow{cnt: c.cnt[i]}
-	if c.meta.mixed {
+	if c.mixed {
 		pos := c.val.Pos[i]
 		row.val = string(c.val.Buf[pos.Start:pos.End])
 		row.valID = c.valID[i]
 		return row
 	}
-	if c.meta.stag {
+	if c.stag {
 		pos := c.val.Pos[i]
 		row.val = string(c.val.Buf[pos.Start:pos.End])
 	} else {
@@ -1835,21 +1835,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
-			if err != nil {
-				return nil, false, err
-			}
-			body, err := bindQuery(query.body, lod)
-			if err != nil {
-				return nil, false, err
-			}
-			var cols *tagValuesSelectCols
-			switch lod.Version {
-			case Version3:
-				cols = newTagValuesSelectColsV3(query.meta)
-			case Version1, Version2:
-				cols = newTagValuesSelectCols(query.meta)
-			}
+			query, cols := tagValuesQuery(pq, lod)
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
 				IsFast:  isFast,
@@ -1859,7 +1845,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 				Table:   lod.Table,
 				Kind:    "get_mapping",
 			}, version, ch.Query{
-				Body:   body,
+				Body:   query,
 				Result: cols.res,
 				OnResult: func(_ context.Context, b proto.Block) error {
 					for i := 0; i < b.Rows; i++ {
@@ -2752,6 +2738,7 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
+	pointsQueryMeta
 	time         proto.ColInt64
 	step         proto.ColInt64
 	cnt          proto.ColFloat64
@@ -2767,20 +2754,14 @@ type pointsSelectCols struct {
 	res          proto.Results
 }
 
-func newPointsSelectCols(meta pointsQueryMeta, useTime bool, version string) *pointsSelectCols {
-	if version == Version3 {
-		return newPointsSelectColsV3(meta, useTime)
-	}
-	return newPointsSelectColsV2(meta, useTime)
-}
-
 func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &pointsSelectCols{
-		val:   make([]proto.ColFloat64, meta.vals),
-		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
-		stag:  make([]proto.ColStr, 0, len(meta.tags)),
-		tagIx: make([]int, 0, len(meta.tags)),
+		pointsQueryMeta: meta,
+		val:             make([]proto.ColFloat64, meta.vals),
+		tag:             make([]proto.ColInt32, 0, len(meta.tags)),
+		stag:            make([]proto.ColStr, 0, len(meta.tags)),
+		tagIx:           make([]int, 0, len(meta.tags)),
 	}
 	if useTime {
 		c.res = proto.Results{
@@ -2816,9 +2797,10 @@ func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &pointsSelectCols{
-		val:   make([]proto.ColFloat64, meta.vals),
-		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
-		tagIx: make([]int, 0, len(meta.tags)),
+		pointsQueryMeta: meta,
+		val:             make([]proto.ColFloat64, meta.vals),
+		tag:             make([]proto.ColInt32, 0, len(meta.tags)),
+		tagIx:           make([]int, 0, len(meta.tags)),
 	}
 	if useTime {
 		c.res = proto.Results{
@@ -2970,16 +2952,15 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	body, meta, err := pq.loadPointsQuery(lod, h.utcOffset)
+	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, true)
 	if err != nil {
 		return 0, err
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(meta, true, lod.Version)
 	isFast := lod.IsFast()
-	isLight := meta.isLight()
-	IsHardware := meta.IsHardware()
+	isLight := cols.isLight()
+	IsHardware := cols.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
@@ -3060,16 +3041,15 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
-	body, meta, err := pq.loadPointsQuery(lod, h.utcOffset)
+	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, false)
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
-	cols := newPointsSelectColsV2(meta, false) // loadPoint doesn't yet have v3 query
 	isFast := lod.IsFast()
-	isLight := meta.isLight()
-	isHardware := meta.IsHardware()
+	isLight := cols.isLight()
+	isHardware := cols.IsHardware()
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
