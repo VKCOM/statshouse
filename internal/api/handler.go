@@ -3407,8 +3407,10 @@ func pprofAccessAllowed(h *httpRequestHandler) bool {
 func (h *requestHandler) init(accessToken, version string) (err error) {
 	switch version {
 	case Version1, Version3:
+		h.requestVersion = version
 		h.forceVersion = version
 	case Version2, "":
+		h.requestVersion = Version2
 		h.versionDice = sync.OnceValue(func() string {
 			if rand.Float64() < h.Handler.Version3Prob.Load() {
 				return Version3
