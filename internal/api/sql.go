@@ -9,13 +9,12 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 
+	"github.com/ClickHouse/ch-go/proto"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/util"
 )
 
 type preparedTagValuesQuery struct {
@@ -26,11 +25,6 @@ type preparedTagValuesQuery struct {
 	numResults  int
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
-}
-
-type tagValuesQuery2 struct {
-	body string
-	meta tagValuesQueryMeta
 }
 
 func (q *preparedTagValuesQuery) stringTag() bool {
@@ -91,9 +85,13 @@ func (pq *pointsQuery) cacheKey() string {
 }
 
 func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []string) []string {
+	var n int
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
+		}
+		if n != 0 {
+			sb.WriteString(",")
 		}
 		sb.WriteString("{")
 		sb.WriteString(fmt.Sprint(i))
@@ -112,6 +110,28 @@ func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []s
 				sb.WriteString(",")
 				sb.WriteString(s[i])
 			}
+		}
+		sb.WriteString("}")
+		n++
+	}
+	if f.StringTopRe2 != "" {
+		if n != 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("{_s~")
+		sb.WriteString(f.StringTopRe2)
+		sb.WriteString("}")
+	} else if len(f.StringTop) != 0 {
+		if n != 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("{_s=")
+		s = append(s[:0], f.StringTop...)
+		sort.Strings(s)
+		sb.WriteString(s[0])
+		for i := 1; i < len(s); i++ {
+			sb.WriteString(",")
+			sb.WriteString(s[i])
 		}
 		sb.WriteString("}")
 	}
@@ -133,14 +153,16 @@ func (pq *queryMeta) IsHardware() bool {
 	return format.HardwareMetric(pq.metricID)
 }
 
-func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValuesQuery2, error) {
-	if lod.Version == Version3 {
-		return tagValuesQueryV3(pq, lod)
+func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (string, *tagValuesSelectCols) {
+	switch lod.Version {
+	case Version3:
+		return pq.tagValuesQueryV3(lod)
+	default:
+		return pq.tagValuesQueryV2(lod)
 	}
-	return tagValuesQueryV2(pq, lod)
 }
 
-func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValuesQuery2, error) {
+func (pq *preparedTagValuesQuery) tagValuesQueryV2(lod data_model.LOD) (string, *tagValuesSelectCols) {
 	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
@@ -195,10 +217,10 @@ func tagValuesQueryV2(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	sb.WriteString(" LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
-	return tagValuesQuery2{body: sb.String(), meta: meta}, nil
+	return sb.String(), newTagValuesSelectCols(meta)
 }
 
-func tagValuesQueryV3(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValuesQuery2, error) {
+func (pq *preparedTagValuesQuery) tagValuesQueryV3(lod data_model.LOD) (string, *tagValuesSelectCols) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	sb.WriteString(mappedColumnNameV3(pq.tagID))
@@ -213,7 +235,35 @@ func tagValuesQueryV3(pq *preparedTagValuesQuery, lod data_model.LOD) (tagValues
 	sb.WriteString(" GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
-	return tagValuesQuery2{body: sb.String(), meta: tagValuesQueryMeta{mixed: true}}, nil
+	return sb.String(), newTagValuesSelectColsV3(tagValuesQueryMeta{mixed: true})
+}
+
+func (pq *preparedTagValuesQuery) tagValueIDsQuery(lod data_model.LOD) (string, *tagValuesSelectCols) {
+	switch lod.Version {
+	case Version3:
+		return pq.tagValueIDsQueryV3(lod)
+	default:
+		return pq.tagValuesQueryV2(lod)
+	}
+}
+
+func (pq *preparedTagValuesQuery) tagValueIDsQueryV3(lod data_model.LOD) (string, *tagValuesSelectCols) {
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	sb.WriteString(mappedColumnNameV3(pq.tagID))
+	sb.WriteString(" AS _mapped,toFloat64(sum(count)) AS _count FROM ")
+	sb.WriteString(pq.preKeyTableName(lod))
+	writeWhereTimeFilter(&sb, &lod)
+	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeTagCond(&sb, pq.filterIn, true)
+	writeTagCond(&sb, pq.filterNotIn, false)
+	sb.WriteString(" GROUP BY _mapped HAVING _count>0 ORDER BY _count,_mapped DESC LIMIT ")
+	sb.WriteString(fmt.Sprint(pq.numResults + 1))
+	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
+	cols := &tagValuesSelectCols{tagValuesQueryMeta: tagValuesQueryMeta{}}
+	cols.res = append(cols.res, proto.ResultColumn{Name: "_mapped", Data: &cols.valID})
+	cols.res = append(cols.res, proto.ResultColumn{Name: "_count", Data: &cols.cnt})
+	return sb.String(), cols
 }
 
 func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
@@ -394,16 +444,16 @@ func loadPointsSelectWhat(sb *strings.Builder, pq *pointsQuery, version string) 
 	}
 }
 
-func (pq *pointsQuery) loadPointsQuery(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+func (pq *pointsQuery) loadPointsQuery(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	switch lod.Version {
 	case Version3:
-		return pq.loadPointsQueryV3(lod, utcOffset)
+		return pq.loadPointsQueryV3(lod, utcOffset, useTime)
 	default:
-		return pq.loadPointsQueryV2(lod, utcOffset)
+		return pq.loadPointsQueryV2(lod, utcOffset, useTime)
 	}
 }
 
-func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -418,7 +468,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 	}
 	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
-		return "", pointsQueryMeta{}, err
+		return "", nil, err
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
@@ -483,7 +533,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 		}
 	}
 	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
-	return sb.String(), pointsQueryMeta{
+	cols := newPointsSelectColsV2(pointsQueryMeta{
 		queryMeta: queryMeta{
 			metricID: pq.metricID,
 			kind:     pq.kind,
@@ -493,10 +543,11 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64) (s
 		tags:       pq.by,
 		minMaxHost: pq.kind != data_model.DigestKindCount,
 		version:    lod.Version,
-	}, err
+	}, useTime)
+	return sb.String(), cols, err
 }
 
-func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -514,7 +565,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 	}
 	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
-		return "", pointsQueryMeta{}, err
+		return "", nil, err
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
@@ -561,7 +612,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 		sb.WriteString(fmt.Sprint(maxSeriesRows))
 	}
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
-	return sb.String(), pointsQueryMeta{
+	cols := newPointsSelectColsV3(pointsQueryMeta{
 		queryMeta: queryMeta{
 			metricID: pq.metricID,
 			kind:     pq.kind,
@@ -571,7 +622,8 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64) (s
 		tags:       pq.by,
 		minMaxHost: pq.kind != data_model.DigestKindCount,
 		version:    lod.Version,
-	}, err
+	}, useTime)
+	return sb.String(), cols, err
 }
 
 func sqlAggFn(version string, fn string) string {
@@ -747,7 +799,7 @@ func expandTagsMapped(sb *strings.Builder, s []data_model.TagValue) {
 	}
 }
 
-var escapeReplacer = strings.NewReplacer(`'`, `\'`, `?`, `\?`)
+var escapeReplacer = strings.NewReplacer(`'`, `\'`)
 
 func expandStrings(sb *strings.Builder, s []string) {
 	if len(s) == 0 {
@@ -761,13 +813,4 @@ func expandStrings(sb *strings.Builder, s []string) {
 		escapeReplacer.WriteString(sb, s[i])
 		sb.WriteString("'")
 	}
-}
-
-func bindQuery(body string, lod data_model.LOD) (string, error) {
-	args := []any{lod.FromSec, lod.ToSec}
-	if lod.Version == Version1 {
-		args = append(args, args...)
-	}
-	log.Println(body)
-	return util.BindQuery(body, args...)
 }

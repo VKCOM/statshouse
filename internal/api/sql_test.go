@@ -50,12 +50,11 @@ func TestTagValuesQueryV2(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query, err := tagValuesQuery(pq, lod)
+	query, meta := tagValuesQuery(pq, lod)
 
 	// checks
-	assert.NoError(t, err)
-	assert.False(t, query.meta.stag)
-	assert.Equal(t, "SELECT key2 AS _value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY key2 HAVING _count>0 ORDER BY _count DESC,_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.False(t, meta.stag)
+	assert.Equal(t, "SELECT key2 AS _value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY key2 HAVING _count>0 ORDER BY _count DESC,_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestTagValuesQueryV2_stringTop(t *testing.T) {
@@ -70,12 +69,11 @@ func TestTagValuesQueryV2_stringTop(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query, err := tagValuesQuery(pq, lod)
+	query, meta := tagValuesQuery(pq, lod)
 
 	// checks
-	assert.NoError(t, err)
-	assert.True(t, query.meta.stag)
-	assert.Equal(t, "SELECT skey AS _string_value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY skey HAVING _count>0 ORDER BY _count DESC,_string_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.True(t, meta.stag)
+	assert.Equal(t, "SELECT skey AS _string_value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY skey HAVING _count>0 ORDER BY _count DESC,_string_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestTagValuesQueryV3(t *testing.T) {
@@ -90,13 +88,12 @@ func TestTagValuesQueryV3(t *testing.T) {
 	lod := getLod(t, Version3)
 
 	// execute
-	query, err := tagValuesQuery(pq, lod)
+	query, meta := tagValuesQuery(pq, lod)
 
 	// checks
-	assert.NoError(t, err)
-	assert.False(t, query.meta.stag)
-	assert.True(t, query.meta.mixed)
-	assert.Equal(t, "SELECT tag2 AS _mapped,stag2 AS _unmapped,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (stag0 NOT IN ('staging')) GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.False(t, meta.stag)
+	assert.True(t, meta.mixed)
+	assert.Equal(t, "SELECT tag2 AS _mapped,stag2 AS _unmapped,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (stag0 NOT IN ('staging')) GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestLoadPointsQueryV2(t *testing.T) {
@@ -112,7 +109,7 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query, meta, err := pq.loadPointsQuery(lod, utcOffset)
+	query, meta, err := pq.loadPointsQuery(lod, utcOffset, true)
 
 	// checks
 	assert.NoError(t, err)
@@ -136,7 +133,7 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query, meta, err := pq.loadPointsQuery(lod, utcOffset)
+	query, meta, err := pq.loadPointsQuery(lod, utcOffset, true)
 
 	// checks
 	assert.NoError(t, err)
@@ -160,7 +157,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	lod := getLod(t, Version3)
 
 	// execute
-	query, meta, err := pq.loadPointsQuery(lod, utcOffset)
+	query, meta, err := pq.loadPointsQuery(lod, utcOffset, true)
 
 	// checks
 	assert.NoError(t, err)
@@ -184,7 +181,7 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	lod := getLod(t, Version3)
 
 	// execute
-	query, meta, err := pq.loadPointsQuery(lod, utcOffset)
+	query, meta, err := pq.loadPointsQuery(lod, utcOffset, true)
 
 	// checks
 	assert.NoError(t, err)
