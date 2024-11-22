@@ -29,6 +29,8 @@ const (
 )
 
 var errorInvalidUserRequest = errors.New("")
+var errInvalidKeyValue = errors.New("key value is invalid")
+var errEmptyStringMapping = errors.New("empty string mapping is special should never be created")
 
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
@@ -308,10 +310,10 @@ func (l *MetricMetaLoader) PutTagMapping(ctx context.Context, tag string, id int
 
 func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error) {
 	if tag == "" {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, fmt.Errorf("empty string mapping is special should never be created")
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, errEmptyStringMapping
 	}
 	if !format.ValidStringValue(mem.S(tag)) {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidValue, pmcBigNegativeCacheTTL, fmt.Errorf("key value is invalid")
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidValue, pmcBigNegativeCacheTTL, errInvalidKeyValue
 	}
 
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
