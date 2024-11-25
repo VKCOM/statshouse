@@ -23,6 +23,7 @@ type StatshouseCommonProxyHeader struct {
 	HostName          string
 	ComponentTag      int32
 	BuildArch         int32
+	Owner             string // Conditional: nat_fields_mask.28
 }
 
 func (StatshouseCommonProxyHeader) TLName() string { return "statshouse.commonProxyHeader" }
@@ -67,6 +68,22 @@ func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging1(nat_fields_mask ui
 	return nat_fields_mask&(1<<29) != 0
 }
 
+func (item *StatshouseCommonProxyHeader) SetOwner(v string, nat_fields_mask *uint32) {
+	item.Owner = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 28
+	}
+}
+func (item *StatshouseCommonProxyHeader) ClearOwner(nat_fields_mask *uint32) {
+	item.Owner = ""
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 28
+	}
+}
+func (item StatshouseCommonProxyHeader) IsSetOwner(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<28) != 0
+}
+
 func (item *StatshouseCommonProxyHeader) Reset() {
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
@@ -74,6 +91,7 @@ func (item *StatshouseCommonProxyHeader) Reset() {
 	item.HostName = ""
 	item.ComponentTag = 0
 	item.BuildArch = 0
+	item.Owner = ""
 }
 
 func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -92,7 +110,17 @@ func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) 
 	if w, err = basictl.IntRead(w, &item.ComponentTag); err != nil {
 		return w, err
 	}
-	return basictl.IntRead(w, &item.BuildArch)
+	if w, err = basictl.IntRead(w, &item.BuildArch); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<28) != 0 {
+		if w, err = basictl.StringRead(w, &item.Owner); err != nil {
+			return w, err
+		}
+	} else {
+		item.Owner = ""
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -107,6 +135,9 @@ func (item *StatshouseCommonProxyHeader) Write(w []byte, nat_fields_mask uint32)
 	w = basictl.StringWrite(w, item.HostName)
 	w = basictl.IntWrite(w, item.ComponentTag)
 	w = basictl.IntWrite(w, item.BuildArch)
+	if nat_fields_mask&(1<<28) != 0 {
+		w = basictl.StringWrite(w, item.Owner)
+	}
 	return w
 }
 
@@ -134,6 +165,7 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 	var propHostNamePresented bool
 	var propComponentTagPresented bool
 	var propBuildArchPresented bool
+	var propOwnerPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -198,6 +230,17 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 					return err
 				}
 				propBuildArchPresented = true
+			case "owner":
+				if propOwnerPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "owner")
+				}
+				if nat_fields_mask&(1<<28) == 0 {
+					return ErrorInvalidJSON("statshouse.commonProxyHeader", "field 'owner' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadString(in, &item.Owner); err != nil {
+					return err
+				}
+				propOwnerPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.commonProxyHeader", key)
 			}
@@ -225,6 +268,9 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 	}
 	if !propBuildArchPresented {
 		item.BuildArch = 0
+	}
+	if !propOwnerPresented {
+		item.Owner = ""
 	}
 	return nil
 }
@@ -277,6 +323,11 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short b
 	if (item.BuildArch != 0) == false {
 		w = w[:backupIndexBuildArch]
 	}
+	if nat_fields_mask&(1<<28) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"owner":`...)
+		w = basictl.JSONWriteString(w, item.Owner)
+	}
 	return append(w, '}')
 }
 
@@ -290,6 +341,7 @@ type StatshouseCommonProxyHeaderBytes struct {
 	HostName          []byte
 	ComponentTag      int32
 	BuildArch         int32
+	Owner             []byte // Conditional: nat_fields_mask.28
 }
 
 func (StatshouseCommonProxyHeaderBytes) TLName() string { return "statshouse.commonProxyHeader" }
@@ -334,6 +386,22 @@ func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging1(nat_fields_ma
 	return nat_fields_mask&(1<<29) != 0
 }
 
+func (item *StatshouseCommonProxyHeaderBytes) SetOwner(v []byte, nat_fields_mask *uint32) {
+	item.Owner = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 28
+	}
+}
+func (item *StatshouseCommonProxyHeaderBytes) ClearOwner(nat_fields_mask *uint32) {
+	item.Owner = item.Owner[:0]
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 28
+	}
+}
+func (item StatshouseCommonProxyHeaderBytes) IsSetOwner(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<28) != 0
+}
+
 func (item *StatshouseCommonProxyHeaderBytes) Reset() {
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
@@ -341,6 +409,7 @@ func (item *StatshouseCommonProxyHeaderBytes) Reset() {
 	item.HostName = item.HostName[:0]
 	item.ComponentTag = 0
 	item.BuildArch = 0
+	item.Owner = item.Owner[:0]
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -359,7 +428,17 @@ func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uin
 	if w, err = basictl.IntRead(w, &item.ComponentTag); err != nil {
 		return w, err
 	}
-	return basictl.IntRead(w, &item.BuildArch)
+	if w, err = basictl.IntRead(w, &item.BuildArch); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<28) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.Owner); err != nil {
+			return w, err
+		}
+	} else {
+		item.Owner = item.Owner[:0]
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -374,6 +453,9 @@ func (item *StatshouseCommonProxyHeaderBytes) Write(w []byte, nat_fields_mask ui
 	w = basictl.StringWriteBytes(w, item.HostName)
 	w = basictl.IntWrite(w, item.ComponentTag)
 	w = basictl.IntWrite(w, item.BuildArch)
+	if nat_fields_mask&(1<<28) != 0 {
+		w = basictl.StringWriteBytes(w, item.Owner)
+	}
 	return w
 }
 
@@ -401,6 +483,7 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 	var propHostNamePresented bool
 	var propComponentTagPresented bool
 	var propBuildArchPresented bool
+	var propOwnerPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -465,6 +548,17 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 					return err
 				}
 				propBuildArchPresented = true
+			case "owner":
+				if propOwnerPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "owner")
+				}
+				if nat_fields_mask&(1<<28) == 0 {
+					return ErrorInvalidJSON("statshouse.commonProxyHeader", "field 'owner' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadStringBytes(in, &item.Owner); err != nil {
+					return err
+				}
+				propOwnerPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.commonProxyHeader", key)
 			}
@@ -492,6 +586,9 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 	}
 	if !propBuildArchPresented {
 		item.BuildArch = 0
+	}
+	if !propOwnerPresented {
+		item.Owner = item.Owner[:0]
 	}
 	return nil
 }
@@ -543,6 +640,11 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, sh
 	w = basictl.JSONWriteInt32(w, item.BuildArch)
 	if (item.BuildArch != 0) == false {
 		w = w[:backupIndexBuildArch]
+	}
+	if nat_fields_mask&(1<<28) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"owner":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Owner)
 	}
 	return append(w, '}')
 }

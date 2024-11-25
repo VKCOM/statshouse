@@ -65,6 +65,14 @@ statshouse.sourceBucket2#3af6e822
 
   = statshouse.SourceBucket2;
 
+statshouse.sourceBucket3#16c4dd7b
+    fields_mask: #
+    // TODO: check how it is used and maybe change to a new version
+    metrics: (vector (statshouse.multi_item)) // must be sorted by shard
+    sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
+    ingestion_status_ok2: (vector statshouse.ingestion_status2) // We need as compact representation as possible.
+  = statshouse.SourceBucket3;
+
 // TODO - remove ttl_nanosec
 statshouse.getTagMappingResult#1a7d91fd value:int ttl_nanosec:long = statshouse.GetTagMappingResult;
 
@@ -96,6 +104,7 @@ statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     host_name:string
     component_tag:int // was agent_env before release version. Checks for legacy in aggregator are no more needed after release
     build_arch:int // comparison of x64 and arm64 nodes will be interesting for some time
+    owner:fields_mask.28?string
 = statshouse.CommonProxyHeader fields_mask;
 
 statshouse.promTarget#ac5296df {fields_mask_arg:#}
@@ -137,6 +146,12 @@ statshouse.shutdownInfo#4124cf9c
     a:long b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
 = statshouse.ShutdownInfo;
 
+statshouse.sendSourceBucket3Response#0e177acc
+    field_mask: #
+    error: string
+    mappings: (vector statshouse.mapping)
+= statshouse.SendSourceBucket3Response;
+
 ---functions---
 
 @readwrite statshouse.getConfig2#4285ff57
@@ -172,6 +187,29 @@ statshouse.shutdownInfo#4124cf9c
     compressed_data:string
     sharding:fields_mask.5?int // deprecated because sharding is now configured for each metric separately
     = String;
+
+// TODO: support sendKeepAlive (same or new)
+@readwrite statshouse.sendSourceBucket3#0d04aa3f
+    fields_mask:#
+    header: (statshouse.commonProxyHeader fields_mask)
+    time:#
+    historic:fields_mask.0?true
+    spare:fields_mask.1?true
+    // build stats
+    build_commit:string
+    build_commit_date:int // 20220218 for 2022-02-18T22:58:12+0000, so we can easily use raw key and have human-readability
+    build_commit_ts:int
+    // queue stats TODO: check if we still need it
+    queue_size_disk:int // set in sendSourceBucketCompressed
+    queue_size_memory:int
+    queue_size_disk_sum:fields_mask.2?int   // for all shard-replicas. Helps detect situation where only subset of aggregators is accessible.
+    queue_size_memory_sum:fields_mask.2?int
+    queue_size_disk_unsent:fields_mask.3?int
+    queue_size_disk_sum_unsent:fields_mask.3?int
+    // data
+    original_size:#
+    compressed_data:string
+    = statshouse.SendSourceBucket3Response;
 
 @readwrite statshouse.sendKeepAlive2#4285ff53
     fields_mask:#
