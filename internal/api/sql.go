@@ -653,7 +653,8 @@ func sqlMaxHost(version string) string {
 }
 
 func writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, version string) {
-	if metricID != 0 {
+	emptyFilter := len(filterIn) == 0 && len(filterNotIn) == 0
+	if metricID != 0 || emptyFilter {
 		sb.WriteString(" AND ")
 		sb.WriteString(metricColumn(version))
 		sb.WriteString("=")
