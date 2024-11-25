@@ -338,10 +338,10 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			})
 		}
 	}
-	tg.setSValue(v)
+	tg.SetSValue(v)
 }
 
-func (tg *SeriesTag) setSValue(v string) {
+func (tg *SeriesTag) SetSValue(v string) {
 	tg.SValue = v
 	tg.stringified = true
 }

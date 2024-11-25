@@ -2847,14 +2847,15 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 		row.val[j] = c.val[j][i]
 	}
 	for j := range c.tag {
-		row.tag[c.tagIx[j]] = c.tag[j][i]
-	}
-	for j := range c.stag {
-		st := c.stag[j]
-		if st.Buf == nil || len(st.Pos) < i || len(st.Buf) < st.Pos[i].End {
-			continue
+		var hasSTag bool
+		if len(c.stag) != 0 {
+			hasSTag = c.stag[j].Pos[i].Start < c.stag[j].Pos[i].End && c.stag[j].Pos[i].End <= len(c.stag[j].Buf)
 		}
-		row.stag[c.tagIx[j]] = string(st.Buf[st.Pos[i].Start:st.Pos[i].End])
+		if hasSTag {
+			row.stag[c.tagIx[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
+		} else {
+			row.tag[c.tagIx[j]] = c.tag[j][i]
+		}
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
@@ -2964,14 +2965,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 	metric := pq.metricID
 	table := lod.Table
 	kind := pq.kind
-	var metricName string
-	if m, ok := format.BuiltinMetrics[pq.metricID]; ok {
-		metricName = m.Name
-	} else if m := h.metricsStorage.GetMetaMetric(pq.metricID); m != nil {
-		metricName = m.Name
-	}
 	start := time.Now()
-	mappings := make(map[string]int32)
 	err = h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
@@ -2990,22 +2984,6 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAt(i)
-				if metricName != "" { // should be always true
-					for k := range row.stag {
-						// check if tag value is mapped
-						if v, ok := mappings[row.stag[k]]; ok && v != 0 {
-							row.tag[k] = v
-							row.stag[k] = ""
-						}
-						// call GetTagMapping only first time for each tag value, since it's expensive
-						v, _, _, _ := h.metadataLoader.GetTagMapping(ctx, row.stag[k], metricName, false)
-						mappings[row.stag[k]] = v
-						if v != 0 {
-							row.tag[k] = v
-							row.stag[k] = ""
-						}
-					}
-				}
 				ix, err := lod.IndexOf(row.time)
 				if err != nil {
 					return err

@@ -535,6 +535,9 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 						x, ok := tagX[data[i][j].tsTags]
 						if !ok {
 							x = len(res.Data)
+							if x > maxSeriesRows {
+								return promql.Series{}, nil, errTooManyRows
+							}
 							tagX[data[i][j].tsTags] = x
 							for _, fn := range what {
 								v := h.Alloc(len(qry.Timescale.Time))
@@ -619,8 +622,8 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 								Name:   m.Name,
 								Value:  v.tag[m.Index],
 							}
-							if qry.Options.Version == Version3 && m.Index < len(v.stag) {
-								st.SValue = v.stag[m.Index]
+							if qry.Options.Version == Version3 && m.Index < len(v.stag) && v.stag[m.Index] != "" {
+								st.SetSValue(v.stag[m.Index])
 							}
 							res.AddTagAt(i+j, st)
 						}
