@@ -209,6 +209,29 @@ type (
 		errorsMu sync.RWMutex
 		errors   [32]error500
 		errorX   int
+
+		// TOP queries by memory usage
+		queryTop   []queryInfo
+		queryTopMu sync.Mutex
+	}
+
+	queryInfo struct {
+		queryArgs
+		queryStatistics
+		protocol int
+		user     string
+	}
+
+	queryArgs struct {
+		expr  string
+		start int64
+		end   int64
+	}
+
+	queryStatistics struct {
+		rowCount int
+		colCount int
+		memUsage int
 	}
 
 	//easyjson:json
@@ -2094,6 +2117,20 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 		debug:        h.debug,
 		forceVersion: h.forceVersion,
 		versionDice:  h.versionDice,
+		query: promql.Query{
+			Start: req.from.Unix(),
+			End:   req.to.Unix(),
+			Step:  req.step,
+			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
+			Options: promql.Options{
+				Version:          req.version,
+				Version3Start:    h.Version3Start.Load(),
+				ExplicitGrouping: true,
+				QuerySequential:  h.querySequential,
+				ScreenWidth:      req.screenWidth,
+				TimeNow:          timeNow.Unix(),
+			},
+		},
 	}
 	var err error
 	defer func() {
@@ -2107,22 +2144,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 		badges.endpointStat.report(code, format.BuiltinMetricNameAPIServiceTime)
 	}()
 	var val parser.Value
-	val, cleanup, err = h.promEngine.Exec(
-		ctx, &badges,
-		promql.Query{
-			Start: req.from.Unix(),
-			End:   req.to.Unix(),
-			Step:  req.step,
-			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
-			Options: promql.Options{
-				Version:          req.version,
-				Version3Start:    h.Version3Start.Load(),
-				ExplicitGrouping: true,
-				QuerySequential:  h.querySequential,
-				ScreenWidth:      req.screenWidth,
-				TimeNow:          timeNow.Unix(),
-			},
-		})
+	val, cleanup, err = h.promEngine.Exec(ctx, &badges, badges.query)
 	if val != nil {
 		res.TimeSeries, _ = val.(*promql.TimeSeries)
 	}
@@ -2466,39 +2488,38 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		offsets = append(offsets, -toSec(v))
 	}
 	var res seriesResponse
-	v, cleanup, err := h.promEngine.Exec(
-		ctx, h,
-		promql.Query{
-			Start: req.from.Unix(),
-			End:   req.to.Unix(),
-			Step:  req.step,
-			Expr:  req.promQL,
-			Options: promql.Options{
-				Version:          req.version,
-				Version3Start:    h.Version3Start.Load(),
-				Mode:             opt.mode,
-				AvoidCache:       req.avoidCache,
-				TimeNow:          opt.timeNow.Unix(),
-				Extend:           req.excessPoints,
-				ExplicitGrouping: true,
-				RawBucketLabel:   !opt.strBucketLabel,
-				QuerySequential:  h.querySequential,
-				TagWhat:          promqlGenerated,
-				ScreenWidth:      req.screenWidth,
-				MaxHost:          req.maxHost,
-				Offsets:          offsets,
-				Limit:            limit,
-				Rand:             opt.rand,
-				ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
-					res.metric = metric
-					if opt.metricCallback != nil {
-						opt.metricCallback(metric)
-					}
-				},
-				Vars:   req.vars,
-				Compat: req.compat,
+	h.query = promql.Query{
+		Start: req.from.Unix(),
+		End:   req.to.Unix(),
+		Step:  req.step,
+		Expr:  req.promQL,
+		Options: promql.Options{
+			Version:          req.version,
+			Version3Start:    h.Version3Start.Load(),
+			Mode:             opt.mode,
+			AvoidCache:       req.avoidCache,
+			TimeNow:          opt.timeNow.Unix(),
+			Extend:           req.excessPoints,
+			ExplicitGrouping: true,
+			RawBucketLabel:   !opt.strBucketLabel,
+			QuerySequential:  h.querySequential,
+			TagWhat:          promqlGenerated,
+			ScreenWidth:      req.screenWidth,
+			MaxHost:          req.maxHost,
+			Offsets:          offsets,
+			Limit:            limit,
+			Rand:             opt.rand,
+			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
+				res.metric = metric
+				if opt.metricCallback != nil {
+					opt.metricCallback(metric)
+				}
 			},
-		})
+			Vars:   req.vars,
+			Compat: req.compat,
+		},
+	}
+	v, cleanup, err := h.promEngine.Exec(ctx, h, h.query)
 	if err != nil {
 		return seriesResponse{}, nil, err
 	}
@@ -3383,4 +3404,65 @@ func (h *requestHandler) init(accessToken, version string) (err error) {
 	}
 	h.endpointStat.setAccessInfo(h.accessInfo)
 	return nil
+}
+
+func (h *requestHandler) reportQueryDataSize(rowCount, colCount int) {
+	memUsage := 8 * rowCount * colCount
+	if memUsage <= 0 {
+		return
+	}
+	h.queryTopMu.Lock()
+	defer h.queryTopMu.Unlock()
+	s := h.queryTop
+	i := len(s)
+	for ; i > 0 && s[i-1].memUsage < memUsage; i-- {
+		// pass
+	}
+	var top bool
+	const maxLen = 100
+	switch i {
+	case 0:
+		if len(s) == 0 {
+			s = make([]queryInfo, 0, maxLen+1)
+			s = append(s, h.getQueryInfo(rowCount, colCount, memUsage))
+		} else {
+			s = append(s[:1], s...)
+			if len(s) > maxLen {
+				s = s[:maxLen]
+			}
+			s[0] = h.getQueryInfo(rowCount, colCount, memUsage)
+		}
+		top = true
+	case len(s):
+		if len(s) < maxLen && s[len(s)-1].expr != h.query.Expr {
+			s = append(s, h.getQueryInfo(rowCount, colCount, memUsage))
+			top = true
+		}
+	default:
+		if s[i-1].expr != h.query.Expr {
+			s = append(s[:i+1], s[i+1:]...)
+			s[i] = h.getQueryInfo(rowCount, colCount, memUsage)
+			top = true
+		}
+	}
+	if top {
+		h.queryTop = s
+	}
+}
+
+func (h *requestHandler) getQueryInfo(rowCount, colCount, memUsage int) queryInfo {
+	return queryInfo{
+		queryArgs: queryArgs{
+			expr:  h.query.Expr,
+			start: h.query.Start,
+			end:   h.query.End,
+		},
+		queryStatistics: queryStatistics{
+			rowCount: rowCount,
+			colCount: colCount,
+			memUsage: memUsage,
+		},
+		protocol: h.endpointStat.protocol,
+		user:     h.endpointStat.user,
+	}
 }

@@ -643,6 +643,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		tagX = make(map[tsTags]int, len(tagX))
 	}
 	res.Meta.Total = len(res.Data)
+	h.reportQueryDataSize(len(res.Data), len(qry.Timescale.Time))
 	succeeded = true // prevents deffered "cleanup"
 	return res, cleanup, nil
 }
