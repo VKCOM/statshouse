@@ -2847,14 +2847,13 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 		row.val[j] = c.val[j][i]
 	}
 	for j := range c.tag {
-		var hasSTag bool
-		if len(c.stag) != 0 {
-			hasSTag = c.stag[j].Pos[i].Start < c.stag[j].Pos[i].End && c.stag[j].Pos[i].End <= len(c.stag[j].Buf)
-		}
-		if hasSTag {
-			row.stag[c.tagIx[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
-		} else {
+		if c.tag[j][i] != 0 {
 			row.tag[c.tagIx[j]] = c.tag[j][i]
+		} else if len(c.stag) != 0 {
+			hasSTag := c.stag[j].Pos[i].Start < c.stag[j].Pos[i].End && c.stag[j].Pos[i].End <= len(c.stag[j].Buf)
+			if hasSTag {
+				row.stag[c.tagIx[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
+			}
 		}
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
