@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/promql"
 )
 
 type httpRouter struct {
@@ -33,6 +34,7 @@ type requestHandler struct {
 	requestVersion string
 	forceVersion   string
 	versionDice    func() string
+	query          promql.Query
 }
 
 type httpRequestHandler struct {
@@ -162,6 +164,39 @@ func DumpInternalServerErrors(r *httpRequestHandler) {
 		w.Write([]byte("# \n"))
 		w.Write(r.errors[i].stack)
 		w.Write([]byte("\n"))
+	}
+}
+
+func DumpQueryTop(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	var s []queryInfo
+	r.queryTopMu.Lock()
+	if r.FormValue("reset") != "" {
+		r.queryTop, s = s, r.queryTop
+	} else {
+		s = make([]queryInfo, 0, len(r.queryTop))
+		s = append(s, r.queryTop...)
+	}
+	r.queryTopMu.Unlock()
+	for _, v := range s {
+		var protocol string
+		switch v.protocol {
+		case format.TagValueIDRPC:
+			protocol = "RPC"
+		case format.TagValueIDHTTP:
+			protocol = "HTTP"
+		default:
+			protocol = strconv.Itoa(v.protocol)
+		}
+		w.Write([]byte(v.expr))
+		w.Write([]byte(fmt.Sprintf(
+			"\n# size=%d rows=%d cols=%d from=%d to=%d range=%d token=%s proto=%s\n\n",
+			v.memUsage, v.rowCount, v.colCount, v.start, v.end, v.end-v.start, v.user, protocol)))
 	}
 }
 
