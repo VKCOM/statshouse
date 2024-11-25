@@ -55,8 +55,13 @@ const (
 
 func (pq *pointsQuery) cacheKey() string {
 	var sb strings.Builder
-	sb.WriteString(";v=")
-	sb.WriteString(fmt.Sprint(pq.version))
+	sb.WriteString("v=")
+	switch pq.version {
+	case Version1:
+		sb.WriteString(Version1)
+	default:
+		sb.WriteString(Version2)
+	}
 	sb.WriteString(";m=")
 	sb.WriteString(fmt.Sprint(pq.metricID))
 	sb.WriteString(";pk=")
