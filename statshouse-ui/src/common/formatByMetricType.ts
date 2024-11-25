@@ -1,6 +1,7 @@
 import { formatFixed } from './formatFixed';
 import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '../api/enum';
 import { floor, round } from './helpers';
+import { incrsLog2 } from 'components2/Plot/PlotView/constants';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -195,6 +196,7 @@ export const suffixesByMetricType: Record<MetricType, ConfigConvertMetric> = {
 
 export function formatByMetricType(metricType: MetricType): (n: number) => string {
   const conf = suffixesByMetricType[metricType];
+
   return (n: number): string => {
     if (n === 0) {
       return n.toString();
@@ -203,7 +205,7 @@ export function formatByMetricType(metricType: MetricType): (n: number) => strin
   };
 }
 
-export function splitByMetricType(metricType: MetricType) {
+export function splitByMetricType(metricType: MetricType, isLogScale?: boolean) {
   return (
     self: unknown, //uPlot unknown for test
     axisIdx: number,
@@ -213,11 +215,132 @@ export function splitByMetricType(metricType: MetricType) {
     foundSpace: number
   ): number[] => {
     let splits: number[] = [];
+    // function calcLog2Splits(min: number, max: number, incr: number): number[] {
+    //   const result: number[] = [];
+    //   const start = Math.floor(Math.log2(Math.max(min, 1))); // Стартуем с log2(min), округленного вниз
+    //   const end = Math.ceil(Math.log2(max)); // Останавливаемся на log2(max), округленного вверх
+
+    //   for (let i = start; i <= end; i++) {
+    //     const baseValue = Math.pow(2, i); // Основное значение 2^i
+    //     for (let step = 0; step < baseValue; step += incr) {
+    //       const value = baseValue + step; // Добавляем шаги внутри текущего порядка
+    //       if (value >= min && value <= max) {
+    //         result.push(fixFloat(value));
+    //       }
+    //     }
+    //   }
+
+    //   return result;
+    // }
+
+    ///// ВТОРАЯ ВЕРСИЯ
+
+    // function calcLog2Splits(min: number, max: number, incr: number): number[] {
+    //   const result: Set<number> = new Set();
+
+    //   console.log('ARGGGS', min, max, incr);
+    //   // Начальное значение — 1
+    //   let currentValue = 1;
+
+    //   // Добавляем 1 в результат, так как это стартовая точка
+    //   result.add(currentValue);
+
+    //   // Находим коэффициент увеличения (базовый шаг)
+    //   let step = Math.max(incr, 2); // Шаг должен быть как минимум равен foundIncr, но начинаем с 2
+
+    //   // Добавляем элементы в диапазоне от min до max, увеличивая шаг экспоненциально
+    //   while (currentValue <= max + incr * 2) {
+    //     currentValue *= step; // Умножаем на коэффициент увеличения (шаг)
+
+    //     // Добавляем в результат, если текущее значение не превышает max + (incr * 2)
+    //     if (currentValue >= min && currentValue <= max + incr * 2) {
+    //       result.add(Math.round(currentValue)); // Добавляем в Set, округляя до ближайшего целого
+    //     }
+
+    //     step = 2; // После первого шага увеличиваем шаг в два раза для логарифмического роста
+    //   }
+
+    //   // Переводим Set в массив и сортируем его
+    //   // return Array.from(result).sort((a, b) => a - b);
+
+    //   return [1, 200000, 400000, 800000, 1600000, 2400000];
+    // }
+
+    ////// ТЕСТ ВЕРСИЯ
+
+    function calcLog2Splits(min: number, max: number, incr: number): number[] {
+      const result: Set<number> = new Set();
+      console.log('ARGS', min, max, incr);
+
+      // Начальное значение
+      let currentValue = min < 0 ? -1 : 1;
+
+      // Добавляем начальное значение в результат
+      result.add(currentValue);
+
+      // Находим коэффициент увеличения (базовый шаг)
+      let step = Math.max(incr, 2);
+
+      // Если диапазон включает отрицательные значения
+      if (min < 0) {
+        let negValue = -1;
+
+        while (negValue >= min - incr * 2) {
+          negValue *= step; // Умножаем отрицательное значение на шаг
+          if (negValue >= min - incr * 2 && negValue <= max) {
+            result.add(Math.round(negValue)); // Добавляем в результат
+          }
+          step = 2; // Логарифмическое увеличение
+        }
+      }
+
+      // Если диапазон включает положительные значения
+      if (max > 0) {
+        currentValue = 1; // Начинаем с 1 для положительных чисел
+        step = Math.max(incr, 2);
+
+        while (currentValue <= max + incr * 2) {
+          currentValue *= step; // Умножаем положительное значение на шаг
+          if (currentValue >= min && currentValue <= max + incr * 2) {
+            result.add(Math.round(currentValue)); // Добавляем в результат
+          }
+          step = 2; // Логарифмическое увеличение
+        }
+      }
+
+      // Переводим Set в массив и сортируем его
+      const resultArr = Array.from(result).sort((a, b) => a - b);
+
+      // Проверяем, что последний элемент массива равен max и больше предыдущего на хотя бы incr
+      if (
+        resultArr[resultArr.length - 1] !== max ||
+        resultArr[resultArr.length - 1] - resultArr[resultArr.length - 2] < incr
+      ) {
+        // Если последний элемент не равен max или меньше на incr, добавляем шаг до max
+        const lastValue = resultArr[resultArr.length - 2];
+        const newValue = lastValue + incr;
+        if (newValue <= max) {
+          resultArr[resultArr.length - 1] = max;
+        }
+      }
+
+      return resultArr;
+    }
+
+    if (isLogScale) {
+      // Логарифмическая шкала
+      splits = calcLog2Splits(scaleMin, scaleMax, foundIncr);
+      console.log('-----foundIncr', foundIncr);
+      return splits;
+    }
+
     const conf = suffixesByMetricType[metricType];
     let base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
+
     function fixFloat(v: number) {
       return round(v, 14);
     }
+
     function incrRoundUp(num: number, incr: number) {
       return fixFloat(Math.ceil(fixFloat(num / incr)) * incr);
     }

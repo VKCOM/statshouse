@@ -26,7 +26,7 @@ import css from './style.module.css';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { type PlotValues } from 'store2/plotDataStore';
 import { useThemeStore } from 'store2/themeStore';
-import { incrs } from './constants';
+import { incrs, incrsLog2 } from './constants';
 import { setLiveMode } from 'store2/liveModeStore';
 import { setPlotVisibility } from 'store2/plotVisibilityStore';
 import { createPlotPreview } from 'store2/plotPreviewStore';
@@ -142,6 +142,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     if (metricUnit != null) {
       return metricUnit;
     }
+
     return getMetricType(plotDataWhat?.length ? plotDataWhat : plotWhat, metricUnitData);
   }, [metricUnit, metricUnitData, plotDataWhat, plotWhat]);
 
@@ -194,33 +195,68 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatByMetricType(metricType)),
+          // values: (_, splits) => splits.map(formatByMetricType(metricType)),
+          values: (_, splits) => {
+            console.log('----splits', splits);
+            const result = splits.map((v) => {
+              return formatByMetricType(metricType)(v);
+            });
+            console.log('----result', result);
+            return result;
+          },
+
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
-          incrs,
+          // splits:
+          //   metricType === METRIC_TYPE.none && !isLogScale ? undefined : splitByMetricType(metricType, isLogScale),
+
+          splits: (
+            self: uPlot,
+            axisIdx: number,
+            scaleMin: number,
+            scaleMax: number,
+            foundIncr: number,
+            foundSpace: number
+          ) => {
+            console.log('---foundIncr', foundIncr);
+            return [1, 200000, 400000, 600000, 800000, 1000000];
+          },
+
+          incrs: isLogScale ? incrsLog2 : incrs,
         },
       ],
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
           distr: isLogScale ? 100 : 1,
-          // log: isLogScale ? 2 : undefined,
-          // auto: (u) => false,
-          // range: (u, initMin, initMax, scaleKey) => {
-          //   if (u.scales['y']?.distr === 3) {
-          //     return [initMin <= 0 ? 1 : initMin, initMax];
-          //   }
-          //   return [initMin, initMax];
-          // },
-          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+          fwd: (v) => {
+            if (Math.abs(v) <= 0) {
+              return v;
+            }
+            if (v < 0) {
+              return -Math.log2(Math.abs(v) + 1);
+            }
+            return Math.log2(v + 1);
+          },
+          bwd: (v) => {
+            if (Math.abs(v) <= 0) {
+              return v;
+            }
+            if (v < 0) {
+              return -(Math.pow(2, Math.abs(v)) - 1);
+            }
+            return Math.pow(2, v) - 1;
+          },
+
+          auto: () => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
             if (min !== 0 || max !== 0) {
               return [min, max];
             }
+
             return calcYRange(u, true);
           },
         },
@@ -239,7 +275,18 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, isDashboard, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, isLogScale]);
+  }, [
+    compact,
+    getAxisStroke,
+    isDashboard,
+    metricType,
+    pluginEventOverlay,
+    themeDark,
+    topPad,
+    xAxisSize,
+    isLogScale,
+    yLockRef,
+  ]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -343,6 +390,15 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     [fixHeight, isDashboard]
   );
 
+  const testValue = 200000;
+
+  const fwdResult = opts?.scales?.y?.fwd && opts.scales.y.fwd(testValue);
+
+  const bwdResult = opts?.scales?.y.bwd && opts.scales?.y?.bwd(fwdResult!);
+
+  console.log('fwd(200000):', fwdResult);
+  console.log('bwd(200000):', bwdResult);
+
   return (
     <div
       className={cn(
@@ -404,7 +460,6 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
               data={dataView}
               series={series}
               scales={scales}
-              // scales={scales2}
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
