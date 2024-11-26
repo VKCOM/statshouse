@@ -31,6 +31,7 @@ const (
 	_1sTableSH2          = "statshouse_value_1s_dist"
 	_1mTableSH2          = "statshouse_value_1m_dist"
 	_1hTableSH2          = "statshouse_value_1h_dist"
+	_1sTableSH3          = "statshouse_v3_1s_dist"
 )
 
 var (
