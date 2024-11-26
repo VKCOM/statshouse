@@ -259,6 +259,15 @@ var (
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", MaxSlice)
 
+func CacheDropInterval(version string) time.Duration {
+	switch version {
+	case Version1:
+		return 90 * time.Second
+	default:
+		return 0
+	}
+}
+
 func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	if args.End <= args.Start || args.Step < 0 {
 		return Timescale{}, nil
