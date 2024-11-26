@@ -17,6 +17,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -62,7 +63,14 @@ func (s *ShardReplica) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
 }
 
-func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
+func clampInt32[I int64 | int](v I) int32 {
+	if v < math.MaxInt32 {
+		return int32(v)
+	}
+	return math.MaxInt32
+}
+
+func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.SendSourceBucket2Bytes{
 		Time:            cbd.time,
@@ -74,46 +82,71 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
 		CompressedData:  cbd.data[4:],
 	}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
+	var ep *env.Env
+	if s.agent.envLoader != nil {
+		e := s.agent.envLoader.Load()
+		ep = &e
+		// TODO: remove this after all agents are updated, owner now in common headers
+		if len(e.Owner) > 0 {
+			args.SetOwner([]byte(e.Owner))
+		}
+	}
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
 	sizeMem := shard.HistoricBucketsDataSizeMemory()
-	if sizeMem < math.MaxInt32 {
-		args.QueueSizeMemory = int32(sizeMem)
-	}
 	sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
-	if sizeDiskTotal < math.MaxInt32 {
-		args.QueueSizeDisk = int32(sizeDiskTotal)
-	}
-	if sizeDiskUnsent < math.MaxInt32 {
-		args.SetQueueSizeDiskUnsent(int32(sizeDiskUnsent))
-	} else {
-		args.SetQueueSizeDiskUnsent(math.MaxInt32)
-	}
 	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
-	if sizeDiskSumTotal < math.MaxInt32 {
-		args.SetQueueSizeDiskSum(int32(sizeDiskSumTotal))
-	} else {
-		args.SetQueueSizeDiskSum(math.MaxInt32)
-	}
-	if sizeDiskSumUnsent < math.MaxInt32 {
-		args.SetQueueSizeDiskSumUnsent(int32(sizeDiskSumUnsent))
-	} else {
-		args.SetQueueSizeDiskSumUnsent(math.MaxInt32)
-	}
 	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
-	if sizeMemSum < math.MaxInt32 {
-		args.SetQueueSizeMemorySum(int32(sizeMemSum))
-	} else {
-		args.SetQueueSizeMemorySum(math.MaxInt32)
-	}
-	if s.agent.envLoader != nil {
-		env := s.agent.envLoader.Load()
-		args.SetOwner([]byte(env.Owner))
-	}
+	args.QueueSizeMemory = clampInt32(sizeMem)
+	args.QueueSizeDisk = clampInt32(sizeDiskTotal)
+	args.SetQueueSizeDiskUnsent(clampInt32(sizeDiskUnsent))
+	args.SetQueueSizeDiskSum(clampInt32(sizeDiskSumTotal))
+	args.SetQueueSizeDiskSumUnsent(clampInt32(sizeDiskSumUnsent))
+	args.SetQueueSizeMemorySum(clampInt32(sizeMemSum))
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3ResponseBytes, shard *Shard) error {
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	args := tlstatshouse.SendSourceBucket3Bytes{
+		Time:            cbd.time,
+		BuildCommit:     []byte(build.Commit()),
+		BuildCommitDate: s.agent.commitDateTag,
+		BuildCommitTs:   s.agent.commitTimestamp,
+		QueueSizeDisk:   math.MaxInt32,
+		QueueSizeMemory: math.MaxInt32,
+		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
+		CompressedData:  cbd.data[4:],
+	}
+	var ep *env.Env
+	if s.agent.envLoader != nil {
+		e := s.agent.envLoader.Load()
+		ep = &e
+	}
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
+	args.SetHistoric(historic)
+	args.SetSpare(spare)
+
+	sizeMem := shard.HistoricBucketsDataSizeMemory()
+	sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
+	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
+	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
+	args.QueueSizeMemory = clampInt32(sizeMem)
+	args.QueueSizeDisk = clampInt32(sizeDiskTotal)
+	args.SetQueueSizeDiskUnsent(clampInt32(sizeDiskUnsent))
+	args.SetQueueSizeDiskSum(clampInt32(sizeDiskSumTotal))
+	args.SetQueueSizeDiskSumUnsent(clampInt32(sizeDiskSumUnsent))
+	args.SetQueueSizeMemorySum(clampInt32(sizeMemSum))
+
+	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
+		if err := s.client.SendSourceBucket3Bytes(ctx, args, &extra, response); err != nil {
 			return err
 		}
 	}
@@ -123,7 +156,7 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.Duration, duration time.Duration, err error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.TestConnection2Bytes{}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, nil)
 
 	var ret []byte
 
@@ -143,13 +176,16 @@ func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.D
 	return aggTimeDiff, duration, err
 }
 
-func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes) {
+func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes, e *env.Env) {
 	*header = tlstatshouse.CommonProxyHeaderBytes{
 		ShardReplica:      int32(s.ShardReplicaNum),
 		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
 		HostName:          s.agent.hostName,
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
+	}
+	if e != nil && len(e.Owner) > 0 {
+		header.SetOwner([]byte(e.Owner), fieldsMask)
 	}
 	data_model.SetProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }

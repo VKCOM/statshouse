@@ -90,9 +90,10 @@ type (
 	}
 
 	compressedBucketData struct {
-		id   int64 // in disk queue, or 0 if working without disk
-		time uint32
-		data []byte // first 4 bytes are uncompressed size, rest is compressed data
+		id      int64 // in disk queue, or 0 if working without disk
+		time    uint32
+		data    []byte // first 4 bytes are uncompressed size, rest is compressed data
+		version uint8  // 3 - SourceBucket3, 2 and everyting else - SourceBucket2
 	}
 
 	preprocessorBucketData struct {
