@@ -76,7 +76,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
 				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
 				StepSec:    lod.StepSec,
-				Version:    req.version,
+				Version:    lod.Version,
 				Table:      lod.Table,
 				HasPreKey:  lod.HasPreKey,
 				PreKeyOnly: lod.PreKeyOnly,
