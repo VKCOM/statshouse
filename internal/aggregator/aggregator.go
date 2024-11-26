@@ -693,15 +693,22 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				break
 			}
 		}
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], false)
-
 		a.configMu.RLock()
 		mirrorChWrite := a.configR.MirrorChWrite
+		writeToV3First := a.configR.WriteToV3First
 		a.configMu.RUnlock()
+		insertErrTable := func(v3Format bool) string {
+			if v3Format {
+				return "insert_error_exp_table"
+			}
+			return "insert_error"
+		}
+
+		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], writeToV3First)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(writeToV3First), bodyStorage)
 		// if we are mirriring that will happen after second ch write
 		if !mirrorChWrite {
 			cancelSendToCh()
@@ -717,7 +724,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		if sendErr != nil {
 			comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
-			a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
+			a.appendInternalLog(insertErrTable(writeToV3First), "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 			log.Print(sendErr)
 			sendErr = &rpc.Error{
 				Code:        data_model.RPCErrorInsert,
@@ -740,27 +747,27 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception), dur, 1, 0, format.BuiltinMetricMetaAggInsertTime)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, 0, format.BuiltinMetricMetaAggInsertTime)
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
+		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
+		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
 
 		if mirrorChWrite {
-			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], true)
-			status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getNewTableDesc(), bodyStorage)
+			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], !writeToV3First)
+			status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage)
 			cancelSendToCh()
 			if sendErr != nil {
 				comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
-				a.appendInternalLog("insert_error_exp_table", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
+				a.appendInternalLog(insertErrTable(!writeToV3First), "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 				log.Print(sendErr)
 				sendErr = &rpc.Error{
 					Code:        data_model.RPCErrorInsert,
 					Description: sendErr.Error(),
 				}
 			}
-			a.sh2.AddValueCounterHost(a.reportExpInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
-			a.sh2.AddValueCounterHost(a.reportExpInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
 		}
 
 		sendErr = fmt.Errorf("simulated error")

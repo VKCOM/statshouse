@@ -22,6 +22,7 @@ type ConfigAggregatorRemote struct {
 	SampleKeys           bool
 	DenyOldAgents        bool
 	MirrorChWrite        bool
+	WriteToV3First       bool
 }
 
 type ConfigAggregator struct {
@@ -75,6 +76,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			SampleKeys:           false,
 			DenyOldAgents:        true,
 			MirrorChWrite:        true,
+			WriteToV3First:       false,
 		},
 	}
 }
@@ -87,7 +89,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
-		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both new and old tables")
+		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both v3 and v2 tables")
+		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
 	}
 }
 
