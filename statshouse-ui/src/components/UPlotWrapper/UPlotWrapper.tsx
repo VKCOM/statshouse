@@ -237,9 +237,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
 
   const updateData = useCallback((data: uPlot.AlignedData) => {
     if (uRef.current) {
-      uRef.current.batch((u: uPlot) => {
-        u.setData(deepClone(data));
-      });
+      uRef.current.setData(deepClone(data));
     }
   }, []);
 
