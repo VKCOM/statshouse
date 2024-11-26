@@ -68,19 +68,12 @@ func (a *Aggregator) goInternalLog() {
 	}
 }
 
-func (a *Aggregator) reportInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int) *data_model.Key {
-	key := a.aggKey(bucketTime, metric, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception)})
-	if err != nil {
-		key.Tags[5] = format.TagValueIDInsertTimeError
+func (a *Aggregator) reportInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int, v3Format bool) *data_model.Key {
+	var v3FormatTag int32
+	if v3Format {
+		v3FormatTag = 1
 	}
-	if historic {
-		key.Tags[4] = format.TagValueIDConveyorHistoric
-	}
-	return key
-}
-
-func (a *Aggregator) reportExpInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int) *data_model.Key {
-	key := a.aggKey(bucketTime, metric, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception), 1})
+	key := a.aggKey(bucketTime, metric, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception), v3FormatTag})
 	if err != nil {
 		key.Tags[5] = format.TagValueIDInsertTimeError
 	}
