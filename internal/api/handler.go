@@ -788,7 +788,7 @@ SETTINGS
 		Metric:  format.BuiltinMetricIDContributorsLog,
 		Table:   _1sTableSH3,
 		Kind:    "cache-update",
-	}, Version3, ch.Query{
+	}, Version2, ch.Query{
 		Body: queryBody,
 		Result: proto.Results{
 			{Name: "time", Data: &time},
