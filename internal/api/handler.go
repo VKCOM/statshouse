@@ -138,7 +138,6 @@ const (
 	cacheInvalidateCheckInterval = 1 * time.Second
 	cacheInvalidateCheckTimeout  = 5 * time.Second
 	cacheInvalidateMaxRows       = 100_000
-	cacheDefaultDropEvery        = 90 * time.Second
 
 	queryClientCache               = 1 * time.Second
 	queryClientCacheStale          = 9 * time.Second // ~ v2 lag
@@ -630,7 +629,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
-	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints, cacheDefaultDropEvery)
+	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)

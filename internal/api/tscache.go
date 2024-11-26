@@ -53,7 +53,7 @@ type tsCacheGroup struct {
 	shutdown    func()
 }
 
-func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, utcOffset int64, loader tsLoadFunc, dropEvery time.Duration) *tsCacheGroup {
+func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, utcOffset int64, loader tsLoadFunc) *tsCacheGroup {
 	g := &tsCacheGroup{
 		pointCaches: map[string]map[int64]*tsCache{},
 	}
@@ -70,7 +70,7 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 				cache:             map[string]*tsEntry{},
 				invalidatedAtNano: map[int64]int64{},
 				lastDrop:          now,
-				dropEvery:         dropEvery,
+				dropEvery:         data_model.CacheDropInterval(version),
 				bytesAlloc: statshouse.GetMetricRef(format.BuiltinMetricAPICacheBytesAlloc, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
 				}),
