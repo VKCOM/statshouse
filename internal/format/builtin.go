@@ -1696,6 +1696,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 					0x41df72a3: "statshouse.getTargets2",
 					0x4285ff53: "statshouse.sendKeepAlive2",
 					0x44575940: "statshouse.sendSourceBucket2",
+					0x0d04aa3f: "statshouse.sendSourceBucket3",
 					0x4285ff58: "statshouse.testConnection2",
 				}),
 			}, {

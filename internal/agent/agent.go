@@ -394,7 +394,7 @@ func (s *Agent) getRandomLiveShardReplicas() (*ShardReplica, *ShardReplica) {
 	return liveShardReplicas[i], liveShardReplicas[j]
 }
 
-func (s *Agent) getShardReplicaForSeccnd(shardNum int, timestamp uint32) (shardReplica *ShardReplica, spare bool) {
+func (s *Agent) getShardReplicaForSecond(shardNum int, timestamp uint32) (shardReplica *ShardReplica, spare bool) {
 	replicaShift := int(timestamp % 3)
 	shardReplica = s.ShardReplicas[shardNum*3+replicaShift]
 

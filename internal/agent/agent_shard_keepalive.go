@@ -64,7 +64,7 @@ func (s *ShardReplica) sendKeepLive() error {
 	defer cancel()
 
 	args := tlstatshouse.SendKeepAlive2Bytes{}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, nil)
 	// It is important that keep alive will not be successful when shards are not configured correctly
 
 	var ret []byte
