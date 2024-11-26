@@ -787,9 +787,9 @@ SETTINGS
 		IsLight: true,
 		User:    "cache-update",
 		Metric:  format.BuiltinMetricIDContributorsLog,
-		Table:   _1sTableSH2,
+		Table:   _1sTableSH3,
 		Kind:    "cache-update",
-	}, Version2, ch.Query{
+	}, Version3, ch.Query{
 		Body: queryBody,
 		Result: proto.Results{
 			{Name: "time", Data: &time},
@@ -806,7 +806,7 @@ SETTINGS
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range data_model.LODTables[Version2] {
+				for lodLevel := range data_model.LODTables[Version3] {
 					t := roundTime(r.At, lodLevel, h.utcOffset)
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
@@ -870,7 +870,7 @@ func (r *requestHandler) version() string {
 	if r.versionDice != nil {
 		return r.versionDice()
 	}
-	return Version2
+	return Version3
 }
 
 func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {

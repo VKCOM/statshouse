@@ -60,7 +60,7 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 
 	for version, tables := range lodTables {
 		drop := dropEvery
-		if version == Version2 {
+		if version == Version2 || version == Version3 {
 			drop = 0 // NB! WHY??
 		}
 
@@ -169,6 +169,7 @@ func (g *tsCacheGroup) changeMaxSize(newSize int) {
 
 func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
+	g.pointCaches[Version3][lodLevel].invalidate(times)
 }
 
 func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {

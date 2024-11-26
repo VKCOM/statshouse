@@ -669,7 +669,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 			Metric:  qry.Metric.MetricID,
 			Table:   lod.Table,
 			Kind:    "load_tags",
-		}, Version2, ch.Query{
+		}, lod.Version, ch.Query{
 			Body:   query,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
@@ -710,7 +710,7 @@ func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValue
 			Metric:  qry.Metric.MetricID,
 			Table:   lod.Table,
 			Kind:    "load_stag",
-		}, Version2, ch.Query{
+		}, lod.Version, ch.Query{
 			Body:   body,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
