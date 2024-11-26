@@ -8,6 +8,7 @@ package api
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -3465,4 +3466,28 @@ func (h *requestHandler) getQueryInfo(rowCount, colCount, memUsage int) queryInf
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
+}
+
+func HandleTagDraftList(r *httpRequestHandler) {
+	m := make(map[string][]string)
+	for _, metric := range r.metricsStorage.GetMetaMetricList(false) {
+		for _, tagDraft := range metric.TagsDraft {
+			m[tagDraft.Name] = append(m[tagDraft.Name], metric.Name)
+		}
+	}
+	type TagMetrics struct {
+		Tag     string   `json:"name"`
+		Metrics []string `json:"list"`
+	}
+	s := make([]TagMetrics, 0, len(m))
+	for k, v := range m {
+		s = append(s, TagMetrics{Tag: k, Metrics: v})
+	}
+	sort.Slice(s, func(i, j int) bool {
+		if n := cmp.Compare(len(s[j].Metrics), len(s[i].Metrics)); n != 0 {
+			return n < 0
+		}
+		return s[i].Tag < s[j].Tag
+	})
+	respondJSON(r, s, 0, 0, nil)
 }
