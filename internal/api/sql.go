@@ -373,6 +373,29 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 		}
 		sb.WriteString(")")
 	}
+	// String top
+	if f.StringTopRe2 != "" {
+		sb.WriteString(" AND")
+		if !in {
+			sb.WriteString(" NOT")
+		}
+		sb.WriteString(" match(")
+		sb.WriteString(unmappedColumnNameV3(format.StringTopTagID))
+		sb.WriteString(",'")
+		sb.WriteString(escapeReplacer.Replace(f.StringTopRe2))
+		sb.WriteString("')")
+	} else if len(f.StringTop) != 0 {
+		sb.WriteString(" AND ")
+		sb.WriteString(unmappedColumnNameV3(format.StringTopTagID))
+		sb.WriteString(predicate)
+		sb.WriteString(" ('")
+		sb.WriteString(escapeReplacer.Replace(f.StringTop[0]))
+		for i := 1; i < len(f.StringTop); i++ {
+			sb.WriteString("','")
+			sb.WriteString(escapeReplacer.Replace(f.StringTop[i]))
+		}
+		sb.WriteString("')")
+	}
 }
 
 type queryMeta struct {
