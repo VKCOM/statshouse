@@ -165,22 +165,22 @@ func DumpInternalServerErrors(r *httpRequestHandler) {
 	}
 }
 
-func DumpQueryTop(r *httpRequestHandler) {
+func DumpQueryTopMemUsage(r *httpRequestHandler) {
 	w := r.Response()
 	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	var s []queryInfo
-	r.queryTopMu.Lock()
+	var s []queryTopMemUsage
+	r.queryTopMemUsageMu.Lock()
 	if r.FormValue("reset") != "" {
-		r.queryTop, s = s, r.queryTop
+		r.queryTopMemUsage, s = s, r.queryTopMemUsage
 	} else {
-		s = make([]queryInfo, 0, len(r.queryTop))
-		s = append(s, r.queryTop...)
+		s = make([]queryTopMemUsage, 0, len(r.queryTopMemUsage))
+		s = append(s, r.queryTopMemUsage...)
 	}
-	r.queryTopMu.Unlock()
+	r.queryTopMemUsageMu.Unlock()
 	for _, v := range s {
 		var protocol string
 		switch v.protocol {
@@ -195,6 +195,39 @@ func DumpQueryTop(r *httpRequestHandler) {
 		w.Write([]byte(fmt.Sprintf(
 			"\n# size=%d rows=%d cols=%d from=%d to=%d range=%d token=%s proto=%s\n\n",
 			v.memUsage, v.rowCount, v.colCount, v.start, v.end, v.end-v.start, v.user, protocol)))
+	}
+}
+
+func DumpQueryTopDuration(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	var s []queryTopDuration
+	r.queryTopDurationMu.Lock()
+	if r.FormValue("reset") != "" {
+		r.queryTopDuration, s = s, r.queryTopDuration
+	} else {
+		s = make([]queryTopDuration, 0, len(r.queryTopDuration))
+		s = append(s, r.queryTopDuration...)
+	}
+	r.queryTopDurationMu.Unlock()
+	for _, v := range s {
+		var protocol string
+		switch v.protocol {
+		case format.TagValueIDRPC:
+			protocol = "RPC"
+		case format.TagValueIDHTTP:
+			protocol = "HTTP"
+		default:
+			protocol = strconv.Itoa(v.protocol)
+		}
+		w.Write([]byte(v.expr))
+		w.Write([]byte(fmt.Sprintf(
+			"\n# duration=%v token=%s proto=%s\n\n",
+			v.duration, v.user, protocol)))
 	}
 }
 

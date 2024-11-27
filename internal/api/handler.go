@@ -211,13 +211,22 @@ type (
 		errorX   int
 
 		// TOP queries by memory usage
-		queryTop   []queryInfo
-		queryTopMu sync.Mutex
+		queryTopMemUsage   []queryTopMemUsage
+		queryTopMemUsageMu sync.Mutex
+		queryTopDuration   []queryTopDuration
+		queryTopDurationMu sync.Mutex
 	}
 
-	queryInfo struct {
+	queryTopMemUsage struct {
 		queryArgs
-		queryStatistics
+		queryMemUsage
+		protocol int
+		user     string
+	}
+
+	queryTopDuration struct {
+		queryArgs
+		duration time.Duration
 		protocol int
 		user     string
 	}
@@ -228,7 +237,7 @@ type (
 		end   int64
 	}
 
-	queryStatistics struct {
+	queryMemUsage struct {
 		rowCount int
 		colCount int
 		memUsage int
@@ -2993,6 +3002,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 			return nil
 		}})
 	duration := time.Since(start)
+	h.reportQueryDuration(duration)
 	if err != nil {
 		return 0, err
 	}
@@ -3380,14 +3390,14 @@ func (h *requestHandler) init(accessToken, version string) (err error) {
 	return nil
 }
 
-func (h *requestHandler) reportQueryDataSize(rowCount, colCount int) {
+func (h *requestHandler) reportQueryMemUsage(rowCount, colCount int) {
 	memUsage := 8 * rowCount * colCount
 	if memUsage <= 0 {
 		return
 	}
-	h.queryTopMu.Lock()
-	defer h.queryTopMu.Unlock()
-	s := h.queryTop
+	h.queryTopMemUsageMu.Lock()
+	defer h.queryTopMemUsageMu.Unlock()
+	s := h.queryTopMemUsage
 	i := len(s)
 	for ; i > 0 && s[i-1].memUsage < memUsage; i-- {
 		// pass
@@ -3397,45 +3407,101 @@ func (h *requestHandler) reportQueryDataSize(rowCount, colCount int) {
 	switch i {
 	case 0:
 		if len(s) == 0 {
-			s = make([]queryInfo, 0, maxLen+1)
-			s = append(s, h.getQueryInfo(rowCount, colCount, memUsage))
+			s = make([]queryTopMemUsage, 0, maxLen+1)
+			s = append(s, h.queryMemUsage(rowCount, colCount, memUsage))
 		} else {
 			s = append(s[:1], s...)
 			if len(s) > maxLen {
 				s = s[:maxLen]
 			}
-			s[0] = h.getQueryInfo(rowCount, colCount, memUsage)
+			s[0] = h.queryMemUsage(rowCount, colCount, memUsage)
 		}
 		top = true
 	case len(s):
 		if len(s) < maxLen && s[len(s)-1].expr != h.query.Expr {
-			s = append(s, h.getQueryInfo(rowCount, colCount, memUsage))
+			s = append(s, h.queryMemUsage(rowCount, colCount, memUsage))
 			top = true
 		}
 	default:
 		if s[i-1].expr != h.query.Expr {
 			s = append(s[:i+1], s[i+1:]...)
-			s[i] = h.getQueryInfo(rowCount, colCount, memUsage)
+			s[i] = h.queryMemUsage(rowCount, colCount, memUsage)
 			top = true
 		}
 	}
 	if top {
-		h.queryTop = s
+		h.queryTopMemUsage = s
 	}
 }
 
-func (h *requestHandler) getQueryInfo(rowCount, colCount, memUsage int) queryInfo {
-	return queryInfo{
+func (h *requestHandler) reportQueryDuration(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	h.queryTopDurationMu.Lock()
+	defer h.queryTopDurationMu.Unlock()
+	s := h.queryTopDuration
+	i := len(s)
+	for ; i > 0 && s[i-1].duration < d; i-- {
+		// pass
+	}
+	var top bool
+	const maxLen = 100
+	switch i {
+	case 0:
+		if len(s) == 0 {
+			s = make([]queryTopDuration, 0, maxLen+1)
+			s = append(s, h.queryDuration(d))
+		} else {
+			s = append(s[:1], s...)
+			if len(s) > maxLen {
+				s = s[:maxLen]
+			}
+			s[0] = h.queryDuration(d)
+		}
+		top = true
+	case len(s):
+		if len(s) < maxLen && s[len(s)-1].expr != h.query.Expr {
+			s = append(s, h.queryDuration(d))
+			top = true
+		}
+	default:
+		if s[i-1].expr != h.query.Expr {
+			s = append(s[:i+1], s[i+1:]...)
+			s[i] = h.queryDuration(d)
+			top = true
+		}
+	}
+	if top {
+		h.queryTopDuration = s
+	}
+}
+
+func (h *requestHandler) queryMemUsage(rowCount, colCount, memUsage int) queryTopMemUsage {
+	return queryTopMemUsage{
 		queryArgs: queryArgs{
 			expr:  h.query.Expr,
 			start: h.query.Start,
 			end:   h.query.End,
 		},
-		queryStatistics: queryStatistics{
+		queryMemUsage: queryMemUsage{
 			rowCount: rowCount,
 			colCount: colCount,
 			memUsage: memUsage,
 		},
+		protocol: h.endpointStat.protocol,
+		user:     h.endpointStat.user,
+	}
+}
+
+func (h *requestHandler) queryDuration(d time.Duration) queryTopDuration {
+	return queryTopDuration{
+		queryArgs: queryArgs{
+			expr:  h.query.Expr,
+			start: h.query.Start,
+			end:   h.query.End,
+		},
+		duration: d,
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
