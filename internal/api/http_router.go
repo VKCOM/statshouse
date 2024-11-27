@@ -27,14 +27,12 @@ type httpRoute struct {
 
 type requestHandler struct {
 	*Handler
-	accessInfo     accessInfo
-	endpointStat   endpointStat
-	trace          []string
-	debug          bool
-	requestVersion string
-	forceVersion   string
-	versionDice    func() string
-	query          promql.Query
+	accessInfo   accessInfo
+	endpointStat endpointStat
+	trace        []string
+	debug        bool
+	version      string
+	query        promql.Query
 }
 
 type httpRequestHandler struct {

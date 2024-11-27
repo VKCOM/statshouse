@@ -164,6 +164,7 @@ func (g *tsCacheGroup) changeMaxSize(newSize int) {
 
 func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
+	g.pointCaches[Version3][lodLevel].invalidate(times)
 }
 
 func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
