@@ -746,7 +746,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 
 	queryBody, err := util.BindQuery(fmt.Sprintf(`
 SELECT
-  toInt64(time) AS time, toInt64(tag1) AS key1
+  toInt64(time) AS time, toInt64(key1) AS key1
 FROM
   %s
 WHERE
@@ -759,7 +759,7 @@ LIMIT
   ?
 SETTINGS
   optimize_aggregation_in_order = 1
-`, _1sTableSH3), format.BuiltinMetricIDContributorsLog, from, cacheInvalidateMaxRows)
+`, _1sTableSH2), format.BuiltinMetricIDContributorsLog, from, cacheInvalidateMaxRows)
 	if err != nil {
 		log.Printf("[error] cache invalidation log query failed: %v", err)
 		return from, seen
