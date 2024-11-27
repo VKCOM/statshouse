@@ -1825,9 +1825,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	pq := &preparedTagValuesQuery{
-		metricID:    metricMeta.MetricID,
-		preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),
-		preKeyTagID: metricMeta.PreKeyTagID,
+		metric:      metricMeta,
 		tagID:       tagID,
 		numResults:  numResults,
 		filterIn:    mappedFilterIn,
@@ -2962,7 +2960,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 	isFast := lod.IsFast()
 	isLight := cols.isLight()
 	IsHardware := cols.IsHardware()
-	metric := pq.metricID
+	metric := pq.metricID()
 	table := lod.Table
 	kind := pq.kind
 	start := time.Now()
@@ -3028,7 +3026,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data
 	isFast := lod.IsFast()
 	isLight := cols.isLight()
 	isHardware := cols.IsHardware()
-	metric := pq.metricID
+	metric := pq.metricID()
 	table := lod.Table
 	kind := pq.kind
 	err = h.doSelect(ctx, util.QueryMetaInto{

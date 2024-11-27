@@ -18,9 +18,7 @@ import (
 )
 
 type preparedTagValuesQuery struct {
-	metricID    int32
-	preKeyTagX  int
-	preKeyTagID string
+	metric      *format.MetricMetaValue
 	tagID       string
 	numResults  int
 	filterIn    data_model.TagFilters
@@ -34,10 +32,7 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 type pointsQuery struct {
 	version     string
 	user        string
-	metricID    int32
-	preKeyTagX  int
-	preKeyTagID string
-	isStringTop bool
+	metric      *format.MetricMetaValue
 	kind        data_model.DigestKind
 	by          []string
 	filterIn    data_model.TagFilters
@@ -63,11 +58,11 @@ func (pq *pointsQuery) cacheKey() string {
 		sb.WriteString(Version3)
 	}
 	sb.WriteString(";m=")
-	sb.WriteString(fmt.Sprint(pq.metricID))
+	sb.WriteString(fmt.Sprint(pq.metricID()))
 	sb.WriteString(";pk=")
-	sb.WriteString(fmt.Sprint(pq.preKeyTagX))
+	sb.WriteString(pq.preKeyTagID())
 	sb.WriteString(";st=")
-	sb.WriteString(fmt.Sprint(pq.isStringTop))
+	sb.WriteString(fmt.Sprint(pq.isStringTop()))
 	sb.WriteString(";kind=")
 	sb.WriteString(fmt.Sprint(int(pq.kind)))
 	sb.WriteString(";by=")
@@ -177,7 +172,7 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV2(lod data_model.LOD) (string, 
 	// no need to escape anything as long as table and tag names are fixed
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
-	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID))
+	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID()))
 	sb.WriteString(" AS ")
 	sb.WriteString(valueName)
 	sb.WriteString(",toFloat64(")
@@ -185,12 +180,12 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV2(lod data_model.LOD) (string, 
 	sb.WriteString("(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
-	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeV1DateFilter(&sb, &lod)
 	for i, ids := range pq.filterIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
-			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
+			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID()))
 			sb.WriteString(" IN (")
 			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
@@ -204,7 +199,7 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV2(lod data_model.LOD) (string, 
 	for i, ids := range pq.filterNotIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
-			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
+			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID()))
 			sb.WriteString(" NOT IN (")
 			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
@@ -216,7 +211,7 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV2(lod data_model.LOD) (string, 
 		sb.WriteString(")")
 	}
 	sb.WriteString(" GROUP BY ")
-	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID))
+	sb.WriteString(mappedColumnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID()))
 	sb.WriteString(" HAVING _count>0 ORDER BY _count DESC,")
 	sb.WriteString(valueName)
 	sb.WriteString(" LIMIT ")
@@ -234,7 +229,7 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV3(lod data_model.LOD) (string, 
 	sb.WriteString(" AS _unmapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
-	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
 	sb.WriteString(" GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT ")
@@ -259,7 +254,7 @@ func (pq *preparedTagValuesQuery) tagValueIDsQueryV3(lod data_model.LOD) (string
 	sb.WriteString(" AS _mapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
-	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
 	sb.WriteString(" GROUP BY _mapped HAVING _count>0 ORDER BY _count,_mapped DESC LIMIT ")
@@ -414,7 +409,7 @@ type pointsQueryMeta struct {
 
 func loadPointsSelectWhat(sb *strings.Builder, pq *pointsQuery, version string) (int, error) {
 	var (
-		isStringTop = pq.isStringTop
+		isStringTop = pq.isStringTop()
 		kind        = pq.kind
 	)
 	if version == Version1 && isStringTop {
@@ -492,7 +487,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 		sb.WriteString(fmt.Sprintf("toInt64(%d) AS _stepSec", lod.StepSec))
 	}
 	for _, b := range pq.by {
-		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
+		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID()), b))
 	}
 	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
 	if err != nil {
@@ -501,12 +496,12 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
-	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeV1DateFilter(&sb, &lod)
 	for i, ids := range pq.filterIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
-			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
+			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID()))
 			sb.WriteString(" IN (")
 			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
@@ -520,7 +515,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 	for i, ids := range pq.filterNotIn.Tags {
 		if len(ids.Values) > 0 {
 			sb.WriteString(" AND ")
-			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID))
+			sb.WriteString(mappedColumnName(lod.HasPreKey, format.TagID(i), pq.preKeyTagID()))
 			sb.WriteString(" NOT IN (")
 			expandTagsMapped(&sb, ids.Values)
 			sb.WriteString(")")
@@ -533,7 +528,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 	}
 	sb.WriteString(" GROUP BY _time")
 	for _, b := range pq.by {
-		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
+		sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID()), b))
 	}
 	var having bool
 	switch pq.kind {
@@ -554,7 +549,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 		}
 		sb.WriteString(" ORDER BY _time")
 		for _, b := range pq.by {
-			sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID), b))
+			sb.WriteString(fmt.Sprintf(",%s AS key%s", mappedColumnName(lod.HasPreKey, b, pq.preKeyTagID()), b))
 		}
 		if pq.sort == sortDescending {
 			sb.WriteString(" DESC")
@@ -563,7 +558,7 @@ func (pq *pointsQuery) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, us
 	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
 	cols := newPointsSelectColsV2(pointsQueryMeta{
 		queryMeta: queryMeta{
-			metricID: pq.metricID,
+			metricID: pq.metricID(),
 			kind:     pq.kind,
 			user:     pq.user,
 		},
@@ -599,7 +594,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, us
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
 	sb.WriteString(" AND index_type=0")
-	writeMetricFilter(&sb, pq.metricID, pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
+	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	writeTagCond(&sb, pq.filterIn, true)
 	writeTagCond(&sb, pq.filterNotIn, false)
 	sb.WriteString(" GROUP BY _time")
@@ -642,7 +637,7 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, us
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
 	cols := newPointsSelectColsV3(pointsQueryMeta{
 		queryMeta: queryMeta{
-			metricID: pq.metricID,
+			metricID: pq.metricID(),
 			kind:     pq.kind,
 			user:     pq.user,
 		},
@@ -652,6 +647,73 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, us
 		version:    lod.Version,
 	}, useTime)
 	return sb.String(), cols, err
+}
+
+func (pq *pointsQuery) isStringTop() bool {
+	v := pq.singleMetric()
+	return v != nil && v.StringTopDescription != ""
+}
+
+func (pq *pointsQuery) metricID() int32 {
+	if v := pq.singleMetric(); v != nil {
+		return v.MetricID
+	}
+	return 0
+}
+
+func (pq *pointsQuery) preKeyTagID() string {
+	if v := pq.singleMetric(); v != nil {
+		return v.PreKeyTagID
+	}
+	return ""
+}
+
+func (pq *pointsQuery) preKeyTagX() int {
+	if v := pq.singleMetric(); v != nil {
+		return format.TagIndex(v.PreKeyTagID)
+	}
+	return -1
+}
+
+func (pq *pointsQuery) singleMetric() *format.MetricMetaValue {
+	if pq.metric != nil {
+		return pq.metric
+	}
+	if len(pq.filterIn.Metrics) == 1 {
+		return pq.filterIn.Metrics[0]
+	}
+	return nil
+}
+
+func (pq *preparedTagValuesQuery) metricID() int32 {
+	if v := pq.singleMetric(); v != nil {
+		return v.MetricID
+	}
+	return 0
+}
+
+func (pq *preparedTagValuesQuery) preKeyTagID() string {
+	if v := pq.singleMetric(); v != nil {
+		return v.PreKeyTagID
+	}
+	return ""
+}
+
+func (pq *preparedTagValuesQuery) preKeyTagX() int {
+	if v := pq.singleMetric(); v != nil {
+		return format.TagIndex(v.PreKeyTagID)
+	}
+	return -1
+}
+
+func (pq *preparedTagValuesQuery) singleMetric() *format.MetricMetaValue {
+	if pq.metric != nil {
+		return pq.metric
+	}
+	if len(pq.filterIn.Metrics) == 1 {
+		return pq.filterIn.Metrics[0]
+	}
+	return nil
 }
 
 func sqlAggFn(version string, fn string) string {
@@ -755,12 +817,13 @@ func (s *stringFixed) String() string {
 func (pq *pointsQuery) preKeyTableName(lod data_model.LOD) string {
 	var usePreKey bool
 	if lod.HasPreKey {
+		preKeyTagX := pq.preKeyTagX()
 		usePreKey = lod.PreKeyOnly ||
-			pq.filterIn.Contains(pq.preKeyTagX) ||
-			pq.filterNotIn.Contains(pq.preKeyTagX)
+			pq.filterIn.Contains(preKeyTagX) ||
+			pq.filterNotIn.Contains(preKeyTagX)
 		if !usePreKey {
 			for _, v := range pq.by {
-				if v == format.TagID(pq.preKeyTagX) {
+				if v == pq.preKeyTagID() {
 					usePreKey = true
 					break
 				}
@@ -774,11 +837,12 @@ func (pq *pointsQuery) preKeyTableName(lod data_model.LOD) string {
 }
 
 func (pq *preparedTagValuesQuery) preKeyTableName(lod data_model.LOD) string {
+	preKeyTagX := pq.preKeyTagX()
 	usePreKey := (lod.HasPreKey &&
 		(lod.PreKeyOnly ||
-			(pq.tagID != "" && pq.tagID == pq.preKeyTagID) ||
-			pq.filterIn.Contains(pq.preKeyTagX) ||
-			pq.filterNotIn.Contains(pq.preKeyTagX)))
+			(pq.tagID != "" && pq.tagID == pq.preKeyTagID()) ||
+			pq.filterIn.Contains(preKeyTagX) ||
+			pq.filterNotIn.Contains(preKeyTagX)))
 	if usePreKey {
 		return preKeyTableNames[lod.Table]
 	}

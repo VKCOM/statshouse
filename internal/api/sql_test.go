@@ -16,9 +16,8 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-const metricID = 1000
 const utcOffset = 3600 * 3 // GMT+3
-
+var metric = &format.MetricMetaValue{MetricID: 1000}
 var location = time.FixedZone("MSK", utcOffset)
 
 func getLod(t *testing.T, version string) data_model.LOD {
@@ -41,7 +40,7 @@ func getLod(t *testing.T, version string) data_model.LOD {
 func TestTagValuesQueryV2(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		metricID:   metricID,
+		metric:     metric,
 		tagID:      "2",
 		numResults: 5,
 	}
@@ -60,7 +59,7 @@ func TestTagValuesQueryV2(t *testing.T) {
 func TestTagValuesQueryV2_stringTop(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		metricID:   metricID,
+		metric:     metric,
 		tagID:      format.StringTopTagID,
 		numResults: 5,
 	}
@@ -79,7 +78,7 @@ func TestTagValuesQueryV2_stringTop(t *testing.T) {
 func TestTagValuesQueryV3(t *testing.T) {
 	// prepare
 	pq := &preparedTagValuesQuery{
-		metricID:   metricID,
+		metric:     metric,
 		tagID:      "2",
 		numResults: 5,
 	}
@@ -99,10 +98,9 @@ func TestTagValuesQueryV3(t *testing.T) {
 func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
 	pq := pointsQuery{
-		metricID:    metricID,
-		user:        "test-user",
-		isStringTop: false,
-		kind:        data_model.DigestCountSec.Kind(false),
+		metric: metric,
+		user:   "test-user",
+		kind:   data_model.DigestCountSec.Kind(false),
 	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
@@ -123,10 +121,9 @@ func TestLoadPointsQueryV2(t *testing.T) {
 func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// prepare
 	pq := pointsQuery{
-		metricID:    metricID,
-		user:        "test-user",
-		isStringTop: false,
-		kind:        data_model.DigestCountSec.Kind(true),
+		metric: metric,
+		user:   "test-user",
+		kind:   data_model.DigestCountSec.Kind(true),
 	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
@@ -147,10 +144,9 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 func TestLoadPointsQueryV3(t *testing.T) {
 	// prepare
 	pq := pointsQuery{
-		metricID:    metricID,
-		user:        "test-user",
-		isStringTop: false,
-		kind:        data_model.DigestCountSec.Kind(false),
+		metric: metric,
+		user:   "test-user",
+		kind:   data_model.DigestCountSec.Kind(false),
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
@@ -171,10 +167,9 @@ func TestLoadPointsQueryV3(t *testing.T) {
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
 	pq := pointsQuery{
-		metricID:    metricID,
-		user:        "test-user",
-		isStringTop: false,
-		kind:        data_model.DigestCountSec.Kind(true),
+		metric: metric,
+		user:   "test-user",
+		kind:   data_model.DigestCountSec.Kind(true),
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
