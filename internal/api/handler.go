@@ -853,25 +853,6 @@ func (h *requestHandler) doSelect(ctx context.Context, meta util.QueryMetaInto, 
 	return err
 }
 
-func (r *requestHandler) effectiveVersion(version string) string {
-	switch version {
-	case "", Version2:
-		return r.version()
-	default:
-		return version
-	}
-}
-
-func (r *requestHandler) version() string {
-	if r.forceVersion != "" {
-		return r.forceVersion
-	}
-	if r.versionDice != nil {
-		return r.versionDice()
-	}
-	return Version3
-}
-
 func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
 	if metricID == format.TagValueIDUnspecified {
 		return format.CodeTagValue(format.TagValueIDUnspecified), nil
@@ -1799,7 +1780,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		return nil, false, err
 	}
 
-	version := h.version()
+	version := h.version
 	err = validateQuery(metricMeta, version)
 	if err != nil {
 		return nil, false, err
@@ -2114,9 +2095,8 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			user:       h.endpointStat.user,
 			priority:   h.endpointStat.priority,
 		},
-		debug:        h.debug,
-		forceVersion: h.forceVersion,
-		versionDice:  h.versionDice,
+		debug:   h.debug,
+		version: h.version,
 		query: promql.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
@@ -3384,18 +3364,16 @@ func pprofAccessAllowed(h *httpRequestHandler) bool {
 
 func (h *requestHandler) init(accessToken, version string) (err error) {
 	switch version {
-	case Version1, Version3:
-		h.requestVersion = version
-		h.forceVersion = version
-	case Version2, "":
-		h.requestVersion = Version2
-		h.versionDice = sync.OnceValue(func() string {
-			if rand.Float64() < h.Handler.Version3Prob.Load() {
-				return Version3
-			} else {
-				return Version2
-			}
-		})
+	case Version1:
+		h.version = Version1
+	case Version2:
+		if rand.Float64() < h.Handler.Version3Prob.Load() {
+			h.version = Version3
+		} else {
+			h.version = Version2
+		}
+	case Version3, "":
+		h.version = Version3
 	default:
 		return fmt.Errorf("invalid version: %q", version)
 	}

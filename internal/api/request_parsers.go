@@ -486,7 +486,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 	// parse dependent paramemeters
 	var (
 		finalize = func(t *seriesRequestEx) error {
-			t.version = r.effectiveVersion(t.version)
+			t.version = r.version
 			numResultsMax := maxSeries
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)

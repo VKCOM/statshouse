@@ -123,6 +123,9 @@ func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.Hand
 		err = fmt.Errorf("failed to deserialize statshouseApi.GetQueryPoint request: %w", err)
 		return err
 	}
+	if err = h.init(args.AccessToken, args.Query.Version); err != nil {
+		return err
+	}
 	qry := seriesRequestRPC{
 		filter:      args.Query.Filter,
 		function:    args.Query.Function,
@@ -349,7 +352,7 @@ func (h *rpcRequestHandler) rawReleaseChunks(ctx context.Context, hctx *rpc.Hand
 
 func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesRequest, error) {
 	req := seriesRequest{
-		version:    h.version(),
+		version:    h.version,
 		numResults: int(qry.topN),
 		metricName: qry.metricName,
 		from:       time.Unix(qry.timeFrom, 0),

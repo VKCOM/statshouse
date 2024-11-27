@@ -37,7 +37,7 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:   r.version(),
+			Version:   r.version,
 			Mode:      data_model.InstantQuery,
 			Compat:    true,
 			TimeNow:   time.Now().Unix(),
@@ -73,7 +73,7 @@ func HandleRangeQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:   r.version(),
+			Version:   r.version,
 			Compat:    true,
 			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 		},
@@ -140,7 +140,7 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					End:   end,
 					Expr:  expr,
 					Options: promql.Options{
-						Version:       r.version(),
+						Version:       r.version,
 						Version3Start: r.Version3Start.Load(),
 						Limit:         1000,
 						Mode:          data_model.TagsQuery,
@@ -215,7 +215,7 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							End:   end,
 							Expr:  expr,
 							Options: promql.Options{
-								Version:       r.version(),
+								Version:       r.version,
 								Version3Start: r.Version3Start.Load(),
 								Limit:         1000,
 								Mode:          data_model.TagsQuery,
@@ -459,7 +459,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		var tx int // time index
 		for _, lod := range lods {
 			pq := pointsQuery{
-				version:     h.requestVersion,
+				version:     h.version,
 				user:        h.accessInfo.user,
 				metricID:    qry.Metric.MetricID,
 				preKeyTagX:  format.TagIndex(qry.Metric.PreKeyTagID),
