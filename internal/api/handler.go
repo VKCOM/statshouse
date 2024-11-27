@@ -3364,16 +3364,14 @@ func pprofAccessAllowed(h *httpRequestHandler) bool {
 
 func (h *requestHandler) init(accessToken, version string) (err error) {
 	switch version {
-	case Version1:
-		h.version = Version1
-	case Version2:
+	case Version1, Version3:
+		h.version = version
+	case Version2, "":
 		if rand.Float64() < h.Handler.Version3Prob.Load() {
 			h.version = Version3
 		} else {
 			h.version = Version2
 		}
-	case Version3, "":
-		h.version = Version3
 	default:
 		return fmt.Errorf("invalid version: %q", version)
 	}
