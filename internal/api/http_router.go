@@ -226,8 +226,8 @@ func DumpQueryTopDuration(r *httpRequestHandler) {
 		}
 		w.Write([]byte(v.expr))
 		w.Write([]byte(fmt.Sprintf(
-			"\n# duration=%v token=%s proto=%s\n\n",
-			v.duration, v.user, protocol)))
+			"\n# duration=%v from=%d to=%d range=%d token=%s proto=%s\n\n",
+			v.duration, v.start, v.end, v.end-v.start, v.user, protocol)))
 	}
 }
 
