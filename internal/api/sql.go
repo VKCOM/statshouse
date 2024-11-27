@@ -60,7 +60,7 @@ func (pq *pointsQuery) cacheKey() string {
 	case Version1:
 		sb.WriteString(Version1)
 	default:
-		sb.WriteString(Version3)
+		sb.WriteString(Version2)
 	}
 	sb.WriteString(";m=")
 	sb.WriteString(fmt.Sprint(pq.metricID))

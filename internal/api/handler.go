@@ -138,6 +138,7 @@ const (
 	cacheInvalidateCheckInterval = 1 * time.Second
 	cacheInvalidateCheckTimeout  = 5 * time.Second
 	cacheInvalidateMaxRows       = 100_000
+	cacheDefaultDropEvery        = 90 * time.Second
 
 	queryClientCache               = 1 * time.Second
 	queryClientCacheStale          = 9 * time.Second // ~ v2 lag
@@ -629,7 +630,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
-	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
+	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints, cacheDefaultDropEvery)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
@@ -786,7 +787,7 @@ SETTINGS
 		IsLight: true,
 		User:    "cache-update",
 		Metric:  format.BuiltinMetricIDContributorsLog,
-		Table:   _1sTableSH3,
+		Table:   _1sTableSH2,
 		Kind:    "cache-update",
 	}, Version2, ch.Query{
 		Body: queryBody,
@@ -805,7 +806,7 @@ SETTINGS
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range data_model.LODTables[Version3] {
+				for lodLevel := range data_model.LODTables[Version2] {
 					t := roundTime(r.At, lodLevel, h.utcOffset)
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
@@ -869,7 +870,7 @@ func (r *requestHandler) version() string {
 	if r.versionDice != nil {
 		return r.versionDice()
 	}
-	return Version3
+	return Version2
 }
 
 func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
