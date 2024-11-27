@@ -23,6 +23,7 @@ type preparedTagValuesQuery struct {
 	numResults  int
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
+	strcmpOff   bool // version 3 experimental
 }
 
 func (q *preparedTagValuesQuery) stringTag() bool {
@@ -38,6 +39,7 @@ type pointsQuery struct {
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
 	sort        pointsQuerySort // for table view requests
+	strcmpOff   bool            // version 3 experimental
 }
 
 type pointsQuerySort int
@@ -230,8 +232,8 @@ func (pq *preparedTagValuesQuery) tagValuesQueryV3(lod data_model.LOD) (string, 
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	writeTagCond(&sb, pq.filterIn, true)
-	writeTagCond(&sb, pq.filterNotIn, false)
+	writeTagCond(&sb, pq.filterIn, true, pq.strcmpOff)
+	writeTagCond(&sb, pq.filterNotIn, false, pq.strcmpOff)
 	sb.WriteString(" GROUP BY _mapped,_unmapped HAVING _count>0 ORDER BY _count,_mapped,_unmapped DESC LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
@@ -255,8 +257,8 @@ func (pq *preparedTagValuesQuery) tagValueIDsQueryV3(lod data_model.LOD) (string
 	sb.WriteString(pq.preKeyTableName(lod))
 	writeWhereTimeFilter(&sb, &lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	writeTagCond(&sb, pq.filterIn, true)
-	writeTagCond(&sb, pq.filterNotIn, false)
+	writeTagCond(&sb, pq.filterIn, true, pq.strcmpOff)
+	writeTagCond(&sb, pq.filterNotIn, false, pq.strcmpOff)
 	sb.WriteString(" GROUP BY _mapped HAVING _count>0 ORDER BY _count,_mapped DESC LIMIT ")
 	sb.WriteString(fmt.Sprint(pq.numResults + 1))
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
@@ -266,7 +268,7 @@ func (pq *preparedTagValuesQuery) tagValueIDsQueryV3(lod data_model.LOD) (string
 	return sb.String(), cols
 }
 
-func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
+func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool, strcmpOff bool) {
 	var sep, predicate string
 	if in {
 		sep, predicate = " OR ", " IN "
@@ -313,44 +315,46 @@ func writeTagCond(sb *strings.Builder, f data_model.TagFilters, in bool) {
 			sb.WriteString(")")
 		}
 		// not mapped
-		if filter.Re2 != "" {
-			if started {
-				sb.WriteString(sep)
-			} else {
-				started = true
-			}
-			if !in {
-				sb.WriteString("NOT ")
-			}
-			sb.WriteString("match(")
-			sb.WriteString(unmappedColumnNameV3(tagID))
-			sb.WriteString(",'")
-			sb.WriteString(escapeReplacer.Replace(filter.Re2))
-			sb.WriteString("')")
-		} else if hasValue {
-			hasValue = false
-			for _, v := range filter.Values {
-				if v.Empty() {
-					continue
+		if !strcmpOff {
+			if filter.Re2 != "" {
+				if started {
+					sb.WriteString(sep)
+				} else {
+					started = true
 				}
-				if v.HasValue() {
-					if !hasValue {
-						if started {
-							sb.WriteString(sep)
-						} else {
-							started = true
-						}
-						sb.WriteString(unmappedColumnNameV3(tagID))
-						sb.WriteString(predicate)
-						sb.WriteString("('")
-						hasValue = true
-					} else {
-						sb.WriteString("','")
+				if !in {
+					sb.WriteString("NOT ")
+				}
+				sb.WriteString("match(")
+				sb.WriteString(unmappedColumnNameV3(tagID))
+				sb.WriteString(",'")
+				sb.WriteString(escapeReplacer.Replace(filter.Re2))
+				sb.WriteString("')")
+			} else if hasValue {
+				hasValue = false
+				for _, v := range filter.Values {
+					if v.Empty() {
+						continue
 					}
-					sb.WriteString(escapeReplacer.Replace(v.Value))
+					if v.HasValue() {
+						if !hasValue {
+							if started {
+								sb.WriteString(sep)
+							} else {
+								started = true
+							}
+							sb.WriteString(unmappedColumnNameV3(tagID))
+							sb.WriteString(predicate)
+							sb.WriteString("('")
+							hasValue = true
+						} else {
+							sb.WriteString("','")
+						}
+						sb.WriteString(escapeReplacer.Replace(v.Value))
+					}
 				}
+				sb.WriteString("')")
 			}
-			sb.WriteString("')")
 		}
 		// empty
 		if hasEmpty {
@@ -595,8 +599,8 @@ func (pq *pointsQuery) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, us
 	writeWhereTimeFilter(&sb, &lod)
 	sb.WriteString(" AND index_type=0")
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	writeTagCond(&sb, pq.filterIn, true)
-	writeTagCond(&sb, pq.filterNotIn, false)
+	writeTagCond(&sb, pq.filterIn, true, pq.strcmpOff)
+	writeTagCond(&sb, pq.filterNotIn, false, pq.strcmpOff)
 	sb.WriteString(" GROUP BY _time")
 	for _, b := range pq.by {
 		if b != format.StringTopTagID {

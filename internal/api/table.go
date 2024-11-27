@@ -68,6 +68,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				filterIn:    tableReqParams.mappedFilterIn,
 				filterNotIn: tableReqParams.mappedFilterNotIn,
 				sort:        req.tableSort(),
+				strcmpOff:   h.Version3StrcmpOff.Load(),
 			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
 				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),

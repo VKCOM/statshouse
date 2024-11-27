@@ -43,6 +43,7 @@ func TestTagValuesQueryV2(t *testing.T) {
 		metric:     metric,
 		tagID:      "2",
 		numResults: 5,
+		strcmpOff:  true,
 	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)

@@ -174,8 +174,9 @@ type (
 	}
 
 	Handler struct {
-		Version3Start atomic.Int64
-		Version3Prob  atomic.Float64
+		Version3Start     atomic.Int64
+		Version3Prob      atomic.Float64
+		Version3StrcmpOff atomic.Bool
 
 		HandlerOptions
 		showInvisible         bool
@@ -645,6 +646,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
+		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 	})
 	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -1839,6 +1841,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		numResults:  numResults,
 		filterIn:    mappedFilterIn,
 		filterNotIn: mappedFilterNotIn,
+		strcmpOff:   h.Version3StrcmpOff.Load(),
 	}
 
 	tagInfo := map[selectRow]float64{}

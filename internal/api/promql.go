@@ -466,6 +466,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				by:          qry.GroupBy,
 				filterIn:    qry.FilterIn,
 				filterNotIn: qry.FilterNotIn,
+				strcmpOff:   h.Version3StrcmpOff.Load(),
 			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
@@ -652,6 +653,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 			metric:     qry.Metric,
 			tagID:      format.TagID(qry.TagIndex),
 			numResults: math.MaxInt - 1,
+			strcmpOff:  h.Version3StrcmpOff.Load(),
 		}
 		tags = make(map[int32]bool)
 	)
@@ -691,6 +693,7 @@ func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValue
 			metric:     qry.Metric,
 			tagID:      format.StringTopTagID,
 			numResults: math.MaxInt - 1,
+			strcmpOff:  h.Version3StrcmpOff.Load(),
 		}
 		tags = make(map[string]bool)
 	)
