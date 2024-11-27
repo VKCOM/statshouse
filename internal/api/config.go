@@ -12,6 +12,7 @@ type Config struct {
 	ApproxCacheMaxSize int
 	Version3Start      int64
 	Version3Prob       float64
+	Version3StrcmpOff  bool
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -28,6 +29,7 @@ func (argv *Config) Bind(pflag *pflag.FlagSet, defaultI config.Config) {
 	pflag.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
 	pflag.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
 	pflag.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
+	pflag.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
 }
 
 func DefaultConfig() *Config {
