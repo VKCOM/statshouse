@@ -83,12 +83,12 @@ function readLegend(u: uPlot): LegendItem[] {
       if (idx / u.data[index].length < 0.9) {
         deltaTime = ((u.data?.[0] && u.data[0][idx]) ?? 0) - xMax;
       }
-      if (index === 0) {
-        lastTime =
-          (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)
-            ?.toString()
-            .replace('--', '') ?? ''; // replace '--' uplot
-      }
+    }
+    if (idx != null && index === 0) {
+      lastTime =
+        (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)
+          ?.toString()
+          .replace('--', '') ?? ''; // replace '--' uplot
     }
     return {
       label: s.label ?? '',
