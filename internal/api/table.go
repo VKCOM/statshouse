@@ -62,10 +62,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			pq := pointsQuery{
 				version:     h.version,
 				user:        tableReqParams.user,
-				metricID:    metricMeta.MetricID,
-				preKeyTagX:  format.TagIndex(metricMeta.PreKeyTagID),
-				preKeyTagID: metricMeta.PreKeyTagID,
-				isStringTop: tableReqParams.isStringTop,
+				metric:      metricMeta,
 				kind:        kind,
 				by:          req.by,
 				filterIn:    tableReqParams.mappedFilterIn,

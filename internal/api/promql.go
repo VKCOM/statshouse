@@ -461,9 +461,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 			pq := pointsQuery{
 				version:     h.version,
 				user:        h.accessInfo.user,
-				metricID:    qry.Metric.MetricID,
-				preKeyTagX:  format.TagIndex(qry.Metric.PreKeyTagID),
-				preKeyTagID: qry.Metric.PreKeyTagID,
+				metric:      qry.Metric,
 				kind:        kind,
 				by:          qry.GroupBy,
 				filterIn:    qry.FilterIn,
@@ -651,11 +649,9 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	var (
 		pq = &preparedTagValuesQuery{
-			metricID:    qry.Metric.MetricID,
-			preKeyTagX:  format.TagIndex(qry.Metric.PreKeyTagID),
-			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.TagID(qry.TagIndex),
-			numResults:  math.MaxInt - 1,
+			metric:     qry.Metric,
+			tagID:      format.TagID(qry.TagIndex),
+			numResults: math.MaxInt - 1,
 		}
 		tags = make(map[int32]bool)
 	)
@@ -692,11 +688,9 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	var (
 		pq = &preparedTagValuesQuery{
-			metricID:    qry.Metric.MetricID,
-			preKeyTagX:  format.TagIndex(qry.Metric.PreKeyTagID),
-			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.StringTopTagID,
-			numResults:  math.MaxInt - 1,
+			metric:     qry.Metric,
+			tagID:      format.StringTopTagID,
+			numResults: math.MaxInt - 1,
 		}
 		tags = make(map[string]bool)
 	)
