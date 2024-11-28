@@ -232,6 +232,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		},
 		RawSendKeepAlive2:    a.handleSendKeepAlive2,
 		RawSendSourceBucket2: a.handleSendSourceBucket2,
+		RawSendSourceBucket3: a.handleSendSourceBucket3,
 		RawTestConnection2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.testConnection.handleTestConnection(ctx, hctx)
 		},
@@ -656,14 +657,22 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		// In case both inserters finish at the same time, this rolling algorithm will perform non-ideal insert, but that is good enough for us.
 		// Note: Each historic second in the diagram is aggregation of many agents , each one receiving copy of the response
 		// Note: In the worst case, amount of memory is approx. MaxHistorySendStreams * agent insert budget per shard * # of agents
-		var args tlstatshouse.SendSourceBucket2 // Dummy
+		var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
+		var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 
 		for willInsertHistoric && len(aggBuckets) < 1+maxHistoricInsertBatch {
 			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
 			for _, b := range staleBuckets {
 				b.mu.Lock()
 				for hctx := range b.contributors {
-					hctx.Response, _ = args.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
+					switch hctx.RequestTag() {
+					case ssb3.TLTag():
+						hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
+							Error: "Successfully discarded historic bucket later beyond historic window",
+						})
+					case ssb2.TLTag():
+						hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
+					}
 					hctx.SendHijackedResponse(nil)
 				}
 				for hctx := range b.contributors { // compiles into map_clear
@@ -735,7 +744,14 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		for i, b := range aggBuckets {
 			b.mu.Lock()
 			for hctx := range b.contributors {
-				hctx.Response, _ = args.WriteResult(hctx.Response, "Dummy historic result")
+				switch hctx.RequestTag() {
+				case ssb3.TLTag():
+					hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
+						Error: "Dummy historic result",
+					})
+				case ssb2.TLTag():
+					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
+				}
 				hctx.SendHijackedResponse(sendErr)
 			}
 			for hctx := range b.contributors { // compiles into map_clear
