@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -420,11 +419,6 @@ func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags
 				res[v.ID] = append(res[v.ID], s[i])
 			}
 		}
-	}
-	for _, v := range res {
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Selector < v[j].Selector
-		})
 	}
 	return res, nil
 }
