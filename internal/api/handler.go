@@ -1376,7 +1376,7 @@ func HandleGetKnownTags(h *httpRequestHandler) {
 		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	var res map[string]aggregator.KnownTagsJSON
+	var res []aggregator.SelectorTags
 	err := json.Unmarshal([]byte(h.metricsStorage.KnownTags().Data), &res)
 	if err != nil {
 		respondJSON(h, nil, 0, 0, err)
