@@ -37,6 +37,8 @@ import {
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from 'components/UPlotWrapper';
+import { TestPlot } from './TestPlot';
+import { TestPlot222 } from './TestPlot222';
 
 const rightPad = 16;
 
@@ -143,8 +145,12 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       return metricUnit;
     }
 
+    if (isLogScale) {
+      return METRIC_TYPE.none;
+    }
+
     return getMetricType(plotDataWhat?.length ? plotDataWhat : plotWhat, metricUnitData);
-  }, [metricUnit, metricUnitData, plotDataWhat, plotWhat]);
+  }, [metricUnit, metricUnitData, plotDataWhat, plotWhat, isLogScale]);
 
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
@@ -196,34 +202,47 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           grid: grid,
           ticks: grid,
           // values: (_, splits) => splits.map(formatByMetricType(metricType)),
-          values: (_, splits) => {
+          values: (self: uPlot, splits: number[], axisIdx: number, foundSpace: number, foundIncr: number) => {
+            console.log('--foundIncr', foundIncr);
             console.log('----splits', splits);
+            console.log('----foundSpace', foundSpace);
+            console.log('----axisIdx', axisIdx);
+            console.log('----self', self);
             const result = splits.map((v) => {
+              // if (v === null) {
+              //   return '0';
+              // }
               return formatByMetricType(metricType)(v);
             });
-            console.log('----result', result);
+
             return result;
           },
 
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          // splits:
-          //   metricType === METRIC_TYPE.none && !isLogScale ? undefined : splitByMetricType(metricType, isLogScale),
+          // splits: metricType === METRIC_TYPE.none || isLogScale ? undefined : splitByMetricType(metricType, isLogScale),
+          ////TEST SPLITS
+          // splits: (self, axisIdx, scaleMin, scaleMax, foundIncr, foundSpace) => {
+          //   const baseSplits = splitByMetricType(metricType, isLogScale)(
+          //     self,
+          //     axisIdx,
+          //     scaleMin,
+          //     scaleMax,
+          //     foundIncr,
+          //     foundSpace
+          //   );
+          //   console.log('baseSplits', baseSplits);
+          //   console.log(
+          //     'returned baseSplits',
+          //     baseSplits.filter((v)e => v !== null)
+          //   );
+          //   // return [-1000, -100, 0, 100, 1000];
+          //   return baseSplits.filter((v) => v !== null); // Удаляем null
+          // },
 
-          splits: (
-            self: uPlot,
-            axisIdx: number,
-            scaleMin: number,
-            scaleMax: number,
-            foundIncr: number,
-            foundSpace: number
-          ) => {
-            console.log('---foundIncr', foundIncr);
-            return [1, 200000, 400000, 600000, 800000, 1000000];
-          },
-
-          incrs: isLogScale ? incrsLog2 : incrs,
+          // incrs: isLogScale ? incrsLog2 : incrs,
+          incrs,
         },
       ],
       scales: {
@@ -231,28 +250,32 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         y: {
           distr: isLogScale ? 100 : 1,
           fwd: (v) => {
-            if (Math.abs(v) <= 0) {
-              return v;
+            if (v === 0) {
+              return 0;
             }
             if (v < 0) {
-              return -Math.log2(Math.abs(v) + 1);
+              return -Math.log2(-v + 1);
             }
             return Math.log2(v + 1);
           },
           bwd: (v) => {
-            if (Math.abs(v) <= 0) {
-              return v;
+            if (v === 0) {
+              return 0;
             }
             if (v < 0) {
-              return -(Math.pow(2, Math.abs(v)) - 1);
+              const result = -(Math.pow(2, -v) - 1);
+              return result > -Infinity ? result : -1; // Защита от некорректных значений
             }
-            return Math.pow(2, v) - 1;
+            const result = Math.pow(2, v) - 1;
+            return result < Infinity ? result : 1; // Защита от переполнения
           },
 
           auto: () => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
+
             if (min !== 0 || max !== 0) {
               return [min, max];
             }
@@ -261,11 +284,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           },
         },
       },
-      series: [
-        {
-          value: dateRangeFormat, //'{DD}/{MM}/{YY} {H}:{mm}:{ss}',
-        },
-      ],
+      // series: [
+      //   {
+      //     value: dateRangeFormat, //'{DD}/{MM}/{YY} {H}:{mm}:{ss}', // мб оставить ток для линейного
+      //   },
+      // ],
       legend: {
         show: false,
         live: true, //!compact,
@@ -274,6 +297,16 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         },
       },
       plugins: [pluginEventOverlay],
+      series: [
+        { label: 'X-Axis' },
+        {
+          label: 'Values',
+          stroke: 'blue',
+          width: 2,
+        },
+      ],
+      width: 800,
+      height: 1000,
     };
   }, [
     compact,
@@ -323,20 +356,6 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     }
     return res;
   }, [timeRangeFrom, timeRangeTo, yLock]);
-
-  //тест для log2 distr3 что бы не было нулем
-  // const scales = useMemo<UPlotWrapperPropsScales>(() => {
-  //   const res: UPlotWrapperPropsScales = {};
-  //   res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
-  //   if (yLock && (yLock.min !== 0 || yLock.max !== 0)) {
-  //     if (isLogScale && yLock.min <= 0) {
-  //       res.y = { max: yLock.max, min: 1 }; ////////// уже возможно не актуально с кастомной шкалой
-  //     } else {
-  //       res.y = { ...yLock };
-  //     }
-  //   }
-  //   return res;
-  // }, [timeRangeFrom, timeRangeTo, yLock, isLogScale]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
 
@@ -390,14 +409,29 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     [fixHeight, isDashboard]
   );
 
-  const testValue = 200000;
+  const dataResultTest: any = useMemo(() => {
+    if (!dataView) {
+      return [];
+    }
 
-  const fwdResult = opts?.scales?.y?.fwd && opts.scales.y.fwd(testValue);
+    const yValues = Array.from({ length: 1000 }, (_, i) => -500 + (i * 1000) / 999); // От -500 до 500
 
-  const bwdResult = opts?.scales?.y.bwd && opts.scales?.y?.bwd(fwdResult!);
+    const data = [dataView[0], yValues];
 
-  console.log('fwd(200000):', fwdResult);
-  console.log('bwd(200000):', bwdResult);
+    return data;
+  }, [dataView]);
+
+  const dataResultTest22: any = useMemo(() => {
+    if (!dataView) {
+      return [];
+    }
+
+    const yValues = Array.from({ length: 1000 }, (_, i) => -500 + (i * 1000) / 999); // От -500 до 500
+    const yValues2 = Array.from({ length: 10 }, (_, i) => -50 + (i * 100) / 999); // От -500 до 500
+    const data = [dataView[0], yValues2];
+
+    return data;
+  }, [dataView]);
 
   return (
     <div
@@ -455,26 +489,33 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
               Access denied
             </div>
           ) : (
-            <UPlotWrapper
-              opts={opts}
-              data={dataView}
-              series={series}
-              scales={scales}
-              onReady={onReady}
-              onSetSelect={onSetSelect}
-              onUpdatePreview={onUpdatePreview}
-              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
-              onUpdateLegend={onUpdateLegend}
-            >
-              <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
-                <PlotEventOverlay
-                  plotKey={plotKey}
-                  hooks={pluginEventOverlayHooks}
-                  flagHeight={Math.min(topPad, 10)}
-                  compact={compact}
-                />
-              </UPlotPluginPortal>
-            </UPlotWrapper>
+            <div>
+              {/* <div style={{ marginTop: '2000px' }}> */}
+              {/* <TestPlot222 opts={opts} data={dataResultTest22} /> */}
+              <TestPlot opts={opts} data={dataResultTest} />
+              {/* </div> */}
+              {/* <UPlotWrapper
+                opts={opts}
+                // data={dataView}
+                data={dataResultTest}
+                series={series}
+                scales={scales}
+                onReady={onReady}
+                onSetSelect={onSetSelect}
+                onUpdatePreview={onUpdatePreview}
+                className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
+                onUpdateLegend={onUpdateLegend}
+              >
+                <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
+                  <PlotEventOverlay
+                    plotKey={plotKey}
+                    hooks={pluginEventOverlayHooks}
+                    flagHeight={Math.min(topPad, 10)}
+                    compact={compact}
+                  />
+                </UPlotPluginPortal>
+              </UPlotWrapper> */}
+            </div>
           )}
         </div>
         {!error403 && (

@@ -268,71 +268,71 @@ export function splitByMetricType(metricType: MetricType, isLogScale?: boolean) 
 
     ////// ТЕСТ ВЕРСИЯ
 
-    function calcLog2Splits(min: number, max: number, incr: number): number[] {
-      const result: Set<number> = new Set();
-      console.log('ARGS', min, max, incr);
+    // function calcLog2Splits(min: number, max: number, incr: number): number[] {
+    //   const result: Set<number> = new Set();
+    //   console.log('ARGS', min, max, incr);
 
-      // Начальное значение
-      let currentValue = min < 0 ? -1 : 1;
+    //   // Начальное значение
+    //   let currentValue = min < 0 ? -1 : 1;
 
-      // Добавляем начальное значение в результат
-      result.add(currentValue);
+    //   // Добавляем начальное значение в результат
+    //   result.add(currentValue);
 
-      // Находим коэффициент увеличения (базовый шаг)
-      let step = Math.max(incr, 2);
+    //   // Находим коэффициент увеличения (базовый шаг)
+    //   let step = Math.max(incr, 2);
 
-      // Если диапазон включает отрицательные значения
-      if (min < 0) {
-        let negValue = -1;
+    //   // Если диапазон включает отрицательные значения
+    //   if (min < 0) {
+    //     let negValue = -1;
 
-        while (negValue >= min - incr * 2) {
-          negValue *= step; // Умножаем отрицательное значение на шаг
-          if (negValue >= min - incr * 2 && negValue <= max) {
-            result.add(Math.round(negValue)); // Добавляем в результат
-          }
-          step = 2; // Логарифмическое увеличение
-        }
-      }
+    //     while (negValue >= min - incr * 2) {
+    //       negValue *= step; // Умножаем отрицательное значение на шаг
+    //       if (negValue >= min - incr * 2 && negValue <= max) {
+    //         result.add(Math.round(negValue)); // Добавляем в результат
+    //       }
+    //       step = 2; // Логарифмическое увеличение
+    //     }
+    //   }
 
-      // Если диапазон включает положительные значения
-      if (max > 0) {
-        currentValue = 1; // Начинаем с 1 для положительных чисел
-        step = Math.max(incr, 2);
+    //   // Если диапазон включает положительные значения
+    //   if (max > 0) {
+    //     currentValue = 1; // Начинаем с 1 для положительных чисел
+    //     step = Math.max(incr, 2);
 
-        while (currentValue <= max + incr * 2) {
-          currentValue *= step; // Умножаем положительное значение на шаг
-          if (currentValue >= min && currentValue <= max + incr * 2) {
-            result.add(Math.round(currentValue)); // Добавляем в результат
-          }
-          step = 2; // Логарифмическое увеличение
-        }
-      }
+    //     while (currentValue <= max + incr * 2) {
+    //       currentValue *= step; // Умножаем положительное значение на шаг
+    //       if (currentValue >= min && currentValue <= max + incr * 2) {
+    //         result.add(Math.round(currentValue)); // Добавляем в результат
+    //       }
+    //       step = 2; // Логарифмическое увеличение
+    //     }
+    //   }
 
-      // Переводим Set в массив и сортируем его
-      const resultArr = Array.from(result).sort((a, b) => a - b);
+    //   // Переводим Set в массив и сортируем его
+    //   const resultArr = Array.from(result).sort((a, b) => a - b);
 
-      // Проверяем, что последний элемент массива равен max и больше предыдущего на хотя бы incr
-      if (
-        resultArr[resultArr.length - 1] !== max ||
-        resultArr[resultArr.length - 1] - resultArr[resultArr.length - 2] < incr
-      ) {
-        // Если последний элемент не равен max или меньше на incr, добавляем шаг до max
-        const lastValue = resultArr[resultArr.length - 2];
-        const newValue = lastValue + incr;
-        if (newValue <= max) {
-          resultArr[resultArr.length - 1] = max;
-        }
-      }
+    //   // Проверяем, что последний элемент массива равен max и больше предыдущего на хотя бы incr
+    //   if (
+    //     resultArr[resultArr.length - 1] !== max ||
+    //     resultArr[resultArr.length - 1] - resultArr[resultArr.length - 2] < incr
+    //   ) {
+    //     // Если последний элемент не равен max или меньше на incr, добавляем шаг до max
+    //     const lastValue = resultArr[resultArr.length - 2];
+    //     const newValue = lastValue + incr;
+    //     if (newValue <= max) {
+    //       resultArr[resultArr.length - 1] = max;
+    //     }
+    //   }
 
-      return resultArr;
-    }
+    //   return resultArr;
+    // }
 
-    if (isLogScale) {
-      // Логарифмическая шкала
-      splits = calcLog2Splits(scaleMin, scaleMax, foundIncr);
-      console.log('-----foundIncr', foundIncr);
-      return splits;
-    }
+    // if (isLogScale) {
+    //   // Логарифмическая шкала
+    //   splits = calcLog2Splits(scaleMin, scaleMax, foundIncr);
+    //   console.log('-----foundIncr', foundIncr);
+    //   return splits;
+    // }
 
     const conf = suffixesByMetricType[metricType];
     let base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
