@@ -602,11 +602,13 @@ func mainPublishTagDrafts() {
 		metadataNet     string
 		metadataAddr    string
 		metadataActorID int64
+		dryRun          bool
 	)
 	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
 	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
 	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+	flag.BoolVar(&dryRun, "dry-run", true, "do not publish changes")
 	build.FlagParseShowVersionHelp()
 	flag.Parse()
 	client := tlmetadata.Client{
@@ -625,53 +627,62 @@ func mainPublishTagDrafts() {
 		work     = make(map[int32]map[int32]format.MetricMetaValue)
 		workCond = sync.NewCond(&workMu)
 	)
-	storage = metajournal.MakeMetricsStorage("", nil, nil, func(newEntries []tlmetadata.Event) {
-		var n int
-		for _, e := range newEntries {
-			switch e.EventType {
-			case format.MetricEvent:
-				meta := format.MetricMetaValue{}
-				err := meta.UnmarshalBinary([]byte(e.Data))
-				if err != nil {
-					fmt.Fprintln(os.Stderr, e.Data)
-					fmt.Fprintln(os.Stderr, err)
-					continue
-				}
-				if meta.NamespaceID == 0 || meta.NamespaceID == format.BuiltinNamespaceIDDefault {
-					continue
-				}
-				if len(meta.TagsDraft) == 0 {
-					continue
-				}
-				workCond.L.Lock()
-				if m := work[meta.NamespaceID]; m != nil {
-					m[meta.MetricID] = meta
-				} else {
-					work[meta.NamespaceID] = map[int32]format.MetricMetaValue{meta.MetricID: meta}
-				}
-				workCond.L.Unlock()
-				n++
-			case format.PromConfigEvent:
-				v, err := aggregator.ParseKnownTags([]byte(e.Data), storage)
-				fmt.Fprintln(os.Stderr, e.Data)
+	storage = metajournal.MakeMetricsStorage("", nil,
+		func(configID int32, configString string) {
+			switch configID {
+			case format.KnownTagsConfigID:
+				v, err := aggregator.ParseKnownTags([]byte(configString), storage)
+				fmt.Fprintln(os.Stderr, configString)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
-					continue
+					break
 				}
 				workCond.L.Lock()
 				config = v
 				workCond.L.Unlock()
-				n++
 			}
-		}
-		if n != 0 {
-			workCond.Signal()
-		}
-	})
+		},
+		func(newEntries []tlmetadata.Event) {
+			var n int
+			for _, e := range newEntries {
+				switch e.EventType {
+				case format.MetricEvent:
+					meta := format.MetricMetaValue{}
+					err := meta.UnmarshalBinary([]byte(e.Data))
+					if err != nil {
+						fmt.Fprintln(os.Stderr, e.Data)
+						fmt.Fprintln(os.Stderr, err)
+						continue
+					}
+					if meta.NamespaceID == 0 || meta.NamespaceID == format.BuiltinNamespaceIDDefault {
+						continue
+					}
+					if len(meta.TagsDraft) == 0 {
+						continue
+					}
+					// log.Printf("FOUND tag draft %s\n", meta.Name)
+					workCond.L.Lock()
+					if m := work[meta.NamespaceID]; m != nil {
+						m[meta.MetricID] = meta
+					} else {
+						work[meta.NamespaceID] = map[int32]format.MetricMetaValue{meta.MetricID: meta}
+					}
+					workCond.L.Unlock()
+					n++
+				}
+			}
+			if n != 0 {
+				workCond.Signal()
+			}
+		})
 	storage.Journal().Start(nil, nil, loader.LoadJournal)
 	fmt.Println("Press <Enter> to start publishing tag drafts")
+	if dryRun {
+		fmt.Println("DRY RUN!")
+	}
+	fmt.Println()
 	bufio.NewReader(os.Stdin).ReadString('\n')
-	fmt.Println("Publishing tag drafts")
+	fmt.Println("Start publishing tag drafts!")
 	for {
 		var meta format.MetricMetaValue
 		workCond.L.Lock()
@@ -708,6 +719,9 @@ func mainPublishTagDrafts() {
 			continue
 		}
 		fmt.Println(meta.NamespaceID, meta.Name, meta.Version)
+		if dryRun {
+			continue
+		}
 		var err error
 		meta, err = loader.SaveMetric(context.Background(), meta, "")
 		if err != nil {

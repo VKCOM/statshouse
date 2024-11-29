@@ -10,6 +10,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -41,25 +43,16 @@ type autoCreate struct {
 	running bool // guard against double "run"
 }
 
-type KnownTags map[int32]namespaceKnownTags
+type KnownTags map[int32][]SelectorTags // by namespace ID
 
-type namespaceKnownTags struct {
-	knownTags                     // namespace level
-	groups    map[int32]knownTags // group level tags, by group ID
-}
-
-type knownTags struct {
-	p string              // metric name prefix
-	m map[string]KnownTag // name to tag mapping
-}
-
-type KnownTagsJSON struct {
-	Namespace map[string]KnownTag            `json:"known_tags,omitempty"` // tag name -> tag
-	Groups    map[string]map[string]KnownTag `json:"groups,omitempty"`     // group name -> tag name -> tag
+type SelectorTags struct {
+	Selector string     `json:"selector,omitempty"`
+	Tags     []KnownTag `json:"tags,omitempty"`
 }
 
 type KnownTag struct {
-	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	ID          string   `json:"id,omitempty"`
 	Description string   `json:"description,omitempty"`
 	RawKind     string   `json:"raw_kind,omitempty"`
 	SkipMapping bool     `json:"skip_mapping,omitempty"`
@@ -308,23 +301,25 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	return nil
 }
 
-func (ac *autoCreate) publishDraftTags(meta *format.MetricMetaValue) int {
+func (ac *autoCreate) publishDraftTags(meta *format.MetricMetaValue) (n int) {
 	ac.configMu.RLock()
 	defer ac.configMu.RUnlock()
-	if len(ac.knownTags) == 0 {
-		return 0
+	if ac.knownTags != nil {
+		n = ac.knownTags.PublishDraftTags(meta)
 	}
-	return ac.knownTags.PublishDraftTags(meta)
+	return n
 }
 
-func (ac *autoCreate) namespaceAllowed(namespaceID int32) bool {
+func (ac *autoCreate) namespaceAllowed(namespaceID int32) (ok bool) {
 	defaultNamespace := namespaceID == 0 || namespaceID == format.BuiltinNamespaceIDDefault
 	if defaultNamespace {
 		return ac.defaultNamespaceAllowed
 	}
 	ac.configMu.RLock()
 	defer ac.configMu.RUnlock()
-	_, ok := ac.knownTags[namespaceID]
+	if ac.knownTags != nil {
+		_, ok = ac.knownTags[namespaceID]
+	}
 	return ok
 }
 
@@ -338,128 +333,98 @@ func (ac *autoCreate) done() bool {
 }
 
 func (m KnownTags) PublishDraftTags(meta *format.MetricMetaValue) int {
-	if meta.NamespaceID == 0 ||
-		meta.NamespaceID == format.BuiltinNamespaceIDDefault ||
-		meta.NamespaceID == format.BuiltinNamespaceIDMissing {
-		return 0
-	}
-	c, ok := m[meta.NamespaceID]
-	if !ok {
-		return 0
-	}
 	var n int
-	if len(c.m) != 0 {
-		n = publishDraftTags(meta, c.knownTags)
-	}
-	if len(c.groups) == 0 ||
-		meta.GroupID == 0 ||
-		meta.GroupID == format.BuiltinGroupIDDefault {
-		return n
-	}
-	if v := c.groups[meta.GroupID]; len(v.m) != 0 {
-		return n + publishDraftTags(meta, v)
+	if v, ok := m[meta.NamespaceID]; ok {
+		for i := range v {
+			if strings.HasPrefix(meta.Name, v[i].Selector) {
+				n += publishDraftTags(meta, v[i].Tags)
+			}
+		}
 	}
 	return n
 }
 
-func publishDraftTags(meta *format.MetricMetaValue, t knownTags) int {
+func publishDraftTags(meta *format.MetricMetaValue, knownTags []KnownTag) int {
 	var n int
-	for k, draftTag := range meta.TagsDraft {
-		knownTag, ok := t.m[k]
-		if !ok || knownTag.ID == "" {
+	for _, knownTag := range knownTags {
+		if knownTag.Name == "" {
 			continue
 		}
-		if knownTag.ID == format.StringTopTagID {
-			if meta.StringTopName == "" {
-				meta.StringTopName = k
-				if knownTag.Description != "" {
-					meta.StringTopDescription = knownTag.Description
+		if draftTag, ok := meta.TagsDraft[knownTag.Name]; ok {
+			if knownTag.ID == format.StringTopTagID {
+				if meta.StringTopName == "" {
+					meta.StringTopName = knownTag.Name
+					if knownTag.Description != "" {
+						meta.StringTopDescription = knownTag.Description
+					}
+					log.Printf("autocreate tag %s[_s] %s\n", meta.Name, knownTag.Name)
+					delete(meta.TagsDraft, knownTag.Name)
+					n++
 				}
-				delete(meta.TagsDraft, k)
+			} else {
+				var x int
+				if knownTag.ID != "" {
+					x = format.TagIndex(knownTag.ID)
+				} else {
+					// search for an unnamed tag
+					for x = 1; x < len(meta.Tags) && meta.Tags[x].Name != ""; x++ {
+						// pass
+					}
+				}
+				if x < 1 || format.NewMaxTags <= x || (x < len(meta.Tags) && meta.Tags[x].Name != "") {
+					continue
+				}
+				draftTag.Name = knownTag.Name
+				if knownTag.Description != "" {
+					draftTag.Description = knownTag.Description
+				}
+				if knownTag.RawKind != "" {
+					rawKind := knownTag.RawKind
+					if rawKind == "int" {
+						// The raw attribute is stored separately from the type string in metric meta,
+						// empty type implies "int" which is not allowed
+						rawKind = ""
+					}
+					if format.ValidRawKind(rawKind) {
+						draftTag.Raw = true
+						draftTag.RawKind = rawKind
+					}
+				}
+				if knownTag.SkipMapping {
+					draftTag.SkipMapping = true
+				}
+				if len(meta.Tags) <= x {
+					meta.Tags = append(make([]format.MetricMetaTag, 0, x+1), meta.Tags...)
+					meta.Tags = meta.Tags[:x+1]
+				}
+				meta.Tags[x] = draftTag
+				log.Printf("autocreate tag %s[%d] %s\n", meta.Name, x, draftTag.Name)
+				delete(meta.TagsDraft, knownTag.Name)
 				n++
 			}
-		} else if x := format.TagIndex(knownTag.ID); 0 <= x && x < format.NewMaxTags && (len(meta.Tags) <= x || meta.Tags[x].Name == "") {
-			allow := len(knownTag.Whitelist) == 0 // empty whitelist allows all
-			if !allow && strings.HasPrefix(meta.Name, t.p) {
-				name := meta.Name[len(t.p):]
-				for i := 0; i < len(knownTag.Whitelist) && !allow; i++ {
-					allow = knownTag.Whitelist[i] == name
-				}
-			}
-			if !allow {
-				continue
-			}
-			draftTag.Name = k
-			if knownTag.Description != "" {
-				draftTag.Description = knownTag.Description
-			}
-			if knownTag.RawKind != "" {
-				rawKind := knownTag.RawKind
-				if rawKind == "int" {
-					// The raw attribute is stored separately from the type string in metric meta,
-					// empty type implies "int" which is not allowed
-					rawKind = ""
-				}
-				if format.ValidRawKind(rawKind) {
-					draftTag.Raw = true
-					draftTag.RawKind = rawKind
-				}
-			}
-			if knownTag.SkipMapping {
-				draftTag.SkipMapping = true
-			}
-			if len(meta.Tags) <= x {
-				meta.Tags = append(make([]format.MetricMetaTag, 0, x+1), meta.Tags...)
-				meta.Tags = meta.Tags[:x+1]
-			}
-			meta.Tags[x] = draftTag
-			delete(meta.TagsDraft, k)
-			n++
 		}
 	}
 	return n
 }
 
 func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags, error) {
-	var s map[string]KnownTagsJSON
-	err := json.Unmarshal(configS, &s)
-	if err != nil {
+	var s []SelectorTags
+	if err := json.Unmarshal(configS, &s); err != nil {
 		return nil, err
 	}
-	res := make(map[int32]namespaceKnownTags)
-	for namespaceName, v := range s {
-		if namespaceName == "" {
-			return nil, fmt.Errorf("namespace not set")
-		}
-		namespace := meta.GetNamespaceByName(namespaceName)
-		if namespace == nil {
-			return nil, fmt.Errorf("namespace not found %q", namespaceName)
-		}
-		if namespace.ID == format.BuiltinNamespaceIDDefault {
-			return nil, fmt.Errorf("namespace can not be __default")
-		}
-		knownTagsG := make(map[int32]knownTags, len(v.Groups))
-		for groupName, g := range v.Groups {
-			groupName := namespaceName + format.NamespaceSeparator + groupName
-			group := meta.GetGroupByName(groupName)
-			if group == nil {
-				return nil, fmt.Errorf("group not found %q", groupName)
-			}
-			if group.ID == format.BuiltinGroupIDDefault {
-				return nil, fmt.Errorf("scrape group can not be __default")
-			}
-			knownTagsG[group.ID] = knownTags{
-				p: namespace.Name + format.NamespaceSeparator + groupName,
-				m: g,
+	res := make(KnownTags)
+	for i := 0; i < len(s); i++ {
+		sel := s[i].Selector
+		if n := strings.Index(sel, format.NamespaceSeparator); n != -1 {
+			if v := meta.GetNamespaceByName(sel[:n]); v != nil {
+				res[v.ID] = append(res[v.ID], s[i])
 			}
 		}
-		res[namespace.ID] = namespaceKnownTags{
-			knownTags: knownTags{
-				p: namespace.Name + format.NamespaceSeparator,
-				m: v.Namespace,
-			},
-			groups: knownTagsG,
-		}
+	}
+	for _, v := range res {
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].Selector < v[j].Selector
+		})
 	}
 	return res, nil
 }
