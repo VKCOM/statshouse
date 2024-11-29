@@ -57,11 +57,13 @@ func main() {
 		metricsN  int
 		clientsN  int
 		randomTag bool
+		agentAddr string
 		signals   = make(chan os.Signal, 1)
 	)
 	flag.IntVar(&metricsN, "m", 6, "number of metrics")
 	flag.IntVar(&clientsN, "c", 2, "number of clients")
 	flag.BoolVar(&randomTag, "r", false, "add random tag")
+	flag.StringVar(&agentAddr, "a", statshouse.DefaultAddr, "where to send metrics")
 	flag.Parse()
 	randomTagLog := ""
 	if randomTag {
@@ -100,11 +102,11 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
+			shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, agentAddr, "")
 			randomWalk(ctx, shClient, statshouse.NamedTags{{"client", fmt.Sprint(ci)}}, metricsN, randomTag)
 		}()
 	}
-	shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
+	shClient := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, agentAddr, "")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
