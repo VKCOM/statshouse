@@ -45,7 +45,7 @@ type pluginProperties struct {
 }
 
 // NewDatasource creates a new datasource instance.
-func NewDatasource(settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
+func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
 	props := &pluginProperties{}
 	err := easyjson.Unmarshal(settings.JSONData, props)
 	if err != nil {
