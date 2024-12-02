@@ -165,6 +165,36 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 	promRespond(w, res)
 }
 
+func HandlePromLabelsQuery(r *httpRequestHandler) {
+	namespace := r.Header.Get("X-StatsHouse-Namespace")
+	var prefix string
+	switch namespace {
+	case "", "__default":
+		// no prefix
+	default:
+		prefix = namespace + format.NamespaceSeparator
+	}
+	_ = r.ParseForm()
+	var res []string
+	for _, expr := range r.Form["match[]"] {
+		if ast, err := parser.ParseExpr(expr); err == nil {
+			for _, s := range parser.ExtractSelectors(ast) {
+				for _, sel := range s {
+					if sel.Name == "__name__" {
+						metricName := prefix + sel.Value
+						if meta := r.metricsStorage.GetMetaMetricByName(metricName); meta != nil {
+							for k := range meta.Name2Tag {
+								res = append(res, k)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	promRespond(r.Response(), res)
+}
+
 func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 	namespace := r.Header.Get("X-StatsHouse-Namespace")
 	var prefix string
@@ -180,7 +210,7 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 	if tagName == "__name__" {
 		for _, meta := range r.metricsStorage.GetMetaMetricList(r.showInvisible) {
 			trimmed := strings.TrimPrefix(meta.Name, prefix)
-			if meta.Name != trimmed && r.accessInfo.CanViewMetric(*meta) {
+			if (prefix == "" || meta.Name != trimmed) && r.accessInfo.CanViewMetric(*meta) {
 				res = append(res, trimmed)
 			}
 		}
