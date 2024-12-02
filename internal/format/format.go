@@ -36,6 +36,7 @@ const (
 	TagValueCodeZero       = tagValueCodePrefix + "0"
 	TagValueIDUnspecified  = 0
 	TagValueIDMappingFlood = -1
+	TagValueIDDoesNotExist = -2
 
 	EffectiveWeightOne          = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight          = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling

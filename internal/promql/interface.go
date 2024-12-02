@@ -121,7 +121,6 @@ type Handler interface {
 
 	QuerySeries(ctx context.Context, qry *SeriesQuery) (Series, func(), error)
 	QueryTagValueIDs(ctx context.Context, qry TagValuesQuery) ([]int32, error)
-	QueryStringTop(ctx context.Context, qry TagValuesQuery) ([]string, error)
 
 	//
 	// # Allocator

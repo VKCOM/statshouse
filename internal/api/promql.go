@@ -717,46 +717,6 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 	return res, nil
 }
 
-func (h *requestHandler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
-	var (
-		pq = &preparedTagValuesQuery{
-			metric:     qry.Metric,
-			tagID:      format.StringTopTagID,
-			numResults: math.MaxInt - 1,
-			strcmpOff:  h.Version3StrcmpOff.Load(),
-		}
-		tags = make(map[string]bool)
-	)
-	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		body, cols := tagValuesQuery(pq, lod)
-		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-		err := h.doSelect(ctx, util.QueryMetaInto{
-			IsFast:  isFast,
-			IsLight: true,
-			User:    h.accessInfo.user,
-			Metric:  qry.Metric.MetricID,
-			Table:   lod.Table,
-			Kind:    "load_stag",
-		}, Version2, ch.Query{
-			Body:   body,
-			Result: cols.res,
-			OnResult: func(_ context.Context, b proto.Block) error {
-				for i := 0; i < b.Rows; i++ {
-					tags[cols.rowAt(i).val] = true
-				}
-				return nil
-			}})
-		if err != nil {
-			return nil, err
-		}
-	}
-	ret := make([]string, 0, len(tags))
-	for id := range tags {
-		ret = append(ret, id)
-	}
-	return ret, nil
-}
-
 func (h *requestHandler) Tracef(format string, a ...any) {
 	if h.debug {
 		h.trace = append(h.trace, fmt.Sprintf(format, a...))
