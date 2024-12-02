@@ -21,7 +21,7 @@ esac
 NAME_RELEASE=$(echo $NAME_RELEASE | sed -e 's/-/./g;s/:/./g')
 
 if [[ -z $GOLANG_VERSION ]]; then
-  GOLANG_VERSION='1.21.9'
+  GOLANG_VERSION='1.22.9'
   echo "Go version is not specified, using $GOLANG_VERSION"
 fi
 
