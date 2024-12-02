@@ -8,7 +8,6 @@ package promql
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hash"
 	"math"
@@ -1147,34 +1146,17 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, matcher.Value)
 			case labels.MatchRegexp:
-				stop, err := ev.getStringTop(ctx, metric, offset)
-				if err != nil {
-					return SeriesQuery{}, err
+				if matcher.Value != "" {
+					sel.FilterIn.StringTopRe2 = matcher.Value
+				} else {
+					sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, "")
 				}
-				var n int
-				for _, v := range stop {
-					if matcher.Matches(v) {
-						sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, v)
-						n++
-					}
-				}
-				if n == 0 {
-					// there no data satisfying the filter
-					emptyCount[format.MaxTags]++
-					continue
-				}
-				sel.FilterIn.StringTopRe2 = matcher.Value
 			case labels.MatchNotRegexp:
-				stop, err := ev.getStringTop(ctx, metric, offset)
-				if err != nil {
-					return SeriesQuery{}, err
+				if matcher.Value != "" {
+					sel.FilterNotIn.StringTopRe2 = matcher.Value
+				} else {
+					sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, "")
 				}
-				for _, v := range stop {
-					if !matcher.Matches(v) {
-						sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, v)
-					}
-				}
-				sel.FilterNotIn.StringTopRe2 = matcher.Value
 			}
 		} else {
 			i := tag.Index
@@ -1182,28 +1164,12 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchEqual:
 				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
 					sel.FilterIn.Append(i, v)
-				} else if errors.Is(err, ErrNotFound) {
-					if ev.opt.Version == data_model.Version3 {
-						// we allow unmapped values for v3 requests
-						sel.FilterIn.AppendValue(i, matcher.Value)
-					} else {
-						// string is not mapped, result is guaranteed to be empty
-						emptyCount[i]++
-						continue
-					}
 				} else {
 					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 				}
 			case labels.MatchNotEqual:
 				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
 					sel.FilterNotIn.Append(i, v)
-				} else if errors.Is(err, ErrNotFound) {
-					// we allow unmapped values for v3 requests
-					if ev.opt.Version == data_model.Version3 {
-						sel.FilterNotIn.AppendValue(i, matcher.Value)
-					} else {
-						continue // ignore values with no mapping
-					}
 				} else {
 					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 				}
@@ -1356,7 +1322,7 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 		}
 	}
 	if tagX < 0 || len(metric.Tags) <= tagX {
-		return data_model.TagValue{}, ErrNotFound
+		return data_model.NewTagValue(tagV, format.TagValueIDDoesNotExist), nil
 	}
 	t := metric.Tags[tagX]
 	if t.Raw {
@@ -1390,34 +1356,14 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 		TagIndex: tagX,
 		TagValue: tagV,
 	})
-	if err != nil {
+	switch err {
+	case nil:
+		return data_model.NewTagValue(tagV, v), nil
+	case ErrNotFound:
+		return data_model.NewTagValue(tagV, format.TagValueIDDoesNotExist), nil
+	default:
 		return data_model.TagValue{}, err
 	}
-	return data_model.NewTagValue(tagV, v), nil
-}
-
-func (ev *evaluator) getStringTop(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {
-	m, ok := ev.stop[metric]
-	if !ok {
-		// offset -> tag values
-		m = make(map[int64][]string)
-		ev.stop[metric] = m
-	}
-	var res []string
-	if res, ok = m[offset]; ok {
-		return res, nil
-	}
-	var err error
-	res, err = ev.QueryStringTop(ctx, TagValuesQuery{
-		Metric:    metric,
-		Timescale: ev.t,
-		Offset:    offset,
-		Options:   ev.opt,
-	})
-	if err == nil {
-		m[offset] = res
-	}
-	return res, err
 }
 
 func (ev *evaluator) weight(ds []SeriesData) []float64 {
