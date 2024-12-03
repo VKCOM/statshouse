@@ -39,7 +39,7 @@ func getLod(t *testing.T, version string) data_model.LOD {
 
 func TestTagValuesQueryV2(t *testing.T) {
 	// prepare
-	pq := &preparedTagValuesQuery{
+	pq := &queryBuilder{
 		metric:     metric,
 		tagID:      "2",
 		numResults: 5,
@@ -54,12 +54,12 @@ func TestTagValuesQueryV2(t *testing.T) {
 
 	// checks
 	assert.False(t, meta.stag)
-	assert.Equal(t, "SELECT key2 AS _value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY key2 HAVING _count>0 ORDER BY _count DESC,_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT key2 AS _value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY key2 HAVING _count>0 ORDER BY _count DESC,_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestTagValuesQueryV2_stringTop(t *testing.T) {
 	// prepare
-	pq := &preparedTagValuesQuery{
+	pq := &queryBuilder{
 		metric:     metric,
 		tagID:      format.StringTopTagID,
 		numResults: 5,
@@ -73,12 +73,12 @@ func TestTagValuesQueryV2_stringTop(t *testing.T) {
 
 	// checks
 	assert.True(t, meta.stag)
-	assert.Equal(t, "SELECT skey AS _string_value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY skey HAVING _count>0 ORDER BY _count DESC,_string_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT skey AS _string_value,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY skey HAVING _count>0 ORDER BY _count DESC,_string_value LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestTagValuesQueryV3(t *testing.T) {
 	// prepare
-	pq := &preparedTagValuesQuery{
+	pq := &queryBuilder{
 		metric:     metric,
 		tagID:      "2",
 		numResults: 5,
@@ -98,7 +98,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV2(t *testing.T) {
 	// prepare
-	pq := pointsQuery{
+	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
 		kind:   data_model.DigestCountSec.Kind(false),
@@ -116,12 +116,12 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	assert.False(t, meta.minMaxHost)
 	assert.Equal(t, "2", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// prepare
-	pq := pointsQuery{
+	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
 		kind:   data_model.DigestCountSec.Kind(true),
@@ -139,12 +139,12 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	assert.True(t, meta.minMaxHost)
 	assert.Equal(t, "2", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND key1 IN (1,2) AND key0 NOT IN (3) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestLoadPointsQueryV3(t *testing.T) {
 	// prepare
-	pq := pointsQuery{
+	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
 		kind:   data_model.DigestCountSec.Kind(false),
@@ -167,7 +167,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
-	pq := pointsQuery{
+	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
 		kind:   data_model.DigestCountSec.Kind(true),

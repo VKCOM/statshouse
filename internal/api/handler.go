@@ -1835,7 +1835,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		return nil, false, err
 	}
 
-	pq := &preparedTagValuesQuery{
+	pq := &queryBuilder{
 		metric:      metricMeta,
 		tagID:       tagID,
 		numResults:  numResults,
@@ -2962,7 +2962,7 @@ func replaceInfNan(v *float64) {
 	}
 }
 
-func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
+func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, true)
 	if err != nil {
 		return 0, err
@@ -3029,7 +3029,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *pointsQuery, lod dat
 	return rows, nil
 }
 
-func loadPoint(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
+func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error) {
 	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, false)
 	if err != nil {
 		return nil, err

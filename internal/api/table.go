@@ -29,7 +29,7 @@ type (
 	}
 )
 
-type loadPointsFunc func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
+type loadPointsFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
 type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
 
 func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams tableReqParams,
@@ -59,7 +59,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 			if toTime < lod.FromSec || lod.ToSec < fromTime {
 				continue
 			}
-			pq := pointsQuery{
+			pq := queryBuilder{
 				version:     h.version,
 				user:        tableReqParams.user,
 				metric:      metricMeta,
@@ -192,7 +192,7 @@ func inRange(row tsSelectRow, from, to RowMarker, fromEnd bool) bool {
 	return true
 }
 
-func (r *seriesRequest) tableSort() pointsQuerySort {
+func (r *seriesRequest) tableSort() querySort {
 	if r.fromEnd {
 		return sortDescending
 	} else {
