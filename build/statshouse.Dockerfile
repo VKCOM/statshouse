@@ -1,4 +1,4 @@
-FROM golang:1.21-bullseye AS build
+FROM golang:1.22-bullseye AS build
 WORKDIR /src
 COPY go.mod go.sum Makefile ./
 RUN go mod download -x
