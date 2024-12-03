@@ -18,15 +18,14 @@ import { PlotLegend } from '../PlotLegend';
 import { dateRangeFormat } from './dateRangeFormat';
 import { dataIdxNearest } from 'common/dataIdxNearest';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from 'common/axisValues';
-import { formatByMetricType, getMetricType, splitByMetricType } from 'common/formatByMetricType';
-import { METRIC_TYPE } from 'api/enum';
+import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
 import { xRangeStatic } from './xRangeStatic';
 import { calcYRange } from 'common/calcYRange';
 import css from './style.module.css';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { type PlotValues } from 'store2/plotDataStore';
 import { useThemeStore } from 'store2/themeStore';
-import { incrs } from './constants';
+import { metricTypeIncrs } from './constants';
 import { setLiveMode } from 'store2/liveModeStore';
 import { setPlotVisibility } from 'store2/plotVisibilityStore';
 import { createPlotPreview } from 'store2/plotPreviewStore';
@@ -193,8 +192,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
-          incrs,
+          incrs: metricTypeIncrs[metricType],
         },
       ],
       scales: {

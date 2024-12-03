@@ -46,7 +46,7 @@ export type UPlotWrapperPropsHooks = {
   onSetSelect?: (u: uPlot) => void;
 };
 
-export type UPlotWrapperProps = {
+export type UPlotWrapperProps<LV = {}> = {
   opts?: UPlotWrapperPropsOpts;
   data?: uPlot.AlignedData;
   scales?: UPlotWrapperPropsScales;
@@ -54,7 +54,7 @@ export type UPlotWrapperProps = {
   bands?: uPlot.Band[];
   legendTarget?: HTMLDivElement | null;
   onUpdatePreview?: (u: uPlot) => void;
-  onUpdateLegend?: React.Dispatch<React.SetStateAction<LegendItem[]>>;
+  onUpdateLegend?: React.Dispatch<React.SetStateAction<LegendItem<LV>[]>>;
   className?: string;
   children?: ReactNode;
 } & UPlotWrapperPropsHooks;
@@ -62,14 +62,14 @@ export type UPlotWrapperProps = {
 export const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
 
-function readLegend(u: uPlot): LegendItem[] {
+function readLegend<LV = {}>(u: uPlot): LegendItem<LV>[] {
   let lastIdx = (u.data?.[0]?.length ?? 0) - 1;
   const xMax = u.scales.x?.max ?? 0;
   while (lastIdx >= 0 && u.data?.[0]?.[lastIdx] > xMax) {
     lastIdx--;
   }
   return u.series.map((s, index) => {
-    let idx = u.legend.idxs?.[index];
+    let idx = u.legend.idxs?.[index] ?? null;
     let lastTime = '';
     let deltaTime = 0;
     let noFocus = false;
@@ -99,7 +99,7 @@ function readLegend(u: uPlot): LegendItem[] {
       stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
       show: s.show ?? false,
       value: u.legend.values?.[index]?.['_']?.toString().replace('--', '') || lastTime, // replace '--' uplot
-      values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
+      values: typeof idx === 'number' ? (s.values?.(u, index, idx) as LV) : undefined,
       alpha: s.alpha,
       dash: s.dash,
       deltaTime,
@@ -113,7 +113,7 @@ const defaultSeries: uPlot.Series[] = [];
 const defaultScales: UPlotWrapperPropsScales = {};
 const defaultBands: uPlot.Band[] = [];
 
-export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
+export function _UPlotWrapper<LV = {}>({
   opts,
   data = defaultData,
   series = defaultSeries,
@@ -141,13 +141,13 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   onDraw,
   onSetSelect,
   children,
-}) => {
+}: UPlotWrapperProps<LV>) {
   const uRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
   const hooksEvent = useRef<UPlotWrapperPropsHooks>({});
   const [seriesFocus, setSeriesFocus] = useState<null | number>(null);
-  const [legend, setLegend] = useState<LegendItem[]>([]);
+  const [legend, setLegend] = useState<LegendItem<LV>[]>([]);
 
   useEffect(() => {
     hooksEvent.current = {
@@ -438,6 +438,6 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
       {children}
     </div>
   );
-};
+}
 
-export const UPlotWrapper = memo(_UPlotWrapper);
+export const UPlotWrapper = memo(_UPlotWrapper) as typeof _UPlotWrapper;

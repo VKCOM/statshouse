@@ -29,7 +29,7 @@ import { PlotHealsStatus } from './PlotHealsStatus';
 import { PlotHeader } from './PlotHeader';
 import { PlotSubMenu } from './PlotSubMenu';
 import css from './style.module.css';
-import { incrs } from './constants';
+import { incrs, metricTypeIncrs } from './constants';
 import { PlotEvents } from './PlotEvents';
 import uPlot from 'uplot';
 import { setLiveMode } from 'store2/liveModeStore';
@@ -218,8 +218,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
-          incrs,
+          incrs: metricTypeIncrs[metricType],
         },
       ],
       scales: {
