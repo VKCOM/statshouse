@@ -263,6 +263,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 		f = pq.filterNotIn
 		sep, predicate = " AND ", " NOT IN "
 	}
+	version3StrcmpOn := lod.Version == Version3 && !pq.strcmpOff
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -272,11 +273,11 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 		tagID := format.TagID(i)
 		var hasMapped bool
 		var hasValue bool
-		var hasEmpty bool
+		var version3HasEmpty bool
 		var started bool
 		for _, v := range filter.Values {
-			if v.Empty() {
-				hasEmpty = true
+			if version3StrcmpOn && v.Empty() {
+				version3HasEmpty = true
 				continue
 			}
 			if v.HasValue() {
@@ -303,7 +304,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 			sb.WriteString(")")
 		}
 		// not mapped
-		if lod.Version == Version3 && !pq.strcmpOff {
+		if version3StrcmpOn {
 			if filter.Re2 != "" {
 				if started {
 					sb.WriteString(sep)
@@ -345,7 +346,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 			}
 		}
 		// empty
-		if hasEmpty {
+		if version3HasEmpty {
 			if started {
 				sb.WriteString(sep)
 			}
@@ -353,7 +354,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 				sb.WriteString("NOT ")
 			}
 			sb.WriteString("(")
-			sb.WriteString(pq.mappedColumnName(tagID, lod))
+			sb.WriteString(pq.mappedColumnNameV3(tagID, lod))
 			sb.WriteString("=0 AND ")
 			sb.WriteString(pq.unmappedColumnNameV3(tagID))
 			sb.WriteString("='')")
