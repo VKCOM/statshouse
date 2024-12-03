@@ -31,7 +31,7 @@ type pointsCache struct {
 	now               func() time.Time
 }
 
-type pointsLoadFunc func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD) ([]pSelectRow, error)
+type pointsLoadFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error)
 
 type timeRange struct {
 	from int64
@@ -56,7 +56,7 @@ func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, n
 	}
 }
 
-func (c *pointsCache) get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([]pSelectRow, error) {
+func (c *pointsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([]pSelectRow, error) {
 	key := pq.cacheKey()
 	if !avoidCache {
 		rows, ok := c.loadCached(key, lod.FromSec, lod.ToSec)

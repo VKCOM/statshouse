@@ -488,7 +488,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 	for kind, what := range h.getHandlerWhat(qry, step) {
 		var tx int // time index
 		for _, lod := range lods {
-			pq := pointsQuery{
+			pq := queryBuilder{
 				version:     h.version,
 				user:        h.accessInfo.user,
 				metric:      qry.Metric,
@@ -679,7 +679,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 
 func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	var (
-		pq = &preparedTagValuesQuery{
+		pq = &queryBuilder{
 			metric:     qry.Metric,
 			tagID:      format.TagID(qry.TagIndex),
 			numResults: math.MaxInt - 1,

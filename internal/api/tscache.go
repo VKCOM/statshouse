@@ -167,7 +167,7 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version3][lodLevel].invalidate(times)
 }
 
-func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
+func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 	x, err := lod.IndexOf(lod.ToSec)
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ type tsCache struct {
 	ageEvictOverride  statshouse.MetricRef
 }
 
-type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
+type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
 
 type tsVersionedRows struct {
 	rows         []tsSelectRow
@@ -249,7 +249,7 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *pointsQuery, lod data_model.LOD, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
