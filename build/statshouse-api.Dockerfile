@@ -13,7 +13,7 @@ ENV NODE_ENV=production
 RUN --mount=type=cache,target="/root/.npm" npm run build
 
 
-FROM golang:1.21-bullseye AS build-go
+FROM golang:1.22-bullseye AS build-go
 WORKDIR /src
 RUN apt-get update && apt-get install -y gnuplot-nox gnuplot-data libpango-1.0-0 libcairo2
 COPY go.mod go.sum Makefile ./

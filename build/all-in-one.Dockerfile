@@ -10,7 +10,7 @@ COPY Makefile ./
 COPY statshouse-ui/ ./statshouse-ui/
 RUN make build-sh-ui
 
-FROM golang:1.21-bullseye AS build-go
+FROM golang:1.22-bullseye AS build-go
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
