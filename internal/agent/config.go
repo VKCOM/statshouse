@@ -69,7 +69,7 @@ func DefaultConfig() Config {
 		SaveSecondsImmediately:           false,
 		StatsHouseEnv:                    "production",
 		BuiltinNewSharding:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		UseSend3:                         true,
+		UseSend3:                         false, // we can safely enable it after aggregator deploy
 		RemoteWriteEnabled:               false,
 		RemoteWriteAddr:                  ":13380",
 		RemoteWritePath:                  "/write",
