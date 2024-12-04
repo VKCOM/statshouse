@@ -169,13 +169,13 @@ func (pq *queryMeta) IsHardware() bool {
 func tagValuesQuery(pq *queryBuilder, lod data_model.LOD) (string, *tagValuesSelectCols) {
 	switch lod.Version {
 	case Version3:
-		return pq.tagValuesQueryV3(lod)
+		return pq.tagValuesQueryV3(&lod)
 	default:
-		return pq.tagValuesQueryV2(lod)
+		return pq.tagValuesQueryV2(&lod)
 	}
 }
 
-func (pq *queryBuilder) tagValuesQueryV2(lod data_model.LOD) (string, *tagValuesSelectCols) {
+func (pq *queryBuilder) tagValuesQueryV2(lod *data_model.LOD) (string, *tagValuesSelectCols) {
 	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
@@ -192,9 +192,9 @@ func (pq *queryBuilder) tagValuesQueryV2(lod data_model.LOD) (string, *tagValues
 	sb.WriteString(sqlAggFn(lod.Version, "sum"))
 	sb.WriteString("(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	writeWhereTimeFilter(&sb, &lod)
+	writeWhereTimeFilter(&sb, lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	writeV1DateFilter(&sb, &lod)
+	writeV1DateFilter(&sb, lod)
 	pq.writeTagCond(&sb, lod, true)
 	pq.writeTagCond(&sb, lod, false)
 	sb.WriteString(" GROUP BY ")
@@ -207,7 +207,7 @@ func (pq *queryBuilder) tagValuesQueryV2(lod data_model.LOD) (string, *tagValues
 	return sb.String(), newTagValuesSelectCols(meta)
 }
 
-func (pq *queryBuilder) tagValuesQueryV3(lod data_model.LOD) (string, *tagValuesSelectCols) {
+func (pq *queryBuilder) tagValuesQueryV3(lod *data_model.LOD) (string, *tagValuesSelectCols) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	sb.WriteString(pq.mappedColumnNameV3(pq.tagID, lod))
@@ -215,7 +215,7 @@ func (pq *queryBuilder) tagValuesQueryV3(lod data_model.LOD) (string, *tagValues
 	sb.WriteString(pq.unmappedColumnNameV3(pq.tagID))
 	sb.WriteString(" AS _unmapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	writeWhereTimeFilter(&sb, &lod)
+	writeWhereTimeFilter(&sb, lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	pq.writeTagCond(&sb, lod, true)
 	pq.writeTagCond(&sb, lod, false)
@@ -228,19 +228,19 @@ func (pq *queryBuilder) tagValuesQueryV3(lod data_model.LOD) (string, *tagValues
 func (pq *queryBuilder) tagValueIDsQuery(lod data_model.LOD) (string, *tagValuesSelectCols) {
 	switch lod.Version {
 	case Version3:
-		return pq.tagValueIDsQueryV3(lod)
+		return pq.tagValueIDsQueryV3(&lod)
 	default:
-		return pq.tagValuesQueryV2(lod)
+		return pq.tagValuesQueryV2(&lod)
 	}
 }
 
-func (pq *queryBuilder) tagValueIDsQueryV3(lod data_model.LOD) (string, *tagValuesSelectCols) {
+func (pq *queryBuilder) tagValueIDsQueryV3(lod *data_model.LOD) (string, *tagValuesSelectCols) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	sb.WriteString(pq.mappedColumnNameV3(pq.tagID, lod))
 	sb.WriteString(" AS _mapped,toFloat64(sum(count)) AS _count FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	writeWhereTimeFilter(&sb, &lod)
+	writeWhereTimeFilter(&sb, lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	pq.writeTagCond(&sb, lod, true)
 	pq.writeTagCond(&sb, lod, false)
@@ -253,7 +253,7 @@ func (pq *queryBuilder) tagValueIDsQueryV3(lod data_model.LOD) (string, *tagValu
 	return sb.String(), cols
 }
 
-func (pq *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, tagX int, lod data_model.LOD) bool {
+func (pq *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, tagX int, lod *data_model.LOD) bool {
 	version3StrcmpOn := lod.Version == Version3 && !pq.strcmpOff
 	if !version3StrcmpOn || metric == nil || len(metric.Tags) <= tagX {
 		return version3StrcmpOn
@@ -261,7 +261,7 @@ func (pq *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, tagX in
 	return metric.Tags[tagX].SkipMapping
 }
 
-func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in bool) {
+func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod *data_model.LOD, in bool) {
 	var f data_model.TagFilters
 	var sep, predicate string
 	if in {
@@ -458,13 +458,13 @@ func loadPointsSelectWhat(sb *strings.Builder, pq *queryBuilder, version string)
 func (pq *queryBuilder) loadPointsQuery(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	switch lod.Version {
 	case Version3:
-		return pq.loadPointsQueryV3(lod, utcOffset, useTime)
+		return pq.loadPointsQueryV3(&lod, utcOffset, useTime)
 	default:
-		return pq.loadPointsQueryV2(lod, utcOffset, useTime)
+		return pq.loadPointsQueryV2(&lod, utcOffset, useTime)
 	}
 }
 
-func (pq *queryBuilder) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
+func (pq *queryBuilder) loadPointsQueryV2(lod *data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -483,9 +483,9 @@ func (pq *queryBuilder) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, u
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	writeWhereTimeFilter(&sb, &lod)
+	writeWhereTimeFilter(&sb, lod)
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
-	writeV1DateFilter(&sb, &lod)
+	writeV1DateFilter(&sb, lod)
 	pq.writeTagCond(&sb, lod, true)
 	pq.writeTagCond(&sb, lod, false)
 	sb.WriteString(" GROUP BY _time")
@@ -532,7 +532,7 @@ func (pq *queryBuilder) loadPointsQueryV2(lod data_model.LOD, utcOffset int64, u
 	return sb.String(), cols, err
 }
 
-func (pq *queryBuilder) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
+func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if lod.StepSec == _1M {
@@ -554,7 +554,7 @@ func (pq *queryBuilder) loadPointsQueryV3(lod data_model.LOD, utcOffset int64, u
 	}
 	sb.WriteString(" FROM ")
 	sb.WriteString(pq.preKeyTableName(lod))
-	writeWhereTimeFilter(&sb, &lod)
+	writeWhereTimeFilter(&sb, lod)
 	sb.WriteString(" AND index_type=0")
 	writeMetricFilter(&sb, pq.metricID(), pq.filterIn.Metrics, pq.filterNotIn.Metrics, lod.Version)
 	pq.writeTagCond(&sb, lod, true)
@@ -745,7 +745,7 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func (pq *queryBuilder) preKeyTableName(lod data_model.LOD) string {
+func (pq *queryBuilder) preKeyTableName(lod *data_model.LOD) string {
 	var usePreKey bool
 	if lod.HasPreKey {
 		preKeyTagX := pq.preKeyTagX()
@@ -767,7 +767,7 @@ func (pq *queryBuilder) preKeyTableName(lod data_model.LOD) string {
 	return lod.Table
 }
 
-func (pq *queryBuilder) mappedColumnName(tagID string, lod data_model.LOD) string {
+func (pq *queryBuilder) mappedColumnName(tagID string, lod *data_model.LOD) string {
 	switch lod.Version {
 	case Version3:
 		return pq.mappedColumnNameV3(tagID, lod)
@@ -776,7 +776,7 @@ func (pq *queryBuilder) mappedColumnName(tagID string, lod data_model.LOD) strin
 	}
 }
 
-func (pq *queryBuilder) mappedColumnNameV2(tagID string, lod data_model.LOD) string {
+func (pq *queryBuilder) mappedColumnNameV2(tagID string, lod *data_model.LOD) string {
 	// intentionally not using constants from 'format' package,
 	// because it is a table column name, not an external contract
 	switch tagID {
@@ -794,7 +794,7 @@ func (pq *queryBuilder) mappedColumnNameV2(tagID string, lod data_model.LOD) str
 	}
 }
 
-func (pq *queryBuilder) mappedColumnNameV3(tagID string, lod data_model.LOD) string {
+func (pq *queryBuilder) mappedColumnNameV3(tagID string, lod *data_model.LOD) string {
 	switch tagID {
 	case format.StringTopTagID:
 		return "tag" + format.StringTopTagIDV3
