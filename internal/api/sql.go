@@ -318,6 +318,15 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod *data_model.LOD, i
 		}
 		if hasMapped {
 			sb.WriteString(")")
+		} else {
+			if in {
+				// empty positive filter means there are no items satisfaing search criteria
+				sb.WriteString("0!=0")
+			} else {
+				// empty negative filter is "nop"
+				sb.WriteString("0=0")
+			}
+			started = true
 		}
 		// not mapped
 		if version3StrcmpOn {
