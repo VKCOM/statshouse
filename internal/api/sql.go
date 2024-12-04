@@ -70,42 +70,46 @@ func (q *queryBuilder) stringTag() bool {
 
 func (pq *queryBuilder) cacheKey() string {
 	var sb strings.Builder
-	sb.WriteString("v=")
+	sb.WriteString(`{"v":`)
 	switch pq.version {
 	case Version1:
 		sb.WriteString(Version1)
 	default:
 		sb.WriteString(Version3)
 	}
-	sb.WriteString(";m=")
+	sb.WriteString(`,"m":`)
 	sb.WriteString(fmt.Sprint(pq.metricID()))
-	sb.WriteString(";pk=")
+	sb.WriteString(`,"pk":"`)
 	sb.WriteString(pq.preKeyTagID())
-	sb.WriteString(";st=")
+	sb.WriteString(`","st":`)
 	sb.WriteString(fmt.Sprint(pq.isStringTop()))
-	sb.WriteString(";kind=")
+	sb.WriteString(`,"kind":`)
 	sb.WriteString(fmt.Sprint(int(pq.kind)))
-	sb.WriteString(";by=")
+	sb.WriteString(`,"by":[`)
 	if len(pq.by) != 0 {
 		sort.Strings(pq.by)
+		sb.WriteString(`"`)
 		sb.WriteString(pq.by[0])
 		for i := 1; i < len(pq.by); i++ {
-			sb.WriteString(",")
+			sb.WriteString(`","`)
 			sb.WriteString(pq.by[i])
 		}
+		sb.WriteString(`"`)
 	}
-	sb.WriteString(";inc=")
+	sb.WriteString(`],"inc":`)
 	s := make([]string, 0, 16)
 	s = writeTagFiltersCacheKey(&sb, pq.filterIn, s)
-	sb.WriteString(";exl=")
+	sb.WriteString(`,"exl":`)
 	writeTagFiltersCacheKey(&sb, pq.filterNotIn, s)
-	sb.WriteString(";sort=")
+	sb.WriteString(`,"sort":`)
 	sb.WriteString(fmt.Sprint(int(pq.sort)))
+	sb.WriteString("}")
 	return sb.String()
 }
 
 func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []string) []string {
 	var n int
+	sb.WriteString("{")
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -113,48 +117,51 @@ func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []s
 		if n != 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString("{")
+		sb.WriteString(`"`)
 		sb.WriteString(fmt.Sprint(i))
+		sb.WriteString(`":`)
 		if filter.Re2 != "" {
-			sb.WriteString("~")
+			sb.WriteString(`"`)
 			sb.WriteString(filter.Re2)
+			sb.WriteString(`"`)
 		} else if len(filter.Values) != 0 {
-			sb.WriteString("=")
 			s := s[:0]
 			for _, v := range filter.Values {
 				s = append(s, v.String())
 			}
 			sort.Strings(s)
+			sb.WriteString(`["`)
 			sb.WriteString(s[0])
 			for i := 1; i < len(s); i++ {
-				sb.WriteString(",")
+				sb.WriteString(`","`)
 				sb.WriteString(s[i])
 			}
+			sb.WriteString(`"]`)
 		}
-		sb.WriteString("}")
 		n++
 	}
 	if f.StringTopRe2 != "" {
 		if n != 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString("{_s~")
+		sb.WriteString(`"_s":"`)
 		sb.WriteString(f.StringTopRe2)
-		sb.WriteString("}")
+		sb.WriteString(`"`)
 	} else if len(f.StringTop) != 0 {
+		s = append(s[:0], f.StringTop...)
+		sort.Strings(s)
 		if n != 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString("{_s=")
-		s = append(s[:0], f.StringTop...)
-		sort.Strings(s)
+		sb.WriteString(`"_s":["`)
 		sb.WriteString(s[0])
 		for i := 1; i < len(s); i++ {
-			sb.WriteString(",")
+			sb.WriteString(`","`)
 			sb.WriteString(s[i])
 		}
-		sb.WriteString("}")
+		sb.WriteString(`"]`)
 	}
+	sb.WriteString("}")
 	return s
 }
 
