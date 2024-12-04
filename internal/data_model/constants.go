@@ -101,7 +101,7 @@ const (
 	BootstrapDiskNamespace      = "bootstrap:"  // stored in aggregator only
 	AutoconfigDiskNamespace     = "autoconfig:" // stored in agents only
 
-	MappingMaxMetricsInQueue = 1000
+	MappingMaxMetricsInQueue = 4000
 	MappingMaxMemCacheSize   = 1_000_000
 	MappingMaxDiskCacheSize  = 10_000_000
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
