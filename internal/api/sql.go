@@ -253,6 +253,14 @@ func (pq *queryBuilder) tagValueIDsQueryV3(lod data_model.LOD) (string, *tagValu
 	return sb.String(), cols
 }
 
+func (pq *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, tagX int, lod data_model.LOD) bool {
+	version3StrcmpOn := lod.Version == Version3 && !pq.strcmpOff
+	if !version3StrcmpOn || metric == nil || len(metric.Tags) <= tagX {
+		return version3StrcmpOn
+	}
+	return metric.Tags[tagX].SkipMapping
+}
+
 func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in bool) {
 	var f data_model.TagFilters
 	var sep, predicate string
@@ -263,7 +271,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 		f = pq.filterNotIn
 		sep, predicate = " AND ", " NOT IN "
 	}
-	version3StrcmpOn := lod.Version == Version3 && !pq.strcmpOff
+	metric := pq.singleMetric()
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -271,6 +279,7 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod data_model.LOD, in
 		sb.WriteString(" AND (")
 		// mapped
 		tagID := format.TagID(i)
+		version3StrcmpOn := pq.version3StrcmpOn(metric, i, lod)
 		var hasMapped bool
 		var hasValue bool
 		var version3HasEmpty bool
