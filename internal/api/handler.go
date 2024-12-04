@@ -853,10 +853,6 @@ func (h *requestHandler) doSelect(ctx context.Context, meta util.QueryMetaInto, 
 	h.endpointStat.reportQueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	info, err := h.ch[version].Select(ctx, meta, query)
 	duration := time.Since(start)
-	if h.verbose {
-		log.Printf("[debug] SQL for %q done in %v, err: %v", meta.User, duration, err)
-	}
-
 	h.endpointStat.reportTiming("ch-select", duration)
 	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, meta.IsHardware, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, info.Profile, err)
