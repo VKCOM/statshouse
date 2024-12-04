@@ -63,6 +63,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				version:     h.version,
 				user:        tableReqParams.user,
 				metric:      metricMeta,
+				what:        q.What,
 				kind:        kind,
 				by:          req.by,
 				filterIn:    tableReqParams.mappedFilterIn,

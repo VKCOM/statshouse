@@ -2846,6 +2846,7 @@ func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 
 func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	row := tsSelectRow{
+		what:     c.what,
 		time:     c.time[i],
 		stepSec:  c.step[i],
 		tsValues: tsValues{countNorm: c.cnt[i]},

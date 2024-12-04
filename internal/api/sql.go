@@ -31,6 +31,7 @@ type queryBuilder struct {
 	version     string
 	user        string
 	metric      *format.MetricMetaValue
+	what        data_model.DigestWhat
 	kind        data_model.DigestKind
 	by          []string
 	filterIn    data_model.TagFilters
@@ -60,6 +61,7 @@ type tagValuesQueryMeta struct {
 
 type queryMeta struct {
 	metricID int32
+	what     data_model.DigestWhat
 	kind     data_model.DigestKind
 	user     string
 }
@@ -537,6 +539,7 @@ func (pq *queryBuilder) loadPointsQueryV2(lod *data_model.LOD, utcOffset int64, 
 	cols := newPointsSelectColsV2(pointsQueryMeta{
 		queryMeta: queryMeta{
 			metricID: pq.metricID(),
+			what:     pq.what,
 			kind:     pq.kind,
 			user:     pq.user,
 		},
@@ -616,6 +619,7 @@ func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, 
 	cols := newPointsSelectColsV3(pointsQueryMeta{
 		queryMeta: queryMeta{
 			metricID: pq.metricID(),
+			what:     pq.what,
 			kind:     pq.kind,
 			user:     pq.user,
 		},

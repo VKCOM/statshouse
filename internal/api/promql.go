@@ -487,11 +487,16 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 	}()
 	for kind, what := range h.getHandlerWhat(qry, step) {
 		var tx int // time index
+		var singleWhat data_model.DigestWhat
+		if len(what) == 1 {
+			singleWhat = what[0].qry
+		}
 		for _, lod := range lods {
 			pq := queryBuilder{
 				version:     h.version,
 				user:        h.accessInfo.user,
 				metric:      qry.Metric,
+				what:        singleWhat,
 				kind:        kind,
 				by:          qry.GroupBy,
 				filterIn:    qry.FilterIn,
