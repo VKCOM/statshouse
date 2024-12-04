@@ -754,27 +754,27 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	if from > uncertain {
 		from = uncertain
 	}
-
-	queryBody, err := util.BindQuery(fmt.Sprintf(`
-SELECT
-  toInt64(time) AS time, toInt64(key1) AS key1
-FROM
-  %s
-WHERE
-  metric == ? AND time >= ?
-GROUP BY
-  time, key1
-ORDER BY
-  time, key1
-LIMIT
-  ?
-SETTINGS
-  optimize_aggregation_in_order = 1
-`, _1sTableSH2), format.BuiltinMetricIDContributorsLog, from, cacheInvalidateMaxRows)
-	if err != nil {
-		log.Printf("[error] cache invalidation log query failed: %v", err)
-		return from, seen
+	version2 := h.Version3Prob.Load() < 1
+	var sb strings.Builder
+	sb.WriteString("SELECT toInt64(time) AS time, toInt64(")
+	if version2 {
+		sb.WriteString("key1")
+	} else {
+		sb.WriteString("tag1")
 	}
+	sb.WriteString(") AS key1 FROM ")
+	if version2 {
+		sb.WriteString(_1sTableSH2)
+	} else {
+		sb.WriteString(_1sTableSH3)
+	}
+	sb.WriteString(" WHERE metric=")
+	sb.WriteString(fmt.Sprint(format.BuiltinMetricIDContributorsLog))
+	sb.WriteString(" AND time>=")
+	sb.WriteString(fmt.Sprint(from))
+	sb.WriteString(" GROUP BY time,key1 LIMIT ")
+	sb.WriteString(fmt.Sprint(cacheInvalidateMaxRows))
+	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
 	// TODO - write metric with len(rows)
 	// TODO - code that works if we hit limit above
 
@@ -792,7 +792,7 @@ SETTINGS
 			},
 		}
 	)
-	err = req.doSelect(ctx, util.QueryMetaInto{
+	err := req.doSelect(ctx, util.QueryMetaInto{
 		IsFast:  true,
 		IsLight: true,
 		User:    "cache-update",
@@ -800,7 +800,7 @@ SETTINGS
 		Table:   _1sTableSH3,
 		Kind:    "cache-update",
 	}, Version2, ch.Query{
-		Body: queryBody,
+		Body: sb.String(),
 		Result: proto.Results{
 			{Name: "time", Data: &time},
 			{Name: "key1", Data: &key1},
