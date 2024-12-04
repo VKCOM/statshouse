@@ -28,6 +28,7 @@ const (
 )
 
 type tsSelectRow struct {
+	what    data_model.DigestWhat // digest component initially requested
 	time    int64
 	stepSec int64 // TODO - do not get using strange logic in clickhouse, set directly
 	tsTags
@@ -98,6 +99,8 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 				ageEvictOverride: statshouse.GetMetricRef(format.BuiltinMetricAPICacheAgeEvict, statshouse.Tags{
 					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "3",
 				}),
+				digestHit:  statshouse.GetMetricRef("api_digest_cache_rate", statshouse.Tags{1: "1"}),
+				digestMiss: statshouse.GetMetricRef("api_digest_cache_rate", statshouse.Tags{1: "2"}),
 			}
 		}
 	}
@@ -206,6 +209,8 @@ type tsCache struct {
 	ageEvictStale     statshouse.MetricRef
 	ageEvictLRU       statshouse.MetricRef
 	ageEvictOverride  statshouse.MetricRef
+	digestHit         statshouse.MetricRef
+	digestMiss        statshouse.MetricRef
 }
 
 type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
@@ -250,6 +255,9 @@ func (c *tsCache) maybeDropCache() {
 }
 
 func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
+	if pq.metricID() != format.BuiltinMetricIDBadges {
+		statshouse.Count("api_digest_query", statshouse.Tags{1: pq.what.String()}, 1)
+	}
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
@@ -259,7 +267,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	realLoadTo := lod.ToSec
 	key := pq.cacheKey()
 	if !avoidCache {
-		realLoadFrom, realLoadTo = c.loadCached(h, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
+		realLoadFrom, realLoadTo = c.loadCached(h, pq, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
 			ChCacheRate(cachedRows, 0, pq.metricID(), lod.Table, pq.kind.String())
 			return ret, nil
@@ -344,7 +352,7 @@ func (c *tsCache) invalidate(times []int64) {
 	}
 }
 
-func (c *tsCache) loadCached(h *requestHandler, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
+func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 
@@ -363,6 +371,15 @@ func (c *tsCache) loadCached(h *requestHandler, key string, fromSec int64, toSec
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = make([]tsSelectRow, len(cached.rows))
 			copy(ret[ix], cached.rows)
+			if pq.metricID() != format.BuiltinMetricIDBadges {
+				for i := 0; i < len(cached.rows); i++ {
+					if cached.rows[i].what == pq.what {
+						c.digestHit.Count(1)
+					} else {
+						c.digestMiss.Count(1)
+					}
+				}
+			}
 			*rows += len(cached.rows)
 			hit++
 		} else {

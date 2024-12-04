@@ -73,6 +73,69 @@ func (d DigestWhat) Kind(maxhost bool) DigestKind {
 	}
 }
 
+func (k DigestWhat) String() string {
+	switch k {
+	case DigestAvg:
+		return "avg"
+	case DigestCount:
+		return "count"
+	case DigestCountSec:
+		return "countsec"
+	case DigestCountRaw:
+		return "countraw"
+	case DigestMax:
+		return "max"
+	case DigestMin:
+		return "min"
+	case DigestSum:
+		return "sum"
+	case DigestSumSec:
+		return "semsec"
+	case DigestSumRaw:
+		return "sumraw"
+	case DigestP0_1:
+		return "p0"
+	case DigestP1:
+		return "p1"
+	case DigestP5:
+		return "p5"
+	case DigestP10:
+		return "p10"
+	case DigestP25:
+		return "p25"
+	case DigestP50:
+		return "p50"
+	case DigestP75:
+		return "p75"
+	case DigestP90:
+		return "p90"
+	case DigestP95:
+		return "p95"
+	case DigestP99:
+		return "p99"
+	case DigestP999:
+		return "p999"
+	case DigestStdDev:
+		return "stddev"
+	case DigestStdVar:
+		return "stddev"
+	case DigestCardinality:
+		return "cardinality"
+	case DigestCardinalitySec:
+		return "cardinalitysec"
+	case DigestCardinalityRaw:
+		return "cardinalityraw"
+	case DigestUnique:
+		return "unique"
+	case DigestUniqueSec:
+		return "uniquesec"
+	case DigestUniqueRaw:
+		return "uniqueraw"
+	default:
+		return ""
+	}
+}
+
 func (k DigestKind) String() string {
 	var res string
 	switch k {
