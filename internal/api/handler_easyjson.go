@@ -9,8 +9,8 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-
 	format "github.com/vkcom/statshouse/internal/format"
+	promql "github.com/vkcom/statshouse/internal/promql"
 )
 
 // suppress unused package warning
@@ -1722,15 +1722,15 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 				in.Delim('[')
 				if out.What == nil {
 					if !in.IsDelim(']') {
-						out.What = make([]QueryFunc, 0, 2)
+						out.What = make([]promql.SelectorWhat, 0, 2)
 					} else {
-						out.What = []QueryFunc{}
+						out.What = []promql.SelectorWhat{}
 					}
 				} else {
 					out.What = (out.What)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v45 QueryFunc
+					var v45 promql.SelectorWhat
 					(v45).UnmarshalEasyJSON(in)
 					out.What = append(out.What, v45)
 					in.WantComma()

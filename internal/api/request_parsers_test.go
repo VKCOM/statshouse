@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse/internal/promql"
 )
 
 func TestParseApiQuery(t *testing.T) {
@@ -35,7 +36,7 @@ func TestParseApiQuery(t *testing.T) {
 	// qw=count_norm&mh=1 - query function in this case "count/sec" with max host enabled
 	require.Len(t, seriesRequest.what, 1)
 	maxHost := true
-	queryFunc, ok := ParseQueryFunc("count_norm", &maxHost)
+	queryFunc, ok := promql.ParseQueryFunc("count_norm", &maxHost)
 	require.True(t, ok)
 	require.Equal(t,
 		queryFunc,

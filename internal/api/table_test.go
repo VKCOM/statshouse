@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/promql"
 )
 
 // TODO add general CH mock
@@ -17,8 +18,8 @@ func Test_getTableFromLODs(t *testing.T) {
 	return
 	l, _ := time.LoadLocation("")
 	p := tableReqParams{
-		req: seriesRequest{numResults: 100, what: []QueryFunc{
-			QueryFunc{What: data_model.DigestCount},
+		req: seriesRequest{numResults: 100, what: []promql.SelectorWhat{
+			promql.SelectorWhat{Digest: promql.DigestCount},
 		}},
 		user:           "",
 		metricMeta:     &format.MetricMetaValue{},

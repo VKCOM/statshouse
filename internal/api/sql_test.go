@@ -101,7 +101,10 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
-		kind:   data_model.DigestCountSec.Kind(false),
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+			data_model.DigestSelector{What: data_model.DigestMax},
+		},
 	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
@@ -113,10 +116,11 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	// checks
 	assert.NoError(t, err)
 	assert.Equal(t, 2, meta.vals)
-	assert.False(t, meta.minMaxHost)
+	assert.False(t, meta.minMaxHost[0])
+	assert.False(t, meta.minMaxHost[1])
 	assert.Equal(t, "2", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestLoadPointsQueryV2_maxHost(t *testing.T) {
@@ -124,7 +128,15 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
-		kind:   data_model.DigestCountSec.Kind(true),
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestMin},
+			data_model.DigestSelector{What: data_model.DigestMax},
+			data_model.DigestSelector{What: data_model.DigestAvg},
+			data_model.DigestSelector{What: data_model.DigestSum},
+			data_model.DigestSelector{What: data_model.DigestStdDev},
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+		},
+		minMaxHost: [2]bool{true, true},
 	}
 	pq.filterIn.AppendMapped(1, 1, 2)
 	pq.filterNotIn.AppendMapped(0, 3)
@@ -136,10 +148,11 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	// checks
 	assert.NoError(t, err)
 	assert.Equal(t, 6, meta.vals)
-	assert.True(t, meta.minMaxHost)
+	assert.True(t, meta.minMaxHost[0])
+	assert.True(t, meta.minMaxHost[1])
 	assert.Equal(t, "2", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
+	assert.Equal(t, "SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1", query)
 }
 
 func TestLoadPointsQueryV3(t *testing.T) {
@@ -147,7 +160,10 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
-		kind:   data_model.DigestCountSec.Kind(false),
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+			data_model.DigestSelector{What: data_model.DigestMax},
+		},
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
@@ -159,10 +175,11 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	// checks
 	assert.NoError(t, err)
 	assert.Equal(t, 2, meta.vals)
-	assert.False(t, meta.minMaxHost)
+	assert.False(t, meta.minMaxHost[0])
+	assert.False(t, meta.minMaxHost[1])
 	assert.Equal(t, "3", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query)
 }
 
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
@@ -170,7 +187,15 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	pq := queryBuilder{
 		metric: metric,
 		user:   "test-user",
-		kind:   data_model.DigestCountSec.Kind(true),
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestMin},
+			data_model.DigestSelector{What: data_model.DigestMax},
+			data_model.DigestSelector{What: data_model.DigestAvg},
+			data_model.DigestSelector{What: data_model.DigestSum},
+			data_model.DigestSelector{What: data_model.DigestStdDev},
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+		},
+		minMaxHost: [2]bool{true, true},
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
@@ -182,8 +207,9 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// checks
 	assert.NoError(t, err)
 	assert.Equal(t, 6, meta.vals)
-	assert.True(t, meta.minMaxHost)
+	assert.True(t, meta.minMaxHost[0])
+	assert.True(t, meta.minMaxHost[1])
 	assert.Equal(t, "3", meta.version)
 	assert.Empty(t, meta.tags)
-	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(sum(count)) AS _count,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toInt64(60) AS _stepSec,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum))/toFloat64(sum(count)) AS _val2,toFloat64(sum(sum)) AS _val3,if(sum(count)<2,0,sqrt(greatest((sum(sumsquare)-pow(sum(sum),2)/sum(count))/(sum(count)-1),0))) AS _val4,toFloat64(sum(1)) AS _val5,argMinMerge(min_host) AS _minHost,argMaxMerge(max_host) AS _maxHost FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query)
 }

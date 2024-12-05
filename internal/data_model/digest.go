@@ -6,149 +6,47 @@
 
 package data_model
 
+import "fmt"
+
+type DigestSelector struct {
+	What     DigestWhat
+	Argument float64
+}
+
 type DigestWhat int
-type DigestKind int
 
 const (
 	DigestUnspecified DigestWhat = iota
 	DigestAvg
 	DigestCount
-	DigestCountSec
-	DigestCountRaw
 	DigestMax
 	DigestMin
 	DigestSum
-	DigestSumSec
-	DigestSumRaw
-	DigestP0_1
-	DigestP1
-	DigestP5
-	DigestP10
-	DigestP25
-	DigestP50
-	DigestP75
-	DigestP90
-	DigestP95
-	DigestP99
-	DigestP999
+	DigestPercentile
 	DigestStdDev
-	DigestStdVar
 	DigestCardinality
-	DigestCardinalitySec
-	DigestCardinalityRaw
 	DigestUnique
-	DigestUniqueSec
-	DigestUniqueRaw
 )
 
-const (
-	DigestKindUnspecified DigestKind = iota
-	DigestKindCount
-	DigestKindValue
-	DigestKindPercentiles
-	DigestKindPercentilesLow
-	DigestKindUnique
-)
-
-func (d DigestWhat) Kind(maxhost bool) DigestKind {
-	switch d {
-	case DigestCount, DigestCountSec, DigestCountRaw,
-		DigestCardinality, DigestCardinalitySec, DigestCardinalityRaw:
-		if maxhost {
-			return DigestKindValue
-		}
-		return DigestKindCount
-	case DigestMin, DigestMax, DigestAvg,
-		DigestSum, DigestSumSec, DigestSumRaw,
-		DigestStdDev, DigestStdVar:
-		return DigestKindValue
-	case DigestP0_1, DigestP1, DigestP5, DigestP10:
-		return DigestKindPercentilesLow
-	case DigestP25, DigestP50, DigestP75, DigestP90, DigestP95, DigestP99, DigestP999:
-		return DigestKindPercentiles
-	case DigestUnique, DigestUniqueSec, DigestUniqueRaw:
-		return DigestKindUnique
-	default:
-		return DigestKindUnspecified
-	}
-}
-
-func (k DigestWhat) String() string {
-	switch k {
+func (k DigestSelector) String() string {
+	switch k.What {
 	case DigestAvg:
 		return "avg"
 	case DigestCount:
 		return "count"
-	case DigestCountSec:
-		return "countsec"
-	case DigestCountRaw:
-		return "countraw"
 	case DigestMax:
 		return "max"
 	case DigestMin:
 		return "min"
 	case DigestSum:
 		return "sum"
-	case DigestSumSec:
-		return "semsec"
-	case DigestSumRaw:
-		return "sumraw"
-	case DigestP0_1:
-		return "p0"
-	case DigestP1:
-		return "p1"
-	case DigestP5:
-		return "p5"
-	case DigestP10:
-		return "p10"
-	case DigestP25:
-		return "p25"
-	case DigestP50:
-		return "p50"
-	case DigestP75:
-		return "p75"
-	case DigestP90:
-		return "p90"
-	case DigestP95:
-		return "p95"
-	case DigestP99:
-		return "p99"
-	case DigestP999:
-		return "p999"
-	case DigestStdDev:
-		return "stddev"
-	case DigestStdVar:
-		return "stddev"
+	case DigestPercentile:
+		return fmt.Sprintf("p%.3f", k.Argument)
 	case DigestCardinality:
 		return "cardinality"
-	case DigestCardinalitySec:
-		return "cardinalitysec"
-	case DigestCardinalityRaw:
-		return "cardinalityraw"
 	case DigestUnique:
 		return "unique"
-	case DigestUniqueSec:
-		return "uniquesec"
-	case DigestUniqueRaw:
-		return "uniqueraw"
 	default:
 		return ""
 	}
-}
-
-func (k DigestKind) String() string {
-	var res string
-	switch k {
-	case DigestKindCount:
-		res = "count"
-	case DigestKindValue:
-		res = "value"
-	case DigestKindPercentiles:
-		res = "percentiles"
-	case DigestKindPercentilesLow:
-		res = "percentiles_low"
-	case DigestKindUnique:
-		res = "unique"
-	}
-	return res
 }

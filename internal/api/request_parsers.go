@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 )
@@ -123,7 +122,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		tab.widthKind = widthLODRes
 		tab.promQL = v.PromQL
 		for _, v := range v.What {
-			if fn, _ := ParseQueryFunc(v, &tab.maxHost); fn.What != data_model.DigestUnspecified {
+			if fn, _ := promql.ParseQueryFunc(v, &tab.maxHost); fn.Digest != promql.DigestUnspecified {
 				tab.what = append(tab.what, fn)
 			}
 		}
@@ -373,7 +372,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			t.verbose = first(v) == "1"
 		case ParamQueryWhat:
 			for _, what := range v {
-				if fn, _ := ParseQueryFunc(what, &t.maxHost); fn.What != data_model.DigestUnspecified {
+				if fn, _ := promql.ParseQueryFunc(what, &t.maxHost); fn.Digest != promql.DigestUnspecified {
 					if t.sourceOfWhat != source {
 						t.what = t.what[:0]
 						t.sourceOfWhat = source
@@ -522,9 +521,9 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 				t.step = int64(t.width)
 			}
 			if len(t.what) == 0 {
-				t.what = append(t.what, QueryFunc{
-					Name: ParamQueryFnCountNorm,
-					What: data_model.DigestCountSec,
+				t.what = append(t.what, promql.SelectorWhat{
+					QueryF: format.ParamQueryFnCountNorm,
+					Digest: promql.DigestCountSec,
 				})
 			}
 			return nil
