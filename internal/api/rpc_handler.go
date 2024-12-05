@@ -18,6 +18,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"pgregory.net/rand"
@@ -397,12 +398,12 @@ func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesReques
 		req.shifts = append(req.shifts, time.Duration(ts)*time.Second)
 	}
 	if qry.whatFlagSet {
-		req.what = make([]QueryFunc, 0, len(qry.what))
+		req.what = make([]promql.SelectorWhat, 0, len(qry.what))
 		for _, fn := range qry.what {
-			req.what = append(req.what, QueryFuncFromTLFunc(fn, &req.maxHost))
+			req.what = append(req.what, promql.QueryFuncFromTLFunc(fn, &req.maxHost))
 		}
 	} else {
-		req.what = []QueryFunc{QueryFuncFromTLFunc(qry.function, &req.maxHost)}
+		req.what = []promql.SelectorWhat{promql.QueryFuncFromTLFunc(qry.function, &req.maxHost)}
 	}
 	return req, nil
 }

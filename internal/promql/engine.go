@@ -1064,23 +1064,23 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			continue
 		}
 		if what, queryFunc, ok := parseSelectorWhat(selWhat); ok {
-			whats = append(whats, SelectorWhat{what, queryFunc})
+			whats = append(whats, SelectorWhat{Digest: what, QueryF: queryFunc})
 		} else {
 			return SeriesQuery{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
 		}
 	}
 	var prefixSum bool
 	if len(whats) == 0 {
-		var what data_model.DigestWhat
+		var what DigestWhat
 		if metric.Kind == format.MetricKindCounter {
 			if ev.opt.Compat {
-				what = data_model.DigestCountRaw
+				what = DigestCountRaw
 				prefixSum = true
 			} else {
-				what = data_model.DigestCount
+				what = DigestCount
 			}
 		} else {
-			what = data_model.DigestAvg
+			what = DigestAvg
 		}
 		whats = append(whats, SelectorWhat{Digest: what})
 	}
@@ -1617,7 +1617,7 @@ func normalizeOffsets(s []int64) []int64 {
 	return res[:i+1]
 }
 
-func parseSelectorWhat(str string) (data_model.DigestWhat, string, bool) {
+func parseSelectorWhat(str string) (DigestWhat, string, bool) {
 	var digestWhat, queryFunc string
 	if i := strings.Index(str, ":"); i != -1 {
 		digestWhat = str[:i]
@@ -1625,64 +1625,64 @@ func parseSelectorWhat(str string) (data_model.DigestWhat, string, bool) {
 	} else {
 		digestWhat = str
 	}
-	var res data_model.DigestWhat
+	var res DigestWhat
 	switch digestWhat {
 	case Count:
-		res = data_model.DigestCount
+		res = DigestCount
 	case CountSec:
-		res = data_model.DigestCountSec
+		res = DigestCountSec
 	case CountRaw:
-		res = data_model.DigestCountRaw
+		res = DigestCountRaw
 	case Min:
-		res = data_model.DigestMin
+		res = DigestMin
 	case Max:
-		res = data_model.DigestMax
+		res = DigestMax
 	case Sum:
-		res = data_model.DigestSum
+		res = DigestSum
 	case SumSec:
-		res = data_model.DigestSumSec
+		res = DigestSumSec
 	case SumRaw:
-		res = data_model.DigestSumRaw
+		res = DigestSumRaw
 	case Avg:
-		res = data_model.DigestAvg
+		res = DigestAvg
 	case StdDev:
-		res = data_model.DigestStdDev
+		res = DigestStdDev
 	case StdVar:
-		res = data_model.DigestStdVar
+		res = DigestStdVar
 	case P0_1:
-		res = data_model.DigestP0_1
+		res = DigestP0_1
 	case P1:
-		res = data_model.DigestP1
+		res = DigestP1
 	case P5:
-		res = data_model.DigestP5
+		res = DigestP5
 	case P10:
-		res = data_model.DigestP10
+		res = DigestP10
 	case P25:
-		res = data_model.DigestP25
+		res = DigestP25
 	case P50:
-		res = data_model.DigestP50
+		res = DigestP50
 	case P75:
-		res = data_model.DigestP75
+		res = DigestP75
 	case P90:
-		res = data_model.DigestP90
+		res = DigestP90
 	case P95:
-		res = data_model.DigestP95
+		res = DigestP95
 	case P99:
-		res = data_model.DigestP99
+		res = DigestP99
 	case P999:
-		res = data_model.DigestP999
+		res = DigestP999
 	case Cardinality:
-		res = data_model.DigestCardinality
+		res = DigestCardinality
 	case CardinalitySec:
-		res = data_model.DigestCardinalitySec
+		res = DigestCardinalitySec
 	case CardinalityRaw:
-		res = data_model.DigestCardinalityRaw
+		res = DigestCardinalityRaw
 	case Unique:
-		res = data_model.DigestUnique
+		res = DigestUnique
 	case UniqueSec:
-		res = data_model.DigestUniqueSec
+		res = DigestUniqueSec
 	default:
-		return data_model.DigestUnspecified, "", false
+		return DigestUnspecified, "", false
 	}
 	return res, queryFunc, true
 }

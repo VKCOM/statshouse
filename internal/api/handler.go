@@ -397,7 +397,7 @@ type (
 		screenWidth      int64
 		promQL           string
 		shifts           []time.Duration
-		what             []QueryFunc
+		what             []promql.SelectorWhat
 		by               []string
 		filterIn         map[string][]string
 		filterNotIn      map[string][]string
@@ -450,12 +450,12 @@ type (
 
 	//easyjson:json
 	GetTableResp struct {
-		Rows         []queryTableRow `json:"rows"`
-		What         []QueryFunc     `json:"what"`
-		FromRow      string          `json:"from_row"`
-		ToRow        string          `json:"to_row"`
-		More         bool            `json:"more"`
-		DebugQueries []string        `json:"__debug_queries"` // private, unstable: SQL queries executed, can be null
+		Rows         []queryTableRow       `json:"rows"`
+		What         []promql.SelectorWhat `json:"what"`
+		FromRow      string                `json:"from_row"`
+		ToRow        string                `json:"to_row"`
+		More         bool                  `json:"more"`
+		DebugQueries []string              `json:"__debug_queries"` // private, unstable: SQL queries executed, can be null
 	}
 
 	renderRequest struct {
@@ -488,10 +488,10 @@ type (
 	queryTableRows []queryTableRow
 
 	QuerySeriesMeta struct {
-		TimeShift int64             `json:"time_shift"`
-		Tags      map[string]string `json:"tags"`
-		MaxHosts  []string          `json:"max_hosts"` // max_host for now
-		What      QueryFunc         `json:"what"`
+		TimeShift int64               `json:"time_shift"`
+		Tags      map[string]string   `json:"tags"`
+		MaxHosts  []string            `json:"max_hosts"` // max_host for now
+		What      promql.SelectorWhat `json:"what"`
 	}
 
 	QuerySeriesMetaV2 struct {
@@ -798,7 +798,6 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		User:    "cache-update",
 		Metric:  format.BuiltinMetricIDContributorsLog,
 		Table:   _1sTableSH3,
-		Kind:    "cache-update",
 	}, Version2, ch.Query{
 		Body: sb.String(),
 		Result: proto.Results{
@@ -854,7 +853,7 @@ func (h *requestHandler) doSelect(ctx context.Context, meta util.QueryMetaInto, 
 	info, err := h.ch[version].Select(ctx, meta, query)
 	duration := time.Since(start)
 	h.endpointStat.reportTiming("ch-select", duration)
-	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, meta.IsHardware, err)
+	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, info.Profile, err)
 
 	return err
@@ -1853,7 +1852,6 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 				User:    req.ai.user,
 				Metric:  metricMeta.MetricID,
 				Table:   lod.Table,
-				Kind:    "get_mapping",
 			}, version, ch.Query{
 				Body:   query,
 				Result: cols.res,
@@ -2026,17 +2024,17 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 			if t, ok := d.Tags.ID2Tag["1"]; ok {
 				badgeType := t.Value
 				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
-					what := data_model.DigestWhat(t.Value)
+					what := promql.DigestWhat(t.Value)
 					switch {
-					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
 						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(badges.Time))
-					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
 						res.SamplingFactorAgg = sumSeries(d.Values, 1) / float64(len(badges.Time))
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
 						res.ReceiveErrors = sumSeries(d.Values, 0)
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
 						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
@@ -2580,17 +2578,17 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 			if t, ok := d.Tags.ID2Tag["1"]; ok {
 				badgeType := t.Value
 				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
-					what := data_model.DigestWhat(t.Value)
+					what := promql.DigestWhat(t.Value)
 					switch {
-					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
 						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
 						res.SamplingFactorAgg = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
 						res.ReceiveErrors = sumSeries(d.Values, 0)
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
 						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
@@ -2669,7 +2667,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 	}
 	queryFunc := d.What.QueryF
 	if queryFunc == "" {
-		queryFunc = promql.DigestWhatString(d.What.Digest)
+		queryFunc = d.What.Digest.String()
 	}
 	return queryFunc, timsShift, tags
 }
@@ -2748,7 +2746,6 @@ type pointsSelectCols struct {
 	pointsQueryMeta
 	time         proto.ColInt64
 	step         proto.ColInt64
-	cnt          proto.ColFloat64
 	val          []proto.ColFloat64
 	tag          []proto.ColInt32
 	stag         []proto.ColStr
@@ -2790,12 +2787,13 @@ func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 			c.tagIx = append(c.tagIx, format.TagIndex(id))
 		}
 	}
-	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
 	for i := 0; i < meta.vals; i++ {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
-	if meta.minMaxHost {
+	if meta.minMaxHost[0] {
 		c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV3[0]})
+	}
+	if meta.minMaxHost[1] {
 		c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV3[1]})
 	}
 	return c
@@ -2827,17 +2825,22 @@ func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 			c.tagIx = append(c.tagIx, format.TagIndex(id))
 		}
 	}
-	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
 	for i := 0; i < meta.vals; i++ {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
-	if meta.minMaxHost {
+	if meta.minMaxHost[0] {
 		switch meta.version {
 		case Version1:
 			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV1[0]})
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV1[1]})
 		case Version2:
 			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV2[0]})
+		}
+	}
+	if meta.minMaxHost[1] {
+		switch meta.version {
+		case Version1:
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV1[1]})
+		case Version2:
 			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV2[1]})
 		}
 	}
@@ -2846,10 +2849,9 @@ func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols
 
 func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	row := tsSelectRow{
-		what:     c.what,
-		time:     c.time[i],
-		stepSec:  c.step[i],
-		tsValues: tsValues{countNorm: c.cnt[i]},
+		what:    c.what,
+		time:    c.time[i],
+		stepSec: c.step[i],
 	}
 	for j := 0; j < len(c.val); j++ {
 		row.val[j] = c.val[j][i]
@@ -2892,9 +2894,7 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 }
 
 func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
-	row := pSelectRow{
-		tsValues: tsValues{countNorm: c.cnt[i]},
-	}
+	row := pSelectRow{}
 	for j := 0; j < len(c.val); j++ {
 		row.val[j] = c.val[j][i]
 	}
@@ -2971,7 +2971,6 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	IsHardware := cols.IsHardware()
 	metric := pq.metricID()
 	table := lod.Table
-	kind := pq.kind
 	start := time.Now()
 	err = h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:     isFast,
@@ -2980,13 +2979,11 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 		User:       pq.user,
 		Metric:     metric,
 		Table:      table,
-		Kind:       kind.String(),
 	}, lod.Version, ch.Query{
 		Body:   body,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
-				replaceInfNan(&cols.cnt[i])
 				for j := 0; j < len(cols.val); j++ {
 					replaceInfNan(&cols.val[j][i])
 				}
@@ -3038,7 +3035,6 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 	isHardware := cols.IsHardware()
 	metric := pq.metricID()
 	table := lod.Table
-	kind := pq.kind
 	err = h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
@@ -3046,14 +3042,12 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 		User:       pq.user,
 		Metric:     metric,
 		Table:      table,
-		Kind:       kind.String(),
 	}, lod.Version, ch.Query{
 		Body:   body,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
 				//todo check
-				replaceInfNan(&cols.cnt[i])
 				for j := 0; j < len(cols.val); j++ {
 					replaceInfNan(&cols.val[j][i])
 				}
@@ -3092,78 +3086,6 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 	// if we do multiplication first, (a * 360) might lose mantissa bits so next division by 360 will lose precision
 	// hopefully 2x divisions on this code path will not slow us down too much.
 	return v * float64(mul) / float64(div)
-}
-
-func selectTSValue(what data_model.DigestWhat, maxHost bool, desiredStepMul int64, row *tsSelectRow) float64 {
-	switch what {
-	case data_model.DigestCount:
-		return stableMulDiv(row.countNorm, desiredStepMul, row.stepSec)
-	case data_model.DigestCountRaw:
-		return row.countNorm
-	case data_model.DigestCountSec:
-		return row.countNorm / float64(row.stepSec)
-	case data_model.DigestCardinality:
-		if maxHost {
-			return stableMulDiv(row.val[5], desiredStepMul, row.stepSec)
-		}
-		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
-	case data_model.DigestCardinalityRaw:
-		if maxHost {
-			return row.val[5]
-		}
-		return row.val[0]
-	case data_model.DigestCardinalitySec:
-		if maxHost {
-			return row.val[5] / float64(row.stepSec)
-		}
-		return row.val[0] / float64(row.stepSec)
-	case data_model.DigestMin:
-		return row.val[0]
-	case data_model.DigestMax:
-		return row.val[1]
-	case data_model.DigestAvg:
-		return row.val[2]
-	case data_model.DigestSum:
-		return stableMulDiv(row.val[3], desiredStepMul, row.stepSec)
-	case data_model.DigestSumRaw:
-		return row.val[3]
-	case data_model.DigestSumSec:
-		return row.val[3] / float64(row.stepSec)
-	case data_model.DigestStdDev:
-		return row.val[4]
-	case data_model.DigestStdVar:
-		return row.val[4] * row.val[4]
-	case data_model.DigestP0_1:
-		return row.val[0]
-	case data_model.DigestP1:
-		return row.val[1]
-	case data_model.DigestP5:
-		return row.val[2]
-	case data_model.DigestP10:
-		return row.val[3]
-	case data_model.DigestP25:
-		return row.val[0]
-	case data_model.DigestP50:
-		return row.val[1]
-	case data_model.DigestP75:
-		return row.val[2]
-	case data_model.DigestP90:
-		return row.val[3]
-	case data_model.DigestP95:
-		return row.val[4]
-	case data_model.DigestP99:
-		return row.val[5]
-	case data_model.DigestP999:
-		return row.val[6]
-	case data_model.DigestUnique:
-		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
-	case data_model.DigestUniqueRaw:
-		return row.val[0]
-	case data_model.DigestUniqueSec:
-		return row.val[0] / float64(row.stepSec)
-	default:
-		return math.NaN()
-	}
 }
 
 func toSec(d time.Duration) int64 {

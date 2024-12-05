@@ -17,7 +17,6 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
@@ -310,7 +309,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	var v string
 	switch tg.ID {
 	case LabelWhat:
-		v = DigestWhatString(data_model.DigestWhat(tg.Value))
+		v = DigestWhat(tg.Value).String()
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:

@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/vkcom/statshouse/internal/promql"
 )
 
 type openGraphInfo struct {
@@ -141,7 +143,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 	if 0 <= tn && tn < len(metrics) {
 		what := whats[tn]
 		for i, w := range what {
-			if _, ok := ParseQueryFunc(w, nil); ok {
+			if _, ok := promql.ParseQueryFunc(w, nil); ok {
 				what[i] = WhatToWhatDesc(w)
 			}
 		}

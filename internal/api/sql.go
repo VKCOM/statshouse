@@ -31,13 +31,13 @@ type queryBuilder struct {
 	version     string
 	user        string
 	metric      *format.MetricMetaValue
-	what        data_model.DigestWhat
-	kind        data_model.DigestKind
+	what        tsWhat
 	by          []string
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
 	sort        querySort // for table view requests
 	strcmpOff   bool      // version 3 experimental
+	minMaxHost  [2]bool   // "min" at [0], "max" at [1]
 
 	// tag values query
 	tagID      string
@@ -48,7 +48,7 @@ type pointsQueryMeta struct {
 	queryMeta
 	vals       int
 	tags       []string
-	minMaxHost bool
+	minMaxHost [2]bool
 	version    string
 }
 
@@ -61,8 +61,7 @@ type tagValuesQueryMeta struct {
 
 type queryMeta struct {
 	metricID int32
-	what     data_model.DigestWhat
-	kind     data_model.DigestKind
+	what     tsWhat
 	user     string
 }
 
@@ -85,9 +84,31 @@ func (pq *queryBuilder) cacheKey() string {
 	sb.WriteString(pq.preKeyTagID())
 	sb.WriteString(`","st":`)
 	sb.WriteString(fmt.Sprint(pq.isStringTop()))
-	sb.WriteString(`,"kind":`)
-	sb.WriteString(fmt.Sprint(int(pq.kind)))
-	sb.WriteString(`,"by":[`)
+	sb.WriteString(`,"what":[`)
+	i := 0
+	for ; i < len(pq.what) && pq.what[i].What != data_model.DigestUnspecified; i++ {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"`)
+		sb.WriteString(pq.what[i].String())
+		sb.WriteString(`"`)
+	}
+	if pq.minMaxHost[0] {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"minhost"`)
+		i++
+	}
+	if pq.minMaxHost[1] {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"maxhost"`)
+		i++
+	}
+	sb.WriteString(`],"by":[`)
 	if len(pq.by) != 0 {
 		sort.Strings(pq.by)
 		sb.WriteString(`"`)
@@ -168,7 +189,15 @@ func writeTagFiltersCacheKey(sb *strings.Builder, f data_model.TagFilters, s []s
 }
 
 func (pq *queryMeta) isLight() bool {
-	return pq.kind != data_model.DigestKindUnique && pq.kind != data_model.DigestKindPercentiles
+	for i := 0; i < len(pq.what); i++ {
+		switch pq.what[i].What {
+		case data_model.DigestUnique, data_model.DigestPercentile:
+			return false
+		case data_model.DigestUnspecified:
+			return true
+		}
+	}
+	return true
 }
 
 func (pq *queryMeta) IsHardware() bool {
@@ -413,64 +442,72 @@ func (pq *queryBuilder) writeTagCond(sb *strings.Builder, lod *data_model.LOD, i
 	}
 }
 
-func loadPointsSelectWhat(sb *strings.Builder, pq *queryBuilder, version string) (int, error) {
-	var (
-		isStringTop = pq.isStringTop()
-		kind        = pq.kind
-	)
-	if version == Version1 && isStringTop {
-		sb.WriteString(",toFloat64(sumMerge(count)) AS _count")
-		return 0, nil // count is the only column available
+func loadPointsSelectWhat(sb *strings.Builder, pq *queryBuilder, queryMeta *pointsQueryMeta) error {
+	version := queryMeta.version
+	if version == Version1 && pq.isStringTop() {
+		sb.WriteString(",toFloat64(sumMerge(count)) AS _val0")
+		queryMeta.vals++
+		return nil // count is the only column available
 	}
-
-	switch kind {
-	case data_model.DigestKindCount:
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(",toFloat64(sum(1)) AS _val0")
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
-		return 2, nil
-	case data_model.DigestKindValue:
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(min)) AS _val0", sqlAggFn(version, "min")))
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(max)) AS _val1", sqlAggFn(version, "max")))
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(sum))/toFloat64(%s(count)) AS _val2", sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(sum)) AS _val3", sqlAggFn(version, "sum")))
-		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
-		sb.WriteString(fmt.Sprintf(",if(%s(count)<2,0,sqrt(greatest((%s(sumsquare)-pow(%s(sum),2)/%s(count))/(%s(count)-1),0))) AS _val4",
-			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
-		sb.WriteString(",toFloat64(sum(1)) AS _val5")
-		sb.WriteString(fmt.Sprintf(",%s AS _minHost,%s AS _maxHost", sqlMinHost(version), sqlMaxHost(version)))
-		return 6, nil
-	case data_model.DigestKindPercentilesLow:
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(",toFloat64((quantilesTDigestMerge(0.001, 0.01, 0.05, 0.1)(percentiles) AS digest)[1]) AS _val0")
-		sb.WriteString(",toFloat64(digest[2]) AS _val1")
-		sb.WriteString(",toFloat64(digest[3]) AS _val2")
-		sb.WriteString(",toFloat64(digest[4]) AS _val3")
-		sb.WriteString(",toFloat64(0) AS _val4")
-		sb.WriteString(",toFloat64(0) AS _val5")
-		sb.WriteString(",toFloat64(0) AS _val6")
-		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
-		return 7, nil
-	case data_model.DigestKindPercentiles:
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(",toFloat64((quantilesTDigestMerge(0.25, 0.5, 0.75, 0.90, 0.95, 0.99, 0.999)(percentiles) AS digest)[1]) AS _val0")
-		sb.WriteString(",toFloat64(digest[2]) AS _val1")
-		sb.WriteString(",toFloat64(digest[3]) AS _val2")
-		sb.WriteString(",toFloat64(digest[4]) AS _val3")
-		sb.WriteString(",toFloat64(digest[5]) AS _val4")
-		sb.WriteString(",toFloat64(digest[6]) AS _val5")
-		sb.WriteString(",toFloat64(digest[7]) AS _val6")
-		sb.WriteString(fmt.Sprintf(", %s as _minHost, %s as _maxHost", sqlMinHost(version), sqlMaxHost(version)))
-		return 7, nil
-	case data_model.DigestKindUnique:
-		sb.WriteString(fmt.Sprintf(",toFloat64(%s(count)) AS _count", sqlAggFn(version, "sum")))
-		sb.WriteString(",toFloat64(uniqMerge(uniq_state)) AS _val0")
-		sb.WriteString(fmt.Sprintf(",%s AS _minHost, %s AS _maxHost", sqlMinHost(version), sqlMaxHost(version)))
-		return 1, nil
-	default:
-		return 0, fmt.Errorf("unsupported operation kind: %q", kind)
+	for i := 0; i < len(pq.what) && pq.what[i].What != data_model.DigestUnspecified; i++ {
+		sb.WriteString(",")
+		switch pq.what[i].What {
+		case data_model.DigestAvg:
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(sum))/toFloat64(%s(count))", sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
+		case data_model.DigestCount:
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(count))", sqlAggFn(version, "sum")))
+		case data_model.DigestMax:
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(max))", sqlAggFn(version, "max")))
+		case data_model.DigestMin:
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(min))", sqlAggFn(version, "min")))
+		case data_model.DigestSum:
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(sum))", sqlAggFn(version, "sum")))
+		case data_model.DigestStdDev:
+			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
+			sb.WriteString(fmt.Sprintf("if(%s(count)<2,0,sqrt(greatest((%s(sumsquare)-pow(%s(sum),2)/%s(count))/(%s(count)-1),0)))",
+				sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum")))
+		case data_model.DigestPercentile:
+			sb.WriteString("toFloat64((quantilesTDigestMerge(")
+			sb.WriteString(fmt.Sprintf("%.3f", pq.what[i].Argument))
+			var n int
+			for j := i + 1; j < len(pq.what) && pq.what[j].What == data_model.DigestPercentile; j++ {
+				sb.WriteString(fmt.Sprintf(",%.3f", pq.what[j].Argument))
+				n++
+			}
+			sb.WriteString(")(percentiles) AS digest)[1])")
+			for j := 0; j < n; j++ {
+				sb.WriteString(" AS _val")
+				sb.WriteString(fmt.Sprint(i))
+				queryMeta.vals++
+				i++
+				sb.WriteString(",toFloat64(digest[")
+				sb.WriteString(fmt.Sprint(j + 2))
+				sb.WriteString("])")
+			}
+		case data_model.DigestCardinality:
+			sb.WriteString("toFloat64(sum(1))")
+		case data_model.DigestUnique:
+			sb.WriteString("toFloat64(uniqMerge(uniq_state))")
+		default:
+			return fmt.Errorf("unsupported operation kind: %q", pq.what[i])
+		}
+		sb.WriteString(" AS _val")
+		sb.WriteString(fmt.Sprint(i))
+		queryMeta.vals++
 	}
+	if pq.minMaxHost[0] {
+		sb.WriteString(",")
+		sb.WriteString(sqlMinHost(version))
+		sb.WriteString(" AS _minHost")
+		queryMeta.minMaxHost[0] = true
+	}
+	if pq.minMaxHost[1] {
+		sb.WriteString(",")
+		sb.WriteString(sqlMaxHost(version))
+		sb.WriteString(" AS _maxHost")
+		queryMeta.minMaxHost[1] = true
+	}
+	return nil
 }
 
 func (pq *queryBuilder) loadPointsQuery(lod data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
@@ -495,8 +532,16 @@ func (pq *queryBuilder) loadPointsQueryV2(lod *data_model.LOD, utcOffset int64, 
 	for _, b := range pq.by {
 		sb.WriteString(fmt.Sprintf(",%s AS key%s", pq.mappedColumnNameV2(b, lod), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
-	if err != nil {
+	queryMeta := pointsQueryMeta{
+		queryMeta: queryMeta{
+			metricID: pq.metricID(),
+			what:     pq.what,
+			user:     pq.user,
+		},
+		tags:    pq.by,
+		version: lod.Version,
+	}
+	if err := loadPointsSelectWhat(&sb, pq, &queryMeta); err != nil {
 		return "", nil, err
 	}
 	sb.WriteString(" FROM ")
@@ -510,23 +555,10 @@ func (pq *queryBuilder) loadPointsQueryV2(lod *data_model.LOD, utcOffset int64, 
 	for _, b := range pq.by {
 		sb.WriteString(fmt.Sprintf(",%s AS key%s", pq.mappedColumnNameV2(b, lod), b))
 	}
-	var having bool
-	switch pq.kind {
-	case data_model.DigestKindPercentiles:
-		sb.WriteString(" HAVING not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3) AND isNaN(_val4) AND isNaN(_val5) AND isNaN(_val6))")
-		having = true
-	case data_model.DigestKindPercentilesLow:
-		sb.WriteString(" HAVING not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3))")
-		having = true
-	}
 	limit := maxSeriesRows
 	if pq.sort != sortNone {
 		limit = maxTableRows
-		if having {
-			sb.WriteString(" AND _count>0")
-		} else {
-			sb.WriteString(" HAVING _count>0")
-		}
+		// sb.WriteString(" HAVING _count>0")
 		sb.WriteString(" ORDER BY _time")
 		for _, b := range pq.by {
 			sb.WriteString(fmt.Sprintf(",%s AS key%s", pq.mappedColumnNameV2(b, lod), b))
@@ -536,19 +568,8 @@ func (pq *queryBuilder) loadPointsQueryV2(lod *data_model.LOD, utcOffset int64, 
 		}
 	}
 	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
-	cols := newPointsSelectColsV2(pointsQueryMeta{
-		queryMeta: queryMeta{
-			metricID: pq.metricID(),
-			what:     pq.what,
-			kind:     pq.kind,
-			user:     pq.user,
-		},
-		vals:       cnt,
-		tags:       pq.by,
-		minMaxHost: pq.kind != data_model.DigestKindCount,
-		version:    lod.Version,
-	}, useTime)
-	return sb.String(), cols, err
+	cols := newPointsSelectColsV2(queryMeta, useTime)
+	return sb.String(), cols, nil
 }
 
 func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, useTime bool) (string, *pointsSelectCols, error) {
@@ -567,8 +588,16 @@ func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, 
 		}
 		sb.WriteString(fmt.Sprintf(",%s AS stag%s", pq.unmappedColumnNameV3(b), b))
 	}
-	cnt, err := loadPointsSelectWhat(&sb, pq, lod.Version)
-	if err != nil {
+	queryMeta := pointsQueryMeta{
+		queryMeta: queryMeta{
+			metricID: pq.metricID(),
+			what:     pq.what,
+			user:     pq.user,
+		},
+		tags:    pq.by,
+		version: lod.Version,
+	}
+	if err := loadPointsSelectWhat(&sb, pq, &queryMeta); err != nil {
 		return "", nil, err
 	}
 	sb.WriteString(" FROM ")
@@ -592,13 +621,7 @@ func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, 
 		sb.WriteString(b)
 	}
 	if pq.sort != sortNone {
-		sb.WriteString(" HAVING _count>0")
-		switch pq.kind {
-		case data_model.DigestKindPercentiles:
-			sb.WriteString("AND not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3) AND isNaN(_val4) AND isNaN(_val5) AND isNaN(_val6))")
-		case data_model.DigestKindPercentilesLow:
-			sb.WriteString("AND not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3))")
-		}
+		// sb.WriteString(" HAVING _count>0")
 		sb.WriteString(" ORDER BY _time")
 		for _, b := range pq.by {
 			if b != format.StringTopTagID {
@@ -616,19 +639,8 @@ func (pq *queryBuilder) loadPointsQueryV3(lod *data_model.LOD, utcOffset int64, 
 		sb.WriteString(fmt.Sprint(maxSeriesRows))
 	}
 	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
-	cols := newPointsSelectColsV3(pointsQueryMeta{
-		queryMeta: queryMeta{
-			metricID: pq.metricID(),
-			what:     pq.what,
-			kind:     pq.kind,
-			user:     pq.user,
-		},
-		vals:       cnt,
-		tags:       pq.by,
-		minMaxHost: pq.kind != data_model.DigestKindCount,
-		version:    lod.Version,
-	}, useTime)
-	return sb.String(), cols, err
+	cols := newPointsSelectColsV3(queryMeta, useTime)
+	return sb.String(), cols, nil
 }
 
 func (pq *queryBuilder) isStringTop() bool {

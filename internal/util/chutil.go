@@ -48,7 +48,6 @@ type QueryMetaInto struct {
 	User   string
 	Metric int32
 	Table  string
-	Kind   string
 }
 
 type QueryHandleInfo struct {

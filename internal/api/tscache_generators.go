@@ -22,7 +22,7 @@ func generateConstCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 			{
 				time:     fromSec,
 				stepSec:  lod.StepSec,
-				tsValues: tsValues{countNorm: constValue * float64(lod.StepSec)},
+				tsValues: tsValues{val: [tsValueCount]float64{constValue * float64(lod.StepSec)}},
 			},
 		}
 		rows[i][0].val[0] = float64(lod.StepSec)
@@ -48,7 +48,7 @@ func generateSinCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 			{
 				time:     fromSec,
 				stepSec:  lod.StepSec,
-				tsValues: tsValues{countNorm: countNorm},
+				tsValues: tsValues{val: [tsValueCount]float64{countNorm}},
 			},
 		}
 		rows[i][0].val[0] = float64(lod.StepSec)
@@ -91,7 +91,7 @@ func generateGapsCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 			{
 				time:     fromSec,
 				stepSec:  lod.StepSec,
-				tsValues: tsValues{countNorm: sum},
+				tsValues: tsValues{val: [tsValueCount]float64{sum}},
 			},
 		}
 		rows[i][0].val[0] = float64(lod.StepSec)

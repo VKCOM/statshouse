@@ -48,9 +48,9 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 	if toTime == 0 {
 		toTime = math.MaxInt
 	}
-	for qIndex, q := range tableReqParams.req.what {
+	what := h.getHandlerWhat(req.what)
+	for qIndex, q := range what {
 		rowsCount := 0
-		kind := q.What.Kind(req.maxHost)
 		for k := range lods {
 			if tableReqParams.req.fromEnd {
 				k = len(lods) - k - 1
@@ -63,8 +63,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				version:     h.version,
 				user:        tableReqParams.user,
 				metric:      metricMeta,
-				what:        q.What,
-				kind:        kind,
+				what:        q.qry,
 				by:          req.by,
 				filterIn:    tableReqParams.mappedFilterIn,
 				filterNotIn: tableReqParams.mappedFilterNotIn,
@@ -106,7 +105,6 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				}
 				skey := maybeAddQuerySeriesTagValueString(kvs, req.by, &tags.tagStr)
 				rowRepr.SKey = skey
-				data := selectTSValue(q.What, req.maxHost, tableReqParams.desiredStepMul, &rows[i])
 				key := tableRowKey{
 					time:   rows[i].time,
 					tsTags: rows[i].tsTags,
@@ -129,7 +127,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 					shouldSort = shouldSort || qIndex > 0
 				}
 				used[ix] = struct{}{}
-				queryRows[ix].Data = append(queryRows[ix].Data, data)
+				queryRows[ix].Data = q.appendRowValues(queryRows[ix].Data, &rows[i], tableReqParams.desiredStepMul)
 			}
 			for _, ix := range rowsIdx {
 				if _, ok := used[ix]; ok {
