@@ -760,16 +760,10 @@ func (w *handlerWhat) copyRowValuesAt(data []promql.SeriesData, x, y int, row *t
 		}
 		var val float64
 		switch what {
-		case promql.DigestCountSec:
+		case promql.DigestCountSec, promql.DigestSumSec, promql.DigestCardinalitySec, promql.DigestUniqueSec:
 			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCount:
+		case promql.DigestCount, promql.DigestSum, promql.DigestCardinality, promql.DigestUnique:
 			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestCardinalitySec:
-			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCardinality:
-			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestUniqueSec:
-			val = row.val[j] / float64(row.stepSec)
 		case promql.DigestStdVar:
 			val = row.val[j] * row.val[j]
 		default:
@@ -800,16 +794,10 @@ func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, desiredStep
 		}
 		var val float64
 		switch what {
-		case promql.DigestCountSec:
+		case promql.DigestCountSec, promql.DigestSumSec, promql.DigestCardinalitySec, promql.DigestUniqueSec:
 			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCount:
+		case promql.DigestCount, promql.DigestSum, promql.DigestCardinality, promql.DigestUnique:
 			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestCardinalitySec:
-			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCardinality:
-			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestUniqueSec:
-			val = row.val[j] / float64(row.stepSec)
 		case promql.DigestStdVar:
 			val = row.val[j] * row.val[j]
 		default:
