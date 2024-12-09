@@ -67,6 +67,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 				},
 			},
 		},
+		brs: h.brs,
 	}
 	defer func() {
 		var code int // "0" means "success"
