@@ -499,6 +499,8 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				filterNotIn: qry.FilterNotIn,
 				strcmpOff:   h.Version3StrcmpOff.Load(),
 				minMaxHost:  qry.MinMaxHost,
+				utcOffset:   h.utcOffset,
+				point:       qry.Options.Mode == data_model.PointQuery,
 			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
@@ -665,15 +667,17 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	var (
 		pq = &queryBuilder{
+			version:    h.version,
 			metric:     qry.Metric,
 			tagID:      format.TagID(qry.TagIndex),
 			numResults: math.MaxInt - 1,
 			strcmpOff:  h.Version3StrcmpOff.Load(),
+			utcOffset:  h.utcOffset,
 		}
 		tags = make(map[int32]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		query, cols := pq.tagValueIDsQuery(lod)
+		query := pq.tagValueIDsQuery(lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 		err := h.doSelect(ctx, util.QueryMetaInto{
 			IsFast:  isFast,
@@ -682,11 +686,11 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 			Metric:  qry.Metric.MetricID,
 			Table:   lod.Table,
 		}, Version2, ch.Query{
-			Body:   query,
-			Result: cols.res,
+			Body:   query.body,
+			Result: query.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
 				for i := 0; i < b.Rows; i++ {
-					tags[cols.rowAt(i).valID] = true
+					tags[query.rowAt(i).valID] = true
 				}
 				return nil
 			}})

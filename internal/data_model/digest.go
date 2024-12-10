@@ -26,6 +26,7 @@ const (
 	DigestStdDev
 	DigestCardinality
 	DigestUnique
+	DigestLast
 )
 
 func (k DigestSelector) String() string {

@@ -57,7 +57,7 @@ func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, n
 }
 
 func (c *pointsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([]pSelectRow, error) {
-	key := pq.cacheKey()
+	key := pq.getOrBuildCacheKey()
 	if !avoidCache {
 		rows, ok := c.loadCached(key, lod.FromSec, lod.ToSec)
 		if ok {

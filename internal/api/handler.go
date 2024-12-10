@@ -1729,46 +1729,29 @@ type selectRow struct {
 }
 
 type tagValuesSelectCols struct {
-	tagValuesQueryMeta
+	*queryBuilder
+	body  string
 	valID proto.ColInt32
 	val   proto.ColStr
 	cnt   proto.ColFloat64
 	res   proto.Results
+	stag  bool
+	mixed bool // both mapped and unmapped values for v3 requests
 }
 
-func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
-	// NB! Keep columns selection order and names is sync with sql.go code
-	c := &tagValuesSelectCols{tagValuesQueryMeta: meta}
-	if meta.stag {
-		c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
-	} else {
-		c.res = append(c.res, proto.ResultColumn{Name: "_value", Data: &c.valID})
-	}
-	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
-	return c
-}
-
-func newTagValuesSelectColsV3(meta tagValuesQueryMeta) *tagValuesSelectCols {
-	c := &tagValuesSelectCols{tagValuesQueryMeta: meta}
-	c.res = append(c.res, proto.ResultColumn{Name: "_mapped", Data: &c.valID})
-	c.res = append(c.res, proto.ResultColumn{Name: "_unmapped", Data: &c.val})
-	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
-	return c
-}
-
-func (c *tagValuesSelectCols) rowAt(i int) selectRow {
-	row := selectRow{cnt: c.cnt[i]}
-	if c.mixed {
-		pos := c.val.Pos[i]
-		row.val = string(c.val.Buf[pos.Start:pos.End])
-		row.valID = c.valID[i]
+func (q *tagValuesSelectCols) rowAt(i int) selectRow {
+	row := selectRow{cnt: q.cnt[i]}
+	if q.mixed {
+		pos := q.val.Pos[i]
+		row.val = string(q.val.Buf[pos.Start:pos.End])
+		row.valID = q.valID[i]
 		return row
 	}
-	if c.stag {
-		pos := c.val.Pos[i]
-		row.val = string(c.val.Buf[pos.Start:pos.End])
+	if q.stag {
+		pos := q.val.Pos[i]
+		row.val = string(q.val.Buf[pos.Start:pos.End])
 	} else {
-		row.valID = c.valID[i]
+		row.valID = q.valID[i]
 	}
 	return row
 }
@@ -1844,7 +1827,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query, cols := tagValuesQuery(pq, lod)
+			query := tagValuesQuery(pq, lod)
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
 				IsFast:  isFast,
@@ -1853,11 +1836,11 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 				Metric:  metricMeta.MetricID,
 				Table:   lod.Table,
 			}, version, ch.Query{
-				Body:   query,
-				Result: cols.res,
+				Body:   query.body,
+				Result: query.res,
 				OnResult: func(_ context.Context, b proto.Block) error {
 					for i := 0; i < b.Rows; i++ {
-						tag := cols.rowAt(i)
+						tag := query.rowAt(i)
 						tagInfo[selectRow{valID: tag.valID, val: tag.val}] += tag.cnt
 					}
 					return nil
@@ -2743,108 +2726,33 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
-	pointsQueryMeta
-	time         proto.ColInt64
-	step         proto.ColInt64
-	val          []proto.ColFloat64
-	tag          []proto.ColInt32
-	stag         []proto.ColStr
-	tagIx        []int
-	tagStr       proto.ColStr
+	*queryBuilder
+	body    string
+	version string
+	time    proto.ColInt64
+	step    proto.ColInt64
+
+	// tags
+	tag    []proto.ColInt32
+	stag   []proto.ColStr
+	tagX   []int
+	tagStr proto.ColStr
+
+	// values
+	min          proto.ColFloat64
+	max          proto.ColFloat64
+	sum          proto.ColFloat64
+	count        proto.ColFloat64
+	sumsquare    proto.ColFloat64
+	unique       data_model.ColUnique
+	percentile   data_model.ColTDigest
+	cardinality  proto.ColFloat64
+	shardNum     proto.ColUInt32
 	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
 	minMaxHostV2 [2]proto.ColInt32 // "min" at [0], "max" at [1]
 	minMaxHostV3 [2]proto.ColStr   // "min" at [0], "max" at [1]
-	shardNum     proto.ColUInt32
-	res          proto.Results
-}
 
-func newPointsSelectColsV3(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
-	// NB! Keep columns selection order and names is sync with sql.go code
-	c := &pointsSelectCols{
-		pointsQueryMeta: meta,
-		val:             make([]proto.ColFloat64, meta.vals),
-		tag:             make([]proto.ColInt32, 0, len(meta.tags)),
-		stag:            make([]proto.ColStr, 0, len(meta.tags)),
-		tagIx:           make([]int, 0, len(meta.tags)),
-	}
-	if useTime {
-		c.res = proto.Results{
-			{Name: "_time", Data: &c.time},
-			{Name: "_stepSec", Data: &c.step},
-		}
-	}
-	for _, id := range meta.tags {
-		switch id {
-		case format.StringTopTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: "stag_s", Data: &c.tagStr})
-		case format.ShardTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
-		default:
-			c.tag = append(c.tag, proto.ColInt32{})
-			c.res = append(c.res, proto.ResultColumn{Name: "tag" + id, Data: &c.tag[len(c.tag)-1]})
-			c.stag = append(c.stag, proto.ColStr{})
-			c.res = append(c.res, proto.ResultColumn{Name: "stag" + id, Data: &c.stag[len(c.tag)-1]})
-			c.tagIx = append(c.tagIx, format.TagIndex(id))
-		}
-	}
-	for i := 0; i < meta.vals; i++ {
-		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
-	}
-	if meta.minMaxHost[0] {
-		c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV3[0]})
-	}
-	if meta.minMaxHost[1] {
-		c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV3[1]})
-	}
-	return c
-}
-
-func newPointsSelectColsV2(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
-	// NB! Keep columns selection order and names is sync with sql.go code
-	c := &pointsSelectCols{
-		pointsQueryMeta: meta,
-		val:             make([]proto.ColFloat64, meta.vals),
-		tag:             make([]proto.ColInt32, 0, len(meta.tags)),
-		tagIx:           make([]int, 0, len(meta.tags)),
-	}
-	if useTime {
-		c.res = proto.Results{
-			{Name: "_time", Data: &c.time},
-			{Name: "_stepSec", Data: &c.step},
-		}
-	}
-	for _, id := range meta.tags {
-		switch id {
-		case format.StringTopTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: "key_s", Data: &c.tagStr})
-		case format.ShardTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
-		default:
-			c.tag = append(c.tag, proto.ColInt32{})
-			c.res = append(c.res, proto.ResultColumn{Name: "key" + id, Data: &c.tag[len(c.tag)-1]})
-			c.tagIx = append(c.tagIx, format.TagIndex(id))
-		}
-	}
-	for i := 0; i < meta.vals; i++ {
-		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
-	}
-	if meta.minMaxHost[0] {
-		switch meta.version {
-		case Version1:
-			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV1[0]})
-		case Version2:
-			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV2[0]})
-		}
-	}
-	if meta.minMaxHost[1] {
-		switch meta.version {
-		case Version1:
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV1[1]})
-		case Version2:
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV2[1]})
-		}
-	}
-	return c
+	res proto.Results
 }
 
 func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
@@ -2853,16 +2761,14 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 		time:    c.time[i],
 		stepSec: c.step[i],
 	}
-	for j := 0; j < len(c.val); j++ {
-		row.val[j] = c.val[j][i]
-	}
+	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
 		if c.tag[j][i] != 0 {
-			row.tag[c.tagIx[j]] = c.tag[j][i]
+			row.tag[c.tagX[j]] = c.tag[j][i]
 		} else if len(c.stag) != 0 {
 			hasSTag := c.stag[j].Pos[i].Start < c.stag[j].Pos[i].End && c.stag[j].Pos[i].End <= len(c.stag[j].Buf)
 			if hasSTag {
-				row.stag[c.tagIx[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
+				row.stag[c.tagX[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
 			}
 		}
 	}
@@ -2894,12 +2800,10 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 }
 
 func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
-	row := pSelectRow{}
-	for j := 0; j < len(c.val); j++ {
-		row.val[j] = c.val[j][i]
-	}
+	var row pSelectRow
+	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
-		row.tag[c.tagIx[j]] = c.tag[j][i]
+		row.tag[c.tagX[j]] = c.tag[j][i]
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
@@ -2911,6 +2815,39 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 		row.host[1] = c.minMaxHostV2[1][i]
 	}
 	return row
+}
+
+func (c *pointsSelectCols) valuesAt(x int, dst *tsValues) {
+	for i := 0; c.what.specifiedAt(i); i++ {
+		switch c.what[i].What {
+		case data_model.DigestAvg:
+			dst.val[i] = c.sum[x] / c.count[x]
+		case data_model.DigestCount:
+			dst.val[i] = c.count[x]
+		case data_model.DigestMax:
+			dst.val[i] = c.max[x]
+		case data_model.DigestMin:
+			dst.val[i] = c.min[x]
+		case data_model.DigestSum:
+			dst.val[i] = c.sum[x]
+		case data_model.DigestPercentile:
+			dst.val[i] = c.percentile[x].Quantile(c.what[i].Argument)
+		case data_model.DigestStdDev:
+			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
+			if c.count[x] < 2 {
+				dst.val[i] = 0
+			} else {
+				dst.val[i] = math.Sqrt(math.Max((c.sumsquare[x]-math.Pow(c.sum[x], 2)/c.count[x])/(c.count[x]-1), 0))
+			}
+		case data_model.DigestCardinality:
+			dst.val[i] = c.cardinality[x]
+		case data_model.DigestUnique:
+			dst.val[i] = float64(c.unique[x].Size(false))
+		default:
+			panic(fmt.Errorf("unknown column type %v", c.what[i].What))
+		}
+		replaceInfNan(&dst.val[i])
+	}
 }
 
 func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagValuePtr *stringFixed) string {
@@ -2960,34 +2897,27 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, true)
-	if err != nil {
-		return 0, err
-	}
-
+	query := pq.loadPointsQuery(lod)
 	rows := 0
 	isFast := lod.IsFast()
-	isLight := cols.isLight()
-	IsHardware := cols.IsHardware()
+	isLight := query.isLight()
+	isHardware := query.isHardware()
 	metric := pq.metricID()
 	table := lod.Table
 	start := time.Now()
-	err = h.doSelect(ctx, util.QueryMetaInto{
+	err := h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
-		IsHardware: IsHardware,
+		IsHardware: isHardware,
 		User:       pq.user,
 		Metric:     metric,
 		Table:      table,
 	}, lod.Version, ch.Query{
-		Body:   body,
-		Result: cols.res,
+		Body:   query.body,
+		Result: query.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
-				for j := 0; j < len(cols.val); j++ {
-					replaceInfNan(&cols.val[j][i])
-				}
-				row := cols.rowAt(i)
+				row := query.rowAt(i)
 				ix, err := lod.IndexOf(row.time)
 				if err != nil {
 					return err
@@ -3024,18 +2954,15 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error) {
-	body, cols, err := pq.loadPointsQuery(lod, h.utcOffset, false)
-	if err != nil {
-		return nil, err
-	}
+	query := pq.loadPointsQuery(lod)
 	ret := make([]pSelectRow, 0)
 	rows := 0
 	isFast := lod.IsFast()
-	isLight := cols.isLight()
-	isHardware := cols.IsHardware()
+	isLight := query.isLight()
+	isHardware := query.isHardware()
 	metric := pq.metricID()
 	table := lod.Table
-	err = h.doSelect(ctx, util.QueryMetaInto{
+	err := h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
 		IsHardware: isHardware,
@@ -3043,15 +2970,11 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 		Metric:     metric,
 		Table:      table,
 	}, lod.Version, ch.Query{
-		Body:   body,
-		Result: cols.res,
+		Body:   query.body,
+		Result: query.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
-				//todo check
-				for j := 0; j < len(cols.val); j++ {
-					replaceInfNan(&cols.val[j][i])
-				}
-				row := cols.rowAtPoint(i)
+				row := query.rowAtPoint(i)
 				ret = append(ret, row)
 			}
 			rows += block.Rows

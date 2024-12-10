@@ -51,6 +51,18 @@ type tsValues struct {
 
 type tsWhat [tsValueCount]data_model.DigestSelector
 
+func (s tsWhat) len() int {
+	var n int
+	for s.specifiedAt(n) {
+		n++
+	}
+	return n
+}
+
+func (s tsWhat) specifiedAt(n int) bool {
+	return n < tsValueCount && s[n].What != data_model.DigestUnspecified
+}
+
 type tsCacheGroup struct {
 	pointCaches map[string]map[int64]*tsCache // by version, step
 	shutdown    func()
@@ -260,7 +272,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	cachedRows := 0
 	realLoadFrom := lod.FromSec
 	realLoadTo := lod.ToSec
-	key := pq.cacheKey()
+	key := pq.getOrBuildCacheKey()
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(h, pq, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
