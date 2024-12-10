@@ -17,6 +17,7 @@ export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams)
     plot.type !== prevPlot.type ||
     plot.prometheusCompat !== prevPlot.prometheusCompat ||
     plot.totalLine !== prevPlot.totalLine ||
-    plot.filledGraph !== prevPlot.filledGraph
+    plot.filledGraph !== prevPlot.filledGraph ||
+    plot.logScale !== prevPlot.logScale
   );
 }

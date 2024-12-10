@@ -84,6 +84,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
           totalLine: false,
           filledGraph: true,
+          logScale: false,
         },
         {
           id: '1',
@@ -110,6 +111,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
           totalLine: true,
           filledGraph: true,
+          logScale: false,
         },
       ],
       timeRange: { to: 3333, from: 3600 },
@@ -167,6 +169,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
           totalLine: false,
           filledGraph: true,
+          logScale: false,
         },
         {
           id: '1',
@@ -193,6 +196,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
           totalLine: true,
           filledGraph: true,
+          logScale: false,
         },
       ],
       timeRange: { to: 'ed', from: 1800 },

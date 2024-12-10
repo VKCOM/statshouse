@@ -36,13 +36,14 @@ import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
-import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import css from './style.module.css';
 import { promQLMetric } from '../../view/promQLMetric';
 import { now, timeRangeAbbrevExpand } from '../../view/utils2';
 import { useThemeStore } from '../../store/theme';
+import { incrs } from 'components2/Plot/PlotView/constants';
 
 const unFocusAlfa = 1;
 const rightPad = 16;

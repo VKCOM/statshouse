@@ -36,6 +36,8 @@ import {
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from 'components/UPlotWrapper';
+import { bwd, fwd, log2Filter, log2Splits } from 'common/helpers';
+import type uPlot from 'uplot';
 
 const rightPad = 16;
 
@@ -67,9 +69,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendMaxHostWidth,
     legendMaxDotSpaceWidth,
     isActive,
+    isLogScale,
   } = useStatsHouseShallow(({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
     const plot = plots[plotKey];
     const plotData = plotsData[plotKey];
+
     return {
       plotWhat: plot?.what,
       plotDataWhat: plotData?.whats,
@@ -91,8 +95,10 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       isEmbed,
       baseRange,
       isActive: tabNum === plotKey,
+      isLogScale: plot?.logScale,
     };
   });
+
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
@@ -137,13 +143,16 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     if (metricUnit != null) {
       return metricUnit;
     }
+
     return getMetricType(plotDataWhat?.length ? plotDataWhat : plotWhat, metricUnitData);
   }, [metricUnit, metricUnitData, plotDataWhat, plotWhat]);
+
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: themeDark ? greyDark : grey,
       width: 1 / devicePixelRatio,
     };
+
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -189,29 +198,46 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           grid: grid,
           ticks: grid,
           values: (_, splits) => splits.map(formatByMetricType(metricType)),
+          filter: isLogScale ? log2Filter : undefined,
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
+          splits: !isLogScale
+            ? undefined
+            : (
+                self: uPlot,
+                axisIdx: number,
+                scaleMin: number,
+                scaleMax: number,
+                foundIncr: number,
+                foundSpace: number
+              ) => log2Splits(self, axisIdx, scaleMin, scaleMax, foundIncr, foundSpace),
           incrs: metricTypeIncrs[metricType],
         },
       ],
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+          distr: isLogScale ? 100 : 1,
+          bwd,
+          fwd,
+          auto: () => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
+
             if (min !== 0 || max !== 0) {
               return [min, max];
             }
+
             return calcYRange(u, true);
           },
         },
       },
       series: [
         {
-          value: dateRangeFormat, //'{DD}/{MM}/{YY} {H}:{mm}:{ss}',
+          value: dateRangeFormat,
         },
       ],
       legend: {
@@ -223,7 +249,18 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, isDashboard, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yLockRef]);
+  }, [
+    compact,
+    getAxisStroke,
+    isDashboard,
+    metricType,
+    pluginEventOverlay,
+    themeDark,
+    topPad,
+    xAxisSize,
+    isLogScale,
+    yLockRef,
+  ]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -251,6 +288,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     },
     [isDashboard, isEmbed, plotKey]
   );
+
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
     const res: UPlotWrapperPropsScales = {};
     res.x = { min: timeRangeFrom + timeRangeTo, max: timeRangeTo };
@@ -284,6 +322,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     },
     [plotKey]
   );
+
   useEffect(() => {
     seriesShow?.forEach((show, idx) => {
       if (uPlotRef.current?.series[idx + 1] && uPlotRef.current?.series[idx + 1].show !== show) {

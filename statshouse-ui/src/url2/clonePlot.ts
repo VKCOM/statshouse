@@ -32,6 +32,7 @@ export function clonePlot(plot?: PlotParams): PlotParams | undefined {
     eventsHide: [...plot.eventsHide],
     totalLine: plot.totalLine,
     filledGraph: plot.filledGraph,
+    logScale: plot.logScale,
     timeShifts: [...plot.timeShifts],
     prometheusCompat: plot.prometheusCompat,
   };
