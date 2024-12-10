@@ -33,7 +33,7 @@ import { PlotEventOverlay } from './PlotEventOverlay';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from 'hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
-import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
 import { useLinkCSV } from '../../hooks/useLinkCSV';
@@ -43,6 +43,7 @@ import { fmtInputDateTime, now, timeRangeAbbrevExpand } from '../../view/utils2'
 import { useThemeStore } from '../../store/theme';
 import { LegendItem, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../UPlotWrapper';
 import { PlotLegend } from '../PlotLegend';
+import { incrs } from 'components2/Plot/PlotView/constants';
 
 const unFocusAlfa = 1;
 const rightPad = 16;

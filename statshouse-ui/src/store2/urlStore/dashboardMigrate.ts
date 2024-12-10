@@ -50,6 +50,7 @@ export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
       eventsHide: params.plots[pK]?.events.map((e) => e) ?? [],
       totalLine: params.plots[pK]?.totalLine ?? false,
       filledGraph: params.plots[pK]?.filledGraph ?? true,
+      logScale: params.plots[pK]?.logScale ?? false,
     };
     return plot;
   });

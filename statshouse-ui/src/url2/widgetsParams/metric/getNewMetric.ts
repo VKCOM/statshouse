@@ -27,6 +27,7 @@ export function getNewMetric(): PlotParams {
     eventsHide: [],
     totalLine: false,
     filledGraph: true,
+    logScale: false,
     timeShifts: [],
     prometheusCompat: false,
   };
