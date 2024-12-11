@@ -30,7 +30,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/tinylib/msgp v1.1.6
-	github.com/vkcom/statshouse-go v0.5.1
+	github.com/vkcom/statshouse-go v0.5.2
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/atomic v1.11.0
