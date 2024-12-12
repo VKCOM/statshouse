@@ -10,7 +10,8 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 // import { Admin } from './admin/Admin';
 // import { ViewPage } from './view/ViewPage';
 import { currentAccessInfo } from './common/access';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './common/queryClient';
 // import { DashboardListView } from './view/DashboardListView';
 // import { SettingsPage } from './view/Settings/SettingsPage';
 // import { GroupPage } from './view/Settings/GroupPage';
@@ -28,8 +29,6 @@ const DashboardListView = React.lazy(() => import('./view/DashboardListView'));
 const View2Page = React.lazy(() => import('./view2/ViewPage'));
 const Core = React.lazy(() => import('./view2/Core'));
 const yAxisSize = 54; // must be synced with .u-legend padding-left
-
-const queryClient = new QueryClient();
 
 function App() {
   const ai = currentAccessInfo();

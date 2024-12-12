@@ -11,30 +11,27 @@ import cn from 'classnames';
 import { useStatsHouseShallow } from 'store2';
 import { formatSI } from 'common/formatByMetricType';
 import { useLinkCSV2 } from 'hooks/useLinkCSV2';
+import { useMetricBadges } from 'hooks/useMetricBadges';
 import { isPromQL } from 'store2/helpers';
 
 export type PlotSubMenuProps = {
   className?: string;
   plotKey: PlotKey;
 };
+
 export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
-  const {
-    metricName,
-    receiveErrors,
-    receiveWarnings,
-    samplingFactorSrc,
-    samplingFactorAgg,
-    mappingFloodEvents,
-    timeRange,
-  } = useStatsHouseShallow(({ plotsData, params: { plots, timeRange } }) => ({
-    metricName: plotsData[plotKey]?.metricName ?? (isPromQL(plots[plotKey]) ? '' : plots[plotKey]?.metricName) ?? '',
-    receiveErrors: plotsData[plotKey]?.receiveErrors ?? 0,
-    receiveWarnings: plotsData[plotKey]?.receiveWarnings ?? 0,
-    samplingFactorSrc: plotsData[plotKey]?.samplingFactorSrc ?? 1,
-    samplingFactorAgg: plotsData[plotKey]?.samplingFactorAgg ?? 1,
-    mappingFloodEvents: plotsData[plotKey]?.mappingFloodEvents ?? 0,
-    timeRange,
+  const { metricName, params, plot, timeRange } = useStatsHouseShallow(({ plotsData, params }) => ({
+    metricName:
+      plotsData[plotKey]?.metricName ??
+      (isPromQL(params.plots[plotKey]) ? '' : params.plots[plotKey]?.metricName) ??
+      '',
+    params,
+    plot: params.plots[plotKey],
+    timeRange: params.timeRange,
   }));
+  const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
+    useMetricBadges(plot, params);
+
   const linkCSV = useLinkCSV2(plotKey);
   return (
     <ul className={cn('nav', className)}>
@@ -61,7 +58,9 @@ export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
               search: `?s=__src_ingestion_status&f=${timeRange.from}&t=${timeRange.urlTo}&qf=key1-${metricName}&qb=key2`,
             }}
           >
-            <small>Receive status</small>
+            <small>
+              Receive status {isLoading && <span className="spinner-border spinner-border-sm-09" role="status"></span>}
+            </small>
           </Link>
         )}
       </li>
@@ -80,7 +79,9 @@ export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
             ) : samplingFactorSrc > 1.02 ? (
               <span className="badge bg-warning text-dark">source</span>
             ) : (
-              <span>source</span>
+              <span>
+                source {isLoading && <span className="spinner-border spinner-border-sm-09" role="status"></span>}
+              </span>
             )}
           </Link>{' '}
           /{' '}
@@ -96,7 +97,9 @@ export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
             ) : samplingFactorAgg > 1.02 ? (
               <span className="badge bg-warning text-dark">aggregator</span>
             ) : (
-              <span>aggregator</span>
+              <span>
+                aggregator {isLoading && <span className="spinner-border spinner-border-sm-09" role="status"></span>}
+              </span>
             )}
           </Link>
         </small>

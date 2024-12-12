@@ -194,7 +194,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       }
       const changeMetricName = plot?.metricName !== prevPlot?.metricName;
       if (!changeMetricName && prevPlotData?.error403) {
-        // console.log('exit 1', plotKey);
         prepareEnd();
         return;
       }
@@ -212,9 +211,8 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
       const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
       const changeTimeShifts = !dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
-      const fetchBadges = priority === 1 && !isEmbed;
-      const loadBadges = fetchBadges && !getState().plotsData[plotKey]?.loadBadges;
-      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable || loadBadges;
+
+      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable;
       prepareEnd();
 
       if (update) {
@@ -223,7 +221,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         const { status, interval } = useLiveModeStore.getState();
         const intervalParam = status ? interval : undefined;
 
-        loadPlotData(plotKey, getState().params, intervalParam, fetchBadges, priority)
+        loadPlotData(plotKey, getState().params, intervalParam, false, priority)
           .then((updatePlotData) => {
             if (updatePlotData) {
               setState(updatePlotData);

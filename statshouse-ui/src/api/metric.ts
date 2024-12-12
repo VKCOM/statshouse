@@ -5,9 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { GET_PARAMS, MetricMetaKind, MetricMetaTagRawKind } from './enum';
-import { apiFetch } from './api';
+import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
+import { UndefinedInitialDataOptions, useQuery, UseQueryResult } from '@tanstack/react-query';
+import { queryClient } from '../common/queryClient';
 
-const ApiMetricEndpoint = '/api/metric';
+export const ApiMetricEndpoint = '/api/metric';
 /**
  * Response endpoint api/metric
  */
@@ -66,4 +68,54 @@ export type MetricMetaTag = {
 
 export async function apiMetricFetch(params: ApiMetricGet, keyRequest?: unknown) {
   return await apiFetch<ApiMetric>({ url: ApiMetricEndpoint, get: params, keyRequest });
+}
+
+export function getMetricOptions<T = ApiMetric>(
+  metricName: string,
+  enabled: boolean = true
+): UndefinedInitialDataOptions<ApiMetric | undefined, ExtendedError, T, [string, string]> {
+  return {
+    enabled,
+    queryKey: [ApiMetricEndpoint, metricName],
+    queryFn: async ({ signal }) => {
+      if (!metricName) {
+        throw new ExtendedError('no metric name');
+      }
+      const { response, error, status } = await apiMetricFetch({ [GET_PARAMS.metricName]: metricName }, signal);
+      if (error) {
+        throw error;
+      }
+      return response;
+    },
+  };
+}
+
+export async function apiMetric<T = ApiMetric>(metricName: string): Promise<ApiFetchResponse<T>> {
+  const result: ApiFetchResponse<T> = { ok: false, status: 0 };
+
+  try {
+    const { queryKey, queryFn } = getMetricOptions(metricName);
+    result.response = await queryClient.fetchQuery({ queryKey, queryFn });
+    result.ok = true;
+  } catch (error) {
+    result.status = ExtendedError.ERROR_STATUS_UNKNOWN;
+    if (error instanceof ExtendedError) {
+      result.error = error;
+      result.status = error.status;
+    } else {
+      result.error = new ExtendedError(error);
+    }
+  }
+  return result;
+}
+
+export function useApiMetric<T = ApiMetric>(
+  metricName: string,
+  select?: (response?: ApiMetric) => T,
+  enabled: boolean = true
+): UseQueryResult<T, ExtendedError> {
+  return useQuery({
+    ...getMetricOptions(metricName, enabled),
+    select,
+  });
 }

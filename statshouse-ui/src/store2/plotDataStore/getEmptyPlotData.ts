@@ -20,7 +20,7 @@ export function getEmptyPlotData(): PlotData {
     metricName: '',
     metricWhat: '',
     whats: [],
-    plotAgg: autoAgg,
+    plotAgg: autoAgg.toString(),
     showMetricName: '',
     metricUnit: METRIC_TYPE.none,
     lastHeals: true,

@@ -138,7 +138,7 @@ export function PlotViewMetric(props: {
   }, [interval, plotHeals?.timout]);
 
   const uPlotRef = useRef<uPlot>();
-  const [legend, setLegend] = useState<LegendItem[]>([]);
+  const [legend, setLegend] = useState<LegendItem<PlotValues>[]>([]);
 
   const [pluginEventOverlay, pluginEventOverlayHooks] = useUPlotPluginHooks();
 
@@ -477,7 +477,7 @@ export function PlotViewMetric(props: {
           <div className="plot-legend">
             <PlotLegend
               indexPlot={indexPlot}
-              legend={legend as LegendItem<PlotValues>[]}
+              legend={legend}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && dashboard)}
