@@ -1,19 +1,25 @@
+// Copyright 2024 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import { StoreSlice } from '../createStore';
 import { autoAgg, autoLowAgg, StatsHouseStore } from 'store2';
-import { GET_PARAMS, METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE, QueryWhat } from 'api/enum';
+import { GET_PARAMS, METRIC_TYPE, PLOT_TYPE, QueryWhat } from 'api/enum';
 import {
   freeKeyPrefix,
   getTimeRangeAbsolute,
+  metricFilterEncode,
   PlotKey,
   promQLMetric,
   type QueryParams,
   readTimeRange,
   TimeRange,
-  metricFilterEncode,
 } from 'url2';
 import { querySeriesMetaTag } from 'view/api';
 import { replaceVariable } from '../helpers/replaceVariable';
-import { apiTableFetch, ApiTableGet, GetTableResp, QueryTableRow } from 'api/table';
+import { apiTable, ApiTableGet, GetTableResp, QueryTableRow } from 'api/table';
 import { uniqueArray } from 'common/helpers';
 import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
 import { debug } from 'common/debug';
@@ -73,10 +79,10 @@ export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStor
 
     const { status, interval } = useLiveModeStore.getState();
     const intervalParam = status ? interval : undefined;
+    const params = prevState.params;
+    const plot = params.plots[plotKey];
 
-    const apiParams = getLoadTableUrlParams(plotKey, prevState.params, intervalParam, key, fromEnd);
-
-    if (apiParams) {
+    if (plot) {
       setState((state) => {
         const plotEventsData = state.plotsEventsData[plotKey];
         if (plotEventsData) {
@@ -87,7 +93,9 @@ export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStor
           }
         }
       });
-      const { response, error, status } = await apiTableFetch(apiParams, controller);
+
+      const { response, error, status } = await apiTable(plot, params, intervalParam, key, fromEnd);
+
       if (response) {
         await getState().loadMetricMeta(getState().params.plots[plotKey]?.metricName ?? '');
         setState((state) => {
@@ -233,7 +241,7 @@ export function getLoadTableUrlParams(
     [GET_PARAMS.metricWhat]: plot.what.slice(),
     [GET_PARAMS.toTime]: params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
-    [GET_PARAMS.width]: width,
+    [GET_PARAMS.width]: width.toString(),
     [GET_PARAMS.version]: plot.backendVersion,
     [GET_PARAMS.metricFilter]: metricFilterEncode('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: uniqueArray([...plot.groupBy.map(freeKeyPrefix), ...plot.eventsBy]),

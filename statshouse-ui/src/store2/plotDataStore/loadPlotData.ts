@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey, promQLMetric, type QueryParams, metricFilterEncode, urlEncodeVariables } from 'url2';
-import { apiQueryFetch, type ApiQueryGet } from 'api/query';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION } from 'api/enum';
+import { metricFilterEncode, type PlotKey, promQLMetric, type QueryParams, urlEncodeVariables } from 'url2';
+import { apiQuery, type ApiQueryGet } from 'api/query';
+import { GET_PARAMS } from 'api/enum';
 import { normalizePlotData } from './normalizePlotData';
 import { type ProduceUpdate } from '../helpers';
 import { type StatsHouseStore } from '../statsHouseStore';
@@ -15,6 +15,7 @@ import { getEmptyPlotData } from './getEmptyPlotData';
 import { autoAgg, autoLowAgg } from '../constants';
 import { replaceVariable } from '../helpers/replaceVariable';
 import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
+import { ExtendedError } from '../../api/api';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -33,7 +34,7 @@ export function getLoadPlotUrlParams(
     [GET_PARAMS.metricWhat]: plot.what.slice(),
     [GET_PARAMS.toTime]: params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
-    [GET_PARAMS.width]: width,
+    [GET_PARAMS.width]: width.toString(),
     [GET_PARAMS.version]: plot.backendVersion,
     [GET_PARAMS.metricFilter]: metricFilterEncode('', plot.filterIn, plot.filterNotIn).map(([, v]) => v),
     [GET_PARAMS.metricGroupBy]: plot.groupBy,
@@ -78,15 +79,13 @@ export async function loadPlotData(
   fetchBadges: boolean = false,
   priority?: number
 ): Promise<ProduceUpdate<StatsHouseStore> | null> {
-  const urlParams = getLoadPlotUrlParams(plotKey, params, interval, fetchBadges, priority);
   const plot = params.plots[plotKey];
-  if (!urlParams || !plot) {
+  if (!plot) {
     return null;
   }
-  // todo:
-  // loadMetricMeta(plot.metricName).then();
 
-  const { response, error, status } = await apiQueryFetch(urlParams, `loadPlotData_${plotKey}`);
+  const { response, error, status } = await apiQuery(plot, params, interval, priority);
+
   if (error) {
     if (status === 403) {
       return (state) => {
@@ -96,12 +95,12 @@ export async function loadPlotData(
           lastHeals: false,
         };
       };
-    } else if (error.name !== 'AbortError') {
+    } else if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
       return (state) => {
         if (state.plotsData[plotKey]) {
           state.plotsData[plotKey]!.error = error.toString();
           state.plotsData[plotKey]!.lastHeals = false;
-          // state.setPlotHeal(plotKey, false);
+          state.setPlotHeal(plotKey, false);
         }
         //if (resetCache) {
         //                   state.plotsData[index] = {

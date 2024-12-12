@@ -21,10 +21,47 @@ export type ApiFetchResponse<R> = {
   response?: R;
   status: number;
   ok: boolean;
-  error?: Error;
+  error?: ExtendedError;
 };
 
-const abortControllers: Map<unknown, AbortController> = new Map();
+export class ApiAbortController extends AbortController {
+  static abortControllers: Map<unknown, AbortController> = new Map();
+
+  timer?: NodeJS.Timeout;
+  keyRequest?: unknown;
+
+  constructor(keyRequest?: unknown, timeout: number = 300000) {
+    super();
+    this.keyRequest = keyRequest;
+    this.signal.addEventListener('abort', this.remove);
+    const abortFn = () => {
+      this.abort();
+    };
+
+    this.timer = timeout ? setTimeout(abortFn, timeout) : undefined;
+
+    let outerSignal: AbortSignal | undefined;
+    if (keyRequest instanceof AbortController) {
+      outerSignal = keyRequest.signal;
+    }
+
+    if (keyRequest instanceof AbortSignal) {
+      outerSignal = keyRequest;
+    }
+
+    outerSignal?.addEventListener('abort', abortFn);
+    if (keyRequest) {
+      ApiAbortController.abortControllers.get(keyRequest)?.abort();
+      ApiAbortController.abortControllers.set(keyRequest, this);
+    }
+  }
+
+  remove() {
+    this.timer && clearTimeout(this.timer);
+    this.signal?.removeEventListener('abort', this.remove);
+    ApiAbortController.abortControllers.delete(this.keyRequest);
+  }
+}
 
 export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam>({
   url,
@@ -46,14 +83,8 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
     body = JSON.stringify(post);
   }
   keyRequest ??= fullUrl;
-  let controller: AbortController;
-  if (keyRequest instanceof AbortController) {
-    controller = keyRequest;
-  } else {
-    controller = new AbortController();
-  }
-  abortControllers.get(keyRequest)?.abort();
-  abortControllers.set(keyRequest, controller);
+
+  const controller = new ApiAbortController(keyRequest);
 
   try {
     const resp = await fetch(fullUrl, {
@@ -65,30 +96,28 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
     result.status = resp.status;
     if (resp.headers.get('Content-Type') !== 'application/json') {
       const text = await resp.text();
-      result.error = new Error(`${resp.status}: ${text.substring(0, 255)}`);
+      result.error = new ExtendedError(`${resp.status}: ${text.substring(0, 255)}`, resp.status);
     } else {
       const json = (await resp.json()) as R;
       if (resp.ok) {
         result.ok = true;
         result.response = json;
       } else if (hasOwn(json, 'error') && typeof json.error === 'string') {
-        result.error = new Error(json.error);
+        result.error = new ExtendedError(json.error, resp.status);
       }
     }
   } catch (error) {
-    result.status = -1;
+    result.status = ExtendedError.ERROR_STATUS_UNKNOWN;
     if (error instanceof Error) {
       if (error.name !== 'AbortError') {
-        result.error = error;
+        result.error = new ExtendedError(error);
       } else {
-        result.status = -2;
+        result.error = new ExtendedError(error, ExtendedError.ERROR_STATUS_ABORT);
+        result.status = ExtendedError.ERROR_STATUS_ABORT;
       }
     } else {
-      result.error = new Error('Fetch error');
+      result.error = new ExtendedError('Fetch error');
     }
-  }
-  if (result.status !== -2) {
-    abortControllers.delete(keyRequest);
   }
   return result;
 }
@@ -109,4 +138,24 @@ export async function apiFirstFetch<R = unknown, G = ApiFetchParam, P = ApiFetch
   const result = await f;
   firstFetchMap.delete(params.keyRequest);
   return result;
+}
+
+export class ExtendedError extends Error {
+  static readonly ERROR_STATUS_UNKNOWN = -1;
+  static readonly ERROR_STATUS_ABORT = -2;
+
+  status: number = ExtendedError.ERROR_STATUS_UNKNOWN;
+
+  constructor(message: string | Error | unknown, status: number = ExtendedError.ERROR_STATUS_UNKNOWN) {
+    super(message instanceof Error ? '' : typeof message === 'string' ? message : 'unknown error');
+    if (message instanceof Error) {
+      Object.assign(this, message);
+    } else if (typeof message !== 'string') {
+      this.cause = message;
+    }
+    this.status = status;
+  }
+  toString() {
+    return `${this.status}: ${this.message.substring(0, 255)}`;
+  }
 }

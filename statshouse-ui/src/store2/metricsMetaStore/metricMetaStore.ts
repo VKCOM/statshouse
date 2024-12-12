@@ -5,13 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type StoreSlice } from '../createStore';
-import { apiMetricFetch, type MetricMetaTag, type MetricMetaValue } from 'api/metric';
-import { GET_PARAMS, type TagKey, toTagKey } from 'api/enum';
+import { apiMetric, type MetricMetaTag, type MetricMetaValue } from 'api/metric';
+import { type TagKey, toTagKey } from 'api/enum';
 import { type StatsHouseStore } from '../statsHouseStore';
 import { type PlotKey, promQLMetric } from 'url2';
 import { useErrorStore } from 'store/errors';
 import { debug } from 'common/debug';
-import { promiseRun } from 'common/promiseRun';
 import { updateMetricMeta } from './updateMetricMeta';
 
 export type MetricMeta = MetricMetaValue & {
@@ -47,29 +46,19 @@ export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (se
         return meta;
       }
 
-      const requestKey = `loadMetricsMeta_${metricName}`;
-      const [request, first] = promiseRun(
-        requestKey,
-        apiMetricFetch,
-        { [GET_PARAMS.metricName]: metricName },
-        requestKey
-      );
-      // prevState.setGlobalNumQueriesPlot((n) => n + 1);
-      const { response, error, status } = await request;
-      // prevState.setGlobalNumQueriesPlot((n) => n - 1);
-      if (first) {
-        if (response) {
-          debug.log('loading meta for', response.data.metric.name);
-          const metricMeta: MetricMeta = {
-            ...response.data.metric,
-            ...tagsArrToObject(response.data.metric.tags),
-          };
-          setState(updateMetricMeta(metricMeta.name, metricMeta));
-        }
-        if (error) {
-          if (status !== 403) {
-            useErrorStore.getState().addError(error);
-          }
+      const { response, error, status } = await apiMetric(metricName);
+
+      if (response) {
+        debug.log('loading meta for', response.data.metric.name);
+        const metricMeta: MetricMeta = {
+          ...response.data.metric,
+          ...tagsArrToObject(response.data.metric.tags),
+        };
+        setState(updateMetricMeta(metricMeta.name, metricMeta));
+      }
+      if (error) {
+        if (status !== 403) {
+          useErrorStore.getState().addError(error);
         }
       }
 

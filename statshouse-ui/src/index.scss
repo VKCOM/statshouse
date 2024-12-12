@@ -313,3 +313,9 @@ code {
   box-shadow: rgba(var(--bs-body-bg-rgb), 0.5) 0 0 4px 4px;
   background-color: rgba(var(--bs-body-bg-rgb), 0.5);
 }
+
+.spinner-border-sm-09 {
+  --bs-spinner-width: 0.9em;
+  --bs-spinner-height: 0.9em;
+  --bs-spinner-border-width: 0.2em;
+}
