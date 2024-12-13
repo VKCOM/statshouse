@@ -1946,60 +1946,62 @@ func HandleSeriesQuery(r *httpRequestHandler) {
 }
 
 func HandleBadgesQuery(r *httpRequestHandler) {
-	var err error
-	var req seriesRequest
-	if req, err = r.parseSeriesRequest(); err == nil {
+	req, err := r.parseSeriesRequest()
+	if err == nil {
 		err = req.validate(&r.requestHandler)
 	}
 	if err != nil {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	var limit int
-	if len(req.promQL) == 0 {
-		if req.promQL, err = r.getPromQuery(req); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	defer cancel()
+	query := promql.Query{
+		Start: req.from.Unix(),
+		End:   req.to.Unix(),
+		Step:  req.step,
+		Expr:  req.promQL,
+		Options: promql.Options{
+			Version:          req.version,
+			Version3Start:    r.Version3Start.Load(),
+			AvoidCache:       req.avoidCache,
+			Extend:           req.excessPoints,
+			ExplicitGrouping: true,
+			ScreenWidth:      req.screenWidth,
+			Vars:             req.vars,
+			Compat:           req.compat,
+			TimeNow:          time.Now().Unix(),
+		},
+	}
+	if query.Expr == "" {
+		query.Expr, err = r.getPromQuery(req)
+		if err != nil {
 			respondJSON(r, nil, 0, 0, err)
 			return
 		}
-	} else {
-		limit = req.numResults
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
-	defer cancel()
-	var offsets = make([]int64, 0, len(req.shifts))
-	for _, v := range req.shifts {
-		offsets = append(offsets, -toSec(v))
-	}
-	ev, err := r.promEngine.NewEvaluator(
-		ctx, r,
-		promql.Query{
-			Start: req.from.Unix(),
-			End:   req.to.Unix(),
-			Step:  req.step,
-			Expr:  req.promQL,
-			Options: promql.Options{
-				Version:          req.version,
-				Version3Start:    r.Version3Start.Load(),
-				AvoidCache:       req.avoidCache,
-				Extend:           req.excessPoints,
-				ExplicitGrouping: true,
-				QuerySequential:  r.querySequential,
-				ScreenWidth:      req.screenWidth,
-				MaxHost:          req.maxHost,
-				Offsets:          offsets,
-				Limit:            limit,
-				Vars:             req.vars,
-				Compat:           req.compat,
-			},
-		})
+	ev, err := r.promEngine.NewEvaluator(ctx, r, query)
 	if err != nil {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	var res SeriesResponse
-	if metric := ev.QueryMetric(); metric != nil {
-		badges, cancel := r.queryBadges(ctx, req, metric)
-		defer cancel()
+	metric := ev.QueryMetric()
+	if metric == nil {
+		respondJSON(r, nil, 0, 0, err)
+		return
+	}
+	query.Expr = fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, metric.MetricID)
+	query.Options.Vars = nil
+	val, cancel, err := r.promEngine.Exec(ctx, r, query)
+	if err != nil {
+		respondJSON(r, nil, 0, 0, err)
+		return
+	}
+	defer cancel()
+	res := SeriesResponse{
+		DebugQueries: r.trace,
+	}
+	if badges, _ := val.(*promql.TimeSeries); badges != nil {
 		for _, d := range badges.Series.Data {
 			if t, ok := d.Tags.ID2Tag["2"]; !ok || t.SValue != metric.Name {
 				continue
