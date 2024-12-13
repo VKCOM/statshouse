@@ -5,8 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { useErrorStore } from '../errors';
-import { apiDashboardListFetch, DashboardShortInfo } from '../../api/dashboardsList';
+import { apiDashboardList, DashboardShortInfo } from '../../api/dashboardsList';
 import { createStore } from '../createStore';
+import { ExtendedError } from '../../api/api';
 
 export type DashboardListStore = {
   list: DashboardShortInfo[];
@@ -27,13 +28,13 @@ export const useDashboardListStore = createStore<DashboardListStore>((setState) 
       setState((state) => {
         state.loading = true;
       });
-      const { response, error } = await apiDashboardListFetch('dashboardListState');
+      const { response, error } = await apiDashboardList();
       if (response) {
         setState((state) => {
           state.list = response.data.dashboards ?? [];
         });
       }
-      if (error) {
+      if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
         errorRemove = useErrorStore.getState().addError(error);
       }
       setState((state) => {

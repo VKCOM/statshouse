@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStatsHouse } from 'store2';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDashboardListFetch } from '../../api/dashboardsList';
-import { apiDashboardFetch, DashboardInfo } from '../../api/dashboard';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { selectApiDashboardList, useApiDashboardList } from '../../api/dashboardsList';
+import { apiDashboardSave, DashboardInfo, useApiDashboard } from '../../api/dashboard';
 import cn from 'classnames';
 import { useIntersectionObserver } from '../../hooks';
 import { isObject, SearchFabric, toNumber } from '../../common/helpers';
@@ -17,7 +17,6 @@ import { arrToObj, getDefaultParams, toTreeObj, treeParamsObjectValueSymbol } fr
 import { GET_PARAMS } from '../../api/enum';
 import { loadDashboard } from '../../store2/urlStore/loadDashboard';
 import { Link, useSearchParams } from 'react-router-dom';
-import { saveDashboard } from '../../store2/urlStore';
 import { Button } from '../../components/UI';
 import { ReactComponent as SVGFloppy } from 'bootstrap-icons/icons/floppy.svg';
 import { produce } from 'immer';
@@ -26,32 +25,6 @@ import { fmtInputDateTime } from '../../view/utils2';
 const versionsList = [0, 1, 2, 3];
 const actualVersion = 3;
 
-function useDashboardList() {
-  return useQuery({
-    queryKey: ['/api/dashboards-list'],
-    queryFn: async () => {
-      const { error, response } = await apiDashboardListFetch();
-      if (error) {
-        throw error;
-      }
-      return response?.data.dashboards ?? [];
-    },
-  });
-}
-function useDashboardInfo(id: number, enabled: boolean = true) {
-  return useQuery({
-    queryKey: ['/api/dashboard', id],
-    enabled,
-    retry: false,
-    queryFn: async () => {
-      const { error, response } = await apiDashboardFetch({ id: id.toString() });
-      if (error) {
-        throw error;
-      }
-      return response?.data;
-    },
-  });
-}
 function useUpdateDashboard() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -64,7 +37,7 @@ function useUpdateDashboard() {
       if (errorLoad) {
         throw errorLoad;
       }
-      const { response, error } = await saveDashboard(saveParams);
+      const { response, error } = await apiDashboardSave(saveParams);
 
       if (error) {
         throw error;
@@ -84,7 +57,7 @@ export function AdminDashControl() {
   const searchVersionValue = useMemo(() => toNumber(searchParams.get('v')), [searchParams]);
   const searchOldValue = useMemo(() => !!searchParams.get('o'), [searchParams]);
   const [autoUpdate, setAutoUpdate] = useState(false);
-  const dashboardList = useDashboardList();
+  const dashboardList = useApiDashboardList(selectApiDashboardList);
   const [dashVersions, setDashVersions] = useState<Record<string, number>>({});
 
   const filterList = useMemo(() => {
@@ -233,10 +206,11 @@ function DashItem({ item, setDashVersions, autoUpdate }: DashItemProps) {
     }
   }, [visible]);
   const queryClient = useQueryClient();
-  const dashboardInfo = useDashboardInfo(item.id, visibleBool);
+  const dashboardInfo = useApiDashboard(item.id.toString(), undefined, undefined, visibleBool);
   const updateDashboard = useUpdateDashboard();
-  const dashVersionKey = dashboardInfo.data?.dashboard.version;
-  const dashVersion = useMemo(() => getVersion(dashboardInfo.data), [dashboardInfo]);
+  const data = dashboardInfo.data?.data;
+  const dashVersionKey = data?.dashboard.version;
+  const dashVersion = useMemo(() => getVersion(data), [data]);
   const needUpdate = dashVersion > -1 && dashVersion < actualVersion;
 
   useEffect(() => {
@@ -277,10 +251,7 @@ function DashItem({ item, setDashVersions, autoUpdate }: DashItemProps) {
           <Link to={`/view?id=${item.id}`} target="_blank">
             {dashVersionKey}
           </Link>{' '}
-          <span>
-            {dashboardInfo.data?.dashboard.update_time &&
-              fmtInputDateTime(new Date(dashboardInfo.data?.dashboard.update_time * 1000))}
-          </span>
+          <span>{data?.dashboard.update_time && fmtInputDateTime(new Date(data?.dashboard.update_time * 1000))}</span>
         </div>
         <div>{item.name}</div>
         <div className="text-body-tertiary">{item.description}</div>

@@ -9,11 +9,12 @@ import { UrlStore } from './urlStore';
 import { resetDefaultParams } from './resetDefaultParams';
 import { loadDashboard } from './loadDashboard';
 import { type Location } from 'history';
+import { ExtendedError } from '../../api/api';
 
 export async function getUrlState(
   prevParam: QueryParams,
   location: Location
-): Promise<Pick<UrlStore, 'params' | 'saveParams'> & { reset: boolean; error?: Error }> {
+): Promise<Pick<UrlStore, 'params' | 'saveParams'> & { reset: boolean; error?: ExtendedError }> {
   const urlSearchArray = [...new URLSearchParams(location.search || location.hash.slice(1))];
   const urlObject = arrToObj(urlSearchArray);
   const urlTree = toTreeObj(urlObject);

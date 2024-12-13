@@ -7,6 +7,7 @@
 import { apiMetricListFetch, MetricShortInfo } from '../../api/metricList';
 import { useErrorStore } from '../errors';
 import { createStore } from '../createStore';
+import { ExtendedError } from '../../api/api';
 
 export type MetricsListStore = {
   list: MetricShortInfo[];
@@ -36,7 +37,7 @@ export async function updateMetricsList() {
       state.list = response.data.metrics.map((m) => ({ name: m.name, value: m.name }));
     });
   }
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     errorRemove = useErrorStore.getState().addError(error);
   }
   useMetricsListStore.setState((state) => {

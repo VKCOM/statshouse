@@ -5,7 +5,20 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { GET_PARAMS } from './enum';
-import { apiFetch } from './api';
+import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
+import {
+  CancelledError,
+  QueryClient,
+  UndefinedInitialDataOptions,
+  useMutation,
+  UseMutationOptions,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { queryClient } from '../common/queryClient';
+import { QueryParams, urlEncode } from '../url2';
+import { dashboardMigrateSaveToOld } from '../store2/urlStore/dashboardMigrate';
+import { toNumber } from '../common/helpers';
 
 const ApiDashboardEndpoint = '/api/dashboard';
 
@@ -60,4 +73,140 @@ export async function apiDashboardSaveFetch(params: ApiDashboardPost, keyRequest
     post: params,
     keyRequest,
   });
+}
+
+export function getDashboardOptions<T = ApiDashboard>(
+  dashboardId: string,
+  dashboardVersion?: string
+): UndefinedInitialDataOptions<ApiDashboard, ExtendedError, T, [string, ApiDashboardGet]> {
+  const fetchParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: dashboardId };
+  if (dashboardVersion != null) {
+    fetchParams[GET_PARAMS.dashboardApiVersion] = dashboardVersion;
+  }
+  return {
+    queryKey: [ApiDashboardEndpoint, fetchParams],
+    queryFn: async ({ signal }) => {
+      const { response, error } = await apiDashboardFetch(fetchParams, signal);
+      if (error) {
+        throw error;
+      }
+      if (!response) {
+        throw new ExtendedError('empty response');
+      }
+      return response;
+    },
+    placeholderData: (previousData, previousQuery) => previousData,
+  };
+}
+
+export async function apiDashboard(dashboardId: string, dashboardVersion?: string) {
+  const result: ApiFetchResponse<ApiDashboard> = { ok: false, status: 0 };
+  try {
+    result.response = await queryClient.fetchQuery(getDashboardOptions<ApiDashboard>(dashboardId, dashboardVersion));
+    result.ok = true;
+  } catch (error) {
+    result.status = ExtendedError.ERROR_STATUS_UNKNOWN;
+    if (error instanceof ExtendedError) {
+      result.error = error;
+      result.status = error.status;
+    } else if (error instanceof CancelledError) {
+      result.error = new ExtendedError(error, ExtendedError.ERROR_STATUS_ABORT);
+      result.status = ExtendedError.ERROR_STATUS_ABORT;
+    } else {
+      result.error = new ExtendedError(error);
+    }
+  }
+  return result;
+}
+
+export function useApiDashboard<T = ApiDashboard>(
+  dashboardId: string,
+  dashboardVersion?: string,
+  select?: (response?: ApiDashboard) => T,
+  enabled: boolean = true
+) {
+  const options = getDashboardOptions<ApiDashboard>(dashboardId, dashboardVersion);
+  return useQuery({ ...options, select, enabled });
+}
+export function getDashboardSaveFetchParams(params: QueryParams, remove?: boolean): DashboardInfo {
+  const searchParams = urlEncode(params);
+  const oldDashboardParams = dashboardMigrateSaveToOld(params);
+  oldDashboardParams.dashboard.data.searchParams = searchParams;
+  const dashboardParams: DashboardInfo = {
+    dashboard: {
+      name: params.dashboardName,
+      description: params.dashboardDescription,
+      version: params.dashboardVersion ?? 0,
+      dashboard_id: toNumber(params.dashboardId) ?? undefined,
+      data: {
+        ...oldDashboardParams.dashboard.data,
+        searchParams,
+      },
+    },
+  };
+  if (remove) {
+    dashboardParams.delete_mark = true;
+  }
+  return dashboardParams;
+}
+
+export function getDashboardSaveOptions(
+  queryClient: QueryClient,
+  remove?: boolean
+): UseMutationOptions<ApiDashboard, Error, QueryParams, unknown> {
+  return {
+    retry: false,
+    mutationFn: async (params: QueryParams) => {
+      const dashboardParams: DashboardInfo = getDashboardSaveFetchParams(params, remove);
+      const { response, error } = await apiDashboardSaveFetch(dashboardParams);
+      if (error) {
+        throw error;
+      }
+      if (!response) {
+        throw new ExtendedError('empty response');
+      }
+      return response;
+    },
+    onSuccess: (data, params) => {
+      if (data.data.dashboard.dashboard_id) {
+        const fetchParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: data.data.dashboard.dashboard_id.toString() };
+        if (data.data.dashboard.version != null) {
+          fetchParams[GET_PARAMS.dashboardApiVersion] = data.data.dashboard.version.toString();
+        }
+        queryClient.setQueryData([ApiDashboardEndpoint, fetchParams], data);
+      }
+    },
+  };
+}
+
+export async function apiDashboardSave(params: QueryParams, remove?: boolean): Promise<ApiFetchResponse<ApiDashboard>> {
+  const options = getDashboardSaveOptions(queryClient, remove);
+  const result: ApiFetchResponse<ApiDashboard> = { ok: false, status: 0 };
+  try {
+    result.response = await options.mutationFn?.(params);
+    if (result.response) {
+      result.ok = true;
+      options.onSuccess?.(result.response, params, undefined);
+    } else {
+      result.error = new ExtendedError('empty response');
+      result.status = ExtendedError.ERROR_STATUS_UNKNOWN;
+    }
+  } catch (error) {
+    result.status = ExtendedError.ERROR_STATUS_UNKNOWN;
+    if (error instanceof ExtendedError) {
+      result.error = error;
+      result.status = error.status;
+    } else if (error instanceof CancelledError) {
+      result.error = new ExtendedError(error, ExtendedError.ERROR_STATUS_ABORT);
+      result.status = ExtendedError.ERROR_STATUS_ABORT;
+    } else {
+      result.error = new ExtendedError(error);
+    }
+  }
+  return result;
+}
+
+export function useApiDashboardSave(remove?: boolean) {
+  const queryClient = useQueryClient();
+  return useMutation(getDashboardSaveOptions(queryClient, remove));
 }

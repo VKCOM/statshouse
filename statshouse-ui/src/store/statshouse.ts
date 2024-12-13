@@ -96,6 +96,7 @@ import { DashboardInfo, normalizeDashboard } from '../view/normalizeDashboard';
 import { SelectOptionProps } from '../components/Select';
 import { UPlotWrapperPropsScales } from '../components/UPlotWrapper';
 import { fixMessageTrouble } from '../url/fixMessageTrouble';
+import { ExtendedError } from '../api/api';
 
 export type PlotStore = {
   nameMetric: string;
@@ -1362,7 +1363,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         });
       }
       if (error) {
-        if (status !== 403) {
+        if (status !== 403 && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
           useErrorStore.getState().addError(error);
         }
       }
@@ -1504,7 +1505,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             }
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
             }
           })
@@ -1564,7 +1565,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             }
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error.toString());
             }
@@ -1614,7 +1615,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             }
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error.toString());
             }
@@ -1743,7 +1744,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }
@@ -1769,7 +1770,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }
@@ -1793,7 +1794,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }
@@ -1820,7 +1821,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }
@@ -1852,7 +1853,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }
@@ -1878,7 +1879,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             });
           })
           .catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
               useErrorStore.getState().addError(error);
               reject(error);
             }

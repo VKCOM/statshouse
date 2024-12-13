@@ -4,52 +4,49 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { DashboardListStore, useDashboardListStore } from '../store/dashboardList';
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useStateInput } from '../hooks';
 import { ErrorMessages } from '../components/ErrorMessages';
 import cn from 'classnames';
-import { SearchFabric } from '../common/helpers';
+import { emptyArray, SearchFabric } from '../common/helpers';
 import { useWindowSize } from 'hooks/useWindowSize';
 import { toggleDashboardsFavorite, useFavoriteStore } from 'store2/favoriteStore';
 import { ReactComponent as SVGStar } from 'bootstrap-icons/icons/star.svg';
 import { ReactComponent as SVGStarFill } from 'bootstrap-icons/icons/star-fill.svg';
 import { Tooltip } from '../components/UI';
+import { selectApiDashboardList, useApiDashboardList } from '../api/dashboardsList';
+import { useDebounceValue } from '../hooks/useDebounceValue';
 
 export type DashboardListViewProps = {};
 
-const { update } = useDashboardListStore.getState();
-const selectorDashboardList = ({ list }: DashboardListStore) => list;
-
 export const DashboardListView: React.FC<DashboardListViewProps> = () => {
-  const list = useDashboardListStore(selectorDashboardList);
+  const query = useApiDashboardList(selectApiDashboardList);
+  const list = query.data ?? emptyArray;
   const dashboardsFavorite = useFavoriteStore((s) => s.dashboardsFavorite);
   const scrollY = useWindowSize((s) => s.scrollY > 16);
   const searchInput = useStateInput('');
-  useEffect(() => {
-    update();
-  }, []);
+  const searchDebounce = useDebounceValue(searchInput.value);
 
   const filterListFavorite = useMemo(() => {
     const res = list
       .filter((v) => dashboardsFavorite[v.id])
-      .filter(SearchFabric(searchInput.value, ['name', 'description']));
+      .filter(SearchFabric(searchDebounce, ['name', 'description']));
     res.sort((a, b) =>
       a.name.toLowerCase() > b.name.toLowerCase() ? 1 : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 0
     );
     return res;
-  }, [dashboardsFavorite, list, searchInput.value]);
+  }, [dashboardsFavorite, list, searchDebounce]);
 
   const filterList = useMemo(() => {
     const res = list
       .filter((v) => !dashboardsFavorite[v.id])
-      .filter(SearchFabric(searchInput.value, ['name', 'description']));
+      .filter(SearchFabric(searchDebounce, ['name', 'description']));
     res.sort((a, b) =>
       a.name.toLowerCase() > b.name.toLowerCase() ? 1 : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 0
     );
     return res;
-  }, [dashboardsFavorite, list, searchInput.value]);
+  }, [dashboardsFavorite, list, searchDebounce]);
 
   return (
     <div className="container-sm pt-3 pb-3 w-max-720">

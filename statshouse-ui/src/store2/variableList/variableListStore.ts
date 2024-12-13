@@ -24,10 +24,7 @@ import { useErrorStore } from 'store/errors';
 import { replaceVariable } from './replaceVariable';
 import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '../../url2';
 import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
-
-// export function getEmptyVariable(): VariableItem {
-//   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
-// }
+import { ExtendedError } from '../../api/api';
 
 export type VariableItem = {
   list: MetricTagValueInfo[];
@@ -361,7 +358,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
       tagMeta,
     };
   }
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     useErrorStore.getState().addError(error);
   }
   return undefined;
@@ -428,7 +425,7 @@ export async function loadSourceList(variableParamSource: VariableParamsSource, 
       tagMeta,
     };
   }
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     useErrorStore.getState().addError(error);
   }
   return undefined;
