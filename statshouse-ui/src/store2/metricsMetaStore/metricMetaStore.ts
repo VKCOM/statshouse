@@ -12,6 +12,7 @@ import { type PlotKey, promQLMetric } from 'url2';
 import { useErrorStore } from 'store/errors';
 import { debug } from 'common/debug';
 import { updateMetricMeta } from './updateMetricMeta';
+import { ExtendedError } from '../../api/api';
 
 export type MetricMeta = MetricMetaValue & {
   tagsObject: Partial<Record<TagKey, MetricMetaTag>>;
@@ -25,59 +26,48 @@ export type MetricMetaStore = {
   clearMetricMeta(metricName: string): void;
 };
 
-export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (setState, getState, store) => {
-  store.subscribe((state, prevState) => {
-    if (state.params.plots !== prevState.params.plots) {
-      // Object.values(state.params.plots).forEach((p) => {
-      //   getState()
-      //     .loadMetricMeta(p?.metricName ?? '')
-      //     .then();
-      // });
+export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (setState, getState, store) => ({
+  metricMeta: {},
+  async loadMetricMeta(metricName) {
+    if (!metricName || metricName === promQLMetric) {
+      return null;
     }
-  });
-  return {
-    metricMeta: {},
-    async loadMetricMeta(metricName) {
-      if (!metricName || metricName === promQLMetric) {
-        return null;
-      }
-      const meta = getState().metricMeta[metricName];
-      if (meta?.name) {
-        return meta;
-      }
+    const meta = getState().metricMeta[metricName];
+    if (meta?.name) {
+      return meta;
+    }
 
-      const { response, error, status } = await apiMetric(metricName);
+    const { response, error, status } = await apiMetric(metricName);
 
-      if (response) {
-        debug.log('loading meta for', response.data.metric.name);
-        const metricMeta: MetricMeta = {
-          ...response.data.metric,
-          ...tagsArrToObject(response.data.metric.tags),
-        };
-        setState(updateMetricMeta(metricMeta.name, metricMeta));
+    if (response) {
+      debug.log('loading meta for', response.data.metric.name);
+      const metricMeta: MetricMeta = {
+        ...response.data.metric,
+        ...tagsArrToObject(response.data.metric.tags),
+      };
+      setState(updateMetricMeta(metricMeta.name, metricMeta));
+    }
+    if (error) {
+      if (status !== 403 && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
+        useErrorStore.getState().addError(error);
       }
-      if (error) {
-        if (status !== 403) {
-          useErrorStore.getState().addError(error);
-        }
-      }
+    }
 
-      return getState().metricMeta[metricName] ?? null;
-    },
-    async loadMetricMetaByPlotKey(plotKey) {
-      const {
-        plotsData,
-        params: { plots },
-        loadMetricMeta,
-      } = getState();
-      const plotName = plotsData[plotKey]?.metricName ?? plots[plotKey]?.metricName ?? '';
-      return loadMetricMeta(plotName);
-    },
-    clearMetricMeta(metricName) {
-      setState(updateMetricMeta(metricName, null));
-    },
-  };
-};
+    return getState().metricMeta[metricName] ?? null;
+  },
+  async loadMetricMetaByPlotKey(plotKey) {
+    const {
+      plotsData,
+      params: { plots },
+      loadMetricMeta,
+    } = getState();
+    const plotName = plotsData[plotKey]?.metricName ?? plots[plotKey]?.metricName ?? '';
+    return loadMetricMeta(plotName);
+  },
+  clearMetricMeta(metricName) {
+    setState(updateMetricMeta(metricName, null));
+  },
+});
 
 export function tagsArrToObject(tags: MetricMetaTag[] = []): Pick<MetricMeta, 'tagsObject' | 'tagsOrder'> {
   const tagsObject: Partial<Record<TagKey, MetricMetaTag>> = {};

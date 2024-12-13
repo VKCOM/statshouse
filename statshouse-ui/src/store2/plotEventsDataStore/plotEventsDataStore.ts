@@ -25,6 +25,7 @@ import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
 import { debug } from 'common/debug';
 import { fmtInputDateTime, formatLegendValue } from 'view/utils2';
 import { useLiveModeStore } from '../liveModeStore';
+import { ExtendedError } from '../../api/api';
 
 type EventDataChunk = GetTableResp & { to: number; from: number; fromEnd: boolean };
 
@@ -193,7 +194,7 @@ export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStor
           const plotEventsData = (state.plotsEventsData[plotKey] = getEmptyPlotEventsData(state.params.timeRange));
           if (status === 403) {
             plotEventsData.error403 = error.toString();
-          } else if (error.name !== 'AbortError') {
+          } else if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_UNKNOWN) {
             debug.error(error);
             plotEventsData.error = error.toString();
           }

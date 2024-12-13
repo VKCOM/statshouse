@@ -10,6 +10,7 @@ import {
 } from 'api/namespace';
 import { apiNamespaceListFetch, NamespaceShort } from 'api/namespaceList';
 import { sortByKey } from 'view/utils';
+import { ExtendedError } from '../../api/api';
 
 export const namespaceListErrors = 'groupListErrors';
 
@@ -28,7 +29,7 @@ let loadListErrorRemover: () => void;
 export async function namespaceListLoad() {
   loadListErrorRemover?.();
   const { response, error } = await apiNamespaceListFetch();
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     loadListErrorRemover = useErrorStore.getState().addError(error, namespaceListErrors);
   }
   if (response) {
@@ -48,7 +49,7 @@ let loadErrorRemover: () => void;
 export async function namespaceLoad(id: number) {
   loadErrorRemover?.();
   const { response, error } = await apiNamespaceFetch({ [GET_PARAMS.metricsNamespacesID]: id.toString() });
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     loadErrorRemover = useErrorStore.getState().addError(error, namespaceListErrors);
   }
   if (response) {
@@ -62,7 +63,7 @@ let addErrorRemover: () => void;
 export async function namespaceAdd(namespace: ApiNamespacePut) {
   addErrorRemover?.();
   const { response, error } = await apiPutNamespaceFetch(namespace);
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     addErrorRemover = useErrorStore.getState().addError(error, namespaceListErrors);
   }
   await namespaceListLoad();
@@ -75,7 +76,7 @@ let saveErrorRemover: () => void;
 export async function namespaceSave(namespace: ApiNamespacePost) {
   saveErrorRemover?.();
   const { response, error } = await apiPostNamespaceFetch(namespace);
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     saveErrorRemover = useErrorStore.getState().addError(error, namespaceListErrors);
   }
   await namespaceListLoad();

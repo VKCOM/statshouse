@@ -4,6 +4,7 @@ import { useErrorStore } from '../errors';
 import { apiGroupFetch, ApiGroupPost, ApiGroupPut, apiPostGroupFetch, apiPutGroupFetch } from '../../api/group';
 import { GET_PARAMS } from '../../api/enum';
 import { sortByKey } from '../../view/utils';
+import { ExtendedError } from '../../api/api';
 
 export const groupListErrors = 'groupListErrors';
 
@@ -22,7 +23,7 @@ let loadListErrorRemover: () => void;
 export async function groupListLoad() {
   loadListErrorRemover?.();
   const { response, error } = await apiGroupListFetch();
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     loadListErrorRemover = useErrorStore.getState().addError(error, groupListErrors);
   }
   if (response) {
@@ -42,7 +43,7 @@ let loadErrorRemover: () => void;
 export async function groupLoad(id: number) {
   loadErrorRemover?.();
   const { response, error } = await apiGroupFetch({ [GET_PARAMS.metricsGroupID]: id.toString() });
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     loadErrorRemover = useErrorStore.getState().addError(error, groupListErrors);
   }
   if (response) {
@@ -56,7 +57,7 @@ let addErrorRemover: () => void;
 export async function groupAdd(group: ApiGroupPut) {
   addErrorRemover?.();
   const { response, error } = await apiPutGroupFetch(group);
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     addErrorRemover = useErrorStore.getState().addError(error, groupListErrors);
   }
   await groupListLoad();
@@ -69,7 +70,7 @@ let saveErrorRemover: () => void;
 export async function groupSave(group: ApiGroupPost) {
   saveErrorRemover?.();
   const { response, error } = await apiPostGroupFetch(group);
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     saveErrorRemover = useErrorStore.getState().addError(error, groupListErrors);
   }
   await groupListLoad();

@@ -38,7 +38,6 @@ import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { defaultBaseRange } from '../constants';
 import { useErrorStore } from 'store/errors';
 import { debug } from '../../common/debug';
-import { saveDashboard } from './saveDashboard';
 import { readDataDashboard } from './readDataDashboard';
 import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
@@ -46,6 +45,8 @@ import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import { fixMessageTrouble } from 'url/fixMessageTrouble';
 import { isNotNil } from '../../common/helpers';
 import { getUrlObject } from '../../common/getUrlObject';
+import { apiDashboardSave } from '../../api/dashboard';
+import { ExtendedError } from '../../api/api';
 
 export type UrlStore = {
   params: QueryParams;
@@ -95,7 +96,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
               : s.params.timeRange,
         });
         s.saveParams = res.saveParams;
-        if (res.error != null) {
+        if (res.error != null && res.error.status !== ExtendedError.ERROR_STATUS_ABORT) {
           useErrorStore.getState().addError(res.error);
         }
         if (s.params.tabNum === '-2') {
@@ -312,8 +313,8 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       return getAutoSearchVariable(getState);
     },
     async saveDashboard() {
-      const { response, error } = await saveDashboard(getState().params);
-      if (error) {
+      const { response, error } = await apiDashboardSave(getState().params);
+      if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
         useErrorStore.getState().addError(error);
       }
       if (response) {
@@ -326,8 +327,8 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       }
     },
     async removeDashboard() {
-      const { response, error } = await saveDashboard(getState().params, true);
-      if (error) {
+      const { response, error } = await apiDashboardSave(getState().params, true);
+      if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
         useErrorStore.getState().addError(error);
       }
       if (response) {

@@ -7,8 +7,9 @@
 import { getDefaultParams, type QueryParams, type TreeParamsObject, treeParamsObjectValueSymbol } from 'url2';
 import { GET_PARAMS } from 'api/enum';
 import { debug } from 'common/debug';
-import { apiDashboardFetch, ApiDashboardGet } from 'api/dashboard';
+import { apiDashboard } from 'api/dashboard';
 import { readDataDashboard } from './readDataDashboard';
+import { ExtendedError } from '../../api/api';
 
 export function getDashboardId(urlTree: TreeParamsObject) {
   return urlTree[GET_PARAMS.dashboardID]?.[treeParamsObjectValueSymbol]?.[0];
@@ -21,21 +22,13 @@ export async function loadDashboard(
   prevParam: QueryParams,
   urlTree: TreeParamsObject,
   defaultParams = getDefaultParams()
-): Promise<{ params: QueryParams; error?: Error }> {
+): Promise<{ params: QueryParams; error?: ExtendedError }> {
   const dashboardId = getDashboardId(urlTree);
   const dashboardVersion = getDashboardVersion(urlTree);
 
   let dashboardParams = defaultParams;
   if (dashboardId) {
-    if (dashboardId && prevParam.dashboardId === dashboardId) {
-      return { params: prevParam };
-    }
-    const urlGetParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: dashboardId };
-    if (dashboardVersion != null) {
-      urlGetParams[GET_PARAMS.dashboardApiVersion] = dashboardVersion;
-    }
-
-    const { response, error } = await apiDashboardFetch(urlGetParams);
+    const { response, error } = await apiDashboard(dashboardId, dashboardVersion);
     if (error) {
       debug.error(error);
       return { params: dashboardParams, error };

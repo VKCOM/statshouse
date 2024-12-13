@@ -34,6 +34,7 @@ import {
 import { createStore } from '../createStore';
 import { promQLMetric } from '../../view/promQLMetric';
 import { getTagDescription, isTagEnabled, isValidVariableName } from '../../view/utils2';
+import { ExtendedError } from '../../api/api';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
@@ -339,7 +340,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
       tagMeta,
     };
   }
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     useErrorStore.getState().addError(error);
   }
   return undefined;
@@ -400,7 +401,7 @@ export async function loadSourceList(variableParamSource: VariableParamsSource, 
       tagMeta,
     };
   }
-  if (error) {
+  if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
     useErrorStore.getState().addError(error);
   }
   return undefined;
