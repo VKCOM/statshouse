@@ -28,90 +28,62 @@ import (
 	"pgregory.net/rand"
 )
 
-// If clients want less jitter (they want), they should send data quickly after end pf calendar second.
+// If clients want less jitter (most want), they should send data quickly after end of calendar second.
 // Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
 func (s *Shard) flushBuckets(now time.Time) {
 	// called several times/sec only, but must still be fast, so we do not lock shard for too long
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if nowUnix := uint32(now.Unix()); nowUnix > s.addBuiltInsTime {
-		s.addBuiltInsTime = nowUnix
-		s.addBuiltInsLocked(nowUnix) // account to the current second. This is debatable.
+	nowUnix := uint32(now.Unix())
+	if nowUnix > s.CurrentTime {
+		s.addBuiltInsLocked()
+		s.CurrentTime = nowUnix
+		if gap := s.gapInReceivingQueueLocked(); gap > 0 {
+			// we record too big gap to the SendTime slot, because if sending is stuck,
+			// item will be simply updated in the same slot, without growing state size
+			resolutionShard := s.SuperQueue[s.SendTime%superQueueLen]
+			key := data_model.Key{
+				Timestamp: s.SendTime,
+				Metric:    format.BuiltinMetricIDTimingErrors,
+				Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
+			}
+			mi, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, nil)
+			mi.Tail.AddValueCounterHost(s.rng, float64(gap), 1, 0) // values record jumps f more than 1 second
+		}
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
-	currentTime := uint32(now.Add(-data_model.AgentWindow).Unix())
-	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
-	if len(s.BucketsToPreprocess) == 0 && currentTime > wasCurrentBucketTime {
-		// if we cannot flush 1-second resolution, we cannot flush any higher resolution
-		_ = s.flushSingleStep(wasCurrentBucketTime, currentTime, true)
+	if s.SendTime < s.CurrentTime-superQueueLen { // efficient jump ahead after long machine sleep, etc.
+		s.SendTime += ((s.CurrentTime - superQueueLen - s.SendTime + superQueueLen - 1) / superQueueLen) * superQueueLen // not simplified for clear correctness
 	}
-	// now after CurrentBuckets flushed, we want to move NextBuckets timestamp
-	// if conveyor is stuck, so that data from previous seconds is still kept there,
-	// but we consider this bucket to correspond to the unixNow point of time.
-	// this is important because we clamp future timestamps by content of NextBuckets timestamps
-	for r, bs := range s.NextBuckets {
-		if r != format.AllowedResolution(r) {
-			continue
+
+	sendUpToTime := uint32(now.Add(-data_model.AgentWindow).Unix())
+	for {
+		if sendUpToTime <= s.SendTime || len(s.BucketsToPreprocess) != 0 {
+			return
 		}
-		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
-		for i, b := range bs {
-			if currentTimeRounded+uint32(r) <= b.Time {
-				continue
-			}
-			if r == 1 && i == 0 { // Add metric for missed second here only once
-				key := data_model.Key{
-					Timestamp: b.Time,
-					Metric:    format.BuiltinMetricIDTimingErrors,
-					Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
-				}
-				mi, _ := b.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, nil)
-				mi.Tail.AddValueCounterHost(s.rng, float64(currentTimeRounded+uint32(r)-b.Time), 1, 0) // values record jumps f more than 1 second
-			}
-			b.Time = currentTimeRounded + uint32(r)
+		if s.SendTime >= s.CurrentTime { // must be never if AgentWindow is set correctly, but better safe than sorry
+			return
 		}
+		// During normal conveyor operation, we send every second so number of contributing
+		// agents stay the same. If agent sleeps/pauses, there will be some gaps anyway,
+		// so we simplify logic here by not sending empty buckets after such pauses
+		_ = s.FlushAllDataSingleStep(s.gapInReceivingQueueLocked() <= 0)
 	}
 }
 
-func (s *Shard) flushSingleStep(wasCurrentBucketTime uint32, currentTime uint32, sendEmpty bool) int {
-	// 1. flush current buckets into future queue (at least 1sec resolution, sometimes more, depends on rounded second)
-	// 2. move next buckets into current buckets
-	// 3. add new next buckets. There could appear time gap between current and next buckets if time jumped.
-	for r, bs := range s.CurrentBuckets {
-		if r != format.AllowedResolution(r) {
-			continue
-		}
-		currentTimeRounded := (currentTime / uint32(r)) * uint32(r)
-		for sh, b := range bs {
-			if currentTimeRounded <= b.Time {
-				continue
-			}
-			if !b.Empty() {
-				// future queue pos is assigned without seams if missed seconds is 0
-				futureQueuePos := (b.Time + uint32(r) + uint32(sh)) % 60
-				s.FutureQueue[futureQueuePos] = append(s.FutureQueue[futureQueuePos], b)
-			}
-			s.CurrentBuckets[r][sh] = s.NextBuckets[r][sh]
-			s.NextBuckets[r][sh] = &data_model.MetricsBucket{Time: currentTimeRounded + uint32(r), Resolution: r}
-		}
+func (s *Shard) FlushAllDataSingleStep(sendEmpty bool) int {
+	sendTime := s.SendTime
+	s.SendTime++
+	b := s.SuperQueue[sendTime%superQueueLen]
+	if b.Empty() && !sendEmpty {
+		return 0
 	}
-	// we put second into next second future queue position,
-	// same for higher resolutions, so first minute shard is sent together with 59-th normal second.
-	fq := s.FutureQueue[(wasCurrentBucketTime+1)%60]
-	s.FutureQueue[(wasCurrentBucketTime+1)%60] = nil
-	if !sendEmpty && len(fq) == 0 {
-		return 0 // empty
-	}
-	// we wait here only when shutting dowm. During normal work we check len(chan) before calling this func
-	s.BucketsToPreprocess <- preprocessorBucketData{time: wasCurrentBucketTime, buckets: fq}
-	return 1 // non-empty
-}
-
-func (s *Shard) FlushAllDataSingleStep() int {
-	wasCurrentBucketTime := s.CurrentBuckets[1][0].Time
-	currentTime := wasCurrentBucketTime + 1
-	var _ time.Time = time.Now()
-	return s.flushSingleStep(wasCurrentBucketTime, currentTime, false)
+	s.SuperQueue[sendTime%superQueueLen] = &data_model.MetricsBucket{}
+	b.Time = sendTime
+	// we wait here only when shutting down. During normal work we check len(chan) before calling this func
+	s.BucketsToPreprocess <- b
+	return 1
 }
 
 func (s *Shard) StopReceivingIncomingData() {
@@ -304,36 +276,16 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	defer wg.Done()
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
-	for pbd := range s.BucketsToPreprocess {
+	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
-		bucket := &data_model.MetricsBucket{Time: pbd.time}
-		// Due to !b.Empty() optimization during flushing into future queue, if no data is collected,
-		// nothing is in FutureQueue. If pbd.buckets is empty, we must still do processing and sending
+		// If bucket is empty, we must still do processing and sending
 		// for each contributor every second.
 
-		s.mergeBuckets(rng, bucket, pbd.buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactor := s.sampleBucket(bucket, rng)
 		s.sendToSenders(bucket, sampleFactor)
 		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}
 	log.Printf("Preprocessor quit")
-}
-
-func (s *Shard) mergeBuckets(rng *rand.Rand, bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
-	s.mu.Lock()
-	stringTopCapacity := s.config.StringTopCapacity
-	s.mu.Unlock()
-	for _, b := range buckets { // optimization to merge into the largest map
-		if len(b.MultiItems) > len(bucket.MultiItems) {
-			b.MultiItems, bucket.MultiItems = bucket.MultiItems, b.MultiItems
-		}
-	}
-	for _, b := range buckets {
-		for _, item := range b.MultiItems {
-			mi, _ := bucket.GetOrCreateMultiItem(&item.Key, stringTopCapacity, nil)
-			mi.Merge(rng, item)
-		}
-	}
 }
 
 func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (sf []tlstatshouse.SampleFactor) {

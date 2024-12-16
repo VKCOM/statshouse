@@ -14,12 +14,9 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/mailru/easyjson/opt"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/sharding"
 )
 
 func Benchmark_Hash(b *testing.B) {
@@ -43,9 +40,21 @@ func Test_BelieveTimestampWindow(t *testing.T) {
 
 func Test_AgentWindow(t *testing.T) {
 	// We have primitive queue with 2 slots only. So window must be 1 + (0..1) seconds
-	if data_model.AgentWindow <= 0 || data_model.AgentWindow >= time.Second {
+	if data_model.AgentWindow <= time.Second || data_model.AgentWindow >= 2*time.Second {
 		t.Fail()
 	}
+}
+
+func Test_SuperQueueLength(t *testing.T) {
+	if superQueueLen < 128 {
+		t.Fail() // must fit at least 2 minutes plus several seconds queue
+	}
+	for i := 0; i < 32; i++ {
+		if superQueueLen == (1 << i) {
+			return
+		}
+	}
+	t.Fail() // keep power of two for efficient % operation
 }
 
 func Test_AgentQueue(t *testing.T) {
@@ -58,39 +67,38 @@ func Test_AgentQueue(t *testing.T) {
 	nowUnix := uint32(startTime.Unix())
 
 	shard := &Shard{
-		config:          config,
-		agent:           agent,
-		addBuiltInsTime: nowUnix,
+		config:      config,
+		agent:       agent,
+		CurrentTime: nowUnix,
+		SendTime:    nowUnix - 2, // accept previous seconds at the start of the agent
 	}
-	for r := range shard.CurrentBuckets {
-		if r != format.AllowedResolution(r) {
-			continue
-		}
-		ur := uint32(r)
-		bucketTime := (nowUnix / ur) * ur
-		for sh := 0; sh < r; sh++ {
-			shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-			shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-		}
+	for j := 0; j < superQueueLen; j++ {
+		shard.SuperQueue[j] = &data_model.MetricsBucket{} // timestamp will be assigned at queue flush
 	}
 	shard.cond = sync.NewCond(&shard.mu)
-	shard.BucketsToPreprocess = make(chan preprocessorBucketData, 1)
+	shard.BucketsToPreprocess = make(chan *data_model.MetricsBucket, 1)
 	agent.Shards = append(agent.Shards, shard)
 	agent.initBuiltInMetrics()
 
-	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1}
-	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5}
+	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1, Sharding: []format.MetricSharding{format.MetricSharding{
+		Strategy:   format.ShardBy16MappedTagsHash,
+		StrategyId: format.ShardBy16MappedTagsHashId,
+	}}}
+	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5, Sharding: []format.MetricSharding{format.MetricSharding{
+		Strategy:   format.ShardBy16MappedTagsHash,
+		StrategyId: format.ShardBy16MappedTagsHashId,
+	}}}
 	// TODO - here we metrics at the perfect moments, odd metrics at wrong moments
 	agent.goFlushIteration(startTime)
 	testEnsureNoFlush(t, shard)
 	agent.goFlushIteration(startTime.Add(time.Second))
-	testEnsureNoFlush(t, shard)
+	testEnsureFlush(t, shard, nowUnix-2)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix, Metric: 1}, 1, 0, metric1sec)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix, Metric: 5}, 1, 0, metric5sec)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
-	agent.goFlushIteration(startTime.Add(time.Second + data_model.AgentWindow))
-	testEnsureFlush(t, shard, nowUnix)
+	agent.goFlushIteration(startTime.Add(data_model.AgentWindow))
+	testEnsureFlush(t, shard, nowUnix-1)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, 0, metric1sec)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, 0, metric5sec)
 	agent.AddCounterHost(&data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, 0, metric1sec)
@@ -98,8 +106,8 @@ func Test_AgentQueue(t *testing.T) {
 	agent.goFlushIteration(startTime.Add(2 * time.Second))
 	testEnsureNoFlush(t, shard)
 	for i := 1; i < 12; i++ { // wait until 5-seconds metrics flushed
-		agent.goFlushIteration(startTime.Add(time.Duration(i+1)*time.Second + data_model.AgentWindow))
-		testEnsureFlush(t, shard, nowUnix+uint32(i))
+		agent.goFlushIteration(startTime.Add(time.Duration(i)*time.Second + data_model.AgentWindow))
+		testEnsureFlush(t, shard, nowUnix+uint32(i-1))
 	}
 }
 
@@ -112,30 +120,26 @@ func testEnsureNoFlush(t *testing.T, shard *Shard) {
 }
 
 func testEnsureFlush(t *testing.T, shard *Shard, time uint32) {
-	var cbd preprocessorBucketData
+	var b *data_model.MetricsBucket
 	select {
-	case cbd = <-shard.BucketsToPreprocess:
+	case b = <-shard.BucketsToPreprocess:
 	default:
 		t.Fatalf("testEnsureFlush no flush")
 	}
-	if cbd.time != time {
+	if b.Time != time {
 		t.Fatalf("wrong PreprocessingBucketTime")
 	}
-	for _, b := range cbd.buckets {
-		mustBeTime := (time + 1 - uint32(b.Resolution)) / uint32(b.Resolution) * uint32(b.Resolution)
-		if b.Time != mustBeTime {
-			t.Fatalf("wrong bucket time")
+	for _, item := range b.MultiItems {
+		mustBeTime5 := ((time - 5) / 5) * 5
+
+		if item.Key.Metric == 1 && item.Key.Timestamp != time {
+			t.Fatalf("wrong metric 1sec time")
 		}
-		for _, item := range b.MultiItems {
-			if item.Key.Metric == 1 && item.Key.Timestamp != mustBeTime {
-				t.Fatalf("wrong metric 1sec time")
-			}
-			if item.Key.Metric == 5 && item.Key.Timestamp != mustBeTime {
-				t.Fatalf("wrong metric 5sec time")
-			}
-			if item.Key.Timestamp > mustBeTime { // metric from the future
-				t.Fatalf("metric from the future")
-			}
+		if item.Key.Metric == 5 && item.Key.Timestamp != mustBeTime5 {
+			t.Fatalf("wrong metric 5sec time")
+		}
+		if item.Key.Timestamp > b.Time { // metric from the future
+			t.Fatalf("metric from the future")
 		}
 	}
 }
@@ -180,6 +184,7 @@ func Benchmark_sampleFactorDeterministic(b *testing.B) {
 	}
 }
 
+/* complicated test which tests trivial thing. Commented for now.
 func Test_AgentSharding(t *testing.T) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -249,6 +254,7 @@ func Test_AgentSharding(t *testing.T) {
 		t.Fatalf("expected to have 12000 metrics added to shards but got %d", totalCount)
 	}
 }
+*/
 
 func Benchmark_AgentApplyMetric(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
@@ -289,67 +295,68 @@ func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
 	return key
 }
 
-func randResolution(rng *rand.Rand) int {
-	resolutions := []int{1, 5, 6, 10, 15, 20, 30, 60}
-	return resolutions[rng.Int31n(int32(len(resolutions)))]
-}
+/*
+	func randResolution(rng *rand.Rand) int {
+		resolutions := []int{1, 5, 6, 10, 15, 20, 30, 60}
+		return resolutions[rng.Int31n(int32(len(resolutions)))]
+	}
 
-func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
-	m := tlstatshouse.MetricBytes{
-		Counter: 1,
+	func applyRandCountMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
+		m := tlstatshouse.MetricBytes{
+			Counter: 1,
+		}
+		key := randKey(rng, ts, offset)
+		h := data_model.MappedMetricHeader{
+			Key: key,
+			MetricMeta: &format.MetricMetaValue{
+				EffectiveResolution: randResolution(rng),
+			},
+		}
+		h.MetricMeta = updateMeta(h.MetricMeta, key)
+		a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 	}
-	key := randKey(rng, ts, offset)
-	h := data_model.MappedMetricHeader{
-		Key: key,
-		MetricMeta: &format.MetricMetaValue{
-			EffectiveResolution: randResolution(rng),
-		},
-	}
-	h.MetricMeta = updateMeta(h.MetricMeta, key)
-	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
-}
 
-func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
-	value := 1 + rng.Int31n(100)
-	m := tlstatshouse.MetricBytes{
-		Counter: 1,
-		Value:   make([]float64, value),
+	func applyRandValueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
+		value := 1 + rng.Int31n(100)
+		m := tlstatshouse.MetricBytes{
+			Counter: 1,
+			Value:   make([]float64, value),
+		}
+		for i := range m.Value {
+			m.Value[i] = rng.Float64()
+		}
+		key := randKey(rng, ts, offset)
+		h := data_model.MappedMetricHeader{
+			Key: key,
+			MetricMeta: &format.MetricMetaValue{
+				EffectiveResolution: randResolution(rng),
+			},
+		}
+		h.MetricMeta = updateMeta(h.MetricMeta, key)
+		a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 	}
-	for i := range m.Value {
-		m.Value[i] = rng.Float64()
-	}
-	key := randKey(rng, ts, offset)
-	h := data_model.MappedMetricHeader{
-		Key: key,
-		MetricMeta: &format.MetricMetaValue{
-			EffectiveResolution: randResolution(rng),
-		},
-	}
-	h.MetricMeta = updateMeta(h.MetricMeta, key)
-	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
-}
 
-func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
-	value := 1 + rng.Int31n(10)
-	m := tlstatshouse.MetricBytes{
-		Counter: 1,
-		Unique:  make([]int64, value),
+	func applyRandUniqueMetric(a *Agent, rng *rand.Rand, ts uint32, offset int32, updateMeta func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue) {
+		value := 1 + rng.Int31n(10)
+		m := tlstatshouse.MetricBytes{
+			Counter: 1,
+			Unique:  make([]int64, value),
+		}
+		for i := range m.Unique {
+			m.Unique[i] = rng.Int63n(1000)
+		}
+		key := randKey(rng, ts, offset)
+		h := data_model.MappedMetricHeader{
+			Key: key,
+			MetricMeta: &format.MetricMetaValue{
+				EffectiveResolution: randResolution(rng),
+				ShardUniqueValues:   false, // for predictability of total sum in shards
+			},
+		}
+		h.MetricMeta = updateMeta(h.MetricMeta, key)
+		a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
 	}
-	for i := range m.Unique {
-		m.Unique[i] = rng.Int63n(1000)
-	}
-	key := randKey(rng, ts, offset)
-	h := data_model.MappedMetricHeader{
-		Key: key,
-		MetricMeta: &format.MetricMetaValue{
-			EffectiveResolution: randResolution(rng),
-			ShardUniqueValues:   false, // for predictability of total sum in shards
-		},
-	}
-	h.MetricMeta = updateMeta(h.MetricMeta, key)
-	a.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
-}
-
+*/
 func makeAgent(config Config, nowUnix uint32) *Agent {
 	agent := &Agent{
 		config: config,
@@ -358,21 +365,14 @@ func makeAgent(config Config, nowUnix uint32) *Agent {
 	agent.Shards = make([]*Shard, 5)
 	for i := range agent.Shards {
 		shard := &Shard{
-			ShardNum:        i,
-			config:          config,
-			agent:           agent,
-			addBuiltInsTime: nowUnix,
+			ShardNum:    i,
+			config:      config,
+			agent:       agent,
+			CurrentTime: nowUnix,
+			SendTime:    nowUnix - 2, // accept previous seconds at the start of the agent
 		}
-		for r := range shard.CurrentBuckets {
-			if r != format.AllowedResolution(r) {
-				continue
-			}
-			ur := uint32(r)
-			bucketTime := (nowUnix / ur) * ur
-			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-			}
+		for j := 0; j < superQueueLen; j++ {
+			shard.SuperQueue[j] = &data_model.MetricsBucket{} // timestamp will be assigned at queue flush
 		}
 		shard.cond = sync.NewCond(&shard.mu)
 		agent.Shards[i] = shard

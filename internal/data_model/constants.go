@@ -45,11 +45,11 @@ const (
 	AgentPercentileCompression      = 40 // TODO - will typically have 20-30 centroids for compression 40
 	AggregatorPercentileCompression = 80 // TODO - clickhouse has compression of 256 by default
 
-	// time between calendar second is finished and sending to aggregators starts
-	// so clients have this time after finishing second to send events to agent
+	// time between calendar second start and sending to aggregators
+	// so clients have this time even after finishing second to send events to agent
 	// if they succeed, there is no sampling penalty.
-	// set to >300ms only after all libraries which send at 0.5 calendar second are updated
-	AgentWindow = 300 * time.Millisecond // must be < 1 seconds.
+	// set to >1300ms only after all libraries which send at 0.5 calendar second are updated
+	AgentWindow = 1300 * time.Millisecond // must be 1..2 seconds.
 
 	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
 	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
