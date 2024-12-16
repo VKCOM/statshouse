@@ -14,6 +14,11 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
+func SchemaGenerator() string { return "v1.1.13" }
+func SchemaURL() string       { return "" }
+func SchemaCommit() string    { return "" }
+func SchemaTimestamp() uint32 { return 0 }
+
 // We can create only types which have zero type arguments and zero nat arguments
 type Object interface {
 	TLName() string // returns type's TL name. For union, returns constructor name depending on actual union value
@@ -90,13 +95,50 @@ func CreateObjectFromName(name string) Object {
 	return nil
 }
 
+func CreateFunctionBytes(tag uint32) Function {
+	if item := FactoryItemByTLTag(tag); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+func CreateObjectBytes(tag uint32) Object {
+	if item := FactoryItemByTLTag(tag); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateFunctionFromNameBytes(name string) Function {
+	if item := FactoryItemByTLName(name); item != nil && item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return nil
+}
+
+// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
+func CreateObjectFromNameBytes(name string) Object {
+	if item := FactoryItemByTLName(name); item != nil && item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return nil
+}
+
 type TLItem struct {
-	tag                uint32
-	annotations        uint32
-	tlName             string
-	createFunction     func() Function
-	createFunctionLong func() Function
-	createObject       func() Object
+	tag         uint32
+	annotations uint32
+	tlName      string
+
+	resultTypeContainsUnionTypes    bool
+	argumentsTypesContainUnionTypes bool
+
+	createFunction          func() Function
+	createFunctionLong      func() Function
+	createObject            func() Object
+	createFunctionBytes     func() Function
+	createFunctionLongBytes func() Function
+	createObjectBytes       func() Object
 }
 
 func (item TLItem) TLTag() uint32            { return item.tag }
@@ -104,6 +146,9 @@ func (item TLItem) TLName() string           { return item.tlName }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+func (item TLItem) HasUnionTypesInResult() bool    { return item.resultTypeContainsUnionTypes }
+func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesContainUnionTypes }
 
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
@@ -193,6 +238,40 @@ func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item.createObject = func() Object { return item }
 }
 
+func SetGlobalFactoryCreateForFunctionBytes(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+	item.createFunctionBytes = createFunction
+	item.createFunctionLongBytes = createFunctionLong
+}
+
+func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Object) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForEnumElementBytes(itemTag uint32) {
+	item := itemsByTag[itemTag]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = func() Object { return item }
+}
+
+func pleaseImportFactoryBytesObject() Object {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
+func pleaseImportFactoryBytesFunction() Function {
+	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+}
+
 func pleaseImportFactoryObject() Object {
 	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory' instead of 'gen/meta'.")
 }
@@ -207,6 +286,7 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	itemsByName[n1] = item
 	itemsByName[n2] = item
 	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
 	// code below is as fast, but allocates some extra strings which are already in binary const segment due to JSON code
 	// itemsByName[fmt.Sprintf("%s#%08x", item.tlName, item.tag)] = item
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
@@ -215,11 +295,12 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
+	item.createFunctionBytes = pleaseImportFactoryBytesFunction
 }
 
 func init() {
-	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int"})
-	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo"})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string"})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true"})
+	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }
