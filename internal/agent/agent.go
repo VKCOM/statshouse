@@ -193,24 +193,17 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			ShardNum:            i,
 			ShardKey:            int32(i) + 1,
 			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			addBuiltInsTime:     nowUnix,
 			BucketsToSend:       make(chan compressedBucketData),
-			BucketsToPreprocess: make(chan preprocessorBucketData, 1), // length of preprocessor queue
+			BucketsToPreprocess: make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
 			perm:                rnd.Perm(data_model.AggregationShardsPerSecond),
 			rng:                 rnd,
+			CurrentTime:         nowUnix,
+			SendTime:            nowUnix - 2, // accept previous seconds at the start of the agent
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
-		for r := range shard.CurrentBuckets {
-			if r != format.AllowedResolution(r) {
-				continue
-			}
-			ur := uint32(r)
-			bucketTime := (nowUnix / ur) * ur
-			for sh := 0; sh < r; sh++ {
-				shard.CurrentBuckets[r] = append(shard.CurrentBuckets[r], &data_model.MetricsBucket{Time: bucketTime, Resolution: r})
-				shard.NextBuckets[r] = append(shard.NextBuckets[r], &data_model.MetricsBucket{Time: bucketTime + ur, Resolution: r})
-			}
+		for j := 0; j < superQueueLen; j++ {
+			shard.SuperQueue[j] = &data_model.MetricsBucket{} // timestamp will be assigned at queue flush
 		}
 		shard.cond = sync.NewCond(&shard.mu)
 		result.Shards = append(result.Shards, shard)
@@ -345,9 +338,9 @@ func (s *Agent) WaitFlusher() {
 }
 
 func (s *Agent) FlushAllData() (nonEmpty int) {
-	for i := 0; i != data_model.MaxFutureSecondsOnDisk; i++ {
+	for i := 0; i != superQueueLen; i++ {
 		for _, shard := range s.Shards {
-			nonEmpty += shard.FlushAllDataSingleStep()
+			nonEmpty += shard.FlushAllDataSingleStep(false)
 		}
 	}
 	for _, shard := range s.Shards {
