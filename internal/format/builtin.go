@@ -2505,7 +2505,9 @@ Value is delta between second value and time it was inserted.`,
 				Description: "cause",
 				ValueComments: convertToValueComments(map[int32]string{
 					1: "would_block",
-				})},
+				})}, {
+				Description: "application",
+			},
 			},
 		},
 	}
