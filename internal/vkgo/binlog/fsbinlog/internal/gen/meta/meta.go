@@ -14,7 +14,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.1.10" }
+func SchemaGenerator() string { return "v1.1.13" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -126,9 +126,13 @@ func CreateObjectFromNameBytes(name string) Object {
 }
 
 type TLItem struct {
-	tag                     uint32
-	annotations             uint32
-	tlName                  string
+	tag         uint32
+	annotations uint32
+	tlName      string
+
+	resultTypeContainsUnionTypes    bool
+	argumentsTypesContainUnionTypes bool
+
 	createFunction          func() Function
 	createFunctionLong      func() Function
 	createObject            func() Object
@@ -142,6 +146,9 @@ func (item TLItem) TLName() string           { return item.tlName }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+func (item TLItem) HasUnionTypesInResult() bool    { return item.resultTypeContainsUnionTypes }
+func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesContainUnionTypes }
 
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
@@ -292,7 +299,7 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x044c644b, annotations: 0x0, tlName: "fsbinlog.levStart"})
-	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms"})
-	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta"})
+	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x044c644b, annotations: 0x0, tlName: "fsbinlog.levStart", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

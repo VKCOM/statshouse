@@ -7,7 +7,6 @@
 package rpc
 
 import (
-	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
@@ -137,10 +136,6 @@ func (pc *PacketConn) ProtocolVersion() uint32 {
 	return pc.protocolVersion
 }
 
-func (pc *PacketConn) KeyID() [4]byte {
-	return pc.keyID
-}
-
 func (pc *PacketConn) Close() error {
 	pc.closeOnce.Do(func() {
 		if pc.tcpconn_fd != nil {
@@ -203,7 +198,7 @@ func (pc *PacketConn) setWriteTimeoutUnlocked(timeout time.Duration) error {
 	return nil
 }
 
-// ReadPacket will resize/reuse body to size of packet
+// ReadPacket will resize/reuse body to size of packet + up to 8 bytes overhead
 func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32, _ []byte, err error) {
 	for {
 		var isBuiltin bool
@@ -226,53 +221,6 @@ func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32
 func (pc *PacketConn) ReadPacketUnlocked(body []byte, timeout time.Duration) (tip uint32, _ []byte, isBuiltin bool, builtinKind string, err error) {
 	tip, _, body, isBuiltin, builtinKind, err = pc.readPacketWithMagic(body, timeout)
 	return tip, body, isBuiltin, builtinKind, err
-}
-
-func ForwardPackets(ctx context.Context, dst, src *PacketConn) (error, error) {
-	for i := 0; ctx.Err() == nil; i++ {
-		var header packetHeader
-		src.readMu.Lock()
-		_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, DefaultPacketTimeout)
-		src.readMu.Unlock()
-		var netErr net.Error
-		if err != nil {
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				continue
-			}
-			return nil, err // read error
-		}
-		if isBuiltin {
-			if err = src.WritePacketBuiltin(time.Duration(0)); err != nil {
-				return err, nil // write error
-			}
-			continue
-		}
-		dst.writeMu.Lock()
-		// write header
-		bodySize := int(header.length) - packetOverhead
-		if err = dst.writePacketHeaderUnlocked(header.tip, bodySize, time.Duration(0)); err != nil {
-			dst.writeMu.Unlock()
-			return err, nil // write error
-		}
-		src.readMu.Lock()
-		// copy body
-		writeErr, readErr := cryptoCopy(dst.w, src.r, bodySize+4) // body and CRC
-		// align read
-		readWriteOK := readErr == nil && writeErr == nil
-		if readWriteOK && src.w.isEncrypted() {
-			src.r.discard(int(-uint(header.length) & 3))
-		}
-		src.readMu.Unlock()
-		// align write
-		if readWriteOK {
-			dst.FlushUnlocked()
-		}
-		dst.writeMu.Unlock()
-		if readErr != nil || writeErr != nil {
-			return writeErr, readErr
-		}
-	}
-	return nil, nil
 }
 
 // supports sending ascii command via terminal instead of first TL RPC packet, returns command in
@@ -669,7 +617,7 @@ func validBodyLen(n int) error { // Motivation - high byte was used for some fla
 	if n > maxPacketLen-packetOverhead {
 		return &tagError{
 			tag: "out_of_range_packet_size",
-			err: fmt.Errorf("packet size (metadata+extra+request) %v exceeds maximum %v", n, maxPacketLen),
+			err: errTooLarge,
 		}
 	}
 	return nil

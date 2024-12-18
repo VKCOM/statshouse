@@ -12,10 +12,11 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"go.uber.org/atomic"
 	"pgregory.net/rand"
 )
 
@@ -24,7 +25,7 @@ const (
 	DefaultClientConnWriteBufSize = maxGoAllocSizeClass
 
 	minReconnectDelay = 200 * time.Millisecond // same as TCP_RTO_MIN
-	maxReconnectDelay = 10 * time.Second
+	maxReconnectDelay = 60 * time.Second
 
 	debugPrint = false // turn on during testing using custom scheduler
 	debugTrace = false // turn on during rapid testing to have trace stored in Server
@@ -121,23 +122,26 @@ type Client struct {
 	responsePool     sync.Pool
 
 	wg sync.WaitGroup
+
+	u *udpClient
 }
 
 func NewClient(options ...ClientOptionsFunc) *Client {
 	opts := ClientOptions{
-		Logf:             log.Printf,
-		ConnReadBufSize:  DefaultClientConnReadBufSize,
-		ConnWriteBufSize: DefaultClientConnWriteBufSize,
-		PacketTimeout:    DefaultPacketTimeout,
-		Hooks:            func() ClientHooks { return nil },
-		ProtocolVersion:  DefaultProtocolVersion,
+		Logf:              log.Printf,
+		ConnReadBufSize:   DefaultClientConnReadBufSize,
+		ConnWriteBufSize:  DefaultClientConnWriteBufSize,
+		PacketTimeout:     DefaultPacketTimeout,
+		Hooks:             func() ClientHooks { return nil },
+		ProtocolVersion:   DefaultProtocolVersion,
+		MaxReconnectDelay: maxReconnectDelay,
 	}
 	for _, opt := range options {
 		opt(&opts)
 	}
 
 	for _, err := range opts.trustedSubnetGroupsParseErrors {
-		opts.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
+		opts.Logf("rpc: failed to parse client trusted subnet %q, ignoring", err)
 	}
 
 	c := &Client{
@@ -145,6 +149,10 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		conns: map[NetAddr]*clientConn{},
 	}
 	c.lastQueryID.Store(rand.Uint64())
+
+	if opts.localUDPAddress != "" {
+		c.u = newUdpClient(c)
+	}
 
 	return c
 }
@@ -174,6 +182,10 @@ func (c *Client) Close() error {
 	}
 
 	c.wg.Wait()
+
+	if c.u != nil {
+		_ = c.u.Close()
+	}
 	return nil
 }
 
@@ -181,8 +193,10 @@ func (c *Client) Logf(format string, args ...any) {
 	c.opts.Logf(format, args...)
 }
 
-// Do supports only "tcp", "tcp4", "tcp6" and "unix" networks
 func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
+	if c.u != nil && strings.HasPrefix(network, "udp") {
+		return c.u.Do(ctx, network, address, req)
+	}
 	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
 	if err != nil { // got ownership of cctx, if not nil
 		return cctx, err
@@ -338,6 +352,7 @@ func (c *Client) fillRequestTimeout(ctx context.Context, req *Request) (time.Tim
 
 // ResetReconnectDelay resets timer before the next reconnect attempt.
 // If connect goroutine is already waiting - ResetReconnectDelay forces it to wait again with minimal delay
+// TODO - remove?
 func (c *Client) ResetReconnectDelay(address NetAddr) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -389,8 +404,8 @@ func (c *Client) getLoad(address NetAddr) int {
 func (c *Client) GetRequest() *Request {
 	req := c.getRequest()
 	for {
-		req.queryID = int64(c.lastQueryID.Inc() & math.MaxInt64)
-		// We like positive query IDs, but not 0, so users can use QueryID as a flag
+		req.queryID = int64(c.lastQueryID.Add(1) & math.MaxInt64)
+		// We like positive query IDs, but not 0, so users can user QueryID as a flag
 		if req.queryID != 0 {
 			break
 		}

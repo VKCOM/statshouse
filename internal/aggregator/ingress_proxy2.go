@@ -85,7 +85,7 @@ type proxyConn struct {
 
 type proxyRequest struct {
 	tip uint32
-	rpc.ServerRequest
+	rpc.HandlerContext
 }
 
 func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngressProxy, aesPwd string) error {
@@ -427,7 +427,7 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 							p.reqBuf = req.Response
 						}
 					}
-					if err = req.WriteReponseAndFlush(p.clientConn, err, p.rareLog); err != nil {
+					if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
 						p.reportClientConnError("Client write error: %v\n", err)
 						// "requestLoop" exits on request read-write errors only, read next request
 					}
@@ -494,9 +494,9 @@ func (p *proxyConn) readRequest(ctx context.Context) (proxyRequest, error) {
 	}
 	switch tip {
 	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
-		return proxyRequest{tip, rpc.ServerRequest{Request: p.reqBuf}}, nil
+		return proxyRequest{tip, rpc.HandlerContext{Request: p.reqBuf}}, nil
 	case rpcInvokeReqHeaderTLTag:
-		req := rpc.ServerRequest{Request: p.reqBuf}
+		req := rpc.HandlerContext{Request: p.reqBuf}
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
 			return proxyRequest{}, err
 		}

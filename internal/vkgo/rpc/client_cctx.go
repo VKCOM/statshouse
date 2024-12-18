@@ -32,16 +32,16 @@ func preparePacket(req *Request) error {
 	headerBuf = reqHeader.Write(headerBuf)
 	switch {
 	case req.ActorID != 0 && req.Extra.Flags != 0:
-		// extra := tl.RpcDestActorFlags{ActorId: req.ActorID, Extra: req.Extra.RpcInvokeReqExtra}
-		// if headerBuf, err = extra.WriteBoxed(headerBuf); err != nil {
-		// here we optimize copy of large extra
+		// extra := tl.RpcDestActorFlags{ActorId: req.ActorID, Extra: req.Extra}
+		// headerBuf = extra.WriteBoxed(headerBuf)
+		// we optimize copy of large extra here by writing code above manually
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestActorFlags{}.TLTag())
 		headerBuf = basictl.LongWrite(headerBuf, req.ActorID)
 		headerBuf = req.Extra.Write(headerBuf)
 	case req.Extra.Flags != 0:
-		// extra := tl.RpcDestFlags{Extra: req.Extra.RpcInvokeReqExtra}
-		// if headerBuf, err = extra.WriteBoxed(headerBuf); err != nil {
-		// here we optimize copy of large extra
+		// extra := tl.RpcDestFlags{Extra: req.Extra}
+		// headerBuf = extra.WriteBoxed(headerBuf)
+		// we optimize copy of large extra here by writing code above manually
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestFlags{}.TLTag())
 		headerBuf = req.Extra.Write(headerBuf)
 	case req.ActorID != 0:
@@ -66,9 +66,6 @@ func parseResponseExtra(extra *ResponseExtra, respBody []byte) (_ []byte, err er
 		if (tag != tl.ReqResultHeader{}.TLTag()) {
 			break
 		}
-		// var extra tl.ReqResultHeader
-		// if resp.Body, err = extra.Read(afterTag); err != nil {
-		// we optimize copy of large extra here
 		if respBody, err = extra.Read(afterTag); err != nil {
 			return respBody, err
 		}
@@ -85,13 +82,13 @@ func parseResponseExtra(extra *ResponseExtra, respBody []byte) (_ []byte, err er
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
-	case tl.RpcReqResultError{}.TLTag():
+	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var rpcErr tl.RpcReqResultError // ignore query ID
 		if respBody, err = rpcErr.Read(afterTag); err != nil {
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
-	case tl.RpcReqResultErrorWrapped{}.TLTag():
+	case tl.RpcReqResultErrorWrapped{}.TLTag(): // old style, should not be sent by modern servers
 		var rpcErr tl.RpcReqResultErrorWrapped
 		if respBody, err = rpcErr.Read(afterTag); err != nil {
 			return respBody, err

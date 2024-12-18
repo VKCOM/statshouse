@@ -11,10 +11,8 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
-	"os"
+	"sync/atomic"
 	"time"
-
-	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
@@ -31,10 +29,11 @@ const (
 	LatestProtocolVersion  = 2
 )
 
-var (
-	processID        = uint16(os.Getpid())
-	processStartTime = atomic.NewInt32(int32(time.Now().Unix()))
-)
+var processStartTime atomic.Int64
+
+func init() {
+	processStartTime.Store(time.Now().Unix())
+}
 
 func EncryptionToString(schema int) string {
 	switch schema {
@@ -51,7 +50,7 @@ func EncryptionToString(schema int) string {
 
 // dirty hack to try to give everyone realistically-looking but unique PID (which C implementation requires)
 func uniqueStartTime() uint32 {
-	return uint32(processStartTime.Dec())
+	return uint32(processStartTime.Add(1))
 }
 
 type nonceMsg struct {

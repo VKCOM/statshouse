@@ -21,7 +21,7 @@ func TestErrorTag(t *testing.T) {
 	baz := &tagError{tag: "baz", err: bar}
 	bzz := fmt.Errorf("bzz: %w", baz)
 	tag := ErrorTag(bzz)
-	assert.Equal(t, tag, "baz")
+	assert.Equal(t, tag, "baz:foo")
 	assert.Empty(t, ErrorTag(nil))
 	assert.Empty(t, ErrorTag(&tagError{tag: ""}))
 	assert.Equal(t, ErrorTag(&tagError{tag: "", err: &net.OpError{Err: context.DeadlineExceeded}}), "timeout")

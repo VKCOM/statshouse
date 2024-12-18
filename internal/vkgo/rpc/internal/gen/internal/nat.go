@@ -81,3 +81,81 @@ func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]
 	}
 	return append(w, ']')
 }
+
+func BuiltinVectorFillRandom(rg *basictl.RandGenerator, vec *[]uint32) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
+	*vec = make([]uint32, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomUint(rg)
+	}
+	rg.DecreaseDepth()
+}
+func BuiltinVectorRead(w []byte, vec *[]uint32) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]uint32, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = basictl.NatRead(w, &(*vec)[i]); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorWrite(w []byte, vec []uint32) []byte {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		w = basictl.NatWrite(w, elem)
+	}
+	return w
+}
+
+func BuiltinVectorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]uint32) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]uint32", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue uint32
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadUint32(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]uint32", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
+func BuiltinVectorWriteJSON(w []byte, vec []uint32) []byte {
+	return BuiltinVectorWriteJSONOpt(true, false, w, vec)
+}
+func BuiltinVectorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []uint32) []byte {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteUint32(w, elem)
+	}
+	return append(w, ']')
+}

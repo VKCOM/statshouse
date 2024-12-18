@@ -16,8 +16,8 @@ var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
 type BarsicSnapshotExternalFile struct {
-	FieldsMask uint32
-	Path       string
+	FieldsMask   uint32
+	RelativePath string
 }
 
 func (BarsicSnapshotExternalFile) TLName() string { return "barsic.snapshotExternalFile" }
@@ -25,18 +25,18 @@ func (BarsicSnapshotExternalFile) TLTag() uint32  { return 0x888c63ed }
 
 func (item *BarsicSnapshotExternalFile) Reset() {
 	item.FieldsMask = 0
-	item.Path = ""
+	item.RelativePath = ""
 }
 
 func (item *BarsicSnapshotExternalFile) FillRandom(rg *basictl.RandGenerator) {
-	item.Path = basictl.RandomString(rg)
+	item.RelativePath = basictl.RandomString(rg)
 }
 
 func (item *BarsicSnapshotExternalFile) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Path)
+	return basictl.StringRead(w, &item.RelativePath)
 }
 
 // This method is general version of Write, use it instead!
@@ -46,7 +46,7 @@ func (item *BarsicSnapshotExternalFile) WriteGeneral(w []byte) (_ []byte, err er
 
 func (item *BarsicSnapshotExternalFile) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	w = basictl.StringWrite(w, item.Path)
+	w = basictl.StringWrite(w, item.RelativePath)
 	return w
 }
 
@@ -73,7 +73,7 @@ func (item BarsicSnapshotExternalFile) String() string {
 
 func (item *BarsicSnapshotExternalFile) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var propPathPresented bool
+	var propRelativePathPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -92,14 +92,14 @@ func (item *BarsicSnapshotExternalFile) ReadJSON(legacyTypeNames bool, in *basic
 					return err
 				}
 				propFieldsMaskPresented = true
-			case "path":
-				if propPathPresented {
-					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotExternalFile", "path")
+			case "relative_path":
+				if propRelativePathPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotExternalFile", "relative_path")
 				}
-				if err := internal.Json2ReadString(in, &item.Path); err != nil {
+				if err := internal.Json2ReadString(in, &item.RelativePath); err != nil {
 					return err
 				}
-				propPathPresented = true
+				propRelativePathPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotExternalFile", key)
 			}
@@ -113,8 +113,8 @@ func (item *BarsicSnapshotExternalFile) ReadJSON(legacyTypeNames bool, in *basic
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
-	if !propPathPresented {
-		item.Path = ""
+	if !propRelativePathPresented {
+		item.RelativePath = ""
 	}
 	return nil
 }
@@ -136,12 +136,12 @@ func (item *BarsicSnapshotExternalFile) WriteJSONOpt(newTypeNames bool, short bo
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
 	}
-	backupIndexPath := len(w)
+	backupIndexRelativePath := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"path":`...)
-	w = basictl.JSONWriteString(w, item.Path)
-	if (len(item.Path) != 0) == false {
-		w = w[:backupIndexPath]
+	w = append(w, `"relative_path":`...)
+	w = basictl.JSONWriteString(w, item.RelativePath)
+	if (len(item.RelativePath) != 0) == false {
+		w = w[:backupIndexRelativePath]
 	}
 	return append(w, '}')
 }
@@ -158,8 +158,8 @@ func (item *BarsicSnapshotExternalFile) UnmarshalJSON(b []byte) error {
 }
 
 type BarsicSnapshotExternalFileBytes struct {
-	FieldsMask uint32
-	Path       []byte
+	FieldsMask   uint32
+	RelativePath []byte
 }
 
 func (BarsicSnapshotExternalFileBytes) TLName() string { return "barsic.snapshotExternalFile" }
@@ -167,18 +167,18 @@ func (BarsicSnapshotExternalFileBytes) TLTag() uint32  { return 0x888c63ed }
 
 func (item *BarsicSnapshotExternalFileBytes) Reset() {
 	item.FieldsMask = 0
-	item.Path = item.Path[:0]
+	item.RelativePath = item.RelativePath[:0]
 }
 
 func (item *BarsicSnapshotExternalFileBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.Path = basictl.RandomStringBytes(rg)
+	item.RelativePath = basictl.RandomStringBytes(rg)
 }
 
 func (item *BarsicSnapshotExternalFileBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.Path)
+	return basictl.StringReadBytes(w, &item.RelativePath)
 }
 
 // This method is general version of Write, use it instead!
@@ -188,7 +188,7 @@ func (item *BarsicSnapshotExternalFileBytes) WriteGeneral(w []byte) (_ []byte, e
 
 func (item *BarsicSnapshotExternalFileBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	w = basictl.StringWriteBytes(w, item.Path)
+	w = basictl.StringWriteBytes(w, item.RelativePath)
 	return w
 }
 
@@ -215,7 +215,7 @@ func (item BarsicSnapshotExternalFileBytes) String() string {
 
 func (item *BarsicSnapshotExternalFileBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var propPathPresented bool
+	var propRelativePathPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -234,14 +234,14 @@ func (item *BarsicSnapshotExternalFileBytes) ReadJSON(legacyTypeNames bool, in *
 					return err
 				}
 				propFieldsMaskPresented = true
-			case "path":
-				if propPathPresented {
-					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotExternalFile", "path")
+			case "relative_path":
+				if propRelativePathPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotExternalFile", "relative_path")
 				}
-				if err := internal.Json2ReadStringBytes(in, &item.Path); err != nil {
+				if err := internal.Json2ReadStringBytes(in, &item.RelativePath); err != nil {
 					return err
 				}
-				propPathPresented = true
+				propRelativePathPresented = true
 			default:
 				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotExternalFile", key)
 			}
@@ -255,8 +255,8 @@ func (item *BarsicSnapshotExternalFileBytes) ReadJSON(legacyTypeNames bool, in *
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
-	if !propPathPresented {
-		item.Path = item.Path[:0]
+	if !propRelativePathPresented {
+		item.RelativePath = item.RelativePath[:0]
 	}
 	return nil
 }
@@ -278,12 +278,12 @@ func (item *BarsicSnapshotExternalFileBytes) WriteJSONOpt(newTypeNames bool, sho
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
 	}
-	backupIndexPath := len(w)
+	backupIndexRelativePath := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"path":`...)
-	w = basictl.JSONWriteStringBytes(w, item.Path)
-	if (len(item.Path) != 0) == false {
-		w = w[:backupIndexPath]
+	w = append(w, `"relative_path":`...)
+	w = basictl.JSONWriteStringBytes(w, item.RelativePath)
+	if (len(item.RelativePath) != 0) == false {
+		w = w[:backupIndexRelativePath]
 	}
 	return append(w, '}')
 }

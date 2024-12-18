@@ -22,7 +22,7 @@ type RpcInvokeReqExtra struct {
 	// ReturnFailedSubqueries (TrueType) // Conditional: item.Flags.4
 	// ReturnQueryStats (TrueType) // Conditional: item.Flags.6
 	// NoResult (TrueType) // Conditional: item.Flags.7
-	// ReturnShardsBinlogPos (TrueType) // Conditional: item.Flags.8
+	// ReturnShardsBinlogPos (TrueType) // Conditional: item.Flags.14
 	WaitShardsBinlogPos         map[string]int64 // Conditional: item.Flags.15
 	WaitBinlogPos               int64            // Conditional: item.Flags.16
 	StringForwardKeys           []string         // Conditional: item.Flags.18
@@ -104,12 +104,12 @@ func (item RpcInvokeReqExtra) IsSetNoResult() bool { return item.Flags&(1<<7) !=
 
 func (item *RpcInvokeReqExtra) SetReturnShardsBinlogPos(v bool) {
 	if v {
-		item.Flags |= 1 << 8
+		item.Flags |= 1 << 14
 	} else {
-		item.Flags &^= 1 << 8
+		item.Flags &^= 1 << 14
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnShardsBinlogPos() bool { return item.Flags&(1<<8) != 0 }
+func (item RpcInvokeReqExtra) IsSetReturnShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *RpcInvokeReqExtra) SetWaitShardsBinlogPos(v map[string]int64) {
 	item.WaitShardsBinlogPos = v
@@ -260,7 +260,7 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 		item.Flags |= (1 << 7)
 	}
 	if maskFlags&(1<<7) != 0 {
-		item.Flags |= (1 << 8)
+		item.Flags |= (1 << 14)
 	}
 	if maskFlags&(1<<8) != 0 {
 		item.Flags |= (1 << 15)
@@ -765,7 +765,7 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	}
 	if trueTypeReturnShardsBinlogPosPresented {
 		if trueTypeReturnShardsBinlogPosValue {
-			item.Flags |= 1 << 8
+			item.Flags |= 1 << 14
 		}
 	}
 	if propWaitShardsBinlogPosPresented {
@@ -832,7 +832,7 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 		return ErrorInvalidJSON("rpcInvokeReqExtra", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
-	if trueTypeReturnShardsBinlogPosPresented && !trueTypeReturnShardsBinlogPosValue && (item.Flags&(1<<8) != 0) {
+	if trueTypeReturnShardsBinlogPosPresented && !trueTypeReturnShardsBinlogPosValue && (item.Flags&(1<<14) != 0) {
 		return ErrorInvalidJSON("rpcInvokeReqExtra", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
@@ -887,7 +887,7 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"no_result":true`...)
 	}
-	if item.Flags&(1<<8) != 0 {
+	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_shards_binlog_pos":true`...)
 	}

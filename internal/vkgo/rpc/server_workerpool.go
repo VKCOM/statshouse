@@ -14,7 +14,7 @@ import (
 const workerGCDuration = time.Second * 60
 
 type workerWork struct {
-	sc   *serverConn
+	sc   *serverConnCommon
 	hctx *HandlerContext
 }
 
@@ -120,7 +120,7 @@ func (t *workerPool) GC(now time.Time) {
 func (t *workerPool) Put(v *worker) {
 	t.mu.Lock()
 	if t.closed {
-		close(v.ch)
+		close(v.ch) // worker goroutine will quit
 		t.created--
 		t.mu.Unlock()
 		return

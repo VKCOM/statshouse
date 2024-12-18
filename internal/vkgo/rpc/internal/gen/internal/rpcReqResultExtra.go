@@ -23,7 +23,7 @@ type RpcReqResultExtra struct {
 	FailedSubqueries   int32             // Conditional: item.Flags.4
 	CompressionVersion int32             // Conditional: item.Flags.5
 	Stats              map[string]string // Conditional: item.Flags.6
-	ShardsBinlogPos    map[string]int64  // Conditional: item.Flags.8
+	ShardsBinlogPos    map[string]int64  // Conditional: item.Flags.14
 	EpochNumber        int64             // Conditional: item.Flags.27
 	ViewNumber         int64             // Conditional: item.Flags.27
 }
@@ -113,13 +113,13 @@ func (item RpcReqResultExtra) IsSetStats() bool { return item.Flags&(1<<6) != 0 
 
 func (item *RpcReqResultExtra) SetShardsBinlogPos(v map[string]int64) {
 	item.ShardsBinlogPos = v
-	item.Flags |= 1 << 8
+	item.Flags |= 1 << 14
 }
 func (item *RpcReqResultExtra) ClearShardsBinlogPos() {
 	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
-	item.Flags &^= 1 << 8
+	item.Flags &^= 1 << 14
 }
-func (item RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<8) != 0 }
+func (item RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *RpcReqResultExtra) SetEpochNumber(v int64) {
 	item.EpochNumber = v
@@ -182,7 +182,7 @@ func (item *RpcReqResultExtra) FillRandom(rg *basictl.RandGenerator) {
 		item.Flags |= (1 << 6)
 	}
 	if maskFlags&(1<<7) != 0 {
-		item.Flags |= (1 << 8)
+		item.Flags |= (1 << 14)
 	}
 	if maskFlags&(1<<8) != 0 {
 		item.Flags |= (1 << 27)
@@ -227,7 +227,7 @@ func (item *RpcReqResultExtra) FillRandom(rg *basictl.RandGenerator) {
 	} else {
 		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
-	if item.Flags&(1<<8) != 0 {
+	if item.Flags&(1<<14) != 0 {
 		BuiltinVectorDictionaryFieldLongFillRandom(rg, &item.ShardsBinlogPos)
 	} else {
 		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
@@ -304,7 +304,7 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	} else {
 		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
-	if item.Flags&(1<<8) != 0 {
+	if item.Flags&(1<<14) != 0 {
 		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.ShardsBinlogPos); err != nil {
 			return w, err
 		}
@@ -359,7 +359,7 @@ func (item *RpcReqResultExtra) Write(w []byte) []byte {
 	if item.Flags&(1<<6) != 0 {
 		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Stats)
 	}
-	if item.Flags&(1<<8) != 0 {
+	if item.Flags&(1<<14) != 0 {
 		w = BuiltinVectorDictionaryFieldLongWrite(w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
@@ -582,7 +582,7 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 		item.Flags |= 1 << 6
 	}
 	if propShardsBinlogPosPresented {
-		item.Flags |= 1 << 8
+		item.Flags |= 1 << 14
 	}
 	if propEpochNumberPresented {
 		item.Flags |= 1 << 27
@@ -650,7 +650,7 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 		w = append(w, `"stats":`...)
 		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats)
 	}
-	if item.Flags&(1<<8) != 0 {
+	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"shards_binlog_pos":`...)
 		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos)

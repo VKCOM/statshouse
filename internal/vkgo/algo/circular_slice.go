@@ -81,15 +81,15 @@ func (s *CircularSlice[T]) IndexRef(pos int) *T {
 	if pos < 0 {
 		panic("circular slice index < 0")
 	}
-	capacity := len(s.elements)
+	size := len(s.elements)
 	offset := s.read_pos + pos
-	if offset < capacity {
+	if offset < size {
 		return &s.elements[offset]
 	}
 	if offset >= s.write_pos {
 		panic("circular slice index out of range")
 	}
-	return &s.elements[offset-capacity]
+	return &s.elements[offset-size]
 }
 
 func (s *CircularSlice[T]) PopFront() T {

@@ -21,6 +21,12 @@ func extractIPPort(addr net.Addr) (uint32, uint16) {
 			return 0, uint16(addr.Port)
 		}
 		return binary.BigEndian.Uint32(ip), uint16(addr.Port)
+	case *net.UDPAddr:
+		ip := addr.IP.To4()
+		if ip == nil {
+			return 0, uint16(addr.Port)
+		}
+		return binary.BigEndian.Uint32(ip), uint16(addr.Port)
 	case *net.UnixAddr:
 		i := strings.LastIndexByte(addr.Name, '/')
 		if i == -1 || i == len(addr.Name)-1 {

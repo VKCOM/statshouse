@@ -31,13 +31,14 @@ const (
 	// contains 8 byte payload
 
 	// rpc-error-codes.h
-	TLErrorSyntax        = -1000 // TL_ERROR_SYNTAX
-	TlErrorNoHandler     = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
-	TlErrorTimeout       = -3000 // TL_ERROR_QUERY_TIMEOUT
-	TLErrorNoConnections = -3002 // TL_ERROR_NO_CONNECTIONS
-	TlErrorInternal      = -3003 // TL_ERROR_INTERNAL
-	TLErrorResultToLarge = -3011 // TL_ERROR_RESULT_TOO_LARGE
-	TlErrorUnknown       = -4000 // TL_ERROR_UNKNOWN
+	TLErrorSyntax           = -1000 // TL_ERROR_SYNTAX
+	TlErrorNoHandler        = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
+	TlErrorGracefulShutdown = -2014 // TL_ERROR_GRACEFUL_SHUTDOWN
+	TlErrorTimeout          = -3000 // TL_ERROR_QUERY_TIMEOUT
+	TLErrorNoConnections    = -3002 // TL_ERROR_NO_CONNECTIONS
+	TlErrorInternal         = -3003 // TL_ERROR_INTERNAL
+	TLErrorResultToLarge    = -3011 // TL_ERROR_RESULT_TOO_LARGE
+	TlErrorUnknown          = -4000 // TL_ERROR_UNKNOWN
 
 	DefaultPacketTimeout = 10 * time.Second
 	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
@@ -111,7 +112,7 @@ func ErrorTag(err error) string {
 	if e := errors.Unwrap(err); e != nil {
 		return ErrorTag(e)
 	}
-	return ""
+	return err.Error() // TODO - return "" instead
 }
 
 func (err *tagError) Error() string {

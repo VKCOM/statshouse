@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -28,8 +29,9 @@ var ErrHeaderCorrupted = fmt.Errorf("snapshot header corrupted")
 var ErrInvalidName = fmt.Errorf("invalid name format")
 
 const (
-	SnapshotExt = ".snap"
-	TimeLayout  = "2006-01-02T15-04-05"
+	SnapshotExt     = ".snap"
+	DiffSnapshotExt = ".diff"
+	TimeLayout      = "2006-01-02T15-04-05"
 )
 
 const (
@@ -101,6 +103,10 @@ func hashFromBytes(r []byte) xxh3.Uint128 {
 	return result
 }
 
+func CanonicalDiffSnapshotName(clusterId string, shardId string, payloadOffset int64, t time.Time) string {
+	return CanonicalSnapshotNameNoExt(clusterId, shardId, payloadOffset, t) + DiffSnapshotExt
+}
+
 func CanonicalSnapshotName(clusterId string, shardId string, payloadOffset int64, t time.Time) string {
 	return CanonicalSnapshotNameNoExt(clusterId, shardId, payloadOffset, t) + SnapshotExt
 }
@@ -110,9 +116,7 @@ func CanonicalSnapshotNameNoExt(clusterId string, shardId string, payloadOffset 
 }
 
 func ExtractDataFromName(name string) (prefix string, payloadOffset int64, t time.Time, ext string, err error) {
-	var (
-		pos int
-	)
+	var pos int
 
 	if pos = strings.Index(name, "."); pos == -1 {
 		return prefix, payloadOffset, t, ext, ErrInvalidName
@@ -145,4 +149,28 @@ func ExtractDataFromName(name string) (prefix string, payloadOffset int64, t tim
 	}
 
 	return prefix, payloadOffset, t, ext, nil
+}
+
+func GetLastSnapshot(dir string) (string, error) {
+	di, err := os.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("cannot read dir: %w", err)
+	}
+
+	var maxPO int64
+	var maxPath string
+	for i := range di {
+		_, po, _, ext, err := ExtractDataFromName(di[i].Name())
+		if err != nil {
+			continue
+		}
+		if ext != "snap" {
+			continue
+		}
+		if po > maxPO {
+			maxPO = po
+			maxPath = di[i].Name()
+		}
+	}
+	return maxPath, nil
 }

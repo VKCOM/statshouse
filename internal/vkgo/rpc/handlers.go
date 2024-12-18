@@ -35,11 +35,18 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	uptime := now - int64(s.startTime)
 	pid := prepareHandshakePIDServer(localAddr, s.startTime)
 
-	rps := s.statRPS.Load()
-	reqTotal := s.statRequestsTotal.Load()
-	reqCurrent := s.statRequestsCurrent.Load()
-	connTotal := s.statConnectionsTotal.Load()
-	connCurrent := s.statConnectionsCurrent.Load()
+	rps0 := s.protocolStats[protocolTCP].rps.Load()
+	rps1 := s.protocolStats[protocolUDP].rps.Load()
+	reqTotal0 := s.protocolStats[protocolTCP].requestsTotal.Load()
+	reqTotal1 := s.protocolStats[protocolUDP].requestsTotal.Load()
+	reqCurrent0 := s.protocolStats[protocolTCP].requestsCurrent.Load()
+	reqCurrent1 := s.protocolStats[protocolUDP].requestsCurrent.Load()
+	connTotal0 := s.protocolStats[protocolTCP].connectionsTotal.Load()
+	connTotal1 := s.protocolStats[protocolUDP].connectionsTotal.Load()
+	connCurrent0 := s.protocolStats[protocolTCP].connectionsCurrent.Load()
+	connCurrent1 := s.protocolStats[protocolUDP].connectionsCurrent.Load()
+	longPolls0 := s.protocolStats[protocolTCP].longPollsWaiting.Load()
+	longPolls1 := s.protocolStats[protocolUDP].longPollsWaiting.Load()
 	requestMem, _ := s.reqMemSem.Observe()
 	responseMem, _ := s.respMemSem.Observe()
 
@@ -73,11 +80,24 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["PID"] = asTextStat(pid)
 
 	m["qps"] = "0" // memcached protocol
-	m["rpc_qps"] = strconv.FormatInt(rps, 10)
-	m["queries_total"] = strconv.FormatInt(reqTotal, 10)
-	m["queries_active"] = strconv.FormatInt(reqCurrent, 10)
-	m["clients_total"] = strconv.FormatInt(connTotal, 10)
-	m["clients_active"] = strconv.FormatInt(connCurrent, 10)
+	m["rpc_qps_tcp"] = strconv.FormatInt(rps0, 10)
+	m["rpc_qps_udp"] = strconv.FormatInt(rps1, 10)
+	m["rpc_qps"] = strconv.FormatInt(rps0+rps1, 10)
+	m["queries_total_tcp"] = strconv.FormatInt(reqTotal0, 10)
+	m["queries_total_udp"] = strconv.FormatInt(reqTotal1, 10)
+	m["queries_total"] = strconv.FormatInt(reqTotal0+reqTotal1, 10)
+	m["queries_active_tcp"] = strconv.FormatInt(reqCurrent0, 10)
+	m["queries_active_udp"] = strconv.FormatInt(reqCurrent1, 10)
+	m["queries_active"] = strconv.FormatInt(reqCurrent0+reqCurrent1, 10)
+	m["longpolls_waiting_tcp"] = strconv.FormatInt(longPolls0, 10)
+	m["longpolls_waiting_udp"] = strconv.FormatInt(longPolls1, 10)
+	m["longpolls_waiting"] = strconv.FormatInt(longPolls0+longPolls1, 10)
+	m["clients_total_tcp"] = strconv.FormatInt(connTotal0, 10)
+	m["clients_total_udp"] = strconv.FormatInt(connTotal1, 10)
+	m["clients_total"] = strconv.FormatInt(connTotal0+connTotal1, 10)
+	m["clients_active_tcp"] = strconv.FormatInt(connCurrent0, 10)
+	m["clients_active_udp"] = strconv.FormatInt(connCurrent1, 10)
+	m["clients_active"] = strconv.FormatInt(connCurrent0+connCurrent1, 10)
 	m["request_memory"] = strconv.FormatInt(requestMem, 10)
 	m["response_memory"] = strconv.FormatInt(responseMem, 10)
 	m["workers_total"] = strconv.FormatInt(int64(workersTotal), 10)
@@ -112,6 +132,9 @@ func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
 	req := tlengine.Pid{}
 	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err
+	}
+	if s.engineShutdown.Load() {
+		return errGracefulShutdown
 	}
 	pid := prepareHandshakePIDServer(hctx.localAddr, s.startTime)
 	hctx.Response, err = req.WriteResult(hctx.Response, pid)

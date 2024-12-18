@@ -13,6 +13,90 @@ import (
 
 var _ = basictl.NatWrite
 
+type Vector []uint32
+
+func (Vector) TLName() string { return "vector" }
+func (Vector) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *Vector) Reset() {
+	ptr := (*[]uint32)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *Vector) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]uint32)(item)
+	BuiltinVectorFillRandom(rg, ptr)
+}
+
+func (item *Vector) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]uint32)(item)
+	return BuiltinVectorRead(w, ptr)
+}
+
+// This method is general version of Write, use it instead!
+func (item *Vector) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *Vector) Write(w []byte) []byte {
+	ptr := (*[]uint32)(item)
+	return BuiltinVectorWrite(w, *ptr)
+}
+
+func (item *Vector) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *Vector) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *Vector) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item Vector) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *Vector) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[]uint32)(item)
+	if err := BuiltinVectorReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *Vector) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *Vector) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+
+func (item *Vector) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	ptr := (*[]uint32)(item)
+	w = BuiltinVectorWriteJSONOpt(newTypeNames, short, w, *ptr)
+	return w
+}
+func (item *Vector) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *Vector) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
 type VectorDictionaryFieldLong map[string]int64
 
 func (VectorDictionaryFieldLong) TLName() string { return "vector" }
@@ -181,90 +265,6 @@ func (item *VectorDictionaryFieldString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VectorInt []int32
-
-func (VectorInt) TLName() string { return "vector" }
-func (VectorInt) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorInt) Reset() {
-	ptr := (*[]int32)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorInt) FillRandom(rg *basictl.RandGenerator) {
-	ptr := (*[]int32)(item)
-	BuiltinVectorIntFillRandom(rg, ptr)
-}
-
-func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]int32)(item)
-	return BuiltinVectorIntRead(w, ptr)
-}
-
-// This method is general version of Write, use it instead!
-func (item *VectorInt) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
-}
-
-func (item *VectorInt) Write(w []byte) []byte {
-	ptr := (*[]int32)(item)
-	return BuiltinVectorIntWrite(w, *ptr)
-}
-
-func (item *VectorInt) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-// This method is general version of WriteBoxed, use it instead!
-func (item *VectorInt) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
-}
-
-func (item *VectorInt) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorInt) String() string {
-	return string(item.WriteJSON(nil))
-}
-
-func (item *VectorInt) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	ptr := (*[]int32)(item)
-	if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-// This method is general version of WriteJSON, use it instead!
-func (item *VectorInt) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
-}
-
-func (item *VectorInt) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
-}
-
-func (item *VectorInt) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
-	ptr := (*[]int32)(item)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, *ptr)
-	return w
-}
-func (item *VectorInt) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil), nil
-}
-
-func (item *VectorInt) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
 type VectorLong []int64
 
 func (VectorLong) TLName() string { return "vector" }
@@ -343,6 +343,90 @@ func (item *VectorLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorLong) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
+type VectorNetUdpPacketResendRange []NetUdpPacketResendRange
+
+func (VectorNetUdpPacketResendRange) TLName() string { return "vector" }
+func (VectorNetUdpPacketResendRange) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorNetUdpPacketResendRange) Reset() {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorNetUdpPacketResendRange) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	BuiltinVectorNetUdpPacketResendRangeFillRandom(rg, ptr)
+}
+
+func (item *VectorNetUdpPacketResendRange) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	return BuiltinVectorNetUdpPacketResendRangeRead(w, ptr)
+}
+
+// This method is general version of Write, use it instead!
+func (item *VectorNetUdpPacketResendRange) WriteGeneral(w []byte) (_ []byte, err error) {
+	return item.Write(w), nil
+}
+
+func (item *VectorNetUdpPacketResendRange) Write(w []byte) []byte {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	return BuiltinVectorNetUdpPacketResendRangeWrite(w, *ptr)
+}
+
+func (item *VectorNetUdpPacketResendRange) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+// This method is general version of WriteBoxed, use it instead!
+func (item *VectorNetUdpPacketResendRange) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteBoxed(w), nil
+}
+
+func (item *VectorNetUdpPacketResendRange) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorNetUdpPacketResendRange) String() string {
+	return string(item.WriteJSON(nil))
+}
+
+func (item *VectorNetUdpPacketResendRange) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	if err := BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *VectorNetUdpPacketResendRange) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteJSON(w), nil
+}
+
+func (item *VectorNetUdpPacketResendRange) WriteJSON(w []byte) []byte {
+	return item.WriteJSONOpt(true, false, w)
+}
+
+func (item *VectorNetUdpPacketResendRange) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+	ptr := (*[]NetUdpPacketResendRange)(item)
+	w = BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(newTypeNames, short, w, *ptr)
+	return w
+}
+func (item *VectorNetUdpPacketResendRange) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *VectorNetUdpPacketResendRange) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}

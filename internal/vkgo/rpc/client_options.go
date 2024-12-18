@@ -22,6 +22,8 @@ type ClientOptions struct {
 	PacketTimeout       time.Duration
 	ProtocolVersion     uint32        // if >0, will send modified nonce packet. Server must be upgraded to at least ignore higher bits of nonce.Schema
 	DefaultTimeout      time.Duration // has no effect if <= 0
+	localUDPAddress     string        // experimental, for tests only
+	MaxReconnectDelay   time.Duration
 
 	trustedSubnetGroupsParseErrors []error
 }
@@ -89,9 +91,27 @@ func ClientWithPacketTimeout(timeout time.Duration) ClientOptionsFunc {
 	}
 }
 
+func ClientWithMaxReconnectDelay(delay time.Duration) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		if delay > 0 {
+			o.MaxReconnectDelay = delay
+		} else {
+			o.MaxReconnectDelay = maxReconnectDelay
+		}
+	}
+}
+
 func ClientWithProtocolVersion(protocolVersion uint32) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		o.ProtocolVersion = protocolVersion
+	}
+}
+
+// Services must not communicate via UDP directly, they must use TCP/Unix connection to local RPC Proxy
+// This option is only for tests and implementing RPC proxies.
+func ClientWithExperimentalLocalUDPAddress(localUDPAddress string) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.localUDPAddress = localUDPAddress
 	}
 }
 

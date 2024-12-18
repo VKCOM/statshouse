@@ -14,7 +14,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.1.10" }
+func SchemaGenerator() string { return "v1.1.13" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -127,9 +127,13 @@ func CreateObjectFromNameBytes(name string) Object {
 }
 
 type TLItem struct {
-	tag                     uint32
-	annotations             uint32
-	tlName                  string
+	tag         uint32
+	annotations uint32
+	tlName      string
+
+	resultTypeContainsUnionTypes    bool
+	argumentsTypesContainUnionTypes bool
+
 	createFunction          func() Function
 	createFunctionLong      func() Function
 	createObject            func() Object
@@ -143,6 +147,9 @@ func (item TLItem) TLName() string           { return item.tlName }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+func (item TLItem) HasUnionTypesInResult() bool    { return item.resultTypeContainsUnionTypes }
+func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesContainUnionTypes }
 
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
@@ -297,41 +304,47 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("allocSlotEvent#2abb2c70", "#2abb2c70", &TLItem{tag: 0x2abb2c70, annotations: 0x0, tlName: "allocSlotEvent"})
-	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep"})
-	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat"})
-	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid"})
-	fillFunction("engine.setVerbosity#9d980926", "#9d980926", &TLItem{tag: 0x9d980926, annotations: 0x3, tlName: "engine.setVerbosity"})
-	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep"})
-	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat"})
-	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version"})
-	fillObject("exactlyOnce.ackResponse#17641550", "#17641550", &TLItem{tag: 0x17641550, annotations: 0x0, tlName: "exactlyOnce.ackResponse"})
-	fillObject("exactlyOnce.commitRequest#6836b983", "#6836b983", &TLItem{tag: 0x6836b983, annotations: 0x0, tlName: "exactlyOnce.commitRequest"})
-	fillObject("exactlyOnce.prepareRequest#c8d71b66", "#c8d71b66", &TLItem{tag: 0xc8d71b66, annotations: 0x0, tlName: "exactlyOnce.prepareRequest"})
-	fillObject("exactlyOnce.slotResponse#95f25c81", "#95f25c81", &TLItem{tag: 0x95f25c81, annotations: 0x0, tlName: "exactlyOnce.slotResponse"})
-	fillObject("exactlyOnce.uuid#c97c16b2", "#c97c16b2", &TLItem{tag: 0xc97c16b2, annotations: 0x0, tlName: "exactlyOnce.uuid"})
-	fillFunction("go.pprof#ea2876a6", "#ea2876a6", &TLItem{tag: 0xea2876a6, annotations: 0x4, tlName: "go.pprof"})
-	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid"})
-	fillObject("netUdpPacket.encHeader#251a7bfd", "#251a7bfd", &TLItem{tag: 0x251a7bfd, annotations: 0x0, tlName: "netUdpPacket.encHeader"})
-	fillObject("netUdpPacket.unencHeader#00a8e945", "#00a8e945", &TLItem{tag: 0x00a8e945, annotations: 0x0, tlName: "netUdpPacket.unencHeader"})
-	fillObject("releaseSlotEvent#7f045ccc", "#7f045ccc", &TLItem{tag: 0x7f045ccc, annotations: 0x0, tlName: "releaseSlotEvent"})
-	fillObject("reqError#b527877d", "#b527877d", &TLItem{tag: 0xb527877d, annotations: 0x0, tlName: "reqError"})
-	fillObject("reqResultHeader#8cc84ce1", "#8cc84ce1", &TLItem{tag: 0x8cc84ce1, annotations: 0x0, tlName: "reqResultHeader"})
-	fillObject("rpcCancelReq#193f1b22", "#193f1b22", &TLItem{tag: 0x193f1b22, annotations: 0x0, tlName: "rpcCancelReq"})
-	fillObject("rpcClientWantsFin#0b73429e", "#0b73429e", &TLItem{tag: 0x0b73429e, annotations: 0x0, tlName: "rpcClientWantsFin"})
-	fillObject("rpcDestActor#7568aabd", "#7568aabd", &TLItem{tag: 0x7568aabd, annotations: 0x0, tlName: "rpcDestActor"})
-	fillObject("rpcDestActorFlags#f0a5acf7", "#f0a5acf7", &TLItem{tag: 0xf0a5acf7, annotations: 0x0, tlName: "rpcDestActorFlags"})
-	fillObject("rpcDestFlags#e352035e", "#e352035e", &TLItem{tag: 0xe352035e, annotations: 0x0, tlName: "rpcDestFlags"})
-	fillObject("rpcInvokeReqExtra#f3ef81a9", "#f3ef81a9", &TLItem{tag: 0xf3ef81a9, annotations: 0x0, tlName: "rpcInvokeReqExtra"})
-	fillObject("rpcInvokeReqHeader#2374df3d", "#2374df3d", &TLItem{tag: 0x2374df3d, annotations: 0x0, tlName: "rpcInvokeReqHeader"})
-	fillObject("rpcPing#5730a2df", "#5730a2df", &TLItem{tag: 0x5730a2df, annotations: 0x0, tlName: "rpcPing"})
-	fillObject("rpcPong#8430eaa7", "#8430eaa7", &TLItem{tag: 0x8430eaa7, annotations: 0x0, tlName: "rpcPong"})
-	fillObject("rpcReqResultError#7ae432f5", "#7ae432f5", &TLItem{tag: 0x7ae432f5, annotations: 0x0, tlName: "rpcReqResultError"})
-	fillObject("rpcReqResultErrorWrapped#7ae432f6", "#7ae432f6", &TLItem{tag: 0x7ae432f6, annotations: 0x0, tlName: "rpcReqResultErrorWrapped"})
-	fillObject("rpcReqResultExtra#c5011709", "#c5011709", &TLItem{tag: 0xc5011709, annotations: 0x0, tlName: "rpcReqResultExtra"})
-	fillObject("rpcReqResultHeader#63aeda4e", "#63aeda4e", &TLItem{tag: 0x63aeda4e, annotations: 0x0, tlName: "rpcReqResultHeader"})
-	fillObject("rpcServerWantsFin#a8ddbc46", "#a8ddbc46", &TLItem{tag: 0xa8ddbc46, annotations: 0x0, tlName: "rpcServerWantsFin"})
-	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat"})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string"})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true"})
+	fillObject("allocSlotEvent#2abb2c70", "#2abb2c70", &TLItem{tag: 0x2abb2c70, annotations: 0x0, tlName: "allocSlotEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setVerbosity#9d980926", "#9d980926", &TLItem{tag: 0x9d980926, annotations: 0x3, tlName: "engine.setVerbosity", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("exactlyOnce.ackResponse#17641550", "#17641550", &TLItem{tag: 0x17641550, annotations: 0x0, tlName: "exactlyOnce.ackResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("exactlyOnce.commitRequest#6836b983", "#6836b983", &TLItem{tag: 0x6836b983, annotations: 0x0, tlName: "exactlyOnce.commitRequest", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("exactlyOnce.prepareRequest#c8d71b66", "#c8d71b66", &TLItem{tag: 0xc8d71b66, annotations: 0x0, tlName: "exactlyOnce.prepareRequest", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("exactlyOnce.slotResponse#95f25c81", "#95f25c81", &TLItem{tag: 0x95f25c81, annotations: 0x0, tlName: "exactlyOnce.slotResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("exactlyOnce.uuid#c97c16b2", "#c97c16b2", &TLItem{tag: 0xc97c16b2, annotations: 0x0, tlName: "exactlyOnce.uuid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("go.pprof#ea2876a6", "#ea2876a6", &TLItem{tag: 0xea2876a6, annotations: 0x4, tlName: "go.pprof", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.encHeader#251a7bfd", "#251a7bfd", &TLItem{tag: 0x251a7bfd, annotations: 0x0, tlName: "netUdpPacket.encHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.obsoleteGeneration#b340010b", "#b340010b", &TLItem{tag: 0xb340010b, annotations: 0x0, tlName: "netUdpPacket.obsoleteGeneration", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.obsoleteHash#1adb0f4e", "#1adb0f4e", &TLItem{tag: 0x1adb0f4e, annotations: 0x0, tlName: "netUdpPacket.obsoleteHash", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.obsoletePid#6f4ac134", "#6f4ac134", &TLItem{tag: 0x6f4ac134, annotations: 0x0, tlName: "netUdpPacket.obsoletePid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.resendRange#5efaad4a", "#5efaad4a", &TLItem{tag: 0x5efaad4a, annotations: 0x0, tlName: "netUdpPacket.resendRange", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.resendRequest#643736d9", "#643736d9", &TLItem{tag: 0x643736d9, annotations: 0x0, tlName: "netUdpPacket.resendRequest", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.unencHeader#00a8e945", "#00a8e945", &TLItem{tag: 0x00a8e945, annotations: 0x0, tlName: "netUdpPacket.unencHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("netUdpPacket.wait#6e321c96", "#6e321c96", &TLItem{tag: 0x6e321c96, annotations: 0x0, tlName: "netUdpPacket.wait", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("releaseSlotEvent#7f045ccc", "#7f045ccc", &TLItem{tag: 0x7f045ccc, annotations: 0x0, tlName: "releaseSlotEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("reqError#b527877d", "#b527877d", &TLItem{tag: 0xb527877d, annotations: 0x0, tlName: "reqError", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("reqResultHeader#8cc84ce1", "#8cc84ce1", &TLItem{tag: 0x8cc84ce1, annotations: 0x0, tlName: "reqResultHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcCancelReq#193f1b22", "#193f1b22", &TLItem{tag: 0x193f1b22, annotations: 0x0, tlName: "rpcCancelReq", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcClientWantsFin#0b73429e", "#0b73429e", &TLItem{tag: 0x0b73429e, annotations: 0x0, tlName: "rpcClientWantsFin", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcDestActor#7568aabd", "#7568aabd", &TLItem{tag: 0x7568aabd, annotations: 0x0, tlName: "rpcDestActor", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcDestActorFlags#f0a5acf7", "#f0a5acf7", &TLItem{tag: 0xf0a5acf7, annotations: 0x0, tlName: "rpcDestActorFlags", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcDestFlags#e352035e", "#e352035e", &TLItem{tag: 0xe352035e, annotations: 0x0, tlName: "rpcDestFlags", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcInvokeReqExtra#f3ef81a9", "#f3ef81a9", &TLItem{tag: 0xf3ef81a9, annotations: 0x0, tlName: "rpcInvokeReqExtra", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcInvokeReqHeader#2374df3d", "#2374df3d", &TLItem{tag: 0x2374df3d, annotations: 0x0, tlName: "rpcInvokeReqHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcPing#5730a2df", "#5730a2df", &TLItem{tag: 0x5730a2df, annotations: 0x0, tlName: "rpcPing", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcPong#8430eaa7", "#8430eaa7", &TLItem{tag: 0x8430eaa7, annotations: 0x0, tlName: "rpcPong", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcReqResultError#7ae432f5", "#7ae432f5", &TLItem{tag: 0x7ae432f5, annotations: 0x0, tlName: "rpcReqResultError", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcReqResultErrorWrapped#7ae432f6", "#7ae432f6", &TLItem{tag: 0x7ae432f6, annotations: 0x0, tlName: "rpcReqResultErrorWrapped", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcReqResultExtra#c5011709", "#c5011709", &TLItem{tag: 0xc5011709, annotations: 0x0, tlName: "rpcReqResultExtra", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcReqResultHeader#63aeda4e", "#63aeda4e", &TLItem{tag: 0x63aeda4e, annotations: 0x0, tlName: "rpcReqResultHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcServerWantsFin#a8ddbc46", "#a8ddbc46", &TLItem{tag: 0xa8ddbc46, annotations: 0x0, tlName: "rpcServerWantsFin", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

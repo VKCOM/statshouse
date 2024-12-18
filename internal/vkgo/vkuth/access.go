@@ -115,7 +115,6 @@ type Data struct {
 	VkID         *int64   `json:"vk_id"`
 	IsService    bool     `json:"is_service"`
 	EmployeeID   *int64   `json:"employee_id"`
-	UnitID       *int64   `json:"unit_id"`
 	UnitsIDOwner *string  `json:"units_id_owner"` // owner/team lead
 }
 type Claims struct {
@@ -137,7 +136,6 @@ type AccessData struct {
 	VkID         *int64
 	IsService    bool
 	EmployeeID   *int64
-	UnitID       *int64
 	UnitsIDOwner *string
 }
 
@@ -222,7 +220,6 @@ func (helper *JWTHelper) ParseVkuthData(accessToken string) (*AccessData, error)
 		VkID:         claims.Data.VkID,
 		IsService:    claims.Data.IsService,
 		EmployeeID:   claims.Data.EmployeeID,
-		UnitID:       claims.Data.UnitID,
 		UnitsIDOwner: claims.Data.UnitsIDOwner,
 	}, nil
 }
