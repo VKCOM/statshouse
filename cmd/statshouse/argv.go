@@ -60,11 +60,12 @@ var (
 
 		configAggregator aggregator.ConfigAggregator
 
-		configIngress      aggregator.ConfigIngressProxy
-		ingressExtAddr     string
-		ingressExtAddrIPv6 string
-		ingressPwdDir      string
-		ingressVersion     string
+		configIngress       aggregator.ConfigIngressProxy
+		ingressExtAddr      string
+		ingressExtAddrIPv6  string
+		ingressPwdDir       string
+		ingressVersion      string
+		ingressUpstreamAddr string
 
 		// for old mode
 		historicStorageDir string
@@ -193,6 +194,7 @@ func argvAddIngressProxyFlags() {
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
 	flag.StringVar(&argv.ingressVersion, "ingress-version", "", "")
 	flag.IntVar(&argv.configIngress.ResponseMemoryLimit, "max-response-mem", rpc.DefaultResponseMemoryLimit, "Response memory limit")
+	flag.StringVar(&argv.ingressUpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
 }
 
 func printVerbUsage() {

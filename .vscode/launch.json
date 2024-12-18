@@ -136,5 +136,29 @@
                 "--ingress-pwd-dir=${workspaceFolder}/localdebug/ingress_keys",
             ],
         },
+        {
+            "name": "proxy_rpc_test",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/statshouse/",
+            "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
+            "args": [
+                "ingress_proxy",
+                "--cluster=local_test_cluster",
+                "--hostname=ingress",
+                "--ingress-addr=127.0.0.1:13327",
+                "--agg-addr=127.0.0.1:13336,127.0.0.1:13336,127.0.0.1:13336",
+                "--ingress-external-addr=127.0.0.1:13327,127.0.0.1:13327,127.0.0.1:13327",
+                "--ingress-pwd-dir=${workspaceFolder}/localdebug/ingress_keys",
+                "--ingress-upstream-addr=127.0.0.1:9999,127.0.0.1:9999,127.0.0.1:9999",
+                "--pprof=:8080",
+            ],
+            "env": {
+                "GODEBUG": "gctrace=1",
+                "GOMAXPROCS": "1",
+            },
+        }
     ]
 }

@@ -2,9 +2,7 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
@@ -12,66 +10,102 @@ import (
 
 var errZeroRead = fmt.Errorf("read returned zero bytes without an error")
 
+type ReadWriteError struct {
+	ReadErr  error
+	WriteErr error
+}
+
+type ForwardPacketsResult struct {
+	ReadWriteError
+	ServerWantsFin bool
+	ClientWantsFin bool
+}
+
+func (r ReadWriteError) Error() error {
+	if r.ReadErr != nil {
+		return r.ReadErr
+	}
+	return r.WriteErr
+}
+
 func (pc *PacketConn) KeyID() [4]byte {
 	return pc.keyID
 }
 
-func ForwardPackets(ctx context.Context, dst, src *PacketConn) (error, error) {
-	for i := 0; ctx.Err() == nil; i++ {
+func ForwardPackets(ctx context.Context, dst, src *PacketConn) (res ForwardPacketsResult) {
+	for i := 0; ctx.Err() == nil && res.Error() == nil; i++ {
 		var header packetHeader
 		src.readMu.Lock()
 		_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, DefaultPacketTimeout)
 		src.readMu.Unlock()
-		var netErr net.Error
 		if err != nil {
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				continue
-			}
-			return nil, err // read error
+			res.ReadErr = err
+			return res
 		}
 		if isBuiltin {
-			if err = src.WritePacketBuiltin(time.Duration(0)); err != nil {
-				return err, nil // write error
+			res.WriteErr = src.WritePacketBuiltin(time.Duration(0))
+		} else {
+			switch header.tip {
+			case tl.RpcClientWantsFin{}.TLTag():
+				res.ClientWantsFin = true
+			case tl.RpcServerWantsFin{}.TLTag():
+				res.ServerWantsFin = true
 			}
-			continue
-		}
-		dst.writeMu.Lock()
-		// write header
-		bodySize := int(header.length) - packetOverhead
-		if err = dst.writePacketHeaderUnlocked(header.tip, bodySize, time.Duration(0)); err != nil {
-			dst.writeMu.Unlock()
-			return err, nil // write error
-		}
-		src.readMu.Lock()
-		// copy body
-		writeErr, readErr := cryptoCopy(dst.w, src.r, bodySize+4) // body and CRC
-		// align read
-		readWriteOK := readErr == nil && writeErr == nil
-		if readWriteOK && src.w.isEncrypted() {
-			src.r.discard(int(-uint(header.length) & 3))
-		}
-		src.readMu.Unlock()
-		// align write
-		if readWriteOK {
-			dst.FlushUnlocked()
-		}
-		dst.writeMu.Unlock()
-		if readErr != nil || writeErr != nil {
-			return writeErr, readErr
+			res.ReadWriteError = forwardPacket(dst, src, header)
 		}
 	}
-	return nil, nil
+	return res
 }
 
-func (req *HandlerContext) WriteReponseAndFlush(conn *PacketConn, err error) error {
-	req.extraStart = len(req.Response)
-	err = req.prepareResponseBody(err)
+func forwardPacket(dst, src *PacketConn, header packetHeader) (res ReadWriteError) {
+	dst.writeMu.Lock()
+	defer dst.writeMu.Unlock()
+	// write header
+	bodySize := int(header.length) - packetOverhead
+	if err := dst.writePacketHeaderUnlocked(header.tip, bodySize, time.Duration(0)); err != nil {
+		res.WriteErr = err
+		return res
+	}
+	// write body
+	if res = copyBody(dst, src, header.length); res.Error() != nil {
+		return res
+	}
+	// write CRC. padding and flush
+	dst.writePacketTrailerUnlocked()
+	res.WriteErr = dst.FlushUnlocked()
+	return res
+}
+
+func copyBody(dst, src *PacketConn, headerLen uint32) (res ReadWriteError) {
+	src.readMu.Lock()
+	defer src.readMu.Unlock()
+	// copy body
+	bodySize := int(headerLen) - packetOverhead
+	res = cryptoCopy(dst, src, bodySize)
+	if res.Error() != nil {
+		return res
+	}
+	// discard source CRC
+	if err := src.r.discard(4); err != nil {
+		res.ReadErr = err
+		return res
+	}
+	// align read
+	if src.w.isEncrypted() {
+		res.ReadErr = src.r.discard(int(-uint(headerLen) & 3))
+	}
+	return res
+}
+
+func (hctx *HandlerContext) WriteReponseAndFlush(conn *PacketConn, err error) error {
+	hctx.extraStart = len(hctx.Response)
+	err = hctx.prepareResponseBody(err)
 	if err != nil {
 		return err
 	}
 	conn.writeMu.Lock()
 	defer conn.writeMu.Unlock()
-	err = req.writeReponseUnlocked(conn)
+	err = hctx.writeReponseUnlocked(conn)
 	if err != nil {
 		return err
 	}
@@ -79,31 +113,35 @@ func (req *HandlerContext) WriteReponseAndFlush(conn *PacketConn, err error) err
 	return nil
 }
 
-func (req *HandlerContext) ForwardAndFlush(conn *PacketConn, tip uint32, timeout time.Duration) error {
+func (hctx *HandlerContext) ForwardAndFlush(conn *PacketConn, tip uint32, timeout time.Duration) error {
 	switch tip {
 	case tl.RpcCancelReq{}.TLTag(), tl.RpcClientWantsFin{}.TLTag():
 		conn.writeMu.Lock()
 		defer conn.writeMu.Unlock()
-		err := writeCustomPacketUnlocked(conn, tip, req.Request, timeout)
+		err := writeCustomPacketUnlocked(conn, tip, hctx.Request, timeout)
 		if err != nil {
 			return err
 		}
 		return conn.FlushUnlocked()
 	case tl.RpcInvokeReqHeader{}.TLTag():
-		fwd := Request{
-			Body:    req.Request,
-			Extra:   req.RequestExtra,
-			queryID: req.QueryID,
+		req := Request{
+			Body:    hctx.Request,
+			Extra:   hctx.RequestExtra,
+			queryID: hctx.QueryID,
 		}
-		if err := preparePacket(&fwd); err != nil {
+		if err := preparePacket(&req); err != nil {
 			return err
 		}
+		hctx.Request = req.Body[:0] // buffer reuse
 		conn.writeMu.Lock()
 		defer conn.writeMu.Unlock()
-		if err := writeRequestUnlocked(conn, &fwd, timeout); err != nil {
+		if err := writeRequestUnlocked(conn, &req, timeout); err != nil {
 			return err
 		}
-		return conn.FlushUnlocked()
+		if err := conn.FlushUnlocked(); err != nil {
+			return err
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown packet type 0x%x", tip)
 	}
@@ -127,45 +165,47 @@ func (hctx *HandlerContext) writeReponseUnlocked(conn *PacketConn) error {
 	return nil
 }
 
-func cryptoCopy(dst *cryptoWriter, src *cryptoReader, n int) (error, error) {
+func cryptoCopy(dst, src *PacketConn, n int) (res ReadWriteError) {
 	if n == 0 {
-		return nil, nil
+		return ReadWriteError{}
 	}
-	var readErr error
 	for {
-		if m := src.end - src.begin; m > 0 {
+		if m := src.r.end - src.r.begin; m > 0 {
 			if m > n {
 				m = n
 			}
-			m, err := dst.Write(src.buf[src.begin : src.begin+m])
-			if err != nil {
-				return err, nil // write error
+			s := src.r.buf[src.r.begin : src.r.begin+m]
+			m, res.WriteErr = dst.w.Write(s)
+			if res.WriteErr != nil {
+				return res
 			}
-			src.begin += m
+			dst.updateWriteCRC(s)
+			src.r.begin += m
 			n -= m
 			if n == 0 {
-				return nil, nil
+				return ReadWriteError{}
 			}
 		}
-		if readErr != nil {
-			return nil, readErr // read error
+		if res.ReadErr != nil {
+			return res
 		}
-		buf := src.buf[:cap(src.buf)]
-		bufSize := copy(buf, src.buf[src.end:])
+		buf := src.r.buf[:cap(src.r.buf)]
+		bufSize := copy(buf, src.r.buf[src.r.end:])
 		var read int
-		read, readErr = src.r.Read(buf[bufSize:])
+		read, res.ReadErr = src.r.Read(buf[bufSize:])
 		bufSize += read
-		src.buf = buf[:bufSize]
-		src.begin = 0
-		if src.enc != nil {
-			decrypt := roundDownPow2(bufSize, src.blockSize)
-			src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-			src.end = decrypt
+		src.r.buf = buf[:bufSize]
+		src.r.begin = 0
+		if src.r.enc != nil {
+			decrypt := roundDownPow2(bufSize, src.r.blockSize)
+			src.r.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
+			src.r.end = decrypt
 		} else {
-			src.end = bufSize
+			src.r.end = bufSize
 		}
-		if read <= 0 {
-			return nil, errZeroRead // guard against infinite loop
+		if read <= 0 { // infinite loop guard
+			res.ReadErr = errZeroRead
+			return res
 		}
 	}
 }
