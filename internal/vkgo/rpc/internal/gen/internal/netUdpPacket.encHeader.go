@@ -15,17 +15,25 @@ var _ = basictl.NatWrite
 
 type NetUdpPacketEncHeader struct {
 	Flags           uint32
-	Time            int32   // Conditional: item.Flags.9
-	Version         int32   // Conditional: item.Flags.10
-	PacketAckPrefix int32   // Conditional: item.Flags.13
-	PacketAckFrom   int32   // Conditional: item.Flags.14
-	PacketAckTo     int32   // Conditional: item.Flags.14
-	PacketAckSet    []int32 // Conditional: item.Flags.15
-	PacketNum       int32   // Conditional: item.Flags.20
-	PacketsFrom     int32   // Conditional: item.Flags.21
-	PacketsTo       int32   // Conditional: item.Flags.21
-	PrevParts       int32   // Conditional: item.Flags.22
-	NextParts       int32   // Conditional: item.Flags.23
+	Time            int32    // Conditional: item.Flags.9
+	Version         int32    // Conditional: item.Flags.10
+	PacketAckPrefix uint32   // Conditional: item.Flags.13
+	PacketAckFrom   uint32   // Conditional: item.Flags.14
+	PacketAckTo     uint32   // Conditional: item.Flags.14
+	PacketAckSet    []uint32 // Conditional: item.Flags.15
+	PacketNum       uint32   // Conditional: item.Flags.20
+	PacketsFrom     uint32   // Conditional: item.Flags.21
+	PacketsCount    uint32   // Conditional: item.Flags.21
+	PrevParts       uint32   // Conditional: item.Flags.22
+	NextParts       uint32   // Conditional: item.Flags.23
+	PrevLength      uint32   // Conditional: item.Flags.24
+	NextLength      uint32   // Conditional: item.Flags.25
+	// SingleRpcMsg (TrueType) // Conditional: item.Flags.26
+	// MultipleRpcMsgs (TrueType) // Conditional: item.Flags.27
+	// ZeroPadding4Bytes (TrueType) // Conditional: item.Flags.28
+	// ZeroPadding8Bytes (TrueType) // Conditional: item.Flags.29
+	PacketOffset  int64  // Conditional: item.Flags.30
+	WindowControl uint32 // Conditional: item.Flags.31
 }
 
 func (NetUdpPacketEncHeader) TLName() string { return "netUdpPacket.encHeader" }
@@ -51,7 +59,7 @@ func (item *NetUdpPacketEncHeader) ClearVersion() {
 }
 func (item NetUdpPacketEncHeader) IsSetVersion() bool { return item.Flags&(1<<10) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketAckPrefix(v int32) {
+func (item *NetUdpPacketEncHeader) SetPacketAckPrefix(v uint32) {
 	item.PacketAckPrefix = v
 	item.Flags |= 1 << 13
 }
@@ -61,7 +69,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckPrefix() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketAckPrefix() bool { return item.Flags&(1<<13) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketAckFrom(v int32) {
+func (item *NetUdpPacketEncHeader) SetPacketAckFrom(v uint32) {
 	item.PacketAckFrom = v
 	item.Flags |= 1 << 14
 }
@@ -71,7 +79,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckFrom() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketAckFrom() bool { return item.Flags&(1<<14) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketAckTo(v int32) {
+func (item *NetUdpPacketEncHeader) SetPacketAckTo(v uint32) {
 	item.PacketAckTo = v
 	item.Flags |= 1 << 14
 }
@@ -81,7 +89,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckTo() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketAckTo() bool { return item.Flags&(1<<14) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketAckSet(v []int32) {
+func (item *NetUdpPacketEncHeader) SetPacketAckSet(v []uint32) {
 	item.PacketAckSet = v
 	item.Flags |= 1 << 15
 }
@@ -91,7 +99,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckSet() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketAckSet() bool { return item.Flags&(1<<15) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketNum(v int32) {
+func (item *NetUdpPacketEncHeader) SetPacketNum(v uint32) {
 	item.PacketNum = v
 	item.Flags |= 1 << 20
 }
@@ -101,7 +109,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketNum() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketNum() bool { return item.Flags&(1<<20) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketsFrom(v int32) {
+func (item *NetUdpPacketEncHeader) SetPacketsFrom(v uint32) {
 	item.PacketsFrom = v
 	item.Flags |= 1 << 21
 }
@@ -111,17 +119,17 @@ func (item *NetUdpPacketEncHeader) ClearPacketsFrom() {
 }
 func (item NetUdpPacketEncHeader) IsSetPacketsFrom() bool { return item.Flags&(1<<21) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPacketsTo(v int32) {
-	item.PacketsTo = v
+func (item *NetUdpPacketEncHeader) SetPacketsCount(v uint32) {
+	item.PacketsCount = v
 	item.Flags |= 1 << 21
 }
-func (item *NetUdpPacketEncHeader) ClearPacketsTo() {
-	item.PacketsTo = 0
+func (item *NetUdpPacketEncHeader) ClearPacketsCount() {
+	item.PacketsCount = 0
 	item.Flags &^= 1 << 21
 }
-func (item NetUdpPacketEncHeader) IsSetPacketsTo() bool { return item.Flags&(1<<21) != 0 }
+func (item NetUdpPacketEncHeader) IsSetPacketsCount() bool { return item.Flags&(1<<21) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetPrevParts(v int32) {
+func (item *NetUdpPacketEncHeader) SetPrevParts(v uint32) {
 	item.PrevParts = v
 	item.Flags |= 1 << 22
 }
@@ -131,7 +139,7 @@ func (item *NetUdpPacketEncHeader) ClearPrevParts() {
 }
 func (item NetUdpPacketEncHeader) IsSetPrevParts() bool { return item.Flags&(1<<22) != 0 }
 
-func (item *NetUdpPacketEncHeader) SetNextParts(v int32) {
+func (item *NetUdpPacketEncHeader) SetNextParts(v uint32) {
 	item.NextParts = v
 	item.Flags |= 1 << 23
 }
@@ -140,6 +148,82 @@ func (item *NetUdpPacketEncHeader) ClearNextParts() {
 	item.Flags &^= 1 << 23
 }
 func (item NetUdpPacketEncHeader) IsSetNextParts() bool { return item.Flags&(1<<23) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetPrevLength(v uint32) {
+	item.PrevLength = v
+	item.Flags |= 1 << 24
+}
+func (item *NetUdpPacketEncHeader) ClearPrevLength() {
+	item.PrevLength = 0
+	item.Flags &^= 1 << 24
+}
+func (item NetUdpPacketEncHeader) IsSetPrevLength() bool { return item.Flags&(1<<24) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetNextLength(v uint32) {
+	item.NextLength = v
+	item.Flags |= 1 << 25
+}
+func (item *NetUdpPacketEncHeader) ClearNextLength() {
+	item.NextLength = 0
+	item.Flags &^= 1 << 25
+}
+func (item NetUdpPacketEncHeader) IsSetNextLength() bool { return item.Flags&(1<<25) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetSingleRpcMsg(v bool) {
+	if v {
+		item.Flags |= 1 << 26
+	} else {
+		item.Flags &^= 1 << 26
+	}
+}
+func (item NetUdpPacketEncHeader) IsSetSingleRpcMsg() bool { return item.Flags&(1<<26) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetMultipleRpcMsgs(v bool) {
+	if v {
+		item.Flags |= 1 << 27
+	} else {
+		item.Flags &^= 1 << 27
+	}
+}
+func (item NetUdpPacketEncHeader) IsSetMultipleRpcMsgs() bool { return item.Flags&(1<<27) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetZeroPadding4Bytes(v bool) {
+	if v {
+		item.Flags |= 1 << 28
+	} else {
+		item.Flags &^= 1 << 28
+	}
+}
+func (item NetUdpPacketEncHeader) IsSetZeroPadding4Bytes() bool { return item.Flags&(1<<28) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetZeroPadding8Bytes(v bool) {
+	if v {
+		item.Flags |= 1 << 29
+	} else {
+		item.Flags &^= 1 << 29
+	}
+}
+func (item NetUdpPacketEncHeader) IsSetZeroPadding8Bytes() bool { return item.Flags&(1<<29) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetPacketOffset(v int64) {
+	item.PacketOffset = v
+	item.Flags |= 1 << 30
+}
+func (item *NetUdpPacketEncHeader) ClearPacketOffset() {
+	item.PacketOffset = 0
+	item.Flags &^= 1 << 30
+}
+func (item NetUdpPacketEncHeader) IsSetPacketOffset() bool { return item.Flags&(1<<30) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetWindowControl(v uint32) {
+	item.WindowControl = v
+	item.Flags |= 1 << 31
+}
+func (item *NetUdpPacketEncHeader) ClearWindowControl() {
+	item.WindowControl = 0
+	item.Flags &^= 1 << 31
+}
+func (item NetUdpPacketEncHeader) IsSetWindowControl() bool { return item.Flags&(1<<31) != 0 }
 
 func (item *NetUdpPacketEncHeader) Reset() {
 	item.Flags = 0
@@ -151,9 +235,13 @@ func (item *NetUdpPacketEncHeader) Reset() {
 	item.PacketAckSet = item.PacketAckSet[:0]
 	item.PacketNum = 0
 	item.PacketsFrom = 0
-	item.PacketsTo = 0
+	item.PacketsCount = 0
 	item.PrevParts = 0
 	item.NextParts = 0
+	item.PrevLength = 0
+	item.NextLength = 0
+	item.PacketOffset = 0
+	item.WindowControl = 0
 }
 
 func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
@@ -187,6 +275,30 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 	if maskFlags&(1<<8) != 0 {
 		item.Flags |= (1 << 23)
 	}
+	if maskFlags&(1<<9) != 0 {
+		item.Flags |= (1 << 24)
+	}
+	if maskFlags&(1<<10) != 0 {
+		item.Flags |= (1 << 25)
+	}
+	if maskFlags&(1<<11) != 0 {
+		item.Flags |= (1 << 26)
+	}
+	if maskFlags&(1<<12) != 0 {
+		item.Flags |= (1 << 27)
+	}
+	if maskFlags&(1<<13) != 0 {
+		item.Flags |= (1 << 28)
+	}
+	if maskFlags&(1<<14) != 0 {
+		item.Flags |= (1 << 29)
+	}
+	if maskFlags&(1<<15) != 0 {
+		item.Flags |= (1 << 30)
+	}
+	if maskFlags&(1<<16) != 0 {
+		item.Flags |= (1 << 31)
+	}
 	if item.Flags&(1<<9) != 0 {
 		item.Time = basictl.RandomInt(rg)
 	} else {
@@ -198,49 +310,58 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.Version = 0
 	}
 	if item.Flags&(1<<13) != 0 {
-		item.PacketAckPrefix = basictl.RandomInt(rg)
 	} else {
 		item.PacketAckPrefix = 0
 	}
 	if item.Flags&(1<<14) != 0 {
-		item.PacketAckFrom = basictl.RandomInt(rg)
 	} else {
 		item.PacketAckFrom = 0
 	}
 	if item.Flags&(1<<14) != 0 {
-		item.PacketAckTo = basictl.RandomInt(rg)
 	} else {
 		item.PacketAckTo = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		BuiltinVectorIntFillRandom(rg, &item.PacketAckSet)
+		BuiltinVectorFillRandom(rg, &item.PacketAckSet)
 	} else {
 		item.PacketAckSet = item.PacketAckSet[:0]
 	}
 	if item.Flags&(1<<20) != 0 {
-		item.PacketNum = basictl.RandomInt(rg)
 	} else {
 		item.PacketNum = 0
 	}
 	if item.Flags&(1<<21) != 0 {
-		item.PacketsFrom = basictl.RandomInt(rg)
 	} else {
 		item.PacketsFrom = 0
 	}
 	if item.Flags&(1<<21) != 0 {
-		item.PacketsTo = basictl.RandomInt(rg)
 	} else {
-		item.PacketsTo = 0
+		item.PacketsCount = 0
 	}
 	if item.Flags&(1<<22) != 0 {
-		item.PrevParts = basictl.RandomInt(rg)
 	} else {
 		item.PrevParts = 0
 	}
 	if item.Flags&(1<<23) != 0 {
-		item.NextParts = basictl.RandomInt(rg)
 	} else {
 		item.NextParts = 0
+	}
+	if item.Flags&(1<<24) != 0 {
+	} else {
+		item.PrevLength = 0
+	}
+	if item.Flags&(1<<25) != 0 {
+	} else {
+		item.NextLength = 0
+	}
+	if item.Flags&(1<<30) != 0 {
+		item.PacketOffset = basictl.RandomLong(rg)
+	} else {
+		item.PacketOffset = 0
+	}
+	if item.Flags&(1<<31) != 0 {
+	} else {
+		item.WindowControl = 0
 	}
 }
 
@@ -263,67 +384,95 @@ func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 		item.Version = 0
 	}
 	if item.Flags&(1<<13) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketAckPrefix); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketAckPrefix); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketAckPrefix = 0
 	}
 	if item.Flags&(1<<14) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketAckFrom); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketAckFrom); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketAckFrom = 0
 	}
 	if item.Flags&(1<<14) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketAckTo); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketAckTo); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketAckTo = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		if w, err = BuiltinVectorIntRead(w, &item.PacketAckSet); err != nil {
+		if w, err = BuiltinVectorRead(w, &item.PacketAckSet); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketAckSet = item.PacketAckSet[:0]
 	}
 	if item.Flags&(1<<20) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketNum); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketNum); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketNum = 0
 	}
 	if item.Flags&(1<<21) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketsFrom); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketsFrom); err != nil {
 			return w, err
 		}
 	} else {
 		item.PacketsFrom = 0
 	}
 	if item.Flags&(1<<21) != 0 {
-		if w, err = basictl.IntRead(w, &item.PacketsTo); err != nil {
+		if w, err = basictl.NatRead(w, &item.PacketsCount); err != nil {
 			return w, err
 		}
 	} else {
-		item.PacketsTo = 0
+		item.PacketsCount = 0
 	}
 	if item.Flags&(1<<22) != 0 {
-		if w, err = basictl.IntRead(w, &item.PrevParts); err != nil {
+		if w, err = basictl.NatRead(w, &item.PrevParts); err != nil {
 			return w, err
 		}
 	} else {
 		item.PrevParts = 0
 	}
 	if item.Flags&(1<<23) != 0 {
-		if w, err = basictl.IntRead(w, &item.NextParts); err != nil {
+		if w, err = basictl.NatRead(w, &item.NextParts); err != nil {
 			return w, err
 		}
 	} else {
 		item.NextParts = 0
+	}
+	if item.Flags&(1<<24) != 0 {
+		if w, err = basictl.NatRead(w, &item.PrevLength); err != nil {
+			return w, err
+		}
+	} else {
+		item.PrevLength = 0
+	}
+	if item.Flags&(1<<25) != 0 {
+		if w, err = basictl.NatRead(w, &item.NextLength); err != nil {
+			return w, err
+		}
+	} else {
+		item.NextLength = 0
+	}
+	if item.Flags&(1<<30) != 0 {
+		if w, err = basictl.LongRead(w, &item.PacketOffset); err != nil {
+			return w, err
+		}
+	} else {
+		item.PacketOffset = 0
+	}
+	if item.Flags&(1<<31) != 0 {
+		if w, err = basictl.NatRead(w, &item.WindowControl); err != nil {
+			return w, err
+		}
+	} else {
+		item.WindowControl = 0
 	}
 	return w, nil
 }
@@ -342,31 +491,43 @@ func (item *NetUdpPacketEncHeader) Write(w []byte) []byte {
 		w = basictl.IntWrite(w, item.Version)
 	}
 	if item.Flags&(1<<13) != 0 {
-		w = basictl.IntWrite(w, item.PacketAckPrefix)
+		w = basictl.NatWrite(w, item.PacketAckPrefix)
 	}
 	if item.Flags&(1<<14) != 0 {
-		w = basictl.IntWrite(w, item.PacketAckFrom)
+		w = basictl.NatWrite(w, item.PacketAckFrom)
 	}
 	if item.Flags&(1<<14) != 0 {
-		w = basictl.IntWrite(w, item.PacketAckTo)
+		w = basictl.NatWrite(w, item.PacketAckTo)
 	}
 	if item.Flags&(1<<15) != 0 {
-		w = BuiltinVectorIntWrite(w, item.PacketAckSet)
+		w = BuiltinVectorWrite(w, item.PacketAckSet)
 	}
 	if item.Flags&(1<<20) != 0 {
-		w = basictl.IntWrite(w, item.PacketNum)
+		w = basictl.NatWrite(w, item.PacketNum)
 	}
 	if item.Flags&(1<<21) != 0 {
-		w = basictl.IntWrite(w, item.PacketsFrom)
+		w = basictl.NatWrite(w, item.PacketsFrom)
 	}
 	if item.Flags&(1<<21) != 0 {
-		w = basictl.IntWrite(w, item.PacketsTo)
+		w = basictl.NatWrite(w, item.PacketsCount)
 	}
 	if item.Flags&(1<<22) != 0 {
-		w = basictl.IntWrite(w, item.PrevParts)
+		w = basictl.NatWrite(w, item.PrevParts)
 	}
 	if item.Flags&(1<<23) != 0 {
-		w = basictl.IntWrite(w, item.NextParts)
+		w = basictl.NatWrite(w, item.NextParts)
+	}
+	if item.Flags&(1<<24) != 0 {
+		w = basictl.NatWrite(w, item.PrevLength)
+	}
+	if item.Flags&(1<<25) != 0 {
+		w = basictl.NatWrite(w, item.NextLength)
+	}
+	if item.Flags&(1<<30) != 0 {
+		w = basictl.LongWrite(w, item.PacketOffset)
+	}
+	if item.Flags&(1<<31) != 0 {
+		w = basictl.NatWrite(w, item.WindowControl)
 	}
 	return w
 }
@@ -402,9 +563,21 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	var propPacketAckSetPresented bool
 	var propPacketNumPresented bool
 	var propPacketsFromPresented bool
-	var propPacketsToPresented bool
+	var propPacketsCountPresented bool
 	var propPrevPartsPresented bool
 	var propNextPartsPresented bool
+	var propPrevLengthPresented bool
+	var propNextLengthPresented bool
+	var trueTypeSingleRpcMsgPresented bool
+	var trueTypeSingleRpcMsgValue bool
+	var trueTypeMultipleRpcMsgsPresented bool
+	var trueTypeMultipleRpcMsgsValue bool
+	var trueTypeZeroPadding4BytesPresented bool
+	var trueTypeZeroPadding4BytesValue bool
+	var trueTypeZeroPadding8BytesPresented bool
+	var trueTypeZeroPadding8BytesValue bool
+	var propPacketOffsetPresented bool
+	var propWindowControlPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -443,7 +616,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketAckPrefixPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_prefix")
 				}
-				if err := Json2ReadInt32(in, &item.PacketAckPrefix); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketAckPrefix); err != nil {
 					return err
 				}
 				propPacketAckPrefixPresented = true
@@ -451,7 +624,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketAckFromPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_from")
 				}
-				if err := Json2ReadInt32(in, &item.PacketAckFrom); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketAckFrom); err != nil {
 					return err
 				}
 				propPacketAckFromPresented = true
@@ -459,7 +632,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketAckToPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_to")
 				}
-				if err := Json2ReadInt32(in, &item.PacketAckTo); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketAckTo); err != nil {
 					return err
 				}
 				propPacketAckToPresented = true
@@ -467,7 +640,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketAckSetPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_set")
 				}
-				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.PacketAckSet); err != nil {
+				if err := BuiltinVectorReadJSON(legacyTypeNames, in, &item.PacketAckSet); err != nil {
 					return err
 				}
 				propPacketAckSetPresented = true
@@ -475,7 +648,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketNumPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_num")
 				}
-				if err := Json2ReadInt32(in, &item.PacketNum); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketNum); err != nil {
 					return err
 				}
 				propPacketNumPresented = true
@@ -483,23 +656,23 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketsFromPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packets_from")
 				}
-				if err := Json2ReadInt32(in, &item.PacketsFrom); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketsFrom); err != nil {
 					return err
 				}
 				propPacketsFromPresented = true
-			case "packets_to":
-				if propPacketsToPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packets_to")
+			case "packets_count":
+				if propPacketsCountPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packets_count")
 				}
-				if err := Json2ReadInt32(in, &item.PacketsTo); err != nil {
+				if err := Json2ReadUint32(in, &item.PacketsCount); err != nil {
 					return err
 				}
-				propPacketsToPresented = true
+				propPacketsCountPresented = true
 			case "prev_parts":
 				if propPrevPartsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "prev_parts")
 				}
-				if err := Json2ReadInt32(in, &item.PrevParts); err != nil {
+				if err := Json2ReadUint32(in, &item.PrevParts); err != nil {
 					return err
 				}
 				propPrevPartsPresented = true
@@ -507,10 +680,74 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propNextPartsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "next_parts")
 				}
-				if err := Json2ReadInt32(in, &item.NextParts); err != nil {
+				if err := Json2ReadUint32(in, &item.NextParts); err != nil {
 					return err
 				}
 				propNextPartsPresented = true
+			case "prev_length":
+				if propPrevLengthPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "prev_length")
+				}
+				if err := Json2ReadUint32(in, &item.PrevLength); err != nil {
+					return err
+				}
+				propPrevLengthPresented = true
+			case "next_length":
+				if propNextLengthPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "next_length")
+				}
+				if err := Json2ReadUint32(in, &item.NextLength); err != nil {
+					return err
+				}
+				propNextLengthPresented = true
+			case "single_rpc_msg":
+				if trueTypeSingleRpcMsgPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "single_rpc_msg")
+				}
+				if err := Json2ReadBool(in, &trueTypeSingleRpcMsgValue); err != nil {
+					return err
+				}
+				trueTypeSingleRpcMsgPresented = true
+			case "multiple_rpc_msgs":
+				if trueTypeMultipleRpcMsgsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "multiple_rpc_msgs")
+				}
+				if err := Json2ReadBool(in, &trueTypeMultipleRpcMsgsValue); err != nil {
+					return err
+				}
+				trueTypeMultipleRpcMsgsPresented = true
+			case "zero_padding_4_bytes":
+				if trueTypeZeroPadding4BytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "zero_padding_4_bytes")
+				}
+				if err := Json2ReadBool(in, &trueTypeZeroPadding4BytesValue); err != nil {
+					return err
+				}
+				trueTypeZeroPadding4BytesPresented = true
+			case "zero_padding_8_bytes":
+				if trueTypeZeroPadding8BytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "zero_padding_8_bytes")
+				}
+				if err := Json2ReadBool(in, &trueTypeZeroPadding8BytesValue); err != nil {
+					return err
+				}
+				trueTypeZeroPadding8BytesPresented = true
+			case "packet_offset":
+				if propPacketOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_offset")
+				}
+				if err := Json2ReadInt64(in, &item.PacketOffset); err != nil {
+					return err
+				}
+				propPacketOffsetPresented = true
+			case "window_control":
+				if propWindowControlPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "window_control")
+				}
+				if err := Json2ReadUint32(in, &item.WindowControl); err != nil {
+					return err
+				}
+				propWindowControlPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("netUdpPacket.encHeader", key)
 			}
@@ -548,14 +785,26 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	if !propPacketsFromPresented {
 		item.PacketsFrom = 0
 	}
-	if !propPacketsToPresented {
-		item.PacketsTo = 0
+	if !propPacketsCountPresented {
+		item.PacketsCount = 0
 	}
 	if !propPrevPartsPresented {
 		item.PrevParts = 0
 	}
 	if !propNextPartsPresented {
 		item.NextParts = 0
+	}
+	if !propPrevLengthPresented {
+		item.PrevLength = 0
+	}
+	if !propNextLengthPresented {
+		item.NextLength = 0
+	}
+	if !propPacketOffsetPresented {
+		item.PacketOffset = 0
+	}
+	if !propWindowControlPresented {
+		item.WindowControl = 0
 	}
 	if propTimePresented {
 		item.Flags |= 1 << 9
@@ -581,7 +830,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	if propPacketsFromPresented {
 		item.Flags |= 1 << 21
 	}
-	if propPacketsToPresented {
+	if propPacketsCountPresented {
 		item.Flags |= 1 << 21
 	}
 	if propPrevPartsPresented {
@@ -589,6 +838,54 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	}
 	if propNextPartsPresented {
 		item.Flags |= 1 << 23
+	}
+	if propPrevLengthPresented {
+		item.Flags |= 1 << 24
+	}
+	if propNextLengthPresented {
+		item.Flags |= 1 << 25
+	}
+	if trueTypeSingleRpcMsgPresented {
+		if trueTypeSingleRpcMsgValue {
+			item.Flags |= 1 << 26
+		}
+	}
+	if trueTypeMultipleRpcMsgsPresented {
+		if trueTypeMultipleRpcMsgsValue {
+			item.Flags |= 1 << 27
+		}
+	}
+	if trueTypeZeroPadding4BytesPresented {
+		if trueTypeZeroPadding4BytesValue {
+			item.Flags |= 1 << 28
+		}
+	}
+	if trueTypeZeroPadding8BytesPresented {
+		if trueTypeZeroPadding8BytesValue {
+			item.Flags |= 1 << 29
+		}
+	}
+	if propPacketOffsetPresented {
+		item.Flags |= 1 << 30
+	}
+	if propWindowControlPresented {
+		item.Flags |= 1 << 31
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeSingleRpcMsgPresented && !trueTypeSingleRpcMsgValue && (item.Flags&(1<<26) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeMultipleRpcMsgsPresented && !trueTypeMultipleRpcMsgsValue && (item.Flags&(1<<27) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeZeroPadding4BytesPresented && !trueTypeZeroPadding4BytesValue && (item.Flags&(1<<28) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeZeroPadding8BytesPresented && !trueTypeZeroPadding8BytesValue && (item.Flags&(1<<29) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -623,47 +920,83 @@ func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w
 	if item.Flags&(1<<13) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_prefix":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketAckPrefix)
+		w = basictl.JSONWriteUint32(w, item.PacketAckPrefix)
 	}
 	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_from":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketAckFrom)
+		w = basictl.JSONWriteUint32(w, item.PacketAckFrom)
 	}
 	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_to":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketAckTo)
+		w = basictl.JSONWriteUint32(w, item.PacketAckTo)
 	}
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_set":`...)
-		w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.PacketAckSet)
+		w = BuiltinVectorWriteJSONOpt(newTypeNames, short, w, item.PacketAckSet)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_num":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketNum)
+		w = basictl.JSONWriteUint32(w, item.PacketNum)
 	}
 	if item.Flags&(1<<21) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packets_from":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketsFrom)
+		w = basictl.JSONWriteUint32(w, item.PacketsFrom)
 	}
 	if item.Flags&(1<<21) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"packets_to":`...)
-		w = basictl.JSONWriteInt32(w, item.PacketsTo)
+		w = append(w, `"packets_count":`...)
+		w = basictl.JSONWriteUint32(w, item.PacketsCount)
 	}
 	if item.Flags&(1<<22) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"prev_parts":`...)
-		w = basictl.JSONWriteInt32(w, item.PrevParts)
+		w = basictl.JSONWriteUint32(w, item.PrevParts)
 	}
 	if item.Flags&(1<<23) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"next_parts":`...)
-		w = basictl.JSONWriteInt32(w, item.NextParts)
+		w = basictl.JSONWriteUint32(w, item.NextParts)
+	}
+	if item.Flags&(1<<24) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"prev_length":`...)
+		w = basictl.JSONWriteUint32(w, item.PrevLength)
+	}
+	if item.Flags&(1<<25) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"next_length":`...)
+		w = basictl.JSONWriteUint32(w, item.NextLength)
+	}
+	if item.Flags&(1<<26) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"single_rpc_msg":true`...)
+	}
+	if item.Flags&(1<<27) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"multiple_rpc_msgs":true`...)
+	}
+	if item.Flags&(1<<28) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"zero_padding_4_bytes":true`...)
+	}
+	if item.Flags&(1<<29) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"zero_padding_8_bytes":true`...)
+	}
+	if item.Flags&(1<<30) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_offset":`...)
+		w = basictl.JSONWriteInt64(w, item.PacketOffset)
+	}
+	if item.Flags&(1<<31) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"window_control":`...)
+		w = basictl.JSONWriteUint32(w, item.WindowControl)
 	}
 	return append(w, '}')
 }

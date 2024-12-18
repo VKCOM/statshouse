@@ -8,7 +8,6 @@ package rpc
 
 import (
 	"crypto/cipher"
-	"fmt"
 	"io"
 )
 
@@ -20,8 +19,6 @@ type cryptoReader struct {
 	begin     int
 	end       int
 }
-
-var errZeroRead = fmt.Errorf("read returned zero bytes without an error")
 
 func newCryptoReader(r io.Reader, bufSize int) *cryptoReader {
 	if bufSize < 1 {
@@ -80,67 +77,6 @@ func (r *cryptoReader) Read(p []byte) (int, error) {
 		r.end = 0
 	}
 	return n, err
-}
-
-func (src *cryptoReader) discard(n int) error {
-	if n == 0 {
-		return nil
-	}
-	// discard decrypted
-	if m := src.end - src.begin; m > 0 {
-		if m > n {
-			m = n
-		}
-		src.begin += m
-		n -= m
-		if n == 0 {
-			return nil
-		}
-	}
-	// discard encrypted
-	buf := src.buf[:cap(src.buf)]
-	m := len(src.buf) - src.end
-	src.begin, src.end = 0, 0
-	if m > 0 {
-		if m > n {
-			m = n
-		}
-		src.buf = buf[:copy(buf, src.buf[src.end+m:])]
-		n -= m
-		if n == 0 {
-			return nil
-		}
-	}
-	// read and discard
-	var err error
-	for {
-		var read int
-		if read, err = src.r.Read(buf); read < n {
-			if err != nil {
-				buf = buf[:read]
-				break // read error
-			}
-			if read <= 0 {
-				buf = buf[:0]
-				err = errZeroRead
-				break // infinite loop
-			}
-			n -= read
-		} else {
-			buf = buf[:copy(buf, buf[n:read])]
-			break // success
-		}
-	}
-	// restore invariant by decrypting the read buffer
-	src.buf = buf
-	if src.enc != nil {
-		decrypt := roundDownPow2(len(buf), src.blockSize)
-		src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-		src.end = decrypt
-	} else {
-		src.end = len(buf)
-	}
-	return err
 }
 
 type flusher interface {
@@ -238,49 +174,6 @@ func (w *cryptoWriter) Flush() error {
 
 func (w *cryptoWriter) Padding(afterNext int) int {
 	return -(len(w.buf) + afterNext - w.encStart) & (w.blockSize - 1)
-}
-
-func cryptoCopy(dst *cryptoWriter, src *cryptoReader, n int) (error, error) {
-	if n == 0 {
-		return nil, nil
-	}
-	var readErr error
-	for {
-		if m := src.end - src.begin; m > 0 {
-			if m > n {
-				m = n
-			}
-			m, err := dst.Write(src.buf[src.begin : src.begin+m])
-			if err != nil {
-				return err, nil // write error
-			}
-			src.begin += m
-			n -= m
-			if n == 0 {
-				return nil, nil
-			}
-		}
-		if readErr != nil {
-			return nil, readErr // read error
-		}
-		buf := src.buf[:cap(src.buf)]
-		bufSize := copy(buf, src.buf[src.end:])
-		var read int
-		read, readErr = src.r.Read(buf[bufSize:])
-		bufSize += read
-		src.buf = buf[:bufSize]
-		src.begin = 0
-		if src.enc != nil {
-			decrypt := roundDownPow2(bufSize, src.blockSize)
-			src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-			src.end = decrypt
-		} else {
-			src.end = bufSize
-		}
-		if read <= 0 {
-			return nil, errZeroRead // guard against infinite loop
-		}
-	}
 }
 
 func roundDownPow2(i int, multiple int) int {

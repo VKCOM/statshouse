@@ -243,7 +243,7 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	newHeader.FileName = chooseFilenameForChunk(bw.fs, newHeader.Position, bw.PrefixPath)
 
 	if bw.logger != nil {
-		bw.logger.Tracef("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)
+		bw.logger.Debugf("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)
 	}
 
 	prevChunkFd := bw.fp // Сохраняю старый файл для дозаписи события

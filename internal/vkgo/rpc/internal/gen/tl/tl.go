@@ -12,37 +12,38 @@ import (
 )
 
 type (
-	AllocSlotEvent              = internal.AllocSlotEvent
-	DictionaryFieldLong         = internal.DictionaryFieldLong
-	DictionaryFieldString       = internal.DictionaryFieldString
-	DictionaryLong              = internal.DictionaryLong
-	DictionaryString            = internal.DictionaryString
-	ReleaseSlotEvent            = internal.ReleaseSlotEvent
-	ReqError                    = internal.ReqError
-	ReqResultHeader             = internal.ReqResultHeader
-	RpcCancelReq                = internal.RpcCancelReq
-	RpcClientWantsFin           = internal.RpcClientWantsFin
-	RpcDestActor                = internal.RpcDestActor
-	RpcDestActorFlags           = internal.RpcDestActorFlags
-	RpcDestFlags                = internal.RpcDestFlags
-	RpcInvokeReqExtra           = internal.RpcInvokeReqExtra
-	RpcInvokeReqHeader          = internal.RpcInvokeReqHeader
-	RpcPing                     = internal.RpcPing
-	RpcPong                     = internal.RpcPong
-	RpcReqResultError           = internal.RpcReqResultError
-	RpcReqResultErrorWrapped    = internal.RpcReqResultErrorWrapped
-	RpcReqResultExtra           = internal.RpcReqResultExtra
-	RpcReqResultHeader          = internal.RpcReqResultHeader
-	RpcServerWantsFin           = internal.RpcServerWantsFin
-	Stat                        = internal.Stat
-	String                      = internal.String
-	True                        = internal.True
-	Tuple8                      = internal.Tuple8
-	VectorDictionaryFieldLong   = internal.VectorDictionaryFieldLong
-	VectorDictionaryFieldString = internal.VectorDictionaryFieldString
-	VectorInt                   = internal.VectorInt
-	VectorLong                  = internal.VectorLong
-	VectorString                = internal.VectorString
+	AllocSlotEvent                = internal.AllocSlotEvent
+	DictionaryFieldLong           = internal.DictionaryFieldLong
+	DictionaryFieldString         = internal.DictionaryFieldString
+	DictionaryLong                = internal.DictionaryLong
+	DictionaryString              = internal.DictionaryString
+	ReleaseSlotEvent              = internal.ReleaseSlotEvent
+	ReqError                      = internal.ReqError
+	ReqResultHeader               = internal.ReqResultHeader
+	RpcCancelReq                  = internal.RpcCancelReq
+	RpcClientWantsFin             = internal.RpcClientWantsFin
+	RpcDestActor                  = internal.RpcDestActor
+	RpcDestActorFlags             = internal.RpcDestActorFlags
+	RpcDestFlags                  = internal.RpcDestFlags
+	RpcInvokeReqExtra             = internal.RpcInvokeReqExtra
+	RpcInvokeReqHeader            = internal.RpcInvokeReqHeader
+	RpcPing                       = internal.RpcPing
+	RpcPong                       = internal.RpcPong
+	RpcReqResultError             = internal.RpcReqResultError
+	RpcReqResultErrorWrapped      = internal.RpcReqResultErrorWrapped
+	RpcReqResultExtra             = internal.RpcReqResultExtra
+	RpcReqResultHeader            = internal.RpcReqResultHeader
+	RpcServerWantsFin             = internal.RpcServerWantsFin
+	Stat                          = internal.Stat
+	String                        = internal.String
+	True                          = internal.True
+	Tuple8                        = internal.Tuple8
+	Vector                        = internal.Vector
+	VectorDictionaryFieldLong     = internal.VectorDictionaryFieldLong
+	VectorDictionaryFieldString   = internal.VectorDictionaryFieldString
+	VectorLong                    = internal.VectorLong
+	VectorNetUdpPacketResendRange = internal.VectorNetUdpPacketResendRange
+	VectorString                  = internal.VectorString
 )
 
 func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {

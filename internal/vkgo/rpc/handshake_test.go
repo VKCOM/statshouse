@@ -16,6 +16,8 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
+
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -189,7 +191,7 @@ func TestDeriveCryptoKeysUDP(t *testing.T) {
 		PortPid: 0x15161718,
 		Utime:   0x191a1b1c,
 	}
-	keys := DeriveCryptoKeysUdp("hren", &localPID, &remotePID, 0x20212223)
+	keys := udp.DeriveCryptoKeysUdp("hren", &localPID, &remotePID, 0x20212223)
 	if hex.EncodeToString(keys.ReadKey[:]) != "be5a0ca85071077fb48f030ab7627f88bf6c4ac3dc4c2c72b96d12692f4c33cf" {
 		t.Fatalf("ReadKey")
 	}

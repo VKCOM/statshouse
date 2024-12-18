@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rpc
+package udp
 
 import (
 	"crypto/md5"
@@ -15,20 +15,15 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
 )
-
-type HandshakeMsgUdp struct {
-	Flags     uint32
-	SenderPID NetPID
-	PeerPID   NetPID
-}
 
 type CryptoKeysUdp struct {
 	ReadKey  [32]byte
 	WriteKey [32]byte
 }
 
-func DeriveCryptoKeysUdp(key string, localPid *NetPID, remotePid *NetPID, generation uint32) *CryptoKeysUdp {
+func DeriveCryptoKeysUdp(key string, localPid *tlnet.Pid, remotePid *tlnet.Pid, generation uint32) *CryptoKeysUdp {
 	w := writeCryptoInitMsgUdp(key, localPid, remotePid, generation)
 
 	//fmt.Println("init write crypto buf", w)
@@ -49,7 +44,7 @@ func DeriveCryptoKeysUdp(key string, localPid *NetPID, remotePid *NetPID, genera
 	return &keys
 }
 
-func writeCryptoInitMsgUdp(key string, localPid *NetPID, remotePid *NetPID, generation uint32) []byte {
+func writeCryptoInitMsgUdp(key string, localPid *tlnet.Pid, remotePid *tlnet.Pid, generation uint32) []byte {
 	var message []byte
 
 	message = localPid.Write(message)

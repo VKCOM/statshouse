@@ -18,8 +18,7 @@ var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
 type BarsicStart struct {
-	FieldsMask uint32
-	// Dump (TrueType) // Conditional: item.FieldsMask.0
+	FieldsMask        uint32
 	ClusterId         string
 	ShardId           string
 	EncryptionSecret  string
@@ -29,15 +28,6 @@ type BarsicStart struct {
 
 func (BarsicStart) TLName() string { return "barsic.start" }
 func (BarsicStart) TLTag() uint32  { return 0x85ca2340 }
-
-func (item *BarsicStart) SetDump(v bool) {
-	if v {
-		item.FieldsMask |= 1 << 0
-	} else {
-		item.FieldsMask &^= 1 << 0
-	}
-}
-func (item BarsicStart) IsSetDump() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicStart) SetEncryptionSecrets(v []string) {
 	item.EncryptionSecrets = v
@@ -63,9 +53,6 @@ func (item *BarsicStart) FillRandom(rg *basictl.RandGenerator) {
 	maskFieldsMask = basictl.RandomUint(rg)
 	item.FieldsMask = 0
 	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
 		item.FieldsMask |= (1 << 1)
 	}
 	item.ClusterId = basictl.RandomString(rg)
@@ -195,8 +182,6 @@ func (item BarsicStart) String() string {
 
 func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var trueTypeDumpPresented bool
-	var trueTypeDumpValue bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
 	var propEncryptionSecretPresented bool
@@ -220,14 +205,6 @@ func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) e
 					return err
 				}
 				propFieldsMaskPresented = true
-			case "dump":
-				if trueTypeDumpPresented {
-					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
-				}
-				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
-					return err
-				}
-				trueTypeDumpPresented = true
 			case "cluster_id":
 				if propClusterIdPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
@@ -296,17 +273,8 @@ func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) e
 	if !propSnapshotsPresented {
 		item.Snapshots = item.Snapshots[:0]
 	}
-	if trueTypeDumpPresented {
-		if trueTypeDumpValue {
-			item.FieldsMask |= 1 << 0
-		}
-	}
 	if propEncryptionSecretsPresented {
 		item.FieldsMask |= 1 << 1
-	}
-	// tries to set bit to zero if it is 1
-	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
-		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -327,10 +295,6 @@ func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) [
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
-	}
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"dump":true`...)
 	}
 	backupIndexClusterId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -380,8 +344,7 @@ func (item *BarsicStart) UnmarshalJSON(b []byte) error {
 }
 
 type BarsicStartBytes struct {
-	FieldsMask uint32
-	// Dump (TrueType) // Conditional: item.FieldsMask.0
+	FieldsMask        uint32
 	ClusterId         []byte
 	ShardId           []byte
 	EncryptionSecret  []byte
@@ -391,15 +354,6 @@ type BarsicStartBytes struct {
 
 func (BarsicStartBytes) TLName() string { return "barsic.start" }
 func (BarsicStartBytes) TLTag() uint32  { return 0x85ca2340 }
-
-func (item *BarsicStartBytes) SetDump(v bool) {
-	if v {
-		item.FieldsMask |= 1 << 0
-	} else {
-		item.FieldsMask &^= 1 << 0
-	}
-}
-func (item BarsicStartBytes) IsSetDump() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicStartBytes) SetEncryptionSecrets(v [][]byte) {
 	item.EncryptionSecrets = v
@@ -425,9 +379,6 @@ func (item *BarsicStartBytes) FillRandom(rg *basictl.RandGenerator) {
 	maskFieldsMask = basictl.RandomUint(rg)
 	item.FieldsMask = 0
 	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
 		item.FieldsMask |= (1 << 1)
 	}
 	item.ClusterId = basictl.RandomStringBytes(rg)
@@ -557,8 +508,6 @@ func (item BarsicStartBytes) String() string {
 
 func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var trueTypeDumpPresented bool
-	var trueTypeDumpValue bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
 	var propEncryptionSecretPresented bool
@@ -582,14 +531,6 @@ func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 					return err
 				}
 				propFieldsMaskPresented = true
-			case "dump":
-				if trueTypeDumpPresented {
-					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
-				}
-				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
-					return err
-				}
-				trueTypeDumpPresented = true
 			case "cluster_id":
 				if propClusterIdPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
@@ -658,17 +599,8 @@ func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	if !propSnapshotsPresented {
 		item.Snapshots = item.Snapshots[:0]
 	}
-	if trueTypeDumpPresented {
-		if trueTypeDumpValue {
-			item.FieldsMask |= 1 << 0
-		}
-	}
 	if propEncryptionSecretsPresented {
 		item.FieldsMask |= 1 << 1
-	}
-	// tries to set bit to zero if it is 1
-	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
-		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -689,10 +621,6 @@ func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if (item.FieldsMask != 0) == false {
 		w = w[:backupIndexFieldsMask]
-	}
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"dump":true`...)
 	}
 	backupIndexClusterId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

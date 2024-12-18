@@ -248,8 +248,10 @@ func (pc *clientConn) dropClientConn(stopConnecting bool) {
 
 func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-chan struct{}) {
 	defer pc.client.wg.Done()
-	reconnectTimer := time.NewTimer(maxReconnectDelay)
-	reconnectTimer.Stop()
+	reconnectTimer := time.NewTimer(0)
+	if !reconnectTimer.Stop() {
+		<-reconnectTimer.C
+	}
 	defer reconnectTimer.Stop()
 
 	var reconnectDelay time.Duration
@@ -303,8 +305,8 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 			reconnectDelay = minReconnectDelay
 		default:
 			reconnectDelay *= 2
-			if reconnectDelay > maxReconnectDelay {
-				reconnectDelay = maxReconnectDelay
+			if reconnectDelay > pc.client.opts.MaxReconnectDelay {
+				reconnectDelay = pc.client.opts.MaxReconnectDelay
 			}
 		}
 	}
@@ -529,7 +531,7 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 		// goWrite will send ClientWantsFIN, then send only built in packets
 		// all requests put into writeQ after that will wait there until the next reconnect
 		return nil, nil
-	case tl.RpcReqResultError{}.TLTag():
+	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var reqResultError tl.RpcReqResultError
 		var err error
 		if respBody, err = reqResultError.Read(respBody); err != nil {
@@ -559,7 +561,7 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 		cctx.Body, cctx.err = parseResponseExtra(&cctx.Extra, respBody)
 		return cctx, nil
 	default:
-		pc.client.opts.Logf("unknown packet of unknown type 0x%x", responseType)
+		pc.client.opts.Logf("rpc: unknown packet type 0x%x", responseType)
 		return nil, nil
 	}
 }

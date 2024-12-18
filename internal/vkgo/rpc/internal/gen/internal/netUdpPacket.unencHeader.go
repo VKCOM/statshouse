@@ -14,27 +14,20 @@ import (
 var _ = basictl.NatWrite
 
 type NetUdpPacketUnencHeader struct {
-	Flags      uint32
-	RemotePid  NetPid    // Conditional: item.Flags.0
-	LocalPid   NetPid    // Conditional: item.Flags.0
-	Generation int32     // Conditional: item.Flags.0
-	PidHash    int64     // Conditional: item.Flags.2
-	CryptoInit int32     // Conditional: item.Flags.3
-	RandomKey  [8]uint32 // Conditional: item.Flags.5
+	Flags       uint32
+	LocalPid    NetPid // Conditional: item.Flags.0
+	RemotePid   NetPid // Conditional: item.Flags.0
+	Generation  uint32 // Conditional: item.Flags.0
+	PidHash     int64  // Conditional: item.Flags.2
+	CryptoFlags uint32 // Conditional: item.Flags.3
+	// CryptoSha (TrueType) // Conditional: item.Flags.4
+	CryptoRandom [8]uint32 // Conditional: item.Flags.5
+	// EncryptedData (TrueType) // Conditional: item.Flags.7
+	// SupportMsgOffsets (TrueType) // Conditional: item.Flags.8
 }
 
 func (NetUdpPacketUnencHeader) TLName() string { return "netUdpPacket.unencHeader" }
 func (NetUdpPacketUnencHeader) TLTag() uint32  { return 0x00a8e945 }
-
-func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPid) {
-	item.RemotePid = v
-	item.Flags |= 1 << 0
-}
-func (item *NetUdpPacketUnencHeader) ClearRemotePid() {
-	item.RemotePid.Reset()
-	item.Flags &^= 1 << 0
-}
-func (item NetUdpPacketUnencHeader) IsSetRemotePid() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetLocalPid(v NetPid) {
 	item.LocalPid = v
@@ -46,7 +39,17 @@ func (item *NetUdpPacketUnencHeader) ClearLocalPid() {
 }
 func (item NetUdpPacketUnencHeader) IsSetLocalPid() bool { return item.Flags&(1<<0) != 0 }
 
-func (item *NetUdpPacketUnencHeader) SetGeneration(v int32) {
+func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPid) {
+	item.RemotePid = v
+	item.Flags |= 1 << 0
+}
+func (item *NetUdpPacketUnencHeader) ClearRemotePid() {
+	item.RemotePid.Reset()
+	item.Flags &^= 1 << 0
+}
+func (item NetUdpPacketUnencHeader) IsSetRemotePid() bool { return item.Flags&(1<<0) != 0 }
+
+func (item *NetUdpPacketUnencHeader) SetGeneration(v uint32) {
 	item.Generation = v
 	item.Flags |= 1 << 0
 }
@@ -66,34 +69,61 @@ func (item *NetUdpPacketUnencHeader) ClearPidHash() {
 }
 func (item NetUdpPacketUnencHeader) IsSetPidHash() bool { return item.Flags&(1<<2) != 0 }
 
-func (item *NetUdpPacketUnencHeader) SetCryptoInit(v int32) {
-	item.CryptoInit = v
+func (item *NetUdpPacketUnencHeader) SetCryptoFlags(v uint32) {
+	item.CryptoFlags = v
 	item.Flags |= 1 << 3
 }
-func (item *NetUdpPacketUnencHeader) ClearCryptoInit() {
-	item.CryptoInit = 0
+func (item *NetUdpPacketUnencHeader) ClearCryptoFlags() {
+	item.CryptoFlags = 0
 	item.Flags &^= 1 << 3
 }
-func (item NetUdpPacketUnencHeader) IsSetCryptoInit() bool { return item.Flags&(1<<3) != 0 }
+func (item NetUdpPacketUnencHeader) IsSetCryptoFlags() bool { return item.Flags&(1<<3) != 0 }
 
-func (item *NetUdpPacketUnencHeader) SetRandomKey(v [8]uint32) {
-	item.RandomKey = v
+func (item *NetUdpPacketUnencHeader) SetCryptoSha(v bool) {
+	if v {
+		item.Flags |= 1 << 4
+	} else {
+		item.Flags &^= 1 << 4
+	}
+}
+func (item NetUdpPacketUnencHeader) IsSetCryptoSha() bool { return item.Flags&(1<<4) != 0 }
+
+func (item *NetUdpPacketUnencHeader) SetCryptoRandom(v [8]uint32) {
+	item.CryptoRandom = v
 	item.Flags |= 1 << 5
 }
-func (item *NetUdpPacketUnencHeader) ClearRandomKey() {
-	BuiltinTuple8Reset(&item.RandomKey)
+func (item *NetUdpPacketUnencHeader) ClearCryptoRandom() {
+	BuiltinTuple8Reset(&item.CryptoRandom)
 	item.Flags &^= 1 << 5
 }
-func (item NetUdpPacketUnencHeader) IsSetRandomKey() bool { return item.Flags&(1<<5) != 0 }
+func (item NetUdpPacketUnencHeader) IsSetCryptoRandom() bool { return item.Flags&(1<<5) != 0 }
+
+func (item *NetUdpPacketUnencHeader) SetEncryptedData(v bool) {
+	if v {
+		item.Flags |= 1 << 7
+	} else {
+		item.Flags &^= 1 << 7
+	}
+}
+func (item NetUdpPacketUnencHeader) IsSetEncryptedData() bool { return item.Flags&(1<<7) != 0 }
+
+func (item *NetUdpPacketUnencHeader) SetSupportMsgOffsets(v bool) {
+	if v {
+		item.Flags |= 1 << 8
+	} else {
+		item.Flags &^= 1 << 8
+	}
+}
+func (item NetUdpPacketUnencHeader) IsSetSupportMsgOffsets() bool { return item.Flags&(1<<8) != 0 }
 
 func (item *NetUdpPacketUnencHeader) Reset() {
 	item.Flags = 0
-	item.RemotePid.Reset()
 	item.LocalPid.Reset()
+	item.RemotePid.Reset()
 	item.Generation = 0
 	item.PidHash = 0
-	item.CryptoInit = 0
-	BuiltinTuple8Reset(&item.RandomKey)
+	item.CryptoFlags = 0
+	BuiltinTuple8Reset(&item.CryptoRandom)
 }
 
 func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
@@ -110,12 +140,16 @@ func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.Flags |= (1 << 3)
 	}
 	if maskFlags&(1<<3) != 0 {
+		item.Flags |= (1 << 4)
+	}
+	if maskFlags&(1<<4) != 0 {
 		item.Flags |= (1 << 5)
 	}
-	if item.Flags&(1<<0) != 0 {
-		item.RemotePid.FillRandom(rg)
-	} else {
-		item.RemotePid.Reset()
+	if maskFlags&(1<<5) != 0 {
+		item.Flags |= (1 << 7)
+	}
+	if maskFlags&(1<<6) != 0 {
+		item.Flags |= (1 << 8)
 	}
 	if item.Flags&(1<<0) != 0 {
 		item.LocalPid.FillRandom(rg)
@@ -123,7 +157,11 @@ func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.LocalPid.Reset()
 	}
 	if item.Flags&(1<<0) != 0 {
-		item.Generation = basictl.RandomInt(rg)
+		item.RemotePid.FillRandom(rg)
+	} else {
+		item.RemotePid.Reset()
+	}
+	if item.Flags&(1<<0) != 0 {
 	} else {
 		item.Generation = 0
 	}
@@ -133,27 +171,19 @@ func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.PidHash = 0
 	}
 	if item.Flags&(1<<3) != 0 {
-		item.CryptoInit = basictl.RandomInt(rg)
 	} else {
-		item.CryptoInit = 0
+		item.CryptoFlags = 0
 	}
 	if item.Flags&(1<<5) != 0 {
-		BuiltinTuple8FillRandom(rg, &item.RandomKey)
+		BuiltinTuple8FillRandom(rg, &item.CryptoRandom)
 	} else {
-		BuiltinTuple8Reset(&item.RandomKey)
+		BuiltinTuple8Reset(&item.CryptoRandom)
 	}
 }
 
 func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err
-	}
-	if item.Flags&(1<<0) != 0 {
-		if w, err = item.RemotePid.Read(w); err != nil {
-			return w, err
-		}
-	} else {
-		item.RemotePid.Reset()
 	}
 	if item.Flags&(1<<0) != 0 {
 		if w, err = item.LocalPid.Read(w); err != nil {
@@ -163,7 +193,14 @@ func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 		item.LocalPid.Reset()
 	}
 	if item.Flags&(1<<0) != 0 {
-		if w, err = basictl.IntRead(w, &item.Generation); err != nil {
+		if w, err = item.RemotePid.Read(w); err != nil {
+			return w, err
+		}
+	} else {
+		item.RemotePid.Reset()
+	}
+	if item.Flags&(1<<0) != 0 {
+		if w, err = basictl.NatRead(w, &item.Generation); err != nil {
 			return w, err
 		}
 	} else {
@@ -177,18 +214,18 @@ func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 		item.PidHash = 0
 	}
 	if item.Flags&(1<<3) != 0 {
-		if w, err = basictl.IntRead(w, &item.CryptoInit); err != nil {
+		if w, err = basictl.NatRead(w, &item.CryptoFlags); err != nil {
 			return w, err
 		}
 	} else {
-		item.CryptoInit = 0
+		item.CryptoFlags = 0
 	}
 	if item.Flags&(1<<5) != 0 {
-		if w, err = BuiltinTuple8Read(w, &item.RandomKey); err != nil {
+		if w, err = BuiltinTuple8Read(w, &item.CryptoRandom); err != nil {
 			return w, err
 		}
 	} else {
-		BuiltinTuple8Reset(&item.RandomKey)
+		BuiltinTuple8Reset(&item.CryptoRandom)
 	}
 	return w, nil
 }
@@ -201,22 +238,22 @@ func (item *NetUdpPacketUnencHeader) WriteGeneral(w []byte) (_ []byte, err error
 func (item *NetUdpPacketUnencHeader) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<0) != 0 {
-		w = item.RemotePid.Write(w)
-	}
-	if item.Flags&(1<<0) != 0 {
 		w = item.LocalPid.Write(w)
 	}
 	if item.Flags&(1<<0) != 0 {
-		w = basictl.IntWrite(w, item.Generation)
+		w = item.RemotePid.Write(w)
+	}
+	if item.Flags&(1<<0) != 0 {
+		w = basictl.NatWrite(w, item.Generation)
 	}
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.LongWrite(w, item.PidHash)
 	}
 	if item.Flags&(1<<3) != 0 {
-		w = basictl.IntWrite(w, item.CryptoInit)
+		w = basictl.NatWrite(w, item.CryptoFlags)
 	}
 	if item.Flags&(1<<5) != 0 {
-		w = BuiltinTuple8Write(w, &item.RandomKey)
+		w = BuiltinTuple8Write(w, &item.CryptoRandom)
 	}
 	return w
 }
@@ -244,12 +281,18 @@ func (item NetUdpPacketUnencHeader) String() string {
 
 func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
-	var propRemotePidPresented bool
 	var propLocalPidPresented bool
+	var propRemotePidPresented bool
 	var propGenerationPresented bool
 	var propPidHashPresented bool
-	var propCryptoInitPresented bool
-	var propRandomKeyPresented bool
+	var propCryptoFlagsPresented bool
+	var trueTypeCryptoShaPresented bool
+	var trueTypeCryptoShaValue bool
+	var propCryptoRandomPresented bool
+	var trueTypeEncryptedDataPresented bool
+	var trueTypeEncryptedDataValue bool
+	var trueTypeSupportMsgOffsetsPresented bool
+	var trueTypeSupportMsgOffsetsValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -268,14 +311,6 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 					return err
 				}
 				propFlagsPresented = true
-			case "remote_pid":
-				if propRemotePidPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "remote_pid")
-				}
-				if err := item.RemotePid.ReadJSON(legacyTypeNames, in); err != nil {
-					return err
-				}
-				propRemotePidPresented = true
 			case "local_pid":
 				if propLocalPidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "local_pid")
@@ -284,11 +319,19 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 					return err
 				}
 				propLocalPidPresented = true
+			case "remote_pid":
+				if propRemotePidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "remote_pid")
+				}
+				if err := item.RemotePid.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propRemotePidPresented = true
 			case "generation":
 				if propGenerationPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "generation")
 				}
-				if err := Json2ReadInt32(in, &item.Generation); err != nil {
+				if err := Json2ReadUint32(in, &item.Generation); err != nil {
 					return err
 				}
 				propGenerationPresented = true
@@ -300,22 +343,46 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 					return err
 				}
 				propPidHashPresented = true
-			case "crypto_init":
-				if propCryptoInitPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_init")
+			case "crypto_flags":
+				if propCryptoFlagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_flags")
 				}
-				if err := Json2ReadInt32(in, &item.CryptoInit); err != nil {
+				if err := Json2ReadUint32(in, &item.CryptoFlags); err != nil {
 					return err
 				}
-				propCryptoInitPresented = true
-			case "random_key":
-				if propRandomKeyPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "random_key")
+				propCryptoFlagsPresented = true
+			case "crypto_sha":
+				if trueTypeCryptoShaPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_sha")
 				}
-				if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, &item.RandomKey); err != nil {
+				if err := Json2ReadBool(in, &trueTypeCryptoShaValue); err != nil {
 					return err
 				}
-				propRandomKeyPresented = true
+				trueTypeCryptoShaPresented = true
+			case "crypto_random":
+				if propCryptoRandomPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_random")
+				}
+				if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, &item.CryptoRandom); err != nil {
+					return err
+				}
+				propCryptoRandomPresented = true
+			case "encrypted_data":
+				if trueTypeEncryptedDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "encrypted_data")
+				}
+				if err := Json2ReadBool(in, &trueTypeEncryptedDataValue); err != nil {
+					return err
+				}
+				trueTypeEncryptedDataPresented = true
+			case "support_msg_offsets":
+				if trueTypeSupportMsgOffsetsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "support_msg_offsets")
+				}
+				if err := Json2ReadBool(in, &trueTypeSupportMsgOffsetsValue); err != nil {
+					return err
+				}
+				trueTypeSupportMsgOffsetsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("netUdpPacket.unencHeader", key)
 			}
@@ -329,11 +396,11 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 	if !propFlagsPresented {
 		item.Flags = 0
 	}
-	if !propRemotePidPresented {
-		item.RemotePid.Reset()
-	}
 	if !propLocalPidPresented {
 		item.LocalPid.Reset()
+	}
+	if !propRemotePidPresented {
+		item.RemotePid.Reset()
 	}
 	if !propGenerationPresented {
 		item.Generation = 0
@@ -341,16 +408,16 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 	if !propPidHashPresented {
 		item.PidHash = 0
 	}
-	if !propCryptoInitPresented {
-		item.CryptoInit = 0
+	if !propCryptoFlagsPresented {
+		item.CryptoFlags = 0
 	}
-	if !propRandomKeyPresented {
-		BuiltinTuple8Reset(&item.RandomKey)
-	}
-	if propRemotePidPresented {
-		item.Flags |= 1 << 0
+	if !propCryptoRandomPresented {
+		BuiltinTuple8Reset(&item.CryptoRandom)
 	}
 	if propLocalPidPresented {
+		item.Flags |= 1 << 0
+	}
+	if propRemotePidPresented {
 		item.Flags |= 1 << 0
 	}
 	if propGenerationPresented {
@@ -359,11 +426,38 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 	if propPidHashPresented {
 		item.Flags |= 1 << 2
 	}
-	if propCryptoInitPresented {
+	if propCryptoFlagsPresented {
 		item.Flags |= 1 << 3
 	}
-	if propRandomKeyPresented {
+	if trueTypeCryptoShaPresented {
+		if trueTypeCryptoShaValue {
+			item.Flags |= 1 << 4
+		}
+	}
+	if propCryptoRandomPresented {
 		item.Flags |= 1 << 5
+	}
+	if trueTypeEncryptedDataPresented {
+		if trueTypeEncryptedDataValue {
+			item.Flags |= 1 << 7
+		}
+	}
+	if trueTypeSupportMsgOffsetsPresented {
+		if trueTypeSupportMsgOffsetsValue {
+			item.Flags |= 1 << 8
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCryptoShaPresented && !trueTypeCryptoShaValue && (item.Flags&(1<<4) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeEncryptedDataPresented && !trueTypeEncryptedDataValue && (item.Flags&(1<<7) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeSupportMsgOffsetsPresented && !trueTypeSupportMsgOffsetsValue && (item.Flags&(1<<8) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -387,18 +481,18 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"remote_pid":`...)
-		w = item.RemotePid.WriteJSONOpt(newTypeNames, short, w)
-	}
-	if item.Flags&(1<<0) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"local_pid":`...)
 		w = item.LocalPid.WriteJSONOpt(newTypeNames, short, w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"remote_pid":`...)
+		w = item.RemotePid.WriteJSONOpt(newTypeNames, short, w)
+	}
+	if item.Flags&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"generation":`...)
-		w = basictl.JSONWriteInt32(w, item.Generation)
+		w = basictl.JSONWriteUint32(w, item.Generation)
 	}
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -407,13 +501,25 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	}
 	if item.Flags&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"crypto_init":`...)
-		w = basictl.JSONWriteInt32(w, item.CryptoInit)
+		w = append(w, `"crypto_flags":`...)
+		w = basictl.JSONWriteUint32(w, item.CryptoFlags)
+	}
+	if item.Flags&(1<<4) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"crypto_sha":true`...)
 	}
 	if item.Flags&(1<<5) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"random_key":`...)
-		w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.RandomKey)
+		w = append(w, `"crypto_random":`...)
+		w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.CryptoRandom)
+	}
+	if item.Flags&(1<<7) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"encrypted_data":true`...)
+	}
+	if item.Flags&(1<<8) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"support_msg_offsets":true`...)
 	}
 	return append(w, '}')
 }

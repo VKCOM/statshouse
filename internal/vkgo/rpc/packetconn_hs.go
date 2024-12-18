@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"runtime"
 	"time"
 
@@ -52,7 +53,7 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 		if err == io.EOF {
 			return fmt.Errorf("EOF after sending nonce between %v (local) and %v, most likely server has no crypto key with prefix 0x%s, see server logs", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), hex.EncodeToString(keyID[:]))
 		}
-		return fmt.Errorf("nonce exchange failed: %w", err)
+		return fmt.Errorf("nonce exchange failed between %v (local) and %v: %w", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), err)
 	}
 
 	hs, _, err := pc.handshakeExchangeClient(body, startTime, flags, packetTimeout)
@@ -276,7 +277,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	if dt < -cryptoMaxTimeDelta || dt > cryptoMaxTimeDelta { // check as early as possible
 		return nonceMsg{}, "", &tagError{
 			tag: "out_of_range_time_delta",
-			err: fmt.Errorf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta),
+			err: fmt.Errorf("client-server time delta %v is more than maximum %v between %v (local) and %v", dt, cryptoMaxTimeDelta, localAddr, remoteAddr),
 		}
 	}
 
@@ -396,7 +397,7 @@ func prepareHandshakeClient(localAddr net.Addr, startTime uint32, flags uint32) 
 		Flags: flags | flagCRC32C | flagCancelReq,
 		SenderPID: NetPID{
 			Ip:      ip,
-			PortPid: asPortPid(0, processID),
+			PortPid: asPortPid(0, uint16(os.Getpid())),
 			Utime:   startTime,
 		},
 	}
@@ -423,7 +424,7 @@ func prepareHandshakePIDServer(localAddr net.Addr, startTime uint32) NetPID {
 
 	return NetPID{
 		Ip:      ip,
-		PortPid: asPortPid(port, processID),
+		PortPid: asPortPid(port, uint16(os.Getpid())),
 		Utime:   startTime,
 	}
 }

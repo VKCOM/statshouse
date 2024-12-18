@@ -51,7 +51,7 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 		}
 		switch (n / 2) % 3 {
 		case 0:
-			return rpcErr
+			return rpcErr // will serialize as tl.ReqError
 		case 1:
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultErrorWrapped{}.TLTag())

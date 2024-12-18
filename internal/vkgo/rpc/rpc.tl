@@ -55,7 +55,7 @@ rpcInvokeReqExtra#f3ef81a9
   return_failed_subqueries:flags.4?%True
   return_query_stats:flags.6?%True
   no_result:flags.7?%True // Currently for proxy only. Client goes to proxy, it clears this bit and sends query to engine. Client does not wait for answer.
-  return_shards_binlog_pos:flags.8?%True
+  return_shards_binlog_pos:flags.14?%True
   // Bits 17, 22, 24 was used in before, but their support was dropped
   wait_shards_binlog_pos:flags.15?%(Dictionary long)
   wait_binlog_pos:flags.16?long // Perform query only after position in binlog is at least this
@@ -79,7 +79,7 @@ rpcReqResultExtra#c5011709
     failed_subqueries:flags.4?int
     compression_version:flags.5?int
     stats:flags.6?%(Dictionary string)
-    shards_binlog_pos:flags.8?%(Dictionary long)
+    shards_binlog_pos:flags.14?%(Dictionary long)
     epoch_number:flags.27?%long view_number:flags.27?%long
     = RpcReqResultExtra;
 
@@ -117,24 +117,65 @@ rpcClientWantsFin#0b73429e = RpcClientWantsFin;
 
 netUdpPacket.unencHeader#00a8e945
   flags:#
-  remote_pid:flags.0?%net.Pid local_pid:flags.0?%net.Pid generation:flags.0?int
+  local_pid:flags.0?%net.Pid remote_pid:flags.0?%net.Pid  generation:flags.0?# // TODO generation is nat or int???
   pid_hash:flags.2?long
-  crypto_init:flags.3?int
-  random_key:flags.5?%(Tuple # 8)
+  // if pid_hash is not set,then crypto_flags includes key_id (12 bits starting with the 20-th bit),
+  // also includes mode_aes bit and handshake bit
+  crypto_flags:flags.3?#
+  crypto_sha:flags.4?%True            // must always be set
+  crypto_random:flags.5?%(Tuple # 8) // must always be set
+  encrypted_data:flags.7?%True        // must always be set
+  support_msg_offsets:flags.8?%True   // does peer support packet_offset, prev_length and next_length in netUdpPacket.encHeader
   = netUdpPacket.UnencHeader;
 
 netUdpPacket.encHeader#251a7bfd
   flags:#
   time:flags.9?int
   version:flags.10?int
-  packet_ack_prefix:flags.13?int
-  packet_ack_from:flags.14?int packet_ack_to:flags.14?int
-  packet_ack_set:flags.15?%(Vector int)
-  packet_num:flags.20?int
-  packets_from:flags.21?int packets_to:flags.21?int
-  prev_parts:flags.22?int
-  next_parts:flags.23?int
+  packet_ack_prefix:flags.13?#
+  packet_ack_from:flags.14?# packet_ack_to:flags.14?#
+  packet_ack_set:flags.15?%(Vector #)
+  packet_num:flags.20?#
+  packets_from:flags.21?# packets_count:flags.21?#
+  prev_parts:flags.22?#
+  next_parts:flags.23?#
+  prev_length:flags.24?#
+  next_length:flags.25?#
+  single_rpc_msg:flags.26?%True
+  multiple_rpc_msgs:flags.27?%True
+  zero_padding_4_bytes:flags.28?%True
+  zero_padding_8_bytes:flags.29?%True
+  packet_offset:flags.30?long
+  window_control:flags.31?#
   = netUdpPacket.EncHeader;
+
+netUdpPacket.resendRange#5efaad4a
+  packet_num_from:#
+  packet_num_to:#
+  = netUdpPacket.ResendRange;
+
+netUdpPacket.resendRequest#643736d9
+  ranges:(vector netUdpPacket.resendRange)
+  = netUdpPacket.ResendRequest;
+
+netUdpPacket.obsoleteGeneration#b340010b
+  pid:net.Pid
+  generation:#
+  = netUdpPacket.ObsoleteGeneration;
+
+netUdpPacket.obsoleteHash#1adb0f4e
+  hash:#
+  pid:net.Pid
+  = netUdpPacket.ObsoleteHash;
+
+netUdpPacket.obsoletePid#6f4ac134
+  obsolete_pid:net.Pid
+  actual_pid:net.Pid
+  generation:#
+  = netUdpPacket.ObsoletePid;
+
+netUdpPacket.wait#6e321c96
+  = netUdpPacket.Wait;
 
 ---functions---
 

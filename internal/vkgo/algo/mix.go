@@ -14,9 +14,9 @@ func ValueOrDefault[T comparable](value, def T) T {
 	return def
 }
 
-func ResizeSlice(s []byte, size int) []byte {
+func ResizeSlice[T any](s []T, size int) []T {
 	if cap(s) < size {
-		s = append(s, make([]byte, size-len(s))...)
+		s = append(s, make([]T, size-len(s))...)
 	} else {
 		s = s[:size]
 	}
