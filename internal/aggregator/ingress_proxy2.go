@@ -354,7 +354,7 @@ func (p *proxyConn) run() {
 		}
 		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", req.tip, p.clientConn.RemoteAddr())
 	}
-	shardReplica := binary.LittleEndian.Uint32(req.Request[8:])
+	shardReplica := uint32(0) // binary.LittleEndian.Uint32(req.Request[8:])
 	shardReplica %= uint32(len(p.agent.GetConfigResult.Addresses))
 	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
 	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
@@ -412,7 +412,7 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 	for i := uint(0); ; i++ {
 		// request (tip) must be set except maybe graceful shutdown first iteration
 		if i > 0 || req.tip != 0 {
-			p.agent.AddValueCounter(&requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
+			// p.agent.AddValueCounter(&requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
 			p.reportRequestBufferSizeChange()
 			switch req.tip {
 			case rpcInvokeReqHeaderTLTag:
@@ -435,13 +435,13 @@ func (p *proxyConn) requestLoop(ctx context.Context, req proxyRequest) (_ proxyR
 					// no more client requests expected
 					return proxyRequest{}, io.EOF
 				default:
-					fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
-					fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
-					binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
-					binary.LittleEndian.PutUint32(req.Request[16:], p.clientAddr[0])
-					binary.LittleEndian.PutUint32(req.Request[20:], p.clientAddr[1])
-					binary.LittleEndian.PutUint32(req.Request[24:], p.clientAddr[2])
-					binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr[3])
+					//fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
+					//fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
+					//binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
+					//binary.LittleEndian.PutUint32(req.Request[16:], p.clientAddr[0])
+					//binary.LittleEndian.PutUint32(req.Request[20:], p.clientAddr[1])
+					//binary.LittleEndian.PutUint32(req.Request[24:], p.clientAddr[2])
+					//binary.LittleEndian.PutUint32(req.Request[28:], p.clientAddr[3])
 					if err = req.ForwardAndFlush(p.upstreamConn, req.tip, rpc.DefaultPacketTimeout); err != nil {
 						p.rareLog("Upstream write error: %v\n", err)
 						return proxyRequest{}, err
@@ -500,9 +500,6 @@ func (p *proxyConn) readRequest(ctx context.Context) (proxyRequest, error) {
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
 			return proxyRequest{}, err
 		}
-		if len(req.Request) < 32 {
-			return proxyRequest{}, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", req.RequestTag(), len(req.Request))
-		}
 		switch req.RequestTag() {
 		case constants.StatshouseGetConfig2,
 			constants.StatshouseGetTagMapping2,
@@ -512,6 +509,7 @@ func (p *proxyConn) readRequest(ctx context.Context) (proxyRequest, error) {
 			constants.StatshouseGetTargets2,
 			constants.StatshouseGetTagMappingBootstrap,
 			constants.StatshouseGetMetrics3,
+			0xa677ee41, // KphpPingRpcCluster
 			constants.StatshouseAutoCreate:
 			// pass
 			return proxyRequest{tip, req}, nil
