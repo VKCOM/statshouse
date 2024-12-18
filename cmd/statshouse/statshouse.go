@@ -622,13 +622,23 @@ func mainIngressProxy(aesPwd string) {
 	runPprof()
 
 	// Run agent (we use agent instance for ingress proxy built-in metrics)
-	argv.configAgent.Cluster = argv.cluster
-	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil, nil)
-	if err != nil {
-		logErr.Fatalf("error creating Agent instance: %v", err)
+	var sh2 *agent.Agent
+	var err error
+	if argv.ingressUpstreamAddr != "" {
+		addresses := strings.Split(argv.ingressUpstreamAddr, ",")
+		sh2 = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult{
+			Addresses:         addresses,
+			MaxAddressesCount: int32(len(addresses)),
+		}}
+	} else {
+		argv.configAgent.Cluster = argv.cluster
+		sh2, err = agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
+			format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil, nil)
+		if err != nil {
+			logErr.Fatalf("error creating Agent instance: %v", err)
+		}
+		sh2.Run(0, 0, 0)
 	}
-	sh2.Run(0, 0, 0)
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
