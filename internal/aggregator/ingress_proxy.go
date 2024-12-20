@@ -513,10 +513,7 @@ func (req *proxyRequest) read(p *proxyConn) error {
 	if req.tip, req.Request, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err != nil {
 		return err
 	}
-	if p.agent.Shards != nil {
-		p.reqKey.Tags[2] = int32(req.RequestTag())
-		p.agent.AddValueCounter(&p.reqKey, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
-	}
+	requestLen := len(req.Request)
 	switch p.req.tip {
 	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
 		return nil
@@ -527,7 +524,12 @@ func (req *proxyRequest) read(p *proxyConn) error {
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
 			return err
 		}
-		switch req.RequestTag() {
+		requestTag := req.RequestTag()
+		if p.agent.Shards != nil {
+			p.reqKey.Tags[2] = int32(requestTag)
+			p.agent.AddValueCounter(&p.reqKey, float64(requestLen), 1, format.BuiltinMetricMetaRPCRequests)
+		}
+		switch requestTag {
 		case constants.StatshouseGetConfig2,
 			constants.StatshouseGetTagMapping2,
 			constants.StatshouseSendKeepAlive2,
