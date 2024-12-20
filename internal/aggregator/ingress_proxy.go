@@ -95,6 +95,7 @@ type proxyConn struct {
 	clientAddr  [4]uint32 // readonly after init
 	clientAddrS string    // readonly after init
 	req         proxyRequest
+	reqKey      data_model.Key
 	reqBuf      []byte
 	reqBufCap   int // last buffer capacity
 }
@@ -342,6 +343,7 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 		}
 	}
 	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
+	cryptoKeyID := clientConn.KeyID()
 	p.group.Add(1)
 	p.connectionCount.Inc()
 	return &proxyConn{
@@ -349,6 +351,10 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 		clientAddr:  clientAddr,
 		clientAddrS: clientAddrS,
 		clientConn:  clientConn,
+		reqKey: data_model.Key{
+			Metric: format.BuiltinMetricIDRPCRequests,
+			Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy, 0, 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(clientConn.ProtocolVersion())},
+		},
 	}
 }
 
@@ -444,16 +450,8 @@ func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResu
 		}
 	}()
 	req := &p.req
-	cryptoKeyID := p.clientConn.KeyID()
-	requestSize := data_model.Key{
-		Metric: format.BuiltinMetricIDRPCRequests,
-		Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(req.RequestTag()), 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(p.clientConn.ProtocolVersion())},
-	}
 	var err error
 	for i := uint(0); ctx.Err() == nil; i++ {
-		if p.agent.Shards != nil {
-			p.agent.AddValueCounter(&requestSize, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
-		}
 		p.reportRequestBufferSizeChange()
 		switch req.tip {
 		case rpcInvokeReqHeaderTLTag:
@@ -488,7 +486,6 @@ func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResu
 			res.ReadErr = err
 			return res
 		}
-		requestSize.Tags[2] = int32(req.RequestTag())
 	}
 	return res
 }
@@ -512,6 +509,10 @@ func (req *proxyRequest) read(p *proxyConn) error {
 	var err error
 	if req.tip, req.Request, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err != nil {
 		return err
+	}
+	if p.agent.Shards != nil {
+		p.reqKey.Tags[2] = int32(req.RequestTag())
+		p.agent.AddValueCounter(&p.reqKey, float64(len(req.Request)), 1, format.BuiltinMetricMetaRPCRequests)
 	}
 	switch p.req.tip {
 	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
