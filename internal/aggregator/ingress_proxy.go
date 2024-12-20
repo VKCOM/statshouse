@@ -343,7 +343,6 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 		}
 	}
 	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
-	cryptoKeyID := clientConn.KeyID()
 	p.group.Add(1)
 	p.connectionCount.Inc()
 	return &proxyConn{
@@ -353,7 +352,7 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 		clientConn:  clientConn,
 		reqKey: data_model.Key{
 			Metric: format.BuiltinMetricIDRPCRequests,
-			Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy, 0, 0, 0, 0, int32(binary.BigEndian.Uint32(cryptoKeyID[:4])), 0, int32(clientConn.ProtocolVersion())},
+			Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy},
 		},
 	}
 }
@@ -382,6 +381,10 @@ func (p *proxyConn) run() {
 		statshouse.StringTop(format.BuiltinMetricNameProxyAcceptHandshakeError, tags, p.clientAddrS)
 		return
 	}
+	// initialize connection specific "__rpc_request_size" tags
+	cryptoKeyID := p.clientConn.KeyID()
+	p.reqKey.Tags[6] = int32(binary.BigEndian.Uint32(cryptoKeyID[:4]))
+	p.reqKey.Tags[8] = int32(p.clientConn.ProtocolVersion())
 	// read first request to get shardReplica
 	var req = &p.req
 	for {
