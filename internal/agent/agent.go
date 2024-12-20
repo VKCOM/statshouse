@@ -76,7 +76,6 @@ type Agent struct {
 
 	componentTag    int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
 	stagingLevel    int
-	commitDateTag   int32
 	commitTimestamp int32
 	buildArchTag    int32
 	// Used for builtin metrics when running inside aggregator
@@ -140,7 +139,6 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		argsLen:               int32(len(allArgs)),
 		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
 		logF:                  logF,
-		commitDateTag:         format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339)),
 		commitTimestamp:       int32(build.CommitTimestamp()),
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		metricStorage:         metricStorage,

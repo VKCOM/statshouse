@@ -1330,8 +1330,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "commit_hash",
 				RawKind:     "hex",
 			}, {
-				Description: "commit_date",
-				Raw:         true,
+				Description: "-", // former commit_date, obsolete by nice UI formatting of the next tag
 			}, {
 				Description: "commit_timestamp",
 				RawKind:     "timestamp",
@@ -2812,7 +2811,7 @@ Value is delta between second value and time it was inserted.`,
 		" 2": "heap", // large buffer won't be reused (bad, should not happen)
 	}
 
-	// metic metas for builtin metrics are accessible directly without search in map
+	// metric metas for builtin metrics are accessible directly without search in map
 	// they are initialized from BuiltinMetrics map in init() function
 	BuiltinMetricMetaAgentSamplingFactor        *MetricMetaValue
 	BuiltinMetricMetaAggBucketReceiveDelaySec   *MetricMetaValue

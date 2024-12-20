@@ -19,14 +19,12 @@ import (
 )
 
 type mapPipelineV3 struct {
-	mapCallback  data_model.MapCallbackFunc
 	mappingCache *pcache.Cache
 	autoCreate   *data_model.AutoCreate
 }
 
-func newMapPipelineV3(mapCallback data_model.MapCallbackFunc, mappingCache *pcache.Cache, ac *data_model.AutoCreate) *mapPipelineV3 {
+func newMapPipelineV3(mappingCache *pcache.Cache, ac *data_model.AutoCreate) *mapPipelineV3 {
 	return &mapPipelineV3{
-		mapCallback:  mapCallback,
 		mappingCache: mappingCache,
 		autoCreate:   ac,
 	}
@@ -108,7 +106,7 @@ func (mp *mapPipelineV3) getTagValueIDCached(now time.Time, tagValue []byte) (in
 
 func (mp *mapPipelineV3) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
 	for _, v := range metric.Tags {
-		if !format.APICompatIsEnvTagID(v.Key) {
+		if string(v.Key) != format.EnvTagID {
 			continue
 		}
 		mp.handleEnvironmentTag(h, &v)

@@ -44,7 +44,7 @@ func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache,
 
 	return &Mapper{
 		pipelineV2: newMapPipelineV2(mapCallback, tagValue, ac, data_model.MappingMaxMetricsInQueue, metricMapQueueSize),
-		pipelineV3: newMapPipelineV3(mapCallback, tagValue, ac),
+		pipelineV3: newMapPipelineV3(tagValue, ac),
 	}
 }
 

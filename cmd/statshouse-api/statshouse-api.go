@@ -451,7 +451,6 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	heartbeatTags := statshouse.Tags{
 		1: "4",
 		2: fmt.Sprint(format.TagValueIDHeartbeatEventStart),
-		5: fmt.Sprint(format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339))),
 		6: fmt.Sprint(build.CommitTimestamp()),
 		7: srvfunc.HostnameForStatshouse(),
 	}

@@ -175,7 +175,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     historic:fields_mask.0?true
     spare:fields_mask.1?true
     build_commit:string
-    build_commit_date:int // 20220218 for 2022-02-18T22:58:12+0000, so we can easily use raw key and have human-readability
+    build_commit_date:int // deprecated, not sent by agents, not used by aggregators
     build_commit_ts:int
     queue_size_disk:int
     queue_size_memory:int
@@ -197,15 +197,14 @@ statshouse.sendSourceBucket3Response#0e177acc
     spare:fields_mask.1?true
     // build stats
     build_commit:string
-    build_commit_date:int // 20220218 for 2022-02-18T22:58:12+0000, so we can easily use raw key and have human-readability
     build_commit_ts:int
     // queue stats TODO: check if we still need it
     queue_size_disk:int // set in sendSourceBucketCompressed
     queue_size_memory:int
-    queue_size_disk_sum:fields_mask.2?int   // for all shard-replicas. Helps detect situation where only subset of aggregators is accessible.
-    queue_size_memory_sum:fields_mask.2?int
-    queue_size_disk_unsent:fields_mask.3?int
-    queue_size_disk_sum_unsent:fields_mask.3?int
+    queue_size_disk_sum:int
+    queue_size_memory_sum:int
+    queue_size_disk_unsent:int
+    queue_size_disk_sum_unsent:int
     // data
     original_size:#
     compressed_data:string
