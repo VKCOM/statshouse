@@ -144,8 +144,7 @@ func (mp *mapPipelineV2) MapEnvironment(metric *tlstatshouse.MetricBytes, h *dat
 	// must not change h.CheckedTagIndex or h.IsKeySet because mapTags will be called after this func by mapping queue in slow path
 	for i := h.CheckedTagIndex; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-		if !format.APICompatIsEnvTagID(v.Key) {
-			// TODO - remove extra checks after all libraries use new canonical name
+		if string(v.Key) != format.EnvTagID {
 			continue
 		}
 		var err error

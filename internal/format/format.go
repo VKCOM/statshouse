@@ -1109,16 +1109,6 @@ func APICompatNormalizeTagID(tagID string) (string, error) {
 	return "", fmt.Errorf("invalid tag ID %q", tagID)
 }
 
-// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func APICompatIsEnvTagID(tagID []byte) bool {
-	switch string(tagID) {
-	case EnvTagID, "key0", "env":
-		return true
-	default:
-		return false
-	}
-}
-
 func convertToValueComments(id2value map[int32]string) map[string]string {
 	vc := make(map[string]string, len(id2value))
 	for v, c := range id2value {
@@ -1126,20 +1116,6 @@ func convertToValueComments(id2value map[int32]string) map[string]string {
 	}
 
 	return vc
-}
-
-func ISO8601Date2BuildDateKey(str string) int32 {
-	// layout is "2006-01-02T15:04:05-0700", but we do not bother parsing as date
-	// we want 20060102 value from that string
-	if len(str) < 11 || str[4] != '-' || str[7] != '-' || str[10] != 'T' {
-		return 0
-	}
-	str = strings.ReplaceAll(str[:10], "-", "")
-	n, err := strconv.ParseUint(str, 10, 32)
-	if err != nil {
-		return 0
-	}
-	return int32(n) // Will always fit
 }
 
 func IsValidMetricType(typ_ string) bool {

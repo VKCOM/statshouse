@@ -75,7 +75,6 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 	args := tlstatshouse.SendSourceBucket2Bytes{
 		Time:            cbd.time,
 		BuildCommit:     []byte(build.Commit()),
-		BuildCommitDate: s.agent.commitDateTag,
 		BuildCommitTs:   s.agent.commitTimestamp,
 		QueueSizeDisk:   math.MaxInt32,
 		QueueSizeMemory: math.MaxInt32,
@@ -118,7 +117,6 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 	args := tlstatshouse.SendSourceBucket3Bytes{
 		Time:            cbd.time,
 		BuildCommit:     []byte(build.Commit()),
-		BuildCommitDate: s.agent.commitDateTag,
 		BuildCommitTs:   s.agent.commitTimestamp,
 		QueueSizeDisk:   math.MaxInt32,
 		QueueSizeMemory: math.MaxInt32,
@@ -140,10 +138,10 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
 	args.QueueSizeMemory = clampInt32(sizeMem)
 	args.QueueSizeDisk = clampInt32(sizeDiskTotal)
-	args.SetQueueSizeDiskUnsent(clampInt32(sizeDiskUnsent))
-	args.SetQueueSizeDiskSum(clampInt32(sizeDiskSumTotal))
-	args.SetQueueSizeDiskSumUnsent(clampInt32(sizeDiskSumUnsent))
-	args.SetQueueSizeMemorySum(clampInt32(sizeMemSum))
+	args.QueueSizeDiskUnsent = clampInt32(sizeDiskUnsent)
+	args.QueueSizeDiskSum = clampInt32(sizeDiskSumTotal)
+	args.QueueSizeDiskSumUnsent = clampInt32(sizeDiskSumUnsent)
+	args.QueueSizeMemorySum = clampInt32(sizeMemSum)
 
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket3Bytes(ctx, args, &extra, response); err != nil {

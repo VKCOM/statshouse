@@ -20,14 +20,13 @@ type StatshouseSendSourceBucket3 struct {
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit            string
-	BuildCommitDate        int32
 	BuildCommitTs          int32
 	QueueSizeDisk          int32
 	QueueSizeMemory        int32
-	QueueSizeDiskSum       int32 // Conditional: item.FieldsMask.2
-	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
-	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
-	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
+	QueueSizeDiskSum       int32
+	QueueSizeMemorySum     int32
+	QueueSizeDiskUnsent    int32
+	QueueSizeDiskSumUnsent int32
 	OriginalSize           uint32
 	CompressedData         string
 }
@@ -53,60 +52,11 @@ func (item *StatshouseSendSourceBucket3) SetSpare(v bool) {
 }
 func (item StatshouseSendSourceBucket3) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
 
-func (item *StatshouseSendSourceBucket3) SetQueueSizeDiskSum(v int32) {
-	item.QueueSizeDiskSum = v
-	item.FieldsMask |= 1 << 2
-}
-func (item *StatshouseSendSourceBucket3) ClearQueueSizeDiskSum() {
-	item.QueueSizeDiskSum = 0
-	item.FieldsMask &^= 1 << 2
-}
-func (item StatshouseSendSourceBucket3) IsSetQueueSizeDiskSum() bool {
-	return item.FieldsMask&(1<<2) != 0
-}
-
-func (item *StatshouseSendSourceBucket3) SetQueueSizeMemorySum(v int32) {
-	item.QueueSizeMemorySum = v
-	item.FieldsMask |= 1 << 2
-}
-func (item *StatshouseSendSourceBucket3) ClearQueueSizeMemorySum() {
-	item.QueueSizeMemorySum = 0
-	item.FieldsMask &^= 1 << 2
-}
-func (item StatshouseSendSourceBucket3) IsSetQueueSizeMemorySum() bool {
-	return item.FieldsMask&(1<<2) != 0
-}
-
-func (item *StatshouseSendSourceBucket3) SetQueueSizeDiskUnsent(v int32) {
-	item.QueueSizeDiskUnsent = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseSendSourceBucket3) ClearQueueSizeDiskUnsent() {
-	item.QueueSizeDiskUnsent = 0
-	item.FieldsMask &^= 1 << 3
-}
-func (item StatshouseSendSourceBucket3) IsSetQueueSizeDiskUnsent() bool {
-	return item.FieldsMask&(1<<3) != 0
-}
-
-func (item *StatshouseSendSourceBucket3) SetQueueSizeDiskSumUnsent(v int32) {
-	item.QueueSizeDiskSumUnsent = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseSendSourceBucket3) ClearQueueSizeDiskSumUnsent() {
-	item.QueueSizeDiskSumUnsent = 0
-	item.FieldsMask &^= 1 << 3
-}
-func (item StatshouseSendSourceBucket3) IsSetQueueSizeDiskSumUnsent() bool {
-	return item.FieldsMask&(1<<3) != 0
-}
-
 func (item *StatshouseSendSourceBucket3) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.Time = 0
 	item.BuildCommit = ""
-	item.BuildCommitDate = 0
 	item.BuildCommitTs = 0
 	item.QueueSizeDisk = 0
 	item.QueueSizeMemory = 0
@@ -131,9 +81,6 @@ func (item *StatshouseSendSourceBucket3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.BuildCommit); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitDate); err != nil {
-		return w, err
-	}
 	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
@@ -143,33 +90,17 @@ func (item *StatshouseSendSourceBucket3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.QueueSizeMemory); err != nil {
 		return w, err
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskSum = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeMemorySum = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskUnsent); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskUnsent = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskUnsent); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSumUnsent); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskSumUnsent = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskSumUnsent); err != nil {
+		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
@@ -187,22 +118,13 @@ func (item *StatshouseSendSourceBucket3) Write(w []byte) []byte {
 	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWrite(w, item.BuildCommit)
-	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskSum)
-	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeMemorySum)
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskUnsent)
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
-	}
+	w = basictl.IntWrite(w, item.QueueSizeDiskSum)
+	w = basictl.IntWrite(w, item.QueueSizeMemorySum)
+	w = basictl.IntWrite(w, item.QueueSizeDiskUnsent)
+	w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
 	return w
@@ -291,7 +213,6 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 	var trueTypeSparePresented bool
 	var trueTypeSpareValue bool
 	var propBuildCommitPresented bool
-	var propBuildCommitDatePresented bool
 	var propBuildCommitTsPresented bool
 	var propQueueSizeDiskPresented bool
 	var propQueueSizeMemoryPresented bool
@@ -359,14 +280,6 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 					return err
 				}
 				propBuildCommitPresented = true
-			case "build_commit_date":
-				if propBuildCommitDatePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_date")
-				}
-				if err := Json2ReadInt32(in, &item.BuildCommitDate); err != nil {
-					return err
-				}
-				propBuildCommitDatePresented = true
 			case "build_commit_ts":
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_ts")
@@ -458,9 +371,6 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 	if !propBuildCommitPresented {
 		item.BuildCommit = ""
 	}
-	if !propBuildCommitDatePresented {
-		item.BuildCommitDate = 0
-	}
 	if !propBuildCommitTsPresented {
 		item.BuildCommitTs = 0
 	}
@@ -497,18 +407,6 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 		if trueTypeSpareValue {
 			item.FieldsMask |= 1 << 1
 		}
-	}
-	if propQueueSizeDiskSumPresented {
-		item.FieldsMask |= 1 << 2
-	}
-	if propQueueSizeMemorySumPresented {
-		item.FieldsMask |= 1 << 2
-	}
-	if propQueueSizeDiskUnsentPresented {
-		item.FieldsMask |= 1 << 3
-	}
-	if propQueueSizeDiskSumUnsentPresented {
-		item.FieldsMask |= 1 << 3
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -572,13 +470,6 @@ func (item *StatshouseSendSourceBucket3) WriteJSONOpt(newTypeNames bool, short b
 	if (len(item.BuildCommit) != 0) == false {
 		w = w[:backupIndexBuildCommit]
 	}
-	backupIndexBuildCommitDate := len(w)
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"build_commit_date":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
-	if (item.BuildCommitDate != 0) == false {
-		w = w[:backupIndexBuildCommitDate]
-	}
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
@@ -600,25 +491,33 @@ func (item *StatshouseSendSourceBucket3) WriteJSONOpt(newTypeNames bool, short b
 	if (item.QueueSizeMemory != 0) == false {
 		w = w[:backupIndexQueueSizeMemory]
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_sum":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+	backupIndexQueueSizeDiskSum := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_sum":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+	if (item.QueueSizeDiskSum != 0) == false {
+		w = w[:backupIndexQueueSizeDiskSum]
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_memory_sum":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+	backupIndexQueueSizeMemorySum := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_memory_sum":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+	if (item.QueueSizeMemorySum != 0) == false {
+		w = w[:backupIndexQueueSizeMemorySum]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_unsent":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskUnsent)
+	backupIndexQueueSizeDiskUnsent := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_unsent":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskUnsent)
+	if (item.QueueSizeDiskUnsent != 0) == false {
+		w = w[:backupIndexQueueSizeDiskUnsent]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_sum_unsent":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
+	backupIndexQueueSizeDiskSumUnsent := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_sum_unsent":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
+	if (item.QueueSizeDiskSumUnsent != 0) == false {
+		w = w[:backupIndexQueueSizeDiskSumUnsent]
 	}
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -655,14 +554,13 @@ type StatshouseSendSourceBucket3Bytes struct {
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit            []byte
-	BuildCommitDate        int32
 	BuildCommitTs          int32
 	QueueSizeDisk          int32
 	QueueSizeMemory        int32
-	QueueSizeDiskSum       int32 // Conditional: item.FieldsMask.2
-	QueueSizeMemorySum     int32 // Conditional: item.FieldsMask.2
-	QueueSizeDiskUnsent    int32 // Conditional: item.FieldsMask.3
-	QueueSizeDiskSumUnsent int32 // Conditional: item.FieldsMask.3
+	QueueSizeDiskSum       int32
+	QueueSizeMemorySum     int32
+	QueueSizeDiskUnsent    int32
+	QueueSizeDiskSumUnsent int32
 	OriginalSize           uint32
 	CompressedData         []byte
 }
@@ -688,60 +586,11 @@ func (item *StatshouseSendSourceBucket3Bytes) SetSpare(v bool) {
 }
 func (item StatshouseSendSourceBucket3Bytes) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
 
-func (item *StatshouseSendSourceBucket3Bytes) SetQueueSizeDiskSum(v int32) {
-	item.QueueSizeDiskSum = v
-	item.FieldsMask |= 1 << 2
-}
-func (item *StatshouseSendSourceBucket3Bytes) ClearQueueSizeDiskSum() {
-	item.QueueSizeDiskSum = 0
-	item.FieldsMask &^= 1 << 2
-}
-func (item StatshouseSendSourceBucket3Bytes) IsSetQueueSizeDiskSum() bool {
-	return item.FieldsMask&(1<<2) != 0
-}
-
-func (item *StatshouseSendSourceBucket3Bytes) SetQueueSizeMemorySum(v int32) {
-	item.QueueSizeMemorySum = v
-	item.FieldsMask |= 1 << 2
-}
-func (item *StatshouseSendSourceBucket3Bytes) ClearQueueSizeMemorySum() {
-	item.QueueSizeMemorySum = 0
-	item.FieldsMask &^= 1 << 2
-}
-func (item StatshouseSendSourceBucket3Bytes) IsSetQueueSizeMemorySum() bool {
-	return item.FieldsMask&(1<<2) != 0
-}
-
-func (item *StatshouseSendSourceBucket3Bytes) SetQueueSizeDiskUnsent(v int32) {
-	item.QueueSizeDiskUnsent = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseSendSourceBucket3Bytes) ClearQueueSizeDiskUnsent() {
-	item.QueueSizeDiskUnsent = 0
-	item.FieldsMask &^= 1 << 3
-}
-func (item StatshouseSendSourceBucket3Bytes) IsSetQueueSizeDiskUnsent() bool {
-	return item.FieldsMask&(1<<3) != 0
-}
-
-func (item *StatshouseSendSourceBucket3Bytes) SetQueueSizeDiskSumUnsent(v int32) {
-	item.QueueSizeDiskSumUnsent = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseSendSourceBucket3Bytes) ClearQueueSizeDiskSumUnsent() {
-	item.QueueSizeDiskSumUnsent = 0
-	item.FieldsMask &^= 1 << 3
-}
-func (item StatshouseSendSourceBucket3Bytes) IsSetQueueSizeDiskSumUnsent() bool {
-	return item.FieldsMask&(1<<3) != 0
-}
-
 func (item *StatshouseSendSourceBucket3Bytes) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.Time = 0
 	item.BuildCommit = item.BuildCommit[:0]
-	item.BuildCommitDate = 0
 	item.BuildCommitTs = 0
 	item.QueueSizeDisk = 0
 	item.QueueSizeMemory = 0
@@ -766,9 +615,6 @@ func (item *StatshouseSendSourceBucket3Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.StringReadBytes(w, &item.BuildCommit); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitDate); err != nil {
-		return w, err
-	}
 	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
@@ -778,33 +624,17 @@ func (item *StatshouseSendSourceBucket3Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.IntRead(w, &item.QueueSizeMemory); err != nil {
 		return w, err
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskSum = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeMemorySum = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskUnsent); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskUnsent = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskUnsent); err != nil {
+		return w, err
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSumUnsent); err != nil {
-			return w, err
-		}
-	} else {
-		item.QueueSizeDiskSumUnsent = 0
+	if w, err = basictl.IntRead(w, &item.QueueSizeDiskSumUnsent); err != nil {
+		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
 		return w, err
@@ -822,22 +652,13 @@ func (item *StatshouseSendSourceBucket3Bytes) Write(w []byte) []byte {
 	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
-	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskSum)
-	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeMemorySum)
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskUnsent)
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
-	}
+	w = basictl.IntWrite(w, item.QueueSizeDiskSum)
+	w = basictl.IntWrite(w, item.QueueSizeMemorySum)
+	w = basictl.IntWrite(w, item.QueueSizeDiskUnsent)
+	w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
 	return w
@@ -926,7 +747,6 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 	var trueTypeSparePresented bool
 	var trueTypeSpareValue bool
 	var propBuildCommitPresented bool
-	var propBuildCommitDatePresented bool
 	var propBuildCommitTsPresented bool
 	var propQueueSizeDiskPresented bool
 	var propQueueSizeMemoryPresented bool
@@ -994,14 +814,6 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 					return err
 				}
 				propBuildCommitPresented = true
-			case "build_commit_date":
-				if propBuildCommitDatePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_date")
-				}
-				if err := Json2ReadInt32(in, &item.BuildCommitDate); err != nil {
-					return err
-				}
-				propBuildCommitDatePresented = true
 			case "build_commit_ts":
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_ts")
@@ -1093,9 +905,6 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 	if !propBuildCommitPresented {
 		item.BuildCommit = item.BuildCommit[:0]
 	}
-	if !propBuildCommitDatePresented {
-		item.BuildCommitDate = 0
-	}
 	if !propBuildCommitTsPresented {
 		item.BuildCommitTs = 0
 	}
@@ -1132,18 +941,6 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 		if trueTypeSpareValue {
 			item.FieldsMask |= 1 << 1
 		}
-	}
-	if propQueueSizeDiskSumPresented {
-		item.FieldsMask |= 1 << 2
-	}
-	if propQueueSizeMemorySumPresented {
-		item.FieldsMask |= 1 << 2
-	}
-	if propQueueSizeDiskUnsentPresented {
-		item.FieldsMask |= 1 << 3
-	}
-	if propQueueSizeDiskSumUnsentPresented {
-		item.FieldsMask |= 1 << 3
 	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
@@ -1207,13 +1004,6 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteJSONOpt(newTypeNames bool, sh
 	if (len(item.BuildCommit) != 0) == false {
 		w = w[:backupIndexBuildCommit]
 	}
-	backupIndexBuildCommitDate := len(w)
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"build_commit_date":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitDate)
-	if (item.BuildCommitDate != 0) == false {
-		w = w[:backupIndexBuildCommitDate]
-	}
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
@@ -1235,25 +1025,33 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteJSONOpt(newTypeNames bool, sh
 	if (item.QueueSizeMemory != 0) == false {
 		w = w[:backupIndexQueueSizeMemory]
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_sum":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+	backupIndexQueueSizeDiskSum := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_sum":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+	if (item.QueueSizeDiskSum != 0) == false {
+		w = w[:backupIndexQueueSizeDiskSum]
 	}
-	if item.FieldsMask&(1<<2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_memory_sum":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+	backupIndexQueueSizeMemorySum := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_memory_sum":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+	if (item.QueueSizeMemorySum != 0) == false {
+		w = w[:backupIndexQueueSizeMemorySum]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_unsent":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskUnsent)
+	backupIndexQueueSizeDiskUnsent := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_unsent":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskUnsent)
+	if (item.QueueSizeDiskUnsent != 0) == false {
+		w = w[:backupIndexQueueSizeDiskUnsent]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"queue_size_disk_sum_unsent":`...)
-		w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
+	backupIndexQueueSizeDiskSumUnsent := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"queue_size_disk_sum_unsent":`...)
+	w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSumUnsent)
+	if (item.QueueSizeDiskSumUnsent != 0) == false {
+		w = w[:backupIndexQueueSizeDiskSumUnsent]
 	}
 	backupIndexOriginalSize := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
