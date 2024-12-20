@@ -508,12 +508,12 @@ func (p *proxyConn) reportRequestBufferSizeChange() {
 		p.reqBufCap = cap(p.reqBuf)
 	}
 }
+
 func (req *proxyRequest) read(p *proxyConn) error {
 	var err error
 	if req.tip, req.Request, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err != nil {
 		return err
 	}
-	requestLen := len(req.Request)
 	switch p.req.tip {
 	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
 		return nil
@@ -521,6 +521,7 @@ func (req *proxyRequest) read(p *proxyConn) error {
 		if cap(p.reqBuf) < cap(req.Request) {
 			p.reqBuf = req.Request // buffer reuse
 		}
+		requestLen := len(req.Request)
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
 			return err
 		}
