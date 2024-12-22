@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -16,12 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -49,16 +46,22 @@ type ConfigIngressProxy struct {
 	ListenAddrIPV6        string
 	ExternalAddresses     []string // exactly 3 comma-separated external ingress points
 	ExternalAddressesIPv6 []string
+	UpstreamAddr          string
 	IngressKeys           []string
 	ResponseMemoryLimit   int
 	Version               string
+	ConfigAgent           agent.Config
+
+	// metadata address to load host name
+	MetadataNet     string
+	MetadataAddr    string
+	MetadataActorID int64
 }
 
 type ingressProxy struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	uniqueStartTime atomic.Uint32
-	connectionCount atomic.Int64
-	requestMemory   atomic.Int64
+	hostnameID      atomic.Int32
 
 	ctx        context.Context
 	agent      *agent.Agent
@@ -72,36 +75,31 @@ type ingressProxy struct {
 	// logging
 	rareLogLast time.Time
 	rareLogMu   sync.Mutex
-
-	// metrics
-	commonTags            statshouse.Tags
-	connectionCountMetric statshouse.MetricRef
-	requestMemoryMetric   statshouse.MetricRef
-	responseMemoryMetric  statshouse.MetricRef
 }
 
 type proxyServer struct {
 	*ingressProxy
 	config    tlstatshouse.GetConfigResult
+	network   string
 	listeners []net.Listener
 }
 
 type proxyConn struct {
 	*proxyServer
-	clientConn   *rpc.PacketConn
-	upstreamConn *rpc.PacketConn
+	clientConn            *rpc.PacketConn
+	upstreamConn          *rpc.PacketConn
+	clientCryptoKeyID     int32
+	clientProtocolVersion int32
 
 	// no synchronization, owned by "requestLoop"
 	clientAddr  [4]uint32 // readonly after init
 	clientAddrS string    // readonly after init
-	req         proxyRequest
-	reqKey      data_model.Key
 	reqBuf      []byte
-	reqBufCap   int // last buffer capacity
 }
 
 type proxyRequest struct {
-	tip uint32
+	tip  uint32
+	size int
 	rpc.HandlerContext
 }
 
@@ -127,56 +125,101 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngressProxy, aesPwd string) error {
-	env := env.ReadEnvironment("statshouse_proxy_v2")
-	commonTags := statshouse.Tags{
-		env.Name,
-		env.Service,
-		env.Cluster,
-		env.DataCenter,
-	}
+func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd string) error {
 	p := ingressProxy{
-		ctx:                   ctx,
-		agent:                 agent,
-		cluster:               config.Cluster,
-		clientOpts:            rpc.ClientOptions{CryptoKey: aesPwd},
-		serverKeys:            config.IngressKeys,
-		startTime:             uint32(time.Now().Unix()),
-		commonTags:            commonTags,
-		connectionCountMetric: statshouse.GetMetricRef("common_rpc_server_conn", commonTags),
-		requestMemoryMetric:   statshouse.GetMetricRef("common_rpc_server_request_mem", commonTags),
-		responseMemoryMetric:  statshouse.GetMetricRef("common_rpc_server_response_mem", commonTags),
+		ctx:        ctx,
+		cluster:    config.Cluster,
+		clientOpts: rpc.ClientOptions{CryptoKey: aesPwd},
+		serverKeys: config.IngressKeys,
+		startTime:  uint32(time.Now().Unix()),
+	}
+	if config.UpstreamAddr != "" {
+		addresses := strings.Split(config.UpstreamAddr, ",")
+		p.agent = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult{
+			Addresses:         addresses,
+			MaxAddressesCount: int32(len(addresses)),
+		}}
+	} else {
+		var err error
+		p.agent, err = agent.MakeAgent(
+			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(), format.TagValueIDComponentIngressProxy, nil, nil, log.Printf,
+			func(s *agent.Agent, nowUnix uint32) {
+				// __igp_vm_size
+				var vmSize, vmRSS float64
+				if st, _ := srvfunc.GetMemStat(0); st != nil {
+					vmSize = float64(st.Size)
+					vmRSS = float64(st.Res)
+				}
+				key := data_model.Key{
+					Timestamp: nowUnix,
+					Metric:    format.BuiltinMetricIDProxyVmSize,
+					Tags:      [format.MaxTags]int32{1: p.hostnameID.Load()},
+				}
+				s.AddValueCounter(&key, 1, vmSize, format.BuiltinMetricMetaProxyVmSize)
+				// __igp_vm_rss
+				key.Metric = format.BuiltinMetricIDProxyVmRSS
+				s.AddValueCounter(&key, 1, vmRSS, format.BuiltinMetricMetaProxyVmRSS)
+				// __igp_heap_alloc
+				var memStats runtime.MemStats
+				runtime.ReadMemStats(&memStats)
+				key.Metric = format.BuiltinMetricIDProxyHeapAlloc
+				s.AddValueCounter(&key, 1, float64(memStats.HeapAlloc), format.BuiltinMetricMetaProxyHeapAlloc)
+				// __igp_heap_sys
+				key.Metric = format.BuiltinMetricIDProxyHeapSys
+				s.AddValueCounter(&key, 1, float64(memStats.HeapSys), format.BuiltinMetricMetaProxyHeapSys)
+				// __igp_heap_idle
+				key.Metric = format.BuiltinMetricIDProxyHeapIdle
+				s.AddValueCounter(&key, 1, float64(memStats.HeapIdle), format.BuiltinMetricMetaProxyHeapIdle)
+				// __igp_heap_inuse
+				key.Metric = format.BuiltinMetricIDProxyHeapInuse
+				s.AddValueCounter(&key, 1, float64(memStats.HeapInuse), format.BuiltinMetricMetaProxyHeapInuse)
+			},
+			nil, nil)
+		if err != nil {
+			log.Fatalf("error creating agent: %v", err)
+		}
+		p.agent.Run(0, 0, 0)
 	}
 	p.uniqueStartTime.Store(p.startTime)
 	rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.clientOpts)
 	rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.serverOpts)
-	defer statshouse.StopRegularMeasurement(
-		statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
-			p.connectionCountMetric.Count(float64(p.connectionCount.Load()))
-			p.requestMemoryMetric.Value(float64(p.requestMemory.Load()))
-			var vmSize, vmRSS float64
-			if st, _ := srvfunc.GetMemStat(0); st != nil {
-				vmSize = float64(st.Size)
-				vmRSS = float64(st.Res)
+	// resolve hostname ID
+	p.hostnameID.Store(format.TagValueIDMappingFlood)
+	if config.MetadataAddr != "" || config.MetadataActorID != 0 {
+		go func() {
+			client := tlmetadata.Client{
+				Client: rpc.NewClient(
+					rpc.ClientWithLogf(log.Printf),
+					rpc.ClientWithCryptoKey(aesPwd),
+					rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+				Network: config.MetadataNet,
+				Address: config.MetadataAddr,
+				ActorID: config.MetadataActorID,
 			}
-			client.Value(format.BuiltinMetricNameProxyVmSize, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
-			client.Value(format.BuiltinMetricNameProxyVmRSS, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
-			var memStats runtime.MemStats
-			runtime.ReadMemStats(&memStats)
-			client.Value(format.BuiltinMetricNameProxyHeapAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
-			client.Value(format.BuiltinMetricNameProxyHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
-			client.Value(format.BuiltinMetricNameProxyHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
-			client.Value(format.BuiltinMetricNameProxyHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
-		}))
+			args := tlmetadata.GetMapping{
+				Metric: format.BuiltinMetricNameBudgetAggregatorHost,
+				Key:    srvfunc.HostnameForStatshouse(),
+			}
+			args.SetCreateIfAbsent(true)
+			res := tlmetadata.GetMappingResponse{}
+			if err := client.GetMapping(ctx, args, nil, &res); err == nil && !res.IsFloodLimitError() {
+				if r, ok := res.AsGetMappingResponse(); ok {
+					p.hostnameID.Store(r.Id)
+				} else if r, ok := res.AsCreated(); ok {
+					p.hostnameID.Store(r.Id)
+				}
+			}
+		}()
+	}
 	// listen on IPv4
-	tcp4 := p.newProxyServer()
-	tcp6 := p.newProxyServer()
+	tcp4 := p.newProxyServer("tcp4")
+	tcp6 := p.newProxyServer("tcp6")
 	shutdown := func() {
 		tcp4.shutdown()
 		tcp6.shutdown()
 	}
 	if len(config.ExternalAddresses) != 0 && config.ExternalAddresses[0] != "" {
-		err := tcp4.listen("tcp4", config.ListenAddr, config.ExternalAddresses, config.Version)
+		err := tcp4.listen(config.ListenAddr, config.ExternalAddresses, config.Version)
 		if err != nil {
 			shutdown()
 			return err
@@ -185,7 +228,7 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 	// listen on IPv6
 	defer tcp6.shutdown()
 	if len(config.ExternalAddressesIPv6) != 0 && config.ExternalAddressesIPv6[0] != "" {
-		err := tcp6.listen("tcp6", config.ListenAddrIPV6, config.ExternalAddressesIPv6, config.Version)
+		err := tcp6.listen(config.ListenAddrIPV6, config.ExternalAddressesIPv6, config.Version)
 		if err != nil {
 			shutdown()
 			return err
@@ -199,20 +242,21 @@ func RunIngressProxy2(ctx context.Context, agent *agent.Agent, config ConfigIngr
 	tcp4.run()
 	tcp6.run()
 	<-ctx.Done()
-	log.Printf("Shutdown %v connection(s)\n", p.connectionCount.Load())
 	shutdown()
 	p.group.Wait()
 	return nil
 }
 
-func (p *ingressProxy) reportClientConnError(format string, err error) {
-	if err == nil || errors.Is(err, io.EOF) {
-		return
+func (p *ingressProxy) newProxyServer(network string) proxyServer {
+	return proxyServer{
+		ingressProxy: p,
+		config: tlstatshouse.GetConfigResult{
+			Addresses:         make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
+			MaxAddressesCount: p.agent.GetConfigResult.MaxAddressesCount,
+			PreviousAddresses: p.agent.GetConfigResult.PreviousAddresses,
+		},
+		network: network,
 	}
-	p.rareLog(format, err)
-	tags := p.commonTags // copy
-	tags[4] = rpc.ErrorTag(err)
-	statshouse.Count("common_rpc_server_conn_error", tags, 1)
 }
 
 func (p *ingressProxy) rareLog(format string, args ...any) {
@@ -225,23 +269,12 @@ func (p *ingressProxy) rareLog(format string, args ...any) {
 	}
 }
 
-func (p *ingressProxy) newProxyServer() proxyServer {
-	return proxyServer{
-		ingressProxy: p,
-		config: tlstatshouse.GetConfigResult{
-			Addresses:         make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
-			MaxAddressesCount: p.agent.GetConfigResult.MaxAddressesCount,
-			PreviousAddresses: p.agent.GetConfigResult.PreviousAddresses,
-		},
-	}
-}
-
-func (p *proxyServer) listen(network, addr string, externalAddr []string, version string) error {
+func (p *proxyServer) listen(addr string, externalAddr []string, version string) error {
 	if len(p.agent.GetConfigResult.Addresses)%len(externalAddr) != 0 {
 		return fmt.Errorf("number of servers must be multiple of number of ingress-external-addr")
 	}
 	// parse listen address
-	listenAddr, err := net.ResolveTCPAddr(network, addr)
+	listenAddr, err := net.ResolveTCPAddr(p.network, addr)
 	if err != nil {
 		return err
 	}
@@ -249,7 +282,7 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string, versio
 	if version == "2" {
 		externalTCPAddr := make([]*net.TCPAddr, len(externalAddr))
 		for i := range externalAddr {
-			externalTCPAddr[i], err = net.ResolveTCPAddr(network, externalAddr[i])
+			externalTCPAddr[i], err = net.ResolveTCPAddr(p.network, externalAddr[i])
 			if err != nil {
 				return err
 			}
@@ -257,7 +290,7 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string, versio
 		p.listeners = make([]net.Listener, len(p.agent.GetConfigResult.Addresses)/len(externalAddr))
 		for i := range p.listeners {
 			log.Printf("Listen addr %v\n", listenAddr)
-			p.listeners[i], err = rpc.Listen(network, listenAddr.String(), false)
+			p.listeners[i], err = rpc.Listen(p.network, listenAddr.String(), false)
 			if err != nil {
 				return err
 			}
@@ -270,7 +303,7 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string, versio
 	} else {
 		log.Printf("Listen addr %v\n", listenAddr)
 		p.listeners = make([]net.Listener, 1)
-		p.listeners[0], err = rpc.Listen(network, listenAddr.String(), false)
+		p.listeners[0], err = rpc.Listen(p.network, listenAddr.String(), false)
 		if err != nil {
 			return err
 		}
@@ -283,8 +316,15 @@ func (p *proxyServer) listen(network, addr string, externalAddr []string, versio
 		}
 		p.config.Addresses = s
 	}
-	log.Printf("External %s addr %s\n", network, strings.Join(p.config.Addresses, ", "))
+	log.Printf("External %s addr %s\n", p.network, strings.Join(p.config.Addresses, ", "))
 	return nil
+}
+
+func (p *proxyServer) run() {
+	p.group.Add(len(p.listeners))
+	for i := range p.listeners {
+		go p.serve(p.listeners[i])
+	}
 }
 
 func (p *proxyServer) shutdown() {
@@ -292,13 +332,6 @@ func (p *proxyServer) shutdown() {
 		if p.listeners[i] != nil {
 			_ = p.listeners[i].Close()
 		}
-	}
-}
-
-func (p *proxyServer) run() {
-	p.group.Add(len(p.listeners))
-	for i := range p.listeners {
-		go p.serve(p.listeners[i])
 	}
 }
 
@@ -316,11 +349,7 @@ func (p *proxyServer) serve(listener net.Listener) {
 			return
 		}
 		// report accept error then backoff
-		tags := p.commonTags
-		if tags[4] = rpc.ErrorTag(err); tags[4] == "" {
-			tags[4] = err.Error()
-		}
-		statshouse.Count("common_rpc_server_accept_error", tags, 1)
+		log.Printf("accept error: %v", err)
 		if acceptDelay == 0 {
 			acceptDelay = minAcceptDelay
 		} else {
@@ -344,52 +373,33 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 	}
 	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
 	p.group.Add(1)
-	p.connectionCount.Inc()
 	return &proxyConn{
 		proxyServer: p,
 		clientAddr:  clientAddr,
 		clientAddrS: clientAddrS,
 		clientConn:  clientConn,
-		reqKey: data_model.Key{
-			Metric: format.BuiltinMetricIDRPCRequests,
-			Tags:   [16]int32{0, format.TagValueIDComponentIngressProxy},
-		},
 	}
 }
 
 func (p *proxyConn) run() {
 	defer p.group.Done()
-	defer p.connectionCount.Dec()
 	defer p.clientConn.Close()
-	defer func() {
-		p.requestMemory.Sub(int64(p.reqBufCap))
-	}()
 	// handshake client
-	magic_head, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
+	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.rareLog("Client handshake error: %v\n", err)
-		errStr := rpc.ErrorTag(err)
-		if errStr == "" {
-			errStr = err.Error()
-		}
-		tags := statshouse.Tags{
-			p.commonTags[0], // env
-			srvfunc.HostnameForStatshouse(),
-			errStr,
-			string(magic_head),
-		}
-		statshouse.StringTop(format.BuiltinMetricNameProxyAcceptHandshakeError, tags, p.clientAddrS)
+		p.logClientError("handshake", err)
 		return
 	}
-	// initialize connection specific "__rpc_request_size" tags
+	// initialize "__rpc_request_size" tags
 	cryptoKeyID := p.clientConn.KeyID()
-	p.reqKey.Tags[6] = int32(binary.BigEndian.Uint32(cryptoKeyID[:4]))
-	p.reqKey.Tags[8] = int32(p.clientConn.ProtocolVersion())
+	p.clientCryptoKeyID = int32(binary.BigEndian.Uint32(cryptoKeyID[:4]))
+	p.clientProtocolVersion = int32(p.clientConn.ProtocolVersion())
 	// read first request to get shardReplica
-	var req = &p.req
+	var req proxyRequest
 	for {
-		if err = req.read(p); err != nil {
-			p.reportClientConnError("Client read error: %v\n", err)
+		req, err = p.readRequest()
+		if err != nil {
+			p.logClientError("read", err)
 			return
 		}
 		if p.ctx.Err() != nil {
@@ -407,7 +417,7 @@ func (p *proxyConn) run() {
 	// connect upstream
 	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.rareLog("Upstream connect error: %v\n", err)
+		p.logUpstreamError("connect", err)
 		_ = req.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
@@ -415,10 +425,16 @@ func (p *proxyConn) run() {
 	p.upstreamConn = rpc.NewPacketConn(upstreamConn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
 	err = p.upstreamConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
 	if err != nil {
-		p.rareLog("Upstream handshake error: %v\n", err)
+		p.logUpstreamError("handshake", err)
 		_ = req.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
+	// process first request
+	res := req.process(p)
+	if res.Error() != nil {
+		return
+	}
+	p.reportRequestSize(&req)
 	// serve
 	var ctx = p.ctx
 	var gracefulShutdown bool
@@ -432,12 +448,12 @@ func (p *proxyConn) run() {
 		}()
 		reqLoopRes := p.requestLoop(ctx)
 		respLoop.Wait()
-		if gracefulShutdown || reqLoopRes.ClientWantsFin || respLoopRes.ServerWantsFin || reqLoopRes.Error() != nil || respLoopRes.Error() != nil {
+		if gracefulShutdown || res.ClientWantsFin || reqLoopRes.ClientWantsFin || respLoopRes.ServerWantsFin || reqLoopRes.Error() != nil || respLoopRes.Error() != nil {
 			return // either graceful shutdown already attempted or error occurred
 		}
 		gracefulShutdown = true
 		if err = p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
-			p.reportClientConnError("Client write error: %v\n", err)
+			p.logClientError("write fin", err)
 			return
 		}
 		// no timeout for connection graceful shutdown (has server level shutdown timeout)
@@ -452,42 +468,16 @@ func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResu
 			p.upstreamConn.ShutdownWrite()
 		}
 	}()
-	req := &p.req
-	var err error
-	for i := uint(0); ctx.Err() == nil; i++ {
-		p.reportRequestBufferSizeChange()
-		switch req.tip {
-		case rpcInvokeReqHeaderTLTag:
-			switch req.RequestTag() {
-			case constants.StatshouseGetConfig2:
-				var args tlstatshouse.GetConfig2
-				if _, err = args.ReadBoxed(req.Request); err == nil {
-					if args.Cluster != p.cluster {
-						err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
-					} else {
-						req.Response, _ = args.WriteResult(req.Response[:0], p.config)
-					}
-				}
-				if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
-					p.reportClientConnError("Client write error: %v\n", err)
-					// "requestLoop" exits on request read-write errors only, read next request
-				}
-			default:
-				req.setIngressProxy(p)
-				if err = req.forwardAndFlush(p); err != nil {
-					res.WriteErr = err
-					return res
-				}
-			}
-		case rpcClientWantsFinTLTag:
-			res.ClientWantsFin = true
-			res.WriteErr = req.forwardAndFlush(p)
-			return res // graceful shutdown, no more client requests expected
-		}
-		if err = req.read(p); err != nil {
-			p.reportClientConnError("Client read error: %v\n", err)
+	for ctx.Err() == nil {
+		req, err := p.readRequest()
+		if err != nil {
 			res.ReadErr = err
-			return res
+			break
+		}
+		res = req.process(p)
+		p.reportRequestSize(&req)
+		if res.Error() != nil || res.ClientWantsFin {
+			break
 		}
 	}
 	return res
@@ -502,34 +492,24 @@ func (p *proxyConn) responseLoop(ctx context.Context) rpc.ForwardPacketsResult {
 	return res
 }
 
-func (p *proxyConn) reportRequestBufferSizeChange() {
-	if v := int64(cap(p.reqBuf) - p.reqBufCap); v != 0 {
-		p.requestMemory.Add(v)
-		p.reqBufCap = cap(p.reqBuf)
-	}
-}
-
-func (req *proxyRequest) read(p *proxyConn) error {
-	var err error
+func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 	if req.tip, req.Request, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err != nil {
-		return err
+		p.logClientError("read", err)
+		return proxyRequest{}, err
 	}
-	switch p.req.tip {
+	req.size = len(req.Request)
+	switch req.tip {
 	case rpcCancelReqTLTag, rpcClientWantsFinTLTag:
-		return nil
+		return req, nil
 	case rpcInvokeReqHeaderTLTag:
 		if cap(p.reqBuf) < cap(req.Request) {
 			p.reqBuf = req.Request // buffer reuse
 		}
-		requestLen := len(req.Request)
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
-			return err
+			p.logClientError("parse", err)
+			return proxyRequest{}, err
 		}
 		requestTag := req.RequestTag()
-		if p.agent.Shards != nil {
-			p.reqKey.Tags[2] = int32(requestTag)
-			p.agent.AddValueCounter(&p.reqKey, float64(requestLen), 1, format.BuiltinMetricMetaRPCRequests)
-		}
 		switch requestTag {
 		case constants.StatshouseGetConfig2,
 			constants.StatshouseGetTagMapping2,
@@ -542,18 +522,77 @@ func (req *proxyRequest) read(p *proxyConn) error {
 			constants.StatshouseAutoCreate,
 			rpcPingTLTag:
 			// pass
-			return nil
+			return req, nil
 		default:
-			return rpc.ErrNoHandler
+			p.logClientError("not supported request", err)
+			return proxyRequest{}, rpc.ErrNoHandler
 		}
 	default:
-		return fmt.Errorf("unknown packet %d", req.tip)
+		p.logClientError("not supported packet", err)
+		return proxyRequest{}, rpc.ErrNoHandler
 	}
+}
+
+func (p *proxyConn) reportRequestSize(req *proxyRequest) {
+	if p.agent.Shards == nil {
+		return
+	}
+	key := data_model.Key{
+		Timestamp: uint32(time.Now().Unix()),
+		Metric:    format.BuiltinMetricIDRPCRequests,
+		Tags: [format.MaxTags]int32{
+			1: format.TagValueIDComponentIngressProxy,
+			2: int32(req.tag()),
+			6: p.clientCryptoKeyID,
+			8: p.clientProtocolVersion,
+		},
+	}
+	p.agent.AddValueCounter(&key, float64(req.size), 1, format.BuiltinMetricMetaRPCRequests)
+}
+
+func (p *proxyConn) logClientError(tag string, err error) {
+	log.Printf("error %s, client addr %s, key 0x%X: %v\n", tag, p.clientConn.RemoteAddr(), p.clientCryptoKeyID, err)
+}
+
+func (p *proxyConn) logUpstreamError(tag string, err error) {
+	log.Printf("error %s, upstream addr %s: %v\n", tag, p.upstreamConn.RemoteAddr(), err)
+}
+
+func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
+	var err error
+	switch req.tip {
+	case rpcInvokeReqHeaderTLTag:
+		switch req.RequestTag() {
+		case constants.StatshouseGetConfig2:
+			var args tlstatshouse.GetConfig2
+			if _, err = args.ReadBoxed(req.Request); err == nil {
+				if args.Cluster != p.cluster {
+					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
+				} else {
+					req.Response, _ = args.WriteResult(req.Response[:0], p.config)
+				}
+			}
+			if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
+				p.logClientError("write", err)
+				// not an error ("requestLoop" exits on request read-write errors only)
+			}
+		default:
+			req.setIngressProxy(p)
+			if err = req.forwardAndFlush(p); err != nil {
+				res.WriteErr = err
+			}
+		}
+	case rpcClientWantsFinTLTag:
+		res.ClientWantsFin = true
+		res.WriteErr = req.forwardAndFlush(p)
+		// graceful shutdown, no more client requests expected
+	}
+	return res
 }
 
 func (req *proxyRequest) forwardAndFlush(p *proxyConn) error {
 	if err := req.ForwardAndFlush(p.upstreamConn, req.tip, rpc.DefaultPacketTimeout); err != nil {
-		p.rareLog("Upstream write error: %v\n", err)
+		p.logUpstreamError("write", err)
 		return err
 	}
 	if cap(p.reqBuf) < cap(req.Request) {
@@ -581,4 +620,13 @@ func (req *proxyRequest) shardReplica(p *proxyConn) uint32 {
 	}
 	n := binary.LittleEndian.Uint32(req.Request[8:])
 	return n % uint32(len(p.agent.GetConfigResult.Addresses))
+}
+
+func (r *proxyRequest) tag() uint32 {
+	switch r.tip {
+	case rpcInvokeReqHeaderTLTag:
+		return r.RequestTag()
+	default:
+		return r.tip
+	}
 }

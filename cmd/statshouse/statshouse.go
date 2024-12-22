@@ -154,6 +154,9 @@ func runMain() int {
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			argvAddIngressProxyFlags()
+			flag.Int64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
+			flag.StringVar(&argv.configAggregator.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
+			flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
 		case "tag_mapping", "-tag_mapping", "--tag_mapping":
@@ -613,6 +616,12 @@ func mainIngressProxy(aesPwd string) {
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
 	config.Version = argv.ingressVersion
+	config.MetadataNet = argv.configAggregator.MetadataNet
+	config.MetadataAddr = argv.configAggregator.MetadataAddr
+	config.MetadataActorID = argv.configAggregator.MetadataActorID
+	config.UpstreamAddr = argv.ingressUpstreamAddr
+	config.ConfigAgent = argv.configAgent
+	config.ConfigAgent.Cluster = argv.cluster
 
 	// Ensure agent configuration is valid
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
@@ -621,28 +630,10 @@ func mainIngressProxy(aesPwd string) {
 
 	runPprof()
 
-	// Run agent (we use agent instance for ingress proxy built-in metrics)
-	var sh2 *agent.Agent
-	var err error
-	if argv.ingressUpstreamAddr != "" {
-		addresses := strings.Split(argv.ingressUpstreamAddr, ",")
-		sh2 = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult{
-			Addresses:         addresses,
-			MaxAddressesCount: int32(len(addresses)),
-		}}
-	} else {
-		argv.configAgent.Cluster = argv.cluster
-		sh2, err = agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
-			format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil, nil)
-		if err != nil {
-			logErr.Fatalf("error creating Agent instance: %v", err)
-		}
-		sh2.Run(0, 0, 0)
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
-		exit <- aggregator.RunIngressProxy2(ctx, sh2, config, aesPwd)
+		exit <- aggregator.RunIngressProxy2(ctx, config, aesPwd)
 	}()
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGINT)

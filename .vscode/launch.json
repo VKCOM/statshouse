@@ -134,6 +134,7 @@
                 "--ingress-addr-ipv6=[::1]:13327",
                 "--ingress-external-addr-ipv6=[::1]:13327",
                 "--ingress-pwd-dir=${workspaceFolder}/localdebug/ingress_keys",
+                "--metadata-addr=localhost:2442",
             ],
         },
         {
