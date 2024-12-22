@@ -2911,6 +2911,12 @@ Value is delta between second value and time it was inserted.`,
 	BuiltinMetricMetaAggHistoricHostsWaiting    *MetricMetaValue
 	BuiltinMetricMetaAggSamplingEngineTime      *MetricMetaValue
 	BuiltinMetricMetaAggSamplingEngineKeys      *MetricMetaValue
+	BuiltinMetricMetaProxyVmSize                *MetricMetaValue
+	BuiltinMetricMetaProxyVmRSS                 *MetricMetaValue
+	BuiltinMetricMetaProxyHeapAlloc             *MetricMetaValue
+	BuiltinMetricMetaProxyHeapSys               *MetricMetaValue
+	BuiltinMetricMetaProxyHeapIdle              *MetricMetaValue
+	BuiltinMetricMetaProxyHeapInuse             *MetricMetaValue
 )
 
 func TagIDTagToTagID(tagIDTag int32) string {
@@ -3147,4 +3153,10 @@ func init() {
 	BuiltinMetricMetaAggHistoricHostsWaiting = BuiltinMetrics[BuiltinMetricIDAggHistoricHostsWaiting]
 	BuiltinMetricMetaAggSamplingEngineTime = BuiltinMetrics[BuiltinMetricIDAggSamplingEngineTime]
 	BuiltinMetricMetaAggSamplingEngineKeys = BuiltinMetrics[BuiltinMetricIDAggSamplingEngineKeys]
+	BuiltinMetricMetaProxyVmSize = BuiltinMetrics[BuiltinMetricIDProxyVmSize]
+	BuiltinMetricMetaProxyVmRSS = BuiltinMetrics[BuiltinMetricIDProxyVmRSS]
+	BuiltinMetricMetaProxyHeapAlloc = BuiltinMetrics[BuiltinMetricIDProxyHeapAlloc]
+	BuiltinMetricMetaProxyHeapSys = BuiltinMetrics[BuiltinMetricIDProxyHeapSys]
+	BuiltinMetricMetaProxyHeapIdle = BuiltinMetrics[BuiltinMetricIDProxyHeapIdle]
+	BuiltinMetricMetaProxyHeapInuse = BuiltinMetrics[BuiltinMetricIDProxyHeapInuse]
 }
