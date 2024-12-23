@@ -417,7 +417,7 @@ func (p *proxyConn) run() {
 	// connect upstream
 	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
-		p.logUpstreamError("connect", err)
+		log.Printf("error connect, upstream addr %s: %v\n", upstreamAddr, err)
 		_ = req.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
@@ -551,11 +551,19 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 }
 
 func (p *proxyConn) logClientError(tag string, err error) {
-	log.Printf("error %s, client addr %s, key 0x%X: %v\n", tag, p.clientConn.RemoteAddr(), p.clientCryptoKeyID, err)
+	var addr string
+	if p.clientConn != nil {
+		addr = p.clientConn.RemoteAddr()
+	}
+	log.Printf("error %s, client addr %s, key 0x%X: %v\n", tag, addr, p.clientCryptoKeyID, err)
 }
 
 func (p *proxyConn) logUpstreamError(tag string, err error) {
-	log.Printf("error %s, upstream addr %s: %v\n", tag, p.upstreamConn.RemoteAddr(), err)
+	var addr string
+	if p.upstreamConn != nil {
+		addr = p.upstreamConn.RemoteAddr()
+	}
+	log.Printf("error %s, upstream addr %s: %v\n", tag, addr, err)
 }
 
 func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
