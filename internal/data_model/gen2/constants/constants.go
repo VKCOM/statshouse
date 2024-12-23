@@ -139,6 +139,7 @@ const (
 	StatshousePutTagMappingBootstrapResult       = 0x486affde // statshouse.putTagMappingBootstrapResult
 	StatshouseSampleFactor                       = 0x4f7b7822 // statshouse.sample_factor
 	StatshouseSendKeepAlive2                     = 0x4285ff53 // statshouse.sendKeepAlive2
+	StatshouseSendKeepAlive3                     = 0x4285ff54 // statshouse.sendKeepAlive3
 	StatshouseSendSourceBucket2                  = 0x44575940 // statshouse.sendSourceBucket2
 	StatshouseSendSourceBucket3                  = 0x0d04aa3f // statshouse.sendSourceBucket3
 	StatshouseSendSourceBucket3Response          = 0x0e177acc // statshouse.sendSourceBucket3Response

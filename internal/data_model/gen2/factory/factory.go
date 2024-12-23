@@ -187,6 +187,7 @@ func init() {
 	meta.SetGlobalFactoryCreateForObject(0x486affde, func() meta.Object { var ret internal.StatshousePutTagMappingBootstrapResult; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x4f7b7822, func() meta.Object { var ret internal.StatshouseSampleFactor; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x4285ff53, func() meta.Object { var ret internal.StatshouseSendKeepAlive2; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive2; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForFunction(0x4285ff54, func() meta.Object { var ret internal.StatshouseSendKeepAlive3; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive3; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x44575940, func() meta.Object { var ret internal.StatshouseSendSourceBucket2; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket2; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x0d04aa3f, func() meta.Object { var ret internal.StatshouseSendSourceBucket3; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket3; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x0e177acc, func() meta.Object { var ret internal.StatshouseSendSourceBucket3Response; return &ret })
