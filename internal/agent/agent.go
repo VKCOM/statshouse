@@ -74,10 +74,9 @@ type Agent struct {
 
 	metricStorage format.MetaStorageInterface
 
-	componentTag    int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
-	stagingLevel    int
-	commitTimestamp int32
-	buildArchTag    int32
+	componentTag int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
+	stagingLevel int
+	buildArchTag int32
 	// Used for builtin metrics when running inside aggregator
 	AggregatorShardKey   int32
 	AggregatorReplicaKey int32
@@ -139,7 +138,6 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		argsLen:               int32(len(allArgs)),
 		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
 		logF:                  logF,
-		commitTimestamp:       int32(build.CommitTimestamp()),
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
@@ -256,13 +254,13 @@ func (s *Agent) initBuiltInMetrics() {
 	s.statDiskOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
 	s.statMemoryOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingThrownDueToMemory}}, format.BuiltinMetricMetaTimingErrors)
 
-	s.TimingsMapping = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsMappingSlow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsApplyMetric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsFlush = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsPreprocess = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendRecent = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendHistoric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsMapping = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsMappingSlow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsApplyMetric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsFlush = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsPreprocess = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsSendRecent = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsSendHistoric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
 
 }
 

@@ -20,7 +20,7 @@ type StatshouseSendSourceBucket3 struct {
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit    string
-	BuildCommitTs  int32
+	BuildCommitTs  uint32
 	OriginalSize   uint32
 	CompressedData string
 }
@@ -69,7 +69,7 @@ func (item *StatshouseSendSourceBucket3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.BuildCommit); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
+	if w, err = basictl.NatRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
@@ -88,7 +88,7 @@ func (item *StatshouseSendSourceBucket3) Write(w []byte) []byte {
 	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWrite(w, item.BuildCommit)
-	w = basictl.IntWrite(w, item.BuildCommitTs)
+	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
 	return w
@@ -242,7 +242,7 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_ts")
 				}
-				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+				if err := Json2ReadUint32(in, &item.BuildCommitTs); err != nil {
 					return err
 				}
 				propBuildCommitTsPresented = true
@@ -365,7 +365,7 @@ func (item *StatshouseSendSourceBucket3) WriteJSONOpt(newTypeNames bool, short b
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	w = basictl.JSONWriteUint32(w, item.BuildCommitTs)
 	if (item.BuildCommitTs != 0) == false {
 		w = w[:backupIndexBuildCommitTs]
 	}
@@ -404,7 +404,7 @@ type StatshouseSendSourceBucket3Bytes struct {
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit    []byte
-	BuildCommitTs  int32
+	BuildCommitTs  uint32
 	OriginalSize   uint32
 	CompressedData []byte
 }
@@ -453,7 +453,7 @@ func (item *StatshouseSendSourceBucket3Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.StringReadBytes(w, &item.BuildCommit); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
+	if w, err = basictl.NatRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
@@ -472,7 +472,7 @@ func (item *StatshouseSendSourceBucket3Bytes) Write(w []byte) []byte {
 	w = item.Header.Write(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
-	w = basictl.IntWrite(w, item.BuildCommitTs)
+	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
 	return w
@@ -626,7 +626,7 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "build_commit_ts")
 				}
-				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+				if err := Json2ReadUint32(in, &item.BuildCommitTs); err != nil {
 					return err
 				}
 				propBuildCommitTsPresented = true
@@ -749,7 +749,7 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteJSONOpt(newTypeNames bool, sh
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	w = basictl.JSONWriteUint32(w, item.BuildCommitTs)
 	if (item.BuildCommitTs != 0) == false {
 		w = w[:backupIndexBuildCommitTs]
 	}

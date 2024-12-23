@@ -22,7 +22,7 @@ type StatshouseSendSourceBucket2 struct {
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit            string
 	BuildCommitDate        int32
-	BuildCommitTs          int32
+	BuildCommitTs          uint32
 	QueueSizeDisk          int32
 	QueueSizeMemory        int32
 	QueueSizeDiskSum       int32 // Conditional: item.FieldsMask.2
@@ -165,7 +165,7 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.BuildCommitDate); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
+	if w, err = basictl.NatRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
 	if w, err = basictl.IntRead(w, &item.QueueSizeDisk); err != nil {
@@ -232,7 +232,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
-	w = basictl.IntWrite(w, item.BuildCommitTs)
+	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
 	if item.FieldsMask&(1<<2) != 0 {
@@ -432,7 +432,7 @@ func (item *StatshouseSendSourceBucket2) ReadJSON(legacyTypeNames bool, in *basi
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_ts")
 				}
-				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+				if err := Json2ReadUint32(in, &item.BuildCommitTs); err != nil {
 					return err
 				}
 				propBuildCommitTsPresented = true
@@ -668,7 +668,7 @@ func (item *StatshouseSendSourceBucket2) WriteJSONOpt(newTypeNames bool, short b
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	w = basictl.JSONWriteUint32(w, item.BuildCommitTs)
 	if (item.BuildCommitTs != 0) == false {
 		w = w[:backupIndexBuildCommitTs]
 	}
@@ -748,7 +748,7 @@ type StatshouseSendSourceBucket2Bytes struct {
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
 	BuildCommit            []byte
 	BuildCommitDate        int32
-	BuildCommitTs          int32
+	BuildCommitTs          uint32
 	QueueSizeDisk          int32
 	QueueSizeMemory        int32
 	QueueSizeDiskSum       int32 // Conditional: item.FieldsMask.2
@@ -891,7 +891,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.IntRead(w, &item.BuildCommitDate); err != nil {
 		return w, err
 	}
-	if w, err = basictl.IntRead(w, &item.BuildCommitTs); err != nil {
+	if w, err = basictl.NatRead(w, &item.BuildCommitTs); err != nil {
 		return w, err
 	}
 	if w, err = basictl.IntRead(w, &item.QueueSizeDisk); err != nil {
@@ -958,7 +958,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Time)
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
-	w = basictl.IntWrite(w, item.BuildCommitTs)
+	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
 	if item.FieldsMask&(1<<2) != 0 {
@@ -1158,7 +1158,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in 
 				if propBuildCommitTsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket2", "build_commit_ts")
 				}
-				if err := Json2ReadInt32(in, &item.BuildCommitTs); err != nil {
+				if err := Json2ReadUint32(in, &item.BuildCommitTs); err != nil {
 					return err
 				}
 				propBuildCommitTsPresented = true
@@ -1394,7 +1394,7 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, sh
 	backupIndexBuildCommitTs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"build_commit_ts":`...)
-	w = basictl.JSONWriteInt32(w, item.BuildCommitTs)
+	w = basictl.JSONWriteUint32(w, item.BuildCommitTs)
 	if (item.BuildCommitTs != 0) == false {
 		w = w[:backupIndexBuildCommitTs]
 	}
