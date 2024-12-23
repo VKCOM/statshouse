@@ -318,6 +318,64 @@ export const METRIC_AGGREGATION_DESCRIPTION: Record<MetricAggregation, string> =
   [METRIC_AGGREGATION.month1]: '1 month',
 };
 
+/**
+ * metric num series
+ */
+export const METRIC_NUM_SERIES = {
+  top1: 1,
+  top2: 2,
+  top3: 3,
+  top4: 4,
+  top5: 5,
+  top10: 10,
+  top20: 20,
+  top30: 30,
+  top40: 40,
+  top50: 50,
+  top100: 100,
+  all: 0,
+  bottom1: -1,
+  bottom2: -2,
+  bottom3: -3,
+  bottom4: -4,
+  bottom5: -5,
+  bottom10: -10,
+  bottom20: -20,
+  bottom30: -30,
+  bottom40: -40,
+  bottom50: -50,
+  bottom100: -100,
+} as const;
+export type MetricNumSeries = Enum<typeof METRIC_NUM_SERIES>;
+export const isMetricNumSeries = isEnum<MetricNumSeries, number>(METRIC_NUM_SERIES);
+export const toMetricNumSeries = toEnum(isMetricNumSeries, toNumber);
+
+export const METRIC_NUM_SERIES_DESCRIPTION: Record<MetricNumSeries, string> = {
+  [METRIC_NUM_SERIES.top1]: 'Top 1',
+  [METRIC_NUM_SERIES.top2]: 'Top 2',
+  [METRIC_NUM_SERIES.top3]: 'Top 3',
+  [METRIC_NUM_SERIES.top4]: 'Top 4',
+  [METRIC_NUM_SERIES.top5]: 'Top 5',
+  [METRIC_NUM_SERIES.top10]: 'Top 10',
+  [METRIC_NUM_SERIES.top20]: 'Top 20',
+  [METRIC_NUM_SERIES.top30]: 'Top 30',
+  [METRIC_NUM_SERIES.top40]: 'Top 40',
+  [METRIC_NUM_SERIES.top50]: 'Top 50',
+  [METRIC_NUM_SERIES.top100]: 'Top 100',
+  [METRIC_NUM_SERIES.all]: 'All',
+  [METRIC_NUM_SERIES.bottom1]: 'Bottom 1',
+  [METRIC_NUM_SERIES.bottom2]: 'Bottom 2',
+  [METRIC_NUM_SERIES.bottom3]: 'Bottom 3',
+  [METRIC_NUM_SERIES.bottom4]: 'Bottom 4',
+  [METRIC_NUM_SERIES.bottom5]: 'Bottom 5',
+  [METRIC_NUM_SERIES.bottom10]: 'Bottom 10',
+  [METRIC_NUM_SERIES.bottom20]: 'Bottom 20',
+  [METRIC_NUM_SERIES.bottom30]: 'Bottom 30',
+  [METRIC_NUM_SERIES.bottom40]: 'Bottom 40',
+  [METRIC_NUM_SERIES.bottom50]: 'Bottom 50',
+  [METRIC_NUM_SERIES.bottom100]: 'Bottom 100',
+};
+
 export const TIME_RANGE_KEYS_TO = {
   /**
    * relative now timestamp
