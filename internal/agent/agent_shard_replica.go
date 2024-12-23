@@ -73,37 +73,21 @@ func clampInt32[I int64 | int](v I) int32 {
 func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.SendSourceBucket2Bytes{
-		Time:            cbd.time,
-		BuildCommit:     []byte(build.Commit()),
-		BuildCommitTs:   s.agent.commitTimestamp,
-		QueueSizeDisk:   math.MaxInt32,
-		QueueSizeMemory: math.MaxInt32,
-		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
-		CompressedData:  cbd.data[4:],
+		Time:           cbd.time,
+		BuildCommit:    []byte(build.Commit()),
+		BuildCommitTs:  s.agent.commitTimestamp,
+		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
+		CompressedData: cbd.data[4:],
 	}
 	var ep *env.Env
 	if s.agent.envLoader != nil {
 		e := s.agent.envLoader.Load()
 		ep = &e
-		// TODO: remove this after all agents are updated, owner now in common headers
-		if len(e.Owner) > 0 {
-			args.SetOwner([]byte(e.Owner))
-		}
 	}
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
-	sizeMem := shard.HistoricBucketsDataSizeMemory()
-	sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
-	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
-	args.QueueSizeMemory = clampInt32(sizeMem)
-	args.QueueSizeDisk = clampInt32(sizeDiskTotal)
-	args.SetQueueSizeDiskUnsent(clampInt32(sizeDiskUnsent))
-	args.SetQueueSizeDiskSum(clampInt32(sizeDiskSumTotal))
-	args.SetQueueSizeDiskSumUnsent(clampInt32(sizeDiskSumUnsent))
-	args.SetQueueSizeMemorySum(clampInt32(sizeMemSum))
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
 			return err
@@ -115,13 +99,11 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3ResponseBytes, shard *Shard) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.SendSourceBucket3Bytes{
-		Time:            cbd.time,
-		BuildCommit:     []byte(build.Commit()),
-		BuildCommitTs:   s.agent.commitTimestamp,
-		QueueSizeDisk:   math.MaxInt32,
-		QueueSizeMemory: math.MaxInt32,
-		OriginalSize:    binary.LittleEndian.Uint32(cbd.data),
-		CompressedData:  cbd.data[4:],
+		Time:           cbd.time,
+		BuildCommit:    []byte(build.Commit()),
+		BuildCommitTs:  s.agent.commitTimestamp,
+		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
+		CompressedData: cbd.data[4:],
 	}
 	var ep *env.Env
 	if s.agent.envLoader != nil {
@@ -131,17 +113,6 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
-
-	sizeMem := shard.HistoricBucketsDataSizeMemory()
-	sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
-	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
-	args.QueueSizeMemory = clampInt32(sizeMem)
-	args.QueueSizeDisk = clampInt32(sizeDiskTotal)
-	args.QueueSizeDiskUnsent = clampInt32(sizeDiskUnsent)
-	args.QueueSizeDiskSum = clampInt32(sizeDiskSumTotal)
-	args.QueueSizeDiskSumUnsent = clampInt32(sizeDiskSumUnsent)
-	args.QueueSizeMemorySum = clampInt32(sizeMemSum)
 
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket3Bytes(ctx, args, &extra, response); err != nil {

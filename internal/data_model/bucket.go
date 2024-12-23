@@ -61,8 +61,7 @@ type (
 	}
 
 	MetricsBucket struct {
-		Time       uint32
-		Resolution int // for tracking during testing. 0 is merge of all resolutions
+		Time uint32
 
 		MultiItemMap
 	}
@@ -256,6 +255,10 @@ func (b *MetricsBucket) Empty() bool {
 }
 
 func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue) (item *MultiItem, created bool) {
+	//if key.Timestamp == 0 { // TODO - remove check before merge to master
+	//	fmt.Printf("key: %v\n", *key)
+	//	panic("timestamp must be always set at this point of conveyor")
+	//}
 	if b.MultiItems == nil {
 		b.MultiItems = make(map[string]*MultiItem)
 	}

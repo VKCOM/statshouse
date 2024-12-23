@@ -52,7 +52,7 @@ statshouse.multi_item#0c803e07
     = statshouse.MultiItem;
 
 statshouse.sourceBucket2#3af6e822
-      metrics: (vector (statshouse.multi_item)) // must be sorted by shard
+      metrics: (vector (statshouse.multi_item)) // must be sorted by aggregation shard
 
       sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
       ingestion_status_ok: (vector statshouse.sample_factor) // legacy, never sent by 1.0 agents. TODO - rename to unused
@@ -68,7 +68,7 @@ statshouse.sourceBucket2#3af6e822
 statshouse.sourceBucket3#16c4dd7b
     fields_mask: #
     // TODO: check how it is used and maybe change to a new version
-    metrics: (vector (statshouse.multi_item)) // must be sorted by shard
+    metrics: (vector (statshouse.multi_item)) // must be sorted by aggregation shard
     sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
     ingestion_status_ok2: (vector statshouse.ingestion_status2) // We need as compact representation as possible.
   = statshouse.SourceBucket3;
@@ -188,7 +188,6 @@ statshouse.sendSourceBucket3Response#0e177acc
     sharding:fields_mask.5?int // deprecated because sharding is now configured for each metric separately
     = String;
 
-// TODO: support sendKeepAlive (same or new)
 @readwrite statshouse.sendSourceBucket3#0d04aa3f
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)
@@ -198,13 +197,6 @@ statshouse.sendSourceBucket3Response#0e177acc
     // build stats
     build_commit:string
     build_commit_ts:int
-    // queue stats TODO: check if we still need it
-    queue_size_disk:int // set in sendSourceBucketCompressed
-    queue_size_memory:int
-    queue_size_disk_sum:int
-    queue_size_memory_sum:int
-    queue_size_disk_unsent:int
-    queue_size_disk_sum_unsent:int
     // data
     original_size:#
     compressed_data:string

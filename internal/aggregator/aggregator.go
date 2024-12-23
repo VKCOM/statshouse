@@ -318,11 +318,11 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 	}
 	go a.goInternalLog()
 
-	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
-
-	go func() {
+	go func() { // before sh2.Run because agent will also connect to local aggregator
 		_ = a.server.ListenAndServe("tcp4", listenAddr)
 	}()
+
+	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
 	return a, nil
 }
 
