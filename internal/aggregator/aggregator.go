@@ -51,7 +51,8 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		contributors       map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects
+		contributors       map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
+		contributors3      map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects.
 		historicHosts      [2][2]map[int32]int64            // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue       // [role][route] Not recorded for keep-alive, protected by aggregator mutex
 
@@ -124,8 +125,10 @@ const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.M
 func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	// we cannot remove merged data or merged set
+	// we cannot remove merged data or merged set, so data remains in buckets
+	// cancels are rare, so we simply remove from all 3 maps, we do not know in which map hctx is
 	delete(b.contributors, hctx)
+	delete(b.contributors3, hctx)
 	delete(b.contributorsSimulatedErrors, hctx)
 }
 
@@ -657,27 +660,25 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		// In case both inserters finish at the same time, this rolling algorithm will perform non-ideal insert, but that is good enough for us.
 		// Note: Each historic second in the diagram is aggregation of many agents , each one receiving copy of the response
 		// Note: In the worst case, amount of memory is approx. MaxHistorySendStreams * agent insert budget per shard * # of agents
-		var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-		var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 
 		for willInsertHistoric && len(aggBuckets) < 1+maxHistoricInsertBatch {
 			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
 			for _, b := range staleBuckets {
 				b.mu.Lock()
 				for hctx := range b.contributors {
-					switch hctx.RequestTag() {
-					case ssb3.TLTag():
-						hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
-							Error: "Successfully discarded historic bucket later beyond historic window",
-						})
-					case ssb2.TLTag():
-						hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
-					}
+					var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
+					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
 					hctx.SendHijackedResponse(nil)
 				}
-				for hctx := range b.contributors { // compiles into map_clear
-					delete(b.contributors, hctx)
+				for hctx := range b.contributors3 {
+					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
+					hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
+						Error: "Successfully discarded historic bucket later beyond historic window",
+					})
+					hctx.SendHijackedResponse(nil)
 				}
+				clear(b.contributors) // safeguard against sending more than once
+				clear(b.contributors3)
 				historicHosts := b.historicHosts
 				b.mu.Unlock()
 				a.mu.Lock()
@@ -744,19 +745,19 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		for i, b := range aggBuckets {
 			b.mu.Lock()
 			for hctx := range b.contributors {
-				switch hctx.RequestTag() {
-				case ssb3.TLTag():
-					hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
-						Error: "Dummy historic result",
-					})
-				case ssb2.TLTag():
-					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
-				}
+				var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
+				hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
 				hctx.SendHijackedResponse(sendErr)
 			}
-			for hctx := range b.contributors { // compiles into map_clear
-				delete(b.contributors, hctx)
+			for hctx := range b.contributors3 {
+				var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
+				hctx.Response, _ = ssb3.WriteResult(hctx.Response, tlstatshouse.SendSourceBucket3Response{
+					Error: "Dummy historic result",
+				})
+				hctx.SendHijackedResponse(sendErr)
 			}
+			clear(b.contributors) // safeguard against sending more than once
+			clear(b.contributors3)
 			historicHosts := b.historicHosts
 			b.mu.Unlock()
 			a.mu.Lock()
@@ -845,6 +846,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 		b := &aggregatorBucket{
 			time:                        nowUnix - uint32(a.config.ShortWindow),
 			contributors:                map[*rpc.HandlerContext]struct{}{},
+			contributors3:               map[*rpc.HandlerContext]struct{}{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 		}
@@ -854,6 +856,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 		b := &aggregatorBucket{
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
 			contributors:                map[*rpc.HandlerContext]struct{}{},
+			contributors3:               map[*rpc.HandlerContext]struct{}{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 		}
@@ -882,7 +885,7 @@ func (a *Aggregator) goTicker() {
 			aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
 			// Here we have exclusive access to bucket, without locks
 			if aggBucket.time%3 != uint32(a.replicaKey-1) { // must be empty
-				if len(aggBucket.contributors) != 0 || len(aggBucket.contributorsSimulatedErrors) != 0 {
+				if len(aggBucket.contributors) != 0 || len(aggBucket.contributors3) != 0 || len(aggBucket.contributorsSimulatedErrors) != 0 {
 					log.Panicf("not our (%d) bucket %d has %d (%d) contributors", a.replicaKey, aggBucket.time, len(aggBucket.contributors), len(aggBucket.contributorsSimulatedErrors))
 				}
 				continue
@@ -907,9 +910,11 @@ func (a *Aggregator) goTicker() {
 				for hctx := range aggBucket.contributors {
 					hctx.SendHijackedResponse(err)
 				}
-				for hctx := range aggBucket.contributors { // compiles into map_clear
-					delete(aggBucket.contributors, hctx)
+				for hctx := range aggBucket.contributors3 {
+					hctx.SendHijackedResponse(err)
 				}
+				clear(aggBucket.contributors) // safeguard against sending more than once
+				clear(aggBucket.contributors3)
 				aggBucket.mu.Unlock()
 			}
 		}
