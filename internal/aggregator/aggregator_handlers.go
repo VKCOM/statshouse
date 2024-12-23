@@ -507,6 +507,22 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 	if _, err := args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
 	}
+	args3 := tlstatshouse.SendKeepAlive3Bytes{
+		FieldsMask: args.FieldsMask,
+		Header:     args.Header,
+	}
+	return a.handleSendKeepAliveAny(hctx, args3, false)
+}
+
+func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.SendKeepAlive3Bytes
+	if _, err := args.Read(hctx.Request); err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive3 request: %w", err)
+	}
+	return a.handleSendKeepAliveAny(hctx, args, true)
+}
+
+func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes, version3 bool) error {
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -538,7 +554,11 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 	defer aggBucket.sendMu.RUnlock()
 
 	aggBucket.mu.Lock()
-	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
+	if version3 {
+		aggBucket.contributors3[hctx] = struct{}{} // must be under bucket lock
+	} else {
+		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
+	}
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	aggBucket.mu.Unlock()
 	// Write meta statistics

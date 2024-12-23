@@ -234,6 +234,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 			return nil
 		},
 		RawSendKeepAlive2:    a.handleSendKeepAlive2,
+		RawSendKeepAlive3:    a.handleSendKeepAlive3,
 		RawSendSourceBucket2: a.handleSendSourceBucket2,
 		RawSendSourceBucket3: a.handleSendSourceBucket3,
 		RawTestConnection2: func(ctx context.Context, hctx *rpc.HandlerContext) error {

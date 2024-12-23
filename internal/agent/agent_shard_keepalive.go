@@ -66,7 +66,8 @@ func (s *ShardReplica) sendKeepLive() error {
 	args := tlstatshouse.SendKeepAlive2Bytes{}
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, nil)
 	// It is important that keep alive will not be successful when shards are not configured correctly
-
+	// We do not use FailIfNoConnect:true, because we want exponential backoff to connection attempts in rpc Client.
+	// We do not want to implement yet another exponential backoff here.
 	var ret []byte
 	err := s.client.SendKeepAlive2Bytes(ctx, args, nil, &ret)
 	dur := time.Since(now)

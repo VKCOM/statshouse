@@ -58,6 +58,8 @@ type (
 	SampleFactor                      = internal.StatshouseSampleFactor
 	SendKeepAlive2                    = internal.StatshouseSendKeepAlive2
 	SendKeepAlive2Bytes               = internal.StatshouseSendKeepAlive2Bytes
+	SendKeepAlive3                    = internal.StatshouseSendKeepAlive3
+	SendKeepAlive3Bytes               = internal.StatshouseSendKeepAlive3Bytes
 	SendSourceBucket2                 = internal.StatshouseSendSourceBucket2
 	SendSourceBucket2Bytes            = internal.StatshouseSendSourceBucket2Bytes
 	SendSourceBucket3                 = internal.StatshouseSendSourceBucket3
@@ -547,6 +549,64 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 	return nil
 }
 
+func (c *Client) SendKeepAlive3Bytes(ctx context.Context, args SendKeepAlive3Bytes, extra *rpc.InvokeReqExtra, ret *SendSourceBucket3ResponseBytes) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "statshouse.sendKeepAlive3"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouse.sendKeepAlive3", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("statshouse.sendKeepAlive3", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("statshouse.sendKeepAlive3", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) SendKeepAlive3(ctx context.Context, args SendKeepAlive3, extra *rpc.InvokeReqExtra, ret *SendSourceBucket3Response) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "statshouse.sendKeepAlive3"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouse.sendKeepAlive3", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("statshouse.sendKeepAlive3", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("statshouse.sendKeepAlive3", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) SendSourceBucket2Bytes(ctx context.Context, args SendSourceBucket2Bytes, extra *rpc.InvokeReqExtra, ret *[]byte) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -730,6 +790,7 @@ type Handler struct {
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrapResult, error) // statshouse.getTagMappingBootstrap
 	GetTargets2            func(ctx context.Context, args GetTargets2) (GetTargetsResult, error)                        // statshouse.getTargets2
 	SendKeepAlive2         func(ctx context.Context, args SendKeepAlive2) (string, error)                               // statshouse.sendKeepAlive2
+	SendKeepAlive3         func(ctx context.Context, args SendKeepAlive3) (SendSourceBucket3Response, error)            // statshouse.sendKeepAlive3
 	SendSourceBucket2      func(ctx context.Context, args SendSourceBucket2) (string, error)                            // statshouse.sendSourceBucket2
 	SendSourceBucket3      func(ctx context.Context, args SendSourceBucket3) (SendSourceBucket3Response, error)         // statshouse.sendSourceBucket3
 	TestConnection2        func(ctx context.Context, args TestConnection2) (string, error)                              // statshouse.testConnection2
@@ -742,6 +803,7 @@ type Handler struct {
 	RawGetTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMappingBootstrap
 	RawGetTargets2            func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTargets2
 	RawSendKeepAlive2         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendKeepAlive2
+	RawSendKeepAlive3         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendKeepAlive3
 	RawSendSourceBucket2      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendSourceBucket2
 	RawSendSourceBucket3      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendSourceBucket3
 	RawTestConnection2        func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.testConnection2
@@ -995,6 +1057,37 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouse.sendKeepAlive2", err)
+			}
+			return nil
+		}
+	case 0x4285ff54: // statshouse.sendKeepAlive3
+		hctx.RequestFunctionName = "statshouse.sendKeepAlive3"
+		if h.RawSendKeepAlive3 != nil {
+			hctx.Request = r
+			err = h.RawSendKeepAlive3(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouse.sendKeepAlive3", err)
+			}
+			return nil
+		}
+		if h.SendKeepAlive3 != nil {
+			var args SendKeepAlive3
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("statshouse.sendKeepAlive3", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.SendKeepAlive3(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouse.sendKeepAlive3", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("statshouse.sendKeepAlive3", err)
 			}
 			return nil
 		}

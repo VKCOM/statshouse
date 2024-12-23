@@ -207,6 +207,11 @@ statshouse.sendSourceBucket3Response#0e177acc
     header: (statshouse.commonProxyHeader fields_mask)
      = String;
 
+@readwrite statshouse.sendKeepAlive3#4285ff54
+    fields_mask:#
+    header: (statshouse.commonProxyHeader fields_mask)
+     = statshouse.SendSourceBucket3Response;
+
 // This function is long poll. Will receive answer only when version changes
 @readwrite statshouse.getMetrics3#42855554
     fields_mask:#

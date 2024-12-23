@@ -431,14 +431,13 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
+		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
+		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
 		shard.mu.Unlock()
 	}
-	for _, shardReplica := range s.Shards {
+	for _, shardReplica := range s.ShardReplicas {
 		shardReplica.mu.Lock()
 		shardReplica.config = config
-		shardReplica.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
-		shardReplica.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
-
 		shardReplica.mu.Unlock()
 	}
 }

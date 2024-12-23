@@ -532,7 +532,6 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 			case <-time.After(10 * time.Second):
 				break
 			}
-			s.agent.logF("both historic shards are dead, shard %d, time %d, %v", s.ShardKey, cbd.time, err)
 			continue
 		}
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
