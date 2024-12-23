@@ -139,7 +139,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
 	}
-	err, str := a.handleSendSourceBucketAny(hctx, args, bucket)
+	err, str := a.handleSendSourceBucketAny(hctx, args, bucket, false)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		SampleFactors:      bucket.SampleFactors,
 		IngestionStatusOk2: bucket.IngestionStatusOk2,
 	}
-	err, str := a.handleSendSourceBucketAny(hctx, args2, bucket2)
+	err, str := a.handleSendSourceBucketAny(hctx, args2, bucket2, true)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -193,7 +193,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 	return nil
 }
 
-func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes) (error, string) {
+func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes, version3 bool) (error, string) {
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -287,6 +287,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				aggBucket = &aggregatorBucket{
 					time:                        args.Time,
 					contributors:                map[*rpc.HandlerContext]struct{}{},
+					contributors3:               map[*rpc.HandlerContext]struct{}{},
 					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 					historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
 				}
@@ -414,7 +415,11 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if args.IsSetHistoric() {
 		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagId]++
 	}
-	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
+	if version3 {
+		aggBucket.contributors3[hctx] = struct{}{} // must be under bucket lock
+	} else {
+		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
+	}
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 
 	aggBucket.mu.Unlock()

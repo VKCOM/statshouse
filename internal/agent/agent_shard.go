@@ -350,15 +350,44 @@ func (s *Shard) addBuiltInsLocked() {
 		return
 	}
 	resolutionShard := s.SuperQueue[s.CurrentTime%superQueueLen] // we aggregate built-ins locally into first second of one second resolution
+	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
+		key := s.agent.AggKey(t, m, keys)
+		item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
+		return item
+	}
+
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Count() > 0 {
-			item, _ := resolutionShard.GetOrCreateMultiItem(&v.key, s.config.StringTopCapacity, nil)
-			item.Tail.Value.Merge(s.rng, &v.value)
-			v.value = data_model.ItemValue{} // Moving below 'if' would reset Counter if <0. Will complicate debugging, so no.
+			getMultiItem(s.CurrentTime, v.key.Metric, v.key.Tags).Tail.Value.Merge(s.rng, &v.value)
 		}
+		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
 		v.mu.Unlock()
 	}
+
+	sizeMem := s.HistoricBucketsDataSize
+	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
+	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
+	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
+	if sizeMem > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(s.rng, float64(sizeMem), 1, 0)
+	}
+	if sizeDiskUnsent > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).Tail.AddValueCounterHost(s.rng, float64(sizeDiskUnsent), 1, 0)
+	}
+	if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(s.rng, float64(sent), 1, 0)
+	}
+	if sizeMemSum > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(s.rng, float64(sizeMemSum), 1, 0)
+	}
+	if sizeDiskSumUnsent > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).Tail.AddValueCounterHost(s.rng, float64(sizeDiskSumUnsent), 1, 0)
+	}
+	if sent := sizeDiskSumTotal - sizeDiskSumUnsent; sent > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(s.rng, float64(sent), 1, 0)
+	}
+
 	if s.ShardNum != 0 { // heartbeats are in the first shard
 		return
 	}
@@ -370,7 +399,7 @@ func (s *Shard) addBuiltInsLocked() {
 	// sending is once per minute when no changes, but immediate sending of journal version each second when it changed
 	// standard metrics do not allow this, but heartbeats are magic.
 	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
-		key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
+		key := s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
 		item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 		item.MapStringTop(s.rng, hash, count).AddCounterHost(s.rng, count, 0)
 	}
@@ -398,18 +427,19 @@ func (s *Shard) addBuiltInsLocked() {
 		}
 	}
 
-	resolutionShard = s.SuperQueue[(((s.CurrentTime/60)*60)+60+uint32(s.agent.heartBeatSecondBucket))%superQueueLen]
+	currentTimeMinute := ((s.CurrentTime / 60) * 60)
+	resolutionShard = s.SuperQueue[(currentTimeMinute+60+uint32(s.agent.heartBeatSecondBucket))%superQueueLen]
 
 	prevRUsage := s.agent.rUsage
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &s.agent.rUsage)
 	userTime := float64(s.agent.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 	sysTime := float64(s.agent.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-	key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser})
+	key := s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser})
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 	item.Tail.AddValueCounterHost(s.rng, userTime, 1, 0)
 
-	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys})
+	key = s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 	item.Tail.AddValueCounterHost(s.rng, sysTime, 1, 0)
 
@@ -427,22 +457,22 @@ func (s *Shard) addBuiltInsLocked() {
 		rss = float64(st.Res)
 	}
 
-	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDUsageMemory, [format.MaxTags]int32{0, s.agent.componentTag})
+	key = s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageMemory, [format.MaxTags]int32{0, s.agent.componentTag})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 	item.Tail.AddValueCounterHost(s.rng, rss, 60, 0)
 
-	s.addBuiltInsHeartbeatsLocked(resolutionShard, s.CurrentTime, 60) // heartbeat once per minute
+	s.addBuiltInsHeartbeatsLocked(resolutionShard, currentTimeMinute, 60) // heartbeat once per minute
 }
 
 func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.agent.startTimestamp)
 
-	key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatVersion, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
+	key := s.agent.AggKey(nowUnix, format.BuiltinMetricIDHeartbeatVersion, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 	item.MapStringTop(s.rng, build.Commit(), count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 
 	// we send format.BuiltinMetricIDHeartbeatArgs only. Args1, Args2, Args3 are deprecated
-	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatArgs, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
+	key = s.agent.AggKey(nowUnix, format.BuiltinMetricIDHeartbeatArgs, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil)
 	item.MapStringTop(s.rng, s.agent.args, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 }
