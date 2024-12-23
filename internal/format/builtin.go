@@ -1096,6 +1096,9 @@ Set by either agent or aggregator, depending on status.`,
 			}, {
 				Description: "commit_timestamp",
 				RawKind:     "timestamp",
+			}, {
+				Description: "commit_hash",
+				RawKind:     "hex",
 			}},
 		},
 		BuiltinMetricIDAgentReceivedPacketSize: {

@@ -75,7 +75,7 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 	args := tlstatshouse.SendSourceBucket2Bytes{
 		Time:           cbd.time,
 		BuildCommit:    []byte(build.Commit()),
-		BuildCommitTs:  s.agent.commitTimestamp,
+		BuildCommitTs:  build.CommitTimestamp(),
 		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
 		CompressedData: cbd.data[4:],
 	}
@@ -101,7 +101,7 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 	args := tlstatshouse.SendSourceBucket3Bytes{
 		Time:           cbd.time,
 		BuildCommit:    []byte(build.Commit()),
-		BuildCommitTs:  s.agent.commitTimestamp,
+		BuildCommitTs:  build.CommitTimestamp(),
 		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
 		CompressedData: cbd.data[4:],
 	}

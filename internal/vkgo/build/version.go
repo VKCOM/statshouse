@@ -7,6 +7,8 @@
 package build
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -24,6 +26,7 @@ var (
 	time                string
 	machine             string
 	commit              string
+	commitTag           uint32
 	commitTimestamp     string
 	version             string
 	number              string
@@ -55,6 +58,11 @@ func Commit() string {
 	return commit
 }
 
+// appropriate for inserting into statshouse raw key
+func CommitTag() uint32 {
+	return commitTag
+}
+
 // UNIX timestampt seconds, so stable in any TZ
 func CommitTimestamp() uint32 {
 	return commitTimestampUint32
@@ -82,6 +90,9 @@ func init() {
 	appName = path.Base(os.Args[0])
 	ts, _ := strconv.ParseUint(commitTimestamp, 10, 32)
 	commitTimestampUint32 = uint32(ts)
+	if commitTagRaw, _ := hex.DecodeString(commit); len(commitTagRaw) >= 4 {
+		commitTag = binary.BigEndian.Uint32(commitTagRaw[:])
+	}
 	parseTrustedSubnetGroups()
 }
 

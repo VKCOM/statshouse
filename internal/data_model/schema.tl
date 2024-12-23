@@ -176,7 +176,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     spare:fields_mask.1?true
     build_commit:string
     build_commit_date:int // deprecated, not sent by agents, not used by aggregators
-    build_commit_ts:int
+    build_commit_ts:#
     queue_size_disk:int
     queue_size_memory:int
     queue_size_disk_sum:fields_mask.2?int   // for all shard-replicas. Helps detect situation where only subset of aggregators is accessible.
@@ -196,7 +196,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     spare:fields_mask.1?true
     // build stats
     build_commit:string
-    build_commit_ts:int
+    build_commit_ts:#
     // data
     original_size:#
     compressed_data:string

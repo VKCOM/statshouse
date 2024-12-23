@@ -228,7 +228,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
-	if a.configR.DenyOldAgents && uint32(args.BuildCommitTs) < format.LeastAllowedAgentCommitTs {
+	if a.configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAggOutdatedAgents)
@@ -379,7 +379,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 					k.Tags[4] = bcTag
 				}
 				if k.Tags[6] == 0 {
-					k.Tags[6] = args.BuildCommitTs
+					k.Tags[6] = int32(args.BuildCommitTs)
 				}
 				if k.Tags[7] == 0 {
 					k.Tags[7] = hostTagId
@@ -475,7 +475,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		componentTag = format.TagValueIDComponentAgent
 	}
 	// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
-	getMultiItem((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, 0, args.BuildCommitTs, bcTag}).MapStringTopBytes(rng, bcStr, 1).AddCounterHost(rng, 1, hostTagId)
+	getMultiItem((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag}).MapStringTopBytes(rng, bcStr, 1).AddCounterHost(rng, 1, hostTagId)
 
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
