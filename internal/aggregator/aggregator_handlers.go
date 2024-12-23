@@ -358,8 +358,18 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		spare = format.TagValueIDAggregatorSpare
 	}
 
+	type clampedKey struct {
+		env        int32
+		metricID   int32
+		clampedTag int32
+	}
+	clampedTimestampsMetrics := map[clampedKey]float32{}
+
 	for _, item := range bucket.Metrics {
-		k, sID := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		k, sID, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		if clampedTag != 0 {
+			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
+		}
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
 			k = k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			if k.Metric == format.BuiltinMetricIDAgentHeartbeatVersion {
@@ -490,6 +500,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		mi, _ := s.GetOrCreateMultiItem((&data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil)
 		mi.Tail.AddCounterHost(rng, float64(value), hostTagId)
 	}
+	for _, v := range bucket.IngestionStatusOk {
+		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
+		if v.Value > 0 {
+			ingestionStatus(0, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, v.Value)
+		} else {
+			ingestionStatus(0, v.Metric, format.TagValueIDSrcIngestionStatusOKUncached, -v.Value)
+		}
+	}
 	for _, v := range bucket.IngestionStatusOk2 {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
 		if v.Value > 0 {
@@ -500,6 +518,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			// to pass tag that caused uncached loading, so we removed this negative value tweak from agents
 			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKUncached, -v.Value)
 		}
+	}
+	for k, v := range clampedTimestampsMetrics {
+		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
+		ingestionStatus(k.env, k.metricID, k.clampedTag, v)
 	}
 	aggBucket.lockShard(&lockedShard, -1)
 	return "", errHijack

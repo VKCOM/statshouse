@@ -313,6 +313,8 @@ const (
 	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 	TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft     = 53
 	TagValueIDSrcIngestionStatusErrShardingFailed            = 54
+	TagValueIDSrcIngestionStatusWarnTimestampClampedPast     = 55
+	TagValueIDSrcIngestionStatusWarnTimestampClampedFuture   = 56
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -713,6 +715,8 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 					TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
 					TagValueIDSrcIngestionStatusErrShardingFailed:            "err_sharding_failed",
+					TagValueIDSrcIngestionStatusWarnTimestampClampedPast:     "warn_timestamp_clamped_past",
+					TagValueIDSrcIngestionStatusWarnTimestampClampedFuture:   "warn_timestamp_clamped_future",
 				}),
 			}, {
 				Description: "tag_id",
