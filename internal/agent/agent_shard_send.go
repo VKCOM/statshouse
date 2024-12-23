@@ -335,24 +335,24 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
 		// keep bytes
-		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
+		key := data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}}
 		item, _ := bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil)
 		item.Tail.Value.Merge(rnd, &v.SumSizeKeep)
 		// discard bytes
-		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
+		key = data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Tags: [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}}
 		item, _ = bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil)
 		item.Tail.Value.Merge(rnd, &v.SumSizeDiscard)
 		// budget
-		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
+		key = data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}}
 		item, _ = bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil)
 		item.Tail.Value.AddValue(v.Budget())
 	}
 	// report budget used
-	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
+	budgetKey := data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingBudget, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
 	budgetItem, _ := bucket.GetOrCreateMultiItem(&budgetKey, config.StringTopCapacity, nil)
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	// metric count
-	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
+	key := data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
 	item, _ := bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil)
 	item.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
 	return sampler.SampleFactors
