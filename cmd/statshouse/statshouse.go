@@ -616,9 +616,6 @@ func mainIngressProxy(aesPwd string) {
 	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
 	config.Version = argv.ingressVersion
-	config.MetadataNet = argv.configAggregator.MetadataNet
-	config.MetadataAddr = argv.configAggregator.MetadataAddr
-	config.MetadataActorID = argv.configAggregator.MetadataActorID
 	config.UpstreamAddr = argv.ingressUpstreamAddr
 	config.ConfigAgent = argv.configAgent
 	config.ConfigAgent.Cluster = argv.cluster

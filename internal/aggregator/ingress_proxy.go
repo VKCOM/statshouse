@@ -17,7 +17,6 @@ import (
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
@@ -51,11 +50,6 @@ type ConfigIngressProxy struct {
 	ResponseMemoryLimit   int
 	Version               string
 	ConfigAgent           agent.Config
-
-	// metadata address to load host name
-	MetadataNet     string
-	MetadataAddr    string
-	MetadataActorID int64
 }
 
 type ingressProxy struct {
@@ -185,32 +179,9 @@ func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd str
 	rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.serverOpts)
 	// resolve hostname ID
 	p.hostnameID.Store(format.TagValueIDMappingFlood)
-	if config.MetadataAddr != "" || config.MetadataActorID != 0 {
-		go func() {
-			client := tlmetadata.Client{
-				Client: rpc.NewClient(
-					rpc.ClientWithLogf(log.Printf),
-					rpc.ClientWithCryptoKey(aesPwd),
-					rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
-				Network: config.MetadataNet,
-				Address: config.MetadataAddr,
-				ActorID: config.MetadataActorID,
-			}
-			args := tlmetadata.GetMapping{
-				Metric: format.BuiltinMetricNameBudgetAggregatorHost,
-				Key:    srvfunc.HostnameForStatshouse(),
-			}
-			args.SetCreateIfAbsent(true)
-			res := tlmetadata.GetMappingResponse{}
-			if err := client.GetMapping(ctx, args, nil, &res); err == nil && !res.IsFloodLimitError() {
-				if r, ok := res.AsGetMappingResponse(); ok {
-					p.hostnameID.Store(r.Id)
-				} else if r, ok := res.AsCreated(); ok {
-					p.hostnameID.Store(r.Id)
-				}
-			}
-		}()
-	}
+	go func() {
+		p.hostnameID.Store(p.getHostnameID(aesPwd))
+	}()
 	// listen on IPv4
 	tcp4 := p.newProxyServer("tcp4")
 	tcp6 := p.newProxyServer("tcp6")
@@ -267,6 +238,39 @@ func (p *ingressProxy) rareLog(format string, args ...any) {
 		p.rareLogLast = now
 		log.Printf(format, args...)
 	}
+}
+
+func (p *ingressProxy) getHostnameID(aesPwd string) int32 {
+	if len(p.agent.GetConfigResult.Addresses) == 0 {
+		return format.TagValueIDMappingFlood
+	}
+	client := rpc.NewClient(
+		rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+		rpc.ClientWithCryptoKey(aesPwd),
+		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ClientWithLogf(log.Printf))
+	defer client.Close()
+	agg := tlstatshouse.Client{
+		Client:  client,
+		Network: "tcp",
+		Address: p.agent.GetConfigResult.Addresses[0],
+	}
+	args := tlstatshouse.GetTagMapping2{
+		Metric: format.BuiltinMetricNameBudgetAggregatorHost,
+		Key:    srvfunc.HostnameForStatshouse(),
+		Header: tlstatshouse.CommonProxyHeader{
+			ShardReplicaTotal: p.agent.GetConfigResult.MaxAddressesCount,
+			HostName:          srvfunc.HostnameForStatshouse(),
+			ComponentTag:      format.TagValueIDComponentIngressProxy,
+		},
+	}
+	args.SetCreate(true)
+	args.Header.SetIngressProxy(true, &args.FieldsMask)
+	res := tlstatshouse.GetTagMappingResult{}
+	if err := agg.GetTagMapping2(p.ctx, args, nil, &res); err != nil {
+		return format.TagValueIDMappingFlood
+	}
+	return res.Value
 }
 
 func (p *proxyServer) listen(addr string, externalAddr []string, version string) error {
@@ -385,7 +389,7 @@ func (p *proxyConn) run() {
 	defer p.group.Done()
 	defer p.clientConn.Close()
 	// handshake client
-	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
+	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, false, p.startTime, rpc.DefaultPacketTimeout)
 	if err != nil {
 		p.logClientError("handshake", err)
 		return
