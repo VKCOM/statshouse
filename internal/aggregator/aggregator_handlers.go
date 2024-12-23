@@ -139,7 +139,7 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
 	}
-	err, str := a.handleSendSourceBucketAny(hctx, args, bucket, false)
+	str, err := a.handleSendSourceBucketAny(hctx, args, bucket, false)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		SampleFactors:      bucket.SampleFactors,
 		IngestionStatusOk2: bucket.IngestionStatusOk2,
 	}
-	err, str := a.handleSendSourceBucketAny(hctx, args2, bucket2, true)
+	str, err := a.handleSendSourceBucketAny(hctx, args2, bucket2, true)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -193,7 +193,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 	return nil
 }
 
-func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes, version3 bool) (error, string) {
+func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes, version3 bool) (string, error) {
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -232,7 +232,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAggOutdatedAgents)
-		return nil, "agent is too old please update"
+		return "agent is too old please update", nil
 	}
 
 	var aggBucket *aggregatorBucket
@@ -242,7 +242,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
 		key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAutoConfig)
-		return err, "" // TODO - return code so clients will print into log and discard data
+		return "", err // TODO - return code so clients will print into log and discard data
 	}
 
 	if a.bucketsToSend == nil {
@@ -251,7 +251,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		// to prevent sending agents responses that will make them erase historic data.
 		// Also, if we reply with errors, agents will resend data.
 		// So we've simply chosen to hijack all responses and do not respond at all.
-		return hctx.HijackResponse(aggBucket), "" // must be under bucket lock
+		return "", hctx.HijackResponse(aggBucket) // must be under bucket lock
 	}
 
 	oldestTime := a.recentBuckets[0].time
@@ -272,14 +272,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
-			return nil, "historic bucket time is too far in the future"
+			return "historic bucket time is too far in the future", nil
 		}
 		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
-			return nil, "Successfully discarded historic bucket beyond historic window"
+			return "Successfully discarded historic bucket beyond historic window", nil
 		}
 		if roundedToOurTime < oldestTime {
 			aggBucket = a.historicBuckets[args.Time]
@@ -305,17 +305,17 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
-			return nil, "bucket time is too far in the future"
+			return "bucket time is too far in the future", nil
 		}
 		if roundedToOurTime < oldestTime {
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
-			return &rpc.Error{
+			return "", &rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
-			}, ""
+			}
 		}
 		aggBucket = a.recentBuckets[roundedToOurTime-oldestTime]
 		if a.config.SimulateRandomErrors > 0 && rng.Float64() < a.config.SimulateRandomErrors { // SimulateRandomErrors > 0 is optimization
@@ -327,7 +327,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			defer aggBucket.mu.Unlock()
 
 			aggBucket.contributorsSimulatedErrors[hctx] = struct{}{} // must be under bucket lock
-			return hctx.HijackResponse(aggBucket), ""                // must be under bucket lock
+			return "", hctx.HijackResponse(aggBucket)                // must be under bucket lock
 		}
 	}
 
@@ -499,7 +499,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 	}
 	aggBucket.lockShard(&lockedShard, -1)
-	return errHijack, ""
+	return "", errHijack
 }
 
 func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {

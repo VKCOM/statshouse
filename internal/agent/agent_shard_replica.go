@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,13 +60,6 @@ type ShardReplica struct {
 
 func (s *ShardReplica) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
-}
-
-func clampInt32[I int64 | int](v I) int32 {
-	if v < math.MaxInt32 {
-		return int32(v)
-	}
-	return math.MaxInt32
 }
 
 func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
