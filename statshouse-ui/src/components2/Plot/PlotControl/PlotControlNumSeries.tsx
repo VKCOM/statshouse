@@ -4,13 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { useStatsHouseShallow } from 'store2';
 import { getNewMetric, type PlotKey } from 'url2';
+import { isMetricNumSeries, METRIC_NUM_SERIES, METRIC_NUM_SERIES_DESCRIPTION } from '../../../api/enum';
+import cn from 'classnames';
 
 export type PlotControlNumSeriesProps = {
   plotKey: PlotKey;
 };
+
+const numSeriesList = Object.values(METRIC_NUM_SERIES).map((value) => ({
+  value,
+  description: METRIC_NUM_SERIES_DESCRIPTION[value],
+}));
 
 const defaultNumSeries = getNewMetric().numSeries;
 
@@ -28,31 +35,20 @@ export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
     },
     [plotKey, setPlot]
   );
+  const otherNum = useMemo(() => !isMetricNumSeries(numSeries), [numSeries]);
+
   return (
-    <select className="form-select" value={numSeries} onChange={onChange}>
-      <option value="1">Top 1</option>
-      <option value="2">Top 2</option>
-      <option value="3">Top 3</option>
-      <option value="4">Top 4</option>
-      <option value="5">Top 5</option>
-      <option value="10">Top 10</option>
-      <option value="20">Top 20</option>
-      <option value="30">Top 30</option>
-      <option value="40">Top 40</option>
-      <option value="50">Top 50</option>
-      <option value="100">Top 100</option>
-      <option value="0">All</option>
-      <option value="-1">Bottom 1</option>
-      <option value="-2">Bottom 2</option>
-      <option value="-3">Bottom 3</option>
-      <option value="-4">Bottom 4</option>
-      <option value="-5">Bottom 5</option>
-      <option value="-10">Bottom 10</option>
-      <option value="-20">Bottom 20</option>
-      <option value="-30">Bottom 30</option>
-      <option value="-40">Bottom 40</option>
-      <option value="-50">Bottom 50</option>
-      <option value="-100">Bottom 100</option>
+    <select className={cn('form-select', otherNum && 'border-danger')} value={numSeries} onChange={onChange}>
+      {otherNum && (
+        <option value={numSeries} disabled>
+          Other
+        </option>
+      )}
+      {numSeriesList.map(({ value, description }) => (
+        <option key={value} value={value}>
+          {description}
+        </option>
+      ))}
     </select>
   );
 }
