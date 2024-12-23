@@ -164,19 +164,13 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, keyHash uint6
 		// panic("all builtin metrics must have correct timestamp set at this point")
 		key.Timestamp = currentTime
 	}
-	if currentTime > data_model.BelieveTimestampWindow && key.Timestamp < currentTime-data_model.BelieveTimestampWindow {
-		// TODO - move this code into aggregators, remove from here
-		key.Timestamp = currentTime - data_model.BelieveTimestampWindow
-	}
-	// we cannot disallow timestamps in the future, because our conveyor can be stuck
-	// or our clock wrong while client has events with correct timestamps
-	// timestamp will be clamped by aggregators
+	// Timestamp will be clamped by aggregators.
 	if resolution == 1 {
 		slot := key.Timestamp
 		if slot < sendTime {
 			slot = sendTime // if late, send immediately. Helps those who are late by a tiny amount.
 		}
-		// if slot >= sendTime+superQueueLen - we do no special processing for slots in the future
+		// if slot >= currentTime - we do no special processing for slots in the future
 		return s.SuperQueue[slot%superQueueLen]
 	}
 	// division is expensive, hence separate code for very common 1-second resolution above
@@ -188,7 +182,7 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, keyHash uint6
 		slot += ((sendTime - slot + resolution - 1) / resolution) * resolution
 		// if late, send immediately, but keep slots aligned with resolution, sometimes identically on several/many agents, hopefully improving aggregation
 	}
-	// if slot >= sendTime+superQueueLen - we do no special processing for slots in the future
+	// if slot >= currentTime+? - we do no special processing for slots in the future
 	return s.SuperQueue[slot%superQueueLen]
 }
 

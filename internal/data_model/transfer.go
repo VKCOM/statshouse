@@ -28,9 +28,9 @@ func (k *Key) TagSlice() []int32 {
 	return result[:i]
 }
 
-func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key *Key, shardID int) {
+func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key *Key, shardID int, clampedTimestampTag int32) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
-	sID := item.FieldsMask >> 24
+	shardID = int(item.FieldsMask >> 24)
 	key = &Key{}
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
@@ -40,8 +40,10 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 		// instead we use aggregator clock which we demand to always be set correctly.
 		if key.Timestamp > newestTime {
 			key.Timestamp = newestTime
+			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture
 		} else if bucketTimestamp > BelieveTimestampWindow && key.Timestamp < bucketTimestamp-BelieveTimestampWindow {
 			key.Timestamp = bucketTimestamp - BelieveTimestampWindow
+			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast
 		}
 		// above checks can be moved below }, but they will always be NOP as bucketTimestamp is both <= newestTime and in beleive window
 	}
@@ -52,7 +54,7 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 			key.SetSTag(i, string(item.Skeys[i]))
 		}
 	}
-	return key, int(sID)
+	return
 }
 
 func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
