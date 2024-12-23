@@ -507,11 +507,7 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 	if _, err := args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
 	}
-	args3 := tlstatshouse.SendKeepAlive3Bytes{
-		FieldsMask: args.FieldsMask,
-		Header:     args.Header,
-	}
-	return a.handleSendKeepAliveAny(hctx, args3, false)
+	return a.handleSendKeepAliveAny(hctx, tlstatshouse.SendKeepAlive3Bytes(args), false)
 }
 
 func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerContext) error {
