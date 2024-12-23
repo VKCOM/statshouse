@@ -235,7 +235,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		return "agent is too old please update", nil
 	}
 
-	var aggBucket *aggregatorBucket
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
@@ -246,11 +245,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 
 	if a.bucketsToSend == nil {
-		a.mu.Unlock()
 		// We are in shutdown, recentBuckets stopped moving. We must be very careful
 		// to prevent sending agents responses that will make them erase historic data.
 		// Also, if we reply with errors, agents will resend data.
 		// So we've simply chosen to hijack all responses and do not respond at all.
+		aggBucket := a.recentBuckets[0]
+		a.mu.Unlock()
+		aggBucket.mu.Lock()
+		defer aggBucket.mu.Unlock()
 		return "", hctx.HijackResponse(aggBucket) // must be under bucket lock
 	}
 
@@ -265,6 +267,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		roundedToOurTime++
 	}
 
+	var aggBucket *aggregatorBucket
 	if args.IsSetHistoric() {
 		if roundedToOurTime > newestTime {
 			a.mu.Unlock()

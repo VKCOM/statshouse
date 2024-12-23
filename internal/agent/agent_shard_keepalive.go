@@ -42,7 +42,7 @@ func (s *ShardReplica) recordSendResult(success bool) {
 	if len(s.lastSendSuccessful) == s.config.LivenessResponsesWindowLength && succ < s.config.LivenessResponsesWindowSuccesses {
 		s.alive.Store(false)
 		s.lastSendSuccessful = s.lastSendSuccessful[:0]
-		s.client.Client.Logf("Aggregator Dead: # of successful recent sends dropped below %d out of %d for shard %d", s.config.LivenessResponsesWindowSuccesses, s.config.LivenessResponsesWindowLength, s.ShardReplicaNum)
+		s.client.Client.Logf("Aggregator Dead: # of successful recent sends dropped below %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowSuccesses, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
 	}
 }
 
@@ -53,7 +53,7 @@ func (s *ShardReplica) recordKeepLiveResult(err error, dur time.Duration) {
 
 	succ := s.appendlastSendSuccessfulLocked(success)
 	if succ == s.config.LivenessResponsesWindowLength {
-		s.client.Client.Logf("Aggregator Alive: # of successful keepalive sends reached %d out of %d for shard %d", s.config.LivenessResponsesWindowLength, s.config.LivenessResponsesWindowLength, s.ShardReplicaNum)
+		s.client.Client.Logf("Aggregator Alive: # of successful keepalive sends reached %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowLength, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
 		s.alive.Store(true)
 	}
 }
