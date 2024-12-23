@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -403,7 +404,6 @@ func (p *proxyConn) run() {
 	for {
 		req, err = p.readRequest()
 		if err != nil {
-			p.logClientError("read", err)
 			return
 		}
 		if p.ctx.Err() != nil {
@@ -438,7 +438,6 @@ func (p *proxyConn) run() {
 	if res.Error() != nil {
 		return
 	}
-	p.reportRequestSize(&req)
 	// serve
 	var ctx = p.ctx
 	var gracefulShutdown bool
@@ -479,7 +478,6 @@ func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResu
 			break
 		}
 		res = req.process(p)
-		p.reportRequestSize(&req)
 		if res.Error() != nil || res.ClientWantsFin {
 			break
 		}
@@ -490,6 +488,12 @@ func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResu
 func (p *proxyConn) responseLoop(ctx context.Context) rpc.ForwardPacketsResult {
 	res := rpc.ForwardPackets(ctx, p.clientConn, p.upstreamConn)
 	if err := res.Error(); err != nil {
+		if res.ReadErr != nil {
+			p.logUpstreamError("read", res.ReadErr)
+		}
+		if res.WriteErr != nil {
+			p.logClientError("write", res.WriteErr)
+		}
 		p.clientConn.ShutdownWrite()
 	}
 	// do not close client on server shutdown, calling side initiates graceful shutdown
@@ -555,6 +559,9 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 }
 
 func (p *proxyConn) logClientError(tag string, err error) {
+	if err == nil || err == io.EOF {
+		return
+	}
 	var addr string
 	if p.clientConn != nil {
 		addr = p.clientConn.RemoteAddr()
@@ -563,6 +570,9 @@ func (p *proxyConn) logClientError(tag string, err error) {
 }
 
 func (p *proxyConn) logUpstreamError(tag string, err error) {
+	if err == nil || err == io.EOF {
+		return
+	}
 	var addr string
 	if p.upstreamConn != nil {
 		addr = p.upstreamConn.RemoteAddr()
@@ -580,6 +590,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 			if _, err = args.ReadBoxed(req.Request); err == nil {
 				if args.Cluster != p.cluster {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
+					p.logClientError("GetConfig2", err)
 				} else {
 					req.Response, _ = args.WriteResult(req.Response[:0], p.config)
 				}
@@ -599,6 +610,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 		res.WriteErr = req.forwardAndFlush(p)
 		// graceful shutdown, no more client requests expected
 	}
+	p.reportRequestSize(req)
 	return res
 }
 
