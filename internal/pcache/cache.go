@@ -9,7 +9,6 @@ package pcache
 import (
 	"context"
 	"encoding"
-	"sort"
 	"sync"
 	"time"
 
@@ -80,7 +79,8 @@ type Cache struct {
 	workMu    sync.Mutex // No other locks taken when this lock is taken
 	workQueue []workQueueItem
 	workCond  *sync.Cond
-	stop      *sync.WaitGroup
+	stopWG    sync.WaitGroup
+	stop      bool
 }
 
 func (e Result) Found() bool {
@@ -177,38 +177,32 @@ func (c *Cache) runRun() {
 			burst = 1
 		}
 		c.limiter = rate.NewLimiter(rate.Every(c.LoadMinInterval), burst)
+		c.stopWG.Add(runnersCount)
 		for i := 0; i < runnersCount; i++ {
 			go c.run()
 		}
-		// go c.DiskCleanup() - Too slow, must use efficient data structure
-		// https://pastebin.mvk.com/6yrlAdgzmjz93Tt8YFEO23tl0qYBJBZwyEVatpoUXl88ZvdSDyCXQUvzu3jvB9rBl4LoU3M62V6UAYZ3.m
-		// https://pastebin.mvk.com/agA6bJ0n8QRrks43UJnOyxmSGjlL7CqKrgjF5HrAIOmp0PnC8RLCOQng5ze4oGJPKZGk9Rfe6yKh8IxR.m
 	})
 }
 
 func (c *Cache) Close() {
 	c.runRun() // We ensure it is running first
 	c.workMu.Lock()
-	c.stop = &sync.WaitGroup{}
-	c.stop.Add(runnersCount)
-	if c.DiskCache != nil && c.MaxDiskCacheSize > 0 {
-		c.stop.Add(1)
-	}
+	c.stop = true
 	c.workMu.Unlock()
 	c.workCond.Broadcast()
-	c.stop.Wait()
+	c.stopWG.Wait()
 }
 
 func (c *Cache) run() {
+	defer c.stopWG.Done()
 	rng := rand.New()
 	for {
 		c.workMu.Lock()
-		for len(c.workQueue) == 0 && c.stop == nil {
+		for len(c.workQueue) == 0 && !c.stop {
 			c.workCond.Wait()
 		}
-		if c.stop != nil {
+		if c.stop {
 			c.workMu.Unlock()
-			c.stop.Done()
 			return
 		}
 		e := c.workQueue[0]
@@ -216,63 +210,6 @@ func (c *Cache) run() {
 		c.workMu.Unlock()
 
 		c.updateCached(rng, e)
-	}
-}
-
-func (c *Cache) DiskCleanup() { // Public so linter will not complain
-	if c.DiskCache == nil || c.MaxDiskCacheSize <= 0 {
-		return
-	}
-	// use FIFO eviction
-	// since we don't have Update index we use N random choises to approximate it's behaivour
-	const readLimit = 10_000
-	const eraseLimit = 100
-
-	for {
-		c.workMu.Lock()
-		if c.stop != nil {
-			c.workMu.Unlock()
-			c.stop.Done()
-			return
-		}
-		c.workMu.Unlock()
-
-		diskCacheSize, _ := c.DiskCache.VerySlowCountDoNotUse(c.DiskCacheNamespace)
-		if diskCacheSize <= c.MaxDiskCacheSize {
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		keysToErase := diskCacheSize - c.MaxDiskCacheSize
-		for offset := 0; offset < diskCacheSize && keysToErase > 0; {
-			oldestKeys, _ := c.DiskCache.ListKeys(c.DiskCacheNamespace, readLimit, offset)
-			sort.Slice(oldestKeys, func(lhs, rhs int) bool {
-				return oldestKeys[lhs].Update.Unix() < oldestKeys[rhs].Update.Unix()
-			})
-
-			eraseCount := len(oldestKeys)
-			if eraseCount > eraseLimit {
-				eraseCount = eraseLimit
-			}
-			if eraseCount == 0 {
-				break
-			}
-
-			for _, key := range oldestKeys[:eraseCount] {
-				c.DiskCache.Erase(c.DiskCacheNamespace, key.Key)
-			}
-			keysToErase -= eraseCount
-			offset += readLimit
-
-			c.workMu.Lock()
-			if c.stop != nil {
-				c.workMu.Unlock()
-				c.stop.Done()
-				return
-			}
-			c.workMu.Unlock()
-			time.Sleep(time.Second)
-		}
 	}
 }
 
