@@ -692,6 +692,9 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 					break
 				}
 			}
+			if tag.Name != "" {
+				id = tag.Name
+			}
 			if !found {
 				ht.used = append(ht.used, id)
 			} else if opt.listUnused {
