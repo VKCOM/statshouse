@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -34,65 +35,90 @@ func (pc *PacketConn) KeyID() [4]byte {
 
 func ForwardPackets(ctx context.Context, dst, src *PacketConn) (res ForwardPacketsResult) {
 	for i := 0; ctx.Err() == nil && res.Error() == nil; i++ {
-		var header packetHeader
-		src.readMu.Lock()
-		_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, DefaultPacketTimeout)
-		src.readMu.Unlock()
-		if err != nil {
-			res.ReadErr = err
-			return res
-		}
-		if isBuiltin {
-			res.WriteErr = src.WritePacketBuiltin(time.Duration(0))
-		} else {
-			switch header.tip {
-			case tl.RpcClientWantsFin{}.TLTag():
-				res.ClientWantsFin = true
-			case tl.RpcServerWantsFin{}.TLTag():
-				res.ServerWantsFin = true
-			}
-			res.ReadWriteError = forwardPacket(dst, src, header)
-		}
+		res = ForwardPacket(ctx, dst, src)
 	}
 	return res
 }
+
+func ForwardPacket(ctx context.Context, dst, src *PacketConn) (res ForwardPacketsResult) {
+	var header packetHeader
+	src.readMu.Lock()
+	_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&header, DefaultPacketTimeout)
+	src.readMu.Unlock()
+	if err != nil {
+		res.ReadErr = err
+		return res
+	}
+	if isBuiltin {
+		res.WriteErr = src.WritePacketBuiltin(time.Duration(0))
+	} else {
+		switch header.tip {
+		case tl.RpcClientWantsFin{}.TLTag():
+			res.ClientWantsFin = true
+		case tl.RpcServerWantsFin{}.TLTag():
+			res.ServerWantsFin = true
+		}
+		res.ReadWriteError = forwardPacket(dst, src, header)
+	}
+	return res
+}
+
+var forwardPacketTrailer = [][]byte{{}, {0}, {0, 0}, {0, 0, 0}}
 
 func forwardPacket(dst, src *PacketConn, header packetHeader) (res ReadWriteError) {
 	dst.writeMu.Lock()
 	defer dst.writeMu.Unlock()
 	// write header
-	bodySize := int(header.length) - packetOverhead
-	if err := dst.writePacketHeaderUnlocked(header.tip, bodySize, time.Duration(0)); err != nil {
+	srcBodySize := header.length - packetOverhead
+	dstBodySize := srcBodySize
+	// legacy RPC protocol used to align packet body length to 4 bytes boundary, including
+	// padding into checksum; packet length is guaranteed to be aligned by 4 bytes then
+	var legacyWriteAlignTo4 uint32
+	if dst.protocolVersion == 0 {
+		legacyWriteAlignTo4 = -srcBodySize & 3
+		dstBodySize += legacyWriteAlignTo4
+	}
+	if err := dst.writePacketHeaderUnlocked(header.tip, int(dstBodySize), time.Duration(0)); err != nil {
 		res.WriteErr = err
 		return res
 	}
 	// write body
-	if res = copyBody(dst, src, header.length); res.Error() != nil {
+	if res = copyBodySkipCRCAndCryptoPadding(dst, src, srcBodySize); res.Error() != nil {
 		return res
 	}
-	// write CRC. padding and flush
-	dst.writePacketTrailerUnlocked()
+	if 0 < legacyWriteAlignTo4 && legacyWriteAlignTo4 < 4 {
+		// legacy RPC protocol, write body padding and CRC
+		trailer := forwardPacketTrailer[legacyWriteAlignTo4]
+		if _, err := dst.w.Write(trailer); err != nil {
+			res.WriteErr = err
+			return res
+		}
+		dst.updateWriteCRC(trailer)
+		dst.headerWriteBuf = binary.LittleEndian.AppendUint32(dst.headerWriteBuf, dst.writeCRC)
+	} else {
+		// write CRC and padding
+		dst.writePacketTrailerUnlocked()
+	}
 	res.WriteErr = dst.FlushUnlocked()
 	return res
 }
 
-func copyBody(dst, src *PacketConn, headerLen uint32) (res ReadWriteError) {
+func copyBodySkipCRCAndCryptoPadding(dst, src *PacketConn, bodySize uint32) (res ReadWriteError) {
 	src.readMu.Lock()
 	defer src.readMu.Unlock()
 	// copy body
-	bodySize := int(headerLen) - packetOverhead
-	res = cryptoCopy(dst, src, bodySize)
+	res = packetConnCopy(dst, src, int(bodySize))
 	if res.Error() != nil {
 		return res
 	}
-	// discard source CRC
+	// skip CRC
 	if err := src.r.discard(4); err != nil {
 		res.ReadErr = err
 		return res
 	}
-	// align read
+	// skip crypto padding
 	if src.w.isEncrypted() {
-		res.ReadErr = src.r.discard(int(-uint(headerLen) & 3))
+		res.ReadErr = src.r.discard(int(-bodySize & 3))
 	}
 	return res
 }
@@ -165,22 +191,28 @@ func (hctx *HandlerContext) writeReponseUnlocked(conn *PacketConn) error {
 	return nil
 }
 
-func cryptoCopy(dst, src *PacketConn, n int) (res ReadWriteError) {
+func packetConnCopy(dst, src *PacketConn, n int) ReadWriteError {
+	return cryptoCopy(dst.w, src.r, n, dst.updateWriteCRC)
+}
+
+func cryptoCopy(dst *cryptoWriter, src *cryptoReader, n int, cb func([]byte)) (res ReadWriteError) {
 	if n == 0 {
 		return ReadWriteError{}
 	}
 	for {
-		if m := src.r.end - src.r.begin; m > 0 {
+		if m := src.end - src.begin; m > 0 {
 			if m > n {
 				m = n
 			}
-			s := src.r.buf[src.r.begin : src.r.begin+m]
-			m, res.WriteErr = dst.w.Write(s)
+			s := src.buf[src.begin : src.begin+m]
+			m, res.WriteErr = dst.Write(s)
 			if res.WriteErr != nil {
 				return res
 			}
-			dst.updateWriteCRC(s)
-			src.r.begin += m
+			if cb != nil {
+				cb(s)
+			}
+			src.begin += m
 			n -= m
 			if n == 0 {
 				return ReadWriteError{}
@@ -189,19 +221,19 @@ func cryptoCopy(dst, src *PacketConn, n int) (res ReadWriteError) {
 		if res.ReadErr != nil {
 			return res
 		}
-		buf := src.r.buf[:cap(src.r.buf)]
-		bufSize := copy(buf, src.r.buf[src.r.end:])
+		buf := src.buf[:cap(src.buf)]
+		bufSize := copy(buf, src.buf[src.end:])
 		var read int
-		read, res.ReadErr = src.r.Read(buf[bufSize:])
+		read, res.ReadErr = src.Read(buf[bufSize:])
 		bufSize += read
-		src.r.buf = buf[:bufSize]
-		src.r.begin = 0
-		if src.r.enc != nil {
-			decrypt := roundDownPow2(bufSize, src.r.blockSize)
-			src.r.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-			src.r.end = decrypt
+		src.buf = buf[:bufSize]
+		src.begin = 0
+		if src.enc != nil {
+			decrypt := roundDownPow2(bufSize, src.blockSize)
+			src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
+			src.end = decrypt
 		} else {
-			src.r.end = bufSize
+			src.end = bufSize
 		}
 		if read <= 0 { // infinite loop guard
 			res.ReadErr = errZeroRead
