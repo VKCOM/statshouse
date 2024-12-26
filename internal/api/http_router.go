@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -30,6 +31,7 @@ type requestHandler struct {
 	accessInfo   accessInfo
 	endpointStat endpointStat
 	trace        []string
+	traceMu      sync.Mutex
 	debug        bool
 	version      string
 	query        promql.Query

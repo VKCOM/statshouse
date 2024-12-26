@@ -707,6 +707,8 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 
 func (h *requestHandler) Tracef(format string, a ...any) {
 	if h.debug {
+		h.traceMu.Lock()
+		defer h.traceMu.Unlock()
 		h.trace = append(h.trace, fmt.Sprintf(format, a...))
 	}
 }
