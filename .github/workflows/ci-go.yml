@@ -10,15 +10,16 @@ jobs:
   ci-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.21.x
           cache: true
-      - uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v6
         with:
+          version: v1.60
           args: --timeout=10m --disable-all -E goimports
       - uses: dominikh/staticcheck-action@v1.3.0
         with:
