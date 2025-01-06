@@ -22,7 +22,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: statshouse-grafana-plugin provides StatsHouse data source plugin for Grafana.
 
 Package: statshouse-metadata
-Architecture: amd64
+Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: statshouse-metadata provides storage of metadata for StatsHouse.
 
