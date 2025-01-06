@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PlotKey } from 'url2';
-import { Button, InputText, TextArea, Tooltip } from 'components/UI';
-import { useStatsHouseShallow } from 'store2';
-import { PlotNavigate } from '../PlotNavigate';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { PlotKey } from '@/url2';
+import { Button, InputText, TextArea, Tooltip } from '@/components/UI';
+import { useStatsHouseShallow } from '@/store2';
+import { PlotNavigate } from '@/components2';
 import cn from 'classnames';
 import css from './style.module.css';
 import markdownStyles from '../../style.module.css';
@@ -19,11 +19,11 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
-import { useOnClickOutside } from 'hooks';
+import { useOnClickOutside } from '@/hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { PlotName } from './PlotName';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
-import { getMetricMeta, getMetricName, getMetricWhat } from '../../../store2/helpers';
+import { getMetricMeta, getMetricName, getMetricWhat } from '@/store2/helpers';
 import { PlotLink } from '../PlotLink';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
 import { MarkdownRender } from './MarkdownRender';
@@ -35,7 +35,7 @@ const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
-export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
+export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
   const { plot, metricName, what, meta, isEmbed, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
     useStatsHouseShallow(
       ({ plotsData, params: { plots, orderPlot }, metricMeta, isEmbed, dashboardLayoutEdit, setPlot, removePlot }) => {
@@ -340,5 +340,4 @@ export function _PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
         ))}
     </div>
   );
-}
-export const PlotHeader = memo(_PlotHeader);
+});

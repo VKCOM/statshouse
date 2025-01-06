@@ -7,17 +7,17 @@
 import React, { Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.scss';
-import reportWebVitals from './reportWebVitals';
-import { AppRouter } from 'components/AppRouter';
+import { AppRouter } from '@/components/AppRouter';
 import './api/stat'; // global error log
 
 const appVersion = localStorage.getItem('appVersion');
 
+// eslint-disable-next-line react-refresh/only-export-components
 const App = React.lazy(() => {
   if (appVersion === '1') {
-    return import('./AppOld');
+    return import('./AppOld').then((exports) => ({ default: exports.AppOld }));
   } else {
-    return import('./App');
+    return import('./App').then((exports) => ({ default: exports.App }));
   }
 });
 
@@ -31,5 +31,3 @@ root.render(
     </AppRouter>
   </React.StrictMode>
 );
-
-reportWebVitals(undefined);

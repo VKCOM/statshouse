@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { ToggleButton } from 'components/UI';
+import { ToggleButton } from '@/components/UI';
 import {
   defaultInterval,
   selectorDisabledLive,

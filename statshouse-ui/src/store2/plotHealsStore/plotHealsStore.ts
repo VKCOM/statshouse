@@ -1,7 +1,7 @@
 import { StoreSlice } from '../createStore';
-import { StatsHouseStore } from '../statsHouseStore';
-import { PlotKey } from 'url2';
-import { sumArray } from 'common/helpers';
+import { StatsHouseStore } from '@/store2';
+import { PlotKey } from '@/url2';
+import { sumArray } from '@/common/helpers';
 
 const limitHistory = 10;
 const changeStatus = (limitHistory / 2) * 0.8;
@@ -21,7 +21,7 @@ export type PlotHealsStore = {
   isPlotHeal(plotKey: PlotKey): boolean;
 };
 
-export const plotHealsStore: StoreSlice<StatsHouseStore, PlotHealsStore> = (setState, getState, store) => ({
+export const plotHealsStore: StoreSlice<StatsHouseStore, PlotHealsStore> = (setState, getState) => ({
   plotHeals: {},
   removePlotHeals(plotKey) {
     setState((state) => {

@@ -5,8 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useMemo } from 'react';
-import { type PlotControlProps } from './PlotControl';
-import { PLOT_TYPE, TAG_KEY, type TagKey } from 'api/enum';
+import type { PlotControlProps } from './PlotControl';
+import { PLOT_TYPE, TAG_KEY, type TagKey } from '@/api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
@@ -20,10 +20,10 @@ import { PlotControlPromQLSwitch } from './PlotControlPromQLSwitch';
 import { PlotControlFilterTag } from './PlotControlFilterTag';
 import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
-import { useStatsHouseShallow } from 'store2';
-import { filterHasTagID } from 'store2/helpers';
-import { useGlobalLoader } from 'store2/plotQueryStore';
-import { isTagEnabled } from 'view/utils2';
+import { useStatsHouseShallow } from '@/store2';
+import { filterHasTagID } from '@/store2/helpers';
+import { useGlobalLoader } from '@/store2/plotQueryStore';
+import { isTagEnabled } from '@/view/utils2';
 
 const emptyFilter: Partial<Record<TagKey, string[]>> = {};
 const emptyGroup: TagKey[] = [];

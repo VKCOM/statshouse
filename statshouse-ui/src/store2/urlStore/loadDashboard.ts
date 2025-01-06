@@ -4,10 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getDefaultParams, type QueryParams, type TreeParamsObject, treeParamsObjectValueSymbol } from 'url2';
-import { GET_PARAMS } from 'api/enum';
-import { debug } from 'common/debug';
-import { apiDashboard } from 'api/dashboard';
+import { getDefaultParams, type QueryParams, type TreeParamsObject, treeParamsObjectValueSymbol } from '@/url2';
+import { GET_PARAMS } from '@/api/enum';
+import { debug } from '@/common/debug';
+import { apiDashboard } from '@/api/dashboard';
 import { readDataDashboard } from './readDataDashboard';
 import { ExtendedError } from '../../api/api';
 

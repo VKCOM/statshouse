@@ -1,6 +1,5 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { getNewMetric } from './getNewMetric';
-import { metricFilterDecode } from './metricFilterDecode';
 import {
   GET_PARAMS,
   METRIC_TYPE,
@@ -10,10 +9,10 @@ import {
   QUERY_WHAT,
 } from '../../../api/enum';
 import { toTreeObj, treeParamsObjectValueSymbol } from '../../urlHelpers';
-import { filterInSep, filterNotInSep, promQLMetric, removeValueChar } from '../../constants';
+import { promQLMetric, removeValueChar } from '../../constants';
 import { metricDecode } from './metricDecode';
 
-describe('urlStore widgetsParams/metric/metricDecode.ts', () => {
+describe('@/urlStore widgetsParams/metric/metricDecode.ts', () => {
   test('metricDecode', () => {
     const dParams = {
       ...getNewMetric(),

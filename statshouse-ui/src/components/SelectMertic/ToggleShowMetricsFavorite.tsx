@@ -1,5 +1,5 @@
 import React from 'react';
-import { toggleShowMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
+import { toggleShowMetricsFavorite, useFavoriteStore } from '@/store2/favoriteStore';
 import { ReactComponent as SVGBookmarkStar } from 'bootstrap-icons/icons/bookmark-star.svg';
 import { ReactComponent as SVGBookmarkStarFill } from 'bootstrap-icons/icons/bookmark-star-fill.svg';
 
@@ -23,7 +23,7 @@ export function ToggleShowMetricsFavorite({ status }: ToggleShowMetricsFavoriteP
         event.stopPropagation();
       }}
     >
-      {status ?? showMetricsFavorite ? <SVGBookmarkStarFill /> : <SVGBookmarkStar />}
+      {(status ?? showMetricsFavorite) ? <SVGBookmarkStarFill /> : <SVGBookmarkStar />}
     </div>
   );
 }

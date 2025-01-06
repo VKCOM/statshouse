@@ -20,7 +20,7 @@ import {
   useStore,
   useVariableListStore,
   VariableListStore,
-} from 'store';
+} from '@/store';
 import { metricKindToWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';

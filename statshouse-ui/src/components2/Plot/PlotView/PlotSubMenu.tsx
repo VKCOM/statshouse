@@ -4,22 +4,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo } from 'react';
-import { PlotKey } from 'url2';
+import { memo } from 'react';
+import { PlotKey } from '@/url2';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import { useStatsHouseShallow } from 'store2';
-import { formatSI } from 'common/formatByMetricType';
-import { useLinkCSV2 } from 'hooks/useLinkCSV2';
-import { useMetricBadges } from 'hooks/useMetricBadges';
-import { isPromQL } from 'store2/helpers';
+import { useStatsHouseShallow } from '@/store2';
+import { formatSI } from '@/common/formatByMetricType';
+import { useLinkCSV2 } from '@/hooks/useLinkCSV2';
+import { useMetricBadges } from '@/hooks/useMetricBadges';
+import { isPromQL } from '@/store2/helpers';
 
 export type PlotSubMenuProps = {
   className?: string;
   plotKey: PlotKey;
 };
 
-export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
+export const PlotSubMenu = memo(function PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
   const { metricName, params, plot, timeRange } = useStatsHouseShallow(({ plotsData, params }) => ({
     metricName:
       plotsData[plotKey]?.metricName ??
@@ -150,5 +150,4 @@ export function _PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
       </li>
     </ul>
   );
-}
-export const PlotSubMenu = memo(_PlotSubMenu);
+});

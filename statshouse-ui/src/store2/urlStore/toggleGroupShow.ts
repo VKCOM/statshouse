@@ -1,4 +1,4 @@
-import type { GroupKey } from 'url2';
+import type { GroupKey } from '@/url2';
 import type { ProduceUpdate } from '../helpers';
 import type { StatsHouseStore } from '../statsHouseStore';
 

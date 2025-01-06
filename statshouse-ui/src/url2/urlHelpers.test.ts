@@ -1,6 +1,7 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { arrToObj } from './urlHelpers';
-describe('urlHelpers', () => {
+
+describe('@/urlHelpers', () => {
   test('arrToObj', () => {
     expect(
       arrToObj([

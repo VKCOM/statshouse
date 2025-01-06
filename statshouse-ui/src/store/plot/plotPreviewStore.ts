@@ -44,7 +44,7 @@ export async function createPlotPreview(indexPlot: number, u: uPlot, width: numb
       controller.signal
     );
     setPlotPreview(indexPlot, url);
-  } catch (e) {
+  } catch (_) {
     // abort task
   }
   usePlotPreviewStore.setState((state) => {

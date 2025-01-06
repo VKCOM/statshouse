@@ -10,20 +10,20 @@ const ApiStatEndpoint = '/api/stat';
 /**
  * Response endpoint api/stat
  */
-export type ApiStat = {};
+export type ApiStat = undefined;
 
 /**
  * Get params endpoint api/stat
  */
-export type ApiStatGet = {};
+export type ApiStatGet = undefined;
 
 /**
  * Post params endpoint api/stat
  */
-export type ApiStatPost = {};
+export type ApiStatPost = unknown;
 
 export async function apiStatFetch(params: ApiStatPost, keyRequest?: unknown) {
-  return await apiFetch<ApiStat>({ url: ApiStatEndpoint, post: params, keyRequest });
+  return await apiFetch<ApiStat, ApiStatGet, ApiStatPost>({ url: ApiStatEndpoint, post: params, keyRequest });
 }
 
 const environment = process.env.NODE_ENV;

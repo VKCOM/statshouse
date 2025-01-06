@@ -13,10 +13,10 @@ import { ReactComponent as SVGChevronCompactDown } from 'bootstrap-icons/icons/c
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
-import { GroupKey } from 'url2';
-import { Button, TextArea, Tooltip } from 'components/UI';
+import { GroupKey } from '@/url2';
+import { Button, TextArea, Tooltip } from '@/components/UI';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 
 export type DashboardGroupProps = {
   children?: React.ReactNode;
@@ -24,7 +24,7 @@ export type DashboardGroupProps = {
   className?: string;
 };
 
-export function _DashboardGroup({ children, groupKey, className }: DashboardGroupProps) {
+export const DashboardGroup = memo(function DashboardGroup({ children, groupKey, className }: DashboardGroupProps) {
   const {
     groups,
     isSingle,
@@ -246,6 +246,4 @@ export function _DashboardGroup({ children, groupKey, className }: DashboardGrou
       {children}
     </div>
   );
-}
-
-export const DashboardGroup = memo(_DashboardGroup);
+});

@@ -1,12 +1,12 @@
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import css from './style.module.css';
 import { Popper } from '../../UI';
-import { useDebounceState } from '../../../hooks';
+import { useDebounceState } from '@/hooks';
 import { PlotEventOverlayTable } from './PlotEventOverlayTable';
-import { TimeRange } from '../../../common/TimeRange';
+import { TimeRange } from '@/common/TimeRange';
 import cn from 'classnames';
-import { PlotParams } from '../../../url/queryParams';
-import { isNotNil, uniqueArray } from '../../../common/helpers';
+import { PlotParams } from '@/url/queryParams';
+import { isNotNil, uniqueArray } from '@/common/helpers';
 
 export type PlotEventFlagProps = {
   plots: PlotParams[];
@@ -23,7 +23,8 @@ export type PlotEventFlagProps = {
   groups: { color: string; idx: number; x: number; plotIndex: number }[];
   small?: boolean;
 };
-export function _PlotEventFlag({
+
+export const PlotEventFlag = memo(function PlotEventFlag({
   plots,
   range,
   agg,
@@ -128,6 +129,4 @@ export function _PlotEventFlag({
       </Popper>
     </g>
   );
-}
-
-export const PlotEventFlag = memo(_PlotEventFlag);
+});

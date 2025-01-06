@@ -4,19 +4,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useState } from 'react';
-import { type TagKey } from 'api/enum';
-import { Tooltip } from 'components/UI';
+import { memo, useCallback, useState } from 'react';
+import type { TagKey } from '@/api/enum';
+import { Tooltip } from '@/components/UI';
 import { produce } from 'immer';
-import { sortEntity } from 'common/helpers';
+import { sortEntity } from '@/common/helpers';
 import cn from 'classnames';
 
-import { setUpdatedTag, useVariableListStore } from 'store2/variableList';
-import { type PlotKey, QueryParams } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { useVariableLink } from 'hooks/useVariableLink';
-import { getTagDescription } from 'view/utils2';
-import { VariableControl } from '../../../components/VariableControl';
+import { setUpdatedTag, useVariableListStore } from '@/store2/variableList';
+import { type PlotKey, QueryParams } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { useVariableLink } from '@/hooks/useVariableLink';
+import { getTagDescription } from '@/view/utils2';
+import { VariableControl } from '@/components/VariableControl';
 
 export type PlotControlFilterTagProps = {
   plotKey: PlotKey;
@@ -24,7 +24,11 @@ export type PlotControlFilterTagProps = {
   className?: string;
 };
 
-export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotControlFilterTagProps) {
+export const PlotControlFilterTag = memo(function PlotControlFilterTag({
+  plotKey,
+  tagKey,
+  className,
+}: PlotControlFilterTagProps) {
   const { filterIn, filterNotIn, groupBy, variables, meta, setParams } = useStatsHouseShallow((s) => ({
     // metricName: s.params.plots[plotKey]?.metricName ?? '',
     filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
@@ -174,7 +178,7 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
             title={`is variable: ${variable?.description || variable?.name}`}
             className={cn(
               'input-group-text bg-transparent text-nowrap pt-0 pb-0 me-2',
-              variable?.negative ?? negativeTag ? 'border-danger text-danger' : 'border-success text-success'
+              (variable?.negative ?? negativeTag) ? 'border-danger text-danger' : 'border-success text-success'
             )}
           >
             <span className="small">{variable?.name}</span>
@@ -183,5 +187,4 @@ export function _PlotControlFilterTag({ plotKey, tagKey, className }: PlotContro
       }
     />
   );
-}
-export const PlotControlFilterTag = memo(_PlotControlFilterTag);
+});

@@ -1,4 +1,4 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { QueryParams } from '../queryParams';
 import { getNewMetric } from './metric';
 import { widgetsParamsEncode } from './widgetsParamsEncode';
@@ -7,8 +7,8 @@ import { getDefaultParams } from '../getDefault';
 
 const params: QueryParams = getDefaultParams();
 
-describe('urlStore widgetsParamsEncode', () => {
-  test('urlEncodePlots', () => {
+describe('@/urlStore widgetsParamsEncode', () => {
+  test('@/urlEncodePlots', () => {
     const params2: QueryParams = {
       ...params,
       plots: {

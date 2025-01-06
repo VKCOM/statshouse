@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo } from 'react';
-import { SwitchBox } from 'components/UI';
+import { SwitchBox } from '@/components/UI';
 import cn from 'classnames';
 
 import { ReactComponent as SVGPrometheus } from '../../../../assets/svg/Prometheus.svg';

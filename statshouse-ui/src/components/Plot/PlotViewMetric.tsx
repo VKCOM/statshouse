@@ -26,11 +26,11 @@ import {
   useLiveModeStore,
   usePlotHealsStore,
   useStore,
-} from 'store';
+} from '@/store';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
-import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from 'hooks';
+import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '@/hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
@@ -43,14 +43,14 @@ import { fmtInputDateTime, now, timeRangeAbbrevExpand } from '../../view/utils2'
 import { useThemeStore } from '../../store/theme';
 import { LegendItem, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../UPlotWrapper';
 import { PlotLegend } from '../PlotLegend';
-import { incrs } from 'components2/Plot/PlotView/constants';
+import { incrs } from '@/components2/Plot/PlotView/constants';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
 
 const threshold = buildThresholdList(1);
 
-function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
+function xRangeStatic(_u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {
     const t = now();
     return [t - 3600, t];
@@ -58,7 +58,7 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
+function dateRangeFormat(self: uPlot, rawValue: number, _seriesIdx: number, idx: number | null): string | number {
   if (idx === null) {
     return rawValue;
   }
@@ -276,7 +276,7 @@ export function PlotViewMetric(props: {
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+          auto: (_u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
@@ -312,8 +312,7 @@ export function PlotViewMetric(props: {
       }
       setUPlotWidth(indexPlot, u.bbox.width);
       u.over.onclick = () => {
-        // @ts-ignore
-        setCursorLock(u.cursor._lock);
+        setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
         resetZoomRef.current();

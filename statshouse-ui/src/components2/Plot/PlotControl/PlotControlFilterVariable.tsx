@@ -4,18 +4,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
-import { VariableControl } from 'components/VariableControl';
-import { setUpdatedVariable, useVariableListStore } from 'store2/variableList';
-import { VariableKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { memo, useCallback } from 'react';
+import { VariableControl } from '@/components/VariableControl';
+import { setUpdatedVariable, useVariableListStore } from '@/store2/variableList';
+import { VariableKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
 
 export type PlotControlFilterVariableProps = {
   className?: string;
   variableKey: VariableKey;
 };
 
-export function _PlotControlFilterVariable({ className, variableKey }: PlotControlFilterVariableProps) {
+export const PlotControlFilterVariable = memo(function PlotControlFilterVariable({
+  className,
+  variableKey,
+}: PlotControlFilterVariableProps) {
   const { variable, setParams } = useStatsHouseShallow(({ params, setParams }) => ({
     variable: params.variables[variableKey],
     setParams,
@@ -64,7 +67,7 @@ export function _PlotControlFilterVariable({ className, variableKey }: PlotContr
   );
 
   const onSetUpdatedVariable = useCallback(
-    (variableKey: VariableKey | undefined, value: boolean) => {
+    (_variableKey: VariableKey | undefined, value: boolean) => {
       if (variable?.name) {
         setUpdatedVariable(variable?.name, value);
       }
@@ -93,6 +96,4 @@ export function _PlotControlFilterVariable({ className, variableKey }: PlotContr
       small
     />
   );
-}
-
-export const PlotControlFilterVariable = memo(_PlotControlFilterVariable);
+});

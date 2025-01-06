@@ -6,15 +6,16 @@
 
 import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
-import { useDebounceState } from '../../hooks';
+import { useDebounceState } from '@/hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import cn from 'classnames';
-import { SearchFabric } from '../../common/helpers';
+import { SearchFabric } from '@/common/helpers';
 import { Button } from '../UI';
 
-export const SELECT_OPTION_ACTION = {
+const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
 } as const;
+
 export type SelectOptionAction = (typeof SELECT_OPTION_ACTION)[keyof typeof SELECT_OPTION_ACTION];
 
 export type SelectOptionProps = {
@@ -150,12 +151,13 @@ function updateCheck(list?: HTMLElement | null) {
       }
       if (action) {
         switch (action) {
-          case SELECT_OPTION_ACTION.ToggleFiltered:
+          case SELECT_OPTION_ACTION.ToggleFiltered: {
             const options = [...list.children];
             cb.checked = options.every((e) => e.classList.contains(css.selected) || e.getAttribute('data-action'));
             cb.indeterminate =
               !cb.checked && options.some((e) => e.classList.contains(css.selected) && !e.getAttribute('data-action'));
             break;
+          }
         }
         continue;
       }
@@ -373,7 +375,7 @@ export const Select: FC<SelectProps> = ({
         return;
       }
       switch (action) {
-        case SELECT_OPTION_ACTION.ToggleFiltered:
+        case SELECT_OPTION_ACTION.ToggleFiltered: {
           const changeValues = filterOptions.filter((v) => v.value).map((v) => v.value);
           const check = changeValues.some((v) => !valuesInput.includes(v));
           if (check) {
@@ -385,6 +387,7 @@ export const Select: FC<SelectProps> = ({
             );
           }
           break;
+        }
       }
     },
     [filterOptions, multiple, selectValue, valuesInput]
@@ -479,7 +482,7 @@ export const Select: FC<SelectProps> = ({
       }
 
       switch (event.key) {
-        case KEY.ArrowDown:
+        case KEY.ArrowDown: {
           let next = elem.nextElementSibling as HTMLElement | null;
           if (next?.classList.contains(css.optionSplitter)) {
             next = next.nextElementSibling as HTMLElement | null;
@@ -490,7 +493,8 @@ export const Select: FC<SelectProps> = ({
             scrollToElement(list.current, next);
           }
           break;
-        case KEY.ArrowUp:
+        }
+        case KEY.ArrowUp: {
           let prev = elem.previousElementSibling as HTMLElement | null;
           if (prev?.classList.contains(css.optionSplitter)) {
             prev = prev.previousElementSibling as HTMLElement | null;
@@ -501,7 +505,8 @@ export const Select: FC<SelectProps> = ({
             scrollToElement(list.current, prev);
           }
           break;
-        case KEY.Enter:
+        }
+        case KEY.Enter: {
           const dataValue = elem.getAttribute('data-value');
           const dataAction = elem.getAttribute('data-action');
           const dataDisabled = elem.getAttribute('data-disabled');
@@ -519,6 +524,7 @@ export const Select: FC<SelectProps> = ({
             }
           }
           break;
+        }
         case KEY.Escape:
           onClose();
           break;
@@ -571,7 +577,7 @@ export const Select: FC<SelectProps> = ({
       const heightTop = inputBound.top - 30;
       const maxHeight = Math.max(heightBottom, heightTop);
       const minHeight = Math.min(heightBottom, heightTop);
-      let listPosition: string[] = [];
+      const listPosition: string[] = [];
       if (list.current) {
         list.current.style.maxHeight = `${maxHeight}px`;
       }

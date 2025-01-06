@@ -1,4 +1,4 @@
-import { type QueryParams } from 'url2';
+import type { QueryParams } from '@/url2';
 
 export function prepareItemsGroup({
   orderGroup,
@@ -7,7 +7,7 @@ export function prepareItemsGroup({
 }: Pick<QueryParams, 'orderGroup' | 'orderPlot' | 'groups'>) {
   const orderP = [...orderPlot];
   return orderGroup.map((groupKey) => {
-    let plots = orderP.splice(0, groups[groupKey]?.count ?? 0);
+    const plots = orderP.splice(0, groups[groupKey]?.count ?? 0);
     return {
       groupKey,
       plots,

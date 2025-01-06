@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { selectorLoadPromConfig, selectorPromConfig, selectorSavePromConfig, useStore } from '../../store';
-import { useStateInput } from '../../hooks';
-import { ErrorMessages } from 'components/ErrorMessages';
+import { selectorLoadPromConfig, selectorPromConfig, selectorSavePromConfig, useStore } from '@/store';
+import { useStateInput } from '@/hooks';
+import { ErrorMessages } from '@/components/ErrorMessages';
 
 export type PrometheusPageProps = {};
 export const PrometheusPage: React.FC<PrometheusPageProps> = () => {

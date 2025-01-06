@@ -6,7 +6,7 @@
 
 import { GET_PARAMS, TAG_KEY } from '../api/enum';
 import { metricTagValueInfo } from './api';
-import { type UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
+import type { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
 import { produce } from 'immer';
@@ -145,7 +145,7 @@ export function readJSONLD<T>(type: string): T | null {
       if (json['@type'] === type) {
         return json as T;
       }
-    } catch (e) {}
+    } catch (_) {}
   }
   return null;
 }
@@ -188,7 +188,7 @@ export function normalizeTagValues(values: readonly metricTagValueInfo[], sortBy
   return copy.map((v) => ({ value: v.value, count: v.count / totalCount }));
 }
 
-export function sortByKey(key: string, a: Record<string, any>, b: Record<string, any>) {
+export function sortByKey<T = unknown>(key: string, a: Record<string, T>, b: Record<string, T>) {
   return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
 }
 
@@ -208,7 +208,7 @@ export function getMetricFullName(plot: PlotParams, plotData: PlotStore) {
   }
   const metricName = getMetricName(plot, plotData);
   const metricWhat = getMetricWhat(plot, plotData);
-  return metricName ? `${metricName}${!!metricWhat ? ': ' + metricWhat : ''}` : '';
+  return metricName ? `${metricName}${metricWhat ? ': ' + metricWhat : ''}` : '';
 }
 
 export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {

@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
 
 export function buildThresholdList(step: number = 0.5) {
-  let thresholds = [];
+  const thresholds = [];
   for (let i = 0; i <= 1; i += step) {
     thresholds.push(i);
   }

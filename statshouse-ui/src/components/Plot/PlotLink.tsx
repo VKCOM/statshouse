@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Link, To } from 'react-router-dom';
-import { useLinkListStore } from '../../store/linkList/linkListStore';
+import { useLinkListStore } from '@/store/linkList/linkListStore';
 
 export type PlotLinkProps = {
   indexPlot?: number;
@@ -19,7 +19,7 @@ export type PlotLinkProps = {
 export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.forwardRef<
   HTMLAnchorElement,
   PlotLinkProps
->(function _PlotLink({ indexPlot, isLink, to, children, newPlot, ...attributes }, ref) {
+>(function PlotLink({ indexPlot, isLink, to, children, newPlot, ...attributes }, ref) {
   const plotSearch = useLinkListStore(({ links }) => (indexPlot != null && links[indexPlot.toString()]) || '');
 
   return (

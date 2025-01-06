@@ -4,16 +4,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { EventObserver } from 'common/EventObserver';
-import { UPlotWrapperPropsHooks } from 'components/UPlotWrapper';
+import { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { EventObserver } from '@/common/EventObserver';
+import { UPlotWrapperPropsHooks } from '@/components/UPlotWrapper';
 import uPlot from 'uplot';
 import css from './style.module.css';
 import { PlotEventFlag } from './PlotEventFlag';
-import { type PlotKey, PlotParams, readTimeRange, type TimeRange } from 'url2';
-import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { type PlotData } from 'store2/plotDataStore';
-import { useResizeObserver } from 'hooks/useResizeObserver';
+import { type PlotKey, PlotParams, readTimeRange, type TimeRange } from '@/url2';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import type { PlotData } from '@/store2/plotDataStore';
+import { useResizeObserver } from '@/hooks/useResizeObserver';
+import { emptyArray } from '@/common/helpers';
 
 type Flag = {
   x: number;
@@ -38,7 +39,7 @@ function getEventLines(
     const data =
       eventsData[indexEvent]?.data
         .slice(1)
-        .filter((d, indexData) => !eventsData[indexEvent]?.seriesTimeShift[indexData]) ?? [];
+        .filter((_d, indexData) => !eventsData[indexEvent]?.seriesTimeShift[indexData]) ?? [];
     const values = data.flat().filter(Boolean).map(Number);
     const maxY = values.reduce((res, item) => Math.max(res, item), values[0]);
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
@@ -93,8 +94,13 @@ export type PlotEventOverlayProps = {
   flagHeight?: number;
   compact?: boolean;
 };
-const emptyArray: PlotKey[] = [];
-export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
+
+export const PlotEventOverlay = memo(function PlotEventOverlay({
+  plotKey,
+  hooks,
+  flagHeight = 8,
+  compact,
+}: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
@@ -200,6 +206,4 @@ export function _PlotEventOverlay({ plotKey, hooks, flagHeight = 8, compact }: P
       )}
     </div>
   );
-}
-
-export const PlotEventOverlay = memo(_PlotEventOverlay);
+});

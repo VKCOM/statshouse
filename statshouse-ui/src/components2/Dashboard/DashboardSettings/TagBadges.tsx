@@ -7,12 +7,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import cn from 'classnames';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
-import { Tooltip } from 'components/UI';
-import { FilterTag } from 'url2';
-import { MetricMetaValue } from 'api/metric';
-import { emptyObject } from 'common/helpers';
-import { toTagKey } from 'api/enum';
-import { formatTagValue } from 'view/api';
+import { Tooltip } from '@/components/UI';
+import { FilterTag } from '@/url2';
+import { MetricMetaValue } from '@/api/metric';
+import { emptyObject } from '@/common/helpers';
+import { toTagKey } from '@/api/enum';
+import { formatTagValue } from '@/view/api';
 
 export type BadgesProps = {
   children?: React.ReactNode;

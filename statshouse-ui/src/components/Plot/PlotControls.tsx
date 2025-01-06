@@ -202,7 +202,7 @@ export const PlotControls = memo(function PlotControls_(props: {
     const eventPresetFilter = eventPreset.filter(({ value }) => {
       const presetPlot = { ...decodeParams(parseURLSearchParams(value)).plots[0], id: '0' };
       if (presetPlot) {
-        let index = params.plots.findIndex((plot) => dequal({ ...plot, id: '0' }, presetPlot));
+        const index = params.plots.findIndex((plot) => dequal({ ...plot, id: '0' }, presetPlot));
         return index < 0;
       }
       return false;
@@ -572,7 +572,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                             title={`is variable: ${variableTags[tagKey]?.description || variableTags[tagKey]?.name}`}
                             className={cn(
                               'input-group-text bg-transparent text-nowrap pt-0 pb-0 me-2',
-                              variableTags[tagKey]?.args.negative ?? negativeTags[tagKey]
+                              (variableTags[tagKey]?.args.negative ?? negativeTags[tagKey])
                                 ? 'border-danger text-danger'
                                 : 'border-success text-success'
                             )}
@@ -617,7 +617,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                           }`}
                           className={cn(
                             'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
-                            variableTags[TAG_KEY._s]?.args.negative ?? negativeTags[TAG_KEY._s]
+                            (variableTags[TAG_KEY._s]?.args.negative ?? negativeTags[TAG_KEY._s])
                               ? 'border-danger text-danger'
                               : 'border-success text-success'
                           )}

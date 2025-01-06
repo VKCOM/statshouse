@@ -1,7 +1,7 @@
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { isNotNil, isObject } from 'common/helpers';
+import { isNotNil, isObject } from '@/common/helpers';
 
 export const favoriteStateStorage: StateStorage = {
   getItem(name) {

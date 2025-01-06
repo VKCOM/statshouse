@@ -6,7 +6,7 @@
 
 import uPlot from 'uplot';
 
-import { now } from 'view/utils2';
+import { now } from '@/view/utils2';
 
 export function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {

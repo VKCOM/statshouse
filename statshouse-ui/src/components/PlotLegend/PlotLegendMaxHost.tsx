@@ -1,9 +1,9 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Select } from '../Select';
-import { selectorPlotsDataByIndex, useStore } from '../../store';
+import { selectorPlotsDataByIndex, useStore } from '@/store';
 
 import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
-import { debug } from '../../common/debug';
+import { debug } from '@/common/debug';
 import { Button } from '../UI';
 
 type PlotLegendMaxHostProps = {
@@ -13,7 +13,12 @@ type PlotLegendMaxHostProps = {
   idx: number;
 };
 
-function _PlotLegendMaxHost({ value, placeholder, indexPlot, idx }: PlotLegendMaxHostProps) {
+export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
+  value,
+  placeholder,
+  indexPlot,
+  idx,
+}: PlotLegendMaxHostProps) {
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
 
   const { maxHostLists } = useStore(selectorPlotsData, (a, b) => a.maxHostLists === b.maxHostLists);
@@ -47,6 +52,4 @@ function _PlotLegendMaxHost({ value, placeholder, indexPlot, idx }: PlotLegendMa
       </Button>
     </div>
   );
-}
-
-export const PlotLegendMaxHost = memo(_PlotLegendMaxHost);
+});

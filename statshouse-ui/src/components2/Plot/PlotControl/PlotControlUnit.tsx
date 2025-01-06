@@ -5,11 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, type MetricType, toMetricType } from 'api/enum';
+import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, type MetricType, toMetricType } from '@/api/enum';
 import cn from 'classnames';
-import { getMetricType } from 'common/formatByMetricType';
-import { type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { getMetricType } from '@/common/formatByMetricType';
+import type { PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
 
 const METRIC_TYPE_KEYS: MetricType[] = ['null', ...Object.values(METRIC_TYPE)] as MetricType[];
 const METRIC_TYPE_DESCRIPTION_SELECTOR = {
@@ -21,7 +21,8 @@ export type PlotControlUnitProps = {
   className?: string;
   plotKey: PlotKey;
 };
-export function _PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
+
+export const PlotControlUnit = memo(function PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
   const { metricUnitParam, what, metaMetricType, setPlot } = useStatsHouseShallow((s) => ({
     metricUnitParam: s.params.plots[plotKey]?.metricUnit,
     what: s.plotsData[plotKey]?.whats ?? s.params.plots[plotKey]?.what,
@@ -56,6 +57,4 @@ export function _PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
       ))}
     </select>
   );
-}
-
-export const PlotControlUnit = memo(_PlotControlUnit);
+});

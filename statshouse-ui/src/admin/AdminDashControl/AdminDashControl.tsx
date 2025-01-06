@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useStatsHouse } from 'store2';
+import { useStatsHouse } from '@/store2';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { selectApiDashboardList, useApiDashboardList } from '../../api/dashboardsList';
 import { apiDashboardSave, DashboardInfo, useApiDashboard } from '../../api/dashboard';

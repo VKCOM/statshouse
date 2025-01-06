@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Popper, POPPER_HORIZONTAL, POPPER_VERTICAL, PopperHorizontal, PopperVertical } from './Popper';
-import { type JSX } from 'react/jsx-runtime';
+import type { JSX } from 'react/jsx-runtime';
 import { TooltipTitleContent } from './TooltipTitleContent';
-import { useOnClickOutside } from '../../hooks';
+import { useOnClickOutside } from '@/hooks';
 
 import cn from 'classnames';
 import css from './style.module.css';
@@ -29,9 +29,9 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   onClickOuter?: () => void;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
-declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
+declare function _TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
 
-export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Tooltip(
+export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function Tooltip(
   {
     as: Tag = 'div',
     title,
@@ -82,7 +82,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
   }, [outerOpen]);
 
   const onMouseOver = useCallback(
-    (e: any) => {
+    (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
         timeoutDelayRef.current = null;
@@ -99,7 +99,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
   );
 
   const onMouseOut = useCallback(
-    (e: any) => {
+    (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
         timeoutDelayRef.current = null;
@@ -114,7 +114,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
     [delayClose, outerOpen, props]
   );
   const onMouseMove = useCallback(
-    (e: any) => {
+    (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
         timeoutDelayRef.current = null;
@@ -131,7 +131,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
   );
 
   const onClick = useCallback(
-    (e: any) => {
+    (e: React.MouseEvent<HTMLDivElement>) => {
       if (outerOpen == null) {
         setOpen(false);
       }
@@ -168,4 +168,4 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
       )}
     </Tag>
   );
-}) as typeof TooltipFn;
+}) as typeof _TooltipFn;

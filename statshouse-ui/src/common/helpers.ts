@@ -82,9 +82,10 @@ export function toNumber(item: unknown, defaultNumber?: number): number | null {
       return item;
     case 'boolean':
       return +item;
-    case 'string':
+    case 'string': {
       const n = +item;
-      return item && !isNaN(n) ? n : defaultNumber ?? null;
+      return item && !isNaN(n) ? n : (defaultNumber ?? null);
+    }
     case 'undefined':
     case 'function':
     case 'object':
@@ -161,7 +162,7 @@ export function mergeLeft<T>(targetMerge: T, valueMerge: T): T {
     return produce(targetMerge, (s) => {
       tKey.forEach((key) => {
         const v = mergeLeft(s[key], valueMerge[key]);
-        if (!valueMerge.hasOwnProperty(key)) {
+        if (!Object.hasOwn(valueMerge, key)) {
           delete s[key];
         } else if (s[key] !== v) {
           Object.assign(s, { [key]: v });
@@ -214,7 +215,7 @@ export function invertObj<K extends string, V extends string>(obj: Record<K, V>)
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
-      let nKey = toNumber(key);
+      const nKey = toNumber(key);
       if (nKey && nKey > index) {
         return [nKey - 1, value];
       }
@@ -229,7 +230,7 @@ export function resortObjectKey<T = unknown>(obj: Record<string, T>, nextIndex: 
 
 export function round(val: number, dec: number = 0, radix: number = 10) {
   if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
-  let p = Math.pow(radix, dec);
+  const p = Math.pow(radix, dec);
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
 }
 
@@ -250,7 +251,7 @@ export function incrRoundDn(num: number, incr: number) {
 
 export function floor(val: number, dec: number = 0, radix: number = 10) {
   if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
-  let p = Math.pow(radix, dec);
+  const p = Math.pow(radix, dec);
   return Math.floor(val * p * (1 + Number.EPSILON)) / p;
 }
 
@@ -294,7 +295,7 @@ export function parseURLSearchParams(url: string): [string, string][] {
   try {
     const parseUrl = new URL(url, document.location.origin);
     return [...parseUrl.searchParams.entries()];
-  } catch (e) {
+  } catch (_) {
     return [];
   }
 }

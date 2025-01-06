@@ -1,4 +1,4 @@
-import { type PlotParams } from 'url2';
+import type { PlotParams } from '@/url2';
 import { dequal } from 'dequal/lite';
 
 export function changePlotParamForData(plot?: PlotParams, prevPlot?: PlotParams) {

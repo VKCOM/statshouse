@@ -27,15 +27,14 @@ import {
   selectorSetParams,
   useStore,
   useTVModeStore,
-} from 'store';
-import { currentAccessInfo, logoutURL } from 'common/access';
+} from '@/store';
+import { currentAccessInfo, logoutURL } from '@/common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
-import { decodeParams } from 'url/queryParams';
-import { globalSettings } from 'common/settings';
-import { AppVersionToggle } from 'components2/AppVersionToggle';
-import { setTheme, THEMES, useThemeStore } from 'store/theme';
-import { selectorDevEnabled, setDevEnabled, useStoreDev } from 'store/dev';
+import { decodeParams } from '@/url/queryParams';
+import { globalSettings } from '@/common/settings';
+import { setTheme, THEMES, useThemeStore } from '@/store/theme';
+import { selectorDevEnabled, setDevEnabled, useStoreDev } from '@/store/dev';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -185,7 +184,6 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
                   {devEnabled ? 'DEV ON' : 'DEV OFF'}
                 </span>
               </li>
-              <AppVersionToggle />
             </>
           )}
           {!!ai.user && (

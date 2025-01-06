@@ -27,8 +27,8 @@ import {
   queryTableRow,
   queryTableURL,
   queryURL,
-} from '../view/api';
-import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
+} from '@/view/api';
+import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '@/common/TimeRange';
 import {
   apiGet,
   apiPost,
@@ -41,20 +41,20 @@ import {
   replaceVariable,
   sortByKey,
   tagSyncToVariableConvert,
-} from '../view/utils';
-import { globalSettings, pxPerChar } from '../common/settings';
-import { debug } from '../common/debug';
-import { calcYRange2 } from '../common/calcYRange';
-import { rgba, selectColor } from '../view/palette';
-import { filterPoints } from '../common/filterPoints';
-import { getNextState } from '../common/getNextState';
-import { stackData } from '../common/stackData';
+} from '@/view/utils';
+import { globalSettings, pxPerChar } from '@/common/settings';
+import { debug } from '@/common/debug';
+import { calcYRange2 } from '@/common/calcYRange';
+import { rgba, selectColor } from '@/view/palette';
+import { filterPoints } from '@/common/filterPoints';
+import { getNextState } from '@/common/getNextState';
+import { stackData } from '@/common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
-import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, type QueryWhat, TAG_KEY, type TagKey } from 'api/enum';
-import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '../common/helpers';
-import { promiseRun } from '../common/promiseRun';
-import { appHistory } from '../common/appHistory';
+import { apiMetricFetch, MetricMetaValue } from '@/api/metric';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, type QueryWhat, TAG_KEY, type TagKey } from '@/api/enum';
+import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '@/common/helpers';
+import { promiseRun } from '@/common/promiseRun';
+import { appHistory } from '@/common/appHistory';
 import {
   decodeDashboardIdParam,
   decodeDashboardVersionParam,
@@ -71,16 +71,16 @@ import {
   toIndexTag,
   toPlotKey,
   VariableParams,
-} from '../url/queryParams';
+} from '@/url/queryParams';
 import { clearPlotVisibility, resortPlotVisibility, usePlotVisibilityStore } from './plot/plotVisibilityStore';
 import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreviewStore';
 import { createStoreWithEqualityFn } from './createStore';
 import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
 import { addStatus, removePlotHeals, resortPlotHeals, skipRequestPlot, usePlotHealsStore } from './plot/plotHealsStore';
-import { formatByMetricType, getMetricType } from '../common/formatByMetricType';
-import { dashboardURL } from '../view/dashboardURL';
-import { promQLMetric } from '../view/promQLMetric';
-import { whatToWhatDesc } from '../view/whatToWhatDesc';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
+import { dashboardURL } from '@/view/dashboardURL';
+import { promQLMetric } from '@/view/promQLMetric';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
 import {
   fmtInputDateTime,
   formatLegendValue,
@@ -91,12 +91,12 @@ import {
   timeRangeAbbrevExpand,
   timeShiftAbbrevExpand,
   timeShiftToDash,
-} from '../view/utils2';
-import { DashboardInfo, normalizeDashboard } from '../view/normalizeDashboard';
-import { SelectOptionProps } from '../components/Select';
-import { UPlotWrapperPropsScales } from '../components/UPlotWrapper';
-import { fixMessageTrouble } from '../url/fixMessageTrouble';
-import { ExtendedError } from '../api/api';
+} from '@/view/utils2';
+import { DashboardInfo, normalizeDashboard } from '@/view/normalizeDashboard';
+import { SelectOptionProps } from '@/components/Select';
+import { UPlotWrapperPropsScales } from '@/components/UPlotWrapper';
+import { fixMessageTrouble } from '@/url/fixMessageTrouble';
+import { ExtendedError } from '@/api/api';
 
 export type PlotStore = {
   nameMetric: string;
@@ -321,7 +321,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         getState().setParams(
           produce((params) => {
             params.timeRange = nextTimeRange;
-            if (nextTimeRange.from < params.eventFrom && nextTimeRange.to > params.eventFrom) {
+            if (
+              nextTimeRange.from < params.eventFrom &&
+              typeof nextTimeRange.to === 'number' &&
+              nextTimeRange.to > params.eventFrom
+            ) {
               params.eventFrom = 0;
             }
           }),
@@ -351,13 +355,13 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
               ? saveParams.timeRange.to
               : id
-              ? 0
-              : getDefaultParams().timeRange.to,
+                ? 0
+                : getDefaultParams().timeRange.to,
           from: saveParams?.timeRange.from ?? getDefaultParams().timeRange.from,
         },
       };
 
-      let decodeP = decodeParams(searchParams, localDefaultParams);
+      const decodeP = decodeParams(searchParams, localDefaultParams);
       if (!decodeP) {
         return;
       }
@@ -615,7 +619,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               id: indexPlot.toString(), // fix fallback
               events: p.events.filter((v) => v !== index).map((v) => (v > index ? v - 1 : v)),
             }));
-            params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
+            params.tagSync = params.tagSync.map((g) => g.filter((_tags, plot) => plot !== index));
             groups.splice(index, 1);
             if (params.dashboard?.groupInfo?.length) {
               params.dashboard.groupInfo = params.dashboard.groupInfo.map((g, index) => ({
@@ -826,8 +830,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           lastPlotParams.customAgg === -1
             ? `${Math.floor(width / 4)}`
             : lastPlotParams.customAgg === 0
-            ? `${Math.floor(width * devicePixelRatio)}`
-            : `${lastPlotParams.customAgg}s`;
+              ? `${Math.floor(width * devicePixelRatio)}`
+              : `${lastPlotParams.customAgg}s`;
         if (!getState().metricsMeta[lastPlotParams.metricName]) {
           getState().loadMetricsMeta(lastPlotParams.metricName);
         }
@@ -885,16 +889,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           : apiGet<queryResult>(url, controller.signal, true)
         )
           .then((resp) => {
-            const promqltestfailed = !!resp?.promqltestfailed;
+            const promqltestfailed = !!resp.promqltestfailed;
             const uniqueWhat: Set<QueryWhat> = new Set();
             const uniqueName = new Set();
             const uniqueMetricType: Set<string> = new Set();
-            let series_meta = [...resp?.series.series_meta];
+            let series_meta = [...resp.series.series_meta];
             let series_data = [...resp.series.series_data] as (number | null)[][];
             const totalLineId = lastPlotParams.totalLine ? series_meta.length : null;
             const totalLineLabel = 'Total';
             if (lastPlotParams.totalLine) {
-              const totalLineData = resp.series.time.map((time, idx) =>
+              const totalLineData = resp.series.time.map((_time, idx) =>
                 series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)
               );
               series_meta.push({
@@ -932,7 +936,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               if (isQueryWhat(meta.what)) {
                 uniqueWhat.add(meta.what);
               }
-              meta.name && uniqueName.add(meta.name);
+              if (meta.name) {
+                uniqueName.add(meta.name);
+              }
               if (meta.metric_type) {
                 uniqueMetricType.add(meta.metric_type);
               }
@@ -964,7 +970,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const usedBaseColors = {};
             const baseColors: Record<string, string> = {};
             let changeColor = false;
-            let changeType = currentPrevLastPlotParams?.type !== lastPlotParams.type;
+            const changeType = currentPrevLastPlotParams?.type !== lastPlotParams.type;
             const changeView =
               currentPrevLastPlotParams?.totalLine !== lastPlotParams.totalLine ||
               currentPrevLastPlotParams?.filledGraph !== lastPlotParams.filledGraph;
@@ -1291,7 +1297,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
             indexSeries === idx ? false : _show
           );
-          state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
+          state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((_, indexSeries) =>
             indexSeries === idx ? true : !otherShow
           );
         } else {
@@ -1435,7 +1441,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 params.plots[indexPlot].what = [QUERY_WHAT.countNorm];
                 params.plots[indexPlot].numSeries = 5;
                 break;
-              case PLOT_TYPE.Event:
+              case PLOT_TYPE.Event: {
                 params.plots[indexPlot].what = [QUERY_WHAT.count];
                 params.plots[indexPlot].numSeries = 0;
                 params.plots[indexPlot].customAgg = -1;
@@ -1454,9 +1460,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 params.plots[indexPlot].eventsBy = eventsBy;
 
                 break;
+              }
             }
             if (params.plots[indexPlot].type === PLOT_TYPE.Metric) {
-              params.plots = params.plots.map((plot, indexP, plotList) => {
+              params.plots = params.plots.map((plot, _indexP, plotList) => {
                 const eventsFilter = plot.events.filter((eventPlot) => plotList[eventPlot]?.type === PLOT_TYPE.Event);
                 return {
                   ...plot,
@@ -1931,8 +1938,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           prevPlot.customAgg === -1
             ? `${Math.floor(width / 4)}`
             : prevPlot.customAgg === 0
-            ? `${Math.floor(width * devicePixelRatio)}`
-            : `${prevPlot.customAgg}s`;
+              ? `${Math.floor(width * devicePixelRatio)}`
+              : `${prevPlot.customAgg}s`;
 
         const lastPlotParams: PlotParams | undefined = replaceVariable(plotKey, prevPlot, prevStateVariables);
 
@@ -2243,7 +2250,7 @@ export function moveAndResortPlot(
   const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
     ...variable,
     link: variable.link.map(([plotKey, tagKey]) => {
-      let indexP = toNumber(plotKey);
+      const indexP = toNumber(plotKey);
       return [toPlotKey(indexP == null ? indexP : localRemapIndexPlot[indexP]) ?? plotKey, tagKey];
     }),
   }));
@@ -2338,7 +2345,7 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
     useStore.getState().setParams(store.params);
   } else if (group && targetGroup && count && targetCount) {
     let remapIndexPlot: Record<string, number> | undefined = undefined;
-    let startIndex = groups.slice(0, indexGroup).reduce((res, { count }) => res + count, 0);
+    const startIndex = groups.slice(0, indexGroup).reduce((res, { count }) => res + count, 0);
     const targetGroupIndex = Math.max(0, indexGroup + (direction > 0 ? direction * 2 : direction));
     // add new group
     store = produce(store, (p) => {
@@ -2363,13 +2370,13 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
     // move plot in new group
     if (direction > 0) {
       for (let i = 0; i < count; i++) {
-        let next = moveAndResortPlot(store, startIndex, null, targetGroupIndex, remapIndexPlot);
+        const next = moveAndResortPlot(store, startIndex, null, targetGroupIndex, remapIndexPlot);
         store = next.store;
         remapIndexPlot = next.remapIndexPlot;
       }
     } else {
       for (let i = 0; i < count; i++) {
-        let next = moveAndResortPlot(store, startIndex + i, null, targetGroupIndex, remapIndexPlot);
+        const next = moveAndResortPlot(store, startIndex + i, null, targetGroupIndex, remapIndexPlot);
         store = next.store;
         remapIndexPlot = next.remapIndexPlot;
       }

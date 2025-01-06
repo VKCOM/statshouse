@@ -1,4 +1,5 @@
 import React from 'react';
+
 export type DashboardGroupTooltipTitleProps = {
   name?: string;
   description?: string;

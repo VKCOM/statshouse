@@ -1,10 +1,10 @@
-import { VariableKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { useVariableListStore } from 'store2/variableList';
-import { emptyArray } from 'common/helpers';
+import { VariableKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { useVariableListStore } from '@/store2/variableList';
+import { emptyArray } from '@/common/helpers';
 import React from 'react';
 import { DashboardVariablesBadge } from './DashboardVariablesBadge';
-import { Tooltip } from 'components/UI';
+import { Tooltip } from '@/components/UI';
 import cn from 'classnames';
 
 export type DashboardVariablesBadgeByKeyProps = {

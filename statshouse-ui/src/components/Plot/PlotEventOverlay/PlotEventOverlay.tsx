@@ -1,12 +1,12 @@
-import React, { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { EventObserver } from '../../../common/EventObserver';
+import { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { EventObserver } from '@/common/EventObserver';
 import { UPlotWrapperPropsHooks } from '../../UPlotWrapper';
 import uPlot from 'uplot';
 import css from './style.module.css';
-import { PlotStore, selectorParams, selectorPlotsData, useStore } from '../../../store';
+import { PlotStore, selectorParams, selectorPlotsData, useStore } from '@/store';
 import { PlotEventFlag } from './PlotEventFlag';
-import { TimeRange } from '../../../common/TimeRange';
-import { useResizeObserver } from '../../../hooks/useResizeObserver';
+import { TimeRange } from '@/common/TimeRange';
+import { useResizeObserver } from '@/hooks/useResizeObserver';
 
 type Flag = {
   x: number;
@@ -26,7 +26,7 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
     const data =
       eventsData[indexEvent]?.data
         .slice(1)
-        .filter((d, indexData) => !eventsData[indexEvent].seriesTimeShift[indexData]) ?? [];
+        .filter((_d, indexData) => !eventsData[indexEvent].seriesTimeShift[indexData]) ?? [];
     const values = data.flat().filter(Boolean).map(Number);
     const maxY = values.reduce((res, item) => Math.max(res, item), values[0]);
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
@@ -82,7 +82,12 @@ export type PlotEventOverlayProps = {
   compact?: boolean;
 };
 
-export function _PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
+export const PlotEventOverlay = memo(function PlotEventOverlay({
+  indexPlot,
+  hooks,
+  flagHeight = 8,
+  compact,
+}: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
@@ -168,6 +173,4 @@ export function _PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }:
       </svg>
     </div>
   );
-}
-
-export const PlotEventOverlay = memo(_PlotEventOverlay);
+});

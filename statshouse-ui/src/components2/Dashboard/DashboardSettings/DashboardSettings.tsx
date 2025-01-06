@@ -1,10 +1,12 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { DashboardInfo } from './DashboardInfo';
 import { DashboardVariable } from './DashboardVariable';
+
 export type DashboardSettingsProps = {
   className?: string;
 };
-export function _DashboardSettings({ className }: DashboardSettingsProps) {
+
+export const DashboardSettings = memo(function DashboardSettings() {
   return (
     <div className="w-max-720 mx-auto">
       <div className="">
@@ -15,6 +17,4 @@ export function _DashboardSettings({ className }: DashboardSettingsProps) {
       </div>
     </div>
   );
-}
-
-export const DashboardSettings = memo(_DashboardSettings);
+});

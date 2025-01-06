@@ -1,13 +1,13 @@
-import { DashboardInfo } from 'api/dashboard';
+import { DashboardInfo } from '@/api/dashboard';
 import {
-  type DashboardParams as OldDashboardParams,
   encodeParams,
   PLOT_TYPE as OLD_PLOT_TYPE,
+  type DashboardParams as OldDashboardParams,
   type PlotParams as OldPlotParams,
   type QueryParams as OldQueryParams,
   type VariableParams as OldVariableParams,
-} from 'url/queryParams';
-import { type PlotKey, type QueryParams } from 'url2';
+} from '@/url/queryParams';
+import type { PlotKey, QueryParams } from '@/url2';
 import { deepClone, toNumber } from '../../common/helpers';
 import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '../../api/enum';
 import { normalizeDashboard as normalizeDashboardOld } from '../../view/normalizeDashboard';

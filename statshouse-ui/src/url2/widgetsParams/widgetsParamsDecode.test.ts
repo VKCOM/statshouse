@@ -1,11 +1,12 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { getDefaultParams } from '../getDefault';
 import { getNewMetric } from './metric';
 import { GET_PARAMS } from '../../api/enum';
 import { toTreeObj } from '../urlHelpers';
 import { orderPlotSplitter, removeValueChar } from '../constants';
 import { widgetsParamsDecode } from './widgetsParamsDecode';
-describe('urlStore widgetsParamsDecode', () => {
+
+describe('@/urlStore widgetsParamsDecode', () => {
   test('widgetsParamsDecode', () => {
     const dParams = {
       ...getDefaultParams(),

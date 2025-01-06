@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
+
 export type DashboardGroupTooltipTitleProps = {
   name?: string;
   description?: string;

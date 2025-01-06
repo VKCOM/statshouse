@@ -22,17 +22,17 @@ import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import css from './style.module.css';
 import { LeftMenuItem } from './LeftMenuItem';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { globalSettings } from 'common/settings';
+import { globalSettings } from '@/common/settings';
 import cn from 'classnames';
-import { getClipboard } from 'common/helpers';
-import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { addPlotByUrl } from 'store2/helpers';
+import { getClipboard } from '@/common/helpers';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { addPlotByUrl } from '@/store2/helpers';
 import { produce } from 'immer';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
-import { prepareItemsGroup } from 'common/prepareItemsGroup';
-import { useAddLinkPlot, useLinkPlot } from 'hooks/useLinkPlot';
-import { setDevEnabled, useStoreDev } from 'store/dev';
-import { setTheme, THEMES, toTheme, useThemeStore } from 'store2/themeStore';
+import { prepareItemsGroup } from '@/common/prepareItemsGroup';
+import { useAddLinkPlot, useLinkPlot } from '@/hooks/useLinkPlot';
+import { setDevEnabled, useStoreDev } from '@/store/dev';
+import { setTheme, THEMES, toTheme, useThemeStore } from '@/store2/themeStore';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -71,7 +71,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
       ),
     [groups, orderGroup, orderPlot]
   );
-  const isView = location.pathname.indexOf('view') > -1;
+  const isView = location.pathname.indexOf('@/view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
   const isDash = tabNum === '-1' || tabNum === '-2';
   const onSetTheme = useCallback((event: React.MouseEvent) => {

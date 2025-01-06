@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import 'store2';
+import '@/store2';
 import React, { Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 // import { Admin } from './admin/Admin';
 // import { ViewPage } from './view/ViewPage';
-import { currentAccessInfo } from './common/access';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './common/queryClient';
+import { useStatsHouse } from '@/store2';
 // import { DashboardListView } from './view/DashboardListView';
 // import { SettingsPage } from './view/Settings/SettingsPage';
 // import { GroupPage } from './view/Settings/GroupPage';
@@ -30,8 +30,8 @@ const View2Page = React.lazy(() => import('./view2/ViewPage'));
 const Core = React.lazy(() => import('./view2/Core'));
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
-function App() {
-  const ai = currentAccessInfo();
+export function App() {
+  const isAdmin = useStatsHouse((s) => s.user.admin);
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
@@ -39,7 +39,7 @@ function App() {
           <Route path="" element={<Navigate to="view" replace={true} />} />
           <Route path="view" element={<View2Page />} />
           <Route path="embed" element={<View2Page />} />
-          <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
+          <Route path="settings/*" element={<SettingsPage adminMode={isAdmin} />}>
             <Route path="group" element={<GroupPage />} />
             <Route path="namespace" element={<NamespacePage />} />
           </Route>
@@ -63,15 +63,10 @@ function App() {
             path="admin/*"
             element={
               <Suspense fallback={<div>Loading...</div>}>
-                <Admin yAxisSize={yAxisSize} adminMode={ai.admin} />
+                <Admin yAxisSize={yAxisSize} adminMode={isAdmin} />
               </Suspense>
             }
           />
-          <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
-            <Route path="group" element={<GroupPage />} />
-            <Route path="namespace" element={<NamespacePage />} />
-            {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
-          </Route>
           <Route path="*" element={<NotFound />} />
         </Route>
         {/*<Route path="/" element={<Navigate to="view" replace={true} />} />*/}
@@ -130,5 +125,3 @@ function NotFound() {
     </div>
   );
 }
-
-export default App;

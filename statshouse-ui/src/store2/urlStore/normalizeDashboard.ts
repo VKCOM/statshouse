@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { arrToObj, type QueryParams, toTreeObj, urlDecode } from 'url2';
-import { isArray, isObject } from 'common/helpers';
-import { debug } from 'common/debug';
+import { arrToObj, type QueryParams, toTreeObj, urlDecode } from '@/url2';
+import { isArray, isObject } from '@/common/helpers';
+import { debug } from '@/common/debug';
 import { dashboardMigrate } from './dashboardMigrate';
 
 export function isUrlSearchArray(item: unknown): item is [string, string][] {

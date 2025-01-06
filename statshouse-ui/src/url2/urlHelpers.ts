@@ -1,6 +1,6 @@
-import { toNumber, toString } from 'common/helpers';
+import { toNumber, toString } from '@/common/helpers';
 import type { PlotKey, VariableParamsLink } from './queryParams';
-import { GET_PARAMS, toTagKey } from 'api/enum';
+import { GET_PARAMS, toTagKey } from '@/api/enum';
 
 export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
@@ -57,7 +57,7 @@ export type TreeParamsObject = Partial<{
 
 export function toTreeObj(obj: Partial<Record<string, string[]>>): TreeParamsObject {
   const res = {};
-  for (let key in obj) {
+  for (const key in obj) {
     const keys = key.split('.');
     let target: TreeParamsObject = res;
     keys.forEach((keyName) => {

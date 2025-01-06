@@ -16,7 +16,6 @@ export function linkToImage(link: string): Promise<HTMLImageElement> {
 
 export async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Blob | null> {
   if (typeof window.OffscreenCanvas === 'function' && canvas instanceof window.OffscreenCanvas) {
-    // @ts-ignore
     return canvas.convertToBlob({ type: 'image/png' });
   }
   return new Promise((resolve) => {

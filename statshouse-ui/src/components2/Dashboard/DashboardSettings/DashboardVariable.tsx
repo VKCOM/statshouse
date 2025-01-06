@@ -13,12 +13,12 @@ import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGSearch } from 'bootstrap-icons/icons/search.svg';
 
 import { VariableCard } from './VariableCard';
-import { Button } from 'components/UI';
-import { useStatsHouseShallow } from 'store2';
-import { getNewVariable, VariableKey, VariableParams } from 'url2';
-import { ProduceUpdate } from 'store2/helpers';
-import { GET_PARAMS } from 'api/enum';
-import { getNextVariableKey } from 'store2/urlStore/updateParamsPlotStruct';
+import { Button } from '@/components/UI';
+import { useStatsHouseShallow } from '@/store2';
+import { getNewVariable, VariableKey, VariableParams } from '@/url2';
+import { ProduceUpdate } from '@/store2/helpers';
+import { GET_PARAMS } from '@/api/enum';
+import { getNextVariableKey } from '@/store2/urlStore/updateParamsPlotStruct';
 
 export type DashboardVariableProps = {};
 export function DashboardVariable() {

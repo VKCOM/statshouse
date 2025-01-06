@@ -1,10 +1,10 @@
 import React, { useLayoutEffect } from 'react';
 import { Router } from 'react-router-dom';
-import { appHistory } from 'common/appHistory';
+import { appHistory } from '@/common/appHistory';
 
 export type AppRouterProps = { children?: React.ReactNode };
 export function AppRouter({ children }: AppRouterProps) {
-  let [state, setState] = React.useState({
+  const [state, setState] = React.useState({
     action: appHistory.action,
     location: appHistory.location,
   });

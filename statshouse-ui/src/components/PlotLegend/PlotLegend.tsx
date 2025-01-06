@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LegendItem } from '../UPlotWrapper';
 import cn from 'classnames';
-import { PlotValues } from '../../store';
+import { PlotValues } from '@/store';
 
 import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
@@ -37,7 +37,9 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
     (event: React.MouseEvent) => {
       const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
       const focus = event.type === 'mouseover';
-      index && onLegendFocus?.(index, focus);
+      if (index) {
+        onLegendFocus?.(index, focus);
+      }
     },
     [onLegendFocus]
   );

@@ -5,24 +5,21 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 const debugEnabled = process.env.NODE_ENV !== 'production';
-
+const c = console; // lint off
 export const debug = {
-  log(...arg: any) {
+  log(...arg: unknown[]) {
     if (debugEnabled) {
-      // eslint-disable-next-line no-console
-      console.log(...arg);
+      c.log(...arg);
     }
   },
-  error(...arg: any) {
+  error(...arg: unknown[]) {
     if (debugEnabled) {
-      // eslint-disable-next-line no-console
-      console.error(...arg);
+      c.error(...arg);
     }
   },
-  warn(...arg: any) {
+  warn(...arg: unknown[]) {
     if (debugEnabled) {
-      // eslint-disable-next-line no-console
-      console.warn(...arg);
+      c.warn(...arg);
     }
   },
 };

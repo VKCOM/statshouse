@@ -5,38 +5,38 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type PlotViewProps } from './PlotView';
-import { black, grey, greyDark } from 'view/palette';
-import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from 'hooks';
+import type { PlotViewProps } from './PlotView';
+import { black, grey, greyDark } from '@/view/palette';
+import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from '@/hooks';
 import cn from 'classnames';
-import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { yAxisSize } from 'common/settings';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { yAxisSize } from '@/common/settings';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import { PlotHeader } from './PlotHeader';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotLegend } from '../PlotLegend';
 import { dateRangeFormat } from './dateRangeFormat';
-import { dataIdxNearest } from 'common/dataIdxNearest';
-import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from 'common/axisValues';
-import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
+import { dataIdxNearest } from '@/common/dataIdxNearest';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
 import { xRangeStatic } from './xRangeStatic';
-import { calcYRange } from 'common/calcYRange';
+import { calcYRange } from '@/common/calcYRange';
 import css from './style.module.css';
 import { PlotEventOverlay } from './PlotEventOverlay';
-import { type PlotValues } from 'store2/plotDataStore';
-import { useThemeStore } from 'store2/themeStore';
+import type { PlotValues } from '@/store2/plotDataStore';
+import { useThemeStore } from '@/store2/themeStore';
 import { metricTypeIncrs } from './constants';
-import { setLiveMode } from 'store2/liveModeStore';
-import { setPlotVisibility } from 'store2/plotVisibilityStore';
-import { createPlotPreview } from 'store2/plotPreviewStore';
+import { setLiveMode } from '@/store2/liveModeStore';
+import { setPlotVisibility } from '@/store2/plotVisibilityStore';
+import { createPlotPreview } from '@/store2/plotPreviewStore';
 import {
   LegendItem,
   UPlotPluginPortal,
   UPlotWrapper,
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
-} from 'components/UPlotWrapper';
-import { bwd, fwd, log2Filter, log2Splits } from 'common/helpers';
+} from '@/components/UPlotWrapper';
+import { bwd, fwd, log2Filter, log2Splits } from '@/common/helpers';
 import type uPlot from 'uplot';
 
 const rightPad = 16;
@@ -269,8 +269,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       }
       // setUPlotWidth(indexPlot, u.bbox.width);
       u.over.onclick = () => {
-        // @ts-ignore
-        setCursorLock(u.cursor._lock);
+        setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
         resetZoomRef.current(plotKey);
@@ -337,7 +336,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     }
   }, [isActive, isDashboard, plotKey, visibleBool]);
 
-  const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem<any>[]>>>(
+  const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem<PlotValues>[]>>>(
     (legend) => {
       setLegend((prevLegend) => {
         const nextLegend = typeof legend === 'function' ? legend(prevLegend) : legend;

@@ -1,23 +1,23 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { type PlotKey } from 'url2';
+import type { PlotKey } from '@/url2';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 
-import { useIntersectionObserver, useOnClickOutside, useStateBoolean, useStateToRef } from 'hooks';
+import { useIntersectionObserver, useOnClickOutside, useStateBoolean, useStateToRef } from '@/hooks';
 import cn from 'classnames';
 import css from './style.module.css';
 import { Link } from 'react-router-dom';
-import { Button, Popper } from 'components/UI';
-import { getMetricFullName } from 'store2/helpers';
-import { PLOT_TYPE } from 'api/enum';
+import { Button, Popper } from '@/components/UI';
+import { getMetricFullName } from '@/store2/helpers';
+import { PLOT_TYPE } from '@/api/enum';
 import { PlotName } from '../Plot/PlotView/PlotName';
-import { usePlotLoader } from 'store2/plotQueryStore';
+import { usePlotLoader } from '@/store2/plotQueryStore';
 import { PlotLink } from '../Plot/PlotLink';
-import { setPlotPreviewVisibility } from 'store2/plotVisibilityStore';
-import { usePlotPreviewStore } from 'store2/plotPreviewStore';
-import { useLinkPlot } from 'hooks/useLinkPlot';
+import { setPlotPreviewVisibility } from '@/store2/plotVisibilityStore';
+import { usePlotPreviewStore } from '@/store2/plotPreviewStore';
+import { useLinkPlot } from '@/hooks/useLinkPlot';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
@@ -28,7 +28,7 @@ export type LeftMenuPlotItemProps = {
   active?: boolean;
 };
 
-export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
+export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
   const itemRef = useRef(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const sub = useRef<HTMLUListElement>(null);
@@ -132,6 +132,4 @@ export function _LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
       </Popper>
     </li>
   );
-}
-
-export const LeftMenuPlotItem = memo(_LeftMenuPlotItem);
+});

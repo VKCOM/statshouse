@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import css from './style.module.css';
 import { PlotEventOverlayTable } from './PlotEventOverlayTable';
 import cn from 'classnames';
-import { type PlotKey, type PlotParams, type TimeRange } from 'url2';
-import { useDebounceState } from 'hooks';
-import { isNotNil, uniqueArray } from 'common/helpers';
-import { Popper } from 'components/UI';
+import type { PlotKey, PlotParams, TimeRange } from '@/url2';
+import { useDebounceState } from '@/hooks';
+import { isNotNil, uniqueArray } from '@/common/helpers';
+import { Popper } from '@/components/UI';
 
 export type PlotEventFlagProps = {
   plots: Partial<Record<PlotKey, PlotParams>>;
@@ -28,7 +28,8 @@ export type PlotEventFlagProps = {
   groups: { color: string; idx: number; x: number; plotKey: PlotKey }[];
   small?: boolean;
 };
-export function _PlotEventFlag({
+
+export const PlotEventFlag = memo(function PlotEventFlag({
   plots,
   range,
   agg,
@@ -134,6 +135,4 @@ export function _PlotEventFlag({
       </Popper>
     </g>
   );
-}
-
-export const PlotEventFlag = memo(_PlotEventFlag);
+});

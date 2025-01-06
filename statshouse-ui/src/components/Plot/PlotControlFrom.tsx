@@ -4,12 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
-import { SetTimeRange, TIME_RANGE_KEYS_TO, TimeRange } from '../../common/TimeRange';
-import { TimeHelper } from '../../common/TimeHelper';
+import { ChangeEvent, memo, useCallback, useMemo } from 'react';
+import { SetTimeRange, TIME_RANGE_KEYS_TO, TimeRange } from '@/common/TimeRange';
+import { TimeHelper } from '@/common/TimeHelper';
 import cn from 'classnames';
 import { Button } from '../UI';
-import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '../../view/utils2';
+import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '@/view/utils2';
 
 export type PlotControlFromProps = {
   timeRange: TimeRange;
@@ -19,13 +19,13 @@ export type PlotControlFromProps = {
   classNameSelect?: string;
 };
 
-export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
+export const PlotControlFrom = memo(function PlotControlFrom({
   timeRange,
   setTimeRange,
   setBaseRange,
   className,
   classNameSelect,
-}) => {
+}: PlotControlFromProps) {
   const onTimeRangeChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
       const abbr = e.target.value as timeRangeAbbrev;
@@ -99,6 +99,4 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
       </Button>
     </div>
   );
-};
-
-export const PlotControlFrom = memo(_PlotControlFrom);
+});

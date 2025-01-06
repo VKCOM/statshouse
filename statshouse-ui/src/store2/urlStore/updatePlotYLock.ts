@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotKey } from '../../url2';
-import { type ProduceUpdate } from '../helpers';
-import { type StatsHouseStore } from '../statsHouseStore';
+import type { PlotKey } from '../../url2';
+import type { ProduceUpdate } from '../helpers';
+import type { StatsHouseStore } from '../statsHouseStore';
 import { getMinMaxY } from './getMinMaxY';
 
 export function updatePlotYLock(

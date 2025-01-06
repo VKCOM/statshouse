@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { RenderCellProps, RenderHeaderCellProps } from 'react-data-grid';
 import { formatTagValue, querySeriesMetaTag } from '../../view/api';
 import { Tooltip } from '../UI';
@@ -17,7 +17,7 @@ export function EventFormatterDefault({ row, column }: RenderCellProps<EventData
   const value: string =
     (typeof tag === 'object' && tag !== null
       ? formatTagValue(tag.value, tag.comment, tag.raw, tag.raw_kind)
-      : tag?.toString() ?? '') ?? '';
+      : (tag?.toString() ?? '')) ?? '';
   return (
     <div className="text-truncate" title={value}>
       {value}
@@ -26,8 +26,12 @@ export function EventFormatterDefault({ row, column }: RenderCellProps<EventData
 }
 
 function isFormatValue(v: unknown): v is { value: number; formatValue: string } {
-  // @ts-ignore
-  return v != null && typeof v === 'object' && Object.hasOwn(v, 'formatValue') && typeof v.formatValue === 'string';
+  return (
+    v != null &&
+    typeof v === 'object' &&
+    Object.hasOwn(v, 'formatValue') &&
+    typeof (v as { formatValue: unknown }).formatValue === 'string'
+  );
 }
 export function EventFormatterData({ row, column }: RenderCellProps<EventDataRow>): ReactNode {
   const tag = row?.[column.key] as

@@ -16,11 +16,11 @@ import {
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { deepClone, isNotNil, toNumber } from '../../common/helpers';
-import { type MetricMetaTag } from '../../api/metric';
+import type { MetricMetaTag } from '../../api/metric';
 import { createStore } from '../createStore';
 
 import { produce } from 'immer';
-import { useErrorStore } from 'store/errors';
+import { useErrorStore } from '@/store/errors';
 import { replaceVariable } from './replaceVariable';
 import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '../../url2';
 import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';

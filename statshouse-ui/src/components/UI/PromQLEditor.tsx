@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { dropCursor, EditorView, keymap } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { tags } from '@lezer/highlight';
-import { PromQLExtension } from '../../lib/codeMirror';
+import { PromQLExtension } from '@/lib/codeMirror';
 
 const promQl = new PromQLExtension();
 
@@ -71,7 +71,7 @@ export function PromQLEditor({ value = '', onChange, className }: PromQLEditorPr
     [value]
   );
   const refEditor = useRef(null);
-  const editor = useRef<EditorView>();
+  const editor = useRef<EditorView | undefined>(undefined);
   useEffect(() => {
     if (refEditor.current) {
       editor.current = new EditorView({

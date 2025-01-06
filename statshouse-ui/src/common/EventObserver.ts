@@ -1,7 +1,7 @@
 export type EventObserverCallback = (...payload: any[]) => void;
 export class EventObserver<T extends string> {
   protected _ob: Record<string, EventObserverCallback[]> = {};
-  protected _lastTriggerPayload: Record<string, any[]> = {};
+  protected _lastTriggerPayload: Record<string, unknown[]> = {};
   protected _lastTrigger = false;
 
   constructor(lastTrigger: boolean = false) {

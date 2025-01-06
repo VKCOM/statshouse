@@ -1,4 +1,4 @@
-import { type GroupInfo, type PlotParams, type QueryParams, type VariableParams } from 'url2';
+import type { QueryParams } from '@/url2';
 import { dequal } from 'dequal/lite';
 
 export function mergeParams(target: QueryParams, value: QueryParams): QueryParams {

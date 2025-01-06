@@ -8,17 +8,17 @@ import { GET_PARAMS } from './enum';
 import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
 import {
   CancelledError,
-  QueryClient,
-  UndefinedInitialDataOptions,
+  type QueryClient,
+  type UndefinedInitialDataOptions,
   useMutation,
-  UseMutationOptions,
+  type UseMutationOptions,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { queryClient } from '../common/queryClient';
-import { QueryParams, urlEncode } from '../url2';
-import { dashboardMigrateSaveToOld } from '../store2/urlStore/dashboardMigrate';
-import { toNumber } from '../common/helpers';
+import { queryClient } from '@/common/queryClient';
+import { type QueryParams, urlEncode } from '@/url2';
+import { dashboardMigrateSaveToOld } from '@/store2/urlStore/dashboardMigrate';
+import { toNumber } from '@/common/helpers';
 
 const ApiDashboardEndpoint = '/api/dashboard';
 
@@ -95,7 +95,7 @@ export function getDashboardOptions<T = ApiDashboard>(
       }
       return response;
     },
-    placeholderData: (previousData, previousQuery) => previousData,
+    placeholderData: (previousData) => previousData,
   };
 }
 
@@ -167,7 +167,7 @@ export function getDashboardSaveOptions(
       }
       return response;
     },
-    onSuccess: (data, params) => {
+    onSuccess: (data) => {
       if (data.data.dashboard.dashboard_id) {
         const fetchParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: data.data.dashboard.dashboard_id.toString() };
         if (data.data.dashboard.version != null) {

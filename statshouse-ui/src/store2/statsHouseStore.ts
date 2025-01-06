@@ -7,22 +7,19 @@
 import { createStore, type Store } from './createStore';
 import { updateTitle, urlStore, type UrlStore } from './urlStore';
 import { useShallow } from 'zustand/react/shallow';
-import { userStore, type UserStore } from './userStore';
-import { plotsInfoStore, type PlotsInfoStore } from './plotsInfoStore';
+import { type UserStore, userStore } from './userStore';
+import { type PlotsInfoStore, plotsInfoStore } from './plotsInfoStore';
 import { updateLiveMode, useLiveModeStore } from './liveModeStore';
-import { metricMetaStore, MetricMetaStore } from './metricsMetaStore';
+import { MetricMetaStore, metricMetaStore } from './metricsMetaStore';
 import { usePlotPreviewStore } from './plotPreviewStore';
-import { plotHealsStore, type PlotHealsStore } from './plotHealsStore';
-import { plotsDataStore, PlotsDataStore } from './plotDataStore';
-import { plotEventsDataStore, PlotEventsDataStore } from './plotEventsDataStore';
+import { type PlotHealsStore, plotHealsStore } from './plotHealsStore';
+import { PlotsDataStore, plotsDataStore } from './plotDataStore';
+import { PlotEventsDataStore, plotEventsDataStore } from './plotEventsDataStore';
 import { updateFavicon } from './helpers/updateFavicon';
 import { useVariableChangeStatusStore } from './variableChangeStatusStore';
 import { dequal } from 'dequal/lite';
-import { useLinkPlots } from 'hooks/useLinkPlot';
+import { useLinkPlots } from '@/hooks/useLinkPlot';
 import { updateTheme } from './themeStore';
-import { viewPath } from './constants';
-import { getUrlObject } from '../common/getUrlObject';
-import { getAddPlotLink } from './helpers';
 
 export type StatsHouseStore = UrlStore &
   UserStore &

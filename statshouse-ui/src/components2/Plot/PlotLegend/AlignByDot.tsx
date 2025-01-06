@@ -8,7 +8,7 @@ import React from 'react';
 
 import css from './style.module.css';
 import cn from 'classnames';
-import { Tooltip } from 'components/UI';
+import { Tooltip } from '@/components/UI';
 
 export type AlignByDotProps = {
   value: string;

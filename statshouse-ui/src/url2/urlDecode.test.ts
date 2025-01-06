@@ -1,4 +1,4 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import {
   urlDecode,
   urlDecodeGlobalParam,
@@ -9,24 +9,18 @@ import {
   urlDecodeVariables,
   urlDecodeVariableSource,
 } from './urlDecode';
-import { GET_PARAMS, TIME_RANGE_KEYS_TO } from 'api/enum';
-import { THEMES } from 'store/theme';
+import { GET_PARAMS, TIME_RANGE_KEYS_TO } from '@/api/enum';
+import { THEMES } from '@/store/theme';
 import { QueryParams, VariableParams, VariableParamsSource } from './queryParams';
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
-import {
-  orderGroupSplitter,
-  orderPlotSplitter,
-  orderVariableSplitter,
-  promQLMetric,
-  removeValueChar,
-} from './constants';
+import { orderGroupSplitter, orderVariableSplitter, promQLMetric, removeValueChar } from './constants';
 import { toTreeObj, treeParamsObjectValueSymbol } from './urlHelpers';
 import { getNewMetric } from './widgetsParams/metric';
 
 jest.useFakeTimers().setSystemTime(new Date('2020-01-01 00:00:00'));
 
-describe('urlStore urlDecode', () => {
-  test('urlDecodeGlobalParam', () => {
+describe('@/urlStore urlDecode', () => {
+  test('@/urlDecodeGlobalParam', () => {
     const dParams = {
       ...getDefaultParams(),
       dashboardDescription: 'desc',
@@ -103,7 +97,7 @@ describe('urlStore urlDecode', () => {
       timeShifts: [24, 48],
     });
   });
-  test('urlDecodeTimeRange', () => {
+  test('@/urlDecodeTimeRange', () => {
     const dParams = {
       ...getDefaultParams(),
       timeRange: {
@@ -151,7 +145,7 @@ describe('urlStore urlDecode', () => {
       },
     });
   });
-  test('urlDecodeGroup', () => {
+  test('@/urlDecodeGroup', () => {
     const dParams = {
       ...getNewGroup(),
       id: '0',
@@ -193,7 +187,7 @@ describe('urlStore urlDecode', () => {
       size: '4',
     });
   });
-  test('urlDecodeGroups', () => {
+  test('@/urlDecodeGroups', () => {
     const dParams = {
       ...getDefaultParams(),
       groups: {
@@ -228,7 +222,7 @@ describe('urlStore urlDecode', () => {
       )
     ).toEqual({ orderGroup: ['2'], groups: { '2': dParams.groups['2'] } });
   });
-  test('urlDecodeVariableSource', () => {
+  test('@/urlDecodeVariableSource', () => {
     const dParams: VariableParamsSource = { ...getNewVariableSource(), id: '0' };
     expect(urlDecodeVariableSource(dParams.id, {}, dParams)).toEqual(dParams);
     expect(
@@ -254,7 +248,7 @@ describe('urlStore urlDecode', () => {
       )
     ).toEqual({ ...dParams, metric: 'metric', tag: '_s' });
   });
-  test('urlDecodeVariable', () => {
+  test('@/urlDecodeVariable', () => {
     const dParams: VariableParams = {
       ...getNewVariable(),
       id: '0',
@@ -350,7 +344,7 @@ describe('urlStore urlDecode', () => {
       )
     ).toEqual({ ...dParams, values: [] });
   });
-  test('urlDecodeVariables', () => {
+  test('@/urlDecodeVariables', () => {
     const dParams: QueryParams = {
       ...getDefaultParams(),
       variables: {
@@ -383,7 +377,7 @@ describe('urlStore urlDecode', () => {
       orderVariables: ['2'],
     });
   });
-  test('urlDecode', () => {
+  test('@/urlDecode', () => {
     const dParams: QueryParams = {
       ...getDefaultParams(),
       timeRange: {

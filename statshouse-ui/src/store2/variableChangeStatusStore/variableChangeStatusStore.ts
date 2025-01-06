@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { createStore } from '../createStore';
-import { type VariableKey } from 'url2';
+import type { VariableKey } from '@/url2';
 
 export type VariableChangeStatusStore = {
   changeVariable: Partial<Record<VariableKey, boolean>>;

@@ -39,11 +39,14 @@ export type PlotNavigateProps = {
   setTypePlot?: Dispatch<SetStateAction<PlotType>>;
   disabledTypePlot?: boolean;
 };
-export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
+
+const yLockDefault = { min: 0, max: 0 };
+
+export const PlotNavigate = memo(function PlotNavigate({
   live,
   setLive,
   setTimeRange,
-  yLock = { min: 0, max: 0 },
+  yLock = yLockDefault,
   disabledLive,
   onResetZoom,
   onYLockChange,
@@ -53,7 +56,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   typePlot,
   setTypePlot,
   disabledTypePlot,
-}) => {
+}: PlotNavigateProps) {
   const panLeft = useCallback(() => {
     setLive(false);
     setTimeRange((r) => timeRangePanLeft(r));
@@ -170,6 +173,4 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
       </ToggleButton>
     </div>
   );
-};
-
-export const PlotNavigate = memo(_PlotNavigate);
+});

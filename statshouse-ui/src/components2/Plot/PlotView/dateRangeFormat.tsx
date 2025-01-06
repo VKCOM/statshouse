@@ -6,7 +6,7 @@
 
 import uPlot from 'uplot';
 
-import { fmtInputDateTime } from 'view/utils2';
+import { fmtInputDateTime } from '@/view/utils2';
 
 export function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
   if (idx === null) {

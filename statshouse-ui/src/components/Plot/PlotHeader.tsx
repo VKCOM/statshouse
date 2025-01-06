@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PlotNavigate } from './PlotNavigate';
-import { SetTimeRangeValue } from '../../common/TimeRange';
+import { PlotNavigate } from '@/components';
+import { SetTimeRangeValue } from '@/common/TimeRange';
 import { produce } from 'immer';
-import { useStore } from '../../store';
+import { useStore } from '@/store';
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
@@ -18,19 +18,19 @@ import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
-import { MetricMetaValue } from '../../api/metric';
-import { encodeParams, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
+import { MetricMetaValue } from '@/api/metric';
+import { encodeParams, lockRange, PlotParams, toPlotKey } from '@/url/queryParams';
 import { shallow } from 'zustand/shallow';
 import { PlotName } from './PlotName';
 import { PlotLink } from './PlotLink';
 import { Link } from 'react-router-dom';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
-import { useOnClickOutside } from '../../hooks';
+import { useOnClickOutside } from '@/hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
-import { promQLMetric } from '../../view/promQLMetric';
-import { whatToWhatDesc } from '../../view/whatToWhatDesc';
-import { fixMessageTrouble } from '../../url/fixMessageTrouble';
+import { promQLMetric } from '@/view/promQLMetric';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
+import { fixMessageTrouble } from '@/url/fixMessageTrouble';
 
 const { removePlot, setPlotParams, setPlotType } = useStore.getState();
 const stopPropagation = (e: React.MouseEvent) => {
@@ -62,7 +62,8 @@ export type PlotHeaderProps = {
   onYLockChange?: (status: boolean) => void;
   embed?: boolean;
 };
-export const _PlotHeader: React.FC<PlotHeaderProps> = ({
+
+export const PlotHeader = memo(function PlotHeader({
   indexPlot = 0,
   compact,
   dashboard,
@@ -74,7 +75,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   setLive,
   setTimeRange,
   embed,
-}) => {
+}: PlotHeaderProps) {
   const id = useId();
   const { params, plot, plotData, metricName, what, dashboardLayoutEdit, canRemove } = useStore(
     ({ params, plotsData, dashboardLayoutEdit }) => {
@@ -427,6 +428,4 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         ))}
     </div>
   );
-};
-
-export const PlotHeader = memo(_PlotHeader);
+});

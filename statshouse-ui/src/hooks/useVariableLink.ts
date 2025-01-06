@@ -1,7 +1,7 @@
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 import { useMemo } from 'react';
-import type { PlotKey } from 'url2';
-import { PlotVariablesLink } from 'store2/plotsInfoStore';
+import type { PlotKey } from '@/url2';
+import { PlotVariablesLink } from '@/store2/plotsInfoStore';
 import { TagKey } from '../api/enum';
 
 export function useVariableLink(plotKey: PlotKey, tagKey: TagKey) {

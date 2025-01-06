@@ -1,5 +1,5 @@
-import 'testMock/matchMedia.mock';
-import { type QueryParams } from './queryParams';
+import '@/testMock/matchMedia.mock';
+import type { QueryParams } from './queryParams';
 import { urlEncode } from './urlEncode';
 import { urlDecode } from './urlDecode';
 import { getDefaultParams, getNewGroup, getNewVariable } from './getDefault';
@@ -56,11 +56,11 @@ const params2: QueryParams = {
   orderVariables: ['3', '1', '0'],
 };
 
-describe('urlStore', () => {
-  test('urlEncode => urlDecode', () => {
+describe('@/urlStore', () => {
+  test('@/urlEncode => urlDecode', () => {
     expect(urlDecode(toTreeObj(arrToObj(urlEncode(params))), params)).toEqual(params);
   });
-  test('urlEncode => urlDecode save', () => {
+  test('@/urlEncode => urlDecode save', () => {
     expect(urlDecode(toTreeObj(arrToObj(urlEncode(params2, params))), params)).toEqual(params2);
     expect(urlDecode(toTreeObj(arrToObj(urlEncode(params, params2))), params2)).toEqual(params);
   });

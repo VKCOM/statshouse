@@ -5,14 +5,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from 'store/group';
+import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from '@/store/group';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
-import { GroupInfo, GroupMetric } from 'api/group';
-import { toNumber } from 'common/helpers';
+import { GroupInfo, GroupMetric } from '@/api/group';
+import { toNumber } from '@/common/helpers';
 import { produce } from 'immer';
-import { ErrorMessages } from 'components/ErrorMessages';
-import { InputText } from 'components/UI';
+import { ErrorMessages } from '@/components/ErrorMessages';
+import { InputText } from '@/components/UI';
 
 type SelectGroup = {
   group: Pick<GroupInfo, 'name' | 'weight' | 'namespace_id'> &

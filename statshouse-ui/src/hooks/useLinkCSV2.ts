@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type PlotKey, type QueryParams } from 'url2';
+import type { PlotKey, QueryParams } from '@/url2';
 import { useStatsHouse } from '../store2';
 import { GET_PARAMS } from '../api/enum';
 import { getLoadPlotUrlParams } from '../store2/plotDataStore/loadPlotData';

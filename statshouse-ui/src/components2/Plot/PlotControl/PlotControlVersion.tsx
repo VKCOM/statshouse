@@ -6,12 +6,12 @@
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import React, { memo, useCallback } from 'react';
-import { SwitchBox } from 'components/UI';
-import { globalSettings } from 'common/settings';
-import { getNewMetric, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from 'api/enum';
-import { useStoreDev } from 'store/dev';
+import { SwitchBox } from '@/components/UI';
+import { globalSettings } from '@/common/settings';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from '@/api/enum';
+import { useStoreDev } from '@/store/dev';
 
 export type PlotControlVersionProps = {
   plotKey: PlotKey;
@@ -19,7 +19,7 @@ export type PlotControlVersionProps = {
 
 const defaultBackendVersion = getNewMetric().backendVersion;
 
-export function _PlotControlVersion({ plotKey }: PlotControlVersionProps) {
+export const PlotControlVersion = memo(function PlotControlVersion({ plotKey }: PlotControlVersionProps) {
   const devMode = useStoreDev((s) => s.enabled);
   const { value, setPlot, isDeveloper } = useStatsHouseShallow(
     ({ params: { plots }, setPlot, user: { developer } }) => ({
@@ -63,6 +63,4 @@ export function _PlotControlVersion({ plotKey }: PlotControlVersionProps) {
       <SVGLightning />
     </SwitchBox>
   );
-}
-
-export const PlotControlVersion = memo(_PlotControlVersion);
+});

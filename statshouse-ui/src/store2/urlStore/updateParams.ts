@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import type { ProduceUpdate } from '../helpers';
-import type { QueryParams } from 'url2';
+import type { QueryParams } from '@/url2';
 import type { StatsHouseStore } from '../statsHouseStore';
 import { produce } from 'immer';
 

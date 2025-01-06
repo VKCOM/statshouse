@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { arrToObj, getDefaultParams, type QueryParams, toTreeObj, urlDecode } from 'url2';
+import { arrToObj, getDefaultParams, type QueryParams, toTreeObj, urlDecode } from '@/url2';
 import { UrlStore } from './urlStore';
 import { resetDefaultParams } from './resetDefaultParams';
 import { loadDashboard } from './loadDashboard';
-import { type Location } from 'history';
+import type { Location } from 'history';
 import { ExtendedError } from '../../api/api';
 
 export async function getUrlState(

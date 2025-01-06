@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getHomePlot, QueryParams, readTimeRange } from 'url2';
+import { getHomePlot, QueryParams, readTimeRange } from '@/url2';
 import { produce } from 'immer';
-import { globalSettings } from 'common/settings';
+import { globalSettings } from '@/common/settings';
 import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '../../api/enum';
 import { addPlot, timeRangeAbbrevExpand } from '../helpers';
 import { defaultBaseRange } from '../constants';

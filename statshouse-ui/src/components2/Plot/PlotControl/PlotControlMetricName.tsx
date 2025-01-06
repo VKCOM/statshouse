@@ -4,15 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
-import { SelectMetric } from 'components/SelectMertic';
-import { useStatsHouseShallow } from 'store2';
-import { type PlotKey } from 'url2';
+import { memo, useCallback } from 'react';
+import { SelectMetric } from '@/components/SelectMertic';
+import { useStatsHouseShallow } from '@/store2';
+import type { PlotKey } from '@/url2';
 
 export type PlotControlMetricNameProps = {
   plotKey: PlotKey;
 };
-export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) {
+
+export const PlotControlMetricName = memo(function PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) {
   const { metricName, setPlot, removeVariableLinkByPlotKey } = useStatsHouseShallow(
     ({ params: { plots }, setPlot, removeVariableLinkByPlotKey }) => ({
       metricName: plots[plotKey]?.metricName,
@@ -38,6 +39,4 @@ export function _PlotControlMetricName({ plotKey }: PlotControlMetricNameProps) 
     [plotKey, removeVariableLinkByPlotKey, setPlot]
   );
   return <SelectMetric value={metricName} onChange={onChange} />;
-}
-
-export const PlotControlMetricName = memo(_PlotControlMetricName);
+});

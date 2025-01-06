@@ -1,9 +1,18 @@
 import { produce } from 'immer';
 import type { ProduceUpdate } from '../helpers';
-import { getNewMetric, GroupInfo, GroupKey, PlotKey, PlotParams, QueryParams, VariableKey, VariableParams } from 'url2';
+import {
+  getNewMetric,
+  GroupInfo,
+  GroupKey,
+  PlotKey,
+  PlotParams,
+  QueryParams,
+  VariableKey,
+  VariableParams,
+} from '@/url2';
 import type { StatsHouseStore } from '../statsHouseStore';
-import type { TagKey } from 'api/enum';
-import { isNotNil, toNumberM } from 'common/helpers';
+import type { TagKey } from '@/api/enum';
+import { isNotNil, toNumberM } from '@/common/helpers';
 import { clonePlot } from '../../url2/clonePlot';
 import { cloneGroup } from '../../url2/cloneGroup';
 import { cloneVariable } from '../../url2/cloneVariable';

@@ -7,7 +7,7 @@
 import { hasOwn, toFlatPairs, toString } from '../common/helpers';
 import { API_FETCH_OPT_METHODS, ApiFetchOptMethods } from './enum';
 
-export type ApiFetchParam = Record<string, any | any[]>;
+export type ApiFetchParam = Record<string, unknown | unknown[]>;
 
 export type ApiFetchOpt<G, P> = {
   url: string;
@@ -57,7 +57,7 @@ export class ApiAbortController extends AbortController {
   }
 
   remove() {
-    this.timer && clearTimeout(this.timer);
+    clearTimeout(this.timer);
     this.signal?.removeEventListener('abort', this.remove);
     ApiAbortController.abortControllers.delete(this.keyRequest);
   }
