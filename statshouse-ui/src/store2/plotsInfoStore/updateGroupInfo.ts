@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { GroupKey, PlotKey, QueryParams } from 'url2';
-import { isNotNil } from 'common/helpers';
+import type { GroupKey, PlotKey, QueryParams } from '@/url2';
+import { isNotNil } from '@/common/helpers';
 
 export function updateGroupInfo(params: QueryParams) {
   const orderPlots = [...params.orderPlot];

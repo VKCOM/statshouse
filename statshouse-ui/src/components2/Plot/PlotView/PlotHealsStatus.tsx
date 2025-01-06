@@ -4,21 +4,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo } from 'react';
-import { type PlotKey } from 'url2';
-import { Button, Tooltip } from 'components/UI';
+import { memo, useCallback, useMemo } from 'react';
+import type { PlotKey } from '@/url2';
+import { Button, Tooltip } from '@/components/UI';
 import { ReactComponent as SVGExclamationTriangleFill } from 'bootstrap-icons/icons/exclamation-triangle-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 import cn from 'classnames';
-import { useLiveModeStore } from 'store2/liveModeStore';
-import { usePlotLoader } from 'store2/plotQueryStore';
+import { useLiveModeStore } from '@/store2/liveModeStore';
+import { usePlotLoader } from '@/store2/plotQueryStore';
 
 export type PlotHealsStatusProps = {
   className?: string;
   plotKey: PlotKey;
 };
-export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
+
+export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
   const interval = useLiveModeStore(({ interval }) => interval);
   const loader = usePlotLoader(plotKey);
   const { lastError, plotHealsTimeout, clearPlotError, loadPlotData } = useStatsHouseShallow(
@@ -69,12 +70,11 @@ export function _PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
     >
       {loader ? (
         <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-      ) : !!lastError ? (
+      ) : lastError ? (
         <div>
           <SVGExclamationTriangleFill className="text-danger" />
         </div>
       ) : null}
     </Tooltip>
   );
-}
-export const PlotHealsStatus = memo(_PlotHealsStatus);
+});

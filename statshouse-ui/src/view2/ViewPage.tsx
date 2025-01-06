@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { Dashboard, TvModePanel } from 'components2';
-import { useEmbedMessage } from 'hooks/useEmbedMessage';
-import { ErrorMessages } from 'components/ErrorMessages';
-import { PlotLayout } from 'components2/Plot/PlotLayout';
-import { useTvModeStore } from '../store2/tvModeStore';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { Dashboard, TvModePanel } from '@/components2';
+import { useEmbedMessage } from '@/hooks/useEmbedMessage';
+import { ErrorMessages } from '@/components/ErrorMessages';
+import { PlotLayout } from '@/components2/Plot/PlotLayout';
+import { useTvModeStore } from '@/store2/tvModeStore';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);

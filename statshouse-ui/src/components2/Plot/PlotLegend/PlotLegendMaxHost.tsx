@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo } from 'react';
-import { Select } from 'components/Select';
+import { memo, useCallback, useMemo } from 'react';
+import { Select } from '@/components/Select';
 
 import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
-import { debug } from 'common/debug';
-import { Button } from 'components/UI';
-import { type PlotKey } from 'url2';
-import { useStatsHouse } from 'store2';
+import { debug } from '@/common/debug';
+import { Button } from '@/components/UI';
+import type { PlotKey } from '@/url2';
+import { useStatsHouse } from '@/store2';
 
 type PlotLegendMaxHostProps = {
   value: string;
@@ -20,7 +20,12 @@ type PlotLegendMaxHostProps = {
   idx: number;
 };
 
-function _PlotLegendMaxHost({ value, placeholder, plotKey, idx }: PlotLegendMaxHostProps) {
+export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
+  value,
+  placeholder,
+  plotKey,
+  idx,
+}: PlotLegendMaxHostProps) {
   const maxHostLists = useStatsHouse((s) => s.plotsData[plotKey]?.maxHostLists ?? []);
   const onCopyList = useCallback(() => {
     const list: string = maxHostLists[idx - 1]?.map(({ name }) => name).join('\r\n') ?? '';
@@ -51,6 +56,4 @@ function _PlotLegendMaxHost({ value, placeholder, plotKey, idx }: PlotLegendMaxH
       </Button>
     </div>
   );
-}
-
-export const PlotLegendMaxHost = memo(_PlotLegendMaxHost);
+});

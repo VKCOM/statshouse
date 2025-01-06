@@ -4,22 +4,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
+import { ChangeEvent, memo, useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
-import { Button } from 'components/UI';
-import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from 'api/enum';
-import { defaultBaseRange, useStatsHouseShallow } from 'store2';
-import { getEndDay, getEndWeek, getNow } from 'url2';
-import { getAbbrev, timeRangeAbbrevExpand } from 'store2/helpers';
-import { secondsRangeToString } from 'view/utils2';
+import { Button } from '@/components/UI';
+import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from '@/api/enum';
+import { defaultBaseRange, useStatsHouseShallow } from '@/store2';
+import { getEndDay, getEndWeek, getNow } from '@/url2';
+import { getAbbrev, timeRangeAbbrevExpand } from '@/store2/helpers';
+import { secondsRangeToString } from '@/view/utils2';
 
 export type PlotControlFromProps = {
   className?: string;
   classNameSelect?: string;
 };
 
-export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, classNameSelect }) => {
+export const PlotControlFrom = memo(function PlotControlFrom({ className, classNameSelect }: PlotControlFromProps) {
   const { timeRange, setBaseRange, setTimeRange } = useStatsHouseShallow(
     ({ params: { timeRange }, setBaseRange, setTimeRange }) => ({ timeRange, setBaseRange, setTimeRange })
   );
@@ -79,6 +79,4 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({ className, cl
       </Button>
     </div>
   );
-};
-
-export const PlotControlFrom = memo(_PlotControlFrom);
+});

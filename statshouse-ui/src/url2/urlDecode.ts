@@ -7,8 +7,8 @@ import {
   VariableParamsSource,
   VariableSourceKey,
 } from './queryParams';
-import { isNotNil, toNumber, toNumberM, uniqueArray } from 'common/helpers';
-import { GET_PARAMS, toTagKey } from 'api/enum';
+import { isNotNil, toNumber, toNumberM, uniqueArray } from '@/common/helpers';
+import { GET_PARAMS, toTagKey } from '@/api/enum';
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './constants';
 import { isKeyId, isNotNilVariableLink, TreeParamsObject, treeParamsObjectValueSymbol } from './urlHelpers';
@@ -263,7 +263,7 @@ export function urlDecodeVariable(
     link,
     source,
     sourceOrder,
-    values: values?.[0] === removeValueChar ? [] : values ?? defaultVariable.values,
+    values: values?.[0] === removeValueChar ? [] : (values ?? defaultVariable.values),
     groupBy: groupBy != null ? groupBy === '1' : defaultVariable.groupBy,
     negative: negative != null ? negative === '1' : defaultVariable.negative,
   };

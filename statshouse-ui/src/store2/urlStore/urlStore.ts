@@ -13,13 +13,13 @@ import {
   type PlotKey,
   type PlotParams,
   type QueryParams,
-} from 'url2';
-import { type StoreSlice } from '../createStore';
-import { appHistory } from 'common/appHistory';
+} from '@/url2';
+import type { StoreSlice } from '../createStore';
+import { appHistory } from '@/common/appHistory';
 import { getAbbrev, getUrl, isEmbedPath, isValidPath, type ProduceUpdate } from '../helpers';
 import { getUrlState } from './getUrlState';
-import { type StatsHouseStore } from '../statsHouseStore';
-import { type PlotType, type TimeRangeKeysTo } from 'api/enum';
+import type { StatsHouseStore } from '../statsHouseStore';
+import type { PlotType, TimeRangeKeysTo } from '@/api/enum';
 import { updatePlot } from './updatePlot';
 import { updateTimeRange } from './updateTimeRange';
 import { updateParams } from './updateParams';
@@ -36,13 +36,13 @@ import { toggleGroupShow } from './toggleGroupShow';
 import { updateParamsPlotStruct, VariableLinks } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { defaultBaseRange } from '../constants';
-import { useErrorStore } from 'store/errors';
+import { useErrorStore } from '@/store/errors';
 import { debug } from '../../common/debug';
 import { readDataDashboard } from './readDataDashboard';
 import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
-import { fixMessageTrouble } from 'url/fixMessageTrouble';
+import { fixMessageTrouble } from '@/url/fixMessageTrouble';
 import { isNotNil } from '../../common/helpers';
 import { getUrlObject } from '../../common/getUrlObject';
 import { apiDashboardSave } from '../../api/dashboard';

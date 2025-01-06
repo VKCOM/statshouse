@@ -5,36 +5,35 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type PlotViewProps } from './PlotView';
-import { useStatsHouse, useStatsHouseShallow } from 'store2';
-import { useThemeStore } from 'store2/themeStore';
-import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from 'hooks';
-import { black, grey, greyDark } from 'view/palette';
+import type { PlotViewProps } from './PlotView';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { useThemeStore } from '@/store2/themeStore';
+import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from '@/hooks';
+import { black, grey, greyDark } from '@/view/palette';
 import {
   UPlotPluginPortal,
   UPlotWrapper,
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
-} from 'components/UPlotWrapper';
-import { formatByMetricType, getMetricType, splitByMetricType } from 'common/formatByMetricType';
-import { dataIdxNearest } from 'common/dataIdxNearest';
-import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from 'common/axisValues';
-import { yAxisSize } from 'common/settings';
-import { METRIC_TYPE } from 'api/enum';
+} from '@/components/UPlotWrapper';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
+import { dataIdxNearest } from '@/common/dataIdxNearest';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
+import { yAxisSize } from '@/common/settings';
 import { xRangeStatic } from './xRangeStatic';
-import { calcYRange } from 'common/calcYRange';
+import { calcYRange } from '@/common/calcYRange';
 import { dateRangeFormat } from './dateRangeFormat';
 import cn from 'classnames';
 import { PlotHealsStatus } from './PlotHealsStatus';
 import { PlotHeader } from './PlotHeader';
 import { PlotSubMenu } from './PlotSubMenu';
 import css from './style.module.css';
-import { incrs, metricTypeIncrs } from './constants';
+import { metricTypeIncrs } from './constants';
 import { PlotEvents } from './PlotEvents';
 import uPlot from 'uplot';
-import { setLiveMode } from 'store2/liveModeStore';
-import { setPlotVisibility } from 'store2/plotVisibilityStore';
-import { createPlotPreview } from 'store2/plotPreviewStore';
+import { setLiveMode } from '@/store2/liveModeStore';
+import { setPlotVisibility } from '@/store2/plotVisibilityStore';
+import { createPlotPreview } from '@/store2/plotPreviewStore';
 
 const rightPad = 16;
 
@@ -224,7 +223,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
+          auto: (_) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
@@ -258,8 +257,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       }
       // setUPlotWidth(indexPlot, u.bbox.width);
       u.over.onclick = () => {
-        // @ts-ignore
-        setCursorLock(u.cursor._lock);
+        setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
         resetZoomRef.current(plotKey);

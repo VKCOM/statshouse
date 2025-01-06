@@ -1,10 +1,10 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useMetricsListStore } from 'store/metricsList';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMetricsListStore } from '@/store/metricsList';
 import cn from 'classnames';
 import { Select, SelectOptionProps } from '../UI/Select';
-import { useDebounceState } from 'hooks';
-import { SearchFabric } from 'common/helpers';
-import { toggleShowMetricsFavorite, useFavoriteStore } from 'store2/favoriteStore';
+import { useDebounceState } from '@/hooks';
+import { SearchFabric } from '@/common/helpers';
+import { toggleShowMetricsFavorite, useFavoriteStore } from '@/store2/favoriteStore';
 import { SelectMetricRow } from './SelectMetricRow';
 import { ToggleShowMetricsFavorite } from './ToggleShowMetricsFavorite';
 
@@ -14,7 +14,8 @@ export type SelectMetricProps = {
   className?: string;
   placeholder?: string;
 };
-export function _SelectMetric({ value, onChange, className, placeholder }: SelectMetricProps) {
+
+export const SelectMetric = memo(function SelectMetric({ value, onChange, className, placeholder }: SelectMetricProps) {
   const { list, loading } = useMetricsListStore();
   const metricsFavorite = useFavoriteStore((s) => s.metricsFavorite);
   const showMetricsFavorite = useFavoriteStore((s) => s.showMetricsFavorite);
@@ -91,6 +92,4 @@ export function _SelectMetric({ value, onChange, className, placeholder }: Selec
       </Select>
     </>
   );
-}
-
-export const SelectMetric = memo(_SelectMetric);
+});

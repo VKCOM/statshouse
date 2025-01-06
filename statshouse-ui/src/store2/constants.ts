@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { TIME_RANGE_ABBREV } from 'api/enum';
+import { TIME_RANGE_ABBREV } from '@/api/enum';
 
 export const prefixPath = '/';
 export const viewPath = [prefixPath + 'view'];

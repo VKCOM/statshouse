@@ -4,17 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import cn from 'classnames';
-import { ToggleButton } from 'components/UI';
+import { ToggleButton } from '@/components/UI';
 import { ReactComponent as SVGFullscreen } from 'bootstrap-icons/icons/fullscreen.svg';
 import { ReactComponent as SVGFullscreenExit } from 'bootstrap-icons/icons/fullscreen-exit.svg';
-import { setTVMode, useTvModeStore } from 'store2/tvModeStore';
+import { setTVMode, useTvModeStore } from '@/store2/tvModeStore';
 
 export type ButtonToggleTvModeProps = {
   className?: string;
 };
-export function _ButtonToggleTvMode({ className }: ButtonToggleTvModeProps) {
+
+export const ButtonToggleTvMode = memo(function ButtonToggleTvMode({ className }: ButtonToggleTvModeProps) {
   const enable = useTvModeStore(({ enable }) => enable);
 
   const onToggle = useCallback((status: boolean) => {
@@ -30,5 +31,4 @@ export function _ButtonToggleTvMode({ className }: ButtonToggleTvModeProps) {
       {enable ? <SVGFullscreenExit /> : <SVGFullscreen />}
     </ToggleButton>
   );
-}
-export const ButtonToggleTvMode = memo(_ButtonToggleTvMode);
+});

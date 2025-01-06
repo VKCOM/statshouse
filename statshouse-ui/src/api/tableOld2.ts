@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { GET_PARAMS, QueryWhat, TagKey } from './enum';
-import { freeKeyPrefix, PlotParams, TimeRange } from 'url2';
-import { filterParams, formatTagValue, querySeriesMetaTag, v2Value } from 'view/api';
-import { apiGet } from 'view/utils';
+import { freeKeyPrefix, PlotParams, TimeRange } from '@/url2';
+import { filterParams, formatTagValue, querySeriesMetaTag } from '@/view/api';
+import { apiGet } from '@/view/utils';
 import { uniqueArray } from '../common/helpers';
 import { promQLMetric } from '../view/promQLMetric';
 import { fmtInputDateTime } from '../view/utils2';

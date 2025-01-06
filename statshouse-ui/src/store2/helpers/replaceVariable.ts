@@ -1,6 +1,6 @@
-import { PlotKey, PlotParams, VariableParams } from 'url2';
+import { PlotKey, PlotParams, VariableParams } from '@/url2';
 import { produce } from 'immer';
-import { isNotNil } from 'common/helpers';
+import { isNotNil } from '@/common/helpers';
 
 /**
  * replace filter value by variable

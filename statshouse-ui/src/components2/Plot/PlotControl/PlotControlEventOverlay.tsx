@@ -4,18 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo } from 'react';
-import { Select, type SelectOptionProps } from 'components/Select';
+import { memo, useCallback, useMemo } from 'react';
+import { Select, type SelectOptionProps } from '@/components/Select';
 import cn from 'classnames';
-import { isNotNil, parseURLSearchParams } from 'common/helpers';
+import { isNotNil, parseURLSearchParams } from '@/common/helpers';
 import { produce } from 'immer';
 import { dequal } from 'dequal/lite';
-import { PLOT_TYPE } from 'api/enum';
+import { PLOT_TYPE } from '@/api/enum';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
-import { globalSettings } from 'common/settings';
-import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from 'url2';
-import { addPlot, getMetricFullName } from 'store2/helpers';
-import { useStatsHouseShallow } from 'store2';
+import { globalSettings } from '@/common/settings';
+import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from '@/url2';
+import { addPlot, getMetricFullName } from '@/store2/helpers';
+import { useStatsHouseShallow } from '@/store2';
 
 const eventPreset: (SelectOptionProps & { plot: PlotParams })[] = globalSettings.event_preset
   .map((url) => {
@@ -34,7 +34,11 @@ export type PlotControlEventOverlayProps = {
   plotKey: PlotKey;
   className?: string;
 };
-export function _PlotControlEventOverlay({ className, plotKey }: PlotControlEventOverlayProps) {
+
+export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
+  className,
+  plotKey,
+}: PlotControlEventOverlayProps) {
   const { events, plots, plotData, setParams } = useStatsHouseShallow(
     ({ params: { plots }, plotsData, setParams }) => ({
       events: plots[plotKey]?.events,
@@ -88,7 +92,7 @@ export function _PlotControlEventOverlay({ className, plotKey }: PlotControlEven
       .filter((p) => p?.type === PLOT_TYPE.Event && p?.metricName !== '');
     const eventPresetFilter = eventPreset.filter(({ plot: presetPlot }) => {
       if (presetPlot) {
-        let index = plotsArr.findIndex((plot) => dequal({ ...plot, id: '0' }, { ...presetPlot, id: 0 }));
+        const index = plotsArr.findIndex((plot) => dequal({ ...plot, id: '0' }, { ...presetPlot, id: 0 }));
         return index < 0;
       }
       return false;
@@ -130,6 +134,4 @@ export function _PlotControlEventOverlay({ className, plotKey }: PlotControlEven
       </span>
     </div>
   );
-}
-
-export const PlotControlEventOverlay = memo(_PlotControlEventOverlay);
+});

@@ -1,11 +1,11 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { getNewMetric } from './getNewMetric';
 import { metricFilterDecode } from './metricFilterDecode';
 import { GET_PARAMS } from '../../../api/enum';
 import { toTreeObj } from '../../urlHelpers';
 import { filterInSep, filterNotInSep } from '../../constants';
 
-describe('urlStore widgetsParams/metric/metricFilterDecode.ts', () => {
+describe('@/urlStore widgetsParams/metric/metricFilterDecode.ts', () => {
   test('metricFilterDecode', () => {
     const dParams = {
       ...getNewMetric(),

@@ -6,11 +6,11 @@
 
 import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
-import { debug } from '../../common/debug';
-import { deepClone } from '../../common/helpers';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
+import { debug } from '@/common/debug';
+import { deepClone } from '@/common/helpers';
+import { useResizeObserver } from '@/hooks/useResizeObserver';
 
-export type LegendItem<T = {}> = {
+export type LegendItem<T = Record<string, unknown>> = {
   label: string;
   width: number;
   fill?: string;
@@ -46,7 +46,7 @@ export type UPlotWrapperPropsHooks = {
   onSetSelect?: (u: uPlot) => void;
 };
 
-export type UPlotWrapperProps<LV = {}> = {
+export type UPlotWrapperProps<LV = Record<string, unknown>> = {
   opts?: UPlotWrapperPropsOpts;
   data?: uPlot.AlignedData;
   scales?: UPlotWrapperPropsScales;
@@ -59,10 +59,10 @@ export type UPlotWrapperProps<LV = {}> = {
   children?: ReactNode;
 } & UPlotWrapperPropsHooks;
 
-export const microTask =
+const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
 
-function readLegend<LV = {}>(u: uPlot): LegendItem<LV>[] {
+function readLegend<LV = Record<string, unknown>>(u: uPlot): LegendItem<LV>[] {
   let lastIdx = (u.data?.[0]?.length ?? 0) - 1;
   const xMax = u.scales.x?.max ?? 0;
   while (lastIdx >= 0 && u.data?.[0]?.[lastIdx] > xMax) {
@@ -113,7 +113,7 @@ const defaultSeries: uPlot.Series[] = [];
 const defaultScales: UPlotWrapperPropsScales = {};
 const defaultBands: uPlot.Band[] = [];
 
-export function _UPlotWrapper<LV = {}>({
+function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
   opts,
   data = defaultData,
   series = defaultSeries,
@@ -214,7 +214,7 @@ export function _UPlotWrapper<LV = {}>({
 
           let nextSeries = series.map((s) => ({
             ...s,
-            show: typeof show[s.label!] !== 'undefined' ? show[s.label!] : s.show ?? true,
+            show: typeof show[s.label!] !== 'undefined' ? show[s.label!] : (s.show ?? true),
           }));
 
           if (nextSeries.every((s) => !s.show)) {
@@ -269,7 +269,7 @@ export function _UPlotWrapper<LV = {}>({
 
   const uPlotPlugin = useMemo(
     (): uPlot.Plugin => ({
-      opts: (u, opts) => {
+      opts: (_u, opts) => {
         delete opts.title;
         return opts;
       },
@@ -428,7 +428,9 @@ export function _UPlotWrapper<LV = {}>({
   useEffect(() => {
     if (uRef.current) {
       microTask(() => {
-        uRef.current && onUpdatePreview?.(uRef.current);
+        if (uRef.current) {
+          onUpdatePreview?.(uRef.current);
+        }
       });
     }
   }, [series, data, scales, width, height, onUpdatePreview]);
@@ -440,4 +442,4 @@ export function _UPlotWrapper<LV = {}>({
   );
 }
 
-export const UPlotWrapper = memo(_UPlotWrapper) as typeof _UPlotWrapper;
+export const UPlotWrapper = memo(UPlotWrapperNoMemo) as typeof UPlotWrapperNoMemo;

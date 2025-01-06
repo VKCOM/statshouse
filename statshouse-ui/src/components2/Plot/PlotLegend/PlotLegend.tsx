@@ -11,13 +11,13 @@ import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
 import { PlotLegendMaxHost } from './PlotLegendMaxHost';
 import { PlotValueUnit } from './PlotValueUnit';
-import { METRIC_TYPE, MetricType } from 'api/enum';
-import { type PlotValues } from 'store2/plotDataStore';
-import { type PlotKey } from 'url2';
-import { useResizeObserver } from 'hooks/useResizeObserver';
-import { secondsRangeToString, timeShiftDesc } from 'view/utils2';
-import { LegendItem } from 'components/UPlotWrapper';
-import { Tooltip } from 'components/UI';
+import { METRIC_TYPE, MetricType } from '@/api/enum';
+import type { PlotValues } from '@/store2/plotDataStore';
+import type { PlotKey } from '@/url2';
+import { useResizeObserver } from '@/hooks/useResizeObserver';
+import { secondsRangeToString, timeShiftDesc } from '@/view/utils2';
+import { LegendItem } from '@/components/UPlotWrapper';
+import { Tooltip } from '@/components/UI';
 
 type PlotLegendProps = {
   plotKey: PlotKey;
@@ -29,7 +29,7 @@ type PlotLegendProps = {
   unit?: MetricType;
 };
 
-export const _PlotLegend: React.FC<PlotLegendProps> = ({
+export const PlotLegend = memo(function PlotLegend({
   plotKey,
   legend,
   onLegendShow,
@@ -37,14 +37,16 @@ export const _PlotLegend: React.FC<PlotLegendProps> = ({
   className,
   compact,
   unit = METRIC_TYPE.none,
-}) => {
+}: PlotLegendProps) {
   const refDiv = useRef<HTMLDivElement>(null);
   const { width } = useResizeObserver(refDiv);
   const onFocus = useCallback(
     (event: React.MouseEvent) => {
       const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
       const focus = event.type === 'mouseover';
-      index && onLegendFocus?.(index, focus);
+      if (index) {
+        onLegendFocus?.(index, focus);
+      }
     },
     [onLegendFocus]
   );
@@ -200,6 +202,4 @@ export const _PlotLegend: React.FC<PlotLegendProps> = ({
       )}
     </div>
   );
-};
-
-export const PlotLegend = memo(_PlotLegend);
+});

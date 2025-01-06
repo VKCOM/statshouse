@@ -4,10 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNow, PlotKey, readTimeRange } from 'url2';
+import { getNow, PlotKey, readTimeRange } from '@/url2';
 import { ProduceUpdate, timeRangeAbbrevExpand } from '../helpers';
 import { StatsHouseStore } from '../statsHouseStore';
-import { TIME_RANGE_KEYS_TO } from 'api/enum';
+import { TIME_RANGE_KEYS_TO } from '@/api/enum';
 
 export const maxTimeRange = 10 * 365 * 24 * 3600;
 

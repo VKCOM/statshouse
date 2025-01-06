@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect } from 'react';
-import { TAG_KEY, TagKey, toTagKey } from 'api/enum';
-import { PlotKey, promQLMetric } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { getMetricFullName } from 'store2/helpers';
+import { TAG_KEY, TagKey, toTagKey } from '@/api/enum';
+import { PlotKey, promQLMetric } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { getMetricFullName } from '@/store2/helpers';
 import { getTagDescription, isTagEnabled } from '../../../view/utils2';
 
 export type VariablePlotLinkSelectProps = {

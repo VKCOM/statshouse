@@ -1,15 +1,15 @@
 import { createStore } from '../createStore';
 import { useErrorStore } from '../errors';
-import { GET_PARAMS } from 'api/enum';
+import { GET_PARAMS } from '@/api/enum';
 import {
   apiNamespaceFetch,
   ApiNamespacePost,
   ApiNamespacePut,
   apiPostNamespaceFetch,
   apiPutNamespaceFetch,
-} from 'api/namespace';
-import { apiNamespaceListFetch, NamespaceShort } from 'api/namespaceList';
-import { sortByKey } from 'view/utils';
+} from '@/api/namespace';
+import { apiNamespaceListFetch, NamespaceShort } from '@/api/namespaceList';
+import { sortByKey } from '@/view/utils';
 import { ExtendedError } from '../../api/api';
 
 export const namespaceListErrors = 'groupListErrors';

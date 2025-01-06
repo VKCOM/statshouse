@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
-import { type PlotControlProps } from './PlotControl';
+import type { PlotControlProps } from './PlotControl';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
@@ -15,7 +15,7 @@ import { PlotControlMaxHost } from './PlotControlMaxHost';
 import { PlotControlUnit } from './PlotControlUnit';
 import { PlotControlPromQLEditor } from './PlotControlPromQLEditor';
 import { PlotControlFilterVariable } from './PlotControlFilterVariable';
-import { useVariablesPlotByPromQL } from 'hooks/useVariablesPlotByPromQL';
+import { useVariablesPlotByPromQL } from '@/hooks/useVariablesPlotByPromQL';
 import { PlotControlView } from './PlotControlView';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
 

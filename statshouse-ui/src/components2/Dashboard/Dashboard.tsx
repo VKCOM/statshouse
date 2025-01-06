@@ -4,27 +4,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
-import { useStatsHouseShallow } from 'store2';
+import { memo, useCallback } from 'react';
+import { useStatsHouseShallow } from '@/store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
-import { Button, Tooltip } from 'components/UI';
+import { Button, Tooltip } from '@/components/UI';
 import { DashboardVariablesControl } from './DashboardVariablesControl';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
 import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
-import { useLinkPlot } from 'hooks/useLinkPlot';
-import { useGlobalLoader } from 'store2/plotQueryStore';
-import { useTvModeStore } from 'store2/tvModeStore';
-import { ErrorMessages } from '../../components/ErrorMessages';
+import { useLinkPlot } from '@/hooks/useLinkPlot';
+import { useGlobalLoader } from '@/store2/plotQueryStore';
+import { useTvModeStore } from '@/store2/tvModeStore';
+import { ErrorMessages } from '@/components/ErrorMessages';
 
 export type DashboardProps = {
   className?: string;
 };
 
-export function _Dashboard({ className }: DashboardProps) {
+export const Dashboard = memo(function Dashboard({ className }: DashboardProps) {
   const globalLoader = useGlobalLoader();
   const tvModeEnable = useTvModeStore(({ enable }) => enable);
   const {
@@ -118,5 +118,4 @@ export function _Dashboard({ className }: DashboardProps) {
       {tabNum === '-2' && <DashboardSettings />}
     </div>
   );
-}
-export const Dashboard = memo(_Dashboard);
+});

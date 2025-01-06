@@ -4,13 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { Queue } from 'common/Queue';
+import { Queue } from '@/common/Queue';
 import { createStore, StoreSlice } from '../createStore';
-import { StatsHouseStore } from '../statsHouseStore';
-import { PlotKey } from 'url2';
-import { canvasToImageData } from 'common/canvasToImage';
+import { PlotKey } from '@/url2';
+import { canvasToImageData } from '@/common/canvasToImage';
 import { skipTimeout } from '../../common/helpers';
-import { plotVisibilityStore, PlotVisibilityStore, usePlotVisibilityStore } from '../plotVisibilityStore';
+import { usePlotVisibilityStore } from '../plotVisibilityStore';
 
 const queuePreview = new Queue();
 
@@ -54,7 +53,7 @@ export async function createPlotPreview(plotKey: PlotKey, u: uPlot, width: numbe
       controller.signal
     );
     setPlotPreview(plotKey, url);
-  } catch (e) {
+  } catch (_) {
     // abort task
   }
   usePlotPreviewStore.setState((state) => {
@@ -74,7 +73,9 @@ export function setPlotPreview(plotKey: PlotKey, url: string) {
 export function clearAllPlotPreview() {
   usePlotPreviewStore.setState((state) => {
     Object.values(state.plotPreviewUrlList).forEach((url) => {
-      url && URL.revokeObjectURL(url);
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
     });
     state.plotPreviewUrlList = {};
     state.plotPreviewAbortController = {};

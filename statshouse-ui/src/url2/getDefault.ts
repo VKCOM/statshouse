@@ -1,7 +1,7 @@
 import type { GroupInfo, PlotParams, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { TAG_KEY, TIME_RANGE_KEYS_TO } from 'api/enum';
-import { deepClone } from 'common/helpers';
-import { globalSettings } from 'common/settings';
+import { TAG_KEY, TIME_RANGE_KEYS_TO } from '@/api/enum';
+import { deepClone } from '@/common/helpers';
+import { globalSettings } from '@/common/settings';
 import { getNewMetric } from './widgetsParams';
 
 export function getDefaultParams(): QueryParams {

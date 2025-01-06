@@ -1,5 +1,5 @@
-import 'testMock/matchMedia.mock';
-import { TIME_RANGE_KEYS_TO } from 'api/enum';
+import '@/testMock/matchMedia.mock';
+import { TIME_RANGE_KEYS_TO } from '@/api/enum';
 import { getEndDay, getEndWeek, getNow, readTimeRange, toDateTime, toTimeStamp } from './timeRangeHelpers';
 
 const nowDateTime = '2020-01-01 00:00:00';

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { filterVariableByLink } from './filterVariableByLink';
-import { type PlotParams, type VariableParamsLink } from 'url2';
+import type { PlotParams, VariableParamsLink } from '@/url2';
 import { isPromQL } from './isPromQL';
 import { filterVariableByPromQl } from './filterVariableByPromQl';
 

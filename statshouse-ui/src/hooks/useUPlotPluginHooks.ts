@@ -1,5 +1,5 @@
 import { MutableRefObject, useMemo, useRef } from 'react';
-import { type Plugin } from 'uplot';
+import type { Plugin } from 'uplot';
 import { UPlotWrapperPropsHooks } from '../components/UPlotWrapper';
 import { EventObserver } from '../common/EventObserver';
 

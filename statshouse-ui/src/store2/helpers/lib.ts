@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type PlotParams, promQLMetric } from 'url2';
-import { type PlotData } from '../plotDataStore';
+import { type PlotParams, promQLMetric } from '@/url2';
+import type { PlotData } from '../plotDataStore';
 import { MetricMeta } from '../metricsMetaStore';
 import { whatToWhatDesc } from '../../view/whatToWhatDesc';
 
@@ -36,7 +36,7 @@ export function getMetricFullName(plot?: PlotParams, plotData?: PlotData) {
   }
   const metricName = getMetricName(plot, plotData);
   const metricWhat = getMetricWhat(plot, plotData);
-  return metricName ? `${metricName}${!!metricWhat ? ': ' + metricWhat : ''}` : '';
+  return metricName ? `${metricName}${metricWhat ? ': ' + metricWhat : ''}` : '';
 }
 
 export function getMetricMeta(metricMeta: Partial<Record<string, MetricMeta>>, plot?: PlotParams, plotData?: PlotData) {

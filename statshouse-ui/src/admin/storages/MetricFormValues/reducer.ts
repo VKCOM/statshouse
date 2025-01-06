@@ -109,7 +109,7 @@ export function reducer(state: IMetric, data: IActions): IMetric {
   }
 
   if (data.type === 'move_draft') {
-    let newState: IMetric = {
+    const newState: IMetric = {
       ...state,
       tags: [...state.tags],
       tags_draft: [...state.tags_draft.filter((t) => t.name !== data.tag.name)],

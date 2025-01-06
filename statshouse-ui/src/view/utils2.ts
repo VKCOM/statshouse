@@ -48,8 +48,8 @@ export function secondsRangeToString(seconds: number, short?: boolean): string {
     [0, 'year', 'years', 'y'],
   ];
   let range = seconds;
-  let result = [];
-  for (let key in suffix) {
+  const result = [];
+  for (const key in suffix) {
     if (suffix[key][0] > 0) {
       const num = range % (suffix[key][0] as number);
       if (num > 0) {
@@ -411,8 +411,8 @@ export function ieee32ToFloat(intval: number): number {
   let fval = 0.0;
   let x; //exponent
   let m; //mantissa
-  let s; //sign
-  s = intval & 0x80000000 ? -1 : 1;
+  //sign
+  const s = intval & 0x80000000 ? -1 : 1;
   x = (intval >> 23) & 0xff;
   m = intval & 0x7fffff;
   switch (x) {
@@ -461,11 +461,12 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
       return (input >>> 0).toString(10);
     case 'lexenc_float':
       return parseFloat(lexDecode(input).toPrecision(8)).toString(10);
-    case 'float':
+    case 'float': {
       const buffer = new ArrayBuffer(4);
       const dataView = new DataView(buffer);
       dataView.setInt32(0, input, false);
       return parseFloat(dataView.getFloat32(0, false).toPrecision(8)).toString(10);
+    }
     default:
       return input.toString(10);
   }

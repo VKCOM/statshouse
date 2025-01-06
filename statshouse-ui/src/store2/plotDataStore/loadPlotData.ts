@@ -4,18 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { metricFilterEncode, type PlotKey, promQLMetric, type QueryParams, urlEncodeVariables } from 'url2';
-import { apiQuery, type ApiQueryGet } from 'api/query';
-import { GET_PARAMS } from 'api/enum';
+import { metricFilterEncode, type PlotKey, promQLMetric, type QueryParams, urlEncodeVariables } from '@/url2';
+import { apiQuery, type ApiQueryGet } from '@/api/query';
+import { GET_PARAMS } from '@/api/enum';
 import { normalizePlotData } from './normalizePlotData';
-import { type ProduceUpdate } from '../helpers';
-import { type StatsHouseStore } from '../statsHouseStore';
+import type { ProduceUpdate } from '../helpers';
+import type { StatsHouseStore } from '@/store2';
+import { autoAgg, autoLowAgg } from '@/store2';
 import { produce } from 'immer';
 import { getEmptyPlotData } from './getEmptyPlotData';
-import { autoAgg, autoLowAgg } from '../constants';
 import { replaceVariable } from '../helpers/replaceVariable';
 import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
-import { ExtendedError } from '../../api/api';
+import { ExtendedError } from '@/api/api';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -50,9 +50,10 @@ export function getLoadPlotUrlParams(
     urlParams[GET_PARAMS.metricPromQL] = plot.promQL;
     //add variable params for PromQL
     urlEncodeVariables(params).forEach(([key, value]) => {
-      // @ts-ignore
       urlParams[key] ??= [];
-      // @ts-ignore
+      if (typeof urlParams[key] === 'string') {
+        urlParams[key] = [urlParams[key]];
+      }
       urlParams[key].push(value);
     });
   }

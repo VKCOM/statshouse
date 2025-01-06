@@ -22,8 +22,8 @@ export function useLinkCSV(indexPlot: number) {
       lastPlotParams.customAgg === -1
         ? `${Math.floor(width / 2)}`
         : lastPlotParams.customAgg === 0
-        ? `${Math.floor(width * devicePixelRatio)}`
-        : `${lastPlotParams.customAgg}s`;
+          ? `${Math.floor(width * devicePixelRatio)}`
+          : `${lastPlotParams.customAgg}s`;
     return queryURLCSV(lastPlotParams, timeRange, timeShifts, agg, params);
   }, [indexPlot, params, timeRange, width]);
 }

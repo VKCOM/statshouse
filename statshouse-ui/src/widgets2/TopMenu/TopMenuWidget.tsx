@@ -1,7 +1,5 @@
-import React from 'react';
-
-import { PlotNavigate } from 'components2';
-import { useStatsHouseShallow } from '../../store2';
+import { PlotNavigate } from '@/components2';
+import { useStatsHouseShallow } from '@/store2';
 
 export function TopMenuWidget() {
   const { dashboardName, dashboardDescription, tabNum } = useStatsHouseShallow(

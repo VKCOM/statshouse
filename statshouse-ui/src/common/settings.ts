@@ -65,7 +65,7 @@ if (meta !== null) {
         ? deepClone(serverConfig.links).filter(({ name, url }) => name && url)
         : deepClone(defaultSettings.links),
     };
-  } catch (e) {}
+  } catch (_) {}
 }
 
 export const globalSettings: settings = metaSettings;

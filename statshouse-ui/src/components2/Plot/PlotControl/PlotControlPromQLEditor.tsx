@@ -4,15 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
-import { Button, TextArea } from 'components/UI';
-import { useStateToRef } from 'hooks';
+import { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
+import { Button, TextArea } from '@/components/UI';
+import { useStateToRef } from '@/hooks';
 import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
-import { getNewMetric, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
 import { PrometheusSwitch } from './PrometheusSwitch';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
@@ -22,7 +22,7 @@ const FallbackEditor = (props: { className?: string; value?: string; onChange?: 
 );
 
 const PromQLEditor = lazy(() =>
-  import('components/UI/PromQLEditor').catch(() => ({
+  import('@/components/UI/PromQLEditor').catch(() => ({
     default: FallbackEditor,
   }))
 );
@@ -34,7 +34,10 @@ export type PlotControlPromQLEditorProps = {
 
 const { prometheusCompat: defaultPrometheusCompat } = getNewMetric();
 
-export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlPromQLEditorProps) {
+export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
+  className,
+  plotKey,
+}: PlotControlPromQLEditorProps) {
   const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(
     ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
       promQLParam: plots[plotKey]?.promQL ?? '',
@@ -99,6 +102,4 @@ export function _PlotControlPromQLEditor({ className, plotKey }: PlotControlProm
       </div>
     </div>
   );
-}
-
-export const PlotControlPromQLEditor = memo(_PlotControlPromQLEditor);
+});

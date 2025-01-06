@@ -4,17 +4,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
-import { ToggleButton } from 'components/UI';
-import { useStatsHouseShallow } from 'store2';
-import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from 'view/utils2';
+import { ToggleButton } from '@/components/UI';
+import { useStatsHouseShallow } from '@/store2';
+import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '@/view/utils2';
 
 export type PlotControlGlobalTimeShiftsProps = {
   className?: string;
 };
 
-export function _PlotControlGlobalTimeShifts({ className }: PlotControlGlobalTimeShiftsProps) {
+export const PlotControlGlobalTimeShifts = memo(function PlotControlGlobalTimeShifts({
+  className,
+}: PlotControlGlobalTimeShiftsProps) {
   const { timeShifts, maxCustomAgg, setParams } = useStatsHouseShallow((s) => ({
     timeShifts: s.params.timeShifts,
     maxCustomAgg: Math.max(0, ...s.params.orderPlot.map((pK) => s.params.plots[pK]?.customAgg ?? 0)),
@@ -68,6 +70,4 @@ export function _PlotControlGlobalTimeShifts({ className }: PlotControlGlobalTim
       ))}
     </div>
   );
-}
-
-export const PlotControlGlobalTimeShifts = memo(_PlotControlGlobalTimeShifts);
+});

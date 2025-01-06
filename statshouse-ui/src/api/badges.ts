@@ -5,12 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { apiFetch, ExtendedError } from './api';
-import { ApiQueryGet } from './query';
-import { PlotParams, QueryParams } from '../url2';
-import { useLiveModeStore } from '../store2/liveModeStore';
+import type { ApiQueryGet } from './query';
+import type { PlotParams, QueryParams } from '@/url2';
+import { useLiveModeStore } from '@/store2/liveModeStore';
 import { useMemo } from 'react';
-import { getLoadPlotUrlParams } from '../store2/plotDataStore/loadPlotData';
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { getLoadPlotUrlParams } from '@/store2/plotDataStore/loadPlotData';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 export const ApiBadgesEndpoint = '/api/badges';
 
@@ -70,13 +70,13 @@ export function useApiBadges<T = ApiBadges>(
       if (!fetchParams) {
         throw new ExtendedError('no request params');
       }
-      const { response, error, status } = await apiBadgesFetch(fetchParams, signal);
+      const { response, error } = await apiBadgesFetch(fetchParams, signal);
       if (error) {
         throw error;
       }
 
       return response;
     },
-    placeholderData: (previousData, previousQuery) => previousData,
+    placeholderData: (previousData) => previousData,
   });
 }

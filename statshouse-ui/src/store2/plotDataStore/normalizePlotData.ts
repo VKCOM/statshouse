@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type SeriesResponse } from 'api/query';
-import { type PlotParams, promQLMetric, type QueryParams } from 'url2';
-import { type ProduceUpdate } from '../helpers';
-import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetricType } from 'api/enum';
+import type { SeriesResponse } from '@/api/query';
+import { type PlotParams, promQLMetric, type QueryParams } from '@/url2';
+import type { ProduceUpdate } from '../helpers';
+import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetricType } from '@/api/enum';
 import uPlot from 'uplot';
-import type { SelectOptionProps } from 'components/Select';
-import { type PlotData, type PlotValues } from './plotsDataStore';
+import type { SelectOptionProps } from '@/components/Select';
+import type { PlotData, PlotValues } from './plotsDataStore';
 import { metaToBaseLabel, metaToLabel } from '../../view/api';
 import { pxPerChar } from '../../common/settings';
 import { stackData } from '../../common/stackData';
@@ -20,7 +20,7 @@ import { dequal } from 'dequal/lite';
 import { calcYRange2 } from '../../common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { deepClone } from '../../common/helpers';
-import { formatLegendValue, formatPercent, timeShiftToDash } from 'view/utils2';
+import { formatLegendValue, formatPercent, timeShiftToDash } from '@/view/utils2';
 import { useThemeStore } from '../themeStore';
 
 export function normalizePlotData(

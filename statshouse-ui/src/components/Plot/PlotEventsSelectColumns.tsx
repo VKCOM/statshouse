@@ -20,8 +20,8 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
 
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      // @ts-ignore
-      const ctrl = e.nativeEvent.ctrlKey || e.nativeEvent.metaKey;
+      const nativeEvent = e.nativeEvent as MouseEvent;
+      const ctrl = nativeEvent.ctrlKey || nativeEvent.metaKey;
       const tagKey = e.currentTarget.value;
       const tagKeyChecked = e.currentTarget.checked;
       useStore.getState().setPlotParams(

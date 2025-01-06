@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { Select, type SelectOptionProps } from 'components/Select';
+import { memo, useCallback, useEffect, useMemo } from 'react';
+import { Select, type SelectOptionProps } from '@/components/Select';
 import cn from 'classnames';
-import { type QueryWhat } from 'api/enum';
-import { metricKindToWhat } from 'view/api';
-import { getNewMetric, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { whatToWhatDesc } from 'view/whatToWhatDesc';
+import type { QueryWhat } from '@/api/enum';
+import { metricKindToWhat } from '@/view/api';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
 
 export type PlotControlWhatsProps = {
   plotKey: PlotKey;
@@ -19,7 +19,7 @@ export type PlotControlWhatsProps = {
 
 const defaultWhats = getNewMetric().what;
 
-export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
+export const PlotControlWhats = memo(function PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
   const { what, meta, setPlot } = useStatsHouseShallow((s) => ({
     what: s.params.plots[plotKey]?.what ?? defaultWhats,
     meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
@@ -68,6 +68,4 @@ export function _PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
       classNameList="dropdown-menu"
     />
   );
-}
-
-export const PlotControlWhats = memo(_PlotControlWhats);
+});

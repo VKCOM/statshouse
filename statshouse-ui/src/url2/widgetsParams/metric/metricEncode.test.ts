@@ -1,11 +1,12 @@
-import 'testMock/matchMedia.mock';
+import '@/testMock/matchMedia.mock';
 import { PlotParams } from '../../queryParams';
 import { getNewMetric } from './getNewMetric';
 import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE, QUERY_WHAT } from '../../../api/enum';
 import { metricEncode } from './metricEncode';
 import { promQLMetric } from '../../constants';
-describe('urlStore widgetsParams/metric/metricEncode.ts', () => {
-  test('urlEncodePlot', () => {
+
+describe('@/urlStore widgetsParams/metric/metricEncode.ts', () => {
+  test('@/urlEncodePlot', () => {
     const dParam: PlotParams = {
       ...getNewMetric(),
       id: '0',

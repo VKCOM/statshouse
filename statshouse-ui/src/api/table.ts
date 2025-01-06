@@ -4,20 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GET_PARAMS, MetricValueBackendVersion, QueryWhat } from './enum';
-import { ApiQueryEndpoint, SeriesMetaTag } from './query';
+import { GET_PARAMS, type MetricValueBackendVersion, type QueryWhat } from './enum';
+import { ApiQueryEndpoint, type SeriesMetaTag } from './query';
 import { ApiAbortController, apiFetch, ApiFetchResponse, ExtendedError } from './api';
-import { PlotParams, QueryParams } from '../url2';
+import type { PlotParams, QueryParams } from '@/url2';
 import {
   CancelledError,
-  QueryClient,
-  UndefinedInitialDataOptions,
+  type QueryClient,
+  type UndefinedInitialDataOptions,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { getLoadTableUrlParams } from '../store2/plotEventsDataStore';
-import { useLiveModeStore } from '../store2/liveModeStore';
-import { queryClient } from '../common/queryClient';
+import { getLoadTableUrlParams } from '@/store2/plotEventsDataStore';
+import { useLiveModeStore } from '@/store2/liveModeStore';
+import { queryClient } from '@/common/queryClient';
 
 const ApiTableEndpoint = '/api/table';
 
@@ -94,7 +94,7 @@ export function getTableOptions<T = ApiTable>(
       if (!keyParams || !fetchParams) {
         throw new ExtendedError('no request params');
       }
-      const { response, error, status } = await apiTableFetch(fetchParams, signal);
+      const { response, error } = await apiTableFetch(fetchParams, signal);
       if (error) {
         throw error;
       }

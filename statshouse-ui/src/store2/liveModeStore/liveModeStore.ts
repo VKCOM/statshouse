@@ -7,9 +7,9 @@
 import { createStore, type StoreSlice } from '../createStore';
 import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
 import { isValidPath, type ProduceUpdate } from '../helpers';
-import { appHistory } from 'common/appHistory';
-import { debug } from 'common/debug';
-import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from 'api/enum';
+import { appHistory } from '@/common/appHistory';
+import { debug } from '@/common/debug';
+import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '@/api/enum';
 import { useShallow } from 'zustand/react/shallow';
 
 export type LiveModeStore = {

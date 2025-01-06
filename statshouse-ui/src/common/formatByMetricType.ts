@@ -1,5 +1,5 @@
 import { formatFixed } from './formatFixed';
-import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '../api/enum';
+import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '@/api/enum';
 import { fixFloat, floor, incrRoundUp, round } from './helpers';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
@@ -96,8 +96,8 @@ const baseMetricTypeSecond: ConfigConvertMetric = {
       this.baseOffset < 0
         ? Math.pow(10, this.baseOffset * 3)
         : this.baseOffset === 3
-        ? 86400
-        : Math.pow(60, this.baseOffset);
+          ? 86400
+          : Math.pow(60, this.baseOffset);
     const an = Math.abs(n * p);
     if (an < 1) {
       const base = Math.floor(Math.log10(an)) - 2;
@@ -120,8 +120,8 @@ const baseMetricTypeSecond: ConfigConvertMetric = {
       this.baseOffset < 0
         ? Math.pow(10, this.baseOffset * 3)
         : this.baseOffset === 3
-        ? 86400
-        : Math.pow(60, this.baseOffset);
+          ? 86400
+          : Math.pow(60, this.baseOffset);
 
     const normalizeN = n * p;
     const base = this.getBase(n);
@@ -206,17 +206,17 @@ export function formatByMetricType(metricType: MetricType): (n: number) => strin
 
 export function splitByMetricType(metricType: MetricType) {
   return (
-    self: unknown, //uPlot unknown for test
-    axisIdx: number,
+    _self: unknown, //uPlot unknown for test
+    _axisIdx: number,
     scaleMin: number,
     scaleMax: number,
     foundIncr: number,
-    foundSpace: number
+    _foundSpace: number
   ): number[] => {
-    let splits: number[] = [];
+    const splits: number[] = [];
 
     const conf = suffixesByMetricType[metricType];
-    let base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
+    const base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
 
     let p = 1;
     switch (metricType) {

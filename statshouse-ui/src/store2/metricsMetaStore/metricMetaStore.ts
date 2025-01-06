@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type StoreSlice } from '../createStore';
-import { apiMetric, type MetricMetaTag, type MetricMetaValue } from 'api/metric';
-import { type TagKey, toTagKey } from 'api/enum';
-import { type StatsHouseStore } from '../statsHouseStore';
-import { type PlotKey, promQLMetric } from 'url2';
-import { useErrorStore } from 'store/errors';
-import { debug } from 'common/debug';
+import type { StoreSlice } from '../createStore';
+import { apiMetric, type MetricMetaTag, type MetricMetaValue } from '@/api/metric';
+import { type TagKey, toTagKey } from '@/api/enum';
+import type { StatsHouseStore } from '../statsHouseStore';
+import { type PlotKey, promQLMetric } from '@/url2';
+import { useErrorStore } from '@/store/errors';
+import { debug } from '@/common/debug';
 import { updateMetricMeta } from './updateMetricMeta';
 import { ExtendedError } from '../../api/api';
 
@@ -26,7 +26,7 @@ export type MetricMetaStore = {
   clearMetricMeta(metricName: string): void;
 };
 
-export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (setState, getState, store) => ({
+export const metricMetaStore: StoreSlice<StatsHouseStore, MetricMetaStore> = (setState, getState) => ({
   metricMeta: {},
   async loadMetricMeta(metricName) {
     if (!metricName || metricName === promQLMetric) {

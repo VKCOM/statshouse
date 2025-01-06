@@ -5,11 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import uPlot from 'uplot';
-import { type MetricType, PLOT_TYPE, type QueryWhat } from 'api/enum';
-import { type PlotKey, type PlotParams, type TimeRange } from 'url2';
-import { type QuerySeriesMeta } from 'api/query';
-import { type StoreSlice } from '../createStore';
-import { type StatsHouseStore } from '../statsHouseStore';
+import { type MetricType, PLOT_TYPE, type QueryWhat } from '@/api/enum';
+import type { PlotKey, PlotParams, TimeRange } from '@/url2';
+import type { QuerySeriesMeta } from '@/api/query';
+import type { StoreSlice } from '../createStore';
+import type { StatsHouseStore } from '../statsHouseStore';
 import { loadPlotData } from './loadPlotData';
 import { getClearPlotsData } from './getClearPlotsData';
 import { updateClearPlotError } from './updateClearPlotError';
@@ -22,7 +22,7 @@ import { skipTimeout } from '../../common/helpers';
 import { usePlotVisibilityStore } from '../plotVisibilityStore';
 import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
-import { type SelectOptionProps } from 'components/Select';
+import type { SelectOptionProps } from '@/components/Select';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -157,7 +157,6 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
       const orderVariables = getState().params.orderVariables;
       const variables = getState().params.variables;
-      const isEmbed = getState().isEmbed;
       let priority = 3;
       const changeVariablesKey = useVariableChangeStatusStore.getState().changeVariable;
       const changeVariable = orderVariables.some(
@@ -212,7 +211,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
       const changeTimeShifts = !dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
 
-      let update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable;
+      const update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable;
       prepareEnd();
 
       if (update) {
@@ -269,7 +268,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
         if (plotData) {
           if (single) {
             const otherShow = plotData.seriesShow.some((_show, indexSeries) => (indexSeries === idx ? false : _show));
-            plotData.seriesShow = plotData.seriesShow.map((s, indexSeries) =>
+            plotData.seriesShow = plotData.seriesShow.map((_, indexSeries) =>
               indexSeries === idx ? true : !otherShow
             );
           } else {

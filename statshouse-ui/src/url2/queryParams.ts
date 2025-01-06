@@ -5,7 +5,7 @@ import {
   type QueryWhat,
   type TagKey,
   type TimeRangeKeysTo,
-} from 'api/enum';
+} from '@/api/enum';
 
 export type PlotKey = string;
 

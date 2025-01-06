@@ -1,5 +1,5 @@
-import { DashboardInfo } from 'api/dashboard';
-import { getDefaultParams } from 'url2';
+import { DashboardInfo } from '@/api/dashboard';
+import { getDefaultParams } from '@/url2';
 import { normalizeDashboard } from './normalizeDashboard';
 
 export function readDataDashboard(data: DashboardInfo, defaultParams = getDefaultParams()) {

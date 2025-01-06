@@ -1,8 +1,8 @@
 import { createStore } from '../createStore';
 import { useStore } from '../statshouse';
-import { debug } from 'common/debug';
+import { debug } from '@/common/debug';
 import { produce } from 'immer';
-import { now } from 'view/utils2';
+import { now } from '@/view/utils2';
 
 export type LiveModeStore = {
   live: boolean;

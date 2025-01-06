@@ -7,12 +7,12 @@ import React, { useMemo } from 'react';
 
 import cn from 'classnames';
 
-import { Tooltip } from 'components/UI';
-import { getNewMetric, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { METRIC_VALUE_BACKEND_VERSION, toTagKey } from 'api/enum';
-import { formatTagValue } from 'view/api';
-import { getMetricMeta } from 'store2/helpers';
+import { Tooltip } from '@/components/UI';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { METRIC_VALUE_BACKEND_VERSION, toTagKey } from '@/api/enum';
+import { formatTagValue } from '@/view/api';
+import { getMetricMeta } from '@/store2/helpers';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
 
 const emptyPlot = getNewMetric();

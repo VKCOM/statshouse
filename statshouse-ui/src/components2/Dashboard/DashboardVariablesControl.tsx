@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo } from 'react';
-import { useStatsHouseShallow } from '../../store2';
+import { memo } from 'react';
+import { useStatsHouseShallow } from '@/store2';
 import { PlotControlFilterVariable } from '../Plot/PlotControl/PlotControlFilterVariable';
 import cn from 'classnames';
 import { DashboardVariablesBadgeByKey } from './DashboardVariablesBadgeByKey';
@@ -14,7 +14,9 @@ export type DashboardVariablesControlProps = {
   className?: string;
 };
 
-export function _DashboardVariablesControl({ className }: DashboardVariablesControlProps) {
+export const DashboardVariablesControl = memo(function DashboardVariablesControl({
+  className,
+}: DashboardVariablesControlProps) {
   const { orderVariables, isEmbed } = useStatsHouseShallow(({ params: { orderVariables }, isEmbed }) => ({
     orderVariables,
     isEmbed,
@@ -40,5 +42,4 @@ export function _DashboardVariablesControl({ className }: DashboardVariablesCont
       </div>
     </div>
   );
-}
-export const DashboardVariablesControl = memo(_DashboardVariablesControl);
+});

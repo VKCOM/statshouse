@@ -4,10 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GET_PARAMS, MetricMetaKind, MetricMetaTagRawKind } from './enum';
-import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
-import { UndefinedInitialDataOptions, useQuery, UseQueryResult } from '@tanstack/react-query';
-import { queryClient } from '../common/queryClient';
+import { GET_PARAMS, type MetricMetaKind, type MetricMetaTagRawKind } from './enum';
+import { apiFetch, type ApiFetchResponse, ExtendedError } from './api';
+import { type UndefinedInitialDataOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { queryClient } from '@/common/queryClient';
 
 export const ApiMetricEndpoint = '/api/metric';
 /**
@@ -81,7 +81,7 @@ export function getMetricOptions<T = ApiMetric>(
       if (!metricName) {
         throw new ExtendedError('no metric name');
       }
-      const { response, error, status } = await apiMetricFetch({ [GET_PARAMS.metricName]: metricName }, signal);
+      const { response, error } = await apiMetricFetch({ [GET_PARAMS.metricName]: metricName }, signal);
       if (error) {
         throw error;
       }

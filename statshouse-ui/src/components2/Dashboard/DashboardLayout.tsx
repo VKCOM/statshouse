@@ -5,21 +5,21 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toNumber } from 'common/helpers';
+import { toNumber } from '@/common/helpers';
 import css from './style.module.css';
 import cn from 'classnames';
-import { useStatsHouseShallow } from 'store2';
-import { GroupKey, PlotKey } from 'url2';
-import { Button } from 'components/UI';
+import { useStatsHouseShallow } from '@/store2';
+import { GroupKey, PlotKey } from '@/url2';
+import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 import { PlotView } from '../Plot';
-import { toPlotKey } from 'url/queryParams';
-import { DashboardGroup } from './DashboardGroup';
+import { toPlotKey } from '@/url/queryParams';
+import { DashboardGroup } from '@/components2';
 import { produce } from 'immer';
-import { getNextGroupKey } from 'store2/urlStore/updateParamsPlotStruct';
-import { prepareItemsGroup } from 'common/prepareItemsGroup';
-import { useResizeObserver } from 'hooks/useResizeObserver';
+import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
+import { prepareItemsGroup } from '@/common/prepareItemsGroup';
+import { useResizeObserver } from '@/hooks/useResizeObserver';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -66,7 +66,7 @@ function getGroupStyle(width: number, size?: string): React.CSSProperties {
   if (col != null) {
     cols = col;
   }
-  let maxCols = Math.floor(width / (w / cols));
+  const maxCols = Math.floor(width / (w / cols));
   return {
     '--base-cols': cols,
     '--max-cols': maxCols,
@@ -76,7 +76,8 @@ function getGroupStyle(width: number, size?: string): React.CSSProperties {
 export type DashboardLayoutProps = {
   className?: string;
 };
-export function _DashboardLayout({ className }: DashboardLayoutProps) {
+
+export const DashboardLayout = memo(function DashboardLayout({ className }: DashboardLayoutProps) {
   const { groups, orderGroup, orderPlot, dashboardLayoutEdit, isEmbed, addDashboardGroup, setNextDashboardSchemePlot } =
     useStatsHouseShallow(
       ({
@@ -120,7 +121,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
               g.plots = g.plots.filter((p) => p !== select);
             }
           });
-          let groupIndex = ig.findIndex(({ groupKey }) => groupKey === selectTargetGroup);
+          const groupIndex = ig.findIndex(({ groupKey }) => groupKey === selectTargetGroup);
           if (groupIndex === -1) {
             ig.push({ plots: [select], groupKey: selectTargetGroup });
           } else {
@@ -147,7 +148,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
   const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
 
   const save = useCallback(
-    (index: PlotKey | null, indexTarget: PlotKey | null, indexGroup: GroupKey | null) => {
+    (index: PlotKey | null, _indexTarget: PlotKey | null, _indexGroup: GroupKey | null) => {
       if (index != null) {
         setNextDashboardSchemePlot(itemsGroupRef.current);
       }
@@ -168,7 +169,7 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
         preview.current.style.transform = `matrix(1,0,0,1,${e.clientX},${e.clientY})`;
       }
       const dropElement = document.elementsFromPoint(e.clientX, e.clientY);
-      let index = toPlotKey(target.getAttribute('data-index'));
+      const index = toPlotKey(target.getAttribute('data-index'));
       let indexTarget: PlotKey | null = index;
       let indexGroup: GroupKey | null =
         dropElement.find((e) => e.getAttribute('data-group'))?.getAttribute('data-group') ?? null;
@@ -202,7 +203,6 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
           if (scrollSpeed) {
             window.scrollBy({
               top: scrollSpeed,
-              // @ts-ignore
               behavior: 'instant',
             });
           }
@@ -323,5 +323,4 @@ export function _DashboardLayout({ className }: DashboardLayoutProps) {
       </div>
     </div>
   );
-}
-export const DashboardLayout = memo(_DashboardLayout);
+});

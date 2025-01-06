@@ -24,7 +24,7 @@ import {
   type QueryWhat,
   type QueryWhatSelector,
   type TagKey,
-} from 'api/enum';
+} from '@/api/enum';
 import { promQLMetric } from './promQLMetric';
 import { whatToWhatDesc } from './whatToWhatDesc';
 import { convert, timeShiftDesc } from './utils2';

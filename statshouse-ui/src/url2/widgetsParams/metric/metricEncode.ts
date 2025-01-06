@@ -1,4 +1,4 @@
-import { type PlotParams } from '../../queryParams';
+import type { PlotParams } from '../../queryParams';
 import { getNewMetric } from './getNewMetric';
 import { GET_PARAMS, metricTypeToMetricTypeUrl, PLOT_TYPE, type TagKey } from '../../../api/enum';
 import { toPlotPrefix } from '../../urlHelpers';

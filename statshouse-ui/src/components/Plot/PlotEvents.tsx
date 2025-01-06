@@ -1,12 +1,12 @@
 import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DataGrid, { Column, DataGridHandle, Row, RenderRowProps, SortColumn } from 'react-data-grid';
+import DataGrid, { Column, DataGridHandle, RenderRowProps, Row, SortColumn } from 'react-data-grid';
 import cn from 'classnames';
 import {
+  EventDataRow,
   selectorClearEvents,
   selectorEventsByIndex,
   selectorParamsPlotsByIndex,
   selectorTimeRange,
-  EventDataRow,
   useStore,
 } from '../../store';
 import 'react-data-grid/lib/styles.css';
@@ -68,7 +68,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
     [event.what, eventColumns]
   );
   const loadPrev = useCallback(() => {
-    !!event.prevKey &&
+    if (event.prevKey) {
       loadEvent(indexPlot, event.prevKey, true)
         .then((res) => {
           if (gridRef.current?.element && res) {
@@ -81,10 +81,13 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
           }
         })
         .catch(() => undefined);
+    }
   }, [event.chunks, event.prevKey, indexPlot]);
 
   const loadNext = useCallback(() => {
-    !!event.nextKey && loadEvent(indexPlot, event.nextKey, false).catch(() => undefined);
+    if (event.nextKey) {
+      loadEvent(indexPlot, event.nextKey, false).catch(() => undefined);
+    }
   }, [event.nextKey, indexPlot]);
 
   const onScroll = useCallback(
@@ -189,7 +192,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
           )}
         </div>
         <div className="flex-row flex-grow-1 w-100">
-          {!!event.rows?.length ? (
+          {event.rows?.length ? (
             <DataGrid<EventDataRow>
               className={cn('z-0 position-absolute top-0 start-0 w-100 h-100', css.rdgTheme)}
               ref={gridRef}

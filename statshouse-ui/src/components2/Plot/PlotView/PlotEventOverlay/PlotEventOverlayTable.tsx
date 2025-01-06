@@ -4,15 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { type ApiTable } from 'api/tableOld';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import type { ApiTable } from '@/api/tableOld';
 
-import { Button } from 'components/UI';
+import { Button } from '@/components/UI';
 import cn from 'classnames';
 import css from './style.module.css';
-import { type PlotParams, type TimeRange } from 'url2';
-import { useEventTagColumns2 } from 'hooks/useEventTagColumns2';
-import { apiTable } from 'api/tableOld2';
+import type { PlotParams, TimeRange } from '@/url2';
+import { useEventTagColumns2 } from '@/hooks/useEventTagColumns2';
+import { apiTable } from '@/api/tableOld2';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
@@ -21,7 +21,11 @@ export type PlotEventOverlayTableProps = {
   width: number;
 };
 
-export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTableProps) {
+export const PlotEventOverlayTable = memo(function PlotEventOverlayTable({
+  plot,
+  range,
+  agg,
+}: PlotEventOverlayTableProps) {
   const [chunk, setChunk] = useState<ApiTable>();
   const [loader, setLoader] = useState(false);
   const [error, setError] = useState<Error>();
@@ -67,7 +71,7 @@ export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTab
       )}
       <table className="table table-sm m-0 table-borderless">
         <tbody>
-          {!!columns.length
+          {columns.length
             ? chunk?.rowsNormalize?.map((row, indexRow) => (
                 <tr key={indexRow}>
                   {columns.map((tag) => (
@@ -90,6 +94,4 @@ export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTab
       {chunk?.more && <div className="text-secondary pb-3">more...</div>}
     </div>
   );
-}
-
-export const PlotEventOverlayTable = memo(_PlotEventOverlayTable);
+});

@@ -12,12 +12,12 @@ import {
   namespaceLoad,
   namespaceSave,
   useNamespaceListStore,
-} from 'store/namespace';
+} from '@/store/namespace';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
-import { toNumber } from 'common/helpers';
+import { toNumber } from '@/common/helpers';
 import { produce } from 'immer';
-import { type Namespace } from 'api/namespace';
+import type { Namespace } from '@/api/namespace';
 import { ErrorMessages } from '../../components/ErrorMessages';
 import { InputText } from '../../components/UI';
 

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { createStore, StoreSlice } from '../createStore';
-import { PlotKey } from 'url2';
+import { PlotKey } from '@/url2';
 import { getPlotLoader } from '../plotQueryStore';
 import { useStatsHouse } from '../statsHouseStore';
 

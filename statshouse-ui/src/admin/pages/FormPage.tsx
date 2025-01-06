@@ -12,20 +12,20 @@ import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/Me
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { resetMetricFlood, saveMetric } from '../api/saveMetric';
 import { IActions } from '../storages/MetricFormValues/reducer';
-import { useStore } from '../../store';
-import { RawValueKind } from '../../view/api';
-import { freeKeyPrefix } from '../../url/queryParams';
-import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '../../api/enum';
-import { maxTagsSize } from '../../common/settings';
-import { Button } from 'components/UI';
+import { useStore } from '@/store';
+import { RawValueKind } from '@/view/api';
+import { freeKeyPrefix } from '@/url/queryParams';
+import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '@/api/enum';
+import { maxTagsSize } from '@/common/settings';
+import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
-import { isNotNil, toNumber } from '../../common/helpers';
+import { isNotNil, toNumber } from '@/common/helpers';
 import { dequal } from 'dequal/lite';
 import { produce } from 'immer';
 import { TagDraft } from './TagDraft';
-import { formatInputDate } from '../../view/utils2';
-import { Select } from '../../components/Select';
+import { formatInputDate } from '@/view/utils2';
+import { Select } from '@/components/Select';
 
 const { clearMetricsMeta } = useStore.getState();
 
@@ -320,7 +320,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
               >
                 {new Array(maxTagsSize).fill(0).map(
                   (
-                    v,
+                    _v,
                     n // TODO - const
                   ) => (
                     <option key={n} value={n + 1}>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { buildVersion } from 'common/settings';
+import { buildVersion } from '@/common/settings';
 import cn from 'classnames';
-import { appVersionToggle } from 'components2/AppVersionToggle';
+import { appVersionToggle } from '@/components2/AppVersionToggle';
+
 type BuildVersionProps = {
   className?: string;
   prefix?: string;

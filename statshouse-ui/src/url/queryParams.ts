@@ -431,7 +431,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         !defaultParams?.dashboard?.groupInfo?.length
       )
     ) {
-      value.dashboard.groupInfo.forEach(({ name, show, count, size, description }, indexGroup) => {
+      value.dashboard.groupInfo.forEach(({ name, count, size, description }, indexGroup) => {
         const prefix = toGroupInfoPrefix(indexGroup) + '.';
         search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
         if (count) {
@@ -643,7 +643,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 
   const groupInfo: GroupInfo[] = [];
 
-  let dashboard: DashboardParams = {
+  const dashboard: DashboardParams = {
     dashboard_id:
       toNumber(urlParams[GET_PARAMS.dashboardID]?.[searchParamsObjectValueSymbol]?.[0]) ??
       defaultParams?.dashboard?.dashboard_id ??

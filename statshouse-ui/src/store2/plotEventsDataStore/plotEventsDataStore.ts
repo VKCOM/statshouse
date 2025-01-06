@@ -5,8 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { StoreSlice } from '../createStore';
-import { autoAgg, autoLowAgg, StatsHouseStore } from 'store2';
-import { GET_PARAMS, METRIC_TYPE, PLOT_TYPE, QueryWhat } from 'api/enum';
+import { autoAgg, autoLowAgg, StatsHouseStore } from '@/store2';
+import { GET_PARAMS, METRIC_TYPE, PLOT_TYPE, QueryWhat } from '@/api/enum';
 import {
   freeKeyPrefix,
   getTimeRangeAbsolute,
@@ -16,14 +16,14 @@ import {
   type QueryParams,
   readTimeRange,
   TimeRange,
-} from 'url2';
-import { querySeriesMetaTag } from 'view/api';
+} from '@/url2';
+import { querySeriesMetaTag } from '@/view/api';
 import { replaceVariable } from '../helpers/replaceVariable';
-import { apiTable, ApiTableGet, GetTableResp, QueryTableRow } from 'api/table';
-import { uniqueArray } from 'common/helpers';
-import { formatByMetricType, getMetricType } from 'common/formatByMetricType';
-import { debug } from 'common/debug';
-import { fmtInputDateTime, formatLegendValue } from 'view/utils2';
+import { apiTable, ApiTableGet, GetTableResp, QueryTableRow } from '@/api/table';
+import { uniqueArray } from '@/common/helpers';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
+import { debug } from '@/common/debug';
+import { fmtInputDateTime, formatLegendValue } from '@/view/utils2';
 import { useLiveModeStore } from '../liveModeStore';
 import { ExtendedError } from '../../api/api';
 
@@ -56,7 +56,7 @@ export type PlotEventsDataStore = {
   clearPlotEvents(plotKey: PlotKey): void;
 };
 
-export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStore> = (setState, getState, store) => ({
+export const plotEventsDataStore: StoreSlice<StatsHouseStore, PlotEventsDataStore> = (setState, getState) => ({
   plotsEventsData: {},
   async loadPlotEvents(plotKey, key, fromEnd = false, from) {
     if (!getState().plotsEventsData[plotKey]) {

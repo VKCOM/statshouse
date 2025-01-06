@@ -178,13 +178,12 @@ export const font =
 
 export function getYAxisSize(minSize: number) {
   return function yAxisSize(self: uPlot, values: string[], axisIdx: number, cycleNum: number): number {
-    let axis = self.axes[axisIdx];
+    const axis = self.axes[axisIdx];
     if (cycleNum > 1) {
-      // @ts-ignore
-      return Math.max(minSize, axis._size);
+      return Math.max(minSize, (axis as { _size: number })._size);
     }
     let axisSize = (axis.ticks?.size ?? 0) + (axis.gap ?? 0);
-    let longestVal = (values ?? []).reduce((acc, val) => (val.length > acc.length ? val : acc), '');
+    const longestVal = (values ?? []).reduce((acc, val) => (val.length > acc.length ? val : acc), '');
     if (longestVal !== '') {
       self.ctx.font = axis.font?.[0] ?? font;
       axisSize += self.ctx.measureText(longestVal).width / devicePixelRatio;

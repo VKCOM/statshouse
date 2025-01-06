@@ -5,9 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { useStatsHouseShallow } from 'store2';
-import { getNewMetric, type PlotKey } from 'url2';
-import { isMetricNumSeries, METRIC_NUM_SERIES, METRIC_NUM_SERIES_DESCRIPTION } from '../../../api/enum';
+import { useStatsHouseShallow } from '@/store2';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { isMetricNumSeries, METRIC_NUM_SERIES, METRIC_NUM_SERIES_DESCRIPTION } from '@/api/enum';
 import cn from 'classnames';
 
 export type PlotControlNumSeriesProps = {
@@ -21,7 +21,7 @@ const numSeriesList = Object.values(METRIC_NUM_SERIES).map((value) => ({
 
 const defaultNumSeries = getNewMetric().numSeries;
 
-export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
+export const PlotControlNumSeries = memo(function PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
   const { numSeries, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
     numSeries: plots[plotKey]?.numSeries ?? defaultNumSeries,
     setPlot,
@@ -51,6 +51,4 @@ export function _PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
       ))}
     </select>
   );
-}
-
-export const PlotControlNumSeries = memo(_PlotControlNumSeries);
+});

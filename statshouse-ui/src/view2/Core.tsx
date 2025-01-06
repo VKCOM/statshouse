@@ -2,10 +2,10 @@ import React from 'react';
 
 import { Outlet } from 'react-router-dom';
 import css from './style.module.css';
-import { LeftMenu } from 'components2';
-import { useTvModeStore } from 'store2/tvModeStore';
-import { useStatsHouse } from 'store2';
-import { BuildVersion } from 'components/BuildVersion';
+import { LeftMenu } from '@/components2';
+import { useTvModeStore } from '@/store2/tvModeStore';
+import { useStatsHouse } from '@/store2';
+import { BuildVersion } from '@/components/BuildVersion';
 
 export function Core() {
   const isPlot = useStatsHouse(({ params: { tabNum } }) => +tabNum >= 0);

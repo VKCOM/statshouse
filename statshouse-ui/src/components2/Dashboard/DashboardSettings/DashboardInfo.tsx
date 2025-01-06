@@ -4,34 +4,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, TextArea } from 'components/UI';
-import { useStatsHouseShallow } from 'store2';
-import { useGlobalLoader } from 'store2/plotQueryStore';
+import { Button, TextArea } from '@/components/UI';
+import { useStatsHouseShallow } from '@/store2';
+import { useGlobalLoader } from '@/store2/plotQueryStore';
 
 export type DashboardInfoProps = {
   className?: string;
 };
 
-export function DashboardInfo({ className }: DashboardInfoProps) {
+export function DashboardInfo() {
   const globalLoader = useGlobalLoader();
-  const { dashboardName, dashboardDescription, isDashboard, removeDashboard, setDashboardLayoutEdit, setParams } =
-    useStatsHouseShallow(
-      ({
-        params: { dashboardId, dashboardName, dashboardDescription },
-        removeDashboard,
-        setDashboardLayoutEdit,
-        setParams,
-      }) => ({
-        dashboardName,
-        dashboardDescription,
-        isDashboard: dashboardId != null,
-        removeDashboard,
-        setDashboardLayoutEdit,
-        setParams,
-      })
-    );
+  const { dashboardName, dashboardDescription, isDashboard, removeDashboard, setParams } = useStatsHouseShallow(
+    ({ params: { dashboardId, dashboardName, dashboardDescription }, removeDashboard, setParams }) => ({
+      dashboardName,
+      dashboardDescription,
+      isDashboard: dashboardId != null,
+      removeDashboard,
+      setParams,
+    })
+  );
 
   const navigate = useNavigate();
 
@@ -55,10 +48,6 @@ export function DashboardInfo({ className }: DashboardInfoProps) {
     (event: React.MouseEvent) => {
       if (isDashboard && window.confirm(`Remove dashboard ${dashboardName}?`)) {
         removeDashboard().then(() => {
-          // setDashboardLayoutEdit(false);
-          // setParams((params) => {
-          //   params.dashboardId = undefined;
-          // }, true);
           navigate('/dash-list');
         });
       }

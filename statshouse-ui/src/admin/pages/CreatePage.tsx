@@ -74,7 +74,7 @@ export function EditFormCreate() {
 }
 
 function useSubmitCreate(name: string) {
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const [isRunning, setRunning] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);

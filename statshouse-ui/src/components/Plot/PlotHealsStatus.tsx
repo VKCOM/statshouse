@@ -40,7 +40,7 @@ export function PlotHealsStatus({ numQueries, lastError, reload, clearLastError,
     >
       {numQueries > 0 ? (
         <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-      ) : !!lastError ? (
+      ) : lastError ? (
         <div>
           <SVGExclamationTriangleFill className="text-danger" />
         </div>

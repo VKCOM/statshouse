@@ -4,24 +4,23 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import './store'; // pre init all store
-
 import React, { Suspense, useEffect } from 'react';
 import { Admin } from './admin/Admin';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { ViewPage } from './view/ViewPage';
-import { HeaderMenu } from 'components';
+import { HeaderMenu } from '@/components';
 import { currentAccessInfo } from './common/access';
 import { DashboardListView } from './view/DashboardListView';
 import { SettingsPage } from './view/Settings/SettingsPage';
 import { GroupPage } from './view/Settings/GroupPage';
 import { NamespacePage } from './view/Settings/NamespacePage';
-import { BuildVersion } from 'components/BuildVersion';
+import { BuildVersion } from '@/components/BuildVersion';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
-function App() {
+export function AppOld() {
   const ai = currentAccessInfo();
   return (
     <Routes>
@@ -80,5 +79,3 @@ function NotFound() {
     </div>
   );
 }
-
-export default App;

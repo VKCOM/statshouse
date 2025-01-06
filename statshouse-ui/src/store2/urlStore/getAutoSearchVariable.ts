@@ -1,9 +1,9 @@
-import { type StatsHouseStore } from '../statsHouseStore';
-import { getNewVariable, promQLMetric, type QueryParams, type VariableParamsLink } from 'url2';
-import { GET_PARAMS, TAG_KEY, toTagKey } from 'api/enum';
+import type { StatsHouseStore } from '../statsHouseStore';
+import { getNewVariable, promQLMetric, type QueryParams, type VariableParamsLink } from '@/url2';
+import { GET_PARAMS, TAG_KEY, toTagKey } from '@/api/enum';
 import { produce } from 'immer';
 import { getNextVariableKey } from './updateParamsPlotStruct';
-import { getTagDescription, isTagEnabled, isValidVariableName } from 'view/utils2';
+import { getTagDescription, isTagEnabled, isValidVariableName } from '@/view/utils2';
 
 export async function getAutoSearchVariable(
   getState: () => StatsHouseStore
@@ -32,7 +32,7 @@ export async function getAutoSearchVariable(
     if (!meta) {
       return;
     }
-    meta.tags?.forEach((tag, indexTag) => {
+    meta.tags?.forEach((_, indexTag) => {
       const tagKey = toTagKey(indexTag);
       if (tagKey && isTagEnabled(meta, tagKey)) {
         const tagName = getTagDescription(meta, indexTag);
@@ -47,18 +47,17 @@ export async function getAutoSearchVariable(
     }
   });
   return produce({ variables, orderVariables }, (v) => {
-    Object.entries(variablesLink).forEach(([description, link], index) => {
+    Object.entries(variablesLink).forEach(([description, link]) => {
       if (link.length > 1) {
         const id = getNextVariableKey(v);
         const name = isValidVariableName(description) ? description : `${GET_PARAMS.variableNamePrefix}${id}`;
-        const variable = {
+        v.variables[id] = {
           ...getNewVariable(),
           id,
           name,
           description: description === name ? '' : description,
           link,
         };
-        v.variables[id] = variable;
         v.orderVariables.push(id);
       }
     });

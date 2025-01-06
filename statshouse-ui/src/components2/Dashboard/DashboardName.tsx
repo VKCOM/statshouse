@@ -4,16 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo } from 'react';
-import { useWindowSize } from 'hooks/useWindowSize';
+import { memo } from 'react';
+import { useWindowSize } from '@/hooks/useWindowSize';
 import cn from 'classnames';
-import { Tooltip } from 'components/UI';
+import { Tooltip } from '@/components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 import css from '../style.module.css';
-import { MarkdownRender } from 'components2/Plot/PlotView/MarkdownRender';
+import { MarkdownRender } from '@/components2/Plot/PlotView/MarkdownRender';
 
-export function _DashboardName() {
+export const DashboardName = memo(function DashboardName() {
   const { dashboardName, dashboardDescription } = useStatsHouseShallow(
     ({ params: { dashboardName, dashboardDescription } }) => ({ dashboardName, dashboardDescription })
   );
@@ -51,5 +51,4 @@ export function _DashboardName() {
       </Tooltip>
     </div>
   );
-}
-export const DashboardName = memo(_DashboardName);
+});

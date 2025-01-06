@@ -10,13 +10,13 @@ import cn from 'classnames';
 import css from './style.module.css';
 import 'react-data-grid/lib/styles.css';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
-import { Button } from 'components/UI';
-import { EventDataRow } from 'store2/plotEventsDataStore';
-import { useEventTagColumns2 } from 'hooks/useEventTagColumns2';
-import { PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { Button } from '@/components/UI';
+import { EventDataRow } from '@/store2/plotEventsDataStore';
+import { useEventTagColumns2 } from '@/hooks/useEventTagColumns2';
+import { PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
 
-import { eventColumnDefault, getEventColumnsType } from 'view/getEventColumnsType';
+import { eventColumnDefault, getEventColumnsType } from '@/view/getEventColumnsType';
 
 export type PlotEventsProps = {
   plotKey: PlotKey;
@@ -78,7 +78,7 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
     [eventColumns, plotEventsData?.what]
   );
   const loadPrev = useCallback(() => {
-    if (!!plotEventsData?.prevKey) {
+    if (plotEventsData?.prevKey) {
       loadPlotEvents(plotKey, plotEventsData.prevKey, true)
         .then((res) => {
           if (gridRef.current?.element && res) {
@@ -95,7 +95,7 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
   }, [loadPlotEvents, plotEventsData?.chunks.length, plotEventsData?.prevKey, plotKey]);
 
   const loadNext = useCallback(() => {
-    if (!!plotEventsData?.nextKey) {
+    if (plotEventsData?.nextKey) {
       loadPlotEvents(plotKey, plotEventsData.nextKey, false).catch(() => undefined);
     }
   }, [loadPlotEvents, plotEventsData?.nextKey, plotKey]);
@@ -206,7 +206,7 @@ export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsP
           )}
         </div>
         <div className="flex-row flex-grow-1 w-100">
-          {!!plotEventsData?.rows?.length ? (
+          {plotEventsData?.rows?.length ? (
             <DataGrid<EventDataRow>
               className={cn('z-0 position-absolute top-0 start-0 w-100 h-100', css.rdgTheme)}
               ref={gridRef}

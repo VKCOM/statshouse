@@ -9,8 +9,8 @@ import { ReactComponent as SVGListCheck } from 'bootstrap-icons/icons/list-check
 import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
 import cn from 'classnames';
 import css from './style.module.css';
-import { Button } from 'components/UI';
-import { PlotKey } from 'url2';
+import { Button } from '@/components/UI';
+import { PlotKey } from '@/url2';
 
 export type PlotEventsButtonColumnsProps = {
   plotKey: PlotKey;

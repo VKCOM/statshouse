@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { globalSettings } from 'common/settings';
-import { appHistory } from 'common/appHistory';
+import { globalSettings } from '@/common/settings';
+import { appHistory } from '@/common/appHistory';
 import { dequal } from 'dequal/lite';
-import { type StoreSlice } from '../createStore';
-import { type StatsHouseStore } from '../statsHouseStore';
+import type { StoreSlice } from '../createStore';
+import type { StatsHouseStore } from '../statsHouseStore';
 
 export const logoutURL = '/vkuth/logout';
 export const cookieName = 'vkuth_data';
@@ -16,7 +16,7 @@ export const cookieName = 'vkuth_data';
 export type UserInfo = { login: string; admin: boolean; developer: boolean; logoutURL: string };
 export type UserStore = { user: UserInfo };
 
-export const userStore: StoreSlice<StatsHouseStore, UserStore> = (setState, getState, store) => {
+export const userStore: StoreSlice<StatsHouseStore, UserStore> = (setState, getState) => {
   appHistory.listen(() => {
     const next = updateUser();
     if (!dequal(next, getState().user)) {

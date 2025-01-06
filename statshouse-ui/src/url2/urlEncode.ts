@@ -1,5 +1,5 @@
 import { GroupInfo, QueryParams, VariableParams, VariableParamsSource } from './queryParams';
-import { GET_PARAMS } from 'api/enum';
+import { GET_PARAMS } from '@/api/enum';
 import { dequal } from 'dequal/lite';
 
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';

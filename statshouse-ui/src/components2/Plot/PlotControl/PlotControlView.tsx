@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useRef, useState } from 'react';
-import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from 'components/UI';
+import { memo, useCallback, useRef, useState } from 'react';
+import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from '@/components/UI';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
-import { useOnClickOutside } from 'hooks';
+import { useOnClickOutside } from '@/hooks';
 import cn from 'classnames';
-import { useStatsHouseShallow } from 'store2';
-import { getNewMetric, PlotKey } from 'url2';
+import { useStatsHouseShallow } from '@/store2';
+import { getNewMetric, PlotKey } from '@/url2';
 
 export type PlotControlViewProps = {
   plotKey: PlotKey;
@@ -19,7 +19,7 @@ export type PlotControlViewProps = {
 
 const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine, logScale: defaultLogScale } = getNewMetric();
 
-export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
+export const PlotControlView = memo(function PlotControlView({ plotKey, className }: PlotControlViewProps) {
   const { filledGraph, totalLine, logScale, setPlot } = useStatsHouseShallow((s) => ({
     filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
     totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
@@ -104,6 +104,4 @@ export function _PlotControlView({ plotKey, className }: PlotControlViewProps) {
       </Tooltip>
     </Tooltip>
   );
-}
-
-export const PlotControlView = memo(_PlotControlView);
+});

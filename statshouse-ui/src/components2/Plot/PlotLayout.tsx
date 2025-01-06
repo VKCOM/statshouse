@@ -4,18 +4,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { PlotControl } from './PlotControl';
 import cn from 'classnames';
-import { useStatsHouseShallow } from 'store2';
+import { useStatsHouseShallow } from '@/store2';
 import css from './style.module.css';
 import { PlotView } from './PlotView';
-import { isPromQL } from 'store2/helpers';
+import { isPromQL } from '@/store2/helpers';
 
 export type PlotLayoutProps = {
   className?: string;
 };
-export function _PlotLayout({ className }: PlotLayoutProps) {
+
+export const PlotLayout = memo(function PlotLayout({ className }: PlotLayoutProps) {
   const { tabNum, plotDataPromqlExpand, isEmbed } = useStatsHouseShallow(
     ({ params: { tabNum, plots }, plotsData, isEmbed }) => ({
       tabNum,
@@ -51,5 +52,4 @@ export function _PlotLayout({ className }: PlotLayoutProps) {
       </div>
     </div>
   );
-}
-export const PlotLayout = memo(_PlotLayout);
+});

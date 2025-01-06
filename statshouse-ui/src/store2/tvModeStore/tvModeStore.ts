@@ -1,5 +1,5 @@
 import { createStore, StoreSlice } from '../createStore';
-import { toNumber } from 'common/helpers';
+import { toNumber } from '@/common/helpers';
 
 export type TVModeStore = {
   enable: boolean;

@@ -4,24 +4,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
-import { Button } from 'components/UI';
+import { Button } from '@/components/UI';
 import cn from 'classnames';
-import { metricKindToWhat } from 'view/api';
-import { type QueryWhat } from 'api/enum';
-import { useStatsHouseShallow } from 'store2';
-import { isPromQL } from 'store2/helpers';
-import { getEmptyPlotData } from 'store2/plotDataStore/getEmptyPlotData';
-import { getHomePlot, type PlotKey, promQLMetric } from 'url2';
+import { metricKindToWhat } from '@/view/api';
+import type { QueryWhat } from '@/api/enum';
+import { useStatsHouseShallow } from '@/store2';
+import { isPromQL } from '@/store2/helpers';
+import { getEmptyPlotData } from '@/store2/plotDataStore/getEmptyPlotData';
+import { getHomePlot, type PlotKey, promQLMetric } from '@/url2';
 
 export type PlotControlPromQLSwitchProps = {
   plotKey: PlotKey;
   className?: string;
 };
 
-export function _PlotControlPromQLSwitch({ plotKey, className }: PlotControlPromQLSwitchProps) {
+export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
+  plotKey,
+  className,
+}: PlotControlPromQLSwitchProps) {
   const { isPlotPromQL, meta, setPlot, plotData } = useStatsHouseShallow(
     ({ params: { plots }, metricMeta, setPlot, plotsData }) => ({
       isPlotPromQL: isPromQL(plots[plotKey]),
@@ -75,6 +78,4 @@ export function _PlotControlPromQLSwitch({ plotKey, className }: PlotControlProm
       {isPlotPromQL ? <SVGFilter /> : <SVGCode />}
     </Button>
   );
-}
-
-export const PlotControlPromQLSwitch = memo(_PlotControlPromQLSwitch);
+});

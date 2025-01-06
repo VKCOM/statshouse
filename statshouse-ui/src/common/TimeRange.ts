@@ -30,7 +30,7 @@ function constToTime(now: number, value: KeysTo, ms?: boolean) {
 }
 
 export function stringToTime(str: string) {
-  let to = toNumber(str);
+  const to = toNumber(str);
   if (to != null) {
     return to;
   }

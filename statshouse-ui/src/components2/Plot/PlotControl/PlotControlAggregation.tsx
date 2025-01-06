@@ -6,9 +6,9 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
-import { isMetricAggregation, METRIC_AGGREGATION, METRIC_AGGREGATION_DESCRIPTION } from 'api/enum';
-import { getNewMetric, type PlotKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
+import { isMetricAggregation, METRIC_AGGREGATION, METRIC_AGGREGATION_DESCRIPTION } from '@/api/enum';
+import { getNewMetric, type PlotKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
 
 export type PlotControlAggregationProps = {
   plotKey: PlotKey;
@@ -22,7 +22,10 @@ const aggregationList = Object.values(METRIC_AGGREGATION).map((value) => ({
 
 const defaultCustomAgg = getNewMetric().customAgg;
 
-export function _PlotControlAggregation({ className, plotKey }: PlotControlAggregationProps) {
+export const PlotControlAggregation = memo(function PlotControlAggregation({
+  className,
+  plotKey,
+}: PlotControlAggregationProps) {
   const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
     value: plots[plotKey]?.customAgg ?? defaultCustomAgg,
     setPlot,
@@ -55,5 +58,4 @@ export function _PlotControlAggregation({ className, plotKey }: PlotControlAggre
       ))}
     </select>
   );
-}
-export const PlotControlAggregation = memo(_PlotControlAggregation);
+});

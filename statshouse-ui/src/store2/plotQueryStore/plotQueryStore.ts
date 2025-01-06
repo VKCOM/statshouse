@@ -1,5 +1,5 @@
 import { createStore } from '../createStore';
-import type { PlotKey } from 'url2';
+import type { PlotKey } from '@/url2';
 
 export type PlotQueryStore = {
   globalQuery: number;

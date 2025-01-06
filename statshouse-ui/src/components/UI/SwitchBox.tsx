@@ -18,7 +18,7 @@ export type SwitchBoxProps = {
   title?: string;
 };
 
-export function _SwitchBox({
+export const SwitchBox = memo(function SwitchBox({
   children,
   className,
   defaultChecked,
@@ -57,6 +57,4 @@ export function _SwitchBox({
       )}
     </Tooltip>
   );
-}
-
-export const SwitchBox = memo(_SwitchBox);
+});

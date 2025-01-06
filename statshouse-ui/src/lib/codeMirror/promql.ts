@@ -12,10 +12,10 @@
 // limitations under the License.
 
 // import { CompletionContext } from '@codemirror/autocomplete';
-import { LRLanguage } from '@codemirror/language';
-import { Extension } from '@codemirror/state';
+import {LRLanguage} from '@codemirror/language';
+import {Extension} from '@codemirror/state';
 
-import { parser } from '../lezer/src/parser';
+import {parser} from '../lezer/src/parser';
 
 // import { CompleteConfiguration, CompleteStrategy, newCompleteStrategy } from './complete';
 // import { LintStrategy, newLintStrategy, promQLLinter } from './lint';

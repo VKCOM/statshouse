@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { METRIC_TYPE, MetricType } from '../../api/enum';
 import { formatByMetricType } from '../../common/formatByMetricType';
-import { useMemo } from 'react';
 
 export type PlotValueUnitProps = {
   unit: MetricType;

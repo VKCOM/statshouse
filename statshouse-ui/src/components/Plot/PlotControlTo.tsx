@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback } from 'react';
-import { SetTimeRange, TimeRange } from '../../common/TimeRange';
+import { ChangeEvent, memo, useCallback } from 'react';
+import { SetTimeRange, TimeRange } from '@/common/TimeRange';
 import { ReactComponent as SVGLockClock } from '../../assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from '../../assets/svg/UnlockClock.svg';
 import cn from 'classnames';
 import { ToggleButton } from '../UI';
-import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from '../../view/utils2';
+import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from '@/view/utils2';
 
 export type PlotControlToProps = {
   timeRange: TimeRange;
@@ -19,12 +19,12 @@ export type PlotControlToProps = {
   classNameInput?: string;
 };
 
-export const _PlotControlTo: React.FC<PlotControlToProps> = ({
+export const PlotControlTo = memo(function PlotControlTo({
   timeRange,
   setTimeRange,
   className,
   classNameInput,
-}) => {
+}: PlotControlToProps) {
   const onRelativeToChange = useCallback(
     (status: boolean) => {
       setTimeRange((range) => {
@@ -99,6 +99,4 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
       </ToggleButton>
     </div>
   );
-};
-
-export const PlotControlTo = memo(_PlotControlTo);
+});

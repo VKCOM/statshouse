@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { StorageValue, PersistStorage } from 'zustand/middleware';
+import { PersistStorage, StorageValue } from 'zustand/middleware';
 
-export function localStorageDefault<T>(defaultEqual: (state: T) => Boolean): PersistStorage<T> {
+export function localStorageDefault<T>(defaultEqual: (state: T) => boolean): PersistStorage<T> {
   return {
     getItem(name) {
       try {

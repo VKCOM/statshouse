@@ -1,4 +1,4 @@
-import { Tooltip } from 'components/UI';
+import { Tooltip } from '@/components/UI';
 import cn from 'classnames';
 import React from 'react';
 

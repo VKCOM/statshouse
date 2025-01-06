@@ -49,7 +49,7 @@ export function getDashboardListOptions<T = ApiDashboardList>(): UndefinedInitia
       }
       return response;
     },
-    placeholderData: (previousData, previousQuery) => previousData,
+    placeholderData: (previousData) => previousData,
   };
 }
 

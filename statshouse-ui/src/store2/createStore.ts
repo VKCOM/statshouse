@@ -21,9 +21,6 @@ export type StoreSlice<S, T, Mos extends [StoreMutatorIdentifier, T][] = []> = S
   T
 >;
 
-export function createStore<T, Mos extends [StoreMutatorIdentifier, T][] = []>(
-  store: Store<T, Mos>,
-  name: string = ''
-) {
+export function createStore<T, Mos extends [StoreMutatorIdentifier, T][] = []>(store: Store<T, Mos>) {
   return create<T>()(immer(store));
 }

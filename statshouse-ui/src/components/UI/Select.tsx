@@ -3,8 +3,8 @@ import cn from 'classnames';
 import css from './style.module.css';
 import { Popper, POPPER_HORIZONTAL, POPPER_VERTICAL } from './Popper';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
-import { useDebounceState, useOnClickOutside } from '../../hooks';
-import { emptyArray } from '../../common/helpers';
+import { useDebounceState, useOnClickOutside } from '@/hooks';
+import { emptyArray } from '@/common/helpers';
 import { FixedSizeList, type ListChildComponentProps, type ReactElementType } from 'react-window';
 
 const KEY: Record<string, string> = {
@@ -270,7 +270,7 @@ export function Select<T extends SelectOptionProps>({
           className={cn(css.selectSearchInput)}
           type="text"
           autoComplete="off"
-          value={meOpen ? search ?? '' : ''}
+          value={meOpen ? (search ?? '') : ''}
           onInput={onInputFilter}
           placeholder={placeholder}
         />
@@ -340,14 +340,14 @@ export const SelectRow = memo(function _SelectRow<T extends SelectOptionProps>({
   data: { rows, cursor, onChecked, onHover },
   style,
 }: SelectRowProps<T>) {
-  const hover = useCallback(() => {
+  const hover = () => {
     if (index !== cursor) {
       onHover(index);
     }
-  }, [cursor, index, onHover]);
-  const click = useCallback(() => {
+  };
+  const click = () => {
     onChecked(index, undefined, true, false);
-  }, [index, onChecked]);
+  };
   return (
     <div
       style={style}

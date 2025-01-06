@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 function getRect(target: Element, fixed: boolean = false) {
-  let nextRect = target.getBoundingClientRect();
+  const nextRect = target.getBoundingClientRect();
   if (!fixed) {
     nextRect.x += window.scrollX;
     nextRect.y += window.scrollY;

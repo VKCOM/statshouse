@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { isTagKey, TAG_KEY, TagKey, toTagKey } from 'api/enum';
+import { isTagKey, TAG_KEY, TagKey, toTagKey } from '@/api/enum';
 
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
@@ -13,14 +13,14 @@ import cn from 'classnames';
 import { produce } from 'immer';
 import { TagBadges } from './TagBadges';
 import { dequal } from 'dequal/lite';
-import { mergeLeft } from 'common/helpers';
-import { FilterTag, VariableParamsSource, VariableSourceKey } from 'url2';
-import { useStatsHouseShallow } from 'store2';
-import { setUpdatedSource, useVariableListStore, VariableItem } from 'store2/variableList';
-import { getTagDescription, isTagEnabled } from 'view/utils2';
-import { Button, ToggleButton } from 'components/UI';
-import { SelectMetric } from 'components/SelectMertic';
-import { VariableControl } from 'components/VariableControl';
+import { mergeLeft } from '@/common/helpers';
+import { FilterTag, VariableParamsSource, VariableSourceKey } from '@/url2';
+import { useStatsHouseShallow } from '@/store2';
+import { setUpdatedSource, useVariableListStore, VariableItem } from '@/store2/variableList';
+import { getTagDescription, isTagEnabled } from '@/view/utils2';
+import { Button, ToggleButton } from '@/components/UI';
+import { SelectMetric } from '@/components/SelectMertic';
+import { VariableControl } from '@/components/VariableControl';
 
 export type VariableSourceProps = {
   value?: VariableParamsSource;

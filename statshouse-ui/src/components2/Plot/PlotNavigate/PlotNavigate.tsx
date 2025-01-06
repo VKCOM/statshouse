@@ -17,15 +17,15 @@ import { ReactComponent as SVGTable } from 'bootstrap-icons/icons/table.svg';
 import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
 import { Link } from 'react-router-dom';
-import { Button, ToggleButton, Tooltip } from 'components/UI';
-import { PLOT_TYPE, toPlotType } from 'api/enum';
-import { debug } from 'common/debug';
-import { type PlotKey } from 'url2';
-import { useStatsHouse } from 'store2';
-import { isPromQL } from 'store2/helpers';
+import { Button, ToggleButton, Tooltip } from '@/components/UI';
+import { PLOT_TYPE, toPlotType } from '@/api/enum';
+import { debug } from '@/common/debug';
+import type { PlotKey } from '@/url2';
+import { useStatsHouse } from '@/store2';
+import { isPromQL } from '@/store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
-import { useLinkPlot } from 'hooks/useLinkPlot';
+import { useLinkPlot } from '@/hooks/useLinkPlot';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
@@ -35,7 +35,7 @@ export type PlotNavigateProps = {
 const { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut, setPlotType, resetZoom, setPlotYLock } =
   useStatsHouse.getState();
 
-export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className }) => {
+export const PlotNavigate = memo(function PlotNavigate({ plotKey, className }: PlotNavigateProps) {
   const plot = useStatsHouse(({ params: { plots } }) => plotKey && plots[plotKey]);
 
   const singleLink = useLinkPlot(plotKey ?? '-1', true, true);
@@ -70,16 +70,22 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
   const onChangeTypePlot = useCallback(
     (e: React.MouseEvent) => {
       const type = toPlotType(e.currentTarget.getAttribute('data-value'), PLOT_TYPE.Metric);
-      plotKey && setPlotType(plotKey, type);
+      if (plotKey) {
+        setPlotType(plotKey, type);
+      }
     },
     [plotKey]
   );
   const onResetZoom = useCallback(() => {
-    plotKey && resetZoom(plotKey);
+    if (plotKey) {
+      resetZoom(plotKey);
+    }
   }, [plotKey]);
   const onYLockChange = useCallback(
     (status: boolean) => {
-      plotKey && setPlotYLock(plotKey, status);
+      if (plotKey) {
+        setPlotYLock(plotKey, status);
+      }
     },
     [plotKey]
   );
@@ -152,6 +158,4 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({ plotKey, className 
       <ButtonToggleLiveMode />
     </div>
   );
-};
-
-export const PlotNavigate = memo(_PlotNavigate);
+});

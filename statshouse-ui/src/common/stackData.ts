@@ -1,9 +1,9 @@
 import uPlot, { TypedArray } from 'uplot';
 
 export function stackData(data: uPlot.AlignedData): { data: uPlot.AlignedData; bands: uPlot.Band[] } {
-  let data2: ((number | null | undefined)[] | TypedArray)[] = [];
-  let d0Len = data[0].length;
-  let accum: number[] = new Array(d0Len).fill(0);
+  const data2: ((number | null | undefined)[] | TypedArray)[] = [];
+  const d0Len = data[0].length;
+  const accum: number[] = new Array(d0Len).fill(0);
   let bands: uPlot.Band[] = [];
 
   for (let i = 1; i < data.length; i++) {

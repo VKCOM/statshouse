@@ -76,7 +76,7 @@ function getGroupStyle(width: number, size?: string): React.CSSProperties {
   if (col != null) {
     cols = col;
   }
-  let maxCols = Math.floor(width / (w / cols));
+  const maxCols = Math.floor(width / (w / cols));
   return {
     '--base-cols': cols,
     '--max-cols': maxCols,
@@ -141,11 +141,11 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
       };
     }
     if (select != null) {
-      let drop = indexPlotMap.get(select);
+      const drop = indexPlotMap.get(select);
       if (drop != null && selectTargetGroup != null && itemsG[selectTargetGroup] && itemsG[drop.indexGroup]) {
         const moveItem = itemsG[drop.indexGroup].plots.splice(drop.indexPlotInGroup, 1)[0];
         if (selectTarget != null) {
-          let dropTarget = indexPlotMap.get(selectTarget);
+          const dropTarget = indexPlotMap.get(selectTarget);
           if (dropTarget?.indexGroup !== selectTargetGroup) {
             itemsG[selectTargetGroup].plots.push(moveItem);
           } else {
@@ -196,7 +196,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
       if (preview.current) {
         preview.current.style.transform = `matrix(1,0,0,1,${e.clientX},${e.clientY})`;
       }
-      let index = parseInt(target.getAttribute('data-index') ?? '-1');
+      const index = parseInt(target.getAttribute('data-index') ?? '-1');
       let indexTarget: number | null = index;
       let indexGroup = -1;
 
@@ -239,7 +239,6 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
           if (scrollSpeed) {
             window.scrollBy({
               top: scrollSpeed,
-              // @ts-ignore
               behavior: 'instant',
             });
           }

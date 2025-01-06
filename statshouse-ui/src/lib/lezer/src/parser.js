@@ -101,11 +101,7 @@ export const parser = LRParser.deserialize({
   tokenizers: [0, 1, 2, 3],
   topRules: { PromQL: [0, 28], MetricName: [1, 150] },
   specialized: [
-    {
-      term: 53,
-      get: (value, stack) => specializeIdentifier(value, stack) << 1,
-      external: specializeIdentifier,
-    },
+    { term: 53, get: (value, stack) => specializeIdentifier(value, stack) << 1, external: specializeIdentifier },
     {
       term: 53,
       get: (value, stack) => (extendIdentifier(value, stack) << 1) | 1,
