@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,13 +67,35 @@ func main() {
 	os.Exit(runMain())
 }
 
+func findVerb() (string, bool) {
+	const legacyVerbArgName = "-new-conveyor="
+	for i, a := range os.Args { // this is legacy and must be removed after all launch arguments fixed
+		if pos := strings.Index(a, legacyVerbArgName); pos >= 0 {
+			newConveyor := a[pos+len(legacyVerbArgName):]
+			switch newConveyor {
+			case "agent", "duplicate_map":
+				logErr.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse agent ...' or 'statshouse -agent ...'", a)
+				newConveyor = "agent"
+			case "ingress_proxy":
+				logErr.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse ingress_proxy ...' or 'statshouse -ingress_proxy ...'", a)
+			default:
+				logErr.Printf("Wrong value for -new-conveyor argument %s, must be 'agent', 'duplicate_map' (also means agent) or 'ingress_proxy'", newConveyor)
+				return "", true
+			}
+			os.Args = slices.Delete(os.Args, i, i+1)
+			return newConveyor, true
+		}
+	}
+	verb := os.Args[1]
+	os.Args = slices.Delete(os.Args, 1, 2)
+	return verb, false
+}
+
 func runMain() int {
 	pidStr := strconv.Itoa(os.Getpid())
 	logOk = log.New(os.Stdout, "LOG "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 	logErr = log.New(os.Stderr, "ERR "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
-	var verb string
-	legacyVerb := false
 	if len(os.Args) < 2 {
 		printVerbUsage()
 		return 1
@@ -81,76 +104,51 @@ func runMain() int {
 	// $> statshouse agent -a -b -c
 	// and
 	// $> statshouse -agent -a -b -c
-	if os.Args[1] != "" && os.Args[1][0] == '-' &&
-		os.Args[1] != "-benchmark" && os.Args[1] != "--benchmark" &&
-		os.Args[1] != "-test_map" && os.Args[1] != "--test_map" &&
-		os.Args[1] != "-test_longpoll" && os.Args[1] != "--test_longpoll" &&
-		os.Args[1] != "-simple_fsync" && os.Args[1] != "--simple_fsync" &&
-		os.Args[1] != "-tlclient.api" && os.Args[1] != "--tlclient.api" &&
-		os.Args[1] != "-tlclient" && os.Args[1] != "--tlclient" &&
-		os.Args[1] != "-simulator" && os.Args[1] != "--simulator" &&
-		os.Args[1] != "-agent" && os.Args[1] != "--agent" &&
-		os.Args[1] != "-aggregator" && os.Args[1] != "--aggregator" &&
-		os.Args[1] != "-ingress_proxy" && os.Args[1] != "--ingress_proxy" { // legacy flags mode
-		// TODO - remove this path when all statshouses command lines are updated
-		legacyVerb = true
-
-		var newConveyor string
-		flag.StringVar(&newConveyor, "new-conveyor", "agent", "'aggregator', 'agent' (default), 'ingress_proxy'")
-
+	rawVerb, legacyVerb := findVerb()
+	verb := strings.TrimPrefix(strings.TrimPrefix(rawVerb, "-"), "-")
+	if legacyVerb {
+		if rawVerb == "" { // findVerb already printed the problem
+			return 1
+		}
 		argvAddDeprecatedFlags()
 		argvAddCommonFlags()
 		argvAddAgentFlags(true)
 		argvAddAggregatorFlags(true)
 		argvAddIngressProxyFlags()
 		build.FlagParseShowVersionHelp()
-		switch newConveyor {
-		case "aggregate", "aggregator": // old name
-			verb = "aggregator"
-		case "agent", "duplicate_map":
-			verb = "agent"
-		case "ingress_proxy":
-			verb = newConveyor
-		default:
-			logErr.Printf("Wrong value for -new-conveyor argument %q, see --help for valid values", newConveyor)
-			return 1
-		}
 	} else {
-		verb = os.Args[1]
-		copy(os.Args[1:], os.Args[2:])
-		os.Args = os.Args[:len(os.Args)-1]
 		switch verb {
-		case "test_parser", "-test_parser", "--test_parser":
+		case "test_parser":
 			return mainTestParser()
-		case "benchmark", "-benchmark", "--benchmark":
+		case "benchmark":
 			mainBenchmarks()
 			return 0
-		case "test_map", "-test_map", "--test_map":
+		case "test_map":
 			mainTestMap()
 			return 0
-		case "test_longpoll", "-test_longpoll", "--test_longpoll":
+		case "test_longpoll":
 			mainTestLongpoll()
 			return 0
-		case "simple_fsync", "-simple_fsync", "--simple_fsync":
+		case "simple_fsync":
 			mainSimpleFSyncTest()
 			return 0
-		case "tlclient.api", "-tlclient.api", "--tlclient.api":
+		case "tlclient.api":
 			mainTLClientAPI()
 			return 0
-		case "tlclient", "-tlclient", "--tlclient":
+		case "tlclient":
 			return mainTLClient()
-		case "simulator", "-simulator", "--simulator":
+		case "simulator":
 			mainSimulator()
 			return 0
-		case "agent", "-agent", "--agent":
+		case "agent":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "aggregator", "-aggregator", "--aggregator":
+		case "aggregator":
 			argvAddCommonFlags()
 			argvAddAggregatorFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
+		case "ingress_proxy":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			argvAddIngressProxyFlags()
@@ -159,14 +157,14 @@ func runMain() int {
 			flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
-		case "tag_mapping", "-tag_mapping", "--tag_mapping":
+		case "tag_mapping":
 			mainTagMapping()
 			return 0
-		case "publish_tag_drafts", "-publish_tag_drafts", "--publish_tag_drafts":
+		case "publish_tag_drafts":
 			mainPublishTagDrafts()
 			return 0
 		default:
-			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", verb)
+			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", rawVerb)
 			printVerbUsage()
 			return 1
 		}
@@ -229,15 +227,15 @@ func runMain() int {
 	}
 
 	switch verb {
-	case "agent", "-agent", "--agent":
+	case "agent":
 		if !legacyVerb && len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
 		mainAgent(aesPwd, dc)
-	case "aggregator", "-aggregator", "--aggregator":
+	case "aggregator":
 		mainAggregator(aesPwd, dc)
-	case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
+	case "ingress_proxy":
 		if len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
