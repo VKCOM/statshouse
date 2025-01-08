@@ -10,8 +10,8 @@ type shardStat struct {
 	recentSendFailed    atomic.Int64
 	historicSendSuccess atomic.Int64
 	historicSendFailed  atomic.Int64
-	recentSendSkip      atomic.Int64
-	historicSendSkip    atomic.Int64
+	recentSendKeep      atomic.Int64
+	historicSendKeep    atomic.Int64
 
 	shardReplicaNum string
 }
@@ -22,8 +22,8 @@ func (s *shardStat) fillStats(stats map[string]string) {
 	}
 	stats[m("recent_send_success")] = strconv.FormatInt(s.recentSendSuccess.Load(), 10)
 	stats[m("recent_send_failed")] = strconv.FormatInt(s.recentSendFailed.Load(), 10)
-	stats[m("recent_send_skip")] = strconv.FormatInt(s.recentSendSkip.Load(), 10)
+	stats[m("recent_send_keep")] = strconv.FormatInt(s.recentSendKeep.Load(), 10)
 	stats[m("historic_send_success")] = strconv.FormatInt(s.historicSendSuccess.Load(), 10)
 	stats[m("historic_send_failed")] = strconv.FormatInt(s.historicSendFailed.Load(), 10)
-	stats[m("historic_send_skip")] = strconv.FormatInt(s.historicSendSkip.Load(), 10)
+	stats[m("historic_send_keep")] = strconv.FormatInt(s.historicSendKeep.Load(), 10)
 }

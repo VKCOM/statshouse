@@ -261,13 +261,20 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, met
 	if b.MultiItems == nil {
 		b.MultiItems = make(map[string]*MultiItem)
 	}
+	wasLen := len(b.keysBuffer)
 	var keyBytes []byte
 	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
 	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
+	// Strings in map are unsafe references to bytes of b.keysBuffer.
+	// We promise to never change those bytes, but also we must prevent those strings spreading.
+	// We must periodically check that no iteration over MultiItems retains keys (!).
+	// After b.keysBuffer is reallocated, all strings in map point to previous keysBuffer, and
+	// no strings will ever point to the first part of new keysBuffer.
+	// This is 50% efficient, but becomes 100% efficient as soon as MultiItemMap starts to be reused.
 	item, ok := b.MultiItems[keyString]
 	created = !ok
 	if ok {
-		b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]
+		b.keysBuffer = b.keysBuffer[:wasLen]
 		return
 	}
 	item = &MultiItem{Key: *key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}

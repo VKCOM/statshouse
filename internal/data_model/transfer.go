@@ -28,6 +28,7 @@ func (k *Key) TagSlice() []int32 {
 	return result[:i]
 }
 
+// does not copy strings, we need max efficiency so want to look up in local map before converting []byte to string
 func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key Key, shardID int, clampedTimestampTag int32) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	shardID = int(item.FieldsMask >> 24)
@@ -48,9 +49,6 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 	}
 	key.Metric = item.Metric
 	copy(key.Tags[:], item.Keys)
-	for i, k := range item.Skeys {
-		key.SetSTag(i, string(k))
-	}
 	return
 }
 

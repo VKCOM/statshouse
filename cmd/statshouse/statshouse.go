@@ -194,13 +194,13 @@ func runMain() int {
 		_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
 	}
 
-	var dc *pcache.DiskCache                                  // We support working without touching disk (on readonly filesystems)
 	if argv.cacheDir == "" && argv.historicStorageDir != "" { // legacy mode option. TODO - remove
 		argv.cacheDir = argv.historicStorageDir
 	}
 	if argv.cacheDir == "" && argv.diskCacheFilename != "" { // legacy mode option. TODO - remove
 		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
 	}
+	var dc *pcache.DiskCache // We support working without touching disk (on readonly filesystems, in stateless containers, etc)
 	if argv.cacheDir != "" {
 		var err error
 		if dc, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {

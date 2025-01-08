@@ -162,7 +162,6 @@ const (
 	BuiltinMetricNameAgentSamplingFactor        = "__src_sampling_factor"
 	BuiltinMetricNameAggSamplingFactor          = "__agg_sampling_factor"
 	BuiltinMetricNameIngestionStatus            = "__src_ingestion_status"
-	BuiltinMetricNameAggMappingCreated          = "__agg_mapping_created"
 	BuiltinMetricNameBadges                     = "__badges"
 	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
 	BuiltinMetricNameMetaServiceTime            = "__meta_rpc_service_time"
@@ -373,6 +372,9 @@ const (
 	TagValueIDAggMappingCreatedStatusErrorInvariant        = 5
 	TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate = 6
 	TagValueIDAggMappingCreatedStatusErrorInvalidValue     = 7
+
+	TagValueIDAggMappingCreatedConveyorOld = 1
+	TagValueIDAggMappingCreatedConveyorNew = 2
 
 	TagValueIDAgentTimingGroupPipeline = 1
 	TagValueIDAgentTimingGroupSend     = 2
@@ -1136,7 +1138,7 @@ Set by either agent or aggregator, depending on status.`,
 			MetricType:  MetricByte,
 		},
 		BuiltinMetricIDAggMappingCreated: {
-			Name: BuiltinMetricNameAggMappingCreated,
+			Name: "__agg_mapping_created",
 			Kind: MetricKindValue,
 			Description: `Status of mapping string tags to integer values.
 Value is actual integer value created (by incrementing global counter).
@@ -1164,6 +1166,12 @@ Set by aggregator.`,
 				}),
 			}, {
 				Description: "tag_id",
+			}, {
+				Description: "conveyor",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDAggMappingCreatedConveyorOld: "old",
+					TagValueIDAggMappingCreatedConveyorNew: "new",
+				}),
 			}},
 			PreKeyTagID: "4",
 		},
@@ -1694,6 +1702,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "tag",
 				RawKind:     "hex",
 				ValueComments: convertToValueComments(map[int32]string{
+					0x193f1b22: "rpcCancelReq", // recorded by ingress proxy, so we added it here
 					0x28bea524: "statshouse.autoCreate",
 					0x4285ff57: "statshouse.getConfig2",
 					0x42855554: "statshouse.getMetrics3",

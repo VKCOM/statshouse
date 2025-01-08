@@ -142,13 +142,15 @@ statshouse.shutdownInfo#4124cf9c
     stopPreprocessor:long
     stopInserters:long // for aggregator
     stopRPCServer:long // for aggregator
+    saveMappings:long
     // we might want more timeouts later without changing format, so we reserve some space
-    a:long b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
+    b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
 = statshouse.ShutdownInfo;
 
 statshouse.sendSourceBucket3Response#0e177acc
     field_mask: #
-    error: string
+    discard: field_mask.0?true // agent should discard bucket, either they were inserted successfully or they can never be inserted
+    warning: string // if !empty, aggregator wants this in client log
     mappings: (vector statshouse.mapping)
 = statshouse.SendSourceBucket3Response;
 
