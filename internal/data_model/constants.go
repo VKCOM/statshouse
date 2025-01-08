@@ -92,7 +92,6 @@ const (
 	RPCErrorMissedRecentConveyor = -5001 // just send again through historic
 	RPCErrorInsert               = -5002 // just send again through historic (for recent), or send again after delay (for historic)
 	RPCErrorNoAutoCreate         = -5004 // just live with it, this is normal
-	RPCErrorTerminateLongpoll    = -5005 // we terminate long polls because rpc.Server does not inform us about hctx disconnects. TODO - remove as soon as Server is updated
 	RPCErrorScrapeAgentIP        = -5006 // scrape agent must have IP address
 
 	JournalDiskNamespace        = "metric_journal_v5:"
@@ -153,7 +152,7 @@ func SilentRPCError(err error) bool {
 	}
 	switch rpcError.Code {
 	case RPCErrorMissedRecentConveyor, RPCErrorInsert,
-		RPCErrorNoAutoCreate, RPCErrorTerminateLongpoll:
+		RPCErrorNoAutoCreate:
 		return true
 	default:
 		return false

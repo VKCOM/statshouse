@@ -15,8 +15,9 @@ var _ = basictl.NatWrite
 
 type StatshouseSendSourceBucket3Response struct {
 	FieldMask uint32
-	Error     string
-	Mappings  []StatshouseMapping
+	// Discard (TrueType) // Conditional: item.FieldMask.0
+	Warning  string
+	Mappings []StatshouseMapping
 }
 
 func (StatshouseSendSourceBucket3Response) TLName() string {
@@ -24,9 +25,20 @@ func (StatshouseSendSourceBucket3Response) TLName() string {
 }
 func (StatshouseSendSourceBucket3Response) TLTag() uint32 { return 0x0e177acc }
 
+func (item *StatshouseSendSourceBucket3Response) SetDiscard(v bool) {
+	if v {
+		item.FieldMask |= 1 << 0
+	} else {
+		item.FieldMask &^= 1 << 0
+	}
+}
+func (item StatshouseSendSourceBucket3Response) IsSetDiscard() bool {
+	return item.FieldMask&(1<<0) != 0
+}
+
 func (item *StatshouseSendSourceBucket3Response) Reset() {
 	item.FieldMask = 0
-	item.Error = ""
+	item.Warning = ""
 	item.Mappings = item.Mappings[:0]
 }
 
@@ -34,7 +46,7 @@ func (item *StatshouseSendSourceBucket3Response) Read(w []byte) (_ []byte, err e
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringRead(w, &item.Error); err != nil {
+	if w, err = basictl.StringRead(w, &item.Warning); err != nil {
 		return w, err
 	}
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
@@ -47,7 +59,7 @@ func (item *StatshouseSendSourceBucket3Response) WriteGeneral(w []byte) (_ []byt
 
 func (item *StatshouseSendSourceBucket3Response) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	w = basictl.StringWrite(w, item.Error)
+	w = basictl.StringWrite(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
 	return w
 }
@@ -75,7 +87,9 @@ func (item StatshouseSendSourceBucket3Response) String() string {
 
 func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
-	var propErrorPresented bool
+	var trueTypeDiscardPresented bool
+	var trueTypeDiscardValue bool
+	var propWarningPresented bool
 	var propMappingsPresented bool
 
 	if in != nil {
@@ -95,14 +109,22 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, 
 					return err
 				}
 				propFieldMaskPresented = true
-			case "error":
-				if propErrorPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "error")
+			case "discard":
+				if trueTypeDiscardPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "discard")
 				}
-				if err := Json2ReadString(in, &item.Error); err != nil {
+				if err := Json2ReadBool(in, &trueTypeDiscardValue); err != nil {
 					return err
 				}
-				propErrorPresented = true
+				trueTypeDiscardPresented = true
+			case "warning":
+				if propWarningPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "warning")
+				}
+				if err := Json2ReadString(in, &item.Warning); err != nil {
+					return err
+				}
+				propWarningPresented = true
 			case "mappings":
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "mappings")
@@ -124,11 +146,20 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, 
 	if !propFieldMaskPresented {
 		item.FieldMask = 0
 	}
-	if !propErrorPresented {
-		item.Error = ""
+	if !propWarningPresented {
+		item.Warning = ""
 	}
 	if !propMappingsPresented {
 		item.Mappings = item.Mappings[:0]
+	}
+	if trueTypeDiscardPresented {
+		if trueTypeDiscardValue {
+			item.FieldMask |= 1 << 0
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -150,12 +181,16 @@ func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(newTypeNames bool,
 	if (item.FieldMask != 0) == false {
 		w = w[:backupIndexFieldMask]
 	}
-	backupIndexError := len(w)
+	if item.FieldMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"discard":true`...)
+	}
+	backupIndexWarning := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"error":`...)
-	w = basictl.JSONWriteString(w, item.Error)
-	if (len(item.Error) != 0) == false {
-		w = w[:backupIndexError]
+	w = append(w, `"warning":`...)
+	w = basictl.JSONWriteString(w, item.Warning)
+	if (len(item.Warning) != 0) == false {
+		w = w[:backupIndexWarning]
 	}
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -180,8 +215,9 @@ func (item *StatshouseSendSourceBucket3Response) UnmarshalJSON(b []byte) error {
 
 type StatshouseSendSourceBucket3ResponseBytes struct {
 	FieldMask uint32
-	Error     []byte
-	Mappings  []StatshouseMappingBytes
+	// Discard (TrueType) // Conditional: item.FieldMask.0
+	Warning  []byte
+	Mappings []StatshouseMappingBytes
 }
 
 func (StatshouseSendSourceBucket3ResponseBytes) TLName() string {
@@ -189,9 +225,20 @@ func (StatshouseSendSourceBucket3ResponseBytes) TLName() string {
 }
 func (StatshouseSendSourceBucket3ResponseBytes) TLTag() uint32 { return 0x0e177acc }
 
+func (item *StatshouseSendSourceBucket3ResponseBytes) SetDiscard(v bool) {
+	if v {
+		item.FieldMask |= 1 << 0
+	} else {
+		item.FieldMask &^= 1 << 0
+	}
+}
+func (item StatshouseSendSourceBucket3ResponseBytes) IsSetDiscard() bool {
+	return item.FieldMask&(1<<0) != 0
+}
+
 func (item *StatshouseSendSourceBucket3ResponseBytes) Reset() {
 	item.FieldMask = 0
-	item.Error = item.Error[:0]
+	item.Warning = item.Warning[:0]
 	item.Mappings = item.Mappings[:0]
 }
 
@@ -199,7 +246,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) Read(w []byte) (_ []byte, 
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringReadBytes(w, &item.Error); err != nil {
+	if w, err = basictl.StringReadBytes(w, &item.Warning); err != nil {
 		return w, err
 	}
 	return BuiltinVectorStatshouseMappingBytesRead(w, &item.Mappings)
@@ -212,7 +259,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteGeneral(w []byte) (_ 
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	w = basictl.StringWriteBytes(w, item.Error)
+	w = basictl.StringWriteBytes(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingBytesWrite(w, item.Mappings)
 	return w
 }
@@ -240,7 +287,9 @@ func (item StatshouseSendSourceBucket3ResponseBytes) String() string {
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
-	var propErrorPresented bool
+	var trueTypeDiscardPresented bool
+	var trueTypeDiscardValue bool
+	var propWarningPresented bool
 	var propMappingsPresented bool
 
 	if in != nil {
@@ -260,14 +309,22 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames b
 					return err
 				}
 				propFieldMaskPresented = true
-			case "error":
-				if propErrorPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "error")
+			case "discard":
+				if trueTypeDiscardPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "discard")
 				}
-				if err := Json2ReadStringBytes(in, &item.Error); err != nil {
+				if err := Json2ReadBool(in, &trueTypeDiscardValue); err != nil {
 					return err
 				}
-				propErrorPresented = true
+				trueTypeDiscardPresented = true
+			case "warning":
+				if propWarningPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "warning")
+				}
+				if err := Json2ReadStringBytes(in, &item.Warning); err != nil {
+					return err
+				}
+				propWarningPresented = true
 			case "mappings":
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "mappings")
@@ -289,11 +346,20 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames b
 	if !propFieldMaskPresented {
 		item.FieldMask = 0
 	}
-	if !propErrorPresented {
-		item.Error = item.Error[:0]
+	if !propWarningPresented {
+		item.Warning = item.Warning[:0]
 	}
 	if !propMappingsPresented {
 		item.Mappings = item.Mappings[:0]
+	}
+	if trueTypeDiscardPresented {
+		if trueTypeDiscardValue {
+			item.FieldMask |= 1 << 0
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -315,12 +381,16 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(newTypeNames 
 	if (item.FieldMask != 0) == false {
 		w = w[:backupIndexFieldMask]
 	}
-	backupIndexError := len(w)
+	if item.FieldMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"discard":true`...)
+	}
+	backupIndexWarning := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"error":`...)
-	w = basictl.JSONWriteStringBytes(w, item.Error)
-	if (len(item.Error) != 0) == false {
-		w = w[:backupIndexError]
+	w = append(w, `"warning":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Warning)
+	if (len(item.Warning) != 0) == false {
+		w = w[:backupIndexWarning]
 	}
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

@@ -305,7 +305,8 @@ type MetricMetaValueOld struct {
 // TODO - better place?
 type CreateMappingExtra struct {
 	Create    bool
-	Metric    string
+	Metric    string // set by old conveyor, TODO - remove?
+	MetricID  int32  // set by new conveyor
 	TagIDKey  int32
 	ClientEnv int32
 	AgentEnv  int32
