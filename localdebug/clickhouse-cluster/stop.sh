@@ -1,3 +1,5 @@
 #!/bin/sh
 
-exec docker compose down
+BASEDIR=$(dirname "$0")
+
+exec docker compose --project-directory $BASEDIR down
