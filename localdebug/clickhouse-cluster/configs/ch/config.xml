@@ -1,0 +1,41 @@
+<clickhouse>
+    <remote_servers>
+        <statlogs2>
+            <shard>
+                <replica>
+                    <host>agg</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </statlogs2>
+    </remote_servers>
+    <zookeeper>
+        <node index="1">
+            <host>zookeeper</host>
+            <port>2181</port>
+        </node>
+    </zookeeper>
+    <macros>
+        <shard>0</shard>
+        <replica>0</replica>
+    </macros>
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+        <status_info>true</status_info>
+    </prometheus>
+    <storage_configuration>
+        <policies>
+          <ssd_then_hdd>
+            <volumes>
+              <hdd>
+                <disk>default</disk>
+              </hdd>
+            </volumes>
+          </ssd_then_hdd>
+        </policies>
+    </storage_configuration>
+</clickhouse>
