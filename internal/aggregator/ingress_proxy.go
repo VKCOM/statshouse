@@ -30,7 +30,6 @@ const (
 	minAcceptDelay  = 5 * time.Millisecond
 	maxAcceptDelay  = 1 * time.Second
 	rareLogInterval = 1 * time.Second
-
 	// copied from RPC internals
 	rpcInvokeReqHeaderTLTag = 0x2374df3d
 	rpcCancelReqTLTag       = 0x193f1b22

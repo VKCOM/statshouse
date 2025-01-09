@@ -176,7 +176,7 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 }
 
 // Helper function to convert Key to MultiItemBytes and back
-func roundTripKey(key Key, bucketTimestamp uint32, newestTime uint32) *Key {
+func roundTripKey(key Key, bucketTimestamp uint32, newestTime uint32) Key {
 	// Convert Key to MultiItem
 	item := key.TLMultiItemFromKey(bucketTimestamp)
 
