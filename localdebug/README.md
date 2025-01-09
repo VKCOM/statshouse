@@ -2,23 +2,21 @@
 
 ## run clickhouse locally in docker
 
-Commands must be run from clickhouse-cluster folder (`cd clickhouse-cluster`)
-
 We run cluster containing 1 clickhouse server plus 1 zookeeper instance.
 
 Start clickhouse and create all necessary tables
 ```
-start.sh
+clickhouse-cluster/start.sh
 ```
 
 Stop clickhouse
 ```
-stop.sh
+clickhouse-cluster/stop.sh
 ```
 
 Clear all tables from clickhouse mini cluster
 ```
-cleanup.sh
+clickhouse-cluster/cleanup.sh
 ```
 
 ## run daemons locally without containers
