@@ -160,6 +160,16 @@
                 "GODEBUG": "gctrace=1",
                 "GOMAXPROCS": "1",
             },
+        },
+        {
+            "name": "TestForwardPacket",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/vkgo/rpc/statshouse_test.go",
+            "args": [
+                "-test.run=TestForwardPacket",
+            ],
         }
     ]
 }

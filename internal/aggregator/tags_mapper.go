@@ -59,7 +59,7 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 		keyValue, c, d, err := loader.GetTagMapping(ctx, askedKey, metricName, extra.Create)
 		key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey})
 		meta := format.BuiltinMetricMetaAggMappingCreated
-		key = key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
+		key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
 
 		if err != nil {
 			// TODO - write to actual log from time to time
@@ -181,7 +181,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
 	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAggMappingStatusOKCached})
-	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 	meta := format.BuiltinMetricMetaAggMapping
 
 	r := ms.tagValue.GetCached(now, args.Key)
