@@ -1,3 +1,6 @@
 #!/bin/sh
 
-exec docker compose up -d kh
+
+BASEDIR=$(dirname "$0")
+
+exec docker compose --project-directory $BASEDIR up -d kh
