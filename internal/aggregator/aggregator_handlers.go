@@ -351,6 +351,12 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	lockedShard := -1
 	var newKeys []data_model.Key
 	var usedMetrics []int32
+	measurementIntKeys := 0
+	measurementStringKeys := 0
+	measurementLocks := 0
+	measurementCentroids := 0
+	measurementUniqueBytes := 0
+	measurementStringTops := 0
 
 	// We do not want to decompress under lock, so we decompress before ifs, then rarely throw away decompressed data.
 
@@ -372,6 +378,15 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	var resp tlstatshouse.SendSourceBucket3Response
 	for _, item := range bucket.Metrics {
+		measurementIntKeys += len(item.Keys)
+		measurementStringKeys += len(item.Skeys)
+		measurementStringTops += len(item.Top)
+		measurementCentroids += len(item.Tail.Centroids)
+		measurementUniqueBytes += len(item.Tail.Uniques)
+		for _, v := range item.Top {
+			measurementCentroids += len(v.Value.Centroids)
+			measurementUniqueBytes += len(v.Value.Uniques)
+		}
 		k, sID, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
@@ -417,7 +432,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		case ShardMetric:
 			sID = int(uint32(k.Metric) % data_model.AggregationShardsPerSecond)
 		}
-		s := aggBucket.lockShard(&lockedShard, sID)
+		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil)
 		mi.MergeWithTLMultiItem(rng, &item, hostTagId)
 		if created {
@@ -428,11 +443,11 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		if a.configR.Shard == ShardAggregatorHash {
 			// we unlock shard to caclculate hash not under it
-			aggBucket.lockShard(&lockedShard, -1)
+			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		}
 	}
 	if lockedShard != -1 {
-		aggBucket.lockShard(&lockedShard, -1)
+		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	}
 
 	aggBucket.mu.Lock()
@@ -461,13 +476,22 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	now2 := time.Now()
 	// Write meta metrics. They all simply go to merge shard 0 independent of their keys.
-	s := aggBucket.lockShard(&lockedShard, 0)
+	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
 		key := a.aggKey(t, m, keys)
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil)
 		return mi
 	}
+
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}).Tail.AddValueCounterHost(rng, float64(len(bucket.Metrics)), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}).Tail.AddValueCounterHost(rng, float64(measurementIntKeys), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}).Tail.AddValueCounterHost(rng, float64(measurementStringKeys), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}).Tail.AddValueCounterHost(rng, float64(measurementLocks), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}).Tail.AddValueCounterHost(rng, float64(measurementCentroids), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}).Tail.AddValueCounterHost(rng, float64(measurementUniqueBytes), 1, hostTagId)
+	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}).Tail.AddValueCounterHost(rng, float64(measurementStringTops), 1, hostTagId)
+
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(rng, float64(len(hctx.Request)), 1, hostTagId)
 
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(rng, float64(args.OriginalSize), 1, hostTagId)
@@ -541,7 +565,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
 		ingestionStatus(k.env, k.metricID, k.clampedTag, v)
 	}
-	aggBucket.lockShard(&lockedShard, -1)
+	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	return "", errHijack, false
 }
 
@@ -603,13 +627,14 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	// Write meta statistics
 
 	lockedShard := -1
-	s := aggBucket.lockShard(&lockedShard, 0)
+	measurementLocks := 0
+	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
 	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil)
 	mi.Tail.AddCounterHost(rng, 1, host)
-	aggBucket.lockShard(&lockedShard, -1)
+	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 
 	return errHijack
 }

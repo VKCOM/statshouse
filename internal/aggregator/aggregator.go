@@ -400,7 +400,7 @@ func (b *aggregatorBucket) contributorsCount() float64 {
 		b.contributorsMetric[1][0].Count() + b.contributorsMetric[1][1].Count()
 }
 
-func (b *aggregatorBucket) lockShard(lockedShard *int, sID int) *aggregatorShard {
+func (b *aggregatorBucket) lockShard(lockedShard *int, sID int, measurementLocks *int) *aggregatorShard {
 	if *lockedShard == sID {
 		return &b.shards[sID]
 	}
@@ -409,6 +409,7 @@ func (b *aggregatorBucket) lockShard(lockedShard *int, sID int) *aggregatorShard
 		*lockedShard = -1
 	}
 	if sID != -1 {
+		*measurementLocks++
 		b.shards[sID].mu.Lock()
 		*lockedShard = sID
 		return &b.shards[sID]
