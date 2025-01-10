@@ -14,6 +14,12 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 )
 
+const (
+	ShardAgentHash      = 0
+	ShardAggregatorHash = 1 // calc hash on aggregator
+	ShardMetric         = 2 // use metricId for sharding
+)
+
 type ConfigAggregatorRemote struct {
 	InsertBudget         int // for single replica, in bytes per contributor, when many contributors
 	StringTopCountInsert int
@@ -23,6 +29,7 @@ type ConfigAggregatorRemote struct {
 	DenyOldAgents        bool
 	MirrorChWrite        bool
 	WriteToV3First       bool
+	Shard                int // aggreagator sharding
 }
 
 type ConfigAggregator struct {
@@ -77,6 +84,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			DenyOldAgents:        true,
 			MirrorChWrite:        true,
 			WriteToV3First:       false,
+			Shard:                ShardAgentHash,
 		},
 	}
 }
@@ -91,6 +99,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
 		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both v3 and v2 tables")
 		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
+		f.IntVar(&c.Shard, "shard", d.Shard, "Sharding strategy")
 	}
 }
 
