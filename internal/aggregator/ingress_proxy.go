@@ -395,31 +395,30 @@ func (p *proxyConn) run() {
 	defer p.group.Done()
 	defer p.clientConn.Close()
 	// handshake client
-	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, false, p.startTime, rpc.DefaultPacketTimeout)
-	if err != nil {
-		p.logClientError("handshake", err)
-		return
-	}
-	// initialize "__rpc_request_size" tags
+	_, _, err := p.clientConn.HandshakeServer(p.serverKeys, p.serverOpts.TrustedSubnetGroups, true, p.startTime, rpc.DefaultPacketTimeout)
 	cryptoKeyID := p.clientConn.KeyID()
 	p.clientCryptoKeyID = int32(binary.BigEndian.Uint32(cryptoKeyID[:4]))
 	p.clientProtocolVersion = int32(p.clientConn.ProtocolVersion())
+	if err != nil {
+		p.logClientError("handshake", err, rpc.PacketHeaderCircularBuffer{})
+		return
+	}
 	// read first request to get shardReplica
-	var req proxyRequest
+	var firstReq proxyRequest
 	for {
-		req, err = p.readRequest()
+		firstReq, err = p.readRequest()
 		if err != nil {
 			return
 		}
 		if p.ctx.Err() != nil {
 			return // server shutdown
 		}
-		if req.tip == rpcInvokeReqHeaderTLTag {
+		if firstReq.tip == rpcInvokeReqHeaderTLTag {
 			break
 		}
-		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", req.tip, p.clientConn.RemoteAddr())
+		log.Printf("Client skip #%d looking for invoke request, addr %v\n", firstReq.tip, p.clientConn.RemoteAddr())
 	}
-	shardReplica := req.shardReplica(p)
+	shardReplica := firstReq.shardReplica(p)
 	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
 	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
 	defer p.rareLog("Disconnect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
@@ -427,25 +426,25 @@ func (p *proxyConn) run() {
 	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
 		log.Printf("error connect, upstream addr %s: %v\n", upstreamAddr, err)
-		_ = req.WriteReponseAndFlush(p.clientConn, err)
+		_ = firstReq.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
 	defer upstreamConn.Close()
 	p.upstreamConn = rpc.NewPacketConn(upstreamConn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
 	err = p.upstreamConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
 	if err != nil {
-		p.logUpstreamError("handshake", err)
-		_ = req.WriteReponseAndFlush(p.clientConn, err)
+		p.logUpstreamError("handshake", err, rpc.PacketHeaderCircularBuffer{})
+		_ = firstReq.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
 	// process first request
-	res := req.process(p)
-	if res.Error() != nil {
+	firstReqRes := firstReq.process(p)
+	if firstReqRes.Error() != nil {
 		return
 	}
 	// serve
 	var ctx = p.ctx
-	var gracefulShutdown bool
+	gracefulShutdown := firstReqRes.ClientWantsFin
 	for { // two iterations at most, the latter is graceful shutdown
 		var respLoop sync.WaitGroup
 		var respLoopRes rpc.ForwardPacketsResult
@@ -456,12 +455,15 @@ func (p *proxyConn) run() {
 		}()
 		reqLoopRes := p.requestLoop(ctx)
 		respLoop.Wait()
-		if gracefulShutdown || res.ClientWantsFin || reqLoopRes.ClientWantsFin || respLoopRes.ServerWantsFin || reqLoopRes.Error() != nil || respLoopRes.Error() != nil {
+		if !gracefulShutdown {
+			gracefulShutdown = reqLoopRes.ClientWantsFin || respLoopRes.ServerWantsFin
+		}
+		if gracefulShutdown || reqLoopRes.Error() != nil || respLoopRes.Error() != nil {
 			return // either graceful shutdown already attempted or error occurred
 		}
 		gracefulShutdown = true
 		if err = p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
-			p.logClientError("write fin", err)
+			p.logClientError("write fin", err, rpc.PacketHeaderCircularBuffer{})
 			return
 		}
 		// no timeout for connection graceful shutdown (has server level shutdown timeout)
@@ -494,10 +496,10 @@ func (p *proxyConn) responseLoop(ctx context.Context) rpc.ForwardPacketsResult {
 	res := rpc.ForwardPackets(ctx, p.clientConn, p.upstreamConn)
 	if err := res.Error(); err != nil {
 		if res.ReadErr != nil {
-			p.logUpstreamError("read", res.ReadErr)
+			p.logUpstreamError("read", res.ReadErr, res.PacketHeaderCircularBuffer)
 		}
 		if res.WriteErr != nil {
-			p.logClientError("write", res.WriteErr)
+			p.logClientError("write", res.WriteErr, res.PacketHeaderCircularBuffer)
 		}
 		p.clientConn.ShutdownWrite()
 	}
@@ -507,7 +509,7 @@ func (p *proxyConn) responseLoop(ctx context.Context) rpc.ForwardPacketsResult {
 
 func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 	if req.tip, req.Request, err = p.clientConn.ReadPacket(p.reqBuf[:0], rpc.DefaultPacketTimeout); err != nil {
-		p.logClientError("read", err)
+		p.logClientError("read", err, rpc.PacketHeaderCircularBuffer{})
 		return proxyRequest{}, err
 	}
 	req.size = len(req.Request)
@@ -519,7 +521,7 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			p.reqBuf = req.Request // buffer reuse
 		}
 		if err = req.ParseInvokeReq(&p.serverOpts); err != nil {
-			p.logClientError("parse", err)
+			p.logClientError("parse", err, rpc.PacketHeaderCircularBuffer{})
 			return proxyRequest{}, err
 		}
 		requestTag := req.RequestTag()
@@ -537,11 +539,11 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			// pass
 			return req, nil
 		default:
-			p.logClientError("not supported request", err)
+			p.logClientError("not supported request", err, rpc.PacketHeaderCircularBuffer{})
 			return proxyRequest{}, rpc.ErrNoHandler
 		}
 	default:
-		p.logClientError("not supported packet", err)
+		p.logClientError("not supported packet", err, rpc.PacketHeaderCircularBuffer{})
 		return proxyRequest{}, rpc.ErrNoHandler
 	}
 }
@@ -563,7 +565,7 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 	p.agent.AddValueCounter(&key, float64(req.size), 1, format.BuiltinMetricMetaRPCRequests)
 }
 
-func (p *proxyConn) logClientError(tag string, err error) {
+func (p *proxyConn) logClientError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
 	if err == nil || err == io.EOF {
 		return
 	}
@@ -571,10 +573,10 @@ func (p *proxyConn) logClientError(tag string, err error) {
 	if p.clientConn != nil {
 		addr = p.clientConn.RemoteAddr()
 	}
-	log.Printf("error %s, client addr %s, key 0x%X: %v\n", tag, addr, p.clientCryptoKeyID, err)
+	log.Printf("error %s, client addr %s, version %d, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, p.clientCryptoKeyID, err, lastPackets.String())
 }
 
-func (p *proxyConn) logUpstreamError(tag string, err error) {
+func (p *proxyConn) logUpstreamError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
 	if err == nil || err == io.EOF {
 		return
 	}
@@ -582,7 +584,7 @@ func (p *proxyConn) logUpstreamError(tag string, err error) {
 	if p.upstreamConn != nil {
 		addr = p.upstreamConn.RemoteAddr()
 	}
-	log.Printf("error %s, upstream addr %s: %v\n", tag, addr, err)
+	log.Printf("error %s, upstream addr %s: %v, %s\n", tag, addr, err, lastPackets.String())
 }
 
 func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
@@ -595,13 +597,13 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 			if _, err = args.ReadBoxed(req.Request); err == nil {
 				if args.Cluster != p.cluster {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
-					p.logClientError("GetConfig2", err)
+					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
 				} else {
 					req.Response, _ = args.WriteResult(req.Response[:0], p.config)
 				}
 			}
 			if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
-				p.logClientError("write", err)
+				p.logClientError("write", err, rpc.PacketHeaderCircularBuffer{})
 				// not an error ("requestLoop" exits on request read-write errors only)
 			}
 		default:
@@ -621,7 +623,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 
 func (req *proxyRequest) forwardAndFlush(p *proxyConn) error {
 	if err := req.ForwardAndFlush(p.upstreamConn, req.tip, rpc.DefaultPacketTimeout); err != nil {
-		p.logUpstreamError("write", err)
+		p.logUpstreamError("write", err, rpc.PacketHeaderCircularBuffer{})
 		return err
 	}
 	if cap(p.reqBuf) < cap(req.Request) {

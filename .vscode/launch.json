@@ -138,7 +138,7 @@
             ],
         },
         {
-            "name": "proxy_rpc_test",
+            "name": "proxy rpc test",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -162,7 +162,7 @@
             },
         },
         {
-            "name": "TestForwardPacket",
+            "name": "test forward packet",
             "type": "go",
             "request": "launch",
             "mode": "test",
@@ -170,6 +170,19 @@
             "args": [
                 "-test.run=TestForwardPacket",
             ],
+        },
+        {
+            "name": "test play PCAP",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/vkgo/rpc/statshouse_test.go",
+            "args": [
+                "-test.run=TestPlayPcap",
+            ],
+            "env": {
+                "STATSHOUSE_TEST_PLAY_PCAP_FILE_PATH":"",
+            },
         }
     ]
 }
