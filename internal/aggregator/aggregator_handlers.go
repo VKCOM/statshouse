@@ -411,6 +411,12 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				k.Tags[7] = hostTagId // agent cannot easily map its own host for now
 			}
 		}
+		switch a.configR.Shard {
+		case ShardAggregatorHash:
+			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
+		case ShardMetric:
+			sID = int(uint32(k.Metric) % data_model.AggregationShardsPerSecond)
+		}
 		s := aggBucket.lockShard(&lockedShard, sID)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil)
 		mi.MergeWithTLMultiItem(rng, &item, hostTagId)
@@ -420,8 +426,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
+		if a.configR.Shard == ShardAggregatorHash {
+			// we unlock shard to caclculate hash not under it
+			aggBucket.lockShard(&lockedShard, -1)
+		}
 	}
-	aggBucket.lockShard(&lockedShard, -1)
+	if lockedShard != -1 {
+		aggBucket.lockShard(&lockedShard, -1)
+	}
 
 	aggBucket.mu.Lock()
 
