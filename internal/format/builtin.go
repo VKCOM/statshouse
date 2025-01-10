@@ -149,6 +149,7 @@ const (
 	BuiltinMetricIDApiHeapInuse              = -125
 	BuiltinMetricIDClientWriteError          = -126
 	BuiltinMetricIDAgentTimings              = -127
+	BuiltinMetricIDAggBucketInfo             = -128
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -464,6 +465,17 @@ const (
 	TagValueIDRestartTimingsPhaseStopInserters     = 106
 	TagValueIDRestartTimingsPhaseStopRPCServer     = 107
 	TagValueIDRestartTimingsPhaseSaveMappings      = 108
+
+	TagValueIDAggBucketInfoRows               = 1
+	TagValueIDAggBucketInfoIntKeys            = 2
+	TagValueIDAggBucketInfoStringKeys         = 3
+	TagValueIDAggBucketInfoMappingHits        = 4
+	TagValueIDAggBucketInfoMappingMisses      = 5
+	TagValueIDAggBucketInfoMappingUnknownKeys = 6
+	TagValueIDAggBucketInfoMappingLocks       = 7
+	TagValueIDAggBucketInfoCentroids          = 8
+	TagValueIDAggBucketInfoUniqueBytes        = 9
+	TagValueIDAggBucketInfoStringTops         = 10
 )
 
 var (
@@ -2527,6 +2539,40 @@ Value is delta between second value and time it was inserted.`,
 			},
 			},
 		},
+		BuiltinMetricIDAggBucketInfo: {
+			Name:        "__agg_bucket_info",
+			Kind:        MetricKindValue,
+			Description: `Statistics on received bucket`,
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}, {
+				Description:   "aggregator_role",
+				ValueComments: convertToValueComments(aggregatorRoleToValue),
+			}, {
+				Description: "measurement",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDAggBucketInfoRows:               "rows",
+					TagValueIDAggBucketInfoIntKeys:            "int_keys",
+					TagValueIDAggBucketInfoStringKeys:         "string_keys",
+					TagValueIDAggBucketInfoMappingHits:        "mapping_hits",
+					TagValueIDAggBucketInfoMappingMisses:      "mapping_misses",
+					TagValueIDAggBucketInfoMappingUnknownKeys: "mapping_unknown_keys",
+					TagValueIDAggBucketInfoMappingLocks:       "locks",
+					TagValueIDAggBucketInfoCentroids:          "centroids",
+					TagValueIDAggBucketInfoUniqueBytes:        "unique_bytes",
+					TagValueIDAggBucketInfoStringTops:         "string_tops",
+				}),
+			}, {
+				Description: "-",
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -2653,6 +2699,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDRestartTimings:            true,
 		BuiltinMetricIDGCDuration:                true,
 		BuiltinMetricIDAgentTimings:              true,
+		BuiltinMetricIDAggBucketInfo:             true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
