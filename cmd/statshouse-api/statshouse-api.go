@@ -127,7 +127,7 @@ func main() {
 
 	pflag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	pflag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
-	pflag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricNameAggBucketReceiveDelaySec, "default metric to show")
+	pflag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricMetaAggBucketReceiveDelaySec.Name, "default metric to show")
 	pflag.StringSliceVar(&argv.defaultMetricFilterIn, "default-metric-filter-in", []string{}, "default metric filter in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", []string{}, "default metric function")
@@ -460,12 +460,12 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 			heartbeatTags[4] = fmt.Sprint(int32(binary.BigEndian.Uint32(commitRaw)))
 		}
 	}
-	statshouse.Value(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags, 0)
+	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
 
 	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
 		uptime := float64(time.Now().Unix() - startTimestamp)
-		c.Value(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags, uptime)
+		c.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, uptime)
 	}))
 
 	handlerRPC := api.NewRPCRouter(f, brs)

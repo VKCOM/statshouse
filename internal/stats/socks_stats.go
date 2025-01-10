@@ -26,7 +26,7 @@ func (*SocksStats) Name() string {
 }
 
 func (c *SocksStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricSocksStat)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricSocksStat)
 }
 
 func NewSocksStats(writer MetricWriter) (*SocksStats, error) {

@@ -87,7 +87,7 @@ func (*DMesgStats) Name() string {
 }
 
 func (c *DMesgStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricDMesgStat)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricDMesgStat)
 }
 
 func NewDMesgStats(writer MetricWriter) (*DMesgStats, error) {

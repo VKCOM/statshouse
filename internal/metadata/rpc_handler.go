@@ -133,7 +133,7 @@ func (h *Handler) initStats() {
 		h.getJournalMx.Lock()
 		qLength := len(h.getJournalClients)
 		h.getJournalMx.Unlock()
-		client.Value(format.BuiltinMetricNameMetaClientWaits, statshouse.Tags{1: h.host}, float64(qLength))
+		client.Value(format.BuiltinMetricMetaMetaClientWaits.Name, statshouse.Tags{1: h.host}, float64(qLength))
 	})
 }
 

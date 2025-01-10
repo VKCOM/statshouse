@@ -58,7 +58,7 @@ func (*DiskStats) Name() string {
 	return "disk_stats"
 }
 func (c *DiskStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricDisk)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricDisk)
 }
 
 func NewDiskStats(writer MetricWriter, logErr *log.Logger) (*DiskStats, error) {

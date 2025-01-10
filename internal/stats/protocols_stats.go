@@ -23,7 +23,7 @@ func (*ProtocolsStats) Name() string {
 }
 
 func (c *ProtocolsStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricProtocols)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricProtocols)
 }
 
 func NewProtocolsStats(writer MetricWriter) (*ProtocolsStats, error) {

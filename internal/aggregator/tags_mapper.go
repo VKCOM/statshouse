@@ -51,7 +51,7 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 			metricID = mm.MetricID
 		} else {
 			metricID = format.BuiltinMetricIDBudgetUnknownMetric
-			metricName = format.BuiltinMetricNameBudgetUnknownMetric
+			metricName = format.BuiltinMetricMetaBudgetUnknownMetric.Name
 			// Unknown metrics (also loads from caches after initial error, because cache does not store extra). They all share common limit.
 			// Journal can be stale, while mapping works.
 			// Explicit metric for this situation allows resetting limit from UI, like any other metric
@@ -173,7 +173,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 		return fmt.Errorf("failed to deserialize statshouse.getTagMapping2 request: %w", err)
 	}
 	now := time.Now()
-	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
+	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	agentEnv := ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
 	route := int32(format.TagValueIDRouteDirect) // all config routes are direct

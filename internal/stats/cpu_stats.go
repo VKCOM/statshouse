@@ -32,7 +32,7 @@ func (*CPUStats) Name() string {
 }
 
 func (c *CPUStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricCPU)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricCPU)
 }
 
 func NewCpuStats(writer MetricWriter) (*CPUStats, error) {

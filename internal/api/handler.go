@@ -633,11 +633,11 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		jwtHelper:             jwtHelper,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
-		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferBytesFree:       statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferPoolBytesAlloc:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesFree, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricAPIBufferBytesTotal, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
+		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferBytesFree:       statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
+		bufferPoolBytesAlloc:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
+		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
@@ -658,9 +658,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		userTime := float64(h.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 		sysTime := float64(h.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-		userMetric := client.MetricRef(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
+		userMetric := client.MetricRef(format.BuiltinMetricMetaUsageCPU.Name, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
 		userMetric.Value(userTime)
-		sysMetric := client.MetricRef(format.BuiltinMetricNameUsageCPU, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
+		sysMetric := client.MetricRef(format.BuiltinMetricMetaUsageCPU.Name, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI), 2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
 		sysMetric.Value(sysTime)
 
 		var vmSize, vmRSS float64
@@ -668,35 +668,35 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			vmSize = float64(st.Size)
 			vmRSS = float64(st.Res)
 		}
-		client.Value(format.BuiltinMetricNameApiVmSize, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
-		client.Value(format.BuiltinMetricNameApiVmRSS, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
-		client.Value(format.BuiltinMetricNameUsageMemory, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)}, vmRSS)
+		client.Value(format.BuiltinMetricMetaApiVmSize.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
+		client.Value(format.BuiltinMetricMetaApiVmRSS.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+		client.Value(format.BuiltinMetricMetaUsageMemory.Name, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)}, vmRSS)
 
 		var memStats runtime.MemStats
 		runtime.ReadMemStats(&memStats)
-		client.Value(format.BuiltinMetricNameApiHeapAlloc, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
-		client.Value(format.BuiltinMetricNameApiHeapSys, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
-		client.Value(format.BuiltinMetricNameApiHeapIdle, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
-		client.Value(format.BuiltinMetricNameApiHeapInuse, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+		client.Value(format.BuiltinMetricMetaApiHeapAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
+		client.Value(format.BuiltinMetricMetaApiHeapSys.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
+		client.Value(format.BuiltinMetricMetaApiHeapIdle.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
+		client.Value(format.BuiltinMetricMetaApiHeapInuse.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {
-				fastLight := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
+				fastLight := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
 				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
 
-				fastHeavy := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), 4: srvfunc.HostnameForStatshouse()})
+				fastHeavy := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), 4: srvfunc.HostnameForStatshouse()})
 				fastHeavy.Value(float64(ch.SemaphoreCountFastHeavy()))
 
-				slowLight := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), 4: srvfunc.HostnameForStatshouse()})
+				slowLight := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), 4: srvfunc.HostnameForStatshouse()})
 				slowLight.Value(float64(ch.SemaphoreCountSlowLight()))
 
-				slowHeavy := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
+				slowHeavy := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
 				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
 
-				slowHardware := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHardware), 4: srvfunc.HostnameForStatshouse()})
+				slowHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHardware), 4: srvfunc.HostnameForStatshouse()})
 				slowHardware.Value(float64(ch.SemaphoreCountFastHardware()))
 
-				fastHardware := client.MetricRef(format.BuiltinMetricNameAPIActiveQueries, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHardware), 4: srvfunc.HostnameForStatshouse()})
+				fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHardware), 4: srvfunc.HostnameForStatshouse()})
 				fastHardware.Value(float64(ch.SemaphoreCountSlowHardware()))
 			}
 		}
@@ -827,10 +827,10 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		}})
 	if err != nil {
 		log.Printf("[error] cache invalidation log query failed: %v", err)
-		req.endpointStat.report(httpCode(err), format.BuiltinMetricNameAPIServiceTime)
+		req.endpointStat.report(httpCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 		return from, seen
 	}
-	req.endpointStat.report(0, format.BuiltinMetricNameAPIServiceTime)
+	req.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
 	for lodLevel, times := range todo {
 		h.cache.Invalidate(lodLevel, times)
 		if lodLevel == _1s {
@@ -1990,7 +1990,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	query.Expr = fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, metric.MetricID)
+	query.Expr = fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, metric.MetricID)
 	query.Options.Vars = nil
 	val, cancel, err := r.promEngine.Exec(ctx, r, query)
 	if err != nil {
@@ -2047,7 +2047,7 @@ func HandleFrontendStat(r *httpRequestHandler) {
 		return
 	}
 	for _, v := range batch.Metrics {
-		if string(v.Name) != format.BuiltinMetricNameIDUIErrors { // metric whitelist
+		if string(v.Name) != format.BuiltinMetricMetaUIErrors.Name { // metric whitelist
 			respondJSON(r, nil, 0, 0, fmt.Errorf("metric is not in whitelist"))
 			return
 		}
@@ -2090,7 +2090,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
 			Step:  req.step,
-			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
+			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, meta.MetricID),
 			Options: promql.Options{
 				Version:          req.version,
 				Version3Start:    h.Version3Start.Load(),
@@ -2110,7 +2110,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 		} else {
 			code = httpCode(err)
 		}
-		badges.endpointStat.report(code, format.BuiltinMetricNameAPIServiceTime)
+		badges.endpointStat.report(code, format.BuiltinMetricMetaAPIServiceTime.Name)
 	}()
 	var val parser.Value
 	val, cleanup, err = h.promEngine.Exec(ctx, &badges, badges.query)

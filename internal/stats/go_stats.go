@@ -21,7 +21,7 @@ func (*GoStats) Name() string {
 }
 
 func (c *GoStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricGCStats)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricGCStats)
 }
 
 func NewGoStats(writer MetricWriter) (*GoStats, error) {
@@ -35,7 +35,7 @@ func (c *GoStats) WriteMetrics(nowUnix int64) error {
 		if stats.NumGC > c.stat.NumGC {
 			gcDiff := float64(stats.NumGC - c.stat.NumGC)
 			duration := stats.PauseTotal - c.stat.PauseTotal
-			c.writer.WriteSystemMetricCountValueWithoutHost(nowUnix, format.BuiltinMetricNameGCDuration, gcDiff, duration.Seconds()/gcDiff, 0, format.TagValueIDComponentAgent)
+			c.writer.WriteSystemMetricCountValueWithoutHost(nowUnix, format.BuiltinMetricMetaGCDuration.Name, gcDiff, duration.Seconds()/gcDiff, 0, format.TagValueIDComponentAgent)
 		}
 	}
 	c.stat = &stats

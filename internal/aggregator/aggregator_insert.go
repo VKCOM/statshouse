@@ -639,7 +639,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	for _, b := range buckets[1:] {
 		resPos = len(res)
 		appendInsertSizeStats(b.time, insertSizes[b.time], format.TagValueIDConveyorHistoric)
-		var historicBuiltinSize int = insertSizes[b.time].builtin + len(res) - resPos + estimatedSize
+		historicBuiltinSize := insertSizes[b.time].builtin + len(res) - resPos + estimatedSize
 		res = appendSimpleValueStat(rnd, res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric, format.TagValueIDSizeBuiltIn}),
 			float64(historicBuiltinSize), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 	}

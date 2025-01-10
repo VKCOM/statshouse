@@ -26,7 +26,7 @@ func (*NetClass) Name() string {
 }
 
 func (c *NetClass) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricNetClass)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricNetClass)
 }
 
 func NewNetClassStats(writer MetricWriter) (*NetClass, error) {

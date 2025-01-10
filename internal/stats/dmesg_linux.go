@@ -14,7 +14,7 @@ func (c *DMesgStats) WriteMetrics(nowUnix int64) error {
 	defer func() {
 		err := recover()
 		if err != nil {
-			c.writer.WriteSystemMetricValueWithoutHost(nowUnix, format.BuiltinMetricNameStatsHouseErrors, 0, format.TagValueIDDMESGParseError)
+			c.writer.WriteSystemMetricValueWithoutHost(nowUnix, format.BuiltinMetricMetaStatsHouseErrors.Name, 0, format.TagValueIDDMESGParseError)
 			panic(err)
 		}
 	}()
@@ -34,7 +34,7 @@ func (c *DMesgStats) WriteMetrics(nowUnix int64) error {
 	err = c.handleMsgs(nowUnix, c.cache, c.pushStat, c.pushMetric)
 	c.pushStat = true
 	if err != nil {
-		c.writer.WriteSystemMetricValueWithoutHost(nowUnix, format.BuiltinMetricNameStatsHouseErrors, 0, format.TagValueIDDMESGParseError)
+		c.writer.WriteSystemMetricValueWithoutHost(nowUnix, format.BuiltinMetricMetaStatsHouseErrors.Name, 0, format.TagValueIDDMESGParseError)
 		return errStopCollector
 	}
 	return nil
