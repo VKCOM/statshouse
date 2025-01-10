@@ -138,7 +138,7 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 			}
 			h.savePanic(req.RequestURI, err, debug.Stack())
 		}
-		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricNameAPIResponseTime)
+		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricMetaAPIResponseTime.Name)
 	}()
 	if err := h.init(); err != nil {
 		respondJSON(h, nil, 0, 0, err)

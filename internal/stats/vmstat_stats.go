@@ -65,7 +65,7 @@ func (*VMStatStats) Name() string {
 }
 
 func (c *VMStatStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricVMStat)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricVMStat)
 }
 
 func NewVMStats(writer MetricWriter) (*VMStatStats, error) {

@@ -25,7 +25,7 @@ func (*PSIStats) Name() string {
 }
 
 func (c *PSIStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricPSI)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricPSI)
 }
 
 func (c *PSIStats) Skip() bool {

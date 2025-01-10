@@ -26,7 +26,7 @@ func (*MemStats) Name() string {
 }
 
 func (c *MemStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricMemory)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricMemory)
 }
 
 func NewMemoryStats(writer MetricWriter) (*MemStats, error) {

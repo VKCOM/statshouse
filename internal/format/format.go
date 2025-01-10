@@ -10,9 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"unicode"
@@ -22,8 +20,6 @@ import (
 	"go4.org/mem"
 
 	"github.com/mailru/easyjson/opt"
-
-	"github.com/vkcom/statshouse-go"
 )
 
 const (
@@ -1157,9 +1153,4 @@ func EventTypeToName(typ int32) string {
 	default:
 		return "unknown"
 	}
-}
-
-func ReportAPIPanic(r any) {
-	log.Println("panic:", string(debug.Stack()))
-	statshouse.StringTop(BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(TagValueIDAPIPanicError, 10)}, fmt.Sprintf("%v", r))
 }

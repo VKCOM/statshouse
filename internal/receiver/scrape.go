@@ -633,7 +633,7 @@ func (s *scraper) resetMetric(b *tlstatshouse.MetricBytes, job string, tagsCap i
 func (s *scraper) reportScrapeTime(job string, err error, v time.Duration) {
 	b := s.metric
 	b.Reset()
-	b.Name = appendString(s.metric.Name, format.BuiltinMetricNamePromScrapeTime)
+	b.Name = appendString(s.metric.Name, format.BuiltinMetricMetaPromScrapeTime.Name)
 	b.Tags = appendTag(b.Tags, "2", job)
 	if err != nil {
 		b.Tags = appendTag(b.Tags, "5", "1") // error

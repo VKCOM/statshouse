@@ -262,7 +262,7 @@ func (p *ingressProxy) getHostnameID(aesPwd string) int32 {
 		Address: p.agent.GetConfigResult.Addresses[0],
 	}
 	args := tlstatshouse.GetTagMapping2{
-		Metric: format.BuiltinMetricNameBudgetAggregatorHost,
+		Metric: format.BuiltinMetricMetaBudgetAggregatorHost.Name,
 		Key:    srvfunc.HostnameForStatshouse(),
 		Header: tlstatshouse.CommonProxyHeader{
 			ShardReplicaTotal: p.agent.GetConfigResult.MaxAddressesCount,

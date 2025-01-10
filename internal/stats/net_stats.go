@@ -139,7 +139,7 @@ func (*NetStats) Name() string {
 }
 
 func (c *NetStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricNet)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricMetaSystemMetricScrapeDuration.Name, d.Seconds(), format.TagValueIDSystemMetricNet)
 }
 
 func NewNetStats(writer MetricWriter) (*NetStats, error) {

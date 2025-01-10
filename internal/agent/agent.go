@@ -687,7 +687,7 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, keyHash, value, counter, hostTagId, nil)
+	shard.AddValueCounterHost(key, keyHash, value, counter, hostTagId, metricInfo)
 }
 
 // value should be not NaN.
@@ -727,7 +727,7 @@ func (s *Agent) AddValueCounterHostStringBytes(key *data_model.Key, value float6
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTagId, str, nil)
+	shard.AddValueCounterHostStringBytes(key, keyHash, value, counter, hostTagId, str, metricInfo)
 }
 
 func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {

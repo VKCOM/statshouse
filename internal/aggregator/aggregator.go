@@ -303,7 +303,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, metricMetaLoader, a.config.Cluster)
 
-	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricNameBudgetAggregatorHost)
+	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricMetaBudgetAggregatorHost.Name)
 
 	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
 
