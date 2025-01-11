@@ -156,108 +156,12 @@ var (
 		BuiltinMetricIDBudgetOwner:                BuiltinMetricMetaBudgetOwner,
 	}
 
+	// this set is very small, and we do not want to set Visible property for hunderds of metrics
 	builtinMetricsInvisible = map[int32]bool{
 		BuiltinMetricIDBudgetHost:           true,
 		BuiltinMetricIDBudgetAggregatorHost: true,
 		BuiltinMetricIDBudgetUnknownMetric:  true,
 		BuiltinMetricIDBudgetOwner:          true,
-	}
-
-	MetricsWithAgentEnvRouteArch = map[int32]bool{
-		BuiltinMetricIDAgentDiskCacheErrors:      true,
-		BuiltinMetricIDTimingErrors:              true,
-		BuiltinMetricIDAgentMapping:              true,
-		BuiltinMetricIDAutoConfig:                true, // also passed through ingress proxies
-		BuiltinMetricIDJournalVersions:           true,
-		BuiltinMetricIDTLByteSizePerInflightType: true,
-		BuiltinMetricIDIngestionStatus:           true,
-		BuiltinMetricIDAgentReceivedBatchSize:    true,
-		BuiltinMetricIDAgentReceivedPacketSize:   true,
-		BuiltinMetricIDAggSizeCompressed:         true,
-		BuiltinMetricIDAggSizeUncompressed:       true,
-		BuiltinMetricIDAggBucketReceiveDelaySec:  true,
-		BuiltinMetricIDAggBucketAggregateTimeSec: true,
-		BuiltinMetricIDAggAdditionsToEstimator:   true,
-		BuiltinMetricIDAgentHistoricQueueSize:    true,
-		BuiltinMetricIDVersions:                  true,
-		BuiltinMetricIDAggKeepAlive:              true,
-		BuiltinMetricIDAggMappingCreated:         true,
-		BuiltinMetricIDUsageMemory:               true,
-		BuiltinMetricIDUsageCPU:                  true,
-		BuiltinMetricIDHeartbeatVersion:          true,
-		BuiltinMetricIDHeartbeatArgs:             true,
-		BuiltinMetricIDAgentUDPReceiveBufferSize: true,
-		BuiltinMetricIDAgentDiskCacheSize:        true,
-		BuiltinMetricIDSrcTestConnection:         true,
-		BuiltinMetricIDAgentAggregatorTimeDiff:   true,
-		BuiltinMetricIDSrcSamplingMetricCount:    true,
-		BuiltinMetricIDSrcSamplingSizeBytes:      true,
-		BuiltinMetricIDStatsHouseErrors:          true,
-		BuiltinMetricIDSrcSamplingBudget:         true,
-		BuiltinMetricIDSrcSamplingGroupBudget:    true,
-		BuiltinMetricIDRestartTimings:            true,
-		BuiltinMetricIDGCDuration:                true,
-		BuiltinMetricIDAgentTimings:              true,
-		BuiltinMetricIDAggBucketInfo:             true,
-	}
-
-	metricsWithoutAggregatorID = map[int32]bool{
-		BuiltinMetricIDTLByteSizePerInflightType:  true,
-		BuiltinMetricIDIngestionStatus:            true,
-		BuiltinMetricIDAgentDiskCacheErrors:       true,
-		BuiltinMetricIDAgentReceivedBatchSize:     true,
-		BuiltinMetricIDAgentMapping:               true,
-		BuiltinMetricIDAgentReceivedPacketSize:    true,
-		BuiltinMetricIDBadges:                     true,
-		BuiltinMetricIDPromScrapeTime:             true,
-		BuiltinMetricIDGeneratorConstCounter:      true,
-		BuiltinMetricIDGeneratorSinCounter:        true,
-		BuiltinMetricIDAPIBRS:                     true,
-		BuiltinMetricIDAPISelectRows:              true,
-		BuiltinMetricIDAPISelectBytes:             true,
-		BuiltinMetricIDAPISelectDuration:          true,
-		BuiltinMetricIDAPIServiceTime:             true,
-		BuiltinMetricIDAPIResponseTime:            true,
-		BuiltinMetricIDAPIActiveQueries:           true,
-		BuiltinMetricIDBudgetHost:                 true,
-		BuiltinMetricIDBudgetAggregatorHost:       true,
-		BuiltinMetricIDSystemMetricScrapeDuration: true,
-		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
-		BuiltinMetricIDAgentDiskCacheSize:         true,
-		BuiltinMetricIDAPIMetricUsage:             true,
-		BuiltinMetricIDSrcSamplingMetricCount:     true,
-		BuiltinMetricIDSrcSamplingSizeBytes:       true,
-		BuiltinMetricIDSrcSamplingBudget:          true,
-		BuiltinMetricIDSrcSamplingGroupBudget:     true,
-		BuiltinMetricIDUIErrors:                   true,
-		BuiltinMetricIDStatsHouseErrors:           true,
-		BuiltinMetricIDPromQLEngineTime:           true,
-		BuiltinMetricIDAPICacheBytesAlloc:         true,
-		BuiltinMetricIDAPICacheBytesFree:          true,
-		BuiltinMetricIDAPICacheBytesTotal:         true,
-		BuiltinMetricIDAPICacheAgeEvict:           true,
-		BuiltinMetricIDAPICacheAgeTotal:           true,
-		BuiltinMetricIDAPIBufferBytesAlloc:        true,
-		BuiltinMetricIDAPIBufferBytesFree:         true,
-		BuiltinMetricIDAPIBufferBytesTotal:        true,
-		BuiltinMetricIDRestartTimings:             true,
-		BuiltinMetricIDGCDuration:                 true,
-		BuiltinMetricIDProxyAcceptHandshakeError:  true,
-		BuiltinMetricIDProxyVmSize:                true,
-		BuiltinMetricIDProxyVmRSS:                 true,
-		BuiltinMetricIDProxyHeapAlloc:             true,
-		BuiltinMetricIDProxyHeapSys:               true,
-		BuiltinMetricIDProxyHeapIdle:              true,
-		BuiltinMetricIDProxyHeapInuse:             true,
-		BuiltinMetricIDApiVmSize:                  true,
-		BuiltinMetricIDApiVmRSS:                   true,
-		BuiltinMetricIDApiHeapAlloc:               true,
-		BuiltinMetricIDApiHeapSys:                 true,
-		BuiltinMetricIDApiHeapIdle:                true,
-		BuiltinMetricIDApiHeapInuse:               true,
-		BuiltinMetricIDClientWriteError:           true,
-		BuiltinMetricIDAgentTimings:               true,
-		BuiltinMetricIDBudgetOwner:                true,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly
@@ -285,36 +189,6 @@ var (
 			Name:   "__default",
 			Weight: 1,
 		},
-	}
-
-	versionToValue = map[int32]string{
-		1: "v1",
-		2: "v2",
-	}
-
-	secondsToValue = map[int32]string{
-		1:       "1s",
-		5:       "5s",
-		15:      "15s",
-		60:      "1m",
-		300:     "5m",
-		900:     "15m",
-		3600:    "1h",
-		14400:   "4h",
-		86400:   "24h",
-		604800:  "7d",
-		2678400: "1M",
-	}
-
-	apiCacheEvictionReason = map[int32]string{
-		1: "stale",  // known to be stale
-		2: "LRU",    // evicted to free up memory
-		3: "update", // evicted by more recent load
-	}
-
-	apiBufferKind = map[int32]string{
-		1: "pool", // "sync.Pool", allocated buffer is subject for reuse (good)
-		2: "heap", // large buffer won't be reused (bad, should not happen)
 	}
 )
 
@@ -346,8 +220,10 @@ func init() {
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}
 		BuiltinMetrics[k] = v
+		// v.NoSampleAgent = false
 		v.BuiltinAllowedToReceive = true
-		metricsWithoutAggregatorID[k] = true
+		// v.WithAgentEnvRouteArch = false
+		// v.WithAggregatorID = false
 	}
 	for i := 0; i < NewMaxTags; i++ {
 		name := strconv.Itoa(i)
@@ -387,7 +263,7 @@ func init() {
 		for len(m.Tags) < MaxTags {
 			m.Tags = append(m.Tags, MetricMetaTag{Description: "-"})
 		}
-		if !metricsWithoutAggregatorID[id] {
+		if m.WithAggregatorID {
 			m.Tags[AggHostTag] = MetricMetaTag{Description: "aggregator_host"}
 			m.Tags[AggShardTag] = MetricMetaTag{Description: "aggregator_shard", Raw: true}
 			m.Tags[AggReplicaTag] = MetricMetaTag{Description: "aggregator_replica", Raw: true}
@@ -400,7 +276,7 @@ func init() {
 			m.Tags[HostOwnerTag] = MetricMetaTag{Description: "owner"}
 
 		}
-		if MetricsWithAgentEnvRouteArch[id] {
+		if m.WithAgentEnvRouteArch {
 			m.Tags[RouteTag] = MetricMetaTag{Description: "route", ValueComments: convertToValueComments(routeToValue)}
 			m.Tags[AgentEnvTag] = MetricMetaTag{
 				Description: "statshouse_env",
