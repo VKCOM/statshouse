@@ -131,6 +131,7 @@ const (
 	TagValueIDSrcIngestionStatusErrShardingFailed            = 54
 	TagValueIDSrcIngestionStatusWarnTimestampClampedPast     = 55
 	TagValueIDSrcIngestionStatusWarnTimestampClampedFuture   = 56
+	TagValueIDSrcIngestionStatusErrMetricBuiltin             = 57
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2

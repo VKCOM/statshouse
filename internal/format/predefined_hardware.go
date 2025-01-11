@@ -214,10 +214,11 @@ func HardwareMetric(metricID int32) bool {
 // add host tag later
 var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDCPUUsage: {
-		Name:        BuiltinMetricNameCpuUsage,
-		Kind:        MetricKindValue,
-		MetricType:  MetricSecond,
-		Description: "The number of seconds the CPU has spent performing different kinds of work",
+		Name:          BuiltinMetricNameCpuUsage,
+		Kind:          MetricKindValue,
+		MetricType:    MetricSecond,
+		Description:   "The number of seconds the CPU has spent performing different kinds of work",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "state",
 			Raw:         true,
@@ -241,10 +242,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDMemUsage: {
-		Name:        BuiltinMetricNameMemUsage,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "Amount of free and used memory in the system",
+		Name:          BuiltinMetricNameMemUsage,
+		Kind:          MetricKindValue,
+		MetricType:    MetricByte,
+		Description:   "Amount of free and used memory in the system",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "state",
 			Raw:         true,
@@ -288,14 +290,16 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDProcessCreated: {
-		Name:        BuiltinMetricNameProcessCreated,
-		Kind:        MetricKindCounter,
-		Description: "Number of processes and threads created",
+		Name:          BuiltinMetricNameProcessCreated,
+		Kind:          MetricKindCounter,
+		Description:   "Number of processes and threads created",
+		NoSampleAgent: true,
 	},
 	BuiltinMetricIDProcessRunning: {
-		Name:        BuiltinMetricNameProcessStatus,
-		Kind:        MetricKindValue,
-		Description: "Number of processes currently blocked, waiting IO or running on CPUs",
+		Name:          BuiltinMetricNameProcessStatus,
+		Kind:          MetricKindValue,
+		Description:   "Number of processes currently blocked, waiting IO or running on CPUs",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "status",
 			Raw:         true,
@@ -307,16 +311,18 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		}},
 	},
 	BuiltinMetricIDSystemUptime: {
-		Name:        BuiltinMetricNameSystemUptime,
-		Kind:        MetricKindValue,
-		MetricType:  MetricSecond,
-		Description: "The amount of time the system has been running",
+		Name:          BuiltinMetricNameSystemUptime,
+		Kind:          MetricKindValue,
+		MetricType:    MetricSecond,
+		Description:   "The amount of time the system has been running",
+		NoSampleAgent: true,
 	},
 
 	BuiltinMetricIDPSICPU: {
-		Name:        BuiltinMetricNamePSICPU,
-		Kind:        MetricKindValue,
-		Description: "PSI of CPU", // todo fix
+		Name:          BuiltinMetricNamePSICPU,
+		Kind:          MetricKindValue,
+		Description:   "PSI of CPU", // todo fix
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
 			Raw:         true,
@@ -327,9 +333,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		}},
 	},
 	BuiltinMetricIDPSIMem: {
-		Name:        BuiltinMetricNamePSIMem,
-		Kind:        MetricKindValue,
-		Description: "PSI of memory",
+		Name:          BuiltinMetricNamePSIMem,
+		Kind:          MetricKindValue,
+		Description:   "PSI of memory",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
 			Raw:         true,
@@ -340,9 +347,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		}},
 	},
 	BuiltinMetricIDPSIIO: {
-		Name:        BuiltinMetricNamePSIIO,
-		Kind:        MetricKindValue,
-		Description: "PSI of IO",
+		Name:          BuiltinMetricNamePSIIO,
+		Kind:          MetricKindValue,
+		Description:   "PSI of IO",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
 			Raw:         true,
@@ -354,10 +362,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	},
 
 	BuiltinMetricIDNetBandwidth: {
-		Name:        BuiltinMetricNameNetBandwidth,
-		Kind:        MetricKindMixed,
-		MetricType:  MetricByte,
-		Description: "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
+		Name:          BuiltinMetricNameNetBandwidth,
+		Kind:          MetricKindMixed,
+		MetricType:    MetricByte,
+		Description:   "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
 			Raw:         true,
@@ -429,9 +438,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDNetPacket: {
-		Name:        BuiltinMetricNameNetPacket,
-		Kind:        MetricKindCounter,
-		Description: "Number of transferred packets grouped by protocol",
+		Name:          BuiltinMetricNameNetPacket,
+		Kind:          MetricKindCounter,
+		Description:   "Number of transferred packets grouped by protocol",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
@@ -454,9 +464,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDNetError: {
-		Name:        BuiltinMetricNameNetError,
-		Kind:        MetricKindCounter,
-		Description: "Number of network errors",
+		Name:          BuiltinMetricNameNetError,
+		Kind:          MetricKindCounter,
+		Description:   "Number of network errors",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
@@ -491,10 +502,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDDiskUsage: {
-		Name:        BuiltinMetricNameDiskUsage,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "Disk space utilization",
+		Name:          BuiltinMetricNameDiskUsage,
+		Kind:          MetricKindValue,
+		MetricType:    MetricByte,
+		Description:   "Disk space utilization",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
@@ -513,9 +525,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDINodeUsage: {
-		Name:        BuiltinMetricNameINodeUsage,
-		Kind:        MetricKindValue,
-		Description: "",
+		Name:          BuiltinMetricNameINodeUsage,
+		Kind:          MetricKindValue,
+		Description:   "",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
@@ -535,9 +548,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	},
 
 	BuiltinMetricIDTCPSocketStatus: {
-		Name:        BuiltinMetricNameTCPSocketStatus,
-		Kind:        MetricKindValue,
-		Description: "The number of TCP socket grouped by state",
+		Name:          BuiltinMetricNameTCPSocketStatus,
+		Kind:          MetricKindValue,
+		Description:   "The number of TCP socket grouped by state",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
@@ -552,17 +566,18 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDTCPSocketMemory: {
-		Name:        BuiltinMetricNameTCPSocketMemory,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "The amount of memory used by TCP sockets in all states",
-		Tags:        []MetricMetaTag{},
+		Name:          BuiltinMetricNameTCPSocketMemory,
+		Kind:          MetricKindValue,
+		MetricType:    MetricByte,
+		Description:   "The amount of memory used by TCP sockets in all states",
+		NoSampleAgent: true,
 	},
 	BuiltinMetricIDSocketMemory: {
-		Name:        BuiltinMetricNameSocketMemory,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "The amount of memory used by sockets",
+		Name:          BuiltinMetricNameSocketMemory,
+		Kind:          MetricKindValue,
+		MetricType:    MetricByte,
+		Description:   "The amount of memory used by sockets",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "protocol",
@@ -578,9 +593,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDSocketUsed: {
-		Name:        BuiltinMetricNameSocketUsedv2,
-		Kind:        MetricKindValue,
-		Description: "The number of socket in inuse state grouped by protocol",
+		Name:          BuiltinMetricNameSocketUsedv2,
+		Kind:          MetricKindValue,
+		Description:   "The number of socket in inuse state grouped by protocol",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "protocol",
@@ -596,9 +612,10 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDSoftIRQ: {
-		Name:        BuiltinMetricNameSoftIRQ, // TODO add total time spend with eBPF
-		Kind:        MetricKindValue,
-		Description: "Total number of software interrupts in the system",
+		Name:          BuiltinMetricNameSoftIRQ, // TODO add total time spend with eBPF
+		Kind:          MetricKindValue,
+		Description:   "Total number of software interrupts in the system",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
@@ -619,22 +636,23 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 	},
 	BuiltinMetricIDIRQ: {
-		Name:        BuiltinMetricNameIRQ, // TODO add total time spend with eBPF
-		Kind:        MetricKindCounter,
-		Description: "Total number of interrupts in the system",
-		Tags:        []MetricMetaTag{},
+		Name:          BuiltinMetricNameIRQ, // TODO add total time spend with eBPF
+		Kind:          MetricKindCounter,
+		Description:   "Total number of interrupts in the system",
+		NoSampleAgent: true,
 	},
 	BuiltinMetricIDContextSwitch: {
-		Name:        BuiltinMetricNameContextSwitch,
-		Kind:        MetricKindCounter,
-		Description: "Total number of context switch in the system",
-		Tags:        []MetricMetaTag{},
+		Name:          BuiltinMetricNameContextSwitch,
+		Kind:          MetricKindCounter,
+		Description:   "Total number of context switch in the system",
+		NoSampleAgent: true,
 	},
 	BuiltinMetricIDWriteback: {
-		Name:        BuiltinMetricNameWriteback,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "Writeback/Dirty memory",
+		Name:          BuiltinMetricNameWriteback,
+		Kind:          MetricKindValue,
+		MetricType:    MetricByte,
+		Description:   "Writeback/Dirty memory",
+		NoSampleAgent: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",

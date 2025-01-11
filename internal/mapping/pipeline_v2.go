@@ -234,6 +234,8 @@ func MapErrorFromHeader(m tlstatshouse.MetricBytes, h data_model.MappedMetricHea
 		return fmt.Errorf("not utf-8 metric name %q (hex) (envTag %d)", h.InvalidString, envTag)
 	case format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding:
 		return fmt.Errorf("not utf-8 name %q (hex) for key of metric %q (envTag %d)", h.InvalidString, m.Name, envTag)
+	case format.TagValueIDSrcIngestionStatusErrMetricBuiltin:
+		return fmt.Errorf("metric %q is builtin (envTag %d)", m.Name, envTag)
 	default:
 		return fmt.Errorf("unexpected error status %d with invalid string value %q for key %q of metric %q (envTag %d)", h.IngestionStatus, h.InvalidString, ingestionTagName, m.Name, envTag)
 	}
