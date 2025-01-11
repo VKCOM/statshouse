@@ -1890,7 +1890,7 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags:                    []MetricMetaTag{{Description: "environment"}},
+	Tags:                    []MetricMetaTag{{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
 
 const BuiltinMetricIDStatsHouseErrors = -85
@@ -1912,7 +1912,7 @@ var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 				TagValueIDDMESGParseError: "dmesg_parse",
 				TagValueIDAPIPanicError:   "api_panic",
 			}),
-		}},
+		}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
 
 const BuiltinMetricIDSrcSamplingBudget = -86
