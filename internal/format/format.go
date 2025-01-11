@@ -277,6 +277,8 @@ type MetricMetaValue struct {
 
 	NoSampleAgent           bool `json:"-"` // Built-in metrics with fixed/limited # of rows on agent. Set only in constant initialization of builtin metrics
 	BuiltinAllowedToReceive bool `json:"-"` // we allow only small subset of built-in metrics through agent receiver.
+	WithAgentEnvRouteArch   bool `json:"-"` // set for some built-in metrics to add common set of tags
+	WithAggregatorID        bool `json:"-"` // set for some built-in metrics to add common set of tags
 
 	Group     *MetricsGroup  `json:"-"` // don't use directly
 	Namespace *NamespaceMeta `json:"-"` // don't use directly
