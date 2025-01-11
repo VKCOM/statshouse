@@ -9,6 +9,7 @@ package format
 import "github.com/mailru/easyjson/opt"
 
 // metric metas for builtin metrics are accessible directly without search in map
+// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
 const BuiltinMetricIDAgentSamplingFactor = -1
 
@@ -284,6 +285,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			TagValueIDSrcIngestionStatusErrShardingFailed:            "err_sharding_failed",
 			TagValueIDSrcIngestionStatusWarnTimestampClampedPast:     "warn_timestamp_clamped_past",
 			TagValueIDSrcIngestionStatusWarnTimestampClampedFuture:   "warn_timestamp_clamped_future",
+			TagValueIDSrcIngestionStatusErrMetricBuiltin:             "err_metric_builtin",
 		}),
 	}, {
 		Description: "tag_id",
@@ -412,9 +414,10 @@ var BuiltinMetricMetaAggOutdatedAgents = &MetricMetaValue{
 const BuiltinMetricIDAgentDiskCacheErrors = -18
 
 var BuiltinMetricMetaAgentDiskCacheErrors = &MetricMetaValue{
-	Name:        "__src_disc_cache_errors",
-	Kind:        MetricKindCounter,
-	Description: "Disk cache errors. Written by agent.",
+	Name:          "__src_disc_cache_errors",
+	Kind:          MetricKindCounter,
+	Description:   "Disk cache errors. Written by agent.",
+	NoSampleAgent: true,
 	Tags: []MetricMetaTag{{
 		Description: "kind",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -434,6 +437,8 @@ var BuiltinMetricMetaTimingErrors = &MetricMetaValue{
 	Kind: MetricKindValue,
 	Description: `Timing errors - sending data too early or too late.
 Set by either agent or aggregator, depending on status.`,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -460,10 +465,11 @@ Set by either agent or aggregator, depending on status.`,
 const BuiltinMetricIDAgentReceivedBatchSize = -21
 
 var BuiltinMetricMetaAgentReceivedBatchSize = &MetricMetaValue{
-	Name:        "__src_ingested_metric_batch_size",
-	Kind:        MetricKindValue,
-	Description: "Size in bytes of metric batches received by agent.\nCount is # of such batches.",
-	MetricType:  MetricByte,
+	Name:          "__src_ingested_metric_batch_size",
+	Kind:          MetricKindValue,
+	Description:   "Size in bytes of metric batches received by agent.\nCount is # of such batches.",
+	MetricType:    MetricByte,
+	NoSampleAgent: true,
 	Tags: []MetricMetaTag{{
 		Description:   "format",
 		ValueComments: convertToValueComments(packetFormatToValue),
@@ -638,10 +644,11 @@ var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 const BuiltinMetricIDAgentMapping = -30
 
 var BuiltinMetricMetaAgentMapping = &MetricMetaValue{
-	Name:        "__src_mapping_time",
-	Kind:        MetricKindValue,
-	Description: "Time and status of mapping request.\nWritten by agent.",
-	MetricType:  MetricSecond,
+	Name:          "__src_mapping_time",
+	Kind:          MetricKindValue,
+	Description:   "Time and status of mapping request.\nWritten by agent.",
+	MetricType:    MetricSecond,
+	NoSampleAgent: true,
 	Tags: []MetricMetaTag{{
 		Description: "mapper",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -664,10 +671,11 @@ var BuiltinMetricMetaAgentMapping = &MetricMetaValue{
 const BuiltinMetricIDAgentReceivedPacketSize = -31
 
 var BuiltinMetricMetaAgentReceivedPacketSize = &MetricMetaValue{
-	Name:        "__src_ingested_packet_size",
-	Kind:        MetricKindValue,
-	Description: "Size in bytes of packets received by agent. Also count is # of received packets.",
-	MetricType:  MetricByte,
+	Name:          "__src_ingested_packet_size",
+	Kind:          MetricKindValue,
+	Description:   "Size in bytes of packets received by agent. Also count is # of received packets.",
+	MetricType:    MetricByte,
+	NoSampleAgent: true,
 	Tags: []MetricMetaTag{{
 		Description:   "format",
 		ValueComments: convertToValueComments(packetFormatToValue),
@@ -819,6 +827,7 @@ var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 	Description:          "Metadata journal version plus stable hash of journal state.",
 	StringTopDescription: "Journal Hash",
 	Resolution:           60,
+	NoSampleAgent:        true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -840,10 +849,11 @@ var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 const BuiltinMetricIDPromScrapeTime = -38
 
 var BuiltinMetricMetaPromScrapeTime = &MetricMetaValue{
-	Name:        "__prom_scrape_time",
-	Kind:        MetricKindValue,
-	Description: "Time of scraping prom metrics",
-	MetricType:  MetricSecond,
+	Name:                    "__prom_scrape_time",
+	Kind:                    MetricKindValue,
+	Description:             "Time of scraping prom metrics",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{
 		{
 			Description: "-",
@@ -868,11 +878,13 @@ const BuiltinMetricIDAgentHeartbeatArgs = -42    // TODO - remove, this metric w
 const BuiltinMetricIDUsageMemory = -43
 
 var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
-	Name:        "__usage_mem",
-	Kind:        MetricKindValue,
-	Description: "Memory usage of statshouse components.",
-	MetricType:  MetricByte,
-	Resolution:  60,
+	Name:                    "__usage_mem",
+	Kind:                    MetricKindValue,
+	Description:             "Memory usage of statshouse components.",
+	MetricType:              MetricByte,
+	Resolution:              60,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -882,11 +894,13 @@ var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
 const BuiltinMetricIDUsageCPU = -44
 
 var BuiltinMetricMetaUsageCPU = &MetricMetaValue{
-	Name:        "__usage_cpu",
-	Kind:        MetricKindValue,
-	Description: "CPU usage of statshouse components, CPU seconds per second.",
-	MetricType:  MetricSecond,
-	Resolution:  60,
+	Name:                    "__usage_cpu",
+	Kind:                    MetricKindValue,
+	Description:             "CPU usage of statshouse components, CPU seconds per second.",
+	MetricType:              MetricSecond,
+	Resolution:              60,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -919,12 +933,14 @@ var BuiltinMetricMetaGeneratorSinCounter = &MetricMetaValue{
 const BuiltinMetricIDHeartbeatVersion = -47
 
 var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
-	Name:                 "__heartbeat_version",
-	Kind:                 MetricKindValue,
-	Description:          "Heartbeat value is uptime",
-	MetricType:           MetricSecond,
-	StringTopDescription: "Build Commit",
-	Resolution:           60,
+	Name:                    "__heartbeat_version",
+	Kind:                    MetricKindValue,
+	Description:             "Heartbeat value is uptime",
+	MetricType:              MetricSecond,
+	StringTopDescription:    "Build Commit",
+	Resolution:              60,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -961,6 +977,7 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 	MetricType:           MetricSecond,
 	StringTopDescription: "Arguments",
 	Resolution:           60,
+	NoSampleAgent:        true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -996,9 +1013,10 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 const BuiltinMetricIDAPIBRS = -50
 
 var BuiltinMetricMetaAPIBRS = &MetricMetaValue{ // TODO - harmonize
-	Name:        "__api_big_response_storage_size",
-	Kind:        MetricKindValue,
-	Description: "Size of storage inside API of big response chunks",
+	Name:                    "__api_big_response_storage_size",
+	Kind:                    MetricKindValue,
+	Description:             "Size of storage inside API of big response chunks",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -1025,9 +1043,10 @@ var BuiltinMetricMetaBudgetAggregatorHost = &MetricMetaValue{
 const BuiltinMetricIDAPIActiveQueries = -55
 
 var BuiltinMetricMetaAPIActiveQueries = &MetricMetaValue{
-	Name:        "__api_active_queries",
-	Kind:        MetricKindValue,
-	Description: "Active queries to clickhouse by API.\nRequests are assigned to lanes by estimated processing time.",
+	Name:                    "__api_active_queries",
+	Kind:                    MetricKindValue,
+	Description:             "Active queries to clickhouse by API.\nRequests are assigned to lanes by estimated processing time.",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "-", // if we need another component
 	}, {
@@ -1195,8 +1214,9 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 	Name: "__api_ch_select_bytes",
 	Kind: MetricKindValue,
 	// TODO replace with logs
-	StringTopDescription: "error",
-	Description:          "Number of bytes was handled by ClickHouse SELECT query",
+	StringTopDescription:    "error",
+	Description:             "Number of bytes was handled by ClickHouse SELECT query",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
 	}},
@@ -1208,8 +1228,9 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	Name: "__api_ch_select_rows",
 	Kind: MetricKindValue,
 	// TODO replace with logs
-	StringTopDescription: "error",
-	Description:          "Number of rows was handled by ClickHouse SELECT query",
+	StringTopDescription:    "error",
+	Description:             "Number of rows was handled by ClickHouse SELECT query",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
 	}},
@@ -1218,10 +1239,11 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 const BuiltinMetricIDAPISelectDuration = -68
 
 var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
-	Name:        "__api_ch_select_duration",
-	Kind:        MetricKindValue,
-	MetricType:  MetricSecond,
-	Description: "Duration of clickhouse query",
+	Name:                    "__api_ch_select_duration",
+	Kind:                    MetricKindValue,
+	MetricType:              MetricSecond,
+	Description:             "Duration of clickhouse query",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{
 		{
 			Description: "query type",
@@ -1303,10 +1325,11 @@ var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
 const BuiltinMetricIDSystemMetricScrapeDuration = -71
 
 var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
-	Name:        "__system_metrics_duration",
-	Kind:        MetricKindValue,
-	Description: "System metrics scrape duration in seconds",
-	MetricType:  MetricSecond,
+	Name:                    "__system_metrics_duration",
+	Kind:                    MetricKindValue,
+	Description:             "System metrics scrape duration in seconds",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "collector",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1328,10 +1351,11 @@ var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
 const BuiltinMetricIDMetaServiceTime = -72
 
 var BuiltinMetricMetaMetaServiceTime = &MetricMetaValue{ // TODO - harmonize
-	Name:        "__meta_rpc_service_time",
-	Kind:        MetricKindValue,
-	Description: "Time to handle RPC query by meta.",
-	MetricType:  MetricSecond,
+	Name:                    "__meta_rpc_service_time",
+	Kind:                    MetricKindValue,
+	Description:             "Time to handle RPC query by meta.",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -1346,9 +1370,10 @@ var BuiltinMetricMetaMetaServiceTime = &MetricMetaValue{ // TODO - harmonize
 const BuiltinMetricIDMetaClientWaits = -73
 
 var BuiltinMetricMetaMetaClientWaits = &MetricMetaValue{ // TODO - harmonize
-	Name:        "__meta_load_journal_client_waits",
-	Kind:        MetricKindValue,
-	Description: "Number of clients waiting journal updates",
+	Name:                    "__meta_load_journal_client_waits",
+	Kind:                    MetricKindValue,
+	Description:             "Number of clients waiting journal updates",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -1367,10 +1392,11 @@ var BuiltinMetricMetaAgentUDPReceiveBufferSize = &MetricMetaValue{
 const BuiltinMetricIDAPIMetricUsage = -75
 
 var BuiltinMetricMetaAPIMetricUsage = &MetricMetaValue{
-	Name:        "__api_metric_usage",
-	Resolution:  60,
-	Kind:        MetricKindCounter,
-	Description: "Metric usage",
+	Name:                    "__api_metric_usage",
+	Resolution:              60,
+	Kind:                    MetricKindCounter,
+	Description:             "Metric usage",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{
 		{
 			Description: "type",
@@ -1392,10 +1418,11 @@ var BuiltinMetricMetaAPIMetricUsage = &MetricMetaValue{
 const BuiltinMetricIDAPIServiceTime = -76
 
 var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
-	Name:        "__api_service_time",
-	Kind:        MetricKindValue,
-	Description: "Time to handle API query.",
-	MetricType:  MetricSecond,
+	Name:                    "__api_service_time",
+	Kind:                    MetricKindValue,
+	Description:             "Time to handle API query.",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "endpoint",
 	}, {
@@ -1438,10 +1465,11 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 const BuiltinMetricIDAPIResponseTime = -77
 
 var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
-	Name:        "__api_response_time",
-	Kind:        MetricKindValue,
-	Description: "Time to handle and respond to query by API",
-	MetricType:  MetricSecond,
+	Name:                    "__api_response_time",
+	Kind:                    MetricKindValue,
+	Description:             "Time to handle and respond to query by API",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "endpoint",
 	}, {
@@ -1612,20 +1640,22 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 const BuiltinMetricIDUIErrors = -84
 
 var BuiltinMetricMetaUIErrors = &MetricMetaValue{
-	Name:                 "__ui_errors",
-	Kind:                 MetricKindValue,
-	Description:          `Errors on the frontend.`,
-	StringTopDescription: "error_string",
-	Tags:                 []MetricMetaTag{{Description: "environment"}},
+	Name:                    "__ui_errors",
+	Kind:                    MetricKindValue,
+	Description:             `Errors on the frontend.`,
+	StringTopDescription:    "error_string",
+	BuiltinAllowedToReceive: true,
+	Tags:                    []MetricMetaTag{{Description: "environment"}},
 }
 
 const BuiltinMetricIDStatsHouseErrors = -85
 
 var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
-	Name:                 "__statshouse_errors",
-	Kind:                 MetricKindCounter,
-	Description:          `Always empty metric because SH don't have errors'`,
-	StringTopDescription: "error_string",
+	Name:                    "__statshouse_errors",
+	Kind:                    MetricKindCounter,
+	Description:             `Always empty metric because SH don't have errors'`,
+	StringTopDescription:    "error_string",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{
 		{
 			Description: "error_type",
@@ -1724,10 +1754,11 @@ var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 const BuiltinMetricIDPromQLEngineTime = -90
 
 var BuiltinMetricMetaPromQLEngineTime = &MetricMetaValue{
-	Name:        "__promql_engine_time",
-	Kind:        MetricKindValue,
-	Description: "Time spent in PromQL engine",
-	MetricType:  MetricSecond,
+	Name:                    "__promql_engine_time",
+	Kind:                    MetricKindValue,
+	Description:             "Time spent in PromQL engine",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Name:        "host",
 		Description: "API host",
@@ -1783,9 +1814,10 @@ var BuiltinMetricMetaPromQLEngineTime = &MetricMetaValue{
 const BuiltinMetricIDAPICacheHit = -91
 
 var BuiltinMetricMetaAPICacheHit = &MetricMetaValue{
-	Name:        "__api_cache_hit_rate",
-	Kind:        MetricKindValue,
-	Description: `API cache hit rate`,
+	Name:                    "__api_cache_hit_rate",
+	Kind:                    MetricKindValue,
+	Description:             `API cache hit rate`,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "source",
 	}, {
@@ -1904,10 +1936,11 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 const BuiltinMetricIDAPICacheBytesAlloc = -99
 
 var BuiltinMetricMetaAPICacheBytesAlloc = &MetricMetaValue{
-	Name:        "__api_cache_bytes_alloc",
-	Kind:        MetricKindValue,
-	Description: "API cache memory allocation in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_cache_bytes_alloc",
+	Kind:                    MetricKindValue,
+	Description:             "API cache memory allocation in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -1922,10 +1955,11 @@ var BuiltinMetricMetaAPICacheBytesAlloc = &MetricMetaValue{
 const BuiltinMetricIDAPICacheBytesFree = -100
 
 var BuiltinMetricMetaAPICacheBytesFree = &MetricMetaValue{
-	Name:        "__api_cache_bytes_free",
-	Kind:        MetricKindValue,
-	Description: "API cache memory deallocation in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_cache_bytes_free",
+	Kind:                    MetricKindValue,
+	Description:             "API cache memory deallocation in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -1943,11 +1977,12 @@ var BuiltinMetricMetaAPICacheBytesFree = &MetricMetaValue{
 const BuiltinMetricIDAPICacheBytesTotal = -101
 
 var BuiltinMetricMetaAPICacheBytesTotal = &MetricMetaValue{
-	Name:        "__api_cache_bytes_total",
-	Kind:        MetricKindValue,
-	Resolution:  15,
-	Description: "API cache size in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_cache_bytes_total",
+	Kind:                    MetricKindValue,
+	Resolution:              15,
+	Description:             "API cache size in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -1962,10 +1997,11 @@ var BuiltinMetricMetaAPICacheBytesTotal = &MetricMetaValue{
 const BuiltinMetricIDAPICacheAgeEvict = -102
 
 var BuiltinMetricMetaAPICacheAgeEvict = &MetricMetaValue{
-	Name:        "__api_cache_age_evict",
-	Kind:        MetricKindValue,
-	Description: "API cache entry age when evicted in seconds.",
-	MetricType:  MetricSecond,
+	Name:                    "__api_cache_age_evict",
+	Kind:                    MetricKindValue,
+	Description:             "API cache entry age when evicted in seconds.",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -1983,11 +2019,12 @@ var BuiltinMetricMetaAPICacheAgeEvict = &MetricMetaValue{
 const BuiltinMetricIDAPICacheAgeTotal = -103
 
 var BuiltinMetricMetaAPICacheAgeTotal = &MetricMetaValue{
-	Name:        "__api_cache_age_total",
-	Kind:        MetricKindValue,
-	Resolution:  15,
-	Description: "API cache age in seconds.",
-	MetricType:  MetricSecond,
+	Name:                    "__api_cache_age_total",
+	Kind:                    MetricKindValue,
+	Resolution:              15,
+	Description:             "API cache age in seconds.",
+	MetricType:              MetricSecond,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -2002,10 +2039,11 @@ var BuiltinMetricMetaAPICacheAgeTotal = &MetricMetaValue{
 const BuiltinMetricIDAPIBufferBytesAlloc = -104
 
 var BuiltinMetricMetaAPIBufferBytesAlloc = &MetricMetaValue{
-	Name:        "__api_buffer_bytes_alloc",
-	Kind:        MetricKindValue,
-	Description: "API buffer allocation in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_buffer_bytes_alloc",
+	Kind:                    MetricKindValue,
+	Description:             "API buffer allocation in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -2017,10 +2055,11 @@ var BuiltinMetricMetaAPIBufferBytesAlloc = &MetricMetaValue{
 const BuiltinMetricIDAPIBufferBytesFree = -105
 
 var BuiltinMetricMetaAPIBufferBytesFree = &MetricMetaValue{
-	Name:        "__api_buffer_bytes_free",
-	Kind:        MetricKindValue,
-	Description: "API buffer deallocation in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_buffer_bytes_free",
+	Kind:                    MetricKindValue,
+	Description:             "API buffer deallocation in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -2032,10 +2071,11 @@ var BuiltinMetricMetaAPIBufferBytesFree = &MetricMetaValue{
 const BuiltinMetricIDAPIBufferBytesTotal = -106
 
 var BuiltinMetricMetaAPIBufferBytesTotal = &MetricMetaValue{
-	Name:        "__api_buffer_bytes_total",
-	Kind:        MetricKindValue,
-	Description: "API buffer pool size in bytes.",
-	MetricType:  MetricByte,
+	Name:                    "__api_buffer_bytes_total",
+	Kind:                    MetricKindValue,
+	Description:             "API buffer pool size in bytes.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2044,10 +2084,11 @@ var BuiltinMetricMetaAPIBufferBytesTotal = &MetricMetaValue{
 const BuiltinMetricIDAutoCreateMetric = -107
 
 var BuiltinMetricMetaAutoCreateMetric = &MetricMetaValue{
-	Name:        "__agg_autocreate_metric",
-	Kind:        MetricKindCounter,
-	Description: "Event of automatically created metrics.",
-	MetricType:  MetricByte,
+	Name:                    "__agg_autocreate_metric",
+	Kind:                    MetricKindCounter,
+	Description:             "Event of automatically created metrics.",
+	MetricType:              MetricByte,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "action",
 		ValueComments: map[string]string{
@@ -2100,10 +2141,11 @@ var BuiltinMetricMetaRestartTimings = &MetricMetaValue{
 const BuiltinMetricIDGCDuration = -109
 
 var BuiltinMetricMetaGCDuration = &MetricMetaValue{
-	Name:        "__gc_duration",
-	Kind:        MetricKindValue,
-	MetricType:  MetricSecond,
-	Description: "Count - number of GC, Value - time spent to gc",
+	Name:                    "__gc_duration",
+	Kind:                    MetricKindValue,
+	MetricType:              MetricSecond,
+	Description:             "Count - number of GC, Value - time spent to gc",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "-", // reserved for host
 	},
@@ -2181,10 +2223,11 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 const BuiltinMetricIDProxyAcceptHandshakeError = -113
 
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
-	Name:                 "__igp_accept_handshake_error",
-	Kind:                 MetricKindCounter,
-	Description:          "Proxy refused to accept incoming connection because of failed  handshake.",
-	StringTopDescription: "remote_ip",
+	Name:                    "__igp_accept_handshake_error",
+	Kind:                    MetricKindCounter,
+	Description:             "Proxy refused to accept incoming connection because of failed  handshake.",
+	StringTopDescription:    "remote_ip",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}, {
@@ -2197,10 +2240,11 @@ var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 const BuiltinMetricIDProxyVmSize = -114
 
 var BuiltinMetricMetaProxyVmSize = &MetricMetaValue{
-	Name:        "__igp_vm_size",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy virtual memory size.",
-	Resolution:  60,
+	Name:                    "__igp_vm_size",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy virtual memory size.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2209,10 +2253,11 @@ var BuiltinMetricMetaProxyVmSize = &MetricMetaValue{
 const BuiltinMetricIDProxyVmRSS = -115
 
 var BuiltinMetricMetaProxyVmRSS = &MetricMetaValue{
-	Name:        "__igp_vm_rss",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy resident set size.",
-	Resolution:  60,
+	Name:                    "__igp_vm_rss",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy resident set size.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2221,10 +2266,11 @@ var BuiltinMetricMetaProxyVmRSS = &MetricMetaValue{
 const BuiltinMetricIDProxyHeapAlloc = -116
 
 var BuiltinMetricMetaProxyHeapAlloc = &MetricMetaValue{
-	Name:        "__igp_heap_alloc",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy bytes of allocated heap objects.",
-	Resolution:  60,
+	Name:                    "__igp_heap_alloc",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy bytes of allocated heap objects.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2233,10 +2279,11 @@ var BuiltinMetricMetaProxyHeapAlloc = &MetricMetaValue{
 const BuiltinMetricIDProxyHeapSys = -117
 
 var BuiltinMetricMetaProxyHeapSys = &MetricMetaValue{
-	Name:        "__igp_heap_sys",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy bytes of heap memory obtained from the OS.",
-	Resolution:  60,
+	Name:                    "__igp_heap_sys",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy bytes of heap memory obtained from the OS.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2245,10 +2292,11 @@ var BuiltinMetricMetaProxyHeapSys = &MetricMetaValue{
 const BuiltinMetricIDProxyHeapIdle = -118
 
 var BuiltinMetricMetaProxyHeapIdle = &MetricMetaValue{
-	Name:        "__igp_heap_idle",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy bytes in idle (unused) spans.",
-	Resolution:  60,
+	Name:                    "__igp_heap_idle",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy bytes in idle (unused) spans.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2257,10 +2305,11 @@ var BuiltinMetricMetaProxyHeapIdle = &MetricMetaValue{
 const BuiltinMetricIDProxyHeapInuse = -119
 
 var BuiltinMetricMetaProxyHeapInuse = &MetricMetaValue{
-	Name:        "__igp_heap_inuse",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse proxy bytes in in-use spans.",
-	Resolution:  60,
+	Name:                    "__igp_heap_inuse",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse proxy bytes in in-use spans.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2269,10 +2318,11 @@ var BuiltinMetricMetaProxyHeapInuse = &MetricMetaValue{
 const BuiltinMetricIDApiVmSize = -120
 
 var BuiltinMetricMetaApiVmSize = &MetricMetaValue{
-	Name:        "__api_vm_size",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API virtual memory size.",
-	Resolution:  60,
+	Name:                    "__api_vm_size",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API virtual memory size.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2281,10 +2331,11 @@ var BuiltinMetricMetaApiVmSize = &MetricMetaValue{
 const BuiltinMetricIDApiVmRSS = -121
 
 var BuiltinMetricMetaApiVmRSS = &MetricMetaValue{
-	Name:        "__api_vm_rss",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API resident set size.",
-	Resolution:  60,
+	Name:                    "__api_vm_rss",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API resident set size.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2293,10 +2344,11 @@ var BuiltinMetricMetaApiVmRSS = &MetricMetaValue{
 const BuiltinMetricIDApiHeapAlloc = -122
 
 var BuiltinMetricMetaApiHeapAlloc = &MetricMetaValue{
-	Name:        "__api_heap_alloc",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API bytes of allocated heap objects.",
-	Resolution:  60,
+	Name:                    "__api_heap_alloc",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API bytes of allocated heap objects.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2305,10 +2357,11 @@ var BuiltinMetricMetaApiHeapAlloc = &MetricMetaValue{
 const BuiltinMetricIDApiHeapSys = -123
 
 var BuiltinMetricMetaApiHeapSys = &MetricMetaValue{
-	Name:        "__api_heap_sys",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API bytes of heap memory obtained from the OS.",
-	Resolution:  60,
+	Name:                    "__api_heap_sys",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API bytes of heap memory obtained from the OS.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2317,10 +2370,11 @@ var BuiltinMetricMetaApiHeapSys = &MetricMetaValue{
 const BuiltinMetricIDApiHeapIdle = -124
 
 var BuiltinMetricMetaApiHeapIdle = &MetricMetaValue{
-	Name:        "__api_heap_idle",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API bytes in idle (unused) spans.",
-	Resolution:  60,
+	Name:                    "__api_heap_idle",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API bytes in idle (unused) spans.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2329,10 +2383,11 @@ var BuiltinMetricMetaApiHeapIdle = &MetricMetaValue{
 const BuiltinMetricIDApiHeapInuse = -125
 
 var BuiltinMetricMetaApiHeapInuse = &MetricMetaValue{
-	Name:        "__api_heap_inuse",
-	Kind:        MetricKindValue,
-	Description: "StatsHouse API bytes in in-use spans.",
-	Resolution:  60,
+	Name:                    "__api_heap_inuse",
+	Kind:                    MetricKindValue,
+	Description:             "StatsHouse API bytes in in-use spans.",
+	Resolution:              60,
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
@@ -2341,10 +2396,11 @@ var BuiltinMetricMetaApiHeapInuse = &MetricMetaValue{
 const BuiltinMetricIDClientWriteError = -126
 
 var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
-	Name:        "__src_client_write_err",
-	Kind:        MetricKindValue,
-	MetricType:  MetricByte,
-	Description: "Bytes lost on StatsHouse clients.",
+	Name:                    "__src_client_write_err",
+	Kind:                    MetricKindValue,
+	MetricType:              MetricByte,
+	Description:             "Bytes lost on StatsHouse clients.",
+	BuiltinAllowedToReceive: true,
 	Tags: []MetricMetaTag{{
 		Description: "lang",
 		ValueComments: convertToValueComments(map[int32]string{

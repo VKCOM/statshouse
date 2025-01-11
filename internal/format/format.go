@@ -262,7 +262,6 @@ type MetricMetaValue struct {
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
-	RawTagMask           uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag             map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
 	EffectiveResolution  int                      `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                      `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
@@ -271,11 +270,13 @@ type MetricMetaValue struct {
 	HasPercentiles       bool                     `json:"-"`
 	RoundSampleFactors   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues    bool                     `json:"-"` // Experimental, set if magic word in description is found
-	NoSampleAgent        bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 	WhalesOff            bool                     `json:"-"` // "whales" sampling algorithm disabled
 	HistorgamBuckets     []float32                `json:"-"` // Prometheus histogram buckets
 	IsHardwareSlowMetric bool                     `json:"-"`
 	GroupID              int32                    `json:"-"`
+
+	NoSampleAgent           bool `json:"-"` // Built-in metrics with fixed/limited # of rows on agent. Set only in constant initialization of builtin metrics
+	BuiltinAllowedToReceive bool `json:"-"` // we allow only small subset of built-in metrics through agent receiver.
 
 	Group     *MetricsGroup  `json:"-"` // don't use directly
 	Namespace *NamespaceMeta `json:"-"` // don't use directly
@@ -383,7 +384,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
 
-	var mask uint32
 	m.Name2Tag = map[string]MetricMetaTag{}
 
 	if m.StringTopName == StringTopTagID { // remove redundancy
@@ -437,9 +437,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	for i := range tags {
 		tag := &tags[i]
-		if tag.Raw {
-			mask |= 1 << i
-		}
 
 		if len(tag.ID2Value) > 0 { // Legacy info, set for many metrics. Move to modern one.
 			tag.ValueComments = convertToValueComments(tag.ID2Value)
@@ -471,7 +468,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, true, &err)
 		}
 	}
-	m.RawTagMask = mask
 	m.EffectiveResolution = AllowedResolution(m.Resolution)
 	if m.EffectiveResolution != m.Resolution {
 		err = multierr.Append(err, fmt.Errorf("resolution %d must be factor of 60", m.Resolution))
@@ -511,7 +507,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			}
 		}
 	}
-	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
+	// m.NoSampleAgent we never set it here, it is set in code for some built-in metrics
 	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
 		m.GroupID = BuiltinGroupIDDefault
 		m.Group = BuiltInGroupDefault[BuiltinGroupIDDefault]

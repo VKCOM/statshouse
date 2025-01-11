@@ -41,10 +41,6 @@ const (
 var (
 	BuiltinMetricByName map[string]*MetricMetaValue
 
-	// list of built-in metrics which can be sent as normal metric. Used by API and prometheus exporter
-	// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
-	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
-
 	BuiltinMetrics = map[int32]*MetricMetaValue{
 		BuiltinMetricIDAgentSamplingFactor:        BuiltinMetricMetaAgentSamplingFactor,
 		BuiltinMetricIDAggBucketReceiveDelaySec:   BuiltinMetricMetaAggBucketReceiveDelaySec,
@@ -165,89 +161,6 @@ var (
 		BuiltinMetricIDBudgetAggregatorHost: true,
 		BuiltinMetricIDBudgetUnknownMetric:  true,
 		BuiltinMetricIDBudgetOwner:          true,
-	}
-
-	// API and metadata sends this metrics via local statshouse instance
-	builtinMetricsAllowedToReceive = map[int32]bool{
-		BuiltinMetricIDTimingErrors:               true,
-		BuiltinMetricIDPromScrapeTime:             true,
-		BuiltinMetricIDAPIBRS:                     true,
-		BuiltinMetricIDAPIServiceTime:             true,
-		BuiltinMetricIDAPIResponseTime:            true,
-		BuiltinMetricIDUsageMemory:                true,
-		BuiltinMetricIDUsageCPU:                   true,
-		BuiltinMetricIDAPIActiveQueries:           true,
-		BuiltinMetricIDAPISelectRows:              true,
-		BuiltinMetricIDAPISelectBytes:             true,
-		BuiltinMetricIDAPISelectDuration:          true,
-		BuiltinMetricIDSystemMetricScrapeDuration: true,
-		BuiltinMetricIDMetaServiceTime:            true,
-		BuiltinMetricIDMetaClientWaits:            true,
-		BuiltinMetricIDAPIMetricUsage:             true,
-		BuiltinMetricIDHeartbeatVersion:           true,
-		BuiltinMetricIDUIErrors:                   true,
-		BuiltinMetricIDStatsHouseErrors:           true,
-		BuiltinMetricIDPromQLEngineTime:           true,
-		BuiltinMetricIDAPICacheHit:                true,
-		BuiltinMetricIDAPICacheBytesAlloc:         true,
-		BuiltinMetricIDAPICacheBytesFree:          true,
-		BuiltinMetricIDAPICacheBytesTotal:         true,
-		BuiltinMetricIDAPICacheAgeEvict:           true,
-		BuiltinMetricIDAPICacheAgeTotal:           true,
-		BuiltinMetricIDAPIBufferBytesAlloc:        true,
-		BuiltinMetricIDAPIBufferBytesFree:         true,
-		BuiltinMetricIDAPIBufferBytesTotal:        true,
-		BuiltinMetricIDAutoCreateMetric:           true,
-		BuiltinMetricIDGCDuration:                 true,
-		BuiltinMetricIDProxyAcceptHandshakeError:  true,
-		BuiltinMetricIDProxyVmSize:                true,
-		BuiltinMetricIDProxyVmRSS:                 true,
-		BuiltinMetricIDProxyHeapAlloc:             true,
-		BuiltinMetricIDProxyHeapSys:               true,
-		BuiltinMetricIDProxyHeapIdle:              true,
-		BuiltinMetricIDProxyHeapInuse:             true,
-		BuiltinMetricIDApiVmSize:                  true,
-		BuiltinMetricIDApiVmRSS:                   true,
-		BuiltinMetricIDApiHeapAlloc:               true,
-		BuiltinMetricIDApiHeapSys:                 true,
-		BuiltinMetricIDApiHeapIdle:                true,
-		BuiltinMetricIDApiHeapInuse:               true,
-		BuiltinMetricIDClientWriteError:           true,
-	}
-
-	builtinMetricsNoSamplingAgent = map[int32]bool{
-		BuiltinMetricIDAgentMapping:            true,
-		BuiltinMetricIDJournalVersions:         true,
-		BuiltinMetricIDAgentReceivedPacketSize: true,
-		BuiltinMetricIDAgentReceivedBatchSize:  true,
-		BuiltinMetricIDHeartbeatVersion:        true,
-		BuiltinMetricIDHeartbeatArgs:           true,
-		BuiltinMetricIDAgentDiskCacheErrors:    true,
-		BuiltinMetricIDTimingErrors:            true,
-		BuiltinMetricIDUsageMemory:             true,
-		BuiltinMetricIDUsageCPU:                true,
-
-		BuiltinMetricIDCPUUsage:        true,
-		BuiltinMetricIDMemUsage:        true,
-		BuiltinMetricIDProcessCreated:  true,
-		BuiltinMetricIDProcessRunning:  true,
-		BuiltinMetricIDSystemUptime:    true,
-		BuiltinMetricIDPSICPU:          true,
-		BuiltinMetricIDPSIMem:          true,
-		BuiltinMetricIDPSIIO:           true,
-		BuiltinMetricIDNetBandwidth:    true,
-		BuiltinMetricIDNetPacket:       true,
-		BuiltinMetricIDNetError:        true,
-		BuiltinMetricIDDiskUsage:       true,
-		BuiltinMetricIDINodeUsage:      true,
-		BuiltinMetricIDTCPSocketStatus: true,
-		BuiltinMetricIDTCPSocketMemory: true,
-		BuiltinMetricIDSocketMemory:    true,
-		BuiltinMetricIDSocketUsed:      true,
-		BuiltinMetricIDSoftIRQ:         true,
-		BuiltinMetricIDIRQ:             true,
-		BuiltinMetricIDContextSwitch:   true,
-		BuiltinMetricIDWriteback:       true,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
@@ -433,7 +346,7 @@ func init() {
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}
 		BuiltinMetrics[k] = v
-		builtinMetricsAllowedToReceive[k] = true
+		v.BuiltinAllowedToReceive = true
 		metricsWithoutAggregatorID[k] = true
 	}
 	for i := 0; i < NewMaxTags; i++ {
@@ -454,7 +367,6 @@ func init() {
 	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + HostTagID      // for UI only
 
 	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
-	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
 	for id, m := range BuiltinMetrics {
 		m.MetricID = id
 		if m.GroupID == 0 {
@@ -467,9 +379,6 @@ func init() {
 
 		BuiltinMetricByName[m.Name] = m
 
-		if builtinMetricsAllowedToReceive[m.MetricID] {
-			BuiltinMetricAllowedToReceive[m.Name] = m
-		}
 		if id == BuiltinMetricIDIngestionStatus || id == BuiltinMetricIDAggMappingCreated {
 			m.Tags = append([]MetricMetaTag{{Description: "environment"}}, m.Tags...)
 		} else {
