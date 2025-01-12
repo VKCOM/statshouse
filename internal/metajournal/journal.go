@@ -301,7 +301,9 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 
 	if len(newJournal) > 0 {
 		lastEntry := newJournal[len(newJournal)-1]
-		log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'", oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
+		// TODO - remove this printf in tests
+		log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'",
+			oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
 		if aggLog != nil {
 			aggLog("journal_update", "", "ok",
 				strconv.FormatInt(oldVersion, 10),
