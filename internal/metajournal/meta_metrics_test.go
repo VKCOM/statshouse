@@ -379,10 +379,11 @@ func TestMetricsStorage(t *testing.T) {
 	// actually 1 test, but grouped by small test case (need to run together)
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
-		metric := format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
+		metric := *format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
 		metric.MetricID = metricID
 		metric.Name = "test_metric"
 		metric.GroupID = 0
+		metric.BuiltinAllowedToReceive = false // this field is not restored by RestoreCachedInfo
 		_ = metric.RestoreCachedInfo()
 		metricBytes, err := metric.MarshalBinary()
 		require.NoError(t, err)
@@ -423,8 +424,8 @@ func TestMetricsStorage(t *testing.T) {
 
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
-			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[metric.Name])
+			require.Equal(t, metric, *m.metricsByID[metric.MetricID])
+			require.Equal(t, metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("edit metric", func(t *testing.T) {
@@ -452,8 +453,8 @@ func TestMetricsStorage(t *testing.T) {
 
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
-			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[metric.Name])
+			require.Equal(t, metric, *m.metricsByID[metric.MetricID])
+			require.Equal(t, metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("rename metric", func(t *testing.T) {
@@ -482,8 +483,8 @@ func TestMetricsStorage(t *testing.T) {
 
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
-			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[metric.Name])
+			require.Equal(t, metric, *m.metricsByID[metric.MetricID])
+			require.Equal(t, metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("create dashboard", func(t *testing.T) {
@@ -669,7 +670,7 @@ func TestMetricsStorage(t *testing.T) {
 		})
 		t.Run("metric created (check new metric in group)", func(t *testing.T) {
 			var id int32 = 65463
-			metricCopy := *metric
+			metricCopy := metric
 			metricCopy.Version = incVersion()
 			metricCopy.MetricID = id
 			metricCopy.Name = group1.Name + "_metric5"
