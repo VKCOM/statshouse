@@ -692,16 +692,7 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 
 // value should be not NaN.
 func (s *Agent) AddValueCounter(key *data_model.Key, value float64, counter float64, metricInfo *format.MetricMetaValue) {
-	if counter <= 0 {
-		return
-	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
-	if err != nil {
-		return
-	}
-	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, keyHash, value, counter, 0, metricInfo)
+	s.AddValueCounterHost(key, value, counter, 0, metricInfo)
 }
 
 func (s *Agent) AddValueArrayCounterHostStringBytes(key *data_model.Key, values []float64, mult float64, hostTagId int32, str []byte, metricInfo *format.MetricMetaValue) {
