@@ -416,15 +416,15 @@ func (p *proxyConn) run() {
 		if firstReq.tip == rpcInvokeReqHeaderTLTag {
 			break
 		}
-		log.Printf("Client skip #%d looking for invoke request, addr %v\n", firstReq.tip, p.clientConn.RemoteAddr())
+		p.rareLog("Client skip #%d looking for invoke request, addr %v\n", firstReq.tip, p.clientConn.RemoteAddr())
 	}
 	shardReplica := firstReq.shardReplica(p)
 	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
-	log.Printf("Connect shard replica %d, addr %s < %s\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
+	p.rareLog("Connect shard replica %d, addr %s < %s\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
 	// connect upstream
 	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
-		log.Printf("error connect upstream addr %s < %s: %v\n", upstreamAddr, p.clientConn.RemoteAddr(), err)
+		p.rareLog("error connect upstream addr %s < %s: %v\n", upstreamAddr, p.clientConn.RemoteAddr(), err)
 		_ = firstReq.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
@@ -469,7 +469,7 @@ func (p *proxyConn) run() {
 		// no timeout for connection graceful shutdown (has server level shutdown timeout)
 		ctx = context.Background()
 	}
-	log.Printf("Disconnect shard replica %d, addr %v < %v, graceful %t, request %s, response %s\n", shardReplica, upstreamAddr, p.clientConn.RemoteAddr(), gracefulShutdown, reqLoopRes.String(), respLoopRes.String())
+	p.rareLog("Disconnect shard replica %d, addr %v < %v, graceful %t, request %s, response %s\n", shardReplica, upstreamAddr, p.clientConn.RemoteAddr(), gracefulShutdown, reqLoopRes.String(), respLoopRes.String())
 }
 
 func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResult) {
@@ -573,7 +573,7 @@ func (p *proxyConn) logClientError(tag string, err error, lastPackets rpc.Packet
 	if p.clientConn != nil {
 		addr = p.clientConn.RemoteAddr()
 	}
-	log.Printf("error %s, client addr %s, version %d, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, p.clientCryptoKeyID, err, lastPackets.String())
+	p.rareLog("error %s, client addr %s, version %d, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, p.clientCryptoKeyID, err, lastPackets.String())
 }
 
 func (p *proxyConn) logUpstreamError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
@@ -584,7 +584,7 @@ func (p *proxyConn) logUpstreamError(tag string, err error, lastPackets rpc.Pack
 	if p.upstreamConn != nil {
 		addr = p.upstreamConn.RemoteAddr()
 	}
-	log.Printf("error %s, upstream addr %s: %v, %s\n", tag, addr, err, lastPackets.String())
+	p.rareLog("error %s, upstream addr %s: %v, %s\n", tag, addr, err, lastPackets.String())
 }
 
 func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
