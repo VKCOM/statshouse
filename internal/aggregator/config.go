@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	ShardAgentHash      = 0
-	ShardAggregatorHash = 1 // calc hash on aggregator
-	ShardMetric         = 2 // use metricId for sharding
+	ShardAgentHash        = 0
+	ShardAggregatorHash   = 1 // calc hash on aggregator
+	ShardAggregatorXXHash = 2 // calc xxhash that works with strings
 )
 
 type ConfigAggregatorRemote struct {

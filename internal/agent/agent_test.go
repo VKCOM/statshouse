@@ -30,6 +30,34 @@ func Benchmark_Hash(b *testing.B) {
 	}
 }
 
+// cpu: Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz
+// Benchmark_Hash-8        549749572               46.11 ns/op            0 B/op          0 allocs/op
+// Benchmark_XXHash-8      178040929              114.8 ns/op            80 B/op          1 allocs/op
+func Benchmark_XXHash(b *testing.B) {
+	var k data_model.Key
+	var result uint64
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
+		result += k.XXHash()
+	}
+}
+
+func Benchmark_Marshal(b *testing.B) {
+	var k data_model.Key
+	var result int
+	var buf []byte
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		k.Tags[14]++
+		k.Tags[0] = int32(i)
+		var kb []byte
+		buf, kb = k.Marshal(buf[:0])
+		result += len(kb)
+	}
+}
+
 func Test_BelieveTimestampWindow(t *testing.T) {
 	// we shift rounded time by this amount in func (s *Shard) resolutionShardFromHashLocked,
 	// so it must be multiple of 60.
