@@ -71,7 +71,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
       ),
     [groups, orderGroup, orderPlot]
   );
-  const isView = location.pathname.indexOf('@/view') > -1;
+  const isView = location.pathname.indexOf('view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
   const isDash = tabNum === '-1' || tabNum === '-2';
   const onSetTheme = useCallback((event: React.MouseEvent) => {
