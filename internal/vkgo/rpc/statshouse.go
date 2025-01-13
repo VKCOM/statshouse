@@ -13,6 +13,7 @@ import (
 )
 
 var errZeroRead = fmt.Errorf("read returned zero bytes without an error")
+var errNonZeroPadding = fmt.Errorf("non-zero padding")
 
 type ReadWriteError struct {
 	ReadErr  error
@@ -163,7 +164,7 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader) (res ReadWriteErr
 		return res
 	}
 	// write body
-	if res = copyBodyCheckedSkipCryptoPadding(dst, src, header); res.Error() != nil {
+	if res = forwardPacketBody(dst, src, header); res.Error() != nil {
 		return res
 	}
 	if 0 < legacyWriteAlignTo4 && legacyWriteAlignTo4 < 4 {
@@ -178,7 +179,7 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader) (res ReadWriteErr
 	return res
 }
 
-func copyBodyCheckedSkipCryptoPadding(dst, src *PacketConn, header *packetHeader) (res ReadWriteError) {
+func forwardPacketBody(dst, src *PacketConn, header *packetHeader) (res ReadWriteError) {
 	src.readMu.Lock()
 	defer src.readMu.Unlock()
 	// copy body
@@ -202,9 +203,18 @@ func copyBodyCheckedSkipCryptoPadding(dst, src *PacketConn, header *packetHeader
 		}
 		return res
 	}
-	// skip crypto padding
-	if src.w.isEncrypted() {
-		res.ReadErr = src.r.discard(int(-header.length & 3))
+	// skip padding
+	if n := int(-header.length & 3); n != 0 {
+		if _, err := io.ReadFull(src.r, src.headerReadBuf[:n]); err != nil {
+			res.ReadErr = err
+			return res
+		}
+		for i := 0; i < n; i++ {
+			if src.headerReadBuf[i] != 0 {
+				res.ReadErr = errNonZeroPadding
+				return res
+			}
+		}
 	}
 	return res
 }
@@ -329,65 +339,4 @@ func cryptoCopy(dst *cryptoWriter, src *cryptoReader, n int, readCRC uint32, tab
 			return readCRC, res
 		}
 	}
-}
-
-func (src *cryptoReader) discard(n int) error {
-	if n == 0 {
-		return nil
-	}
-	// discard decrypted
-	if m := src.end - src.begin; m > 0 {
-		if m > n {
-			m = n
-		}
-		src.begin += m
-		n -= m
-		if n == 0 {
-			return nil
-		}
-	}
-	// discard encrypted
-	buf := src.buf[:cap(src.buf)]
-	m := len(src.buf) - src.end
-	src.begin, src.end = 0, 0
-	if m > 0 {
-		if m > n {
-			m = n
-		}
-		src.buf = buf[:copy(buf, src.buf[src.end+m:])]
-		n -= m
-		if n == 0 {
-			return nil
-		}
-	}
-	// read and discard
-	var err error
-	for {
-		var read int
-		if read, err = src.r.Read(buf); read < n {
-			if err != nil {
-				buf = buf[:read]
-				break // read error
-			}
-			if read <= 0 {
-				buf = buf[:0]
-				err = errZeroRead
-				break // infinite loop
-			}
-			n -= read
-		} else {
-			buf = buf[:copy(buf, buf[n:read])]
-			break // success
-		}
-	}
-	// restore invariant by decrypting the read buffer
-	src.buf = buf
-	if src.enc != nil {
-		decrypt := roundDownPow2(len(buf), src.blockSize)
-		src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-		src.end = decrypt
-	} else {
-		src.end = len(buf)
-	}
-	return err
 }
