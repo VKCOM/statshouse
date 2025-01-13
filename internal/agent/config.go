@@ -35,6 +35,7 @@ type Config struct {
 	KeepAliveSuccessTimeout          time.Duration // LivenessResponsesWindowLength subsequent keepalives must takes < this
 
 	SaveSecondsImmediately bool // If false, will only go to disk if first send fails
+	SendMoreBytes          int
 	StatsHouseEnv          string
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
@@ -66,6 +67,7 @@ func DefaultConfig() Config {
 		LivenessResponsesWindowSuccesses: 3,
 		KeepAliveSuccessTimeout:          time.Second * 5, // aggregator puts keep-alive requests in a bucket most soon to be inserted, so this is larger than strictly required
 		SaveSecondsImmediately:           false,
+		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
 		BuiltinNewSharding:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
 		RemoteWriteEnabled:               false,
@@ -92,6 +94,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	f.DurationVar(&c.KeepAliveSuccessTimeout, "keep-alive-timeout", d.KeepAliveSuccessTimeout, "For liveness checks. Successful keepalive must take less.")
 
 	f.BoolVar(&c.SaveSecondsImmediately, "save-seconds-immediately", d.SaveSecondsImmediately, "Save data to disk as soon as second is ready. When false, data is saved after first unsuccessful send.")
+	f.IntVar(&c.SendMoreBytes, "send-more-bytes", d.SendMoreBytes, "To test network without changing budgets.")
 	f.StringVar(&c.StatsHouseEnv, "statshouse-env", d.StatsHouseEnv, "Fill key0 with this value in built-in statistics. 'production', 'staging1', 'staging2', 'staging3' values are allowed.")
 
 	f.BoolVar(&c.RemoteWriteEnabled, "remote-write-enabled", d.RemoteWriteEnabled, "Serve prometheus remote write endpoint (deprecated).")

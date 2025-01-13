@@ -65,6 +65,8 @@ const (
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors
 	// Also helps when # of contributors is very small
 
+	MaxSendMoreData = 10 * 1024 * 1024 // some limit
+
 	AgentAggregatorDelay = 5  // Typical max
 	InsertDelay          = 10 // Typical max
 

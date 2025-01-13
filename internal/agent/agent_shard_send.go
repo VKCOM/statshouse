@@ -410,7 +410,7 @@ func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors [
 	return compressed, nil
 }
 
-func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) bool {
+func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, sendMoreBytes int) bool {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	if cbd.time+data_model.MaxShortWindow+data_model.FutureWindow < nowUnix { // Not bother sending, will receive error anyway
@@ -433,7 +433,7 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) 
 
 	if cbd.version == 3 {
 		var respV3 tlstatshouse.SendSourceBucket3Response
-		err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, false, spare, &respV3)
+		err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV3)
 		if !spare {
 			shardReplica.recordSendResult(!isShardDeadError(err))
 		}
@@ -455,7 +455,7 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) 
 		return true
 	}
 	var respV2 string
-	err := shardReplica.sendSourceBucket2Compressed(ctx, cbd, false, spare, &respV2)
+	err := shardReplica.sendSourceBucket2Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV2)
 	if !spare {
 		shardReplica.recordSendResult(!isShardDeadError(err))
 	}
@@ -483,12 +483,13 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 		start := time.Now()
 		s.mu.Lock()
 		saveSecondsImmediately := s.config.SaveSecondsImmediately
+		sendMoreBytes := s.config.SendMoreBytes
 		s.mu.Unlock()
 		if saveSecondsImmediately {
 			cbd = s.diskCachePutWithLog(cbd) // save before sending. assigns id
 		}
 		// log.Printf("goSendRecent.sendRecent %d start", num)
-		if s.sendRecent(cancelCtx, cbd) {
+		if s.sendRecent(cancelCtx, cbd, sendMoreBytes) {
 			s.diskCacheEraseWithLog(cbd.id, "after sending")
 		} else {
 			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
@@ -543,7 +544,7 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		// But we set FailIfNoConnection to switch to fallback immediately
 		if cbd.version == 3 {
 			var respV3 tlstatshouse.SendSourceBucket3Response
-			err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, true, spare, &respV3)
+			err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, 0, true, spare, &respV3)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
@@ -573,7 +574,7 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 			break
 		}
 		var resp string
-		err := shardReplica.sendSourceBucket2Compressed(cancelCtx, cbd, true, spare, &resp)
+		err := shardReplica.sendSourceBucket2Compressed(cancelCtx, cbd, 0, true, spare, &resp)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return

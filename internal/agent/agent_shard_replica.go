@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,7 +62,7 @@ func (s *ShardReplica) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
 }
 
-func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *string) error {
+func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, sendMoreBytes int, historic bool, spare bool, ret *string) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	originalSize := binary.LittleEndian.Uint32(cbd.data)
 	data := cbd.data[4:]
@@ -77,14 +78,47 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 	args.SetSpare(spare)
 
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
-		if err := s.client.SendSourceBucket2(ctx, args, &extra, ret); err != nil {
-			return err
+		//if err := s.client.SendSourceBucket2(ctx, args, &extra, ret); err != nil {
+		//	return err
+		//}
+		c := s.client
+		var err error
+		// copy SendSourceBucket2 method to add more bytes
+		req := c.Client.GetRequest()
+		req.ActorID = c.ActorID
+		req.FunctionName = "statshouse.sendSourceBucket2"
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+		rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+		req.Body, err = args.WriteBoxedGeneral(req.Body)
+		if err != nil {
+			return fmt.Errorf("failed to serialize statshouse.sendSourceBucket2 request: %w", err)
 		}
+		if sendMoreBytes > 0 {
+			if sendMoreBytes > data_model.MaxSendMoreData {
+				sendMoreBytes = data_model.MaxSendMoreData
+			}
+			req.Body = append(req.Body, make([]byte, sendMoreBytes)...)
+		}
+		resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+		if resp != nil {
+			extra.ResponseExtra = resp.Extra
+		}
+		defer c.Client.PutResponse(resp)
+		if err != nil {
+			return fmt.Errorf("statshouse.sendSourceBucket request to %s://%d@%s failed: %w", c.Network, c.ActorID, c.Address, err)
+		}
+		if ret != nil {
+			if _, err = args.ReadResult(resp.Body, ret); err != nil {
+				return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket2 response from %s://%d@%s: %w", c.Network, c.ActorID, c.Address, err)
+			}
+		}
+		return nil
 	}
 	return nil
 }
 
-func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3Response) error {
+func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, sendMoreBytes int, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3Response) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	originalSize := binary.LittleEndian.Uint32(cbd.data)
 	data := cbd.data[4:]
@@ -94,6 +128,12 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 		BuildCommitTs:  build.CommitTimestamp(),
 		OriginalSize:   originalSize,
 		CompressedData: string(data), // unsafe.String(unsafe.SliceData(data), len(data)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
+	}
+	if sendMoreBytes > 0 {
+		if sendMoreBytes > data_model.MaxSendMoreData {
+			sendMoreBytes = data_model.MaxSendMoreData
+		}
+		args.SendMoreData = string(make([]byte, sendMoreBytes))
 	}
 	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
