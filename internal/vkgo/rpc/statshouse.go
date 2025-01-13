@@ -43,7 +43,11 @@ type PacketHeaderCircularBuffer struct {
 }
 
 func (p packetHeader) String() string {
-	return fmt.Sprintf(`{"len":%d,"seq":%d,"tip":0x%08X}`, p.length, p.seqNum, p.tip)
+	return fmt.Sprintf(`{"len":%d,"seq":%d,"tip":"0x%08X"}`, p.length, p.seqNum, p.tip)
+}
+
+func (res ForwardPacketsResult) String() string {
+	return fmt.Sprintf(`{"read":%d,"write":%d,"clientFin":%t,"serverFin":%t}`, res.ReadErr, res.WriteErr, res.ClientWantsFin, res.ServerWantsFin)
 }
 
 func (b *PacketHeaderCircularBuffer) add(p packetHeader) {

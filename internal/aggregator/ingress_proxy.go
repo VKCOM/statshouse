@@ -355,11 +355,11 @@ func (p *proxyServer) serve(listener net.Listener) {
 			go p.newProxyConn(clientConn).run()
 			continue
 		}
+		log.Printf("accept error: %v", err)
 		if p.ctx.Err() != nil {
 			return
 		}
 		// report accept error then backoff
-		log.Printf("accept error: %v", err)
 		if acceptDelay == 0 {
 			acceptDelay = minAcceptDelay
 		} else {
@@ -400,7 +400,7 @@ func (p *proxyConn) run() {
 	p.clientCryptoKeyID = int32(binary.BigEndian.Uint32(cryptoKeyID[:4]))
 	p.clientProtocolVersion = int32(p.clientConn.ProtocolVersion())
 	if err != nil {
-		p.logClientError("handshake", err, rpc.PacketHeaderCircularBuffer{})
+		p.rareLog("error handshake client addr %s, version %d, key 0x%X: %v\n", p.clientConn.RemoteAddr(), p.clientProtocolVersion, p.clientCryptoKeyID, err)
 		return
 	}
 	// read first request to get shardReplica
@@ -420,12 +420,11 @@ func (p *proxyConn) run() {
 	}
 	shardReplica := firstReq.shardReplica(p)
 	upstreamAddr := p.agent.GetConfigResult.Addresses[shardReplica]
-	p.rareLog("Connect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
-	defer p.rareLog("Disconnect shard replica %d, addr %v < %v\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
+	log.Printf("Connect shard replica %d, addr %s < %s\n", shardReplica, p.clientConn.LocalAddr(), p.clientConn.RemoteAddr())
 	// connect upstream
 	upstreamConn, err := net.DialTimeout("tcp", upstreamAddr, rpc.DefaultPacketTimeout)
 	if err != nil {
-		log.Printf("error connect, upstream addr %s: %v\n", upstreamAddr, err)
+		log.Printf("error connect upstream addr %s < %s: %v\n", upstreamAddr, p.clientConn.RemoteAddr(), err)
 		_ = firstReq.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
@@ -444,31 +443,33 @@ func (p *proxyConn) run() {
 	}
 	// serve
 	var ctx = p.ctx
+	var reqLoopRes rpc.ForwardPacketsResult
+	var respLoopRes rpc.ForwardPacketsResult
 	gracefulShutdown := firstReqRes.ClientWantsFin
 	for { // two iterations at most, the latter is graceful shutdown
 		var respLoop sync.WaitGroup
-		var respLoopRes rpc.ForwardPacketsResult
 		respLoop.Add(1)
 		go func() {
 			defer respLoop.Done()
 			respLoopRes = p.responseLoop(ctx)
 		}()
-		reqLoopRes := p.requestLoop(ctx)
+		reqLoopRes = p.requestLoop(ctx)
 		respLoop.Wait()
 		if !gracefulShutdown {
 			gracefulShutdown = reqLoopRes.ClientWantsFin || respLoopRes.ServerWantsFin
 		}
 		if gracefulShutdown || reqLoopRes.Error() != nil || respLoopRes.Error() != nil {
-			return // either graceful shutdown already attempted or error occurred
+			break // either graceful shutdown already attempted or error occurred
 		}
 		gracefulShutdown = true
 		if err = p.clientConn.WritePacket(rpcServerWantsFinTLTag, nil, rpc.DefaultPacketTimeout); err != nil {
 			p.logClientError("write fin", err, rpc.PacketHeaderCircularBuffer{})
-			return
+			break
 		}
 		// no timeout for connection graceful shutdown (has server level shutdown timeout)
 		ctx = context.Background()
 	}
+	log.Printf("Disconnect shard replica %d, addr %v < %v, graceful %t, request %s, response %s\n", shardReplica, upstreamAddr, p.clientConn.RemoteAddr(), gracefulShutdown, reqLoopRes.String(), respLoopRes.String())
 }
 
 func (p *proxyConn) requestLoop(ctx context.Context) (res rpc.ForwardPacketsResult) {
@@ -524,8 +525,7 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			p.logClientError("parse", err, rpc.PacketHeaderCircularBuffer{})
 			return proxyRequest{}, err
 		}
-		requestTag := req.RequestTag()
-		switch requestTag {
+		switch req.RequestTag() {
 		case constants.StatshouseGetConfig2,
 			constants.StatshouseGetTagMapping2,
 			constants.StatshouseSendKeepAlive2,
