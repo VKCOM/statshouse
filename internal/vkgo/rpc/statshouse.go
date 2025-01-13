@@ -47,7 +47,7 @@ func (p packetHeader) String() string {
 }
 
 func (res ForwardPacketsResult) String() string {
-	return fmt.Sprintf(`{"read":%d,"write":%d,"clientFin":%t,"serverFin":%t}`, res.ReadErr, res.WriteErr, res.ClientWantsFin, res.ServerWantsFin)
+	return fmt.Sprintf(`{"read":%v,"write":%v,"clientFin":%t,"serverFin":%t}`, res.ReadErr, res.WriteErr, res.ClientWantsFin, res.ServerWantsFin)
 }
 
 func (b *PacketHeaderCircularBuffer) add(p packetHeader) {
