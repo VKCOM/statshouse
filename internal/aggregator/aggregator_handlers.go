@@ -429,8 +429,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		switch a.configR.Shard {
 		case ShardAggregatorHash:
 			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
-		case ShardMetric:
-			sID = int(uint32(k.Metric) % data_model.AggregationShardsPerSecond)
+		case ShardAggregatorXXHash:
+			sID = int(k.XXHash() % data_model.AggregationShardsPerSecond)
 		}
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil)

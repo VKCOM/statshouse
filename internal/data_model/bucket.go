@@ -13,6 +13,7 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/dchest/siphash"
 	"github.com/hrissan/tdigest"
 
@@ -172,6 +173,15 @@ func (k *Key) Hash() uint64 {
 	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Tags[15]))
 	const _ = uint(16 - format.MaxTags) // compile time assert to manually add new keys above
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
+}
+
+func (k *Key) XXHash() uint64 {
+	// this allocates, but allocation is faster them reserving huge chunk for byte array
+	var b []byte
+	b, _ = k.Marshal(b)
+	digest := xxhash.New()
+	digest.Write(b[4:]) // skip timestamp in first 4 bytes
+	return digest.Sum64()
 }
 
 func SimpleItemValue(value float64, count float64, hostTagId int32) ItemValue {
