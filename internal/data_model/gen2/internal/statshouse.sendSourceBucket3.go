@@ -23,7 +23,7 @@ type StatshouseSendSourceBucket3 struct {
 	BuildCommitTs  uint32
 	OriginalSize   uint32
 	CompressedData string
-	SendMoreData   string
+	SendMoreBytes  string
 }
 
 func (StatshouseSendSourceBucket3) TLName() string { return "statshouse.sendSourceBucket3" }
@@ -55,7 +55,7 @@ func (item *StatshouseSendSourceBucket3) Reset() {
 	item.BuildCommitTs = 0
 	item.OriginalSize = 0
 	item.CompressedData = ""
-	item.SendMoreData = ""
+	item.SendMoreBytes = ""
 }
 
 func (item *StatshouseSendSourceBucket3) Read(w []byte) (_ []byte, err error) {
@@ -80,7 +80,7 @@ func (item *StatshouseSendSourceBucket3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.CompressedData); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.SendMoreData)
+	return basictl.StringRead(w, &item.SendMoreBytes)
 }
 
 // This method is general version of Write, use it instead!
@@ -96,7 +96,7 @@ func (item *StatshouseSendSourceBucket3) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWrite(w, item.CompressedData)
-	w = basictl.StringWrite(w, item.SendMoreData)
+	w = basictl.StringWrite(w, item.SendMoreBytes)
 	return w
 }
 
@@ -186,7 +186,7 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 	var propBuildCommitTsPresented bool
 	var propOriginalSizePresented bool
 	var propCompressedDataPresented bool
-	var propSendMoreDataPresented bool
+	var propSendMoreBytesPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -269,14 +269,14 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 					return err
 				}
 				propCompressedDataPresented = true
-			case "send_more_data":
-				if propSendMoreDataPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "send_more_data")
+			case "send_more_bytes":
+				if propSendMoreBytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "send_more_bytes")
 				}
-				if err := Json2ReadString(in, &item.SendMoreData); err != nil {
+				if err := Json2ReadString(in, &item.SendMoreBytes); err != nil {
 					return err
 				}
-				propSendMoreDataPresented = true
+				propSendMoreBytesPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket3", key)
 			}
@@ -305,8 +305,8 @@ func (item *StatshouseSendSourceBucket3) ReadJSON(legacyTypeNames bool, in *basi
 	if !propCompressedDataPresented {
 		item.CompressedData = ""
 	}
-	if !propSendMoreDataPresented {
-		item.SendMoreData = ""
+	if !propSendMoreBytesPresented {
+		item.SendMoreBytes = ""
 	}
 	if trueTypeHistoricPresented {
 		if trueTypeHistoricValue {
@@ -401,12 +401,12 @@ func (item *StatshouseSendSourceBucket3) WriteJSONOpt(newTypeNames bool, short b
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
 	}
-	backupIndexSendMoreData := len(w)
+	backupIndexSendMoreBytes := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"send_more_data":`...)
-	w = basictl.JSONWriteString(w, item.SendMoreData)
-	if (len(item.SendMoreData) != 0) == false {
-		w = w[:backupIndexSendMoreData]
+	w = append(w, `"send_more_bytes":`...)
+	w = basictl.JSONWriteString(w, item.SendMoreBytes)
+	if (len(item.SendMoreBytes) != 0) == false {
+		w = w[:backupIndexSendMoreBytes]
 	}
 	return append(w, '}')
 }
@@ -432,7 +432,7 @@ type StatshouseSendSourceBucket3Bytes struct {
 	BuildCommitTs  uint32
 	OriginalSize   uint32
 	CompressedData []byte
-	SendMoreData   []byte
+	SendMoreBytes  []byte
 }
 
 func (StatshouseSendSourceBucket3Bytes) TLName() string { return "statshouse.sendSourceBucket3" }
@@ -464,7 +464,7 @@ func (item *StatshouseSendSourceBucket3Bytes) Reset() {
 	item.BuildCommitTs = 0
 	item.OriginalSize = 0
 	item.CompressedData = item.CompressedData[:0]
-	item.SendMoreData = item.SendMoreData[:0]
+	item.SendMoreBytes = item.SendMoreBytes[:0]
 }
 
 func (item *StatshouseSendSourceBucket3Bytes) Read(w []byte) (_ []byte, err error) {
@@ -489,7 +489,7 @@ func (item *StatshouseSendSourceBucket3Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.StringReadBytes(w, &item.CompressedData); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.SendMoreData)
+	return basictl.StringReadBytes(w, &item.SendMoreBytes)
 }
 
 // This method is general version of Write, use it instead!
@@ -505,7 +505,7 @@ func (item *StatshouseSendSourceBucket3Bytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
 	w = basictl.StringWriteBytes(w, item.CompressedData)
-	w = basictl.StringWriteBytes(w, item.SendMoreData)
+	w = basictl.StringWriteBytes(w, item.SendMoreBytes)
 	return w
 }
 
@@ -595,7 +595,7 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 	var propBuildCommitTsPresented bool
 	var propOriginalSizePresented bool
 	var propCompressedDataPresented bool
-	var propSendMoreDataPresented bool
+	var propSendMoreBytesPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -678,14 +678,14 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 					return err
 				}
 				propCompressedDataPresented = true
-			case "send_more_data":
-				if propSendMoreDataPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "send_more_data")
+			case "send_more_bytes":
+				if propSendMoreBytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "send_more_bytes")
 				}
-				if err := Json2ReadStringBytes(in, &item.SendMoreData); err != nil {
+				if err := Json2ReadStringBytes(in, &item.SendMoreBytes); err != nil {
 					return err
 				}
-				propSendMoreDataPresented = true
+				propSendMoreBytesPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket3", key)
 			}
@@ -714,8 +714,8 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in 
 	if !propCompressedDataPresented {
 		item.CompressedData = item.CompressedData[:0]
 	}
-	if !propSendMoreDataPresented {
-		item.SendMoreData = item.SendMoreData[:0]
+	if !propSendMoreBytesPresented {
+		item.SendMoreBytes = item.SendMoreBytes[:0]
 	}
 	if trueTypeHistoricPresented {
 		if trueTypeHistoricValue {
@@ -810,12 +810,12 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteJSONOpt(newTypeNames bool, sh
 	if (len(item.CompressedData) != 0) == false {
 		w = w[:backupIndexCompressedData]
 	}
-	backupIndexSendMoreData := len(w)
+	backupIndexSendMoreBytes := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"send_more_data":`...)
-	w = basictl.JSONWriteStringBytes(w, item.SendMoreData)
-	if (len(item.SendMoreData) != 0) == false {
-		w = w[:backupIndexSendMoreData]
+	w = append(w, `"send_more_bytes":`...)
+	w = basictl.JSONWriteStringBytes(w, item.SendMoreBytes)
+	if (len(item.SendMoreBytes) != 0) == false {
+		w = w[:backupIndexSendMoreBytes]
 	}
 	return append(w, '}')
 }

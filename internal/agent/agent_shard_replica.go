@@ -133,7 +133,7 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 		if sendMoreBytes > data_model.MaxSendMoreData {
 			sendMoreBytes = data_model.MaxSendMoreData
 		}
-		args.SendMoreData = string(make([]byte, sendMoreBytes))
+		args.SendMoreBytes = string(make([]byte, sendMoreBytes))
 	}
 	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
