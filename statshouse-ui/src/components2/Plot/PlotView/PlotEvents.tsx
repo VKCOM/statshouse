@@ -48,14 +48,17 @@ const mouseOverRowRenderer = (
 
 export function PlotEvents({ plotKey, className, onCursor, cursor }: PlotEventsProps) {
   const { plot, plotEventsData, setParams, timeRangeFromAbs, loadPlotEvents, clearPlotEvents } = useStatsHouseShallow(
-    ({ params: { plots, timeRange }, setParams, plotsEventsData, loadPlotEvents, clearPlotEvents }) => ({
-      plot: plots[plotKey],
-      plotEventsData: plotsEventsData[plotKey],
-      timeRangeFromAbs: timeRange.to + timeRange.from,
-      setParams,
-      loadPlotEvents,
-      clearPlotEvents,
-    })
+    useCallback(
+      ({ params: { plots, timeRange }, setParams, plotsEventsData, loadPlotEvents, clearPlotEvents }) => ({
+        plot: plots[plotKey],
+        plotEventsData: plotsEventsData[plotKey],
+        timeRangeFromAbs: timeRange.to + timeRange.from,
+        setParams,
+        loadPlotEvents,
+        clearPlotEvents,
+      }),
+      [plotKey]
+    )
   );
   // const selectorEvent = useMemo(() => selectorEventsByIndex.bind(undefined, indexPlot), [indexPlot]);
   // const event = useStore(selectorEvent);

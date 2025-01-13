@@ -1,5 +1,5 @@
 import { createStore } from '../createStore';
-import { useStore } from '../statshouse';
+import { useStore } from '@/store';
 import { debug } from '@/common/debug';
 import { produce } from 'immer';
 import { now } from '@/view/utils2';
@@ -9,7 +9,7 @@ export type LiveModeStore = {
   interval: number;
 };
 
-export const useLiveModeStore = createStore<LiveModeStore>((setState, getState, store) => {
+export const useLiveModeStore = createStore<LiveModeStore>((_setState, _getState, store) => {
   store.subscribe((state, prevState) => {
     if (!state.live || state.interval !== prevState.interval || id != null) {
       clearInterval(id);

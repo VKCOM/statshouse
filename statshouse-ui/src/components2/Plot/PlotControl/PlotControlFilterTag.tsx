@@ -29,16 +29,21 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
   tagKey,
   className,
 }: PlotControlFilterTagProps) {
-  const { filterIn, filterNotIn, groupBy, variables, meta, setParams } = useStatsHouseShallow((s) => ({
-    // metricName: s.params.plots[plotKey]?.metricName ?? '',
-    filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
-    filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
-    groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
-    variables: s.params.variables,
-    // variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
-    meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
-    setParams: s.setParams,
-  }));
+  const { filterIn, filterNotIn, groupBy, variables, meta, setParams } = useStatsHouseShallow(
+    useCallback(
+      (s) => ({
+        // metricName: s.params.plots[plotKey]?.metricName ?? '',
+        filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
+        filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
+        groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
+        variables: s.params.variables,
+        // variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
+        meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
+        setParams: s.setParams,
+      }),
+      [plotKey, tagKey]
+    )
+  );
 
   const variableInfo = useVariableLink(plotKey, tagKey);
   const variable = (variableInfo?.variableKey && variables[variableInfo.variableKey]) || undefined;

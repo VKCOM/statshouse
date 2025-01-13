@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { useStore } from '../statshouse';
-import { encodeParams, getNewPlot, QueryParams } from '../../url/queryParams';
-import { deepClone } from '../../common/helpers';
+import { useStore } from '@/store';
+import { encodeParams, getNewPlot, QueryParams } from '@/url/queryParams';
+import { deepClone } from '@/common/helpers';
 import { createStore } from '../createStore';
-import { fixMessageTrouble } from '../../url/fixMessageTrouble';
+import { fixMessageTrouble } from '@/url/fixMessageTrouble';
 
 export type LinkListStore = {
   links: Record<string, string>;
@@ -35,7 +35,7 @@ export const useLinkListStore = createStore<LinkListStore>((setState) => {
 export function getLinks(params: QueryParams, defaultParams: QueryParams): Record<string, string> {
   return {
     ...Object.fromEntries(
-      params.plots.map((plot, indexPlot) => [indexPlot.toString(), getLinkById(indexPlot, params, defaultParams)])
+      params.plots.map((_plot, indexPlot) => [indexPlot.toString(), getLinkById(indexPlot, params, defaultParams)])
     ),
     '-1': getLinkById(-1, params, defaultParams),
     '-2': getLinkById(-2, params, defaultParams),

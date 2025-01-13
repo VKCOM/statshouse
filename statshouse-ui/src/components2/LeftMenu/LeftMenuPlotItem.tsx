@@ -51,14 +51,17 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active
   const plotLoader = usePlotLoader(plotKey);
   const plotPreviewUrl = usePlotPreviewStore((s) => s.plotPreviewUrlList[plotKey]);
   const { metricFullName, error403, error, plotType, canRemove, removePlot } = useStatsHouseShallow(
-    ({ params: { plots, orderPlot }, plotsData, removePlot }) => ({
-      metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
-      error403: plotsData[plotKey]?.error403,
-      error: plotsData[plotKey]?.error,
-      plotType: plots[plotKey]?.type,
-      canRemove: orderPlot.length > 1,
-      removePlot,
-    })
+    useCallback(
+      ({ params: { plots, orderPlot }, plotsData, removePlot }) => ({
+        metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
+        error403: plotsData[plotKey]?.error403,
+        error: plotsData[plotKey]?.error,
+        plotType: plots[plotKey]?.type,
+        canRemove: orderPlot.length > 1,
+        removePlot,
+      }),
+      [plotKey]
+    )
   );
 
   const onRemove = useCallback(

@@ -1,12 +1,12 @@
-import { useStatsHouseShallow } from '@/store2';
+import { useStatsHouse } from '@/store2';
 import { useMemo } from 'react';
 import type { PlotKey } from '@/url2';
 import { PlotVariablesLink } from '@/store2/plotsInfoStore';
-import { TagKey } from '../api/enum';
+import { TagKey } from '@/api/enum';
 
 export function useVariableLink(plotKey: PlotKey, tagKey: TagKey) {
   // todo: optimize multi use;
-  const { variables } = useStatsHouseShallow(({ params: { variables } }) => ({ variables }));
+  const variables = useStatsHouse(({ params: { variables } }) => variables);
   return useMemo(() => {
     const plotVariablesLink: Partial<Record<PlotKey, PlotVariablesLink>> = {};
     Object.values(variables).forEach((variable) => {

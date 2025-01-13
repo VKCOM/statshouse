@@ -10,7 +10,6 @@ import {
   urlDecodeVariableSource,
 } from './urlDecode';
 import { GET_PARAMS, TIME_RANGE_KEYS_TO } from '@/api/enum';
-import { THEMES } from '@/store/theme';
 import { QueryParams, VariableParams, VariableParamsSource } from './queryParams';
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { orderGroupSplitter, orderVariableSplitter, promQLMetric, removeValueChar } from './constants';
@@ -30,7 +29,7 @@ describe('@/urlStore urlDecode', () => {
       eventFrom: 234,
       live: true,
       tabNum: '-1',
-      theme: THEMES.Light,
+      theme: 'light',
       timeShifts: [24, 48],
     };
     const p = urlDecodeGlobalParam({}, dParams);
@@ -42,7 +41,7 @@ describe('@/urlStore urlDecode', () => {
       eventFrom: 234,
       live: true,
       tabNum: '-1',
-      theme: THEMES.Light,
+      theme: 'light',
       timeShifts: [24, 48],
     });
 
@@ -55,7 +54,7 @@ describe('@/urlStore urlDecode', () => {
         [GET_PARAMS.metricEventFrom]: ['432'],
         [GET_PARAMS.metricLive]: ['0'],
         [GET_PARAMS.metricTabNum]: ['1'],
-        [GET_PARAMS.theme]: [THEMES.Dark],
+        [GET_PARAMS.theme]: ['dark'],
         [GET_PARAMS.metricTimeShifts]: [removeValueChar],
       }),
       dParams
@@ -68,7 +67,7 @@ describe('@/urlStore urlDecode', () => {
       eventFrom: 432,
       live: false,
       tabNum: '1',
-      theme: THEMES.Dark,
+      theme: 'dark',
       timeShifts: [],
     });
     const p3 = urlDecodeGlobalParam(
@@ -93,7 +92,7 @@ describe('@/urlStore urlDecode', () => {
       eventFrom: 234,
       live: true,
       tabNum: '-1',
-      theme: THEMES.Light,
+      theme: 'light',
       timeShifts: [24, 48],
     });
   });

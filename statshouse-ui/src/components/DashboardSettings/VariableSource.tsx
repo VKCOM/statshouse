@@ -3,12 +3,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import { FilterTag, toTagKey, type VariableParamsSource } from '../../url/queryParams';
+import { FilterTag, toTagKey, type VariableParamsSource } from '@/url/queryParams';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { SelectMetric } from '../SelectMertic';
-import { isTagKey, TAG_KEY, TagKey } from '../../api/enum';
+import { isTagKey, TAG_KEY, TagKey } from '@/api/enum';
 import { Button, ToggleButton } from '../UI';
-import { setUpdatedSource, useStore, useVariableListStore, VariableItem } from '../../store';
+import { setUpdatedSource, useStore, useVariableListStore, VariableItem } from '@/store';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import { VariableControl } from '../VariableControl';
@@ -16,8 +16,8 @@ import cn from 'classnames';
 import { produce } from 'immer';
 import { TagBadges } from './TagBadges';
 import { dequal } from 'dequal/lite';
-import { mergeLeft } from '../../common/helpers';
-import { getTagDescription, isTagEnabled } from '../../view/utils2';
+import { mergeLeft } from '@/common/helpers';
+import { getTagDescription, isTagEnabled } from '@/view/utils2';
 
 export type VariableSourceProps = {
   value?: VariableParamsSource;
@@ -220,7 +220,7 @@ export function VariableSource({ value, indexValue = 0, onChange }: VariableSour
             <SelectMetric value={localMetric} onChange={onChangeMetric} placeholder={placeholder} />
           </div>
           <div>
-            {(meta?.tags || []).map((t, indexTag) => {
+            {(meta?.tags || []).map((_t, indexTag) => {
               const tagKey = toTagKey(indexTag, TAG_KEY._0);
               return !tagKey || !isTagEnabled(meta, tagKey) ? null : (
                 <div key={indexTag} className="form-check">

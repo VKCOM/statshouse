@@ -22,11 +22,14 @@ const defaultBackendVersion = getNewMetric().backendVersion;
 export const PlotControlVersion = memo(function PlotControlVersion({ plotKey }: PlotControlVersionProps) {
   const devMode = useStoreDev((s) => s.enabled);
   const { value, setPlot, isDeveloper } = useStatsHouseShallow(
-    ({ params: { plots }, setPlot, user: { developer } }) => ({
-      value: plots[plotKey]?.backendVersion ?? defaultBackendVersion,
-      isDeveloper: developer,
-      setPlot,
-    })
+    useCallback(
+      ({ params: { plots }, setPlot, user: { developer } }) => ({
+        value: plots[plotKey]?.backendVersion ?? defaultBackendVersion,
+        isDeveloper: developer,
+        setPlot,
+      }),
+      [plotKey]
+    )
   );
   const onChange = useCallback(
     (status: boolean) => {

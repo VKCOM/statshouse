@@ -38,23 +38,26 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
     isDashboard,
     saveDashboard,
   } = useStatsHouseShallow(
-    ({
-      params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId },
-      isEmbed,
-      dashboardLayoutEdit,
-      setDashboardLayoutEdit,
-      saveDashboard,
-    }) => ({
-      tabNum,
-      isEmbed,
-      dashboardName,
-      plotsLength: orderPlot.length,
-      variablesLength: orderVariables.length,
-      dashboardLayoutEdit,
-      setDashboardLayoutEdit,
-      isDashboard: dashboardId != null,
-      saveDashboard,
-    })
+    useCallback(
+      ({
+        params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId },
+        isEmbed,
+        dashboardLayoutEdit,
+        setDashboardLayoutEdit,
+        saveDashboard,
+      }) => ({
+        tabNum,
+        isEmbed,
+        dashboardName,
+        plotsLength: orderPlot.length,
+        variablesLength: orderVariables.length,
+        dashboardLayoutEdit,
+        setDashboardLayoutEdit,
+        isDashboard: dashboardId != null,
+        saveDashboard,
+      }),
+      []
+    )
   );
 
   const onSaveDashboard = useCallback(() => {

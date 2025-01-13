@@ -21,7 +21,7 @@ export function useIntersectionObserver(
       return;
     }
     const upd = (entries: IntersectionObserverEntry[]) => {
-      setVisible(entries.reduce((res, e) => e.intersectionRatio, 0));
+      setVisible(entries.reduce((_res, e) => e.intersectionRatio, 0));
     };
     const o = new IntersectionObserver(upd, { threshold });
     o.observe(target);

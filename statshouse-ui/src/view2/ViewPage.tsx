@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import { Dashboard, TvModePanel } from '@/components2';
 import { useEmbedMessage } from '@/hooks/useEmbedMessage';

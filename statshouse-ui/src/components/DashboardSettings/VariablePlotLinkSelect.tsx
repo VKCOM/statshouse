@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback } from 'react';
-import { MetricMetaValue } from '../../api/metric';
-import { toTagKey } from '../../url/queryParams';
-import { TAG_KEY, TagKey } from '../../api/enum';
-import { getTagDescription, isTagEnabled } from '../../view/utils2';
+import { MetricMetaValue } from '@/api/metric';
+import { toTagKey } from '@/url/queryParams';
+import { TAG_KEY, TagKey } from '@/api/enum';
+import { getTagDescription, isTagEnabled } from '@/view/utils2';
 
 export type VariablePlotLinkSelectProps = {
   indexPlot: number;
@@ -27,7 +27,7 @@ export function VariablePlotLinkSelect({ indexPlot, selectTag, metricMeta, onCha
   return (
     <select className="form-select form-select-sm" value={selectTag?.toString() ?? 'null'} onChange={changeTag}>
       <option value="null">-</option>
-      {metricMeta?.tags?.map((tag, indexTag) => {
+      {metricMeta?.tags?.map((_tag, indexTag) => {
         const keyTag = toTagKey(indexTag);
         return (
           keyTag != null &&

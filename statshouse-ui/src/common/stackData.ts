@@ -18,7 +18,7 @@ export function stackData(data: uPlot.AlignedData): { data: uPlot.AlignedData; b
   }
   for (let i = 1; i < data.length; i++) {
     bands.push({
-      series: [data.findIndex((s, j) => j > i), i],
+      series: [data.findIndex((_s, j) => j > i), i],
     });
   }
   bands = bands.filter((b) => b.series[0] > -1);

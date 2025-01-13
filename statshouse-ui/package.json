@@ -58,7 +58,7 @@
     "vite": "^6.0.7",
     "vite-plugin-ejs": "^1.7.0",
     "vite-plugin-eslint": "^1.8.1",
-    "zustand": "^4.5.6"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -78,7 +78,8 @@
     "test:watch": "jest --watch",
     "genPromQlGrammar": "cd src/lib/lezer && bash build.sh",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+    "lint:fix": "eslint --fix .",
+    "tsc": "tsc"
   },
   "browserslist": {
     "production": [

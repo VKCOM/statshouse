@@ -11,15 +11,15 @@ import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetr
 import uPlot from 'uplot';
 import type { SelectOptionProps } from '@/components/Select';
 import type { PlotData, PlotValues } from './plotsDataStore';
-import { metaToBaseLabel, metaToLabel } from '../../view/api';
-import { pxPerChar } from '../../common/settings';
-import { stackData } from '../../common/stackData';
-import { rgba, selectColor } from '../../view/palette';
-import { filterPoints } from '../../common/filterPoints';
+import { metaToBaseLabel, metaToLabel } from '@/view/api';
+import { pxPerChar } from '@/common/settings';
+import { stackData } from '@/common/stackData';
+import { rgba, selectColor } from '@/view/palette';
+import { filterPoints } from '@/common/filterPoints';
 import { dequal } from 'dequal/lite';
-import { calcYRange2 } from '../../common/calcYRange';
+import { calcYRange2 } from '@/common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
-import { deepClone } from '../../common/helpers';
+import { deepClone } from '@/common/helpers';
 import { formatLegendValue, formatPercent, timeShiftToDash } from '@/view/utils2';
 import { useThemeStore } from '../themeStore';
 
@@ -90,7 +90,7 @@ export function normalizePlotData(
     }
 
     if (plot.totalLine) {
-      const totalLineData = response.series.time.map((time, idx) =>
+      const totalLineData = response.series.time.map((_time, idx) =>
         series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)
       );
       series_meta.push({

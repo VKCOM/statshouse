@@ -142,7 +142,7 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
   onSetSelect,
   children,
 }: UPlotWrapperProps<LV>) {
-  const uRef = useRef<uPlot>();
+  const uRef = useRef<uPlot>(undefined);
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
   const hooksEvent = useRef<UPlotWrapperPropsHooks>({});

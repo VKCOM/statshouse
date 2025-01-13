@@ -19,10 +19,16 @@ export const PlotControlFilterVariable = memo(function PlotControlFilterVariable
   className,
   variableKey,
 }: PlotControlFilterVariableProps) {
-  const { variable, setParams } = useStatsHouseShallow(({ params, setParams }) => ({
-    variable: params.variables[variableKey],
-    setParams,
-  }));
+  const { variable, setParams } = useStatsHouseShallow(
+    useCallback(
+      ({ params, setParams }) => ({
+        variable: params.variables[variableKey],
+        setParams,
+      }),
+      [variableKey]
+    )
+  );
+
   const variableItem = useVariableListStore((s) => s.variables[variable?.name ?? '']);
 
   const setNegativeVariable = useCallback(

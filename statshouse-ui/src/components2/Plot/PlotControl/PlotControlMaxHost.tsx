@@ -17,10 +17,15 @@ export type PlotControlMaxHostProps = {
 const defaultMaxHost = getNewMetric().maxHost;
 
 export const PlotControlMaxHost = memo(function PlotControlMaxHost({ plotKey }: PlotControlMaxHostProps) {
-  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    value: plots[plotKey]?.maxHost ?? defaultMaxHost,
-    setPlot,
-  }));
+  const { value, setPlot } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, setPlot }) => ({
+        value: plots[plotKey]?.maxHost ?? defaultMaxHost,
+        setPlot,
+      }),
+      [plotKey]
+    )
+  );
   const onChange = useCallback(
     (status: boolean) => {
       setPlot(plotKey, (s) => {

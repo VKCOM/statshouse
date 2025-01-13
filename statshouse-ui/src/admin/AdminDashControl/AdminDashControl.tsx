@@ -7,20 +7,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStatsHouse } from '@/store2';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { selectApiDashboardList, useApiDashboardList } from '../../api/dashboardsList';
-import { apiDashboardSave, DashboardInfo, useApiDashboard } from '../../api/dashboard';
+import { selectApiDashboardList, useApiDashboardList } from '@/api/dashboardsList';
+import { apiDashboardSave, DashboardInfo, useApiDashboard } from '@/api/dashboard';
 import cn from 'classnames';
-import { useIntersectionObserver } from '../../hooks';
-import { isObject, SearchFabric, toNumber } from '../../common/helpers';
-import { isUrlSearchArray } from '../../store2/urlStore/normalizeDashboard';
-import { arrToObj, getDefaultParams, toTreeObj, treeParamsObjectValueSymbol } from '../../url2';
-import { GET_PARAMS } from '../../api/enum';
-import { loadDashboard } from '../../store2/urlStore/loadDashboard';
+import { useIntersectionObserver } from '@/hooks';
+import { isObject, SearchFabric, toNumber } from '@/common/helpers';
+import { isUrlSearchArray } from '@/store2/urlStore/normalizeDashboard';
+import { arrToObj, toTreeObj, treeParamsObjectValueSymbol } from '@/url2';
+import { GET_PARAMS } from '@/api/enum';
+import { loadDashboard } from '@/store2/urlStore/loadDashboard';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button } from '../../components/UI';
+import { Button } from '@/components/UI';
 import { ReactComponent as SVGFloppy } from 'bootstrap-icons/icons/floppy.svg';
 import { produce } from 'immer';
-import { fmtInputDateTime } from '../../view/utils2';
+import { fmtInputDateTime } from '@/view/utils2';
 
 const versionsList = [0, 1, 2, 3];
 const actualVersion = 3;
@@ -31,7 +31,6 @@ function useUpdateDashboard() {
     retry: false,
     mutationFn: async (id: number) => {
       const { params: saveParams, error: errorLoad } = await loadDashboard(
-        { ...getDefaultParams() },
         toTreeObj({ [GET_PARAMS.dashboardID]: [id.toString()] })
       );
       if (errorLoad) {

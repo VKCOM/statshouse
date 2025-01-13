@@ -1,4 +1,4 @@
-import { useStore } from '../statshouse';
+import { useStore } from '@/store';
 import { produce } from 'immer';
 import { createStore } from '../createStore';
 
@@ -68,7 +68,7 @@ export type ThemeStore = {
   theme: Theme;
 };
 
-export const useThemeStore = createStore<ThemeStore>((setState, getState, store) => {
+export const useThemeStore = createStore<ThemeStore>((_setState, _getState, store) => {
   window.addEventListener('DOMContentLoaded', updateTheme, false);
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme, false);
   store.subscribe((state, prevState) => {

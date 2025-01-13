@@ -22,10 +22,15 @@ const numSeriesList = Object.values(METRIC_NUM_SERIES).map((value) => ({
 const defaultNumSeries = getNewMetric().numSeries;
 
 export const PlotControlNumSeries = memo(function PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
-  const { numSeries, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    numSeries: plots[plotKey]?.numSeries ?? defaultNumSeries,
-    setPlot,
-  }));
+  const { numSeries, setPlot } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, setPlot }) => ({
+        numSeries: plots[plotKey]?.numSeries ?? defaultNumSeries,
+        setPlot,
+      }),
+      [plotKey]
+    )
+  );
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const num = parseInt(e.target.value);

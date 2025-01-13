@@ -1,6 +1,6 @@
 import { createStore } from '../createStore';
-import { debug } from '../../common/debug';
-import { toNumber } from '../../common/helpers';
+import { debug } from '@/common/debug';
+import { toNumber } from '@/common/helpers';
 
 const fullScreenElement = document.documentElement;
 
@@ -27,7 +27,7 @@ export function setStorageTVInterval(tvInterval: number) {
   }
 }
 
-export const useTVModeStore = createStore<TVModeStore>((setState, getState, store) => {
+export const useTVModeStore = createStore<TVModeStore>((_setState, _getState, store) => {
   const interval = getStorageTVInterval();
   store.subscribe((state, prevState) => {
     clearInterval(timer);

@@ -28,24 +28,21 @@ export default tseslint.config({
     ...react.configs.recommended.rules,
     ...react.configs['jsx-runtime'].rules,
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-    // 'react-hooks/rules-of-hooks': 'warn',
     'react-hooks/exhaustive-deps': [
       'error',
       {
         enableDangerousAutofixThisMayCauseInfiniteLoops: true,
       },
     ],
-    // indent: 'off',
     'prettier/prettier': 'warn',
     'arrow-body-style': ['warn', 'as-needed'],
-    //       'prefer-arrow-callback': 'off',
     'react/no-unescaped-entities': 'off',
     'no-console': 'warn',
     'no-empty': ['error', { allowEmptyCatch: true }],
     '@typescript-eslint/no-unused-vars': [
       'error',
       {
-        args: 'after-used',
+        args: 'all',
         argsIgnorePattern: '^_',
         caughtErrors: 'all',
         caughtErrorsIgnorePattern: '^_',
