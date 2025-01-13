@@ -8,7 +8,12 @@ import uPlot from 'uplot';
 
 import { fmtInputDateTime } from '@/view/utils2';
 
-export function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
+export function dateRangeFormat(
+  self: uPlot,
+  rawValue: number,
+  _seriesIdx: number,
+  idx: number | null
+): string | number {
   if (idx === null) {
     return rawValue;
   }

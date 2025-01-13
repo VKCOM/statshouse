@@ -39,13 +39,16 @@ export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
   plotKey,
 }: PlotControlPromQLEditorProps) {
   const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(
-    ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
-      promQLParam: plots[plotKey]?.promQL ?? '',
-      promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
-      prometheusCompat: plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
-      togglePromqlExpand,
-      setPlot,
-    })
+    useCallback(
+      ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
+        promQLParam: plots[plotKey]?.promQL ?? '',
+        promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
+        prometheusCompat: plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
+        togglePromqlExpand,
+        setPlot,
+      }),
+      [plotKey]
+    )
   );
 
   const [promQL, setPromQL] = useState(promQLParam);

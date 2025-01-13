@@ -40,12 +40,15 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
   plotKey,
 }: PlotControlEventOverlayProps) {
   const { events, plots, plotData, setParams } = useStatsHouseShallow(
-    ({ params: { plots }, plotsData, setParams }) => ({
-      events: plots[plotKey]?.events,
-      plotData: plotsData[plotKey],
-      plots,
-      setParams,
-    })
+    useCallback(
+      ({ params: { plots }, plotsData, setParams }) => ({
+        events: plots[plotKey]?.events,
+        plotData: plotsData[plotKey],
+        plots,
+        setParams,
+      }),
+      [plotKey]
+    )
   );
   // const { events, plots } = useUrlStore(
   //   useShallow((s) => ({ events: s.params.plots[plotKey]?.events, plots: s.params.plots }))

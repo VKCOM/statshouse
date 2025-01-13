@@ -11,10 +11,10 @@ import { Button } from '@/components/UI';
 import cn from 'classnames';
 import { metricKindToWhat } from '@/view/api';
 import type { QueryWhat } from '@/api/enum';
-import { useStatsHouseShallow } from '@/store2';
+import { type StatsHouseStore, useStatsHouseShallow } from '@/store2';
 import { isPromQL } from '@/store2/helpers';
-import { getEmptyPlotData } from '@/store2/plotDataStore/getEmptyPlotData';
 import { getHomePlot, type PlotKey, promQLMetric } from '@/url2';
+import { emptyArray } from '@/common/helpers';
 
 export type PlotControlPromQLSwitchProps = {
   plotKey: PlotKey;
@@ -25,27 +25,27 @@ export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
   plotKey,
   className,
 }: PlotControlPromQLSwitchProps) {
-  const { isPlotPromQL, meta, setPlot, plotData } = useStatsHouseShallow(
-    ({ params: { plots }, metricMeta, setPlot, plotsData }) => ({
-      isPlotPromQL: isPromQL(plots[plotKey]),
-      metricName: plots[plotKey]?.metricName ?? '',
-      meta: metricMeta[plots[plotKey]?.metricName ?? ''],
-      plotData: {
-        metricName: plotsData[plotKey]?.metricName,
-        promQL: plotsData[plotKey]?.promQL ?? '',
-        whats: plotsData[plotKey]?.whats ?? [],
-      },
-      setPlot,
-    })
+  const { isPlotPromQL, meta, setPlot, metricNameData, promQLData, whatsData } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, metricMeta, setPlot, plotsData }: StatsHouseStore) => ({
+        isPlotPromQL: isPromQL(plots[plotKey]),
+        metricName: plots[plotKey]?.metricName ?? '',
+        meta: metricMeta[plots[plotKey]?.metricName ?? ''],
+        metricNameData: plotsData[plotKey]?.metricName,
+        promQLData: plotsData[plotKey]?.promQL ?? '',
+        whatsData: plotsData[plotKey]?.whats ?? emptyArray,
+        setPlot,
+      }),
+      [plotKey]
+    )
   );
   const onChange = useCallback(() => {
-    const { metricName, promQL, whats } = plotData ?? getEmptyPlotData();
     setPlot(plotKey, (p) => {
       if (isPromQL(p)) {
         const homePlot = getHomePlot();
-        if (metricName) {
-          p.metricName = metricName;
-          p.what = whats?.length ? whats.slice() : homePlot.what;
+        if (metricNameData) {
+          p.metricName = metricNameData;
+          p.what = whatsData?.length ? whatsData.slice() : homePlot.what;
           p.groupBy = [];
           p.filterIn = {};
           p.filterNotIn = {};
@@ -63,10 +63,10 @@ export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
         p.groupBy = [];
         p.filterIn = {};
         p.filterNotIn = {};
-        p.promQL = promQL;
+        p.promQL = promQLData;
       }
     });
-  }, [meta?.kind, plotData, plotKey, setPlot]);
+  }, [meta?.kind, metricNameData, plotKey, promQLData, setPlot, whatsData]);
 
   return (
     <Button

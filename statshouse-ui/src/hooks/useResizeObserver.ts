@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function useResizeObserver(ref: React.RefObject<HTMLDivElement>, noRound?: boolean) {
+export function useResizeObserver(ref: React.RefObject<HTMLDivElement | null>, noRound?: boolean) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
 
   React.useLayoutEffect(() => {

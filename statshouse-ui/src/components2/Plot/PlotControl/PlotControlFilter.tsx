@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { PlotControlProps } from './PlotControl';
 import { PLOT_TYPE, TAG_KEY, type TagKey } from '@/api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
@@ -31,14 +31,17 @@ const emptyGroup: TagKey[] = [];
 export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
   const globalLoader = useGlobalLoader();
   const { meta, plotType, filterIn, filterNotIn, groupBy } = useStatsHouseShallow(
-    ({ params: { plots }, metricMeta }) => ({
-      plot: plots[plotKey],
-      plotType: plots[plotKey]?.type ?? PLOT_TYPE.Metric,
-      filterIn: plots[plotKey]?.filterIn ?? emptyFilter,
-      filterNotIn: plots[plotKey]?.filterNotIn ?? emptyFilter,
-      groupBy: plots[plotKey]?.groupBy ?? emptyGroup,
-      meta: metricMeta[plots[plotKey]?.metricName ?? ''],
-    })
+    useCallback(
+      ({ params: { plots }, metricMeta }) => ({
+        plot: plots[plotKey],
+        plotType: plots[plotKey]?.type ?? PLOT_TYPE.Metric,
+        filterIn: plots[plotKey]?.filterIn ?? emptyFilter,
+        filterNotIn: plots[plotKey]?.filterNotIn ?? emptyFilter,
+        groupBy: plots[plotKey]?.groupBy ?? emptyGroup,
+        meta: metricMeta[plots[plotKey]?.metricName ?? ''],
+      }),
+      [plotKey]
+    )
   );
   const filterInfo = useMemo(() => ({ filterIn, filterNotIn, groupBy }), [filterIn, filterNotIn, groupBy]);
 

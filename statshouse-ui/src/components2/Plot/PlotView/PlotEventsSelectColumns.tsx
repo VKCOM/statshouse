@@ -22,10 +22,15 @@ export type PlotEventsSelectColumnsProps = {
 const emptyPlot = getNewMetric();
 
 export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEventsSelectColumnsProps) {
-  const { plot, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    plot: plots[plotKey] ?? emptyPlot,
-    setPlot,
-  }));
+  const { plot, setPlot } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, setPlot }) => ({
+        plot: plots[plotKey] ?? emptyPlot,
+        setPlot,
+      }),
+      [plotKey]
+    )
+  );
   const columns = useEventTagColumns2(plot, false);
 
   const onChange = useCallback(

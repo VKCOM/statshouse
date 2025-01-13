@@ -3,7 +3,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import cn from 'classnames';
 
@@ -20,10 +20,15 @@ const emptyPlot = getNewMetric();
 export type PlotHeaderBadgesProps = { plotKey: PlotKey; compact?: boolean; dashboard?: boolean; className?: string };
 
 export function PlotHeaderBadges({ plotKey, compact, className }: PlotHeaderBadgesProps) {
-  const { meta, plot } = useStatsHouseShallow(({ params: { plots }, plotsData, metricMeta }) => ({
-    plot: plots[plotKey] ?? emptyPlot,
-    meta: getMetricMeta(metricMeta, plots[plotKey], plotsData[plotKey]),
-  }));
+  const { meta, plot } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, plotsData, metricMeta }) => ({
+        plot: plots[plotKey] ?? emptyPlot,
+        meta: getMetricMeta(metricMeta, plots[plotKey], plotsData[plotKey]),
+      }),
+      [plotKey]
+    )
+  );
   const filters = useMemo(
     () =>
       (meta?.tags || [])

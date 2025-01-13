@@ -4,24 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { Store, useStore } from '../statshouse';
-import { loadAllMeta, replaceVariable } from '../../view/utils';
-import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
-import {
-  GET_PARAMS,
-  isTagKey,
-  METRIC_VALUE_BACKEND_VERSION,
-  QUERY_WHAT,
-  QueryWhat,
-  TAG_KEY,
-  TagKey,
-} from '../../api/enum';
-import { globalSettings } from '../../common/settings';
-import { filterParamsArr } from '../../view/api';
+import { Store, useStore } from '@/store';
+import { loadAllMeta, replaceVariable } from '@/view/utils';
+import { apiMetricTagValuesFetch, MetricTagValueInfo } from '@/api/metricTagValues';
+import { GET_PARAMS, isTagKey, METRIC_VALUE_BACKEND_VERSION, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '@/api/enum';
+import { globalSettings } from '@/common/settings';
+import { filterParamsArr } from '@/view/api';
 import { useErrorStore } from '../errors';
-import { deepClone, isNotNil, toNumber } from '../../common/helpers';
-import { MetricMetaTag } from '../../api/metric';
-import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
+import { deepClone, isNotNil, toNumber } from '@/common/helpers';
+import { MetricMetaTag } from '@/api/metric';
+import { getEmptyVariableParams } from '@/common/getEmptyVariableParams';
 import {
   PlotKey,
   toIndexTag,
@@ -30,11 +22,11 @@ import {
   VariableParams,
   VariableParamsLink,
   VariableParamsSource,
-} from '../../url/queryParams';
+} from '@/url/queryParams';
 import { createStore } from '../createStore';
-import { promQLMetric } from '../../view/promQLMetric';
-import { getTagDescription, isTagEnabled, isValidVariableName } from '../../view/utils2';
-import { ExtendedError } from '../../api/api';
+import { promQLMetric } from '@/view/promQLMetric';
+import { getTagDescription, isTagEnabled, isValidVariableName } from '@/view/utils2';
+import { ExtendedError } from '@/api/api';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
@@ -432,7 +424,7 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
     if (!meta) {
       return;
     }
-    meta.tags?.forEach((tag, indexTag) => {
+    meta.tags?.forEach((_tag, indexTag) => {
       const tagKey = toKeyTag(indexTag);
       if (tagKey && isTagEnabled(meta, tagKey)) {
         const tagName = getTagDescription(meta, indexTag);

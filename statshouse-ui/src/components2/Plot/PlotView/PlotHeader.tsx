@@ -38,21 +38,32 @@ const stopPropagation = (e: React.MouseEvent) => {
 export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
   const { plot, metricName, what, meta, isEmbed, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
     useStatsHouseShallow(
-      ({ plotsData, params: { plots, orderPlot }, metricMeta, isEmbed, dashboardLayoutEdit, setPlot, removePlot }) => {
-        const plot = plots[plotKey];
-        const plotData = plotsData[plotKey];
-        return {
-          plot,
-          metricName: getMetricName(plot, plotData),
-          what: getMetricWhat(plot, plotData),
-          meta: getMetricMeta(metricMeta, plot, plotData),
+      useCallback(
+        ({
+          plotsData,
+          params: { plots, orderPlot },
+          metricMeta,
           isEmbed,
           dashboardLayoutEdit,
-          canRemove: orderPlot.length > 1,
           setPlot,
           removePlot,
-        };
-      }
+        }) => {
+          const plot = plots[plotKey];
+          const plotData = plotsData[plotKey];
+          return {
+            plot,
+            metricName: getMetricName(plot, plotData),
+            what: getMetricWhat(plot, plotData),
+            meta: getMetricMeta(metricMeta, plot, plotData),
+            isEmbed,
+            dashboardLayoutEdit,
+            canRemove: orderPlot.length > 1,
+            setPlot,
+            removePlot,
+          };
+        },
+        [plotKey]
+      )
     );
 
   const description = plot?.customDescription || meta?.description;
@@ -62,7 +73,7 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
   const formRef = useRef(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formTextAreaRef = useRef(null);
-  const autoSaveTimer = useRef<NodeJS.Timeout>();
+  const autoSaveTimer = useRef<NodeJS.Timeout>(undefined);
 
   const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);

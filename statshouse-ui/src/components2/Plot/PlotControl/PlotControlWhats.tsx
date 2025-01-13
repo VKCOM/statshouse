@@ -20,11 +20,16 @@ export type PlotControlWhatsProps = {
 const defaultWhats = getNewMetric().what;
 
 export const PlotControlWhats = memo(function PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
-  const { what, meta, setPlot } = useStatsHouseShallow((s) => ({
-    what: s.params.plots[plotKey]?.what ?? defaultWhats,
-    meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
-    setPlot: s.setPlot,
-  }));
+  const { what, meta, setPlot } = useStatsHouseShallow(
+    useCallback(
+      (s) => ({
+        what: s.params.plots[plotKey]?.what ?? defaultWhats,
+        meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
+        setPlot: s.setPlot,
+      }),
+      [plotKey]
+    )
+  );
 
   const options = useMemo(() => {
     const whats: SelectOptionProps[] = metricKindToWhat(meta?.kind).map((w) => ({

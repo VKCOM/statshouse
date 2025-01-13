@@ -75,50 +75,53 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
     // createPlotPreview,
     // resetZoom,
   } = useStatsHouseShallow(
-    ({
-      plotsData,
-      params: { tabNum, plots, timeRange },
-      plotsEventsData,
-      metricMeta,
-      isEmbed,
-      baseRange,
-      // setPlotVisibility,
-      // setPlotYLock,
-      // setTimeRange,
-      // createPlotPreview,
-      // resetZoom,
-    }) => {
-      const plot = plots[plotKey];
-      const plotData = plotsData[plotKey];
-      return {
-        plotWhat: plot?.what,
-        plotDataWhat: plotData?.whats,
-        yLock: plot?.yLock,
-        timeRangeTo: timeRange.to,
-        timeRangeFrom: timeRange.from,
-        error403: plotData?.error403 ?? '',
-        metricUnit: plot?.metricUnit,
-        metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-        dataView: plotData?.dataView,
-        bands: plotData?.bands,
-        series: plotData?.series,
-        // scales: plotData?.scales,
-        seriesShow: plotData?.seriesShow,
-        legendNameWidth: plotData?.legendNameWidth,
-        legendValueWidth: plotData?.legendValueWidth,
-        legendMaxHostWidth: plotData?.legendMaxHostWidth,
-        legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-        plotEventsDataRange: plotsEventsData[plotKey]?.range,
+    useCallback(
+      ({
+        plotsData,
+        params: { tabNum, plots, timeRange },
+        plotsEventsData,
+        metricMeta,
         isEmbed,
         baseRange,
-        isActive: tabNum === plotKey,
         // setPlotVisibility,
         // setPlotYLock,
         // setTimeRange,
         // createPlotPreview,
         // resetZoom,
-      };
-    }
+      }) => {
+        const plot = plots[plotKey];
+        const plotData = plotsData[plotKey];
+        return {
+          plotWhat: plot?.what,
+          plotDataWhat: plotData?.whats,
+          yLock: plot?.yLock,
+          timeRangeTo: timeRange.to,
+          timeRangeFrom: timeRange.from,
+          error403: plotData?.error403 ?? '',
+          metricUnit: plot?.metricUnit,
+          metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
+          dataView: plotData?.dataView,
+          bands: plotData?.bands,
+          series: plotData?.series,
+          // scales: plotData?.scales,
+          seriesShow: plotData?.seriesShow,
+          legendNameWidth: plotData?.legendNameWidth,
+          legendValueWidth: plotData?.legendValueWidth,
+          legendMaxHostWidth: plotData?.legendMaxHostWidth,
+          legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
+          plotEventsDataRange: plotsEventsData[plotKey]?.range,
+          isEmbed,
+          baseRange,
+          isActive: tabNum === plotKey,
+          // setPlotVisibility,
+          // setPlotYLock,
+          // setTimeRange,
+          // createPlotPreview,
+          // resetZoom,
+        };
+      },
+      [plotKey]
+    )
   );
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
@@ -131,7 +134,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
 
   const [cursorLock, setCursorLock] = useState(false);
 
-  const uPlotRef = useRef<uPlot>();
+  const uPlotRef = useRef<uPlot>(undefined);
 
   const [pluginTimeWindow, pluginTimeWindowHooks] = useUPlotPluginHooks();
 

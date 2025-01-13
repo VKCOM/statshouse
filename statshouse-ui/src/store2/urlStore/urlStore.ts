@@ -83,7 +83,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
   let prevLocation = appHistory.location;
   let prevSearch = prevLocation.search;
   async function updateUrlState() {
-    return getUrlState(getState().saveParams, prevLocation).then((res) => {
+    return getUrlState(prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
 

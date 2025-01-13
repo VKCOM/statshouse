@@ -40,10 +40,15 @@ export function VariableSource({ value, valueKey = '0', onChange }: VariableSour
   // const listTags = useVariableListStore<Partial<Record<TagKey, VariableItem>>>(
   //   (s) => (localMetric && s.source[localMetric]) ?? {}
   // );
-  const { meta, loadMetricMeta } = useStatsHouseShallow(({ metricMeta, loadMetricMeta }) => ({
-    meta: metricMeta[localMetric ?? ''],
-    loadMetricMeta,
-  }));
+  const { meta, loadMetricMeta } = useStatsHouseShallow(
+    useCallback(
+      ({ metricMeta, loadMetricMeta }) => ({
+        meta: metricMeta[localMetric ?? ''],
+        loadMetricMeta,
+      }),
+      [localMetric]
+    )
+  );
   // const meta = useStore((s) => s.metricsMeta[localMetric ?? '']);
   const prevValue = useRef(value);
 
@@ -231,7 +236,7 @@ export function VariableSource({ value, valueKey = '0', onChange }: VariableSour
             <SelectMetric value={localMetric} onChange={onChangeMetric} placeholder={placeholder} />
           </div>
           <div>
-            {(meta?.tags || []).map((t, indexTag) => {
+            {(meta?.tags || []).map((_t, indexTag) => {
               const tagKey = toTagKey(indexTag, TAG_KEY._0);
               return !tagKey || !isTagEnabled(meta, tagKey) ? null : (
                 <div key={indexTag} className="form-check">

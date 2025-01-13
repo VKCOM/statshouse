@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import cn from 'classnames';
 import type { PlotKey } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
@@ -15,15 +15,20 @@ export type PlotNameProps = {
   className?: string;
 };
 export const PlotName = memo(function PlotName({ plotKey, className }: PlotNameProps) {
-  const { customName, metricName, what } = useStatsHouseShallow(({ params: { plots }, plotsData }) => {
-    const plot = plots[plotKey];
-    const plotData = plotsData[plotKey];
-    return {
-      customName: plot?.customName,
-      metricName: getMetricName(plot, plotData),
-      what: getMetricWhat(plot, plotData),
-    };
-  });
+  const { customName, metricName, what } = useStatsHouseShallow(
+    useCallback(
+      ({ params: { plots }, plotsData }) => {
+        const plot = plots[plotKey];
+        const plotData = plotsData[plotKey];
+        return {
+          customName: plot?.customName,
+          metricName: getMetricName(plot, plotData),
+          what: getMetricWhat(plot, plotData),
+        };
+      },
+      [plotKey]
+    )
+  );
 
   if (customName) {
     return <span className={cn(className, 'text-body text-truncate')}>{customName}</span>;

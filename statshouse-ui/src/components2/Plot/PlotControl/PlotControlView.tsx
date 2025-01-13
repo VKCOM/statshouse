@@ -20,12 +20,17 @@ export type PlotControlViewProps = {
 const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine, logScale: defaultLogScale } = getNewMetric();
 
 export const PlotControlView = memo(function PlotControlView({ plotKey, className }: PlotControlViewProps) {
-  const { filledGraph, totalLine, logScale, setPlot } = useStatsHouseShallow((s) => ({
-    filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
-    totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
-    logScale: s.params.plots[plotKey]?.logScale ?? defaultLogScale,
-    setPlot: s.setPlot,
-  }));
+  const { filledGraph, totalLine, logScale, setPlot } = useStatsHouseShallow(
+    useCallback(
+      (s) => ({
+        filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
+        totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
+        logScale: s.params.plots[plotKey]?.logScale ?? defaultLogScale,
+        setPlot: s.setPlot,
+      }),
+      [plotKey]
+    )
+  );
 
   const [dropdown, setDropdown] = useState(false);
   const refDropButton = useRef<HTMLButtonElement>(null);

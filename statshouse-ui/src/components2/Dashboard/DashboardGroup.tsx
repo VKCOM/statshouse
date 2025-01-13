@@ -37,26 +37,29 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
     removeDashboardGroup,
     moveDashboardGroup,
   } = useStatsHouseShallow(
-    ({
-      params: { groups, orderGroup },
-      dashboardLayoutEdit,
-      isEmbed,
-      setDashboardGroup,
-      addDashboardGroup,
-      removeDashboardGroup,
-      moveDashboardGroup,
-    }) => ({
-      groups,
-      isSingle: orderGroup.length === 1,
-      isFirst: groupKey === orderGroup[0],
-      isLast: groupKey === orderGroup[orderGroup.length - 1],
-      dashboardLayoutEdit,
-      isEmbed,
-      setDashboardGroup,
-      addDashboardGroup,
-      removeDashboardGroup,
-      moveDashboardGroup,
-    })
+    useCallback(
+      ({
+        params: { groups, orderGroup },
+        dashboardLayoutEdit,
+        isEmbed,
+        setDashboardGroup,
+        addDashboardGroup,
+        removeDashboardGroup,
+        moveDashboardGroup,
+      }) => ({
+        groups,
+        isSingle: orderGroup.length === 1,
+        isFirst: groupKey === orderGroup[0],
+        isLast: groupKey === orderGroup[orderGroup.length - 1],
+        dashboardLayoutEdit,
+        isEmbed,
+        setDashboardGroup,
+        addDashboardGroup,
+        removeDashboardGroup,
+        moveDashboardGroup,
+      }),
+      [groupKey]
+    )
   );
   const onEditGroupName = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

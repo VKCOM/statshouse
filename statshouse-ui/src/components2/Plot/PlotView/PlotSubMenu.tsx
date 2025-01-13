@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { PlotKey } from '@/url2';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
@@ -20,15 +20,20 @@ export type PlotSubMenuProps = {
 };
 
 export const PlotSubMenu = memo(function PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
-  const { metricName, params, plot, timeRange } = useStatsHouseShallow(({ plotsData, params }) => ({
-    metricName:
-      plotsData[plotKey]?.metricName ??
-      (isPromQL(params.plots[plotKey]) ? '' : params.plots[plotKey]?.metricName) ??
-      '',
-    params,
-    plot: params.plots[plotKey],
-    timeRange: params.timeRange,
-  }));
+  const { metricName, params, plot, timeRange } = useStatsHouseShallow(
+    useCallback(
+      ({ plotsData, params }) => ({
+        metricName:
+          plotsData[plotKey]?.metricName ??
+          (isPromQL(params.plots[plotKey]) ? '' : params.plots[plotKey]?.metricName) ??
+          '',
+        params,
+        plot: params.plots[plotKey],
+        timeRange: params.timeRange,
+      }),
+      [plotKey]
+    )
+  );
   const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
     useMetricBadges(plot, params);
 

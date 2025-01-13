@@ -23,12 +23,15 @@ export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKe
   const interval = useLiveModeStore(({ interval }) => interval);
   const loader = usePlotLoader(plotKey);
   const { lastError, plotHealsTimeout, clearPlotError, loadPlotData } = useStatsHouseShallow(
-    ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({
-      lastError: plotsData[plotKey]?.error,
-      plotHealsTimeout: plotHeals[plotKey]?.timeout,
-      clearPlotError,
-      loadPlotData,
-    })
+    useCallback(
+      ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({
+        lastError: plotsData[plotKey]?.error,
+        plotHealsTimeout: plotHeals[plotKey]?.timeout,
+        clearPlotError,
+        loadPlotData,
+      }),
+      [plotKey]
+    )
   );
   const healsInfo = useMemo(() => {
     if (plotHealsTimeout && interval < plotHealsTimeout) {

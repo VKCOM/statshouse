@@ -23,14 +23,19 @@ export type PlotControlUnitProps = {
 };
 
 export const PlotControlUnit = memo(function PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
-  const { metricUnitParam, what, metaMetricType, setPlot } = useStatsHouseShallow((s) => ({
-    metricUnitParam: s.params.plots[plotKey]?.metricUnit,
-    what: s.plotsData[plotKey]?.whats ?? s.params.plots[plotKey]?.what,
-    metaMetricType:
-      s.plotsData[plotKey]?.metricUnit ??
-      s.metricMeta[s.plotsData[plotKey]?.metricName ?? s.params.plots[plotKey]?.metricName ?? '']?.metric_type,
-    setPlot: s.setPlot,
-  }));
+  const { metricUnitParam, what, metaMetricType, setPlot } = useStatsHouseShallow(
+    useCallback(
+      (s) => ({
+        metricUnitParam: s.params.plots[plotKey]?.metricUnit,
+        what: s.plotsData[plotKey]?.whats ?? s.params.plots[plotKey]?.what,
+        metaMetricType:
+          s.plotsData[plotKey]?.metricUnit ??
+          s.metricMeta[s.plotsData[plotKey]?.metricName ?? s.params.plots[plotKey]?.metricName ?? '']?.metric_type,
+        setPlot: s.setPlot,
+      }),
+      [plotKey]
+    )
+  );
 
   const metricUnit = useMemo(() => {
     if (metricUnitParam != null) {

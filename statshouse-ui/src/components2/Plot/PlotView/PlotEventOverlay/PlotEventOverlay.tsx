@@ -101,7 +101,7 @@ export const PlotEventOverlay = memo(function PlotEventOverlay({
   flagHeight = 8,
   compact,
 }: PlotEventOverlayProps) {
-  const uPlotRef = useRef<uPlot>();
+  const uPlotRef = useRef<uPlot>(undefined);
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
   const plotEvents = useStatsHouse(({ params: { plots } }) => plots[plotKey]?.events ?? emptyArray);

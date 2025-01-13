@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { createStore, type StoreSlice } from '../createStore';
-import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
+import { type StatsHouseStore, useStatsHouse } from '@/store2';
 import { isValidPath, type ProduceUpdate } from '../helpers';
 import { appHistory } from '@/common/appHistory';
 import { debug } from '@/common/debug';
@@ -18,7 +18,7 @@ export type LiveModeStore = {
   disabled: boolean;
 };
 
-export const liveModeStore: StoreSlice<LiveModeStore, LiveModeStore> = (setState, getState, store) => {
+export const liveModeStore: StoreSlice<LiveModeStore, LiveModeStore> = (_setState, _getState, store) => {
   let id: NodeJS.Timeout | undefined = undefined;
 
   store.subscribe((state, prevState) => {

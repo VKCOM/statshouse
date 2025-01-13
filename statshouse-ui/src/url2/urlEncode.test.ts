@@ -11,7 +11,6 @@ import {
 } from './urlEncode';
 import { GroupInfo, QueryParams, VariableParams } from './queryParams';
 import { GET_PARAMS, TIME_RANGE_KEYS_TO } from '@/api/enum';
-import { THEMES } from '@/store/theme';
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { removeValueChar } from './constants';
 
@@ -287,7 +286,7 @@ describe('@/urlStore urlEncode', () => {
           eventFrom: 2000,
           live: true,
           tabNum: '5',
-          theme: THEMES.Light,
+          theme: 'light',
           timeShifts: [2000, 4000],
         },
         { ...params }

@@ -6,16 +6,19 @@
 
 import type { PlotKey, VariableParams } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { filterVariableByPromQl } from '@/store2/helpers/filterVariableByPromQl';
 
 export function useVariablesPlotByPromQL(plotKey: PlotKey) {
   const { variables, orderVariables, plotPromQL } = useStatsHouseShallow(
-    ({ params: { variables, orderVariables, plots } }) => ({
-      variables,
-      orderVariables,
-      plotPromQL: plots[plotKey]?.promQL,
-    })
+    useCallback(
+      ({ params: { variables, orderVariables, plots } }) => ({
+        variables,
+        orderVariables,
+        plotPromQL: plots[plotKey]?.promQL,
+      }),
+      [plotKey]
+    )
   );
   const filter = useMemo(() => filterVariableByPromQl(plotPromQL), [plotPromQL]);
   return useMemo(

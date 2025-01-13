@@ -19,7 +19,6 @@ export function getDashboardVersion(urlTree: TreeParamsObject) {
 }
 
 export async function loadDashboard(
-  prevParam: QueryParams,
   urlTree: TreeParamsObject,
   defaultParams = getDefaultParams()
 ): Promise<{ params: QueryParams; error?: ExtendedError }> {

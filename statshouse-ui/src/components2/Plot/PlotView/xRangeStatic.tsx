@@ -8,7 +8,7 @@ import uPlot from 'uplot';
 
 import { now } from '@/view/utils2';
 
-export function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
+export function xRangeStatic(_u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {
     const t = now();
     return [t - 3600, t];

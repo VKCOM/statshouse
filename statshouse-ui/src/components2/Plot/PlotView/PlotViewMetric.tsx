@@ -70,34 +70,39 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendMaxDotSpaceWidth,
     isActive,
     isLogScale,
-  } = useStatsHouseShallow(({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
-    const plot = plots[plotKey];
-    const plotData = plotsData[plotKey];
+  } = useStatsHouseShallow(
+    useCallback(
+      ({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
+        const plot = plots[plotKey];
+        const plotData = plotsData[plotKey];
 
-    return {
-      plotWhat: plot?.what,
-      plotDataWhat: plotData?.whats,
-      topInfo: plotData?.topInfo,
-      yLock: plot?.yLock,
-      timeRangeTo: timeRange.to,
-      timeRangeFrom: timeRange.from,
-      numSeries: plot?.numSeries ?? 0,
-      error403: plotData?.error403 ?? '',
-      metricUnit: plot?.metricUnit,
-      metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-      dataView: plotData?.dataView,
-      series: plotData?.series,
-      seriesShow: plotData?.seriesShow,
-      legendNameWidth: plotData?.legendNameWidth,
-      legendValueWidth: plotData?.legendValueWidth,
-      legendMaxHostWidth: plotData?.legendMaxHostWidth,
-      legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-      isEmbed,
-      baseRange,
-      isActive: tabNum === plotKey,
-      isLogScale: plot?.logScale,
-    };
-  });
+        return {
+          plotWhat: plot?.what,
+          plotDataWhat: plotData?.whats,
+          topInfo: plotData?.topInfo,
+          yLock: plot?.yLock,
+          timeRangeTo: timeRange.to,
+          timeRangeFrom: timeRange.from,
+          numSeries: plot?.numSeries ?? 0,
+          error403: plotData?.error403 ?? '',
+          metricUnit: plot?.metricUnit,
+          metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
+          dataView: plotData?.dataView,
+          series: plotData?.series,
+          seriesShow: plotData?.seriesShow,
+          legendNameWidth: plotData?.legendNameWidth,
+          legendValueWidth: plotData?.legendValueWidth,
+          legendMaxHostWidth: plotData?.legendMaxHostWidth,
+          legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
+          isEmbed,
+          baseRange,
+          isActive: tabNum === plotKey,
+          isLogScale: plot?.logScale,
+        };
+      },
+      [plotKey]
+    )
+  );
 
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
@@ -110,7 +115,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
 
   const [cursorLock, setCursorLock] = useState(false);
 
-  const uPlotRef = useRef<uPlot>();
+  const uPlotRef = useRef<uPlot>(undefined);
   const [legend, setLegend] = useState<LegendItem<PlotValues>[]>([]);
 
   const [pluginEventOverlay, pluginEventOverlayHooks] = useUPlotPluginHooks();

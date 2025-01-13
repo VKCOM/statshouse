@@ -1,7 +1,6 @@
 import { createStore } from '../createStore';
-import { useStore } from '../statshouse';
-import { usePlotPreviewStore } from '../plot/plotPreviewStore';
-import { setBackgroundColor } from '../../common/canvasToImage';
+import { usePlotPreviewStore, useStore } from '@/store';
+import { setBackgroundColor } from '@/common/canvasToImage';
 
 const defaultIcon = '/favicon.ico';
 
@@ -9,7 +8,7 @@ export type PageMetaStore = {
   pageIcon: string;
 };
 
-export const usePageMetaStore = createStore<PageMetaStore>((setState, getState, store) => {
+export const usePageMetaStore = createStore<PageMetaStore>((_setState, _getState, store) => {
   store.subscribe((state, prevState) => {
     if (state.pageIcon !== prevState.pageIcon) {
       let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
