@@ -43,7 +43,7 @@ var (
 
 		aggAddr string // common, different meaning
 
-		cluster string // common for agent and ingress proxy
+		cluster string // common for all components
 
 		configAgent                  agent.Config
 		maxCores                     int

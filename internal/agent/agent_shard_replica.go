@@ -16,7 +16,6 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -62,52 +61,46 @@ func (s *ShardReplica) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
 }
 
-func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte, shard *Shard) error {
+func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *string) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	args := tlstatshouse.SendSourceBucket2Bytes{
+	originalSize := binary.LittleEndian.Uint32(cbd.data)
+	data := cbd.data[4:]
+	args := tlstatshouse.SendSourceBucket2{
 		Time:           cbd.time,
-		BuildCommit:    []byte(build.Commit()),
+		BuildCommit:    build.Commit(),
 		BuildCommitTs:  build.CommitTimestamp(),
-		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
-		CompressedData: cbd.data[4:],
+		OriginalSize:   originalSize,
+		CompressedData: string(data), // unsafe.String(unsafe.SliceData(data), len(data)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
 	}
-	var ep *env.Env
-	if s.agent.envLoader != nil {
-		e := s.agent.envLoader.Load()
-		ep = &e
-	}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
+	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
-		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
+		if err := s.client.SendSourceBucket2(ctx, args, &extra, ret); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3ResponseBytes, shard *Shard) error {
+func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3Response) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	args := tlstatshouse.SendSourceBucket3Bytes{
+	originalSize := binary.LittleEndian.Uint32(cbd.data)
+	data := cbd.data[4:]
+	args := tlstatshouse.SendSourceBucket3{
 		Time:           cbd.time,
-		BuildCommit:    []byte(build.Commit()),
+		BuildCommit:    build.Commit(),
 		BuildCommitTs:  build.CommitTimestamp(),
-		OriginalSize:   binary.LittleEndian.Uint32(cbd.data),
-		CompressedData: cbd.data[4:],
+		OriginalSize:   originalSize,
+		CompressedData: string(data), // unsafe.String(unsafe.SliceData(data), len(data)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
 	}
-	var ep *env.Env
-	if s.agent.envLoader != nil {
-		e := s.agent.envLoader.Load()
-		ep = &e
-	}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, ep)
+	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
-		if err := s.client.SendSourceBucket3Bytes(ctx, args, &extra, response); err != nil {
+		if err := s.client.SendSourceBucket3(ctx, args, &extra, response); err != nil {
 			return err
 		}
 	}
@@ -117,7 +110,7 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.Duration, duration time.Duration, err error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.TestConnection2Bytes{}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header, nil)
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
 
 	var ret []byte
 
@@ -137,7 +130,7 @@ func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.D
 	return aggTimeDiff, duration, err
 }
 
-func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes, e *env.Env) {
+func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes) {
 	*header = tlstatshouse.CommonProxyHeaderBytes{
 		ShardReplica:      int32(s.ShardReplicaNum),
 		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
@@ -145,8 +138,11 @@ func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatsh
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
 	}
-	if e != nil && len(e.Owner) > 0 {
-		header.SetOwner([]byte(e.Owner), fieldsMask)
+	if s.agent.envLoader != nil {
+		e := s.agent.envLoader.Load()
+		if len(e.Owner) != 0 {
+			header.SetOwner([]byte(e.Owner), fieldsMask)
+		}
 	}
 	data_model.SetProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
@@ -158,6 +154,12 @@ func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.
 		HostName:          string(s.agent.hostName),
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
+	}
+	if s.agent.envLoader != nil {
+		e := s.agent.envLoader.Load()
+		if len(e.Owner) != 0 {
+			header.SetOwner(e.Owner, fieldsMask)
+		}
 	}
 	data_model.SetProxyHeaderStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }

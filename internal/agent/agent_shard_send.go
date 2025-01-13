@@ -432,8 +432,8 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) 
 	}
 
 	if cbd.version == 3 {
-		var respV3 tlstatshouse.SendSourceBucket3ResponseBytes
-		err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, false, spare, &respV3, s)
+		var respV3 tlstatshouse.SendSourceBucket3Response
+		err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, false, spare, &respV3)
 		if !spare {
 			shardReplica.recordSendResult(!isShardDeadError(err))
 		}
@@ -454,8 +454,8 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) 
 		shardReplica.stats.recentSendSuccess.Add(1)
 		return true
 	}
-	var respV2 []byte
-	err := shardReplica.sendSourceBucket2Compressed(ctx, cbd, false, spare, &respV2, s)
+	var respV2 string
+	err := shardReplica.sendSourceBucket2Compressed(ctx, cbd, false, spare, &respV2)
 	if !spare {
 		shardReplica.recordSendResult(!isShardDeadError(err))
 	}
@@ -469,11 +469,8 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData) 
 		}
 		return false
 	}
-	if respV2 != nil {
-		respS := string(respV2)
-		if respS != "Dummy historic result" {
-			s.agent.logF("Send bucket returned: \"%s\"", respS)
-		}
+	if respV2 != "Dummy historic result" {
+		s.agent.logF("Send bucket returned: \"%s\"", respV2)
 	}
 	shardReplica.stats.recentSendSuccess.Add(1)
 	return true
@@ -545,8 +542,8 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
 		if cbd.version == 3 {
-			var respV3 tlstatshouse.SendSourceBucket3ResponseBytes
-			err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, true, spare, &respV3, s)
+			var respV3 tlstatshouse.SendSourceBucket3Response
+			err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, true, spare, &respV3)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
@@ -575,8 +572,8 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 			s.diskCacheEraseWithLog(cbd.id, "after sending historic")
 			break
 		}
-		var resp []byte
-		err := shardReplica.sendSourceBucket2Compressed(cancelCtx, cbd, true, spare, &resp, s)
+		var resp string
+		err := shardReplica.sendSourceBucket2Compressed(cancelCtx, cbd, true, spare, &resp)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return
