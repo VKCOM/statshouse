@@ -95,13 +95,13 @@ func fillTags[A Tag | int32](metric *tlstatshouse.MetricBytes, reservedKeysPrefi
 }
 
 func (p *MetricWriterRemoteImpl) fillCommonTags(tags *statshouse.Tags) {
-	env := p.envLoader.Load()
-	tags[0] = env.EnvT
+	e := p.envLoader.Load()
+	tags[0] = e.EnvT
 	tags[1] = p.HostName
-	tags[11] = env.DC
-	tags[12] = env.Group
-	tags[13] = env.Region
-	tags[14] = env.Owner
+	tags[11] = e.DC
+	tags[12] = e.Group
+	tags[13] = e.Region
+	tags[14] = e.Owner
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
@@ -168,14 +168,14 @@ func fillCommonMetric[A Tag | int32](p *MetricWriterSHImpl, m *tlstatshouse.Metr
 	} else {
 		m.Tags = m.Tags[:tagsLength]
 	}
-	env := p.envLoader.Load()
+	e := p.envLoader.Load()
 	if useHostTags {
-		fillTag(m, 0, "0", env.EnvT)
+		fillTag(m, 0, "0", e.EnvT)
 		fillTag(m, 1, "1", p.HostName)
-		fillTag(m, 2, "11", env.DC)
-		fillTag(m, 3, "12", env.Group)
-		fillTag(m, 4, "13", env.Region)
-		fillTag(m, 5, "14", env.Owner)
+		fillTag(m, 2, "11", e.DC)
+		fillTag(m, 3, "12", e.Group)
+		fillTag(m, 4, "13", e.Region)
+		fillTag(m, 5, "14", e.Owner)
 	}
 	fillTags(m, reserved, used, tagsList...)
 }

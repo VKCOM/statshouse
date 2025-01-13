@@ -85,10 +85,12 @@ gen-sqlite:
 
 .PHONY: lint test check
 lint:
+	@echo you need to install 'sudo apt-get install -y libpcap-dev'
 	staticcheck -version
 	staticcheck ./...
 
 test:
+	@echo you need to install 'sudo apt-get install -y libpcap-dev'
 	go test -v -race ./...
 
 check: lint test
