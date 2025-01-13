@@ -202,7 +202,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     // data
     original_size:#
     compressed_data:string
-    send_more_data:string // send dummy zeroes to test network, according to send-more-data agent config value
+    send_more_bytes:string // send dummy zeroes to test network, according to send-more-data agent config value
     = statshouse.SendSourceBucket3Response;
 
 @readwrite statshouse.sendKeepAlive2#4285ff53
