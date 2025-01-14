@@ -287,6 +287,10 @@ func (hctx *HandlerContext) writeReponseUnlocked(conn *PacketConn) error {
 	return nil
 }
 
+func (pc *PacketConn) Encrypted() bool {
+	return pc.w.isEncrypted()
+}
+
 func packetConnCopy(dst, src *PacketConn, n int, readCRC uint32) (uint32, ReadWriteError) {
 	return cryptoCopy(dst.w, src.r, n, readCRC, src.table, dst.updateWriteCRC)
 }

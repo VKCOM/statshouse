@@ -89,6 +89,9 @@ func TestPlayPcap(t *testing.T) {
 }
 
 func playPcap(t *testing.T, k [2]pcapEndpoint, v []byte) {
+	if len(v) == 0 {
+		return
+	}
 	srcConn := &testConn{
 		buffer:     v,
 		localAddr:  k[0],
@@ -100,6 +103,7 @@ func playPcap(t *testing.T, k [2]pcapEndpoint, v []byte) {
 		r:               newCryptoReader(srcConn, DefaultServerRequestBufSize),
 		w:               newCryptoWriter(srcConn, DefaultServerResponseBufSize),
 		readSeqNum:      int64(binary.LittleEndian.Uint32(v[4:])),
+		table:           castagnoliTable,
 	}
 	dstConn := &testConn{
 		localAddr:  k[0],
@@ -113,11 +117,11 @@ func playPcap(t *testing.T, k [2]pcapEndpoint, v []byte) {
 		table:           castagnoliTable,
 	}
 	var buf PacketHeaderCircularBuffer
-	for {
+	for i := 0; ; i++ {
 		res := ForwardPacket(dst, src, forwardPacketOptions{testEnv: true})
 		buf.add(res.packetHeader)
 		if res.Error() != nil {
-			require.ErrorIsf(t, res.ReadErr, io.EOF, "%v %s", k, buf.String())
+			require.ErrorIsf(t, res.ReadErr, io.EOF, "#%d %v %s", i, k, buf.String())
 			require.NoError(t, res.WriteErr)
 			break
 		}
@@ -131,18 +135,22 @@ func readPCAP(t *testing.T, path string, dstHost string) map[[2]pcapEndpoint][]b
 	m := map[[2]pcapEndpoint][]byte{}
 	for p := range packetSource.Packets() {
 		var src, dst pcapEndpoint
-		ip := p.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		ip, ok := p.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		if !ok {
+			continue
+		}
 		src.host = ip.SrcIP.String()
 		dst.host = ip.DstIP.String()
 		if dstHost != "" && dst.host != dstHost {
 			continue
 		}
-		tcp := p.Layer(layers.LayerTypeTCP).(*layers.TCP)
-		src.port = tcp.SrcPort
-		dst.port = tcp.DstPort
-		if appLayer := p.ApplicationLayer(); appLayer != nil {
+		if tcp, _ := p.Layer(layers.LayerTypeTCP).(*layers.TCP); tcp != nil {
+			src.port = tcp.SrcPort
+			dst.port = tcp.DstPort
+		}
+		if app := p.ApplicationLayer(); app != nil {
 			k := [2]pcapEndpoint{src, dst}
-			m[k] = append(m[k], appLayer.Payload()...)
+			m[k] = append(m[k], app.Payload()...)
 		}
 	}
 	return m
