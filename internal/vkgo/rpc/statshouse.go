@@ -12,7 +12,6 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
-var errZeroRead = fmt.Errorf("read returned zero bytes without an error")
 var errNonZeroPadding = fmt.Errorf("non-zero padding")
 
 type ReadWriteError struct {
@@ -97,8 +96,9 @@ func (pc *PacketConn) KeyID() [4]byte {
 func ForwardPackets(ctx context.Context, dst, src *PacketConn) ForwardPacketsResult {
 	var res ForwardPacketResult
 	var buf PacketHeaderCircularBuffer
+	var copyBodyBuf = make([]byte, 256)
 	for {
-		res = ForwardPacket(dst, src, forwardPacketOptions{})
+		res = ForwardPacket(dst, src, copyBodyBuf, forwardPacketOptions{})
 		buf.add(res.packetHeader)
 		if res.Error() != nil {
 			break
@@ -115,7 +115,7 @@ func ForwardPackets(ctx context.Context, dst, src *PacketConn) ForwardPacketsRes
 	}
 }
 
-func ForwardPacket(dst, src *PacketConn, opt forwardPacketOptions) (res ForwardPacketResult) {
+func ForwardPacket(dst, src *PacketConn, copyBodyBuf []byte, opt forwardPacketOptions) (res ForwardPacketResult) {
 	src.readMu.Lock()
 	_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&res.packetHeader, DefaultPacketTimeout)
 	src.readMu.Unlock()
@@ -140,14 +140,14 @@ func ForwardPacket(dst, src *PacketConn, opt forwardPacketOptions) (res ForwardP
 		case tl.RpcServerWantsFin{}.TLTag():
 			res.ServerWantsFin = true
 		}
-		res.ReadWriteError = forwardPacket(dst, src, &res.packetHeader)
+		res.ReadWriteError = forwardPacket(dst, src, &res.packetHeader, copyBodyBuf)
 	}
 	return res
 }
 
 var forwardPacketTrailer = [][]byte{{}, {0}, {0, 0}, {0, 0, 0}}
 
-func forwardPacket(dst, src *PacketConn, header *packetHeader) (res ReadWriteError) {
+func forwardPacket(dst, src *PacketConn, header *packetHeader, copyBodyBuf []byte) (res ReadWriteError) {
 	dst.writeMu.Lock()
 	defer dst.writeMu.Unlock()
 	// write header
@@ -164,7 +164,7 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader) (res ReadWriteErr
 		return res
 	}
 	// write body
-	if res = forwardPacketBody(dst, src, header); res.Error() != nil {
+	if res = forwardPacketBody(dst, src, header, copyBodyBuf); res.Error() != nil {
 		return res
 	}
 	if 0 < legacyWriteAlignTo4 && legacyWriteAlignTo4 < 4 {
@@ -179,15 +179,32 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader) (res ReadWriteErr
 	return res
 }
 
-func forwardPacketBody(dst, src *PacketConn, header *packetHeader) (res ReadWriteError) {
+func forwardPacketBody(dst, src *PacketConn, header *packetHeader, buf []byte) (res ReadWriteError) {
+	if len(buf) == 0 {
+		panic("packet body buffer must have non-zero length")
+	}
 	src.readMu.Lock()
 	defer src.readMu.Unlock()
 	// copy body
-	var crc uint32
-	crc = crc32.Update(0, src.table, src.headerReadBuf[:12])
-	crc, res = packetConnCopy(dst, src, int(header.length-packetOverhead), crc)
-	if res.Error() != nil {
-		return res
+	crc := crc32.Update(0, src.table, src.headerReadBuf[:12])
+	for n := int(header.length - packetOverhead); n > 0; {
+		if n > len(buf) {
+			n -= len(buf)
+		} else {
+			// last read
+			buf = buf[:n]
+			n = 0
+		}
+		if _, err := io.ReadFull(src.r, buf); err != nil {
+			res.ReadErr = err
+			return res
+		}
+		crc = crc32.Update(crc, src.table, buf)
+		if _, err := dst.w.Write(buf); err != nil {
+			res.WriteErr = err
+			return res
+		}
+		dst.updateWriteCRC(buf)
 	}
 	// read CRC
 	if _, err := io.ReadFull(src.r, src.headerReadBuf[:4]); err != nil {
@@ -289,58 +306,4 @@ func (hctx *HandlerContext) writeReponseUnlocked(conn *PacketConn) error {
 
 func (pc *PacketConn) Encrypted() bool {
 	return pc.w.isEncrypted()
-}
-
-func packetConnCopy(dst, src *PacketConn, n int, readCRC uint32) (uint32, ReadWriteError) {
-	return cryptoCopy(dst.w, src.r, n, readCRC, src.table, dst.updateWriteCRC)
-}
-
-func cryptoCopy(dst *cryptoWriter, src *cryptoReader, n int, readCRC uint32, table *crc32.Table, cb func([]byte)) (_ uint32, res ReadWriteError) {
-	if n == 0 {
-		return readCRC, ReadWriteError{}
-	}
-	for {
-		if m := src.end - src.begin; m > 0 {
-			if m > n {
-				m = n
-			}
-			s := src.buf[src.begin : src.begin+m]
-			m, res.WriteErr = dst.Write(s)
-			if res.WriteErr != nil {
-				return readCRC, res
-			}
-			if table != nil {
-				readCRC = crc32.Update(readCRC, table, s)
-			}
-			if cb != nil {
-				cb(s)
-			}
-			src.begin += m
-			n -= m
-			if n == 0 {
-				return readCRC, ReadWriteError{}
-			}
-		}
-		if res.ReadErr != nil {
-			return readCRC, res
-		}
-		buf := src.buf[:cap(src.buf)]
-		bufSize := copy(buf, src.buf[src.end:])
-		var read int
-		read, res.ReadErr = src.Read(buf[bufSize:])
-		bufSize += read
-		src.buf = buf[:bufSize]
-		src.begin = 0
-		if src.enc != nil {
-			decrypt := roundDownPow2(bufSize, src.blockSize)
-			src.enc.CryptBlocks(buf[:decrypt], buf[:decrypt])
-			src.end = decrypt
-		} else {
-			src.end = bufSize
-		}
-		if read <= 0 { // infinite loop guard
-			res.ReadErr = errZeroRead
-			return readCRC, res
-		}
-	}
 }
