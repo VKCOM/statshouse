@@ -624,12 +624,16 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 		default:
 			req.setIngressProxy(p)
 			if err = req.forwardAndFlush(p); err != nil {
+				p.logUpstreamError("forward InvokeReq", err, rpc.PacketHeaderCircularBuffer{})
 				res.WriteErr = err
 			}
 		}
 	case rpcClientWantsFinTLTag:
 		res.ClientWantsFin = true
-		res.WriteErr = req.forwardAndFlush(p)
+		if err = req.forwardAndFlush(p); err != nil {
+			res.WriteErr = err
+			p.logUpstreamError("forward ClientWantsFin", err, rpc.PacketHeaderCircularBuffer{})
+		}
 		// graceful shutdown, no more client requests expected
 	}
 	p.reportRequestSize(req)
