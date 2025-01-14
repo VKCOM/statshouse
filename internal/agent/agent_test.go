@@ -30,17 +30,19 @@ func Benchmark_Hash(b *testing.B) {
 	}
 }
 
-// cpu: Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz
-// Benchmark_Hash-8        549749572               46.11 ns/op            0 B/op          0 allocs/op
-// Benchmark_XXHash-8      178040929              114.8 ns/op            80 B/op          1 allocs/op
+// cpu: Apple M3 Pro
+// Benchmark_Hash-12       41562019                28.94 ns/op            0 B/op          0 allocs/op
+// Benchmark_XXHash-12     35386051                30.75 ns/op            0 B/op          0 allocs/op
 func Benchmark_XXHash(b *testing.B) {
 	var k data_model.Key
-	var result uint64
+	var hash, result uint64
+	var buf []byte
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		k.Tags[14]++
 		k.Tags[0] = int32(i)
-		result += k.XXHash()
+		buf, hash = k.XXHash(buf[:0])
+		result += hash
 	}
 }
 
