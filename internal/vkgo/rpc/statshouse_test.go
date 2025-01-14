@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"bytes"
 	"net"
 	"testing"
 	"time"
@@ -10,80 +9,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"pgregory.net/rapid"
 )
-
-type cryptoPipelineMachine struct {
-	r        *cryptoReader
-	w        *cryptoWriter
-	rb       *bytes.Buffer
-	actual   *bytes.Buffer
-	expected []byte
-	offset   int
-	fatalf   func(format string, args ...any)
-}
-
-func (c *cryptoPipelineMachine) Write(t *rapid.T) {
-	s := rapid.SliceOf(rapid.Byte()).Draw(t, "slice")
-	c.expected = append(c.expected, s...)
-	for len(s) != 0 {
-		n, err := c.rb.Write(s)
-		if err != nil {
-			c.fatalf("write failed: %v", err)
-		}
-		s = s[n:]
-	}
-}
-
-func (c *cryptoPipelineMachine) ReadDiscard(t *rapid.T) {
-	n := rapid.IntRange(0, c.rb.Len()).Draw(t, "n")
-	m, err := c.r.Read(make([]byte, n))
-	if err != nil {
-		c.fatalf("Read failed: %v", err)
-	}
-	c.expected = append(c.expected[:c.offset], c.expected[c.offset+m:]...)
-}
-
-func (c *cryptoPipelineMachine) Copy(t *rapid.T) {
-	n := rapid.IntRange(0, c.rb.Len()).Draw(t, "n")
-	_, rwe := cryptoCopy(c.w, c.r, n, 0, nil, nil)
-	if rwe.Error() != nil {
-		c.fatalf("copy failed: %v, %v", rwe.WriteErr, rwe.ReadErr)
-	}
-	if err := c.w.Flush(); err != nil {
-		c.fatalf("flush failed: %v", err)
-	}
-	c.offset += n
-}
-
-func (c *cryptoPipelineMachine) Check(_ *rapid.T) {
-	if len(c.expected) < c.actual.Len() {
-		c.fatalf("expected %v bytes, actual %v bytes", len(c.expected), c.actual.Len())
-	}
-	expected := c.expected[:c.actual.Len()]
-	actual := c.actual.Bytes()
-	if !bytes.Equal(expected, actual) {
-		c.fatalf("expected %q, actual %q", expected, actual)
-	}
-}
-
-func TestCryptoPipeline(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		rb := &bytes.Buffer{}
-		actual := &bytes.Buffer{}
-		c := &cryptoPipelineMachine{
-			rb:     rb,
-			actual: actual,
-			r:      newCryptoReader(rb, rapid.IntRange(0, 1024).Draw(t, "read_buffer_size")),
-			w:      newCryptoWriter(actual, rapid.IntRange(0, 1024).Draw(t, "write_buffer_size")),
-			fatalf: t.Fatalf,
-		}
-		t.Repeat(rapid.StateMachineActions(c))
-		_, _ = cryptoCopy(c.w, c.r, c.rb.Len()+cap(c.r.buf), 0, nil, nil)
-		_ = c.w.Flush()
-		if !bytes.Equal(c.expected, c.actual.Bytes()) {
-			c.fatalf("expected %q, actual %q", c.expected, c.actual.Bytes())
-		}
-	})
-}
 
 type forwardPacketMachine struct {
 	encryptClient  bool
@@ -163,10 +88,11 @@ func (m *forwardPacketMachine) run(t *rapid.T) {
 	if legacyProtocol {
 		minBodyLen = 4
 	}
+	bodyBuf := make([]byte, 256)
 	for i := 0; i < 512; i++ {
 		var forward errgroup.Group
 		forward.Go(func() error {
-			res := ForwardPacket(m.proxyClient, m.proxyServer, forwardPacketOptions{testEnv: false})
+			res := ForwardPacket(m.proxyClient, m.proxyServer, bodyBuf, forwardPacketOptions{testEnv: false})
 			return res.Error()
 		})
 		sent := message{
