@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -305,10 +306,6 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 				return err
 			}
 			listenAddr.Port++
-			for j := range externalTCPAddr {
-				p.config.Addresses = append(p.config.Addresses, externalTCPAddr[j].String())
-				externalTCPAddr[j].Port++
-			}
 		}
 	} else {
 		log.Printf("Listen addr %v\n", listenAddr)
@@ -317,15 +314,15 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 		if err != nil {
 			return err
 		}
-		n := len(p.agent.GetConfigResult.Addresses)
-		s := make([]string, 0, n)
-		for len(s) < n {
-			for i := 0; i < len(externalAddr) && len(s) < n; i++ {
-				s = append(s, externalAddr[i])
-			}
-		}
-		p.config.Addresses = s
 	}
+	n := len(p.agent.GetConfigResult.Addresses)
+	s := make([]string, 0, n)
+	for len(s) < n {
+		for i := 0; i < len(externalAddr) && len(s) < n; i++ {
+			s = append(s, externalAddr[i])
+		}
+	}
+	p.config.Addresses = s
 	log.Printf("External %s addr %s\n", p.network, strings.Join(p.config.Addresses, ", "))
 	return nil
 }
@@ -566,25 +563,25 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 }
 
 func (p *proxyConn) logClientError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
-	if err == nil || err == io.EOF {
+	if err == nil || errors.Is(err, io.EOF) {
 		return
 	}
 	var addr string
 	if p.clientConn != nil {
 		addr = p.clientConn.RemoteAddr()
 	}
-	p.rareLog("error %s, client addr %s, version %d, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, p.clientCryptoKeyID, err, lastPackets.String())
+	log.Printf("error %s, client addr %s, version %d, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, p.clientCryptoKeyID, err, lastPackets.String())
 }
 
 func (p *proxyConn) logUpstreamError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
-	if err == nil || err == io.EOF {
+	if err == nil || errors.Is(err, io.EOF) {
 		return
 	}
 	var addr string
 	if p.upstreamConn != nil {
 		addr = p.upstreamConn.RemoteAddr()
 	}
-	p.rareLog("error %s, upstream addr %s: %v, %s\n", tag, addr, err, lastPackets.String())
+	log.Printf("error %s, upstream addr %s: %v, %s\n", tag, addr, err, lastPackets.String())
 }
 
 func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
