@@ -76,6 +76,9 @@ type ingressProxy struct {
 	// logging
 	rareLogLast time.Time
 	rareLogMu   sync.Mutex
+
+	firstClientConn   map[string]bool
+	firstClientConnMu sync.Mutex
 }
 
 type proxyServer struct {
@@ -128,11 +131,12 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 
 func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd string) error {
 	p := ingressProxy{
-		ctx:        ctx,
-		cluster:    config.Cluster,
-		clientOpts: rpc.ClientOptions{CryptoKey: aesPwd},
-		serverKeys: config.IngressKeys,
-		startTime:  uint32(time.Now().Unix()),
+		ctx:             ctx,
+		cluster:         config.Cluster,
+		clientOpts:      rpc.ClientOptions{CryptoKey: aesPwd},
+		serverKeys:      config.IngressKeys,
+		startTime:       uint32(time.Now().Unix()),
+		firstClientConn: make(map[string]bool),
 	}
 	if config.UpstreamAddr != "" {
 		addresses := strings.Split(config.UpstreamAddr, ",")
@@ -432,6 +436,7 @@ func (p *proxyConn) run() {
 		_ = firstReq.WriteReponseAndFlush(p.clientConn, err)
 		return
 	}
+	p.logFirstClientConn()
 	// process first request
 	firstReqRes := firstReq.process(p)
 	if firstReqRes.Error() != nil {
@@ -558,6 +563,15 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 		},
 	}
 	p.agent.AddValueCounter(&key, float64(req.size), 1, format.BuiltinMetricMetaRPCRequests)
+}
+
+func (p *proxyConn) logFirstClientConn() {
+	p.firstClientConnMu.Lock()
+	defer p.firstClientConnMu.Unlock()
+	if !p.firstClientConn[p.clientAddrS] {
+		log.Println("First connection from", p.clientAddrS)
+		p.firstClientConn[p.clientAddrS] = true
+	}
 }
 
 func (p *proxyConn) logClientError(tag string, err error, lastPackets rpc.PacketHeaderCircularBuffer) {
