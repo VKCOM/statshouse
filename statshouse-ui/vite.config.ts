@@ -16,7 +16,7 @@ export default defineConfig(async (init) => {
   const port = parseInt(REACT_APP_DEV_PORT) || 3000;
   const headers: { [header: string]: string } = REACT_APP_PROXY_COOKIE ? { cookie: REACT_APP_PROXY_COOKIE } : {};
   const config: UserConfig = {
-    base: './',
+    base: '/',
     root: './',
     build: {
       sourcemap: true,
