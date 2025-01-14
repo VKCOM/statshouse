@@ -221,15 +221,17 @@ func forwardPacketBody(dst, src *PacketConn, header *packetHeader, buf []byte) (
 		return res
 	}
 	// skip padding
-	if n := int(-header.length & 3); n != 0 {
-		if _, err := io.ReadFull(src.r, src.headerReadBuf[:n]); err != nil {
-			res.ReadErr = err
-			return res
-		}
-		for i := 0; i < n; i++ {
-			if src.headerReadBuf[i] != 0 {
-				res.ReadErr = errNonZeroPadding
+	if src.w.isEncrypted() {
+		if n := int(-header.length & 3); n != 0 {
+			if _, err := io.ReadFull(src.r, src.headerReadBuf[:n]); err != nil {
+				res.ReadErr = err
 				return res
+			}
+			for i := 0; i < n; i++ {
+				if src.headerReadBuf[i] != 0 {
+					res.ReadErr = errNonZeroPadding
+					return res
+				}
 			}
 		}
 	}
