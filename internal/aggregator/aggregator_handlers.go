@@ -377,6 +377,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	clampedTimestampsMetrics := map[clampedKey]float32{}
 
 	var resp tlstatshouse.SendSourceBucket3Response
+	// we will allocate if key won't fit into this buffer but it is quite unlikely
+	var stackBuf [1024]byte
+	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)
@@ -430,10 +433,12 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		case ShardAggregatorHash:
 			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
 		case ShardAggregatorXXHash:
-			sID = int(k.XXHash() % data_model.AggregationShardsPerSecond)
+			var hash uint64
+			keyBytes, hash = k.XXHash(keyBytes[:0])
+			sID = int(hash % data_model.AggregationShardsPerSecond)
 		}
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
-		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil)
+		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
 		mi.MergeWithTLMultiItem(rng, &item, hostTagId)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
@@ -441,7 +446,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
-		if a.configR.Shard == ShardAggregatorHash {
+		if a.configR.Shard == ShardAggregatorHash || a.configR.Shard == ShardAggregatorXXHash {
 			// we unlock shard to caclculate hash not under it
 			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		}
@@ -537,7 +542,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
 		key := a.aggKey(t, m, keys)
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil)
+		mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil, nil)
 		return mi
 	}
 	for _, v := range bucket.SampleFactors {
@@ -549,7 +554,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
 		key := data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		mi, _ := s.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, nil)
+		mi, _ := s.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, nil, nil)
 		mi.Tail.AddCounterHost(rng, float64(value), hostTagId)
 	}
 	for _, v := range bucket.IngestionStatusOk {
@@ -642,7 +647,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
 	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil)
+	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil, nil)
 	mi.Tail.AddCounterHost(rng, 1, host)
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 

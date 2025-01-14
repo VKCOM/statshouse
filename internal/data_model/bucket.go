@@ -175,13 +175,11 @@ func (k *Key) Hash() uint64 {
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }
 
-func (k *Key) XXHash() uint64 {
-	// this allocates, but allocation is faster them reserving huge chunk for byte array
-	var b []byte
+func (k *Key) XXHash(b []byte) ([]byte, uint64) {
 	b, _ = k.Marshal(b)
 	digest := xxhash.New()
 	digest.Write(b[4:]) // skip timestamp in first 4 bytes
-	return digest.Sum64()
+	return b, digest.Sum64()
 }
 
 func SimpleItemValue(value float64, count float64, hostTagId int32) ItemValue {
@@ -263,7 +261,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue) (item *MultiItem, created bool) {
+func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
 	//if key.Timestamp == 0 { // TODO - remove check before merge to master
 	//	fmt.Printf("key: %v\n", *key)
 	//	panic("timestamp must be always set at this point of conveyor")
@@ -272,8 +270,12 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, met
 		b.MultiItems = make(map[string]*MultiItem)
 	}
 	wasLen := len(b.keysBuffer)
-	var keyBytes []byte
-	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+	if len(keyBytes) > 0 { // no need to marshall since we already have result
+		b.keysBuffer = append(b.keysBuffer, keyBytes...)
+		keyBytes = b.keysBuffer[wasLen:] // we want unsafe pointer into b.keysBuffer
+	} else {
+		b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+	}
 	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
 	// Strings in map are unsafe references to bytes of b.keysBuffer.
 	// We promise to never change those bytes, but also we must prevent those strings spreading.
