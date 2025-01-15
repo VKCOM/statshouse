@@ -1,5 +1,23 @@
 # run statshouse for debug
 
+## Что бы тестировать v3 ходило
+
+
+создать метрику statshouse_agent_remote_config, в нее написать
+```
+--buitin-new-conveyor
+```
+
+создать метрику statshouse_aggregator_remote_config, в нее написать
+```
+```
+
+создать метрику statshouse_api_remote_config, в нее написать
+```
+--version3-start=1
+--version3-prob=1
+```
+
 ## run clickhouse locally in docker
 
 We run cluster containing 1 clickhouse server plus 1 zookeeper instance.
