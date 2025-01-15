@@ -558,10 +558,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
 
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
 	if avgRemovedHits != 0 {
 		addCounterHost(format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, [16]int32{}, avgRemovedHits)
 	}
