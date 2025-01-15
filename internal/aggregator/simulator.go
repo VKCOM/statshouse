@@ -23,6 +23,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
+	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
 	"pgregory.net/rand"
@@ -148,8 +149,9 @@ func RunSimulator(simID int, metricsStorage *metajournal.MetricsStorage, storage
 		}
 		logF = log.New(f, "", log.LstdFlags|log.Lshortfile|log.Lmicroseconds).Printf
 	}
+	mcagent := pcache.NewMappingsCache(1024*1024, 86400)
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, config, "simulator_"+strconv.Itoa(simID+1),
-		format.TagValueIDComponentAgent, metricsStorage, nil, logF, nil, nil, nil)
+		format.TagValueIDComponentAgent, metricsStorage, nil, mcagent, logF, nil, nil, nil)
 	if err != nil {
 		log.Panicf("Cannot create simulator, %v", err)
 	}

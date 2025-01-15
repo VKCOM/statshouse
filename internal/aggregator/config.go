@@ -30,6 +30,10 @@ type ConfigAggregatorRemote struct {
 	MirrorChWrite        bool
 	WriteToV3First       bool
 	Shard                int // aggreagator sharding
+	MappingCacheSize     int64
+	MappingCacheTTL      int
+
+	configTagsMapper2
 }
 
 type ConfigAggregator struct {
@@ -85,6 +89,17 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MirrorChWrite:        true,
 			WriteToV3First:       false,
 			Shard:                ShardAgentHash,
+			MappingCacheSize:     1 << 30,
+			MappingCacheTTL:      86400 * 7,
+
+			configTagsMapper2: configTagsMapper2{
+				MaxUnknownTagsInBucket:    1024,
+				MaxCreateTagsPerIteration: 128,
+				MaxLoadTagsPerIteration:   128,
+				TagHitsToCreate:           10,
+				MaxUnknownTagsToKeep:      1_000_000,
+				MaxSendTagsToAgent:        256,
+			},
 		},
 	}
 }
@@ -100,6 +115,15 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both v3 and v2 tables")
 		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
 		f.IntVar(&c.Shard, "shard", d.Shard, "Sharding strategy")
+		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
+		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
+
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-load-tags-per-iteration", d.MaxLoadTagsPerIteration, "Mapping queue will load no more tags per iteration (roughly second).")
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
+		f.IntVar(&c.MappingCacheTTL, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 	}
 }
 

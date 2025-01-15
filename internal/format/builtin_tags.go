@@ -346,6 +346,20 @@ const (
 	TagValueIDAggBucketInfoCentroids          = 8
 	TagValueIDAggBucketInfoUniqueBytes        = 9
 	TagValueIDAggBucketInfoStringTops         = 10
+
+	TagValueIDMappingCacheEventHit                 = 1
+	TagValueIDMappingCacheEventMiss                = 2
+	TagValueIDMappingCacheEventTimestampUpdate     = 3
+	TagValueIDMappingCacheEventTimestampUpdateSkip = 4
+	TagValueIDMappingCacheEventAdd                 = 5
+	TagValueIDMappingCacheEventEvict               = 6
+
+	TagValueIDMappingQueueEventUnknownMapRemove  = 1
+	TagValueIDMappingQueueEventUnknownMapAdd     = 2
+	TagValueIDMappingQueueEventUnknownListRemove = 3
+	TagValueIDMappingQueueEventUnknownListAdd    = 4
+	TagValueIDMappingQueueEventCreateMapAdd      = 5
+	TagValueIDMappingQueueEventCreateMapRemove   = 6
 )
 
 var (

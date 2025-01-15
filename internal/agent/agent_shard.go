@@ -358,6 +358,16 @@ func (s *Shard) addBuiltInsLocked() {
 		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
 		v.mu.Unlock()
 	}
+	elements, sumSize, averageTS, adds, evicts, timestampUpdates, timestampUpdateSkips := s.agent.mappingsCache.Stats()
+	if elements > 0 {
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheElements, [16]int32{0, s.agent.componentTag}).Tail.AddValueCounterHost(s.rng, float64(elements), 1, 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheSize, [16]int32{0, s.agent.componentTag}).Tail.AddValueCounterHost(s.rng, float64(sumSize), 1, 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheAverageTTL, [16]int32{0, s.agent.componentTag}).Tail.AddValueCounterHost(s.rng, float64(s.CurrentTime)-float64(averageTS), 1, 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheEvent, [16]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventAdd}).Tail.AddCounterHost(s.rng, float64(adds), 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheEvent, [16]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventEvict}).Tail.AddCounterHost(s.rng, float64(evicts), 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheEvent, [16]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventTimestampUpdate}).Tail.AddCounterHost(s.rng, float64(timestampUpdates), 0)
+		getMultiItem(s.CurrentTime, format.BuiltinMetricIDMappingCacheEvent, [16]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventTimestampUpdateSkip}).Tail.AddCounterHost(s.rng, float64(timestampUpdateSkips), 0)
+	}
 
 	sizeMem := s.HistoricBucketsDataSize
 	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()

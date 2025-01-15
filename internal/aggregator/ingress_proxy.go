@@ -27,6 +27,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -129,7 +130,7 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd string) error {
+func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd string, mappingsCache *pcache.MappingsCache) error {
 	p := ingressProxy{
 		ctx:             ctx,
 		cluster:         config.Cluster,
@@ -147,7 +148,7 @@ func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd str
 	} else {
 		var err error
 		p.agent, err = agent.MakeAgent(
-			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(), format.TagValueIDComponentIngressProxy, nil, nil, log.Printf,
+			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(), format.TagValueIDComponentIngressProxy, nil, nil, mappingsCache, log.Printf,
 			func(s *agent.Agent, nowUnix uint32) {
 				// __igp_vm_size
 				var vmSize, vmRSS float64
