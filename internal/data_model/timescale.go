@@ -322,14 +322,10 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	// generate LODs
 	var minStep int64
 	pointQuery := args.Mode == PointQuery
-	if pointQuery {
+	if pointQuery || args.Step < maxMetricRes {
 		minStep = maxMetricRes
 	} else {
-		if 0 < args.Step {
-			minStep = args.Step
-		} else {
-			minStep = maxMetricRes
-		}
+		minStep = args.Step
 	}
 	start := args.Start - int64(maxOffset)
 	end := args.End - int64(maxOffset)
