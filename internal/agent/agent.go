@@ -66,12 +66,14 @@ type Agent struct {
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
 	builtinNewSharding           atomic.Bool  // copy from config.
+	builtinNewConveyor           atomic.Bool  // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
 	heartBeatSecondBucket int            // random [0..59] bucket for per minute heartbeat to spread load on aggregator
 	startTimestamp        uint32
 
+	mappingsCache *pcache.MappingsCache
 	metricStorage format.MetaStorageInterface
 
 	componentTag int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
@@ -107,7 +109,8 @@ type Agent struct {
 }
 
 // All shard aggregators must be on the same network
-func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, dc *pcache.DiskCache, logF func(format string, args ...interface{}),
+func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
+	dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
@@ -139,6 +142,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
 		logF:                  logF,
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
+		mappingsCache:         mappingsCache,
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
 		envLoader:             envLoader,
@@ -428,6 +432,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		s.skipShards.Store(0)
 	}
 	s.builtinNewSharding.Store(config.BuiltinNewSharding)
+	s.builtinNewConveyor.Store(config.BuiltinNewConveyor)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -439,6 +444,9 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		shardReplica.mu.Lock()
 		shardReplica.config = config
 		shardReplica.mu.Unlock()
+	}
+	if s.componentTag != format.TagValueIDComponentAggregator { // aggregator has its own separate remote config for cache sizes
+		s.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
 	}
 }
 
@@ -506,6 +514,10 @@ func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, meta *format.MetricM
 	}
 	shard := s.Shards[shardId]
 	return shard.CreateBuiltInItemValue(key)
+}
+
+func (s *Agent) UseNewConveyor() bool {
+	return s.builtinNewConveyor.Load()
 }
 
 func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32) {

@@ -17,7 +17,6 @@ import (
 
 type Mapper struct {
 	pipelineV2 *mapPipelineV2
-	pipelineV3 *mapPipelineV3
 }
 
 func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache) *pcache.Cache {
@@ -44,7 +43,6 @@ func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache,
 
 	return &Mapper{
 		pipelineV2: newMapPipelineV2(mapCallback, tagValue, ac, data_model.MappingMaxMetricsInQueue, metricMapQueueSize),
-		pipelineV3: newMapPipelineV3(tagValue, ac),
 	}
 }
 
@@ -62,20 +60,10 @@ func (m *Mapper) Stop() {
 
 // Map chooses the appropriate pipeline based on PipelineVersion
 func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue, h *data_model.MappedMetricHeader) (done bool) {
-	if metricInfo != nil && metricInfo.PipelineVersion == 3 {
-		m.pipelineV3.Map(args, metricInfo, h)
-		// V3 pipeline doesn't get mappings from meta, so it always done immediately
-		// if there is an error it's passed via h.IngestionStatus
-		return true
-	}
 	return m.pipelineV2.Map(args, metricInfo, h)
 }
 
 // MapEnvironment chooses the appropriate pipeline based on PipelineVersion
 func (m *Mapper) MapEnvironment(metric *tlstatshouse.MetricBytes, h *data_model.MappedMetricHeader) {
-	if h.MetricMeta != nil && h.MetricMeta.PipelineVersion == 3 {
-		m.pipelineV3.MapEnvironment(metric, h)
-	} else {
-		m.pipelineV2.MapEnvironment(metric, h)
-	}
+	m.pipelineV2.MapEnvironment(metric, h)
 }

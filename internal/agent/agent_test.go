@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/pcache"
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -90,8 +91,9 @@ func Test_SuperQueueLength(t *testing.T) {
 func Test_AgentQueue(t *testing.T) {
 	config := Config{}
 	agent := &Agent{
-		config: config,
-		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
+		config:        config,
+		logF:          func(f string, a ...any) { fmt.Printf(f, a...) },
+		mappingsCache: pcache.NewMappingsCache(1024*1024, 86400),
 	}
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -389,8 +391,9 @@ func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
 */
 func makeAgent(config Config, nowUnix uint32) *Agent {
 	agent := &Agent{
-		config: config,
-		logF:   func(f string, a ...any) { fmt.Printf(f, a...) },
+		config:        config,
+		logF:          func(f string, a ...any) { fmt.Printf(f, a...) },
+		mappingsCache: pcache.NewMappingsCache(1024*1024, 86400),
 	}
 	agent.Shards = make([]*Shard, 5)
 	for i := range agent.Shards {

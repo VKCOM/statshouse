@@ -40,6 +40,10 @@ type Config struct {
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	BuiltinNewSharding     bool
+	BuiltinNewConveyor     bool
+
+	MappingCacheSize int64
+	MappingCacheTTL  int
 
 	// "remote write" was never used (so never tested) and was dropped
 	RemoteWriteEnabled bool
@@ -70,14 +74,19 @@ func DefaultConfig() Config {
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
 		BuiltinNewSharding:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		RemoteWriteEnabled:               false,
-		RemoteWriteAddr:                  ":13380",
-		RemoteWritePath:                  "/write",
-		AutoCreate:                       true,
-		DisableRemoteConfig:              false,
-		DisableNoSampleAgent:             false,
-		HardwareMetricResolution:         5,
-		HardwareSlowMetricResolution:     15,
+		BuiltinNewConveyor:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
+
+		MappingCacheSize: 100 << 20,
+		MappingCacheTTL:  86400,
+
+		RemoteWriteEnabled:           false,
+		RemoteWriteAddr:              ":13380",
+		RemoteWritePath:              "/write",
+		AutoCreate:                   true,
+		DisableRemoteConfig:          false,
+		DisableNoSampleAgent:         false,
+		HardwareMetricResolution:     5,
+		HardwareSlowMetricResolution: 15,
 	}
 }
 
@@ -97,6 +106,9 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	f.IntVar(&c.SendMoreBytes, "send-more-bytes", d.SendMoreBytes, "To test network without changing budgets.")
 	f.StringVar(&c.StatsHouseEnv, "statshouse-env", d.StatsHouseEnv, "Fill key0 with this value in built-in statistics. 'production', 'staging1', 'staging2', 'staging3' values are allowed.")
 
+	f.Int64Var(&c.MappingCacheSize, "mappings-cache-size", d.MappingCacheSize, "Mappings cache size both in memory and on disk.")
+	f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl", d.MappingCacheTTL, "Mappings cache item TTL since last used.")
+
 	f.BoolVar(&c.RemoteWriteEnabled, "remote-write-enabled", d.RemoteWriteEnabled, "Serve prometheus remote write endpoint (deprecated).")
 	f.StringVar(&c.RemoteWriteAddr, "remote-write-addr", d.RemoteWriteAddr, "Prometheus remote write listen address (deprecated).")
 	f.StringVar(&c.RemoteWritePath, "remote-write-path", d.RemoteWritePath, "Prometheus remote write path (deprecated).")
@@ -109,6 +121,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 		f.BoolVar(&c.BuiltinNewSharding, "buitin-new-sharding", d.BuiltinNewSharding, "Put builtin metrics into 0 shard, except for ingestion and bages which sharded by metric")
+		f.BoolVar(&c.BuiltinNewConveyor, "buitin-new-conveyor", d.BuiltinNewConveyor, "All metrics go through new mapping conveyor")
 	}
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
