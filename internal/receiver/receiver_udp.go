@@ -121,8 +121,7 @@ func (u *UDP) Serve(h Handler) error {
 		u.statBytesTotal.Add(uint64(pktLen))
 		pkt := data[:pktLen]
 		if u.mirrorUdpConn != nil {
-			// we intentionally ignore errors here
-			u.mirrorUdpConn.Write(pkt)
+			_, _ = u.mirrorUdpConn.Write(pkt) // we intentionally ignore errors here
 		}
 
 		_ = u.parse(h, nil, nil, nil, pkt, &batch) // ignore errors and read the next packet

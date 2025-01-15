@@ -46,7 +46,10 @@ func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tl
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
 		tagMeta, tagIDKey, valid := data_model.ValidateTag(v, metric, h, mp.autoCreate)
-		if !valid || tagIDKey == 0 {
+		if !valid {
+			continue
+		}
+		if tagIDKey == 0 { // that tag is not in metric meta
 			continue
 		}
 		switch {
@@ -58,6 +61,8 @@ func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tl
 				h.TagSetTwiceKey = tagIDKey
 			}
 			h.IsSKeySet = true
+		case len(v.Value) == 0: // this case is also valid for raw values
+			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "1" => "vasya", "1" => "petya" as second one overriding the first, but generating a warning
 		case tagMeta.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value))
 			if !ok {
@@ -66,8 +71,6 @@ func (mp *mapPipelineV3) mapAllTags(h *data_model.MappedMetricHeader, metric *tl
 				continue
 			}
 			h.SetTag(tagMeta.Index, id, tagIDKey)
-		case len(v.Value) == 0:
-			h.SetTag(tagMeta.Index, 0, tagIDKey)
 		default:
 			id, err, found := mp.getTagValueIDCached(h.ReceiveTime, v.Value)
 			if err != nil {

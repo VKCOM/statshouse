@@ -348,7 +348,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 	if name == "" {
 		return
 	}
-	if !canonical && !ValidTagName(name) {
+	if !canonical && !ValidTagName(mem.S(name)) {
 		if err != nil {
 			*err = fmt.Errorf("invalid tag name %q", name)
 		}
@@ -634,7 +634,7 @@ func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
 
 // '@' is reserved by api access.Do not use it here
 func ValidMetricName(s mem.RO) bool {
-	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
+	if s.Len() == 0 || s.Len() > MaxStringLen || !isAsciiLetter(s.At(0)) {
 		return false
 	}
 	namespaceSepCount := 0
@@ -647,7 +647,7 @@ func ValidMetricName(s mem.RO) bool {
 			namespaceSepCount++
 			continue
 		}
-		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+		if !isAsciiLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
 			return false
 		}
 	}
@@ -685,15 +685,15 @@ func ValidDashboardName(s string) bool {
 	}
 	for i := 1; i < len(s); i++ {
 		c := s[i]
-		if !isLetter(c) && !(c >= '0' && c <= '9') && !validDashboardSymbols[c] {
+		if !isAsciiLetter(c) && !(c >= '0' && c <= '9') && !validDashboardSymbols[c] {
 			return false
 		}
 	}
 	return true
 }
 
-func ValidTagName(s string) bool {
-	return validIdent(mem.S(s))
+func ValidTagName(s mem.RO) bool {
+	return validIdent(s)
 }
 
 func ValidMetricKind(kind string) bool {
@@ -815,17 +815,17 @@ func allowedResolutionTable(r int) int {
 	return int(resolutionsTableStr[r])
 }
 
-func isLetter(c byte) bool {
+func isAsciiLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func validIdent(s mem.RO) bool {
-	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
+	if s.Len() == 0 || s.Len() > MaxStringLen || !isAsciiLetter(s.At(0)) {
 		return false
 	}
 	for i := 1; i < s.Len(); i++ {
 		c := s.At(i)
-		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+		if !isAsciiLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
 			return false
 		}
 	}
@@ -1061,10 +1061,7 @@ func ValidTagValueForAPI(s string) bool {
 
 // We allow both signed and unsigned 32-bit values, however values outside both ranges are prohibited
 func ContainsRawTagValue(s mem.RO) (int32, bool) {
-	if s.Len() == 0 {
-		return 0, true // make sure empty string is the same as value not set, even for raw values
-	}
-	i, err := mem.ParseInt(s, 10, 64)
+	i, err := mem.ParseInt(s, 10, 64) // TODO - remove allocation in case of error
 	return int32(i), err == nil && i >= math.MinInt32 && i <= math.MaxUint32
 }
 
