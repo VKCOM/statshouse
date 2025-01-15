@@ -204,6 +204,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
+	hostName := string(args.Header.HostName) // allocate once
 	hostTagId := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	ownerTagId := a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
 	if ownerTagId == 0 {
@@ -361,6 +362,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	measurementCentroids := 0
 	measurementUniqueBytes := 0
 	measurementStringTops := 0
+	unknownTags := map[string]format.CreateMappingExtra{}
+	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
+	mappingHits := 0
+	mappingMisses := 0
 
 	// We do not want to decompress under lock, so we decompress before ifs, then rarely throw away decompressed data.
 
@@ -433,8 +438,41 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				k.Tags[7] = hostTagId // agent cannot easily map its own host for now
 			}
 		}
+		// If agents send lots of strings, this loop is non-trivial amount of work.
+		// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
+		for i, str := range item.Skeys {
+			if len(str) == 0 {
+				continue
+			}
+			if m, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
+				mappingHits++
+				k.Tags[i] = m
+				if len(sendMappings) < configR.MaxSendTagsToAgent {
+					sendMappings[string(str)] = m
+				}
+				continue
+			}
+			mappingMisses++
+			astr := string(str) // allocate here
+			if len(unknownTags) < configR.MaxUnknownTagsInBucket {
+				if _, ok := unknownTags[astr]; !ok { // TODO - benchmark if checking before adding is faster or slower
+					unknownTags[astr] = format.CreateMappingExtra{
+						Create:    true, // passed as is to meta loader
+						MetricID:  k.Metric,
+						TagIDKey:  int32(i + format.TagIDShift),
+						ClientEnv: k.Tags[0],
+						AgentEnv:  agentEnv,
+						Route:     route,
+						BuildArch: buildArch,
+						HostName:  hostName,
+						Host:      hostTagId,
+					}
+				}
+			}
+			k.SetSTag(i, astr)
+		}
 		keyBytes = keyBytes[:0]
-		switch a.configR.Shard {
+		switch configR.Shard {
 		case ShardAggregatorHash:
 			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
 		case ShardAggregatorXXHash:
@@ -459,6 +497,12 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	}
+
+	for k, v := range sendMappings {
+		resp.Mappings = append(resp.Mappings, tlstatshouse.Mapping{Str: k, Value: v})
+	}
+
+	unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits := a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
 
 	aggBucket.mu.Lock()
 
@@ -492,14 +536,35 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		a.sh2.AddValueCounterHost(key, value, counter, hostTagId, metricInfo)
 	}
+	addCounterHost := func(metricInfo *format.MetricMetaValue, keys [16]int32, counter float64) {
+		key := a.aggKey(args.Time, metricInfo.MetricID, keys)
+		if metricInfo.WithAgentEnvRouteArch {
+			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		}
+		a.sh2.AddCounterHost(key, counter, hostTagId, metricInfo)
+	}
 
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}, float64(measurementStringKeys), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingHits}, float64(mappingHits), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
+
+	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
+	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
+
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
+	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
+	if avgRemovedHits != 0 {
+		addCounterHost(format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, [16]int32{}, avgRemovedHits)
+	}
 
 	addValueCounterHost(format.BuiltinMetricMetaAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(len(hctx.Request)), 1)
 

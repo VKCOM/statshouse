@@ -2889,3 +2889,134 @@ var BuiltinMetricMetaBudgetOwner = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags:                    []MetricMetaTag{},
 }
+
+const BuiltinMetricIDMappingCacheElements = -130
+
+var BuiltinMetricMetaMappingCacheElements = &MetricMetaValue{
+	Name:                    "__mapping_cache_elements",
+	Kind:                    MetricKindValue,
+	Description:             "", // self-explanatory
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}},
+}
+
+const BuiltinMetricIDMappingCacheSize = -131
+
+var BuiltinMetricMetaMappingCacheSize = &MetricMetaValue{
+	Name:                    "__mapping_cache_size",
+	Kind:                    MetricKindValue,
+	Description:             "", // self-explanatory
+	MetricType:              MetricByte,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}},
+}
+
+const BuiltinMetricIDMappingCacheAverageTTL = -132
+
+var BuiltinMetricMetaMappingCacheAverageTTL = &MetricMetaValue{
+	Name:                    "__mapping_cache_average_ttl",
+	Kind:                    MetricKindValue,
+	Description:             "Average cache element timestamp relative to now",
+	MetricType:              MetricSecond,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}},
+}
+
+const BuiltinMetricIDMappingCacheEvent = -133
+
+var BuiltinMetricMetaMappingCacheEvent = &MetricMetaValue{
+	Name:                    "__mapping_cache_events",
+	Kind:                    MetricKindCounter,
+	Description:             "", // self-explanatory
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "event",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDMappingCacheEventHit:                 "hit",
+			TagValueIDMappingCacheEventMiss:                "miss",
+			TagValueIDMappingCacheEventTimestampUpdate:     "update",
+			TagValueIDMappingCacheEventTimestampUpdateSkip: "update_skip",
+			TagValueIDMappingCacheEventAdd:                 "add",
+			TagValueIDMappingCacheEventEvict:               "evict",
+		}),
+	}},
+}
+
+const BuiltinMetricIDMappingQueueSize = -134
+
+var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
+	Name:                    "__mapping_queue_size",
+	Kind:                    MetricKindValue,
+	Description:             "Elements in aggregator new conveyor mapping queue",
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "-", // reserve for component
+	}},
+}
+
+const BuiltinMetricIDMappingQueueEvent = -135
+
+var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
+	Name:                    "__mapping_queue_events",
+	Kind:                    MetricKindCounter,
+	Description:             "Events in aggregator new conveyor mapping queue",
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "-", // reserve for component
+	}, {
+		Description: "event",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDMappingQueueEventUnknownMapRemove:  "uknown_map_remove",
+			TagValueIDMappingQueueEventUnknownMapAdd:     "unknown_map_add",
+			TagValueIDMappingQueueEventUnknownListRemove: "unknown_list_remove",
+			TagValueIDMappingQueueEventUnknownListAdd:    "unknown_list_add",
+			TagValueIDMappingQueueEventCreateMapAdd:      "create_map_add",
+			TagValueIDMappingQueueEventCreateMapRemove:   "create_map_remove",
+		}),
+	}},
+}
+
+const BuiltinMetricIDMappingQueueRemovedHitsAvg = -136
+
+var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
+	Name:                    "__mapping_queue_removed_hits_avg",
+	Kind:                    MetricKindValue,
+	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average hit counter is reported here.",
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "-", // reserve for component
+	}},
+}

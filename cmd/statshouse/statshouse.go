@@ -100,6 +100,8 @@ func runMain() int {
 		printVerbUsage()
 		return 1
 	}
+	var mappingCacheSize int64
+	var mappingCacheTTL int
 	// Motivation - some engine infrastructure cannot add options without dash. so wi allow both
 	// $> statshouse agent -a -b -c
 	// and
@@ -144,10 +146,14 @@ func runMain() int {
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			build.FlagParseShowVersionHelp()
+			mappingCacheSize = argv.configAgent.MappingCacheSize
+			mappingCacheTTL = argv.configAgent.MappingCacheTTL
 		case "aggregator":
 			argvAddCommonFlags()
 			argvAddAggregatorFlags(false)
 			build.FlagParseShowVersionHelp()
+			mappingCacheSize = argv.configAggregator.MappingCacheSize
+			mappingCacheTTL = argv.configAggregator.MappingCacheTTL
 		case "ingress_proxy":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
@@ -157,6 +163,8 @@ func runMain() int {
 			flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
+			mappingCacheSize = argv.configAgent.MappingCacheSize
+			mappingCacheTTL = argv.configAgent.MappingCacheTTL
 		case "tag_mapping":
 			mainTagMapping()
 			return 0
@@ -201,6 +209,7 @@ func runMain() int {
 		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
 	}
 	var dc *pcache.DiskCache // We support working without touching disk (on readonly filesystems, in stateless containers, etc)
+	var fpmc *os.File
 	if argv.cacheDir != "" {
 		var err error
 		if dc, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
@@ -213,7 +222,16 @@ func runMain() int {
 		//		logErr.Printf("failed to close disk cache: %v", err)
 		//	}
 		// }()
+
+		// we do not want to confuse mappings from different clusters, this would be a disaster
+		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			logErr.Printf("failed to open agent mappings cache: %v", err)
+			return 1
+		}
+		defer fpmc.Close()
 	}
+	mappingsCache := pcache.LoadMappingsCacheFile(fpmc, mappingCacheSize, mappingCacheTTL)
 
 	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 
@@ -232,22 +250,22 @@ func runMain() int {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
-		mainAgent(aesPwd, dc)
+		mainAgent(aesPwd, dc, mappingsCache)
 	case "aggregator":
-		mainAggregator(aesPwd, dc)
+		mainAggregator(aesPwd, dc, mappingsCache)
 	case "ingress_proxy":
 		if len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
-		mainIngressProxy(aesPwd)
+		mainIngressProxy(aesPwd, mappingsCache)
 	default:
 		logErr.Printf("Wrong command line verb or -new-conveyor argument %q, see --help for valid values", verb)
 	}
 	return 0
 }
 
-func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
+func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCache) int {
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	argv.configAgent.Cluster = argv.cluster
 	if err := argv.configAgent.ValidateConfigSource(); err != nil {
@@ -282,6 +300,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		format.TagValueIDComponentAgent,
 		metricStorage,
 		dc,
+		mcagent,
 		log.Printf,
 		func(a *agent.Agent, unixNow uint32) {
 			k := data_model.Key{
@@ -550,13 +569,16 @@ loop:
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
 	sh2.WaitPreprocessor()
 	shutdownInfo.StopPreprocessor = shutdownInfoDuration(&now).Nanoseconds()
+	logOk.Printf("8. Saving mappings...")
+	_ = mcagent.Save()
+	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
 	return 0
 }
 
-func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
+func mainAggregator(aesPwd string, dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache) int {
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	if err := aggregator.ValidateConfigAggregator(argv.configAggregator); err != nil {
 		logErr.Printf("%s", err)
@@ -569,7 +591,7 @@ func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--agg-addr to listen must be specified")
 		return 1
 	}
-	agg, err := aggregator.MakeAggregator(dc, argv.cacheDir, argv.aggAddr, aesPwd, argv.configAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(dc, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.configAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		logErr.Printf("%v", err)
 		return 1
@@ -606,13 +628,16 @@ loop:
 	logOk.Printf("4. Waiting RPC clients to receive responses and disconnect...")
 	agg.WaitRPCServer(10 * time.Second)
 	shutdownInfo.StopRPCServer = shutdownInfoDuration(&now).Nanoseconds()
+	logOk.Printf("5. Saving mappings...")
+	_ = mappingsCache.Save()
+	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
 	return 0
 }
 
-func mainIngressProxy(aesPwd string) {
+func mainIngressProxy(aesPwd string, mappingsCache *pcache.MappingsCache) {
 	// Ensure proxy configuration is valid
 	config := argv.configIngress
 	config.Network = "tcp"
@@ -634,7 +659,7 @@ func mainIngressProxy(aesPwd string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
-		exit <- aggregator.RunIngressProxy2(ctx, config, aesPwd)
+		exit <- aggregator.RunIngressProxy2(ctx, config, aesPwd, mappingsCache)
 	}()
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGINT)
@@ -650,6 +675,7 @@ func mainIngressProxy(aesPwd string) {
 		logErr.Println(err)
 		cancel()
 	}
+	_ = mappingsCache.Save()
 }
 
 func listen(network, address string) net.Listener {

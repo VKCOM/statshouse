@@ -109,6 +109,8 @@ type (
 		metricStorage  *metajournal.MetricsStorage
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
+		tagsMapper2    *tagsMapper2
+		mappingsCache  *pcache.MappingsCache
 
 		scrape     *scrapeServer
 		autoCreate *autoCreate
@@ -133,7 +135,8 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 // aggregator is also run in this method
-func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
+func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
+	storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
 		return nil, fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
@@ -219,6 +222,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
+		mappingsCache:               mappingsCache,
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -289,7 +293,8 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
+		format.TagValueIDComponentAggregator, a.metricStorage, nil, mappingsCache,
+		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
 	}
@@ -302,6 +307,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, metricMetaLoader, a.config.Cluster)
+	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
 
 	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricMetaBudgetAggregatorHost.Name)
 
@@ -316,6 +322,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
 	_ = a.insertsSema.Acquire(context.Background(), a.insertsSemaSize)
 
+	go a.tagsMapper2.goRun()
 	go a.goTicker()
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
@@ -487,6 +494,8 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
 	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost, format.BuiltinMetricMetaAggActiveSenders)
 
+	key = a.aggKey(nowUnix, format.BuiltinMetricIDMappingQueueSize, [16]int32{})
+	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHost, format.BuiltinMetricMetaMappingQueueSize)
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()
@@ -954,4 +963,6 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.configMu.Lock()
 	a.configR = config
 	a.configMu.Unlock()
+	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
+	a.tagsMapper2.SetConfig(config.configTagsMapper2)
 }

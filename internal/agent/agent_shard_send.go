@@ -443,6 +443,7 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 				err, cbd.time, s.ShardKey)
 			return false
 		}
+		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
 		if len(respV3.Warning) != 0 {
 			s.agent.logF("Send Warning: %s, moving bucket %d to historic conveyor for shard %d",
 				respV3.Warning, cbd.time, s.ShardKey)
@@ -560,6 +561,9 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 			if len(respV3.Warning) != 0 {
 				s.agent.logF("Send historic bucket returned: %s", respV3.Warning)
 			}
+			// we choose to use bucket time here, because we do not map new strings for historic buckets
+			// at the moment of sending, if they were not mapped at the moment of saving
+			s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
 			if !respV3.IsSetDiscard() {
 				shardReplica.stats.historicSendKeep.Add(1)
 				select {

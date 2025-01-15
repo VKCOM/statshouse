@@ -48,23 +48,28 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pm
 	return w
 }
 
-// func (w *worker) wait() {
-//	w.mapper.Stop()
-// }
-
 func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
 	w.fillTime(args, &h)
 	metaOk := w.fillMetricMeta(args, &h)
-	if metaOk {
-		done = w.mapper.Map(args, h.MetricMeta, &h)
-	} else {
-		w.mapper.MapEnvironment(args.MetricBytes, &h)
+	newConveyor := w.sh2.UseNewConveyor() || (h.MetricMeta != nil && h.MetricMeta.PipelineVersion == 3)
+	if newConveyor {
+		if metaOk {
+			w.sh2.Map(args, &h, w.autoCreate)
+		} else {
+			w.sh2.MapEnvironment(args.MetricBytes, &h)
+		}
 		done = true
+	} else {
+		if metaOk {
+			done = w.mapper.Map(args, h.MetricMeta, &h)
+		} else {
+			w.mapper.MapEnvironment(args.MetricBytes, &h)
+			done = true
+		}
 	}
-
 	if done {
 		if w.logPackets != nil {
 			w.printMetric("cached", *args.MetricBytes, h)
