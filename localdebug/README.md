@@ -30,7 +30,7 @@ Next commands should be run in separate terminal tabs, one tab per daemon.
 
 First run meta
 ```
-./run-meta.sh
+./run-metadata.sh
 ```
 
 Then run aggregator

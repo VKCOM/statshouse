@@ -11,7 +11,7 @@ services:
   kh:
     image: clickhouse/clickhouse-server:${CH_VERSION}
     container_name: kh
-    hostname: agg
+    hostname: localhost  # in order for autoconfigure to work
     volumes:
       - kh:/var/lib/clickhouse
       - type: bind

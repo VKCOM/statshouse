@@ -3,7 +3,7 @@
         <statlogs2>
             <shard>
                 <replica>
-                    <host>agg</host>
+                    <host>localhost</host>
                     <port>9000</port>
                 </replica>
             </shard>
