@@ -565,7 +565,7 @@ var BuiltinMetricMetaAggMapping = &MetricMetaValue{
 	Description:             "Status of mapping on aggregator side.",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description: "-",
@@ -2878,6 +2878,7 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 }
 
 const BuiltinMetricIDBudgetOwner = -129 //invisible, but owner mapping is flood-protected
+
 var BuiltinMetricMetaBudgetOwner = &MetricMetaValue{
 	Name:                    "__budget_owner",
 	Kind:                    MetricKindCounter,

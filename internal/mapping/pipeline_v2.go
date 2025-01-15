@@ -85,6 +85,8 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 				h.TagSetTwiceKey = tagIDKey
 			}
 			h.IsSKeySet = true
+		case len(v.Value) == 0: // this case is also valid for raw values
+			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "1" => "vasya", "1" => "petya" as second one overriding the first, but generating a warning
 		case tagMeta.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value)) // TODO - remove allocation in case of error
 			if !ok {
@@ -94,8 +96,6 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 				continue
 			}
 			h.SetTag(tagMeta.Index, id, tagIDKey)
-		case len(v.Value) == 0: // TODO - move knowledge about "" <-> 0 mapping to more general place
-			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "0" => "vasya", "0" => "" as second one overriding the first, generating a warning
 		default:
 			if !cached { // We need to map single tag and exit. Slow path.
 				extra := format.CreateMappingExtra{ // Host and AgentEnv are added by source when sending

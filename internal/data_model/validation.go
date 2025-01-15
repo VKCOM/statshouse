@@ -54,7 +54,7 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 		} else {
 			h.NotFoundTagName = v.Key
 		}
-		if autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
+		if autoCreate != nil && format.ValidTagName(mem.B(v.Key)) {
 			_ = autoCreate.AutoCreateTag(metricBytes, v.Key, h.ReceiveTime)
 		}
 		// metric without meta gives valid=true, but tagMeta will be empty
