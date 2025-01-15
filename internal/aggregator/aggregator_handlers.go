@@ -195,6 +195,10 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 }
 
 func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes, version3 bool) (string, error, bool) {
+	a.configMu.RLock()
+	configR := a.configR
+	a.configMu.RUnlock()
+
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -229,7 +233,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
-	if a.configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
+	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAggOutdatedAgents)
@@ -446,7 +450,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
-		if a.configR.Shard == ShardAggregatorHash || a.configR.Shard == ShardAggregatorXXHash {
+		if configR.Shard == ShardAggregatorHash || configR.Shard == ShardAggregatorXXHash {
 			// we unlock shard to caclculate hash not under it
 			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		}
@@ -482,7 +486,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	now2 := time.Now()
 	addValueCounterHost := func(metricInfo *format.MetricMetaValue, keys [16]int32, value float64, counter float64) {
 		key := a.aggKey(args.Time, metricInfo.MetricID, keys)
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		if metricInfo.WithAgentEnvRouteArch {
+			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		}
 		a.sh2.AddValueCounterHost(key, value, counter, hostTagId, metricInfo)
 	}
 

@@ -419,9 +419,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		return res
 	}
 
-	var config ConfigAggregatorRemote
+	var configR ConfigAggregatorRemote
 	a.configMu.RLock()
-	config = a.configR
+	configR = a.configR
 	a.configMu.RUnlock()
 
 	insertSizes := make(map[uint32]insertSize, len(buckets))
@@ -489,9 +489,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	recentTime := buckets[0].time // by convention first bucket is recent all other are historic
 	sampler := data_model.NewSampler(itemsCount, data_model.SamplerConfig{
 		Meta:             a.metricStorage,
-		SampleNamespaces: config.SampleNamespaces,
-		SampleGroups:     config.SampleGroups,
-		SampleKeys:       config.SampleKeys,
+		SampleNamespaces: configR.SampleNamespaces,
+		SampleGroups:     configR.SampleGroups,
+		SampleKeys:       configR.SampleKeys,
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
 			key := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
@@ -506,7 +506,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		is := insertSize{}
 		for si := 0; si < len(b.shards); si++ {
 			for _, item := range b.shards[si].MultiItems {
-				whaleWeight := item.FinishStringTop(rnd, config.StringTopCountInsert) // all excess items are baked into Tail
+				whaleWeight := item.FinishStringTop(rnd, configR.StringTopCountInsert) // all excess items are baked into Tail
 
 				resPos := len(res)
 				res = appendMultiBadge(rnd, res, &item.Key, item, metricCache, usedTimestamps, v3Format)
@@ -556,7 +556,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		numContributors += int(b.contributorsCount())
 	}
 	resPos := len(res)
-	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(config.InsertBudget*numContributors)
+	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(configR.InsertBudget*numContributors)
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
 	sampler.Run(remainingBudget)
