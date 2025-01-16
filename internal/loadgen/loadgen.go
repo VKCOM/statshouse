@@ -52,13 +52,12 @@ func randomWalk(ctx context.Context, client *statshouse.Client, tags statshouse.
 	}
 }
 
-func Main() {
+func RunLegacy() {
 	var (
 		metricsN  int
 		clientsN  int
 		randomTag bool
 		agentAddr string
-		signals   = make(chan os.Signal, 1)
 	)
 	flag.IntVar(&metricsN, "m", 6, "number of metrics")
 	flag.IntVar(&clientsN, "c", 2, "number of clients")
@@ -71,12 +70,7 @@ func Main() {
 	}
 	log.Println("creating", clientsN, "clients that write", metricsN, "metrics", randomTagLog)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-signals
-		cancel()
-	}()
+	ctx := makeInterruptibleContext()
 
 	client := http.Client{}
 	metricNames := make([]string, metricsN)
@@ -129,4 +123,42 @@ func Main() {
 	log.Print("Stopping...")
 	wg.Wait()
 	log.Print("Stopped")
+}
+
+func RunAgentLoad() {
+	ctx := makeInterruptibleContext()
+
+	sh := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
+	g := Generator{
+		rng:     rand.New(),
+		clients: []*statshouse.Client{sh},
+	}
+	// metrics that do not change tag values
+	g.AddConstCounter("1")
+	g.AddConstValue("1")
+	g.AddConstPercentile("1")
+	// metrics with changing tag values
+	g.AddChangingCounter("1")
+	g.AddChangingValue("1")
+	g.AddChangingPercentile("1")
+	g.AddChangingStringTop("1", 10)
+	// TODO: create metrics and dashboard
+	log.Print("Running load on agent via StatsHouse client")
+	go g.goRun(ctx)
+
+	<-ctx.Done()
+	log.Print("Stopping...")
+	_ = sh.Close()
+	log.Print("DONE")
+}
+
+func makeInterruptibleContext() context.Context {
+	signals := make(chan os.Signal, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signals
+		cancel()
+	}()
+	return ctx
 }
