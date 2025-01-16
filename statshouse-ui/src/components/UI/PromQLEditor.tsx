@@ -89,7 +89,7 @@ export function PromQLEditor({ value = '', onChange, className }: PromQLEditorPr
   }, [onChange]);
 
   useEffect(() => {
-    if (editor.current?.state.doc.toString() !== state.doc.toString()) {
+    if (editor.current?.state.doc.toString() !== state.doc.toString() || state.doc.toString() === '') {
       editor.current?.setState(state);
     }
   }, [state, value]);
