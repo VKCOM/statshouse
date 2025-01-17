@@ -588,8 +588,8 @@ func init() {
 			return v
 		}),
 		"sqrt":               simpleCall(math.Sqrt),
-		"time":               generatorCall(funcTime),
-		"timestamp":          seriesCall(funcTimestamp),
+		"time":               funcTimestamp,
+		"timestamp":          funcTimestamp,
 		"vector":             funcVector,
 		"year":               timeCall(time.Time.Year),
 		"avg_over_time":      overTimeCall(funcAvgOverTime, false, NilValue),
@@ -615,7 +615,7 @@ func init() {
 		"tan":                simpleCall(math.Tan),
 		"tanh":               simpleCall(math.Tanh),
 		"deg":                simpleCall(func(v float64) float64 { return v * 180 / math.Pi }),
-		"pi":                 generatorCall(funcPi),
+		"pi":                 funcPi,
 		"rad":                simpleCall(func(v float64) float64 { return v * math.Pi / 180 }),
 	}
 }
@@ -771,16 +771,6 @@ func seriesCall(fn func(*evaluator, Series) Series) callFunc {
 		}
 		for i := range res {
 			res[i] = fn(ev, res[i])
-		}
-		return res, nil
-	}
-}
-
-func generatorCall(fn func(ev *evaluator, args parser.Expressions) Series) callFunc {
-	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
-		res := make([]Series, len(ev.opt.Offsets))
-		for i := range ev.opt.Offsets {
-			res[i] = fn(ev, args)
 		}
 		return res, nil
 	}
@@ -1493,24 +1483,34 @@ func funcScalar(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcTime(ev *evaluator, _ parser.Expressions) Series {
-	var (
-		t = ev.time()
-		d = SeriesData{Values: ev.alloc()}
-	)
-	for i := range *d.Values {
-		(*d.Values)[i] = float64(t[i])
-	}
-	return Series{Data: []SeriesData{d}}
-}
-
-func funcTimestamp(ev *evaluator, sr Series) Series {
-	for i := range sr.Data {
-		for j, t := range ev.time() {
-			(*sr.Data[i].Values)[j] = float64(t)
+func funcTimestamp(ev *evaluator, args parser.Expressions) (res []Series, err error) {
+	if len(args) != 0 {
+		res, err = ev.eval(args[0])
+		if err != nil {
+			return res, err
+		}
+	} else {
+		res = make([]Series, len(ev.opt.Offsets))
+		for i := 0; i < len(res); i++ {
+			res[i] = Series{
+				Data: []SeriesData{{
+					Values: ev.alloc(),
+					Offset: ev.opt.Offsets[i],
+				}},
+			}
 		}
 	}
-	return sr
+	for i := 0; i < len(res); i++ {
+		for j := 0; j < len(res[i].Data); j++ {
+			s := *res[i].Data[j].Values
+			v := res[i].Data[j].Offset
+			for k := 0; k < len(s); k++ {
+				s[k] = float64(ev.t.Time[k] - v)
+			}
+		}
+		res[i].Meta.Units = "second"
+	}
+	return res, nil
 }
 
 func funcVector(ev *evaluator, args parser.Expressions) ([]Series, error) {
@@ -1712,12 +1712,18 @@ func funcStdVarOverTime(s []float64) float64 {
 	return res
 }
 
-func funcPi(ev *evaluator, _ parser.Expressions) Series {
-	d := SeriesData{Values: ev.alloc()}
-	for i := range *d.Values {
-		(*d.Values)[i] = math.Pi
+func funcPi(ev *evaluator, _ parser.Expressions) ([]Series, error) {
+	res := make([]Series, len(ev.opt.Offsets))
+	for i := 0; i < len(res); i++ {
+		res[i] = Series{
+			Data: []SeriesData{{Values: ev.alloc()}},
+		}
+		s := *res[i].Data[0].Values
+		for j := 0; j < len(s); j++ {
+			s[j] = math.Pi
+		}
 	}
-	return Series{Data: []SeriesData{d}}
+	return res, nil
 }
 
 // endregion Call
