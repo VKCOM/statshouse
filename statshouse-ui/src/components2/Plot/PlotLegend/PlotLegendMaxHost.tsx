@@ -34,6 +34,14 @@ export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
     });
   }, [idx, maxHostLists]);
 
+  const copyItem = useCallback((value?: string | string[]) => {
+    if (typeof value === 'string') {
+      window.navigator.clipboard.writeText(value).then(() => {
+        debug.log(`clipboard ${value}`);
+      });
+    }
+  }, []);
+
   const options = useMemo(() => maxHostLists[idx - 1] ?? [], [idx, maxHostLists]);
   return (
     <div className="d-flex flex-nowrap">
@@ -43,8 +51,10 @@ export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
         value={value}
         placeholder={placeholder}
         options={options}
+        onChange={copyItem}
         listOnlyOpen
         showCountItems
+        valueToInput
       />
       <Button
         onClick={onCopyList}
