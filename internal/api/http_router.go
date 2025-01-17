@@ -14,6 +14,8 @@ import (
 	"github.com/vkcom/statshouse/internal/promql"
 )
 
+var errCode5XX = fmt.Errorf("internal server error")
+
 type httpRouter struct {
 	*Handler
 	*mux.Router
@@ -140,11 +142,18 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 		}
 		h.endpointStat.report(h.w.statusCode, format.BuiltinMetricMetaAPIResponseTime.Name)
 	}()
-	if err := h.init(); err != nil {
+	err := h.init()
+	if err != nil {
 		respondJSON(h, nil, 0, 0, err)
-		return
+	} else {
+		r.handlerFunc(h)
 	}
-	r.handlerFunc(h)
+	if 500 <= h.w.statusCode && h.w.statusCode < 600 {
+		if err == nil {
+			err = errCode5XX
+		}
+		h.savePanic(req.RequestURI, err, nil)
+	}
 }
 
 func DumpInternalServerErrors(r *httpRequestHandler) {
