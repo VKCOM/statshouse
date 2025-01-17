@@ -333,14 +333,20 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		if argv.coresUDP == 0 || addr == "" {
 			return nil
 		}
-		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, false, sh2, mirrorUdpConn, logPackets)
+		reusePort := argv.coresUDP > 1 && network != "unixgram"
+		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, reusePort, sh2, mirrorUdpConn, logPackets)
 		if err != nil {
 			logErr.Printf("listen %q failed: %v", network, err)
 			return err
 		}
 		receiversUDP = append(receiversUDP, u)
 		for i := 1; i < argv.coresUDP; i++ {
-			dup, err := u.Duplicate()
+			var dup *receiver.UDP
+			if network == "unixgram" {
+				dup, err = u.Duplicate()
+			} else {
+				dup, err = receiver.ListenUDP(network, addr, argv.bufferSizeUDP, true, sh2, mirrorUdpConn, logPackets)
+			}
 			if err != nil {
 				logErr.Printf("duplicate listen socket failed: %v", err)
 				return err
