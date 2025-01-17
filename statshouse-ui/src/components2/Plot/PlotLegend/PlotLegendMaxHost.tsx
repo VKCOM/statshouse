@@ -20,6 +20,14 @@ type PlotLegendMaxHostProps = {
   idx: number;
 };
 
+function copyItem(value?: string | string[]) {
+  if (typeof value === 'string') {
+    window.navigator.clipboard.writeText(value).then(() => {
+      debug.log(`clipboard ${value}`);
+    });
+  }
+}
+
 export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
   value,
   placeholder,
@@ -33,14 +41,6 @@ export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
       debug.log('clipboard max host list');
     });
   }, [idx, maxHostLists]);
-
-  const copyItem = useCallback((value?: string | string[]) => {
-    if (typeof value === 'string') {
-      window.navigator.clipboard.writeText(value).then(() => {
-        debug.log(`clipboard ${value}`);
-      });
-    }
-  }, []);
 
   const options = useMemo(() => maxHostLists[idx - 1] ?? [], [idx, maxHostLists]);
   return (
