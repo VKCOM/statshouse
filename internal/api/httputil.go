@@ -153,6 +153,7 @@ func respondJSON(h *httpRequestHandler, resp interface{}, cache time.Duration, c
 	h.endpointStat.reportServiceTime(code, nil)
 
 	if err != nil {
+		h.w.handlerErr = err
 		if code == 500 {
 			log.Println("[error]", err.Error())
 		}
@@ -164,6 +165,7 @@ func respondJSON(h *httpRequestHandler, resp interface{}, cache time.Duration, c
 	var jw jwriter.Writer
 	r.MarshalEasyJSON(&jw)
 	if jw.Error != nil {
+		h.w.handlerErr = err
 		log.Printf("[error] failed to marshal JSON response for %q: %v", h.endpointStat.user, jw.Error)
 		msg := `{"error": "failed to marshal JSON response"}`
 		w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
