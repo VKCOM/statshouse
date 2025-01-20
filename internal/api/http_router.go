@@ -14,8 +14,6 @@ import (
 	"github.com/vkcom/statshouse/internal/promql"
 )
 
-var errCode5XX = fmt.Errorf("internal server error")
-
 type httpRouter struct {
 	*Handler
 	*mux.Router
@@ -47,6 +45,7 @@ type httpRequestHandler struct {
 
 type httpResponseWriter struct {
 	http.ResponseWriter
+	handlerErr     error
 	statusCode     int
 	statusCodeSent bool
 }
@@ -150,7 +149,11 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 	}
 	if 500 <= h.w.statusCode && h.w.statusCode < 600 {
 		if err == nil {
-			err = errCode5XX
+			if h.w.handlerErr != nil {
+				err = h.w.handlerErr
+			} else {
+				err = fmt.Errorf("status code %d", h.w.statusCode)
+			}
 		}
 		h.savePanic(req.RequestURI, err, nil)
 	}
