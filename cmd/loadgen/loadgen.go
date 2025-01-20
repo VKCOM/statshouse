@@ -1,0 +1,15 @@
+package main
+
+import (
+	"os"
+
+	"github.com/vkcom/statshouse/internal/loadgen"
+)
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "agent" {
+		loadgen.RunAgentLoad()
+		return
+	}
+	loadgen.RunLegacy()
+}
