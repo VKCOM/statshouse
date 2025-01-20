@@ -289,6 +289,7 @@ describe('@/urlStore urlEncode', () => {
           dashboardName: 'dn',
           dashboardDescription: 'dd',
           dashboardVersion: 123,
+          dashboardCurrentVersion: 12345,
           eventFrom: 2000,
           live: true,
           tabNum: '5',
@@ -309,6 +310,16 @@ describe('@/urlStore urlEncode', () => {
       ['dd', 'dd'],
       ['dv', '123'],
     ]);
+    expect(
+      urlEncodeGlobalParam(
+        {
+          ...params,
+          dashboardVersion: 123,
+          dashboardCurrentVersion: 123,
+        },
+        { ...params }
+      )
+    ).toEqual([]);
     expect(
       urlEncodeGlobalParam(
         {

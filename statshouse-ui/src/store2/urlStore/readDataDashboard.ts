@@ -15,5 +15,6 @@ export function readDataDashboard(data: DashboardInfo, defaultParams = getDefaul
     dashboardName: data.dashboard.name,
     dashboardDescription: data.dashboard.description,
     dashboardVersion: data.dashboard.version,
+    dashboardCurrentVersion: data.dashboard.current_version,
   });
 }

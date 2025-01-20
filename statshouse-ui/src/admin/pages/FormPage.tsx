@@ -4,28 +4,32 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import * as React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { IBackendMetric, IKind, IMetric, ITag, ITagAlias } from '../models/metric';
+import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
-import { resetMetricFlood, saveMetric } from '../api/saveMetric';
 import { IActions } from '../storages/MetricFormValues/reducer';
 import { useStore } from '@/store';
 import { RawValueKind } from '@/view/api';
-import { freeKeyPrefix } from '@/url/queryParams';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '@/api/enum';
 import { maxTagsSize } from '@/common/settings';
 import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
-import { isNotNil, toNumber } from '@/common/helpers';
+import { toNumber } from '@/common/helpers';
 import { dequal } from 'dequal/lite';
 import { produce } from 'immer';
 import { TagDraft } from './TagDraft';
 import { formatInputDate } from '@/view/utils2';
 import { Select } from '@/components/Select';
+
+import { fetchAndProcessMetric, resetMetricFlood, saveMetric } from '../api/saveMetric';
+import { StickyTop } from '@/components2/StickyTop';
+import { queryClient } from '@/common/queryClient';
+import { API_HISTORY } from '@/api/history';
+import { HistoryList } from '@/components2/HistoryList';
+import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
 
 const { clearMetricsMeta } = useStore.getState();
 
@@ -34,80 +38,115 @@ const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
   const { metricName } = useParams();
-  const [initMetric, setInitMetric] = React.useState<Partial<IMetric> | null>(null);
-  React.useEffect(() => {
-    fetch(`/api/metric?s=${metricName}`)
-      .then<{ data: { metric: IBackendMetric } }>((res) => res.json())
-      .then(({ data: { metric } }) => {
-        const tags_draft: ITag[] = Object.entries(metric.tags_draft ?? {})
-          .map(([, t]) => t)
-          .filter(isNotNil);
-        tags_draft.sort((a, b) => (b.name < a.name ? 1 : b.name === a.name ? 0 : -1));
+
+  const [searchParams] = useSearchParams();
+  const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
+
+  const [initMetric, setInitMetric] = useState<Partial<IMetric> | null>(null);
+  const [isShowHistory, setIsShowHistory] = useState(false);
+
+  const isHistoricalMetric = useMemo(
+    () => !!initMetric?.version && !!historicalMetricVersion && initMetric.version !== Number(historicalMetricVersion),
+    [initMetric?.version, historicalMetricVersion]
+  );
+
+  const loadMetric = useCallback(async () => {
+    try {
+      if (initMetric?.version && initMetric?.id && historicalMetricVersion) {
+        const currentMetric = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
+        const historicalMetricData = await fetchAndProcessMetric(
+          `/api/metric?id=${initMetric.id}&ver=${historicalMetricVersion}`
+        );
+
         setInitMetric({
-          id: metric.metric_id === undefined ? 0 : metric.metric_id,
-          name: metric.name,
-          description: metric.description,
-          kind: (metric.kind.endsWith('_p') ? metric.kind.replace('_p', '') : metric.kind) as IKind,
-          stringTopName: metric.string_top_name === undefined ? '' : metric.string_top_name,
-          stringTopDescription: metric.string_top_description === undefined ? '' : metric.string_top_description,
-          weight: metric.weight === undefined ? 1 : metric.weight,
-          resolution: metric.resolution === undefined ? 1 : metric.resolution,
-          visible: metric.visible === undefined ? false : metric.visible,
-          withPercentiles: metric.kind.endsWith('_p'),
-          tags: metric.tags.map((tag: ITag, index) => ({
-            name: tag.name === undefined || tag.name === `key${index}` ? '' : tag.name, // now API sends undefined for canonical names, but this can change in the future, so we keep the code
-            alias: tag.description === undefined ? '' : tag.description,
-            customMapping: tag.value_comments
-              ? Object.entries(tag.value_comments).map(([from, to]) => ({
-                  from,
-                  to,
-                }))
-              : [],
-            isRaw: tag.raw || tag.raw_kind != null,
-            raw_kind: tag.raw_kind,
-          })),
-          tags_draft,
-          tagsSize: metric.tags.length,
-          pre_key_tag_id: metric.pre_key_tag_id && freeKeyPrefix(metric.pre_key_tag_id),
-          pre_key_from: metric.pre_key_from,
-          metric_type: metric.metric_type,
-          version: metric.version,
-          group_id: metric.group_id,
-          fair_key_tag_ids: metric.fair_key_tag_ids,
-          skip_max_host: !!metric.skip_max_host,
-          skip_min_host: !!metric.skip_min_host,
-          skip_sum_square: !!metric.skip_sum_square,
+          ...historicalMetricData,
+          version: currentMetric.version || historicalMetricData.version,
         });
-      });
-  }, [metricName]);
+      } else {
+        const metricData = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
+        setInitMetric(metricData);
+      }
+    } catch (_) {}
+  }, [historicalMetricVersion, initMetric?.id, initMetric?.version, metricName]);
+
+  useEffect(() => {
+    if (metricName) {
+      loadMetric();
+    }
+  }, [metricName, loadMetric]);
 
   // update document title
-  React.useEffect(() => {
+  useEffect(() => {
     document.title = `${metricName + ': edit'} — StatsHouse`;
   }, [metricName]);
 
+  const handleShowHistory = () => {
+    setIsShowHistory(true);
+  };
+
+  const handleShowEdit = () => {
+    setIsShowHistory(false);
+  };
+
+  const onVersionClick = useCallback(() => {
+    handleShowEdit?.();
+  }, []);
+
+  const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
+
   return (
     <div className="container-xl pt-3 pb-3" style={{ paddingLeft: `${yAxisSize}px` }}>
-      <h6 className="overflow-force-wrap font-monospace fw-bold me-3 mb-3" title={`ID: ${initMetric?.id || '?'}`}>
-        {metricName}
-        <>
-          <span className="text-secondary me-4">: edit</span>
-          <Link className="text-decoration-none fw-normal small" to={`../../view?s=${metricName}`}>
-            view
-          </Link>
-        </>
-      </h6>
+      <StickyTop className="mb-3">
+        <div className="d-flex">
+          <div className="my-auto">
+            <h6
+              className="overflow-force-wrap font-monospace fw-bold me-3 my-auto"
+              title={`ID: ${initMetric?.id || '?'}`}
+            >
+              {metricName}
+              <span
+                className={`me-4 ${isShowHistory ? 'text-primary fw-normal small cursor-pointer' : 'text-secondary'}`}
+                style={{ cursor: isShowHistory ? 'pointer' : 'default' }}
+                onClick={handleShowEdit}
+              >
+                : edit
+              </span>
+              <span
+                className={`me-4 ${isShowHistory ? 'text-secondary' : 'text-primary fw-normal small cursor-pointer'}`}
+                style={{ cursor: isShowHistory ? 'default' : 'pointer' }}
+                onClick={handleShowHistory}
+              >
+                history
+              </span>
+              <Link className="text-decoration-none fw-normal small" to={`../../view?s=${metricName}`}>
+                view
+              </Link>
+            </h6>
+          </div>
+
+          {isHistoricalMetric && <HistoryDashboardLabel />}
+        </div>
+      </StickyTop>
+
       {metricName && !initMetric ? (
         <div className="d-flex justify-content-center align-items-center mt-5">
           <div className="spinner-border text-secondary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
+      ) : isShowHistory && initMetric?.id ? (
+        <HistoryList
+          id={initMetric.id.toString()}
+          mainPath={mainPath}
+          onVersionClick={onVersionClick}
+          pathVersionParam={'?mv'}
+        />
       ) : (
         <MetricFormValuesStorage initialMetric={initMetric || {}}>
           <EditForm
             isReadonly={false} // !!metricName && metricName.startsWith('__')
             adminMode={adminMode}
+            isHistoricalMetric={isHistoricalMetric}
           />
         </MetricFormValuesStorage>
       )}
@@ -122,10 +161,10 @@ const kindConfig = [
   { label: 'Mixed', value: 'mixed' },
 ];
 
-export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
-  const { isReadonly, adminMode } = props;
-  const { values, dispatch } = React.useContext(MetricFormValuesContext);
-  const { onSubmit, isRunning, error, success } = useSubmit(values, dispatch);
+export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHistoricalMetric: boolean }) {
+  const { isReadonly, adminMode, isHistoricalMetric } = props;
+  const { values, dispatch } = useContext(MetricFormValuesContext);
+  const { onSubmit, isRunning, error, success } = useSubmit(values, dispatch, isHistoricalMetric);
   const { onSubmitFlood, isRunningFlood, errorFlood, successFlood } = useSubmitResetFlood(values.name);
   const preKeyFromString = useMemo<string>(
     () => (values.pre_key_from ? formatInputDate(values.pre_key_from) : ''),
@@ -832,15 +871,15 @@ function AliasField(props: {
   );
 }
 
-function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
-  const [isRunning, setRunning] = React.useState<boolean>(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
+function useSubmit(values: IMetric, dispatch: Dispatch<IActions>, isHistoricalMetric: boolean) {
+  const [isRunning, setRunning] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const { metricName } = useParams();
   const navigate = useNavigate();
 
-  const onSubmit = React.useCallback(() => {
+  const onSubmit = () => {
     setError(null);
     setSuccess(null);
     setRunning(true);
@@ -853,7 +892,10 @@ function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
       .then<{ data: { metric: IBackendMetric } }>((res) => res)
       .then((r) => {
         dispatch({ version: r.data.metric.version });
-        if (metricName !== r.data.metric.name) {
+
+        if (metricName !== r.data.metric.name || isHistoricalMetric) {
+          const queryId = values.id.toString();
+          queryClient.refetchQueries({ queryKey: [API_HISTORY, queryId] });
           navigate(`/admin/edit/${r.data.metric.name}`);
         }
       })
@@ -862,7 +904,7 @@ function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
         setRunning(false);
         clearMetricsMeta(values.name);
       });
-  }, [dispatch, metricName, navigate, values]);
+  };
 
   return {
     isRunning,
@@ -873,11 +915,11 @@ function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
 }
 
 function useSubmitResetFlood(metricName: string) {
-  const [isRunningFlood, setRunningFlood] = React.useState<boolean>(false);
-  const [errorFlood, setErrorFlood] = React.useState<string | null>(null);
-  const [successFlood, setSuccessFlood] = React.useState<string | null>(null);
+  const [isRunningFlood, setRunningFlood] = useState<boolean>(false);
+  const [errorFlood, setErrorFlood] = useState<string | null>(null);
+  const [successFlood, setSuccessFlood] = useState<string | null>(null);
 
-  const onSubmitFlood = React.useCallback(() => {
+  const onSubmitFlood = useCallback(() => {
     setErrorFlood(null);
     setSuccessFlood(null);
     setRunningFlood(true);

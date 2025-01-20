@@ -19,6 +19,7 @@ import { queryClient } from '@/common/queryClient';
 import { type QueryParams, urlEncode } from '@/url2';
 import { dashboardMigrateSaveToOld } from '@/store2/urlStore/dashboardMigrate';
 import { toNumber } from '@/common/helpers';
+import { API_HISTORY } from './history';
 
 const ApiDashboardEndpoint = '/api/dashboard';
 
@@ -57,6 +58,7 @@ export type DashboardMetaInfo = {
   name: string;
   description: string;
   version?: number;
+  current_version?: number;
   update_time?: number;
   deleted_time?: number;
   data: Record<string, unknown>;
@@ -83,16 +85,27 @@ export function getDashboardOptions<T = ApiDashboard>(
   if (dashboardVersion != null) {
     fetchParams[GET_PARAMS.dashboardApiVersion] = dashboardVersion;
   }
+
   return {
     queryKey: [ApiDashboardEndpoint, fetchParams],
     queryFn: async ({ signal }) => {
       const { response, error } = await apiDashboardFetch(fetchParams, signal);
+
       if (error) {
         throw error;
       }
       if (!response) {
         throw new ExtendedError('empty response');
       }
+
+      if (dashboardVersion != null) {
+        const { response: resCurrent } = await apiDashboardFetch({ [GET_PARAMS.dashboardID]: dashboardId });
+
+        if (resCurrent) {
+          response.data.dashboard.current_version = resCurrent.data.dashboard.version;
+        }
+      }
+
       return response;
     },
     placeholderData: (previousData) => previousData,
@@ -128,15 +141,18 @@ export function useApiDashboard<T = ApiDashboard>(
   const options = getDashboardOptions<ApiDashboard>(dashboardId, dashboardVersion);
   return useQuery({ ...options, select, enabled });
 }
-export function getDashboardSaveFetchParams(params: QueryParams, remove?: boolean): DashboardInfo {
+export function getDashboardSaveFetchParams(params: QueryParams, remove?: boolean, copy?: boolean): DashboardInfo {
   const searchParams = urlEncode(params);
+
   const oldDashboardParams = dashboardMigrateSaveToOld(params);
   oldDashboardParams.dashboard.data.searchParams = searchParams;
+  const version = params.dashboardCurrentVersion || params.dashboardVersion;
+
   const dashboardParams: DashboardInfo = {
     dashboard: {
       name: params.dashboardName,
       description: params.dashboardDescription,
-      version: params.dashboardVersion ?? 0,
+      version: version ?? 0,
       dashboard_id: toNumber(params.dashboardId) ?? undefined,
       data: {
         ...oldDashboardParams.dashboard.data,
@@ -146,19 +162,25 @@ export function getDashboardSaveFetchParams(params: QueryParams, remove?: boolea
   };
   if (remove) {
     dashboardParams.delete_mark = true;
+  } else if (copy) {
+    delete dashboardParams.dashboard.dashboard_id;
+    delete dashboardParams.dashboard.version;
   }
+
   return dashboardParams;
 }
 
 export function getDashboardSaveOptions(
   queryClient: QueryClient,
-  remove?: boolean
+  remove?: boolean,
+  copy?: boolean
 ): UseMutationOptions<ApiDashboard, Error, QueryParams, unknown> {
   return {
     retry: false,
     mutationFn: async (params: QueryParams) => {
-      const dashboardParams: DashboardInfo = getDashboardSaveFetchParams(params, remove);
+      const dashboardParams: DashboardInfo = getDashboardSaveFetchParams(params, remove, copy);
       const { response, error } = await apiDashboardSaveFetch(dashboardParams);
+
       if (error) {
         throw error;
       }
@@ -167,20 +189,26 @@ export function getDashboardSaveOptions(
       }
       return response;
     },
+
     onSuccess: (data) => {
-      if (data.data.dashboard.dashboard_id) {
-        const fetchParams: ApiDashboardGet = { [GET_PARAMS.dashboardID]: data.data.dashboard.dashboard_id.toString() };
-        if (data.data.dashboard.version != null) {
-          fetchParams[GET_PARAMS.dashboardApiVersion] = data.data.dashboard.version.toString();
-        }
-        queryClient.setQueryData([ApiDashboardEndpoint, fetchParams], data);
+      const dashboardId = data.data.dashboard.dashboard_id?.toString();
+      if (dashboardId) {
+        const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
+
+        queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint] });
+        queryClient.setQueryData([ApiDashboardEndpoint, baseParams], data);
+        queryClient.invalidateQueries({ queryKey: [API_HISTORY, dashboardId], type: 'all' });
       }
     },
   };
 }
 
-export async function apiDashboardSave(params: QueryParams, remove?: boolean): Promise<ApiFetchResponse<ApiDashboard>> {
-  const options = getDashboardSaveOptions(queryClient, remove);
+export async function apiDashboardSave(
+  params: QueryParams,
+  remove?: boolean,
+  copy?: boolean
+): Promise<ApiFetchResponse<ApiDashboard>> {
+  const options = getDashboardSaveOptions(queryClient, remove, copy);
   const result: ApiFetchResponse<ApiDashboard> = { ok: false, status: 0 };
   try {
     result.response = await options.mutationFn?.(params);

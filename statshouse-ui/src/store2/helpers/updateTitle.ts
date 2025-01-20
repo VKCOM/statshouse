@@ -16,6 +16,9 @@ export function updateTitle({ params: { tabNum, plots, dashboardName }, plotsDat
     case '-2':
       document.title = `Dashboard setting — ${pageTitle}`;
       break;
+    case '-3':
+      document.title = `Dashboard history — ${pageTitle}`;
+      break;
     default: {
       const fullName = getMetricFullName(plots[tabNum], plotsData[tabNum]);
       document.title = `${fullName} — ${pageTitle}`;
