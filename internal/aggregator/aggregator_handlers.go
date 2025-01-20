@@ -433,12 +433,13 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				k.Tags[7] = hostTagId // agent cannot easily map its own host for now
 			}
 		}
+		keyBytes = keyBytes[:0]
 		switch a.configR.Shard {
 		case ShardAggregatorHash:
 			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
 		case ShardAggregatorXXHash:
 			var hash uint64
-			keyBytes, hash = k.XXHash(keyBytes[:0])
+			keyBytes, hash = k.XXHash(keyBytes)
 			sID = int(hash % data_model.AggregationShardsPerSecond)
 		}
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
