@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/vkcom/statshouse/internal/loadgen"
 	"os"
+
+	"github.com/vkcom/statshouse/internal/loadgen"
 )
 
 func main() {

@@ -3,9 +3,11 @@ package loadgen
 import (
 	"context"
 	"fmt"
-	"github.com/vkcom/statshouse-go"
-	"pgregory.net/rand"
 	"time"
+
+	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 const metricPrefixG = "loadgen_"
