@@ -147,7 +147,7 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 	} else {
 		r.handlerFunc(h)
 	}
-	if 500 <= h.w.statusCode && h.w.statusCode < 600 {
+	if req.Context().Err() == nil && 500 <= h.w.statusCode && h.w.statusCode < 600 {
 		if err == nil {
 			if h.w.handlerErr != nil {
 				err = h.w.handlerErr
