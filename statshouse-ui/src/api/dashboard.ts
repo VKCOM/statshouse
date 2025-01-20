@@ -195,7 +195,7 @@ export function getDashboardSaveOptions(
       if (dashboardId) {
         const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
 
-        queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint] });
+        queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint], type: 'all' });
         queryClient.setQueryData([ApiDashboardEndpoint, baseParams], data);
         queryClient.invalidateQueries({ queryKey: [API_HISTORY, dashboardId], type: 'all' });
       }
