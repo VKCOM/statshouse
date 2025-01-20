@@ -35,11 +35,16 @@ export type IActions =
   | { type: 'preSortKey'; key: string }
   | { type: 'group_id'; key: string }
   | { type: 'move_draft'; pos: number; tag: Partial<ITag>; tag_key: string }
-  | { type: 'fair_key_tag_ids'; value?: string[] | null };
+  | { type: 'fair_key_tag_ids'; value?: string[] | null }
+  | { type: 'reset'; newState?: IMetric };
 
 export function reducer(state: IMetric, data: IActions): IMetric {
   if (!('type' in data)) {
     return { ...state, ...data };
+  }
+
+  if (data.type === 'reset') {
+    return { ...initialValues, ...(data.newState || {}) };
   }
 
   if (data.type === 'numTags') {

@@ -47,6 +47,7 @@ export function urlDecode(
       plotKeys.push('0');
     }
   });
+
   const global = urlDecodeGlobalParam(searchParams, defaultParams);
   const timeRange = urlDecodeTimeRange(searchParams, defaultParams);
   const plots = widgetsParamsDecode(
@@ -54,6 +55,7 @@ export function urlDecode(
     uniqueArray([...plotKeys, ...defaultParams.orderPlot]),
     defaultParams
   );
+
   const groups = urlDecodeGroups(searchParams, uniqueArray([...groupKeys, ...defaultParams.orderGroup]), defaultParams);
   const variables = urlDecodeVariables(
     searchParams,
@@ -87,6 +89,7 @@ export function urlDecodeGlobalParam(
   | 'dashboardName'
   | 'dashboardDescription'
   | 'dashboardVersion'
+  | 'dashboardCurrentVersion'
 > {
   const rawLive = searchParams[GET_PARAMS.metricLive]?.[treeParamsObjectValueSymbol]?.[0];
   const rawTheme = searchParams[GET_PARAMS.theme]?.[treeParamsObjectValueSymbol]?.[0];
@@ -110,6 +113,7 @@ export function urlDecodeGlobalParam(
     dashboardName: rawDashboardName ?? defaultParams.dashboardName,
     dashboardDescription: rawDashboardDescription ?? defaultParams.dashboardDescription,
     dashboardVersion: rawDashboardVersion ?? defaultParams.dashboardVersion,
+    dashboardCurrentVersion: defaultParams.dashboardCurrentVersion,
   };
 }
 

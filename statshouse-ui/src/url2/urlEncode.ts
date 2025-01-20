@@ -57,9 +57,15 @@ export function urlEncodeGlobalParam(
   if (defaultParams.dashboardDescription !== params.dashboardDescription) {
     paramArr.push([GET_PARAMS.dashboardDescription, params.dashboardDescription]);
   }
-  if (defaultParams.dashboardVersion !== params.dashboardVersion && params.dashboardVersion) {
+
+  if (
+    params.dashboardVersion &&
+    params.dashboardCurrentVersion &&
+    params.dashboardVersion !== params.dashboardCurrentVersion
+  ) {
     paramArr.push([GET_PARAMS.dashboardVersion, params.dashboardVersion.toString()]);
   }
+
   return paramArr;
 }
 
@@ -101,6 +107,7 @@ export function urlEncodeGroups(
   if (!dequal(defaultParams.orderGroup, params.orderGroup)) {
     paramArr.push([GET_PARAMS.orderGroup, params.orderGroup.join(orderGroupSplitter)]);
   }
+
   return paramArr;
 }
 

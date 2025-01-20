@@ -99,6 +99,7 @@ export type QueryParams = {
   dashboardName: string;
   dashboardDescription: string;
   dashboardVersion?: number;
+  dashboardCurrentVersion?: number;
   timeRange: TimeRange;
   eventFrom: number;
   timeShifts: number[];
