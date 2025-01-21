@@ -895,7 +895,7 @@ function useSubmit(values: IMetric, dispatch: Dispatch<IActions>, isHistoricalMe
 
         if (metricName !== r.data.metric.name || isHistoricalMetric) {
           const queryId = values.id.toString();
-          queryClient.refetchQueries({ queryKey: [API_HISTORY, queryId] });
+          queryClient.invalidateQueries({ queryKey: [API_HISTORY, queryId], type: 'all' });
           navigate(`/admin/edit/${r.data.metric.name}`);
         }
       })

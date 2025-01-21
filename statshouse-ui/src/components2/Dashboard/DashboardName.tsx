@@ -70,7 +70,7 @@ export const DashboardName = memo(function DashboardName() {
     <StickyTop>
       <div className="container-xl d-flex">
         <Tooltip
-          className="container-xl d-flex flex-row gap-2"
+          className="d-flex flex-row gap-2 w-75"
           title={<DashboardNameTitle name={dashboardName} description={dashboardDescription} />}
           hover
           horizontal="left"
@@ -95,7 +95,7 @@ export const DashboardName = memo(function DashboardName() {
           )}
         </Tooltip>
         {isHistoricalDashboard && (
-          <div className="d-flex flex-row gap-2 w-100">
+          <div className="d-flex flex-row gap-2 ms-auto">
             <HistoryDashboardLabel />
             <SaveButton
               onSave={onDashboardSave}
