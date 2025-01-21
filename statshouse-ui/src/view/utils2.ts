@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import { MetricMetaValue } from '../api/metric';
 import { isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import uPlot from 'uplot';

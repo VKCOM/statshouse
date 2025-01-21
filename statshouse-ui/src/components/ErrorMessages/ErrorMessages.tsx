@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useError } from '@/hooks/useError';
 import { useErrorStore } from '@/store/errors';
 import { Button } from '@/components/UI';

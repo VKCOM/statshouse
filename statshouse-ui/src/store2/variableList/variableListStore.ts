@@ -41,14 +41,11 @@ export type VariableListStore = {
   source: Partial<Record<string, Record<TagKey, VariableItem>>>;
 };
 
-export const useVariableListStore = createStore<VariableListStore>(
-  () => ({
-    variables: {},
-    tags: {},
-    source: {},
-  }),
-  'VariableListStore'
-);
+export const useVariableListStore = createStore<VariableListStore>(() => ({
+  variables: {},
+  tags: {},
+  source: {},
+}));
 
 useStatsHouse.subscribe((state, prevState) => {
   if (prevState.params.dashboardId !== state.params.dashboardId) {

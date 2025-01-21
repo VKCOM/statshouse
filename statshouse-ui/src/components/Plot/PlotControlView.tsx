@@ -1,4 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { useCallback, useRef, useState } from 'react';
 import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from '../UI';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import { useOnClickOutside } from '../../hooks';

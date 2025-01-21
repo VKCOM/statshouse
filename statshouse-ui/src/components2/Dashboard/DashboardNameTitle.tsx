@@ -4,7 +4,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React from 'react';
 import { TooltipMarkdown } from '@/components2/Plot/PlotView/TooltipMarkdown';
 
 export type DashboardNameTitleProps = {

@@ -112,7 +112,7 @@ export const PlotHeader = memo(function PlotHeader({
 
   const [localCustomName, setLocalCustomName] = useState(plot.customName || metricFullName);
   const [localCustomDescription, setLocalCustomDescription] = useState(plot.customDescription);
-  const autoSaveTimer = useRef<NodeJS.Timeout>();
+  const autoSaveTimer = useRef<NodeJS.Timeout>(undefined);
   const setCustomName = useCallback(
     (customName: string) => {
       setLocalCustomName(customName);

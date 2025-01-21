@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { PlotViewEvent, PlotViewMetric } from '../index';
 
 import { PLOT_TYPE, PlotType } from '../../url/queryParams';

@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import js from '@eslint/js';
 import globals from 'globals';
 import react from 'eslint-plugin-react';
@@ -40,9 +46,9 @@ export default tseslint.config({
     'no-console': 'warn',
     'no-empty': ['error', { allowEmptyCatch: true }],
     '@typescript-eslint/no-unused-vars': [
-      'error',
+      'warn',
       {
-        args: 'all',
+        args: 'after-used',
         argsIgnorePattern: '^_',
         caughtErrors: 'all',
         caughtErrorsIgnorePattern: '^_',
