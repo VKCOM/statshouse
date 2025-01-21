@@ -191,14 +191,12 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
 
   const updateScales = useCallback((scales?: UPlotWrapperPropsScales) => {
     if (scales && uRef.current) {
-      const nextScales: UPlotWrapperPropsScales = Object.fromEntries(
-        Object.entries(scales).map(([key, value]) => [key, { ...value }])
-      );
       uRef.current?.batch((u: uPlot) => {
-        Object.entries(nextScales).forEach(([key, scale]) => {
-          u.setScale(key, scale);
+        Object.entries(scales).forEach(([key, scale]) => {
+          u.setScale(key, { ...scale });
         });
       });
+      uRef.current?.redraw(true, true);
     }
   }, []);
 
