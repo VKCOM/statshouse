@@ -35,9 +35,7 @@ export async function apHistoryListFetch(id: string, keyRequest?: unknown) {
 
 export function useHistoryList(id: string) {
   return useQuery({
-    enabled: !!id,
     queryKey: [API_HISTORY, id],
-
     queryFn: async ({ signal }) => {
       const { response, error } = await apHistoryListFetch(id, signal);
 

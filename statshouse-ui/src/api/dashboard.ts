@@ -99,10 +99,20 @@ export function getDashboardOptions<T = ApiDashboard>(
       }
 
       if (dashboardVersion != null) {
-        const { response: resCurrent } = await apiDashboardFetch({ [GET_PARAMS.dashboardID]: dashboardId });
+        const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
 
-        if (resCurrent) {
-          response.data.dashboard.current_version = resCurrent.data.dashboard.version;
+        const cacheKey = [ApiDashboardEndpoint, baseParams];
+        const cacheData = queryClient.getQueryData<ApiDashboard>(cacheKey);
+
+        if (!cacheData) {
+          const { response: resCurrent } = await apiDashboardFetch(baseParams, signal);
+
+          if (resCurrent) {
+            response.data.dashboard.current_version = resCurrent.data.dashboard.version;
+            queryClient.setQueryData(cacheKey, resCurrent);
+          }
+        } else {
+          response.data.dashboard.current_version = cacheData.data.dashboard.version;
         }
       }
 
@@ -195,7 +205,7 @@ export function getDashboardSaveOptions(
       if (dashboardId) {
         const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
 
-        queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint], type: 'all' });
+        queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint] });
         queryClient.setQueryData([ApiDashboardEndpoint, baseParams], data);
         queryClient.invalidateQueries({ queryKey: [API_HISTORY, dashboardId], type: 'all' });
       }
