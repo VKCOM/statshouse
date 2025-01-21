@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/api"
 	"log"
 	"net/http"
 	"os"
@@ -127,8 +128,8 @@ func RunLegacy() {
 
 func RunAgentLoad() {
 	ctx := makeInterruptibleContext()
-
-	sh := statshouse.NewClient(log.Printf, statshouse.DefaultNetwork, statshouse.DefaultAddr, "")
+	apiClent := api.NewClient("http://127.0.0.1:10888", "loadgen")
+	sh := statshouse.NewClient(log.Printf, "tcp", statshouse.DefaultAddr, "")
 	g := Generator{
 		rng:     rand.New(),
 		clients: []*statshouse.Client{sh},
@@ -142,7 +143,10 @@ func RunAgentLoad() {
 	g.AddChangingValue("1")
 	g.AddChangingPercentile("1")
 	g.AddChangingStringTop("1", 10)
-	// TODO: create metrics and dashboard
+	log.Print("Ensure metrics exist")
+	for _, metric := range g.metrics {
+		metric.Ensure(ctx, apiClent)
+	}
 	log.Print("Running load on agent via StatsHouse client")
 	go g.goRun(ctx)
 
