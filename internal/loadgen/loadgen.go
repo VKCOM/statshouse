@@ -134,26 +134,43 @@ func RunAgentLoad() {
 		rng:     rand.New(),
 		clients: []*statshouse.Client{sh},
 	}
-	// metrics that do not change tag values
-	g.AddConstCounter("1")
-	g.AddConstValue("1")
-	g.AddConstPercentile("1")
-	// metrics with changing tag values
-	g.AddChangingCounter("1")
-	g.AddChangingValue("1")
-	g.AddChangingPercentile("1")
-	g.AddChangingStringTop("1", 10)
+
+	wasLen := 0
+	addMetrics(&g, 1)
+	res1Slice := g.metrics[wasLen:len(g.metrics)]
+	wasLen = len(g.metrics)
+	addMetrics(&g, 15)
+	res15Slice := g.metrics[wasLen:len(g.metrics)]
+	wasLen = len(g.metrics)
+	addMetrics(&g, 60)
+	res60Slice := g.metrics[wasLen:len(g.metrics)]
+
 	log.Print("Ensure metrics exist")
 	for _, metric := range g.metrics {
 		metric.Ensure(ctx, apiClent)
 	}
 	log.Print("Running load on agent via StatsHouse client")
-	go g.goRun(ctx)
+	// 1000 writes per resolution period
+	go g.goRun(ctx, 1*time.Millisecond, res1Slice)
+	go g.goRun(ctx, 15*time.Millisecond, res15Slice)
+	go g.goRun(ctx, 60*time.Millisecond, res60Slice)
 
 	<-ctx.Done()
 	log.Print("Stopping...")
 	_ = sh.Close()
 	log.Print("DONE")
+}
+
+func addMetrics(g *Generator, resolution int) {
+	// metrics that do not change tag values
+	g.AddConstCounter(resolution)
+	g.AddConstValue(resolution)
+	g.AddConstPercentile(resolution)
+	// metrics with changing tag values
+	g.AddChangingCounter(resolution)
+	g.AddChangingValue(resolution)
+	g.AddChangingPercentile(resolution)
+	g.AddChangingStringTop(resolution, 10)
 }
 
 func makeInterruptibleContext() context.Context {
