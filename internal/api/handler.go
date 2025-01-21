@@ -578,7 +578,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		return nil, fmt.Errorf("failed to marshal settings to JSON: %w", err)
 	}
 	cl := config.NewConfigListener(data_model.APIRemoteConfig, cfg)
-	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, diskCache, nil, cl.ApplyEventCB)
+	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache, nil, cl.ApplyEventCB)
 	h := &Handler{
 		HandlerOptions: opt,
 		showInvisible:  showInvisible,

@@ -250,7 +250,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		}
 		goodMetric.Inc()
 	}
-	metricStorage := metajournal.MakeMetricsStorage("", nil, nil)
+	metricStorage := metajournal.MakeMetricsStorage("", data_model.JournalDDOSProtectionTimeout, nil, nil)
 	metricStorage.Journal().Start(nil, nil, dolphinLoader)
 	mapper := mapping.NewMapper("", pmcLoader, nil, nil, 1000, handleMappedMetric)
 
@@ -470,7 +470,7 @@ func mainSimulator() {
 
 	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 
-	metricStorage := metajournal.MakeMetricsStorage("simulator", nil, nil)
+	metricStorage := metajournal.MakeMetricsStorage("simulator", data_model.JournalDDOSProtectionTimeout, nil, nil)
 
 	client, cryptoKey := argvCreateClient()
 
@@ -627,7 +627,7 @@ func mainPublishTagDrafts() {
 		work     = make(map[int32]map[int32]format.MetricMetaValue)
 		workCond = sync.NewCond(&workMu)
 	)
-	storage = metajournal.MakeMetricsStorage("", nil,
+	storage = metajournal.MakeMetricsStorage("", data_model.JournalDDOSProtectionTimeout, nil,
 		func(configID int32, configString string) {
 			switch configID {
 			case format.KnownTagsConfigID:

@@ -12,13 +12,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
 func newMetricStorage(loader MetricsStorageLoader) *MetricsStorage {
-	result := MakeMetricsStorage("", nil, nil)
+	result := MakeMetricsStorage("", data_model.JournalDDOSProtectionTimeout, nil, nil)
 	result.journal.metaLoader = loader
 	result.journal.parseDiscCache()
 	return result

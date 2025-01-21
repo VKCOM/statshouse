@@ -11,6 +11,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -61,7 +62,7 @@ type MetricsStorage struct {
 	journal *Journal // can be easily moved out, if desired
 }
 
-func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
+func MakeMetricsStorage(namespaceSuffix string, journalRequestDelay time.Duration, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
 	result := &MetricsStorage{
 		metaSnapshot: &metaSnapshot{
 			metricsByNameSnapshot: map[string]*format.MetricMetaValue{},
@@ -83,7 +84,7 @@ func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromC
 	for id, g := range format.BuiltInNamespaceDefault {
 		result.builtInNamespace[id] = g
 	}
-	result.journal = MakeJournal(namespaceSuffix, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
+	result.journal = MakeJournal(namespaceSuffix, journalRequestDelay, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
 }
 

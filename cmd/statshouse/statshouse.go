@@ -270,7 +270,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 
 	var (
 		receiversUDP  []*receiver.UDP
-		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
+		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, data_model.JournalDDOSProtectionAgentTimeout, dc, nil)
 	)
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
