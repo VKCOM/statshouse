@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { apiMetricTagValuesFetch, type MetricTagValueInfo } from '../../api/metricTagValues';
+import { apiMetricTagValuesFetch, type MetricTagValueInfo } from '@/api/metricTagValues';
 import {
   GET_PARAMS,
   isTagKey,
@@ -12,19 +12,19 @@ import {
   QUERY_WHAT,
   type QueryWhat,
   type TagKey,
-} from '../../api/enum';
-import { globalSettings } from '../../common/settings';
-import { filterParamsArr } from '../../view/api';
-import { deepClone, isNotNil, toNumber } from '../../common/helpers';
-import type { MetricMetaTag } from '../../api/metric';
+} from '@/api/enum';
+import { globalSettings } from '@/common/settings';
+import { filterParamsArr } from '@/view/api';
+import { deepClone, isNotNil, toNumber } from '@/common/helpers';
+import type { MetricMetaTag } from '@/api/metric';
 import { createStore } from '../createStore';
 
 import { produce } from 'immer';
 import { useErrorStore } from '@/store/errors';
 import { replaceVariable } from './replaceVariable';
-import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '../../url2';
-import { type StatsHouseStore, useStatsHouse } from '../statsHouseStore';
-import { ExtendedError } from '../../api/api';
+import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '@/url2';
+import { type StatsHouseStore, useStatsHouse } from '@/store2';
+import { ExtendedError } from '@/api/api';
 
 export type VariableItem = {
   list: MetricTagValueInfo[];
@@ -327,7 +327,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
     [GET_PARAMS.metricTagID]: tagKey,
     [GET_PARAMS.version]: plot.backendVersion,
     [GET_PARAMS.numResults]: limit.toString(),
-    [GET_PARAMS.fromTime]: store.params.timeRange.from.toString(),
+    [GET_PARAMS.fromTime]: (store.params.timeRange.from - 1).toString(),
     [GET_PARAMS.toTime]: (store.params.timeRange.to + 1).toString(),
     [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
     [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
@@ -393,7 +393,7 @@ export async function loadSourceList(variableParamSource: VariableParamsSource, 
     [GET_PARAMS.version]:
       globalSettings.disabled_v1 || useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
     [GET_PARAMS.numResults]: limit.toString(),
-    [GET_PARAMS.fromTime]: store.params.timeRange.from.toString(),
+    [GET_PARAMS.fromTime]: (store.params.timeRange.from - 1).toString(),
     [GET_PARAMS.toTime]: (store.params.timeRange.to + 1).toString(),
     [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
     [GET_PARAMS.metricWhat]: [QUERY_WHAT.count], //plot.what.slice() as QueryWhat[],
