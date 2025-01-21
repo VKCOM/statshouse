@@ -31,8 +31,10 @@ type GenericMetric interface {
 type valueMetric struct {
 	name         string
 	tags         statshouse.NamedTags
-	value        float64
+	resolution   int
 	isPercentile bool // use values normally distributed around 10 and 100 instead of random walk
+
+	value float64
 }
 
 func (m *valueMetric) Write(c *statshouse.Client) {
@@ -70,6 +72,7 @@ func (m *valueMetric) Ensure(ctx context.Context, c *api.Client) {
 	}
 	setCommonMetricValues(&metric.Metric)
 	metric.Metric.Name = m.name
+	metric.Metric.Resolution = m.resolution
 	if m.isPercentile {
 		metric.Metric.Kind = format.MetricKindValuePercentiles
 		metric.Metric.HasPercentiles = true
@@ -83,9 +86,10 @@ func (m *valueMetric) Ensure(ctx context.Context, c *api.Client) {
 }
 
 type countMetric struct {
-	name  string
-	tags  statshouse.NamedTags
-	count int
+	name       string
+	tags       statshouse.NamedTags
+	resolution int
+	count      int
 }
 
 func (m *countMetric) Write(c *statshouse.Client) {
@@ -106,6 +110,7 @@ func (m *countMetric) Ensure(ctx context.Context, c *api.Client) {
 	}
 	setCommonMetricValues(&metric.Metric)
 	metric.Metric.Name = m.name
+	metric.Metric.Resolution = m.resolution
 	metric.Metric.Kind = format.MetricKindCounter
 	err = c.PostMetric(ctx, metric)
 	if err != nil {
@@ -114,10 +119,11 @@ func (m *countMetric) Ensure(ctx context.Context, c *api.Client) {
 }
 
 type stringTopMetric struct {
-	name      string
-	tags      statshouse.NamedTags
-	card      int
-	stringTop string
+	name       string
+	tags       statshouse.NamedTags
+	resolution int
+	card       int
+	stringTop  string
 }
 
 func (m *stringTopMetric) Write(c *statshouse.Client) {
@@ -142,6 +148,7 @@ func (m *stringTopMetric) Ensure(ctx context.Context, c *api.Client) {
 	}
 	setCommonMetricValues(&metric.Metric)
 	metric.Metric.Name = m.name
+	metric.Metric.Resolution = m.resolution
 	metric.Metric.Kind = format.MetricKindMixed
 	metric.Metric.StringTopDescription = "string_top"
 	err = c.PostMetric(ctx, metric)
@@ -151,7 +158,6 @@ func (m *stringTopMetric) Ensure(ctx context.Context, c *api.Client) {
 }
 
 func setCommonMetricValues(mv *format.MetricMetaValue) {
-	mv.Resolution = 1
 	mv.Visible = true
 	mv.Tags = []format.MetricMetaTag{
 		{
@@ -198,15 +204,16 @@ type Generator struct {
 	clients []*statshouse.Client
 }
 
-func (g *Generator) goRun(ctx context.Context) {
-	t := time.NewTicker(time.Second)
+func (g *Generator) goRun(ctx context.Context, frequency time.Duration, metrics []GenericMetric) {
+	t := time.NewTicker(frequency)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case now := <-t.C:
-			for _, m := range g.metrics {
-				m.Update(now, g.rng)
+		case s := <-t.C:
+			for _, m := range metrics {
+				m.Update(s, g.rng)
 				for _, c := range g.clients {
 					m.Write(c)
 				}
@@ -215,77 +222,84 @@ func (g *Generator) goRun(ctx context.Context) {
 	}
 }
 
-func (g *Generator) AddConstCounter(namePostfix string) {
+func (g *Generator) AddConstCounter(resolution int) {
 	m := countMetric{
-		name: metricPrefixG + "const_cnt_" + namePostfix,
-		tags: statshouse.NamedTags{{constTag, "constant"}},
+		name:       metricPrefixG + "const_cnt_" + fmt.Sprint(resolution),
+		tags:       statshouse.NamedTags{{constTag, "constant"}},
+		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddConstValue(namePostfix string) {
+func (g *Generator) AddConstValue(resolution int) {
 	m := valueMetric{
-		name: metricPrefixG + "const_val_" + namePostfix,
-		tags: statshouse.NamedTags{{constTag, "constant"}},
+		name:       metricPrefixG + "const_val_" + fmt.Sprint(resolution),
+		tags:       statshouse.NamedTags{{constTag, "constant"}},
+		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingCounter(namePostfix string) {
+func (g *Generator) AddChangingCounter(resolution int) {
 	m := countMetric{
-		name: metricPrefixG + "changing_cnt_" + namePostfix,
+		name: metricPrefixG + "changing_cnt_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
 			{constTag, "constant"},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
 		},
+		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingValue(namePostfix string) {
+func (g *Generator) AddChangingValue(resolution int) {
 	m := valueMetric{
-		name: metricPrefixG + "changing_val_" + namePostfix,
+		name: metricPrefixG + "changing_val_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
 			{constTag, "constant"},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
 		},
+		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingStringTop(namePostfix string, card int) {
+func (g *Generator) AddChangingStringTop(resolution int, card int) {
 	m := stringTopMetric{
-		name: metricPrefixG + "changing_top_" + namePostfix,
+		name: metricPrefixG + "changing_top_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
 			{constTag, "constant"},
 		},
-		card: card,
+		resolution: resolution,
+		card:       card,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddConstPercentile(namePostfix string) {
+func (g *Generator) AddConstPercentile(resolution int) {
 	m := valueMetric{
-		name:         metricPrefixG + "const_per_" + namePostfix,
+		name:         metricPrefixG + "const_per_" + fmt.Sprint(resolution),
 		tags:         statshouse.NamedTags{{constTag, "constant"}},
+		resolution:   resolution,
 		isPercentile: true,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingPercentile(namePostfix string) {
+func (g *Generator) AddChangingPercentile(resolution int) {
 	m := valueMetric{
-		name: metricPrefixG + "changing_per_" + namePostfix,
+		name: metricPrefixG + "changing_per_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
 			{constTag, "constant"},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
 		},
+		resolution:   resolution,
 		isPercentile: true,
 	}
 	g.metrics = append(g.metrics, &m)
