@@ -86,8 +86,9 @@ const (
 	ClickHouseTimeoutInsert   = 5 * time.Minute  // reduces chance of duplicates
 	ClickHouseTimeoutShutdown = 30 * time.Second // we do not delay aggregator shutdown by more than this time
 
-	KeepAliveMaxBackoff          = 30 * time.Second // for cases when aggregators quickly return error
-	JournalDDOSProtectionTimeout = 50 * time.Millisecond
+	KeepAliveMaxBackoff               = 30 * time.Second      // for cases when aggregators quickly return error
+	JournalDDOSProtectionTimeout      = 50 * time.Millisecond // protects the metadata engine from overload
+	JournalDDOSProtectionAgentTimeout = 1 * time.Second       // protects CPU usage of agent
 
 	InternalLogInsertInterval = 5 * time.Second
 

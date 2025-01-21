@@ -58,6 +58,7 @@ type Journal struct {
 	lastUpdateTime       time.Time // we no more use this information for logic
 	stateHash            string
 	stopWriteToDiscCache bool
+	journalRequestDelay  time.Duration // to avoid overusing of CPU by handling journal updates
 
 	journal    []tlmetadata.Event
 	journalOld []*struct {
@@ -84,10 +85,11 @@ type Journal struct {
 	BuiltinJournalUpdateError data_model.ItemValue
 }
 
-func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
+func MakeJournal(namespaceSuffix string, journalRequestDelay time.Duration, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
 	return &Journal{
 		dc:                     dc,
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
+		journalRequestDelay:    journalRequestDelay,
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
 		lastUpdateTime:         time.Now(),
@@ -364,7 +366,7 @@ func (ms *Journal) goUpdateMetrics(aggLog AggLog) {
 		err := ms.updateJournal(aggLog)
 		if err == nil {
 			backoffTimeout = 0
-			time.Sleep(data_model.JournalDDOSProtectionTimeout) // if aggregator invariants are broken and they reply immediately forever
+			time.Sleep(ms.journalRequestDelay) // if aggregator invariants are broken and they reply immediately forever
 			continue
 		}
 		backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)

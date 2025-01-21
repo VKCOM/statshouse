@@ -278,7 +278,7 @@ func MakeAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, 
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
 	}
-	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, func(configID int32, configS string) {
+	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, data_model.JournalDDOSProtectionTimeout, dc, func(configID int32, configS string) {
 		a.scrape.applyConfig(configID, configS)
 		if a.autoCreate != nil {
 			a.autoCreate.applyConfig(configID, configS)
