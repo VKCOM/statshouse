@@ -28,7 +28,7 @@ import { useStatsHouseShallow } from '@/store2';
 import { VariableSource } from './VariableSource';
 import { isNil, isNotNil } from '@/common/helpers';
 import { getNextVariableSourceKey } from '@/store2/urlStore/updateParamsPlotStruct';
-import { isValidVariableName } from '../../../view/utils2';
+import { isValidVariableName } from '@/view/utils2';
 
 export type VariableCardProps = {
   variableKey: VariableKey;

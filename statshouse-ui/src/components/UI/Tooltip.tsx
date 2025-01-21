@@ -48,6 +48,10 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
     delay = 200,
     delayClose = 50,
     onClickOuter,
+    onMouseOver,
+    onMouseOut,
+    onMouseMove,
+    onClick,
     ...props
   },
   ref
@@ -81,7 +85,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
     }
   }, [outerOpen]);
 
-  const onMouseOver = useCallback(
+  const handlerMouseOver = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
@@ -93,12 +97,12 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
           setOpen(true);
         }, delay);
       }
-      props.onMouseOver?.(e);
+      onMouseOver?.(e);
     },
-    [delay, outerOpen, props]
+    [delay, onMouseOver, outerOpen]
   );
 
-  const onMouseOut = useCallback(
+  const handlerMouseOut = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
@@ -109,11 +113,11 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
           setOpen(false);
         }, delayClose);
       }
-      props.onMouseOut?.(e);
+      onMouseOut?.(e);
     },
-    [delayClose, outerOpen, props]
+    [delayClose, onMouseOut, outerOpen]
   );
-  const onMouseMove = useCallback(
+  const handlerMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (timeoutDelayRef.current) {
         clearTimeout(timeoutDelayRef.current);
@@ -125,29 +129,29 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
           setOpen(true);
         }, delay);
       }
-      props.onMouseMove?.(e);
+      onMouseMove?.(e);
     },
-    [delay, outerOpen, props]
+    [delay, onMouseMove, outerOpen]
   );
 
-  const onClick = useCallback(
+  const handlerClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (outerOpen == null) {
         setOpen(false);
       }
-      props.onClick?.(e);
+      onClick?.(e);
     },
-    [outerOpen, props]
+    [onClick, outerOpen]
   );
 
   return (
     <Tag
       {...props}
       ref={setLocalRef}
-      onMouseOver={onMouseOver}
-      onMouseOut={onMouseOut}
-      onMouseMove={onMouseMove}
-      onClick={onClick}
+      onMouseOver={handlerMouseOver}
+      onMouseOut={handlerMouseOut}
+      onMouseMove={handlerMouseMove}
+      onClick={handlerClick}
     >
       {children}
       {!!title && (

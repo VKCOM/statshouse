@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { METRIC_TYPE } from '../../../api/enum';
+import { METRIC_TYPE } from '@/api/enum';
 
 export const incrs = [
   1e-16, 2e-16, 2.5e-16, 5e-16, 1e-15, 2e-15, 2.5e-15, 5e-15, 1e-14, 2e-14, 2.5e-14, 5e-14, 1e-13, 2e-13, 2.5e-13,

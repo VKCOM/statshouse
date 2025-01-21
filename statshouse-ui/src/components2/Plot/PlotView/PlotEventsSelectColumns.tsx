@@ -12,7 +12,7 @@ import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
 import { ReactComponent as SVGEyeSlash } from 'bootstrap-icons/icons/eye-slash.svg';
 import { getNewMetric, type PlotKey } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
-import { TagKey, toTagKey } from '../../../api/enum';
+import { TagKey, toTagKey } from '@/api/enum';
 
 export type PlotEventsSelectColumnsProps = {
   plotKey: PlotKey;
