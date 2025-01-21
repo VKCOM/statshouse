@@ -13,11 +13,11 @@ interface StickyTopProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-export const StickyTop = memo(function StickyTop({ children, ...props }: StickyTopProps) {
+export const StickyTop = memo(function StickyTop({ children, className, ...props }: StickyTopProps) {
   const scrollY = useWindowSize((s) => s.scrollY > 16);
 
   return (
-    <div className={cn('sticky-top mt-2 bg-body', scrollY && 'shadow-sm small')} {...props}>
+    <div className={cn('sticky-top mt-2 bg-body mb-3', scrollY && 'shadow-sm small', className)} {...props}>
       {children}
     </div>
   );
