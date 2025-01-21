@@ -1086,19 +1086,19 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	}
 	// grouping
 	var (
-		groupBy    []string
+		groupBy    []int
 		addGroupBy = func(t format.MetricMetaTag) {
-			groupBy = append(groupBy, format.TagID(t.Index))
+			groupBy = append(groupBy, t.Index)
 		}
 	)
 	if len(ev.opt.GroupBy) != 0 {
-		groupBy = ev.opt.GroupBy
+		groupBy = metric.GroupBy(ev.opt.GroupBy)
 	} else if sel.GroupByAll {
 		if !sel.GroupWithout {
 			for i := 0; i < format.MaxTags; i++ {
-				groupBy = append(groupBy, format.TagID(i))
+				groupBy = append(groupBy, i)
 			}
-			groupBy = append(groupBy, format.StringTopTagID)
+			groupBy = append(groupBy, format.StringTopTagIndex)
 		}
 	} else if sel.GroupWithout {
 		skip := make(map[int]bool)
@@ -1110,17 +1110,17 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 		for i := 0; i < format.MaxTags; i++ {
 			if !skip[i] {
-				groupBy = append(groupBy, format.TagID(i))
+				groupBy = append(groupBy, i)
 			}
 		}
 	} else if len(sel.GroupBy) != 0 {
-		groupBy = make([]string, 0, len(sel.GroupBy))
+		groupBy = make([]int, 0, len(sel.GroupBy))
 		for _, k := range sel.GroupBy {
 			if k == LabelShard {
-				groupBy = append(groupBy, format.ShardTagID)
+				groupBy = append(groupBy, format.ShardTagIndex)
 			} else if t, ok, _ := metric.APICompatGetTag(k); ok {
 				if t.Index == format.StringTopTagIndex {
-					groupBy = append(groupBy, format.StringTopTagID)
+					groupBy = append(groupBy, format.StringTopTagIndex)
 				} else {
 					addGroupBy(t)
 				}
@@ -1216,7 +1216,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 	}
 	// remove dublicates in "groupBy"
-	sort.Strings(groupBy)
+	sort.Ints(groupBy)
 	for i := 1; i < len(groupBy); i++ {
 		j := i
 		for j < len(groupBy) && groupBy[i-1] == groupBy[j] {
@@ -1685,4 +1685,13 @@ func parseSelectorWhat(str string) (DigestWhat, string, bool) {
 		return DigestUnspecified, "", false
 	}
 	return res, queryFunc, true
+}
+
+func getHostName(h Handler, arg data_model.ArgMinMaxStringFloat32) string {
+	if arg.Arg != "" {
+		return arg.Arg
+	} else if arg.AsInt32 != 0 {
+		return h.GetHostName(arg.AsInt32)
+	}
+	return ""
 }

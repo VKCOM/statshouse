@@ -55,6 +55,7 @@ const (
 	StringTopTagIndex   = -1 // used as flag during mapping
 	StringTopTagIndexV3 = 47
 	HostTagIndex        = -2 // used as flag during mapping
+	ShardTagIndex       = -3
 
 	// added for lots of built-in metrics automatically
 	BuildArchTag  = 10
@@ -578,6 +579,15 @@ func (m *MetricMetaValue) GetTagDraft(tagName []byte) (tag MetricMetaTag, ok boo
 	}
 	tag, ok = m.TagsDraft[string(tagName)]
 	return tag, ok
+}
+
+func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
+	for _, name := range groupBy {
+		if t, ok, _ := m.APICompatGetTag(name); ok {
+			res = append(res, t.Index)
+		}
+	}
+	return res
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
