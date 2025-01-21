@@ -3,6 +3,9 @@ package loadgen
 import (
 	"context"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/format"
+	"log"
 	"time"
 
 	"pgregory.net/rand"
@@ -13,15 +16,16 @@ import (
 const metricPrefixG = "loadgen_"
 
 // tag names signify how often they change
-const constTag = "const"
-const secTag = "sec"
-const minTag = "min"
-const tenMinTag = "ten_min"
+const constTag = "const"    // 1 tag
+const secTag = "sec"        // 2 tag
+const minTag = "min"        // 3 tag
+const tenMinTag = "ten_min" // 4 tag
+const rawTag = "raw"        // 5 tag
 
 type GenericMetric interface {
 	Write(c *statshouse.Client)
 	Update(now time.Time, rng *rand.Rand)
-	// TODO: ensure exists
+	Ensure(ctx context.Context, c *api.Client)
 }
 
 type valueMetric struct {
@@ -59,6 +63,25 @@ func (m *valueMetric) Update(now time.Time, rng *rand.Rand) {
 	}
 }
 
+func (m *valueMetric) Ensure(ctx context.Context, c *api.Client) {
+	metric, err := c.GetMetric(ctx, m.name)
+	if err != nil {
+		log.Printf("error getting metric: %v", err)
+	}
+	setCommonMetricValues(&metric.Metric)
+	metric.Metric.Name = m.name
+	if m.isPercentile {
+		metric.Metric.Kind = format.MetricKindValuePercentiles
+		metric.Metric.HasPercentiles = true
+	} else {
+		metric.Metric.Kind = format.MetricKindValue
+	}
+	err = c.PostMetric(ctx, metric)
+	if err != nil {
+		log.Printf("error creating metric: %v", err)
+	}
+}
+
 type countMetric struct {
 	name  string
 	tags  statshouse.NamedTags
@@ -74,6 +97,20 @@ func (m *countMetric) Update(now time.Time, rng *rand.Rand) {
 		m.count++
 	}
 	updateNamedTags(m.tags, now)
+}
+
+func (m *countMetric) Ensure(ctx context.Context, c *api.Client) {
+	metric, err := c.GetMetric(ctx, m.name)
+	if err != nil {
+		log.Printf("error getting metric: %v", err)
+	}
+	setCommonMetricValues(&metric.Metric)
+	metric.Metric.Name = m.name
+	metric.Metric.Kind = format.MetricKindCounter
+	err = c.PostMetric(ctx, metric)
+	if err != nil {
+		log.Printf("error creating metric: %v", err)
+	}
 }
 
 type stringTopMetric struct {
@@ -96,6 +133,48 @@ func (m *stringTopMetric) Update(now time.Time, rng *rand.Rand) {
 	}
 	m.stringTop = fmt.Sprint("value_", v)
 	updateNamedTags(m.tags, now)
+}
+
+func (m *stringTopMetric) Ensure(ctx context.Context, c *api.Client) {
+	metric, err := c.GetMetric(ctx, m.name)
+	if err != nil {
+		log.Printf("error getting metric: %v", err)
+	}
+	setCommonMetricValues(&metric.Metric)
+	metric.Metric.Name = m.name
+	metric.Metric.Kind = format.MetricKindMixed
+	metric.Metric.StringTopDescription = "string_top"
+	err = c.PostMetric(ctx, metric)
+	if err != nil {
+		log.Printf("error creating metric: %v", err)
+	}
+}
+
+func setCommonMetricValues(mv *format.MetricMetaValue) {
+	mv.Resolution = 1
+	mv.Visible = true
+	mv.Tags = []format.MetricMetaTag{
+		{
+			Description: "environment",
+			Raw:         false,
+		},
+		{
+			Name: constTag,
+		},
+		{
+			Name: secTag,
+		},
+		{
+			Name: minTag,
+		},
+		{
+			Name: tenMinTag,
+		},
+		{
+			Name: rawTag,
+			Raw:  true,
+		},
+	}
 }
 
 func updateNamedTags(tags statshouse.NamedTags, now time.Time) {
