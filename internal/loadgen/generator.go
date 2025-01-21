@@ -3,10 +3,11 @@ package loadgen
 import (
 	"context"
 	"fmt"
-	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/format"
 	"log"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/format"
 
 	"pgregory.net/rand"
 

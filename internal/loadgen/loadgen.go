@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/vkcom/statshouse/internal/api"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/api"
 
 	"pgregory.net/rand"
 

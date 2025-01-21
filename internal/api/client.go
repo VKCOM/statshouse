@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mailru/easyjson"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/mailru/easyjson"
 )
 
 type Client struct {
