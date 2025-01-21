@@ -473,7 +473,12 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 	} else {
 		lods = qry.Timescale.GetLODs(qry.Metric, qry.Offset)
 	}
-	tagX := make(map[tsTags]int, len(qry.GroupBy))
+	type tagValue struct {
+		tsValues
+		x  int // series index
+		tx int // time index
+	}
+	tagX := make(map[tsTags]tagValue, len(qry.GroupBy))
 	var buffers []*[]float64
 	cleanup := func() {
 		for _, s := range buffers {
@@ -509,10 +514,10 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 					return promql.Series{}, nil, err
 				}
 				for i := 0; i < len(data); i++ {
-					x, ok := tagX[data[i].tsTags]
+					tag, ok := tagX[data[i].tsTags]
 					if !ok {
-						x = len(res.Data)
-						tagX[data[i].tsTags] = x
+						tag.x = len(res.Data)
+						tagX[data[i].tsTags] = tag
 						for _, fn := range what.sel {
 							v := h.Alloc(len(qry.Timescale.Time))
 							buffers = append(buffers, v)
@@ -526,23 +531,8 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 						}
 					}
 					// select "point" value
-					for y, k := 0, 0; y < len(what.sel); y++ {
-						d := what.sel[y].Digest
-						if y != 0 {
-							w := d.DataModelDigestWhat()
-							if w == data_model.DigestPercentile || w != what.qry[k].What {
-								k++
-							}
-						}
-						var v float64
-						row := &data[i]
-						switch d {
-						case promql.DigestStdVar:
-							v = row.val[k] * row.val[k]
-						default:
-							v = row.val[k]
-						}
-						(*res.Data[x+y].Values)[tx] = v
+					for y := 0; y < len(what.sel); y++ {
+						(*res.Data[tag.x+y].Values)[tx] = data[i].value(what.sel[y].Digest, what.qry[y].Argument, 1, 1)
 					}
 
 				}
@@ -553,24 +543,32 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 					return promql.Series{}, nil, err
 				}
 				for i := 0; i < len(data); i++ {
+					if len(data[i]) == 0 {
+						continue
+					}
+					k := tx + i
 					for j := 0; j < len(data[i]); j++ {
-						x, ok := tagX[data[i][j].tsTags]
+						tagV, ok := tagX[data[i][j].tsTags]
 						if !ok {
-							x = len(res.Data)
+							x := len(res.Data)
 							if x > maxSeriesRows {
 								return promql.Series{}, nil, errTooManyRows
 							}
-							tagX[data[i][j].tsTags] = x
+							tagX[data[i][j].tsTags] = tagValue{
+								tsValues: data[i][j].tsValues,
+								x:        x,
+								tx:       k,
+							}
 							for k := 0; k < len(what.sel); k++ {
 								v := h.Alloc(len(qry.Timescale.Time))
 								buffers = append(buffers, v)
 								for y := range *v {
 									(*v)[y] = promql.NilValue
 								}
-								var h [2][]int32
+								var h [2][]data_model.ArgMinMaxStringFloat32
 								for z, qryHost := range qry.MinMaxHost {
 									if qryHost {
-										h[z] = make([]int32, len(qry.Timescale.Time))
+										h[z] = make([]data_model.ArgMinMaxStringFloat32, len(qry.Timescale.Time))
 									}
 								}
 								res.Data = append(res.Data, promql.SeriesData{
@@ -579,13 +577,21 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 									What:       what.sel[k],
 								})
 							}
+						} else {
+							if k == 0 || tagV.tx != k {
+								tagV.tx = k
+								tagV.tsValues = data[i][j].tsValues
+							} else {
+								tagV.tsValues.merge(data[i][j].tsValues)
+							}
+							tagX[data[i][j].tsTags] = tagV
 						}
-						k, err := lod.IndexOf(data[i][j].time)
-						if err != nil {
-							return promql.Series{}, nil, err
+					}
+					lodStep := data[i][0].stepSec
+					for _, tagV := range tagX {
+						if tagV.tx == k {
+							what.copyRowValuesAt(res.Data, tagV.x, k, &tagV.tsValues, int64(step), lodStep)
 						}
-						k += tx
-						what.copyRowValuesAt(res.Data, x, k, &data[i][j], int64(step))
 					}
 				}
 				tx += len(data)
@@ -597,7 +603,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				for i := 0; i < len(data); i++ {
 					for j := 0; j < len(data[i]); j++ {
 						if _, ok := tagX[data[i][j].tsTags]; !ok {
-							tagX[data[i][j].tsTags] = len(tagX)
+							tagX[data[i][j].tsTags] = tagValue{x: len(tagX)}
 						}
 					}
 				}
@@ -612,41 +618,41 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		tagWhat := len(qry.Whats) > 1 || qry.Options.TagWhat
 		for i := 0; i < len(what.sel); i++ {
 			what := what.sel[i]
-			for v, j := range tagX {
-				for _, groupBy := range qry.GroupBy {
-					switch groupBy {
-					case format.StringTopTagID, qry.Metric.StringTopName:
-						res.AddTagAt(i+j, &promql.SeriesTag{
+			for v, tag := range tagX {
+				for _, x := range qry.GroupBy {
+					switch x {
+					case format.StringTopTagIndex:
+						res.AddTagAt(i+tag.x, &promql.SeriesTag{
 							Metric: qry.Metric,
 							Index:  format.StringTopTagIndex + promql.SeriesTagIndexOffset,
 							ID:     format.StringTopTagID,
 							Name:   qry.Metric.StringTopName,
 							SValue: emptyToUnspecified(v.tagStr.String()),
 						})
-					case format.ShardTagID:
-						res.AddTagAt(i+j, &promql.SeriesTag{
+					case format.ShardTagIndex:
+						res.AddTagAt(i+tag.x, &promql.SeriesTag{
 							Metric: qry.Metric,
 							ID:     promql.LabelShard,
 							Value:  int32(v.shardNum),
 						})
 					default:
-						if m, ok := qry.Metric.Name2Tag[groupBy]; ok && m.Index < len(v.tag) {
+						if 0 <= x && x < len(v.tag) && x < len(qry.Metric.Tags) {
 							st := &promql.SeriesTag{
 								Metric: qry.Metric,
-								Index:  m.Index + promql.SeriesTagIndexOffset,
-								ID:     format.TagID(m.Index),
-								Name:   m.Name,
-								Value:  v.tag[m.Index],
+								Index:  x + promql.SeriesTagIndexOffset,
+								ID:     format.TagID(x),
+								Name:   qry.Metric.Tags[x].Name,
+								Value:  v.tag[x],
 							}
-							if qry.Options.Version == Version3 && m.Index < len(v.stag) && v.stag[m.Index] != "" {
-								st.SetSValue(v.stag[m.Index])
+							if qry.Options.Version == Version3 && x < len(v.tag) && v.stag[x] != "" {
+								st.SetSValue(v.stag[x])
 							}
-							res.AddTagAt(i+j, st)
+							res.AddTagAt(i+tag.x, st)
 						}
 					}
 				}
 				if tagWhat {
-					res.AddTagAt(i+j, &promql.SeriesTag{
+					res.AddTagAt(i+tag.x, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
 						Value: int32(what.Digest),
 					})
@@ -656,7 +662,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				break
 			}
 		}
-		tagX = make(map[tsTags]int, len(tagX))
+		tagX = make(map[tsTags]tagValue, len(tagX))
 	}
 	res.Meta.Total = len(res.Data)
 	h.reportQueryMemUsage(len(res.Data), len(qry.Timescale.Time))
@@ -751,67 +757,101 @@ func (h *requestHandler) getHandlerWhat(whats []promql.SelectorWhat) []handlerWh
 	return res
 }
 
-func (w *handlerWhat) copyRowValuesAt(data []promql.SeriesData, x, y int, row *tsSelectRow, desiredStepMul int64) {
-	for i, j := 0, 0; i < len(w.sel); i++ {
-		what := w.sel[i].Digest
-		if i != 0 {
-			v := what.DataModelDigestWhat()
-			if v == data_model.DigestPercentile || v != w.qry[j].What {
-				j++
+func (w *handlerWhat) copyRowValuesAt(data []promql.SeriesData, x, y int, row *tsValues, queryStep, rowStep int64) {
+	if queryStep == 0 {
+		queryStep = rowStep
+	}
+	for i := 0; i < len(w.sel); i++ {
+		(*data[x].Values)[y] = row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, rowStep)
+		if minHost := data[x].MinMaxHost[0]; minHost != nil {
+			if row.minHost.Arg != 0 {
+				minHost[y] = row.minHost.AsArgMinMaxStringFloat32()
+			} else {
+				minHost[y] = row.minHostStr.ArgMinMaxStringFloat32
 			}
 		}
-		step := desiredStepMul
-		if step == 0 {
-			step = row.stepSec
-		}
-		var val float64
-		switch what {
-		case promql.DigestCountSec, promql.DigestSumSec, promql.DigestCardinalitySec, promql.DigestUniqueSec:
-			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCount, promql.DigestSum, promql.DigestCardinality, promql.DigestUnique:
-			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestStdVar:
-			val = row.val[j] * row.val[j]
-		default:
-			val = row.val[j]
-		}
-		(*data[x].Values)[y] = val
-		for k := 0; k < 2; k++ {
-			if data[x].MinMaxHost[k] != nil {
-				data[x].MinMaxHost[k][y] = row.host[k]
+		if maxHost := data[x].MinMaxHost[1]; maxHost != nil {
+			if row.maxHost.Arg != 0 {
+				maxHost[y] = row.maxHost.AsArgMinMaxStringFloat32()
+			} else {
+				maxHost[y] = row.maxHostStr.ArgMinMaxStringFloat32
 			}
 		}
 		x++
 	}
 }
 
-func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, desiredStepMul int64) []float64 {
-	for i, j := 0, 0; i < len(w.sel); i++ {
-		what := w.sel[i].Digest
-		if i != 0 {
-			v := what.DataModelDigestWhat()
-			if v == data_model.DigestPercentile || v != w.qry[j].What {
-				j++
-			}
-		}
-		step := desiredStepMul
-		if step == 0 {
-			step = row.stepSec
-		}
-		var val float64
-		switch what {
-		case promql.DigestCountSec, promql.DigestSumSec, promql.DigestCardinalitySec, promql.DigestUniqueSec:
-			val = row.val[j] / float64(row.stepSec)
-		case promql.DigestCount, promql.DigestSum, promql.DigestCardinality, promql.DigestUnique:
-			val = stableMulDiv(row.val[j], step, row.stepSec)
-		case promql.DigestStdVar:
-			val = row.val[j] * row.val[j]
-		default:
-			val = row.val[j]
-		}
-		s = append(s, val)
+func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, queryStep int64) []float64 {
+	if queryStep == 0 {
+		queryStep = row.stepSec
+	}
+	for i := 0; i < len(w.sel); i++ {
+		s = append(s, row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, row.stepSec))
 	}
 	return s
+}
+
+func (row *tsValues) value(what promql.DigestWhat, arg float64, queryStep, lodStep int64) float64 {
+	var val float64
+	switch what {
+	case promql.DigestCount:
+		val = stableMulDiv(row.count, queryStep, lodStep)
+	case promql.DigestCountSec:
+		val = row.count / float64(lodStep)
+	case promql.DigestCountRaw:
+		val = row.count
+	case promql.DigestSum:
+		val = stableMulDiv(row.sum, queryStep, lodStep)
+	case promql.DigestSumSec:
+		val = row.sum / float64(lodStep)
+	case promql.DigestSumRaw:
+		val = row.sum
+	case promql.DigestAvg:
+		val = row.sum / row.count
+	case promql.DigestMin:
+		val = row.min
+	case promql.DigestMax:
+		val = row.max
+	case promql.DigestP0_1,
+		promql.DigestP1,
+		promql.DigestP5,
+		promql.DigestP10,
+		promql.DigestP25,
+		promql.DigestP50,
+		promql.DigestP75,
+		promql.DigestP90,
+		promql.DigestP95,
+		promql.DigestP99,
+		promql.DigestP999:
+		val = row.percentile.Quantile(arg)
+	case promql.DigestStdDev:
+		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
+		if row.count < 2 {
+			val = 0
+		} else {
+			val = math.Sqrt(math.Max((row.sumsquare-math.Pow(row.sum, 2)/row.count)/(row.count-1), 0))
+		}
+	case promql.DigestStdVar:
+		if row.count < 2 {
+			val = 0
+		} else {
+			val = math.Max((row.sumsquare-math.Pow(row.sum, 2)/row.count)/(row.count-1), 0)
+		}
+	case promql.DigestCardinality:
+		val = stableMulDiv(row.cardinality, queryStep, lodStep)
+	case promql.DigestCardinalitySec:
+		val = row.cardinality / float64(lodStep)
+	case promql.DigestCardinalityRaw:
+		val = row.cardinality
+	case promql.DigestUnique:
+		val = stableMulDiv(float64(row.unique.Size(false)), queryStep, lodStep)
+	case promql.DigestUniqueSec:
+		val = float64(row.unique.Size(false)) / float64(lodStep)
+	case promql.DigestUniqueRaw:
+		val = float64(row.unique.Size(false))
+	}
+	replaceInfNan(&val)
+	return val
 }
 
 func (h *Handler) Alloc(n int) *[]float64 {

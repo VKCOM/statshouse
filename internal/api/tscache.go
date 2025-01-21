@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hrissan/tdigest"
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
@@ -38,15 +39,28 @@ type tsSelectRow struct {
 
 // all numeric tags are stored as int32 to save space
 type tsTags struct {
-	tag      [format.MaxTags]int32
-	stag     [format.MaxTags]string
-	tagStr   stringFixed
-	shardNum uint32
+	tag       [format.MaxTags]int32
+	stag      [format.MaxTags]string
+	tagStr    stringFixed
+	shardNum  uint32
+	stagCount int
 }
 
 type tsValues struct {
-	val  [tsValueCount]float64
-	host [2]int32 // "min" at [0], "max" at [1]
+	min         float64
+	max         float64
+	sum         float64
+	count       float64
+	sumsquare   float64
+	unique      data_model.ChUnique
+	percentile  *tdigest.TDigest
+	mergeCount  int
+	cardinality float64
+
+	minHost    data_model.ArgMinInt32Float32
+	maxHost    data_model.ArgMaxInt32Float32
+	minHostStr data_model.ArgMinStringFloat32
+	maxHostStr data_model.ArgMaxStringFloat32
 }
 
 type tsWhat [tsValueCount]data_model.DigestSelector
@@ -280,6 +294,28 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 
 	ChCacheRate(cachedRows, chRows, pq.metricID(), lod.Table, "")
 
+	// map string tags
+	if pq.metric != nil && len(pq.by) != 0 {
+		for _, x := range pq.by {
+			if x < 0 || len(pq.metric.Tags) <= x {
+				continue
+			}
+			for i := 0; i < len(ret); i++ {
+				for j := 0; j < len(ret[i]); j++ {
+					if s := ret[i][j].stag[x]; s != "" {
+						v, err := h.getRichTagValueID(&pq.metric.Tags[x], h.version, s)
+						if err == nil {
+							ret[i][j].tag[x] = v
+							ret[i][j].stag[x] = ""
+						} else {
+							ret[i][j].stagCount++
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if avoidCache {
 		return ret, nil
 	}
@@ -349,9 +385,9 @@ func (c *tsCache) invalidate(times []int64) {
 	}
 }
 
-func (c *tsCache) loadCached(h *requestHandler, _ *queryBuilder, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
-	c.cacheMu.RLock()
-	defer c.cacheMu.RUnlock()
+func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 
 	e, ok := c.cache[key]
 	if !ok {
@@ -361,24 +397,52 @@ func (c *tsCache) loadCached(h *requestHandler, _ *queryBuilder, key string, fro
 	e.lru.Store(time.Now().UnixNano())
 
 	var loadFrom, loadTo int64
-	var hit int
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
 		nextStartFrom := data_model.StepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
-		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
-			ret[ix] = make([]tsSelectRow, len(cached.rows))
-			copy(ret[ix], cached.rows)
-			*rows += len(cached.rows)
-			hit++
-		} else {
+		if !ok || cached.loadedAtNano < c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			if loadFrom == 0 {
 				loadFrom = t
 			}
-
 			loadTo = nextStartFrom
 		}
-
 		t = nextStartFrom
+	}
+
+	if loadFrom != 0 || loadTo != 0 {
+		if loadFrom == fromSec {
+			if loadTo == toSec {
+				return fromSec, toSec
+			} else {
+				fromSec = loadTo
+			}
+		} else {
+			toSec = loadFrom
+		}
+	}
+
+	var hit int
+	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
+		// map string tags
+		cached := e.secRows[t]
+		for i := 0; i < len(cached.rows); i++ {
+			if row := &cached.rows[i]; row.stagCount != 0 {
+				for k := 0; k < len(row.stag) && k < len(pq.metric.Tags); k++ {
+					if s := row.stag[k]; s != "" {
+						if v, err := h.getRichTagValueID(&pq.metric.Tags[k], h.version, s); err == nil {
+							row.tag[k] = v
+							row.stag[k] = ""
+							row.stagCount--
+						}
+					}
+				}
+			}
+		}
+		ret[ix] = make([]tsSelectRow, len(cached.rows))
+		copy(ret[ix], cached.rows)
+		*rows += len(cached.rows)
+		hit++
+		t = data_model.StepForward(t, c.stepSec, location)
 	}
 
 	reqCount := (toSec - fromSec) / c.stepSec
@@ -412,4 +476,50 @@ func (c *tsCache) evictLocked() int {
 	}
 	delete(c.cache, k)
 	return n
+}
+
+func (v *tsValues) merge(rhs tsValues) {
+	if rhs.min < v.min {
+		v.min = rhs.min
+	}
+	if v.max < rhs.max {
+		v.max = rhs.max
+	}
+	v.sum += rhs.sum
+	v.count += rhs.count
+	v.sumsquare += rhs.sumsquare
+	if v.mergeCount == 0 {
+		// "unique" and "percentile" are holding references to memory
+		// residing in read-only cache, therefore making a deep copy of them
+		u := data_model.ChUnique{}
+		u.Merge(v.unique)
+		u.Merge(rhs.unique)
+		v.unique = u
+		if v.percentile != nil || rhs.percentile != nil {
+			p := tdigest.New()
+			if v.percentile != nil {
+				p.Merge(v.percentile)
+			}
+			if rhs.percentile != nil {
+				p.Merge(rhs.percentile)
+			}
+			v.percentile = p
+		} else {
+			v.percentile = nil
+		}
+	} else {
+		// already operating on cache memory copy, it's safe to modify current object
+		v.unique.Merge(rhs.unique)
+		if v.percentile == nil {
+			v.percentile = rhs.percentile
+		} else if rhs.percentile != nil {
+			v.percentile.Merge(rhs.percentile)
+		}
+	}
+	v.mergeCount++
+	v.cardinality += rhs.cardinality
+	v.minHost.Merge(rhs.minHost)
+	v.maxHost.Merge(rhs.maxHost)
+	v.minHostStr.Merge(rhs.minHostStr)
+	v.maxHostStr.Merge(rhs.maxHostStr)
 }

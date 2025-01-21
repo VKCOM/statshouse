@@ -17,25 +17,26 @@ func (q *pointsSelectCols) writeTagsV3(lod *data_model.LOD, opt writeTagsOptions
 		q.tag = make([]proto.ColInt32, 0, len(q.by))
 		q.stag = make([]proto.ColStr, 0, len(q.by))
 	}
-	for _, id := range q.by {
-		switch id {
-		case format.StringTopTagID:
+	for _, x := range q.by {
+		switch x {
+		case format.StringTopTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "stag_s", Data: &q.tagStr})
 			}
 			q.writeMaybeCommaString("stag47 AS stag_s", opt.comma)
-		case format.ShardTagID:
+		case format.ShardTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "key_shard_num", Data: &q.shardNum})
 			}
 			q.writeMaybeCommaString("_shard_num AS key_shard_num", opt.comma)
 		default:
+			id := format.TagID(x)
 			if opt.cols {
 				q.tag = append(q.tag, proto.ColInt32{})
 				q.res = append(q.res, proto.ResultColumn{Name: "tag" + id, Data: &q.tag[len(q.tag)-1]})
 				q.stag = append(q.stag, proto.ColStr{})
 				q.res = append(q.res, proto.ResultColumn{Name: "stag" + id, Data: &q.stag[len(q.tag)-1]})
-				q.tagX = append(q.tagX, format.TagIndex(id))
+				q.tagX = append(q.tagX, x)
 			}
 			q.writeMaybeCommaString(q.mappedColumnNameV3(id, lod), opt.comma)
 			q.WriteString(" AS tag")
@@ -101,7 +102,7 @@ func (b *queryBuilder) tagValueIDsQueryV3(lod *data_model.LOD) *tagValuesSelectC
 	return &q
 }
 
-func (b *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, lod *data_model.LOD) bool {
+func (b *queryBuilder) version3StrcmpOn(lod *data_model.LOD) bool {
 	return lod.Version == Version3 && !b.strcmpOff
 }
 

@@ -34,7 +34,7 @@ type queryBuilder struct {
 	user        string
 	metric      *format.MetricMetaValue
 	what        tsWhat
-	by          []string
+	by          []int
 	filterIn    data_model.TagFilters
 	filterNotIn data_model.TagFilters
 	sort        querySort // for table view requests
@@ -101,12 +101,12 @@ func (b *queryBuilder) getOrBuildCacheKey() string {
 	}
 	b.WriteString(`],"by":[`)
 	if len(b.by) != 0 {
-		sort.Strings(b.by)
+		sort.Ints(b.by)
 		b.WriteString(`"`)
-		b.WriteString(b.by[0])
+		b.WriteString(fmt.Sprint(b.by[0]))
 		for i := 1; i < len(b.by); i++ {
 			b.WriteString(`","`)
-			b.WriteString(b.by[i])
+			b.WriteString(fmt.Sprint(b.by[i]))
 		}
 		b.WriteString(`"`)
 	}
@@ -223,8 +223,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		f = b.filterNotIn
 		sep, predicate = " AND ", " NOT IN "
 	}
-	metric := b.singleMetric()
-	version3StrcmpOn := b.version3StrcmpOn(metric, lod)
+	version3StrcmpOn := b.version3StrcmpOn(lod)
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -476,11 +475,11 @@ func (q *pointsSelectCols) loadPointsSelectWhat(lod *data_model.LOD) {
 		q.WriteString(" AS _minHost")
 		switch q.version {
 		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minMaxHostV1[0]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV1})
 		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minMaxHostV2[0]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV2})
 		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minMaxHostV3[0]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
 		}
 	}
 	if q.minMaxHost[1] {
@@ -488,11 +487,11 @@ func (q *pointsSelectCols) loadPointsSelectWhat(lod *data_model.LOD) {
 		q.WriteString(" AS _maxHost")
 		switch q.version {
 		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.minMaxHostV1[1]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV1})
 		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.minMaxHostV2[1]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV2})
 		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.minMaxHostV3[1]})
+			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 		}
 	}
 }
@@ -607,14 +606,14 @@ func sqlMinHost(version string) string {
 	if version == Version1 {
 		return "0"
 	}
-	return "argMinMerge(min_host)"
+	return "argMinMergeState(min_host)"
 }
 
 func sqlMaxHost(version string) string {
 	if version == Version1 {
 		return "0"
 	}
-	return "argMaxMerge(max_host)"
+	return "argMaxMergeState(max_host)"
 }
 
 func (b *queryBuilder) writeMetricFilter(metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, version string) {
@@ -703,7 +702,7 @@ func (b *queryBuilder) preKeyTableName(lod *data_model.LOD) string {
 			b.filterNotIn.Contains(preKeyTagX)
 		if !usePreKey {
 			for _, v := range b.by {
-				if v == b.preKeyTagID() {
+				if format.TagID(v) == b.preKeyTagID() {
 					usePreKey = true
 					break
 				}

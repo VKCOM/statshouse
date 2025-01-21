@@ -64,7 +64,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				user:        tableReqParams.user,
 				metric:      metricMeta,
 				what:        q.qry,
-				by:          req.by,
+				by:          metricMeta.GroupBy(req.by),
 				filterIn:    tableReqParams.mappedFilterIn,
 				filterNotIn: tableReqParams.mappedFilterNotIn,
 				sort:        req.tableSort(),

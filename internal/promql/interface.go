@@ -92,7 +92,7 @@ type SeriesQuery struct {
 	// What
 	Metric     *format.MetricMetaValue
 	Whats      []SelectorWhat
-	GroupBy    []string
+	GroupBy    []int
 	MinMaxHost [2]bool // "min" at [0], "max" at [1]
 
 	// When

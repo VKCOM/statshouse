@@ -1416,7 +1416,7 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 			}
 			if j > 0 {
 				for k := range d.MinMaxHost {
-					if j < len(d.MinMaxHost[k]) && d.MinMaxHost[k][j] == 0 && d.MinMaxHost[k][j-1] != 0 {
+					if j < len(d.MinMaxHost[k]) && d.MinMaxHost[k][j].Empty() && !d.MinMaxHost[k][j-1].Empty() {
 						d.MinMaxHost[k][j] = d.MinMaxHost[k][j-1]
 					}
 				}

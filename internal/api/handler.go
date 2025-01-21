@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"cmp"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -2759,18 +2758,21 @@ type pointsSelectCols struct {
 	tagStr proto.ColStr
 
 	// values
-	min          proto.ColFloat64
-	max          proto.ColFloat64
-	sum          proto.ColFloat64
-	count        proto.ColFloat64
-	sumsquare    proto.ColFloat64
-	unique       data_model.ColUnique
-	percentile   data_model.ColTDigest
-	cardinality  proto.ColFloat64
-	shardNum     proto.ColUInt32
-	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
-	minMaxHostV2 [2]proto.ColInt32 // "min" at [0], "max" at [1]
-	minMaxHostV3 [2]proto.ColStr   // "min" at [0], "max" at [1]
+	min         proto.ColFloat64
+	max         proto.ColFloat64
+	sum         proto.ColFloat64
+	count       proto.ColFloat64
+	sumsquare   proto.ColFloat64
+	unique      data_model.ColUnique
+	percentile  data_model.ColTDigest
+	cardinality proto.ColFloat64
+	shardNum    proto.ColUInt32
+	minHostV1   proto.ColUInt8
+	maxHostV1   proto.ColUInt8
+	minHostV2   data_model.ColArgMinInt32Float32
+	maxHostV2   data_model.ColArgMaxInt32Float32
+	minHostV3   data_model.ColArgMinStringFloat32
+	maxHostV3   data_model.ColArgMaxStringFloat32
 
 	res proto.Results
 }
@@ -2795,23 +2797,17 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
 	}
-	if len(c.minMaxHostV2[0]) != 0 {
-		row.host[0] = c.minMaxHostV2[0][i]
+	if len(c.minHostV2) != 0 {
+		row.minHost = c.minHostV2[i]
 	}
-	if len(c.minMaxHostV2[1]) != 0 {
-		row.host[1] = c.minMaxHostV2[1][i]
+	if len(c.maxHostV2) != 0 {
+		row.maxHost = c.maxHostV2[i]
 	}
-	if c.minMaxHostV3[0].Rows() != 0 {
-		mm3 := c.minMaxHostV3[0]
-		if i < len(mm3.Pos) && mm3.Pos[i].End-mm3.Pos[i].Start == 5 && mm3.Pos[i].Start < len(mm3.Buf) && mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
-			row.host[0] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
-		}
+	if len(c.minHostV3) != 0 {
+		row.minHostStr = c.minHostV3[i]
 	}
-	if c.minMaxHostV3[1].Rows() != 0 {
-		mm3 := c.minMaxHostV3[1]
-		if i < len(mm3.Pos) && mm3.Pos[i].End-mm3.Pos[i].Start == 5 && mm3.Pos[i].Start < len(mm3.Buf) && mm3.Buf[mm3.Pos[i].Start] == 0 { // first byte is 0 for mapped hostTagId
-			row.host[1] = int32(binary.LittleEndian.Uint32(mm3.Buf[mm3.Pos[i].Start+1 : mm3.Pos[i].End]))
-		}
+	if len(c.maxHostV3) != 0 {
+		row.maxHostStr = c.maxHostV3[i]
 	}
 	if c.shardNum != nil {
 		row.shardNum = c.shardNum[i]
@@ -2828,45 +2824,51 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
 	}
-	if len(c.minMaxHostV2[0]) != 0 {
-		row.host[0] = c.minMaxHostV2[0][i]
+	if len(c.minHostV2) != 0 {
+		row.minHost = c.minHostV2[i]
 	}
-	if len(c.minMaxHostV2[1]) != 0 {
-		row.host[1] = c.minMaxHostV2[1][i]
+	if len(c.maxHostV2) != 0 {
+		row.maxHost = c.maxHostV2[i]
 	}
 	return row
 }
 
 func (c *pointsSelectCols) valuesAt(x int, dst *tsValues) {
-	for i := 0; c.what.specifiedAt(i); i++ {
-		switch c.what[i].What {
-		case data_model.DigestAvg:
-			dst.val[i] = c.sum[x] / c.count[x]
-		case data_model.DigestCount:
-			dst.val[i] = c.count[x]
-		case data_model.DigestMax:
-			dst.val[i] = c.max[x]
-		case data_model.DigestMin:
-			dst.val[i] = c.min[x]
-		case data_model.DigestSum:
-			dst.val[i] = c.sum[x]
-		case data_model.DigestPercentile:
-			dst.val[i] = c.percentile[x].Quantile(c.what[i].Argument)
-		case data_model.DigestStdDev:
-			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
-			if c.count[x] < 2 {
-				dst.val[i] = 0
-			} else {
-				dst.val[i] = math.Sqrt(math.Max((c.sumsquare[x]-math.Pow(c.sum[x], 2)/c.count[x])/(c.count[x]-1), 0))
-			}
-		case data_model.DigestCardinality:
-			dst.val[i] = c.cardinality[x]
-		case data_model.DigestUnique:
-			dst.val[i] = float64(c.unique[x].Size(false))
-		default:
-			panic(fmt.Errorf("unknown column type %v", c.what[i].What))
-		}
-		replaceInfNan(&dst.val[i])
+	if len(c.min) != 0 {
+		dst.min = c.min[x]
+	}
+	if len(c.max) != 0 {
+		dst.max = c.max[x]
+	}
+	if len(c.sum) != 0 {
+		dst.sum = c.sum[x]
+	}
+	if len(c.count) != 0 {
+		dst.count = c.count[x]
+	}
+	if len(c.sumsquare) != 0 {
+		dst.sumsquare = c.sumsquare[x]
+	}
+	if len(c.unique) != 0 {
+		dst.unique = c.unique[x]
+	}
+	if len(c.percentile) != 0 {
+		dst.percentile = c.percentile[x]
+	}
+	if len(c.cardinality) != 0 {
+		dst.cardinality = c.cardinality[x]
+	}
+	if len(c.minHostV2) != 0 {
+		dst.minHost = c.minHostV2[x]
+	}
+	if len(c.maxHostV2) != 0 {
+		dst.maxHost = c.maxHostV2[x]
+	}
+	if len(c.minHostV3) != 0 {
+		dst.minHostStr = c.minHostV3[x]
+	}
+	if len(c.maxHostV3) != 0 {
+		dst.maxHostStr = c.maxHostV3[x]
 	}
 }
 

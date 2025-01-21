@@ -17,6 +17,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
@@ -33,7 +34,7 @@ type Series struct {
 
 type SeriesData struct {
 	Values     *[]float64
-	MinMaxHost [2][]int32 // "min" at [0], "max" at [1]
+	MinMaxHost [2][]data_model.ArgMinMaxStringFloat32 // "min" at [0], "max" at [1]
 	Tags       SeriesTags
 	Offset     int64
 	What       SelectorWhat
@@ -119,40 +120,31 @@ func (sr *Series) appendSome(src Series, xs ...int) {
 	}
 }
 
-func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []int32 {
+func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []data_model.ArgMinMaxStringFloat32 {
 	if len(ds) == 0 {
 		return nil
 	}
 	if len(ds) == 1 {
 		return ds[0].MinMaxHost[x]
 	}
-	var (
-		i   int
-		t   = ev.time()
-		res []int32
-	)
+	var i int
+	var t = ev.time()
+	var res []data_model.ArgMinMaxStringFloat32
 	for ; i < len(ds); i++ {
 		if len(ds[i].MinMaxHost[x]) != 0 {
-			res = make([]int32, 0, len(t))
+			res = make([]data_model.ArgMinMaxStringFloat32, 0, len(t))
 			break
 		}
 	}
-	if res == nil {
-		return nil
+	if len(res) == 0 {
+		return res
 	}
 	for j := 0; j < len(t); j++ {
-		var (
-			v = ds[i].MinMaxHost[x][j]
-			k = i + 1
-		)
+		v := ds[i].MinMaxHost[x][j]
+		k := i + 1
 		for ; k < len(ds); k++ {
-			if k < len(ds) && ds[k].MinMaxHost[x][j] != 0 && ds[k].MinMaxHost[x][j] != v {
-				if v == 0 {
-					v = ds[k].MinMaxHost[x][j]
-				} else {
-					v = 0
-					break
-				}
+			if k < len(ds) {
+				v.Merge(ds[k].MinMaxHost[x][j], x)
 			}
 		}
 		res = append(res, v)
@@ -324,7 +316,11 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			}
 		}
 	case LabelMinHost, LabelMaxHost:
-		v = ev.GetHostName(tg.Value)
+		if tg.SValue != "" {
+			v = tg.SValue
+		} else {
+			v = ev.GetHostName(tg.Value)
+		}
 	default:
 		if !ev.opt.RawBucketLabel && tg.Name == labels.BucketLabel {
 			v = strconv.FormatFloat(float64(statshouse.LexDecode(tg.Value)), 'f', -1, 32)
@@ -466,10 +462,8 @@ func (tgs *SeriesTags) cloneSome(ids ...string) SeriesTags {
 
 func (d *SeriesData) GetSMaxHosts(h Handler) []string {
 	res := make([]string, len(d.MinMaxHost[1]))
-	for j, id := range d.MinMaxHost[1] {
-		if id != 0 {
-			res[j] = h.GetHostName(id)
-		}
+	for j, v := range d.MinMaxHost[1] {
+		res[j] = getHostName(h, v)
 	}
 	return res
 }
@@ -493,7 +487,7 @@ func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []Serie
 	if len(d.MinMaxHost[x]) == 0 {
 		return []SeriesData{*d}
 	}
-	m := map[int32]int{}
+	m := map[data_model.ArgMinMaxStringFloat32]int{}
 	for i, h := range d.MinMaxHost[x] {
 		if !math.IsNaN((*d.Values)[i]) {
 			m[h] = i
@@ -515,8 +509,9 @@ func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []Serie
 			}
 		}
 		data.Tags.add(&SeriesTag{
-			ID:    tagID,
-			Value: h,
+			ID:     tagID,
+			Value:  h.AsInt32,
+			SValue: h.Arg,
 		}, nil)
 		res = append(res, data)
 	}
@@ -593,7 +588,7 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 	n := 0
 	for i, maxHost := range d.MinMaxHost[x] {
 		discard := false
-		maxHostname := ev.GetHostName(maxHost)
+		maxHostname := getHostName(ev, maxHost)
 		for _, matcher := range matchers {
 			if !matcher.Matches(maxHostname) {
 				discard = true
@@ -602,7 +597,7 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 		}
 		if discard {
 			(*d.Values)[i] = NilValue
-			d.MinMaxHost[x][i] = 0
+			d.MinMaxHost[x][i] = data_model.ArgMinMaxStringFloat32{}
 		} else if !math.IsNaN((*d.Values)[i]) {
 			n++
 		}
@@ -617,11 +612,11 @@ func (d *SeriesData) pruneMinMaxHost() {
 	for i, v := range *d.Values {
 		if math.IsNaN(v) {
 			if i < len(d.MinMaxHost[0]) {
-				d.MinMaxHost[0][i] = 0
+				d.MinMaxHost[0][i] = data_model.ArgMinMaxStringFloat32{}
 
 			}
 			if i < len(d.MinMaxHost[1]) {
-				d.MinMaxHost[1][i] = 0
+				d.MinMaxHost[1][i] = data_model.ArgMinMaxStringFloat32{}
 			}
 		}
 	}

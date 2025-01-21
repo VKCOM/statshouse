@@ -16,23 +16,24 @@ func (q *pointsSelectCols) writeTagsV2(lod *data_model.LOD, opt writeTagsOptions
 	if opt.cols {
 		q.tag = make([]proto.ColInt32, 0, len(q.by))
 	}
-	for _, id := range q.by {
-		switch id {
-		case format.StringTopTagID:
+	for _, x := range q.by {
+		switch x {
+		case format.StringTopTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "key_s", Data: &q.tagStr})
 			}
 			q.writeMaybeCommaString("skey AS key_s", opt.comma)
-		case format.ShardTagID:
+		case format.ShardTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "key_shard_num", Data: &q.shardNum})
 			}
 			q.writeMaybeCommaString("_shard_num AS key_shard_num", opt.comma)
 		default:
+			id := format.TagID(x)
 			if opt.cols {
 				q.tag = append(q.tag, proto.ColInt32{})
 				q.res = append(q.res, proto.ResultColumn{Name: "key" + id, Data: &q.tag[len(q.tag)-1]})
-				q.tagX = append(q.tagX, format.TagIndex(id))
+				q.tagX = append(q.tagX, x)
 			}
 			q.writeMaybeCommaString(q.mappedColumnNameV2(id, lod), opt.comma)
 			q.WriteString(" AS key")
