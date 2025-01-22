@@ -26,8 +26,8 @@ type MappedMetricHeader struct {
 	ReceiveTime time.Time // Saved at mapping start and used where we need time.Now. This is different to MetricBatch.T, which is sent by clients
 	MetricMeta  *format.MetricMetaValue
 	Key         Key
-	SValue      []byte // reference to memory inside tlstatshouse.MetricBytes.
-	HostTag     int32
+	TopValue    TagUnionBytes // reference to memory inside tlstatshouse.MetricBytes.
+	HostTag     TagUnionBytes // reference to memory inside tlstatshouse.MetricBytes.
 
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
 	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
@@ -54,7 +54,7 @@ type MappedMetricHeader struct {
 
 func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
 	if index == format.HostTagIndex {
-		h.HostTag = id
+		h.HostTag.I = id
 		if h.IsHKeySet {
 			h.TagSetTwiceKey = tagIDKey
 		}
@@ -68,12 +68,20 @@ func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
 	}
 }
 
-func (h *MappedMetricHeader) SetSTag(index int, value string, tagIDKey int32) {
-	h.Key.SetSTag(index, value)
-	if h.IsTagSet[index] {
-		h.TagSetTwiceKey = tagIDKey
+func (h *MappedMetricHeader) SetSTag(index int, value []byte, tagIDKey int32) {
+	if index == format.HostTagIndex {
+		h.HostTag.S = value
+		if h.IsHKeySet {
+			h.TagSetTwiceKey = tagIDKey
+		}
+		h.IsHKeySet = true
+	} else {
+		h.Key.SetSTag(index, string(value))
+		if h.IsTagSet[index] {
+			h.TagSetTwiceKey = tagIDKey
+		}
+		h.IsTagSet[index] = true
 	}
-	h.IsTagSet[index] = true
 }
 
 func (h *MappedMetricHeader) SetInvalidString(ingestionStatus int32, tagIDKey int32, invalidString []byte) {

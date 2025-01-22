@@ -143,8 +143,8 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, perm []int, sampl
 		sizeBuf = item.Write(sizeBuf[:0])
 
 		var top []tlstatshouse.TopElement
-		for skey, value := range v.Top {
-			el := tlstatshouse.TopElement{Key: skey}
+		for key, value := range v.Top {
+			el := tlstatshouse.TopElement{Key: key.S} // TODO - send I
 			value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, &marshalBuf)
 			top = append(top, el)
 			sizeBuf = el.Write(sizeBuf[:0])
@@ -221,8 +221,8 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, perm []int, sampl
 		sizeBuf = item.Write(sizeBuf[:0])
 
 		var top []tlstatshouse.TopElement
-		for skey, value := range v.Top {
-			el := tlstatshouse.TopElement{Key: skey}
+		for key, value := range v.Top {
+			el := tlstatshouse.TopElement{Key: key.S} // TODO - send I
 			value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, &marshalBuf)
 			top = append(top, el)
 			sizeBuf = el.Write(sizeBuf[:0])

@@ -464,13 +464,13 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 			}
 		}
 		resPos = len(res)
-		for skey, value := range item.Top {
+		for key, value := range item.Top {
 			if value.Empty() { // must be never, but check is cheap
 				continue
 			}
 			// We have no badges for string tops
-			res = appendKeys(res, &item.Key, metricCache, usedTimestamps, v3Format, rnd, skey)
-			res = multiValueMarshal(rnd, item.Key.Metric, metricCache, res, value, skey, sf, v3Format)
+			res = appendKeys(res, &item.Key, metricCache, usedTimestamps, v3Format, rnd, key.S)         // TODO - insert I
+			res = multiValueMarshal(rnd, item.Key.Metric, metricCache, res, value, key.S, sf, v3Format) // TODO - insert I
 		}
 		if item.Key.Metric < 0 {
 			is.builtin += len(res) - resPos

@@ -175,7 +175,7 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	}
 }
 
-func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
+func CounterFromStatshouseMultiValue(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) (float64, bool) {
 	counter := float64(0)
 	if s2.IsSetCounterEq1(fields_mask) {
 		counter = 1
@@ -184,10 +184,18 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 		counter = s2.Counter
 	}
 	if counter <= 0 || math.IsNaN(counter) { // sanity check/check for empty String Top tail
-		return
+		return -1, false
 	}
 	if counter > math.MaxFloat32 { // agents do similar check, but this is so cheap, we repeat on aggregators.
 		counter = math.MaxFloat32
+	}
+	return counter, true
+}
+
+func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
+	counter, ok := CounterFromStatshouseMultiValue(s2, fields_mask)
+	if !ok { // sanity check/check for empty String Top tail
+		return
 	}
 	s.AddCounterHost(rng, counter, s2.MaxCounterHostTag)
 	if !s2.IsSetValueSet(fields_mask) {
@@ -215,8 +223,8 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 
 func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, s2 *tlstatshouse.MultiItemBytes, hostTagId int32) {
 	for _, v := range s2.Top {
-		mi := s.MapStringTopBytes(rng, v.Key, v.Value.Counter)
-		v.Key, _ = format.AppendValidStringValue(v.Key[:0], v.Key) // TODO - report this error via builtin metrics
+		mi := s.MapStringTopBytes(rng, TagUnionBytes{S: v.Key, I: 0}, v.Value.Counter) // TODO - pass I
+		v.Key, _ = format.AppendValidStringValue(v.Key[:0], v.Key)                     // TODO - report this error via builtin metrics
 		// we want to validate all incoming strings. In case of encoding error, v.Key will be truncated to 0
 		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTagId, AggregatorPercentileCompression)
 	}
@@ -226,7 +234,7 @@ func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, s2 *tlstatshouse.MultiI
 func (s *MultiItem) TLSizeEstimate() int {
 	size := s.Tail.TLSizeEstimate()
 	for k, v := range s.Top {
-		size += 4 + len(k) + 3 + v.TLSizeEstimate()
+		size += 4 + len(k.S) + 3 + v.TLSizeEstimate()
 	}
 	return size
 }

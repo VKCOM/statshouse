@@ -23,6 +23,15 @@ import (
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead
 
 type (
+	TagUnion struct {
+		S string
+		I int32
+	}
+	TagUnionBytes struct {
+		S []byte
+		I int32
+	}
+
 	// Time Series Key, will be optimized to single human-readable string
 	Key struct {
 		Timestamp uint32
@@ -53,7 +62,7 @@ type (
 	// All our items are technically string tops, but most have empty Top map
 	MultiItem struct {
 		Key              Key
-		Top              map[string]*MultiValue
+		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
 		Capacity         int     // algorithm supports changing on the fly, <2 means DefaultStringTopCapacity
@@ -306,14 +315,14 @@ func (b *MultiItemMap) DeleteMultiItem(key *Key) {
 	// we do not clean keysBuffer, it has same lifetime as b and should be reused
 }
 
-func (s *MultiItem) MapStringTop(rng *rand.Rand, str string, count float64) *MultiValue {
-	if len(str) == 0 {
+func (s *MultiItem) MapStringTop(rng *rand.Rand, tag TagUnion, count float64) *MultiValue {
+	if len(tag.S) == 0 && tag.I == 0 {
 		return &s.Tail
 	}
 	if s.Top == nil {
-		s.Top = map[string]*MultiValue{}
+		s.Top = map[TagUnion]*MultiValue{}
 	}
-	c, ok := s.Top[str]
+	c, ok := s.Top[tag]
 	if ok {
 		return c
 	}
@@ -329,18 +338,18 @@ func (s *MultiItem) MapStringTop(rng *rand.Rand, str string, count float64) *Mul
 		s.resample(rng)
 	}
 	c = &MultiValue{}
-	s.Top[str] = c
+	s.Top[tag] = c
 	return c
 }
 
-func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, str []byte, count float64) *MultiValue {
-	if len(str) == 0 {
+func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, tag TagUnionBytes, count float64) *MultiValue {
+	if len(tag.S) == 0 && tag.I == 0 {
 		return &s.Tail
 	}
 	if s.Top == nil {
-		s.Top = map[string]*MultiValue{}
+		s.Top = map[TagUnion]*MultiValue{}
 	}
-	c, ok := s.Top[string(str)]
+	c, ok := s.Top[TagUnion{S: string(tag.S), I: tag.I}]
 	if ok {
 		return c
 	}
@@ -356,7 +365,7 @@ func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, str []byte, count float64)
 		s.resample(rng)
 	}
 	c = &MultiValue{}
-	s.Top[string(str)] = c
+	s.Top[TagUnion{S: string(tag.S), I: tag.I}] = c
 	return c
 }
 
@@ -377,7 +386,7 @@ func (s *MultiItem) resample(rng *rand.Rand) {
 }
 
 type multiItemPair struct {
-	k string
+	k TagUnion
 	v *MultiValue
 }
 
@@ -416,7 +425,7 @@ func (s *MultiItem) Merge(rng *rand.Rand, s2 *MultiItem) {
 func (s *MultiItem) RowBinarySizeEstimate() int {
 	size := s.Tail.RowBinarySizeEstimate()
 	for k, v := range s.Top {
-		size += len(k) + v.RowBinarySizeEstimate()
+		size += 4 + len(k.S) + v.RowBinarySizeEstimate()
 	}
 	return size
 }

@@ -236,8 +236,8 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 				value := rng.Float64() * 100
 				s.AddValueCounter(&kValue2, value, 1, metricInfo2)
 				s.AddValueCounter(&kValue3, value, 1, metricInfo3)
-				s.AddValueArrayCounterHostStringBytes(&kValue10, []float64{value}, 1, 0, sKey, metricInfo10)
-				s.AddValueArrayCounterHostStringBytes(&kValue11, []float64{value}, 1, 0, sKey, metricInfo11)
+				s.AddValueArrayCounterHostStringBytes(&kValue10, []float64{value}, 1, 0, data_model.TagUnionBytes{S: sKey, I: 0}, metricInfo10)
+				s.AddValueArrayCounterHostStringBytes(&kValue11, []float64{value}, 1, 0, data_model.TagUnionBytes{S: sKey, I: 0}, metricInfo11)
 			}
 		}
 		total = rng.Intn(totalRange)
@@ -261,9 +261,9 @@ func generateStats(simID int, journal *metajournal.MetricsStorage, s *agent.Agen
 			for ci := 0; ci < cc; ci++ {
 				const D = 1000000
 				r := D + int64(rng.Intn(D))*int64(rng.Intn(D))
-				s.AddUniqueHostStringBytes(&kUnique4, 0, nil, []int64{r}, 1, metricInfo4)
-				s.AddUniqueHostStringBytes(&kUnique7, 0, nil, []int64{r}, 1, metricInfo7)
-				s.AddUniqueHostStringBytes(&kUnique8, 0, sKey, []int64{r}, 1, metricInfo8)
+				s.AddUniqueHostStringBytes(&kUnique4, 0, data_model.TagUnionBytes{}, []int64{r}, 1, metricInfo4)
+				s.AddUniqueHostStringBytes(&kUnique7, 0, data_model.TagUnionBytes{}, []int64{r}, 1, metricInfo7)
+				s.AddUniqueHostStringBytes(&kUnique8, 0, data_model.TagUnionBytes{S: sKey, I: 0}, []int64{r}, 1, metricInfo8)
 			}
 		}
 
