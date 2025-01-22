@@ -35,6 +35,10 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
     // optimization for single values: if max_host_tag is set and *_host_tag below is not set, it is equal to max_host_tag
     min_host_tag: fields_mask.8?int
     max_counter_host_tag: fields_mask.9?int
+    // field mask bits 10 - 12 are used in statshouse.multi_item
+    max_host_stag: fields_mask.14?int
+    min_host_stag: fields_mask.15?int
+    max_counter_host_stag: fields_mask.16?int
     = statshouse.MultiValue fields_mask;
 
 statshouse.top_element#9ffdea42 stag:string fields_mask:# tag:fields_mask.10?int value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
@@ -48,6 +52,7 @@ statshouse.multi_item#0c803e07
     t: fields_mask.10?# // timestamp, should be rare
 
     tail: (statshouse.multi_value fields_mask) // no fields_mask, because anyway uses 0 bytes if counter with 0.0 or 1.0
+    // won't be set in a v3 pipeline
     top: fields_mask.11?(vector (statshouse.top_element)) // most items are without string keys, so we save 4 bytes using fields_mask
     = statshouse.MultiItem;
 
