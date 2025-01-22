@@ -22,12 +22,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ adminMode }) => {
     <div className="d-flex flex-column flex-grow-1">
       <ul className="nav nav-tabs px-2 pt-1">
         <li className="nav-item">
-          <NavLink className="nav-link" to="./group" end aria-current="page">
+          <NavLink className="nav-link" to="/settings/group" end aria-current="page">
             Group
           </NavLink>
         </li>
         <li className="nav-item">
-          <NavLink className="nav-link" to="./namespace" end aria-current="page">
+          <NavLink className="nav-link" to="/settings/namespace" end aria-current="page">
             Namespace
           </NavLink>
         </li>
