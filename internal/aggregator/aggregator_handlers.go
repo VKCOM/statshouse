@@ -386,7 +386,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	clampedTimestampsMetrics := map[clampedKey]float32{}
 
 	var resp tlstatshouse.SendSourceBucket3Response
-	// we will allocate if key won't fit into this buffer but it is quite unlikely
+	// we will allocate if key won't fit into this buffer, but it is quite unlikely
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
