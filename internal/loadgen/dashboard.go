@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/mailru/easyjson"
+
 	"github.com/vkcom/statshouse/internal/api"
 )
 
@@ -33,13 +34,16 @@ func EnsureDashboardExists(ctx context.Context, c *api.Client) error {
 		dashboardInfo.Dashboard.DashboardID = existingDashboard.Dashboard.DashboardID
 		dashboardInfo.Dashboard.Version = existingDashboard.Dashboard.Version
 		err = c.PostDashboard(ctx, dashboardInfo)
+		if err != nil {
+			return err
+		}
 		log.Println("updated dashboard")
 	} else {
 		err = c.PutDashboard(ctx, dashboardInfo)
+		if err != nil {
+			return err
+		}
 		log.Println("created dashboard")
-	}
-	if err != nil {
-		return err
 	}
 	log.Printf("Dashboard: %s/view?id=%d\n", c.BaseURL(), dashboardInfo.Dashboard.DashboardID)
 	return nil
