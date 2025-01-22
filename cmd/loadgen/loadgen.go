@@ -7,9 +7,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "agent" {
-		loadgen.RunAgentLoad()
+	if len(os.Args) > 1 && os.Args[1] == "client" {
+		loadgen.RunClientLoad()
 		return
 	}
-	loadgen.RunLegacy()
 }
