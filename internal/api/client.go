@@ -27,6 +27,10 @@ func NewClient(baseURL, userToken string) *Client {
 	}
 }
 
+func (c *Client) BaseURL() string {
+	return c.baseURL
+}
+
 func (c *Client) doRequest(ctx context.Context, method, path string, params url.Values, body io.Reader, result easyjson.Unmarshaler) error {
 	reqURL := c.baseURL + path
 	if params != nil {
@@ -122,5 +126,14 @@ func (c *Client) PostDashboard(ctx context.Context, dashboard *DashboardInfo) er
 		return err
 	}
 	err = c.doRequest(ctx, "POST", "/api/dashboard", nil, bytes.NewReader(body), nil)
+	return err
+}
+
+func (c *Client) PutDashboard(ctx context.Context, dashboard *DashboardInfo) error {
+	body, err := json.Marshal(dashboard)
+	if err != nil {
+		return err
+	}
+	err = c.doRequest(ctx, "PUT", "/api/dashboard", nil, bytes.NewReader(body), nil)
 	return err
 }
