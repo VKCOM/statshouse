@@ -15,6 +15,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"go4.org/mem"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -39,6 +40,21 @@ type MetricMetaLoader struct {
 
 func IsUserRequestError(err error) bool {
 	return errors.Is(err, errorInvalidUserRequest)
+}
+
+func wrapSaveEntityError(err error) error {
+	var rpcErr = &rpc.Error{}
+	if errors.As(err, &rpcErr) {
+		switch rpcErr.Code {
+		case data_model.ErrEntityInvalidVersion.Code:
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityInvalidVersion.Description))
+		case data_model.ErrEntityExists.Code:
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityExists.Description))
+		case data_model.ErrEntityNotExists.Code:
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityNotExists.Description))
+		}
+	}
+	return err
 }
 
 func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *MetricMetaLoader {
@@ -73,7 +89,7 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	event := tlmetadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return format.DashboardMeta{}, fmt.Errorf("failed to edit metric: %w", err)
+		return format.DashboardMeta{}, wrapSaveEntityError(err)
 	}
 	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
 		return format.DashboardMeta{}, fmt.Errorf("dashboard ID %d assigned by metaengine does not fit into int32 for dashboard %q", event.Id, event.Name)
@@ -123,7 +139,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	event := tlmetadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return format.MetricsGroup{}, fmt.Errorf("failed to edit group: %w", err)
+		return format.MetricsGroup{}, wrapSaveEntityError(err)
 	}
 	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
 		return g, fmt.Errorf("group ID %d assigned by metaengine does not fit into int32 for group %q", event.Id, event.Name)
@@ -169,7 +185,7 @@ func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.Names
 	event := tlmetadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return format.NamespaceMeta{}, fmt.Errorf("failed to edit namespace: %w", err)
+		return format.NamespaceMeta{}, wrapSaveEntityError(err)
 	}
 	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
 		return g, fmt.Errorf("namespace ID %d assigned by metaengine does not fit into int32 for group %q", event.Id, event.Name)
@@ -262,7 +278,7 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	event := tlmetadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return m, fmt.Errorf("failed to edit metric: %w", err)
+		return m, wrapSaveEntityError(err)
 	}
 	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
 		return m, fmt.Errorf("metric ID %d assigned by metaengine does not fit into int32 for metric %q", event.Id, event.Name)
