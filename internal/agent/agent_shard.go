@@ -194,7 +194,7 @@ func (s *Shard) CreateBuiltInItemValue(key *data_model.Key) *BuiltInItemValue {
 	return result
 }
 
-func (s *Shard) ApplyUnique(key *data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyUnique(key *data_model.Key, keyHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	if count == 0 {
 		count = float64(len(hashes))
 	}
@@ -208,11 +208,11 @@ func (s *Shard) ApplyUnique(key *data_model.Key, keyHash uint64, str []byte, has
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mv := item.MapStringTopBytes(s.rng, str, count)
+	mv := item.MapStringTopBytes(s.rng, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key *data_model.Key, keyHash uint64, str []byte, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key *data_model.Key, keyHash uint64, topValue data_model.TagUnionBytes, histogram [][2]float64, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
 		totalCount += kv[1] // all counts are validated to be >= 0
@@ -230,11 +230,11 @@ func (s *Shard) ApplyValues(key *data_model.Key, keyHash uint64, str []byte, his
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	mv := item.MapStringTopBytes(s.rng, str, count)
+	mv := item.MapStringTopBytes(s.rng, topValue, count)
 	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
-func (s *Shard) ApplyCounter(key *data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyCounter(key *data_model.Key, keyHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	if count <= 0 {
 		return
 	}
@@ -245,7 +245,7 @@ func (s *Shard) ApplyCounter(key *data_model.Key, keyHash uint64, str []byte, co
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
+	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
 }
 
 func (s *Shard) AddCounterHost(key *data_model.Key, keyHash uint64, count float64, hostTagId int32, metricInfo *format.MetricMetaValue) {
@@ -259,7 +259,7 @@ func (s *Shard) AddCounterHost(key *data_model.Key, keyHash uint64, count float6
 	item.Tail.AddCounterHost(s.rng, count, hostTagId)
 }
 
-func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, keyHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
@@ -267,10 +267,10 @@ func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, keyHash uint64, s
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	item.MapStringTopBytes(s.rng, str, count).AddCounterHost(s.rng, count, hostTag)
+	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHostStringBytes(key *data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterHostString(key *data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, topValue data_model.TagUnion, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
@@ -278,7 +278,7 @@ func (s *Shard) AddValueCounterHostStringBytes(key *data_model.Key, keyHash uint
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, keyHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
-	item.MapStringTopBytes(s.rng, str, count).AddValueCounterHost(s.rng, value, count, hostTag)
+	item.MapStringTop(s.rng, topValue, count).AddValueCounterHost(s.rng, value, count, hostTag)
 }
 
 func (s *Shard) AddValueCounterHost(key *data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
@@ -311,7 +311,7 @@ func (s *Shard) AddValueArrayCounterHost(key *data_model.Key, keyHash uint64, va
 	}
 }
 
-func (s *Shard) AddValueArrayCounterHostStringBytes(key *data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueArrayCounterHostStringBytes(key *data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, topValue data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
@@ -321,9 +321,9 @@ func (s *Shard) AddValueArrayCounterHostStringBytes(key *data_model.Key, keyHash
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
 	count := float64(len(values)) * mult
 	if metricInfo != nil && metricInfo.HasPercentiles {
-		item.MapStringTopBytes(s.rng, str, count).AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
+		item.MapStringTopBytes(s.rng, topValue, count).AddValueArrayHostPercentile(s.rng, values, mult, hostTag, data_model.AgentPercentileCompression)
 	} else {
-		item.MapStringTopBytes(s.rng, str, count).Value.AddValueArrayHost(s.rng, values, mult, hostTag)
+		item.MapStringTopBytes(s.rng, topValue, count).Value.AddValueArrayHost(s.rng, values, mult, hostTag)
 	}
 }
 
@@ -405,7 +405,7 @@ func (s *Shard) addBuiltInsLocked() {
 	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
 		key := s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
 		item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
-		item.MapStringTop(s.rng, hash, count).AddCounterHost(s.rng, count, 0)
+		item.MapStringTop(s.rng, data_model.TagUnion{S: hash, I: 0}, count).AddCounterHost(s.rng, count, 0)
 	}
 	if s.agent.metricStorage != nil { // nil only on ingress proxy for now
 		metricJournalVersion := s.agent.metricStorage.Version()
@@ -473,10 +473,10 @@ func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsB
 
 	key := s.agent.AggKey(nowUnix, format.BuiltinMetricIDHeartbeatVersion, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	item.MapStringTop(s.rng, build.Commit(), count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
+	item.MapStringTop(s.rng, data_model.TagUnion{S: build.Commit(), I: 0}, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 
 	// we send format.BuiltinMetricIDHeartbeatArgs only. Args1, Args2, Args3 are deprecated
 	key = s.agent.AggKey(nowUnix, format.BuiltinMetricIDHeartbeatArgs, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
-	item.MapStringTop(s.rng, s.agent.args, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
+	item.MapStringTop(s.rng, data_model.TagUnion{S: s.agent.args, I: 0}, count).AddValueCounterHost(s.rng, uptimeSec, count, 0)
 }

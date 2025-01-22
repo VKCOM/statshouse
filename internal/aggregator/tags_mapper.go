@@ -74,7 +74,7 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 			case format.TagValueIDAggMappingCreatedStatusCreated:
 				agg.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "created", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), strconv.Itoa(int(keyValue)))
 				// if askedKey is created, it is valid and safe to write
-				ms.sh2.AddValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(askedKey), meta)
+				ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, extra.Host, data_model.TagUnion{S: askedKey, I: 0}, meta)
 			}
 		}
 		return pcache.Int32ToValue(keyValue), d, err

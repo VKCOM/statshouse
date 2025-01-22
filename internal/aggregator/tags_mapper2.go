@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/agent"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -165,7 +166,7 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 	key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
 	if err == nil && c == format.TagValueIDAggMappingCreatedStatusCreated {
 		// if str is created, it is valid and safe to write
-		ms.sh2.AddValueCounterHostStringBytes(key, float64(keyValue), 1, extra.Host, []byte(str), meta)
+		ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, extra.Host, data_model.TagUnion{S: str, I: 0}, meta)
 	} else {
 		ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
 	}

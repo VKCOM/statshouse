@@ -78,9 +78,9 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 		}
 		switch {
 		case tagMeta.SkipMapping:
-			h.SetSTag(tagMeta.Index, string(v.Value), tagIDKey)
+			h.SetSTag(tagMeta.Index, v.Value, tagIDKey)
 		case tagMeta.Index == format.StringTopTagIndex:
-			h.SValue = v.Value
+			h.TopValue.S = v.Value
 			if h.IsSKeySet {
 				h.TagSetTwiceKey = tagIDKey
 			}

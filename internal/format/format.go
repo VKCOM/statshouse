@@ -111,7 +111,6 @@ const (
 const (
 	LegacyStringTopTagID      = "skey"
 	legacyTagIDPrefix         = "key"
-	legacyEnvTagID            = legacyTagIDPrefix + "0"
 	legacyMetricKindStringTop = "stop" // converted into counter during RestoreMetricInfo
 )
 

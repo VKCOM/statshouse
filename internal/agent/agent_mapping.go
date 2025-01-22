@@ -36,17 +36,9 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		if tagIDKey == 0 { // that tag is not in metric meta
 			continue
 		}
+		var tagValue data_model.TagUnionBytes
 		switch {
-		case tagMeta.SkipMapping:
-			h.SetSTag(tagMeta.Index, string(v.Value), tagIDKey)
-		case tagMeta.Index == format.StringTopTagIndex:
-			h.SValue = v.Value
-			if h.IsSKeySet {
-				h.TagSetTwiceKey = tagIDKey
-			}
-			h.IsSKeySet = true
 		case len(v.Value) == 0: // this case is also valid for raw values
-			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "1" => "vasya", "1" => "petya" as second one overriding the first, but generating a warning
 		case tagMeta.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value))
 			if !ok {
@@ -54,14 +46,30 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 				h.InvalidRawTagKey = tagIDKey
 				continue
 			}
-			h.SetTag(tagMeta.Index, id, tagIDKey)
+			tagValue.I = id
 		default:
 			id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), v.Value)
 			if found {
-				h.SetTag(tagMeta.Index, id, tagIDKey)
+				tagValue.I = id
 			} else {
-				h.SetSTag(tagMeta.Index, string(v.Value), tagIDKey)
+				tagValue.S = v.Value
 			}
+		}
+		if tagMeta.Index == format.StringTopTagIndex || tagMeta.Index == format.StringTopTagIndexV3 {
+			// "_s" is alternative/legacy name for "47". We always have "top" function set for this tag.
+			// TODO - after old conveyor removed, we can simplify this code by setting tagMeta.Index to 47 for "_s"
+			// also we will remove IsSKeySet and use IsTagSet[47] automatically instead
+			h.TopValue = tagValue
+			if h.IsSKeySet {
+				h.TagSetTwiceKey = tagIDKey
+			}
+			h.IsSKeySet = true
+			continue
+		}
+		if tagValue.I != 0 {
+			h.SetTag(tagMeta.Index, tagValue.I, tagIDKey)
+		} else {
+			h.SetSTag(tagMeta.Index, tagValue.S, tagIDKey) // TODO - remove allocation here
 		}
 	}
 }
@@ -75,6 +83,8 @@ func (s *Agent) mapEnvironmentTag(h *data_model.MappedMetricHeader, v *tl.Dictio
 	id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), v.Value)
 	if found {
 		h.Key.Tags[0] = id
+	} else {
+		h.Key.STags[0] = string(v.Value) // TODO - remove allocation here
 	}
 }
 
