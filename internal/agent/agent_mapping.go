@@ -57,6 +57,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		}
 		if tagMeta.Index == format.StringTopTagIndex || tagMeta.Index == format.StringTopTagIndexV3 {
 			// "_s" is alternative/legacy name for "47". We always have "top" function set for this tag.
+			// This tag is not part of resolution hash, so not placed into OriginalTagValues
 			// TODO - after old conveyor removed, we can simplify this code by setting tagMeta.Index to 47 for "_s"
 			// also we will remove IsSKeySet and use IsTagSet[47] automatically instead
 			h.TopValue = tagValue
@@ -70,6 +71,9 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 			h.SetTag(tagMeta.Index, tagValue.I, tagIDKey)
 		} else {
 			h.SetSTag(tagMeta.Index, tagValue.S, tagIDKey) // TODO - remove allocation here
+		}
+		if tagMeta.Index != format.HostTagIndex { // This tag is not part of resolution hash, so not placed into OriginalTagValues
+			h.OriginalTagValues[tagMeta.Index] = v.Value
 		}
 	}
 }
