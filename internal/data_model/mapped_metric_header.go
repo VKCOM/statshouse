@@ -7,8 +7,10 @@
 package data_model
 
 import (
+	"encoding/binary"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -31,6 +33,10 @@ type MappedMetricHeader struct {
 
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
 	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
+
+	OriginalTagValues [format.NewMaxTags][]byte
+	// original strings values as sent by user. Hash of those is stable between agents independent of
+	// mappings, so used as a resolution hash to deterministically place same rows into same resolution buckets
 
 	IsTagSet  [format.MaxTags]bool // report setting tags more than once.
 	IsSKeySet bool
@@ -88,4 +94,28 @@ func (h *MappedMetricHeader) SetInvalidString(ingestionStatus int32, tagIDKey in
 	h.IngestionStatus = ingestionStatus
 	h.IngestionTagKey = tagIDKey
 	h.InvalidString = invalidString
+}
+
+func (h *MappedMetricHeader) OriginalMarshalAppend(buffer []byte) []byte {
+	// format: [metric_id] [tagsCount] [tag0] [0] [tag1] [0] [tag2] [0] ...
+	// timestamp is not part of the hash.
+	// metric is part of the hash so agents can use this marshalling in the future as a key to MultiItems.
+	// empty tags suffix is not part of the hash so that # of tags can be increased without changing hash.
+	// tagsCount is explicit, so we can add more fields to the right of tags if we need them.
+	// we use separator between tags instead of tag length, so we can increase tags length beyond 1 byte without using varint
+	tagsCount := len(h.OriginalTagValues) // ignore empty tags
+	for ; tagsCount > 0 && len(h.OriginalTagValues[tagsCount-1]) == 0; tagsCount-- {
+	}
+	buffer = binary.LittleEndian.AppendUint32(buffer, uint32(h.MetricMeta.MetricID))
+	buffer = append(buffer, byte(tagsCount))
+	for _, v := range h.OriginalTagValues[:tagsCount] {
+		buffer = append(buffer, v...)
+		buffer = append(buffer, 0) // terminator
+	}
+	return buffer
+}
+
+func (h *MappedMetricHeader) OriginalHash(scratch []byte) ([]byte, uint64) {
+	scratch = h.OriginalMarshalAppend(scratch[:0])
+	return scratch, xxhash.Sum64(scratch)
 }

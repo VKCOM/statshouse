@@ -186,9 +186,7 @@ func (k *Key) Hash() uint64 {
 
 func (k *Key) XXHash(b []byte) ([]byte, uint64) {
 	b, _ = k.Marshal(b)
-	digest := xxhash.New()
-	digest.Write(b[4:]) // skip timestamp in first 4 bytes
-	return b, digest.Sum64()
+	return b, xxhash.Sum64(b[4:]) // skip timestamp in first 4 bytes
 }
 
 func SimpleItemValue(value float64, count float64, hostTagId int32) ItemValue {

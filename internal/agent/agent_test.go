@@ -7,7 +7,9 @@
 package agent
 
 import (
+	"encoding/binary"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +22,49 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
+var sideEffect uint64
+
+// cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+// Benchmark_Original_Hash-16    	10591867	       109.1 ns/op	       0 B/op	       0 allocs/op
+func Benchmark_Original_Hash(b *testing.B) {
+	var m data_model.MappedMetricHeader
+	m.OriginalTagValues[0] = []byte("production")
+	m.OriginalTagValues[1] = []byte(os.Args[0])
+	m.OriginalTagValues[2] = []byte("short")
+	m.OriginalTagValues[3] = []byte("tags")
+	m.OriginalTagValues[14] = []byte("AAAA")
+	var scratch []byte
+	metricInfo := &format.MetricMetaValue{MetricID: 1}
+	m.MetricMeta = metricInfo
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		binary.LittleEndian.PutUint32(m.OriginalTagValues[14], uint32(i))
+		var sum uint64
+		scratch, sum = m.OriginalHash(scratch)
+		sideEffect += sum
+	}
+}
+
+// cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+// Benchmark_Original_Marshal-16    	12579855	        88.82 ns/op	       0 B/op	       0 allocs/op
+func Benchmark_Original_Marshal(b *testing.B) {
+	var m data_model.MappedMetricHeader
+	m.OriginalTagValues[0] = []byte("production")
+	m.OriginalTagValues[1] = []byte(os.Args[0])
+	m.OriginalTagValues[2] = []byte("short")
+	m.OriginalTagValues[3] = []byte("tags")
+	m.OriginalTagValues[14] = []byte("AAAA")
+	var scratch []byte
+	metricInfo := &format.MetricMetaValue{MetricID: 1}
+	m.MetricMeta = metricInfo
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		binary.LittleEndian.PutUint32(m.OriginalTagValues[14], uint32(i))
+		scratch = m.OriginalMarshalAppend(scratch[:0])
+		sideEffect += uint64(len(scratch))
+	}
+}
+
 func Benchmark_Hash(b *testing.B) {
 	var k data_model.Key
 	var result uint64
@@ -31,13 +76,13 @@ func Benchmark_Hash(b *testing.B) {
 	}
 }
 
-// cpu: Apple M3 Pro
-// Benchmark_Hash-12       41562019                28.94 ns/op            0 B/op          0 allocs/op
-// Benchmark_XXHash-12     35386051                30.75 ns/op            0 B/op          0 allocs/op
+// cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+// Benchmark_XXHash-16    	10919467	       102.8 ns/op	       0 B/op	       0 allocs/op
 func Benchmark_XXHash(b *testing.B) {
 	var k data_model.Key
 	var hash, result uint64
 	var buf []byte
+	k.STags[5] = "really"
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		k.Tags[14]++
@@ -47,10 +92,13 @@ func Benchmark_XXHash(b *testing.B) {
 	}
 }
 
+// cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+// Benchmark_Marshal-16    	12839154	        82.68 ns/op	       0 B/op	       0 allocs/op
 func Benchmark_Marshal(b *testing.B) {
 	var k data_model.Key
 	var result int
 	var buf []byte
+	k.STags[5] = "really"
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		k.Tags[14]++
