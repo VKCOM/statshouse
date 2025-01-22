@@ -103,7 +103,9 @@ func (h *MappedMetricHeader) OriginalMarshalAppend(buffer []byte) []byte {
 	// empty tags suffix is not part of the hash so that # of tags can be increased without changing hash.
 	// tagsCount is explicit, so we can add more fields to the right of tags if we need them.
 	// we use separator between tags instead of tag length, so we can increase tags length beyond 1 byte without using varint
-	tagsCount := len(h.OriginalTagValues) // ignore empty tags
+
+	const _ = uint(255 - len(h.OriginalTagValues)) // compile time assert to ensure that 1 byte is enough for tags count
+	tagsCount := len(h.OriginalTagValues)          // ignore empty tags
 	for ; tagsCount > 0 && len(h.OriginalTagValues[tagsCount-1]) == 0; tagsCount-- {
 	}
 	buffer = binary.LittleEndian.AppendUint32(buffer, uint32(h.MetricMeta.MetricID))
