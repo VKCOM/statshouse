@@ -101,14 +101,24 @@ func (k *Key) TLMultiItemFromKey(defaultTimestamp uint32) tlstatshouse.MultiItem
 
 func (s *MultiValue) TLSizeEstimate() int {
 	sz := 8 // counter without considering 0 and 1 optimizations
-	if s.Value.MaxHostTagId != 0 {
+	if s.Value.MaxHostTag.I != 0 {
 		sz += 4
+	} else {
+		sz += len(s.Value.MaxHostTag.S)
 	}
-	if s.Value.MinHostTagId != s.Value.MaxHostTagId {
-		sz += 4
+	if !s.Value.MinHostTag.Equal(s.Value.MaxHostTag) {
+		if s.Value.MinHostTag.I != 0 {
+			sz += 4
+		} else {
+			sz += len(s.Value.MinHostTag.S)
+		}
 	}
-	if s.Value.MaxCounterHostTagId != s.Value.MaxHostTagId {
-		sz += 4
+	if !s.Value.MaxCounterHostTag.Equal(s.Value.MaxHostTag) {
+		if s.Value.MaxCounterHostTag.I != 0 {
+			sz += 4
+		} else {
+			sz += len(s.Value.MaxCounterHostTag.S)
+		}
 	}
 	if s.HLL.ItemsCount() != 0 {
 		sz += s.HLL.MarshallAppendEstimatedSize()
@@ -134,14 +144,15 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		return
 	}
 	// host tags are passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
-	if s.Value.MaxHostTagId != 0 {
-		item.SetMaxHostTag(s.Value.MaxHostTagId, fieldsMask)
+	// TODO: add string hosts
+	if s.Value.MaxHostTag.I != 0 {
+		item.SetMaxHostTag(s.Value.MaxHostTag.I, fieldsMask)
 	}
-	if s.Value.MinHostTagId != s.Value.MaxHostTagId {
-		item.SetMinHostTag(s.Value.MinHostTagId, fieldsMask)
+	if s.Value.MinHostTag.I != s.Value.MaxHostTag.I {
+		item.SetMinHostTag(s.Value.MinHostTag.I, fieldsMask)
 	}
-	if s.Value.MaxCounterHostTagId != s.Value.MaxHostTagId {
-		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTagId, fieldsMask)
+	if s.Value.MaxCounterHostTag.I != s.Value.MaxHostTag.I {
+		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag.I, fieldsMask)
 	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
@@ -197,7 +208,7 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 	if !ok { // sanity check/check for empty String Top tail
 		return
 	}
-	s.AddCounterHost(rng, counter, s2.MaxCounterHostTag)
+	s.AddCounterHost(rng, counter, TagUnionBytes{I: s2.MaxCounterHostTag}) // TODO: restore string host from TL
 	if !s2.IsSetValueSet(fields_mask) {
 		return
 	}
@@ -210,13 +221,14 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 	s.ValueSum += s2.ValueSum
 	s.ValueSumSquare += s2.ValueSumSquare
 
+	// TODO: Restore string host from TL
 	if !s.ValueSet || s2.ValueMin < s.ValueMin {
 		s.ValueMin = s2.ValueMin
-		s.MinHostTagId = s2.MinHostTag
+		s.MinHostTag.I = s2.MinHostTag
 	}
 	if !s.ValueSet || s2.ValueMax > s.ValueMax {
 		s.ValueMax = s2.ValueMax
-		s.MaxHostTagId = s2.MaxHostTag
+		s.MaxHostTag.I = s2.MaxHostTag
 	}
 	s.ValueSet = true
 }

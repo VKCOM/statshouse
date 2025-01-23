@@ -233,7 +233,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 				// success, targets_ready
 				s.sh2.AddCounterHostStringBytes(
 					s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 1}),
-					[]byte(host), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+					[]byte(host), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 			}
 		}
 	}()
@@ -269,7 +269,7 @@ func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 	v := s.configH.Load()
 	s.sh2.AddCounterHostStringBytes(
 		s.sh2.AggKey(nowUnix, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
-		nil, 1, 0, format.BuiltinMetricMetaAggScrapeConfigHash)
+		nil, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeConfigHash)
 }
 
 func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -331,12 +331,12 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 			// failure, targets_sent
 			s.sh2.AddCounterHostStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 2}),
-				[]byte(req.addr.String()), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+				[]byte(req.addr.String()), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		} else {
 			// success, targets_sent
 			s.sh2.AddCounterHostStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 2}),
-				[]byte(req.addr.String()), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+				[]byte(req.addr.String()), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		}
 	}
 	return true, err

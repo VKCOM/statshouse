@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/prometheus/discovery"
 	"github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/format"
@@ -151,7 +152,7 @@ func (s *scrapeDiscovery) applyTargets(targets map[string][]*targetgroup.Group) 
 					if addr, ok := ls[model.AddressLabel]; ok {
 						s.sh2.AddCounterHostStringBytes(
 							s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDiscovery, [format.MaxTags]int32{}),
-							[]byte(addr), 1, 0, format.BuiltinMetricMetaAggScrapeTargetDiscovery)
+							[]byte(addr), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDiscovery)
 					}
 				}
 			}
