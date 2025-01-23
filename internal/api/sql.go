@@ -224,6 +224,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		sep, predicate = " AND ", " NOT IN "
 	}
 	metric := b.singleMetric()
+	version3StrcmpOn := b.version3StrcmpOn(metric, lod)
 	for i, filter := range f.Tags {
 		if filter.Empty() {
 			continue
@@ -231,7 +232,6 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		b.WriteString(" AND (")
 		// mapped
 		tagID := format.TagID(i)
-		version3StrcmpOn := b.version3StrcmpOn(metric, i, lod)
 		var hasMapped bool
 		var hasValue bool
 		var version3HasEmpty bool

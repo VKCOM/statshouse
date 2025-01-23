@@ -152,7 +152,6 @@ type MetricMetaTag struct {
 	RawKind       string            `json:"raw_kind,omitempty"` // UI can show some raw values beautifully - timestamps, hex values, etc.
 	ID2Value      map[int32]string  `json:"id2value,omitempty"`
 	ValueComments map[string]string `json:"value_comments,omitempty"`
-	SkipMapping   bool              `json:"skip_mapping,omitempty"` // used only in v3 conveyor
 
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
