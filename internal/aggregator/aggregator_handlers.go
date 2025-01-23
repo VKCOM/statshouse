@@ -445,26 +445,36 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		// If agents send lots of strings, this loop is non-trivial amount of work.
 		// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
-		for i, str := range item.Skeys {
+		processStringTag := func(i int, str []byte, isTop bool) {
 			if len(str) == 0 {
-				continue
+				return
 			}
 			if m, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
 				mappingHits++
-				k.Tags[i] = m
+				if isTop {
+					item.Top[i].Tag = m
+					// for now we preserve string value for V2 table
+					//item.Top[i].Stag = item.Top[i].Stag[:0]
+				} else {
+					k.Tags[i] = m
+				}
 				if len(sendMappings) < configR.MaxSendTagsToAgent {
 					sendMappings[string(str)] = m
 				}
-				continue
+				return
 			}
 			mappingMisses++
 			astr := string(str) // allocate here
 			if len(unknownTags) < configR.MaxUnknownTagsInBucket {
+				tagId := int32(i + format.TagIDShift)
+				if isTop {
+					tagId = int32(format.StringTopTagIndexV3 + format.TagIDShift)
+				}
 				if _, ok := unknownTags[astr]; !ok { // TODO - benchmark if checking before adding is faster or slower
 					unknownTags[astr] = format.CreateMappingExtra{
 						Create:    true, // passed as is to meta loader
 						MetricID:  k.Metric,
-						TagIDKey:  int32(i + format.TagIDShift),
+						TagIDKey:  tagId,
 						ClientEnv: k.Tags[0],
 						AgentEnv:  agentEnv,
 						Route:     route,
@@ -474,7 +484,15 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 					}
 				}
 			}
-			k.SetSTag(i, astr)
+			if !isTop {
+				k.SetSTag(i, astr)
+			}
+		}
+		for i, str := range item.Skeys {
+			processStringTag(i, str, false)
+		}
+		for i, tb := range item.Top {
+			processStringTag(i, tb.Stag, true)
 		}
 		keyBytes = keyBytes[:0]
 		switch configR.Shard {
@@ -487,7 +505,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
-		mi.MergeWithTLMultiItem(rng, &item, hostTagId) // TODO - try to map strings of top elements, as we do with SKeys above
+		mi.MergeWithTLMultiItem(rng, &item, hostTagId)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
 				newKeys = append(newKeys, k)
@@ -495,7 +513,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
 		if configR.Shard == ShardAggregatorHash || configR.Shard == ShardAggregatorXXHash {
-			// we unlock shard to caclculate hash not under it
+			// we unlock shard to calculate hash not under it
 			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		}
 	}
