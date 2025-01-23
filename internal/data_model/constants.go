@@ -114,7 +114,7 @@ const (
 
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
-	APIRemoteConfig                        = "statshouse_api_remote_config"
+	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
 )
 
 var ErrEntityNotExists = &rpc.Error{
@@ -174,7 +174,7 @@ func SetProxyHeaderBytesStagingLevel(header *tlstatshouse.CommonProxyHeaderBytes
 
 func RemoteConfigMetric(name string) bool {
 	switch name {
-	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric:
+	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric, StatshouseAPIRemoteConfig:
 		return true
 	default:
 		return false

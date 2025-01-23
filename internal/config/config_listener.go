@@ -30,7 +30,10 @@ func NewConfigListener[a Config](configMetric string, config a) *ConfigListener 
 	}
 }
 
-func (l *ConfigListener) parseConfig(cfg string) error {
+func (l *ConfigListener) ValidateConfig(cfg string) error {
+	return l.parseConfig(cfg, true)
+}
+func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 	var f pflag.FlagSet
@@ -55,10 +58,11 @@ func (l *ConfigListener) parseConfig(cfg string) error {
 	if err != nil {
 		return err
 	}
-	l.config = c
-	for _, f := range l.changeCB {
-		f(c)
-
+	if !dryRun {
+		l.config = c
+		for _, f := range l.changeCB {
+			f(c)
+		}
 	}
 	return nil
 }
@@ -77,7 +81,7 @@ func (l *ConfigListener) ApplyEventCB(newEntries []tlmetadata.Event) {
 			if err != nil {
 				return
 			}
-			err = l.parseConfig(metric.Description)
+			err = l.parseConfig(metric.Description, false)
 			if err != nil {
 				log.Println("failed to parse remote config:", err.Error())
 			}

@@ -26,18 +26,17 @@ import (
 )
 
 type connPool struct {
-	rnd     *rand.Rand
-	servers []*chpool.Pool
-	sem     *queue.Queue
-
-	userActive map[string]int
-	mx         sync.Mutex
-	userWait   map[string]int
-	waitMx     sync.Mutex
+	poolName       string
+	rnd            *rand.Rand
+	maxActiveQuery int
+	servers        []*chpool.Pool
+	sem            *queue.Queue
 }
 
 type ClickHouse struct {
-	pools [6]*connPool
+	opt        ChConnOptions
+	mx         sync.RWMutex
+	namedPools map[string][6]*connPool
 }
 
 type QueryMetaInto struct {
@@ -55,109 +54,143 @@ type QueryHandleInfo struct {
 	Profile  proto.Profile
 }
 
+type ConnLimits struct {
+	User              string `json:"user"`
+	FastLightMaxConns int    `json:"fast_light_max_conns"`
+	FastHeavyMaxConns int    `json:"fast_heavy_max_conns"`
+	SlowLightMaxConns int    `json:"slow_light_max_conns"`
+	SlowHeavyMaxConns int    `json:"slow_heavy_max_conns"`
+
+	SlowHardwareMaxConns int `json:"slow_hardware_max_conns"`
+	FastHardwareMaxConns int `json:"fast_hardware_max_conns"`
+}
+
 type ChConnOptions struct {
+	ConnLimits
 	Addrs       []string
 	User        string
 	Password    string
 	DialTimeout time.Duration
-
-	FastLightMaxConns int
-	FastHeavyMaxConns int
-	SlowLightMaxConns int
-	SlowHeavyMaxConns int
-
-	SlowHardwareMaxConns int
-	FastHardwareMaxConns int
 }
 
 const (
-	fastLight    = 0 // // Must be synced with format.TagValueIDAPILaneFastLightv2
-	fastHeavy    = 1
-	slowLight    = 2
-	slowHeavy    = 3
-	slowHardware = 4
-	fastHardware = 5
+	fastLight       = 0 // // Must be synced with format.TagValueIDAPILaneFastLightv2
+	fastHeavy       = 1
+	slowLight       = 2
+	slowHeavy       = 3
+	slowHardware    = 4
+	fastHardware    = 5
+	defaultUserName = "@default_user"
 )
+
+func newConnPool(poolName string, maxConn int) *connPool {
+	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), queue.NewQueue(int64(maxConn))}
+}
 
 func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 	if len(opt.Addrs) == 0 {
 		return nil, fmt.Errorf("at least one ClickHouse address must be specified")
 	}
+	opt.ConnLimits.User = defaultUserName
+	result := &ClickHouse{
+		opt:        opt,
+		namedPools: map[string][6]*connPool{},
+	}
+	err := result.SetLimits(nil)
+	return result, err
+}
 
-	result := &ClickHouse{[6]*connPool{
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},    // fastLight
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},    // fastHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},    // slowLight
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},    // slowHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowHardwareMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHardware
-		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastHardwareMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHardware
-	}}
-	for _, addr := range opt.Addrs {
-		for _, pool := range result.pools {
-			server, err := chpool.New(context.Background(), chpool.Options{
-				MaxConns: int32(pool.sem.MaxActiveQuery),
-				ClientOptions: ch.Options{
-					Address:          addr,
-					User:             opt.User,
-					Password:         opt.Password,
-					Compression:      ch.CompressionLZ4,
-					DialTimeout:      opt.DialTimeout,
-					HandshakeTimeout: 10 * time.Second,
-				}})
-			if err != nil {
-				result.Close()
-				return nil, err
+func (ch1 *ClickHouse) SetLimits(limits []ConnLimits) error {
+	ch1.mx.Lock()
+	defer ch1.mx.Unlock()
+	ch1.namedPools = map[string][6]*connPool{}
+	limits = append(limits, ch1.opt.ConnLimits) // to avoid overriding default limits
+	for _, limit := range limits {
+		user := limit.User
+		ch1.namedPools[user] = [6]*connPool{
+			newConnPool(user, limit.FastLightMaxConns),
+			newConnPool(user, limit.FastHeavyMaxConns),
+			newConnPool(user, limit.SlowLightMaxConns),
+			newConnPool(user, limit.SlowHeavyMaxConns),
+			newConnPool(user, limit.SlowHardwareMaxConns),
+			newConnPool(user, limit.FastHardwareMaxConns),
+		}
+
+		for _, addr := range ch1.opt.Addrs {
+			for _, pool := range ch1.namedPools[user] {
+				server, err := chpool.New(context.Background(), chpool.Options{
+					MaxConns: int32(pool.maxActiveQuery),
+					ClientOptions: ch.Options{
+						Address:          addr,
+						User:             ch1.opt.User,
+						Password:         ch1.opt.Password,
+						Compression:      ch.CompressionLZ4,
+						DialTimeout:      ch1.opt.DialTimeout,
+						HandshakeTimeout: 10 * time.Second,
+					}})
+				if err != nil {
+					ch1.Close()
+					return err
+				}
+				pool.servers = append(pool.servers, server)
 			}
-			pool.servers = append(pool.servers, server)
 		}
 	}
 
-	return result, nil
+	return nil
 }
 
-func (c *connPool) countOfReqLocked(m map[string]int) int {
-	r := 0
-	for _, v := range m {
-		r += v
-	}
-	return r
-}
-
-func (ch *ClickHouse) Close() {
-	for _, a := range ch.pools {
-		for _, b := range a.servers {
-			b.Close()
+func (ch1 *ClickHouse) Close() {
+	ch1.mx.Lock()
+	defer ch1.mx.Unlock()
+	for _, pool := range ch1.namedPools {
+		for _, lane := range pool {
+			for _, b := range lane.servers {
+				b.Close()
+			}
 		}
 	}
 }
 
-func (ch *ClickHouse) SemaphoreCountSlowLight() int64 {
-	cur, _ := ch.pools[slowLight].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountSlowLight() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][slowLight].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountSlowHeavy() int64 {
-	cur, _ := ch.pools[slowHeavy].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountSlowHeavy() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][slowHeavy].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountFastLight() int64 {
-	cur, _ := ch.pools[fastLight].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountFastLight() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][fastLight].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountFastHeavy() int64 {
-	cur, _ := ch.pools[fastHeavy].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountFastHeavy() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][fastHeavy].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountFastHardware() int64 {
-	cur, _ := ch.pools[fastHardware].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountFastHardware() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][fastHardware].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountSlowHardware() int64 {
-	cur, _ := ch.pools[slowHardware].sem.Observe()
+func (ch1 *ClickHouse) SemaphoreCountSlowHardware() int64 {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	cur, _ := ch1.namedPools[defaultUserName][slowHardware].sem.Observe()
 	return cur
 }
 
@@ -179,14 +212,31 @@ func QueryKind(isFast, isLight, isHardware bool) int {
 	}
 	return slowHeavy
 }
+func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
+	pool := ch1.resolvePoolBy(meta)
+	return pool.selectCH(ctx, meta, query)
+}
 
-func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
+func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
+	ch1.mx.RLock()
+	defer ch1.mx.RUnlock()
+	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
+	if pool, ok := ch1.namedPools[meta.User]; ok {
+		pool := pool[kind]
+		if pool.maxActiveQuery > 0 {
+			return pool
+		}
+		return ch1.namedPools[defaultUserName][kind]
+	}
+	return ch1.namedPools[defaultUserName][kind]
+}
+
+func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
 		return nil
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
-	pool := ch.pools[kind]
 	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
 	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
 		var i int
@@ -195,42 +245,18 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 			return info, err
 		}
 		startTime := time.Now()
-		pool.waitMx.Lock()
-		pool.userWait[meta.User]++
-		uniqWait := len(pool.userWait)
-		allWait := pool.countOfReqLocked(pool.userWait)
-		statshouse.Value("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}, float64(uniqWait))
-		statshouse.Value("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}, float64(allWait))
-		pool.waitMx.Unlock()
+
 		err = pool.sem.Acquire(ctx, meta.User)
 		waitLockDuration := time.Since(startTime)
-		pool.waitMx.Lock()
-		pool.userWait[meta.User]--
-		if c := pool.userWait[meta.User]; c == 0 {
-			delete(pool.userWait, meta.User)
-		}
-		pool.waitMx.Unlock()
-		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User}, waitLockDuration.Seconds())
+
+		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName}, waitLockDuration.Seconds())
 		if err != nil {
 			return info, err
 		}
-		pool.mx.Lock()
-		pool.userActive[meta.User]++
-		uniq := len(pool.userActive)
-		all := pool.countOfReqLocked(pool.userActive)
-		pool.mx.Unlock()
-		statshouse.Value("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}, float64(uniq))
-		statshouse.Value("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}, float64(all))
 
 		start := time.Now()
 		err = servers[i].Do(ctx, query)
 		info.Duration = time.Since(start)
-		pool.mx.Lock()
-		pool.userActive[meta.User]--
-		if c := pool.userActive[meta.User]; c == 0 {
-			delete(pool.userActive, meta.User)
-		}
-		pool.mx.Unlock()
 		pool.sem.Release()
 		if err == nil {
 			return // succeeded
