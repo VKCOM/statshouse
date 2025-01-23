@@ -2871,6 +2871,7 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoCentroids:          "centroids",
 			TagValueIDAggBucketInfoUniqueBytes:        "unique_bytes",
 			TagValueIDAggBucketInfoStringTops:         "string_tops",
+			TagValueIDAggBucketInfoIntTops:            "int_tops",
 		}),
 	}, {
 		Description: "-",
