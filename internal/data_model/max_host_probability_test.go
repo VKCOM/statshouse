@@ -60,7 +60,7 @@ func Benchmark_AddCounterHost(b *testing.B) {
 	rng := rand.New()
 	item := ItemCounter{}
 	for i := 0; i < b.N; i++ {
-		item.AddCounterHost(rng, float64(i), int32(i))
+		item.AddCounterHost(rng, float64(i), TagUnionBytes{I: int32(i)})
 	}
 }
 
@@ -71,6 +71,6 @@ func Benchmark_Merge(b *testing.B) {
 	item := ItemCounter{}
 	for i := 0; i < b.N; i++ {
 		count := float64(i)
-		item.Merge(rng, ItemCounter{count, int32(i)})
+		item.Merge(rng, ItemCounter{count, TagUnionBytes{I: int32(i)}})
 	}
 }

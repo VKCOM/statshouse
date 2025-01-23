@@ -285,12 +285,12 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 		if skipMinHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTagId, float32(v.ValueMin))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag.I, float32(v.ValueMin))
 		}
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTagId, float32(v.ValueMax))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag.I, float32(v.ValueMax))
 		}
 	} else {
 		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
@@ -298,7 +298,7 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
 			cc := float32(data_model.SkewMaxCounterHost(rng, count)) // explanation is in Skew function
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTagId, cc)
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTag.I, cc)
 		}
 	}
 	// min_host, max_host
@@ -308,13 +308,13 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 			if skipMinHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTag.I))
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMin))
 			}
 			if skipMaxHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTag.I))
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMax))
 			}
 		} else {
@@ -322,7 +322,7 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 			if skipMaxHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTag.I))
 				cc := float32(data_model.SkewMaxCounterHost(rng, count)) // explanation is in Skew function
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), cc)
 			}
@@ -333,7 +333,7 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 }
 
 func appendSimpleValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v float64, count float64, hostTag int32, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}, newFormat bool) []byte {
-	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, hostTag), metricCache, usedTimestamps, newFormat)
+	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, data_model.TagUnionBytes{I: hostTag}), metricCache, usedTimestamps, newFormat)
 }
 
 func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, res []byte, value *data_model.MultiValue, top data_model.TagUnion, sf float64, v3Format bool) []byte {
@@ -357,12 +357,12 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 		if skipMinHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTagId, float32(value.Value.ValueMin))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTag.I, float32(value.Value.ValueMin))
 		}
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTagId, float32(value.Value.ValueMax))
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag.I, float32(value.Value.ValueMax))
 		}
 	} else {
 		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res) // counters do not have min_host set
@@ -370,7 +370,7 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
 			cc := float32(data_model.SkewMaxCounterHost(rng, counter)) // explanation is in Skew function
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTagId, cc)
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTag.I, cc)
 		}
 	}
 	// min_host, max_host
@@ -381,13 +381,13 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 			if skipMinHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTag.I))
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMin))
 			}
 			if skipMaxHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTag.I))
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMax))
 			}
 		} else {
@@ -395,7 +395,7 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 			if skipMaxHost {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTagId))
+				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTag.I))
 				cc := float32(data_model.SkewMaxCounterHost(rng, counter)) // explanation is in Skew function
 				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), cc)
 			}
@@ -496,7 +496,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
 			key := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
-			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHost), metricCache, usedTimestamps, v3Format)
+			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, data_model.TagUnionBytes{I: a.aggregatorHost}), metricCache, usedTimestamps, v3Format)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 		},
 		KeepF: func(item *data_model.MultiItem, bt uint32) { insertItem(item, item.SF, bt) },
@@ -592,7 +592,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 5, 0, 0, historicTag}),
 		float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 	res = appendValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [16]int32{0, 0, 0, 0, historicTag}),
-		data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHost), metricCache, usedTimestamps, v3Format)
+		data_model.SimpleItemCounter(float64(sampler.ItemCount()), data_model.TagUnionBytes{I: a.aggregatorHost}), metricCache, usedTimestamps, v3Format)
 
 	// report budget used
 	budgetKey := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, historicTag})

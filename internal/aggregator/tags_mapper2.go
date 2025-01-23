@@ -166,9 +166,9 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 	key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
 	if err == nil && c == format.TagValueIDAggMappingCreatedStatusCreated {
 		// if str is created, it is valid and safe to write
-		ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, extra.Host, data_model.TagUnion{S: str, I: 0}, meta)
+		ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, data_model.TagUnion{S: str, I: 0}, meta)
 	} else {
-		ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
+		ms.sh2.AddValueCounterHost(key, 0, 1, data_model.TagUnionBytes{I: extra.Host}, meta)
 	}
 	return keyValue
 }

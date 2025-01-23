@@ -454,7 +454,7 @@ func (b *samplingTestBucket) generateSeriesSize(t *rapid.T, s samplingTestSpec) 
 
 func (b *samplingTestBucket) generateNormValues(r *rand.Rand) {
 	for _, v := range b.MultiItems {
-		v.Tail.Value = SimpleItemCounter(r.NormFloat64(), 0)
+		v.Tail.Value = SimpleItemCounter(r.NormFloat64(), TagUnionBytes{})
 	}
 }
 

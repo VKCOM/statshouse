@@ -48,7 +48,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 				Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
 			}
 			mi, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, nil, nil)
-			mi.Tail.AddValueCounterHost(s.rng, float64(gap), 1, 0) // values record jumps f more than 1 second
+			mi.Tail.AddValueCounterHost(s.rng, float64(gap), 1, data_model.TagUnionBytes{}) // values record jumps f more than 1 second
 		}
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
@@ -357,7 +357,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (
 	// metric count
 	key := data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
 	item, _ := bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil, nil)
-	item.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, 0)
+	item.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, data_model.TagUnionBytes{})
 	return sampler.SampleFactors
 }
 

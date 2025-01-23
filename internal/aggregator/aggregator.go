@@ -458,9 +458,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 		for i, cc := range v.contributorsMetric {
 			for j, bb := range cc {
 				// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
-				bucketsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), bb.Count(), bb.MaxCounterHostTagId)
+				bucketsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), bb.Count(), bb.MaxCounterHostTag)
 				if bb.Count() > 0 {
-					secondsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), 1, bb.MaxCounterHostTagId)
+					secondsWaiting[i][j].AddValueCounterHost(rng, float64(nowUnix-v.time), 1, bb.MaxCounterHostTag)
 				}
 			}
 		}
@@ -468,7 +468,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	for i, cc := range a.historicHosts {
 		for j, bb := range cc {
 			for h := range bb { // random sample host every second is very good for max_host combobox under plot
-				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, h)
+				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, data_model.TagUnionBytes{I: h})
 				break
 			}
 		}
@@ -490,12 +490,12 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
 
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
-	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost, format.BuiltinMetricMetaAggActiveSenders)
+	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaAggActiveSenders)
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
-	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost, format.BuiltinMetricMetaAggActiveSenders)
+	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaAggActiveSenders)
 
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDMappingQueueSize, [16]int32{})
-	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHost, format.BuiltinMetricMetaMappingQueueSize)
+	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaMappingQueueSize)
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()
@@ -696,7 +696,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				a.mu.Unlock()
 				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
-				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost, format.BuiltinMetricMetaTimingErrors) // This bucket is combination of many hosts
+				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaTimingErrors) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
 				break
@@ -777,11 +777,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, 0, format.BuiltinMetricMetaAggInsertTime)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTime)
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
+		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertSizeReal)
+		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTimeReal)
 
 		if mirrorChWrite {
 			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], !writeToV3First)
@@ -796,8 +796,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					Description: sendErr.Error(),
 				}
 			}
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, 0, format.BuiltinMetricMetaAggInsertSizeReal)
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, 0, format.BuiltinMetricMetaAggInsertTimeReal)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertSizeReal)
+			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTimeReal)
 		}
 
 		sendErr = fmt.Errorf("simulated error")

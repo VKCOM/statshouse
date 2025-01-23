@@ -96,12 +96,12 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	if args.Cluster != a.config.Cluster {
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
+		a.sh2.AddCounterHost(key, 1, data_model.TagUnionBytes{I: host}, format.BuiltinMetricMetaAutoConfig)
 		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
+	a.sh2.AddCounterHost(key, 1, data_model.TagUnionBytes{I: host}, format.BuiltinMetricMetaAutoConfig)
 	return a.getConfigResult(), nil
 }
 
@@ -237,7 +237,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAggOutdatedAgents)
+		a.sh2.AddCounterHost(key, 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaAggOutdatedAgents)
 		return "agent is too old please update", nil, true
 	}
 
@@ -246,7 +246,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		a.mu.Unlock()
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTagId, format.BuiltinMetricMetaAutoConfig)
+		a.sh2.AddCounterHost(key, 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaAutoConfig)
 		return "", err, false
 	}
 
@@ -279,7 +279,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric})
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "historic bucket time is too far in the future", nil, true
 		}
@@ -287,7 +287,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaTimingErrors)
 			return "Successfully discarded historic bucket beyond historic window", nil, true
 		}
 		if roundedToOurTime < oldestTime {
@@ -312,7 +312,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent})
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaTimingErrors)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "bucket time is too far in the future", nil, true
 		}
@@ -320,7 +320,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			a.mu.Unlock()
 			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTagId, format.BuiltinMetricMetaTimingErrors)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaTimingErrors)
 			// agent should resend via historic conveyor
 			if version3 {
 				return "bucket time is too far in the past for recent conveyor", nil, false
@@ -346,7 +346,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	aggBucket.contributorsMetric[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)].AddCounterHost(rng, 1, hostTagId) // protected by a.mu
+	aggBucket.contributorsMetric[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)].AddCounterHost(rng, 1, data_model.TagUnionBytes{I: hostTagId}) // protected by a.mu
 	if args.IsSetHistoric() {
 		a.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagId]++
 	}
@@ -559,14 +559,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		if metricInfo.WithAgentEnvRouteArch {
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		}
-		a.sh2.AddValueCounterHost(key, value, counter, hostTagId, metricInfo)
+		a.sh2.AddValueCounterHost(key, value, counter, data_model.TagUnionBytes{I: hostTagId}, metricInfo)
 	}
 	addCounterHost := func(metricInfo *format.MetricMetaValue, keys [16]int32, counter float64) {
 		key := a.aggKey(args.Time, metricInfo.MetricID, keys)
 		if metricInfo.WithAgentEnvRouteArch {
 			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		}
-		a.sh2.AddCounterHost(key, counter, hostTagId, metricInfo)
+		a.sh2.AddCounterHost(key, counter, data_model.TagUnionBytes{I: hostTagId}, metricInfo)
 	}
 
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
@@ -631,7 +631,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
 		key := a.aggKey((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHostStringBytes(key, bcStr, 1, hostTagId, format.BuiltinMetricMetaVersions)
+		a.sh2.AddCounterHostStringBytes(key, bcStr, 1, data_model.TagUnionBytes{I: hostTagId}, format.BuiltinMetricMetaVersions)
 	}
 
 	// Ingestion statuses, sample factors and badges are written into the same shard as metric itself.
@@ -646,14 +646,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTagId)
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(rng, float64(v.Value), 1, data_model.TagUnionBytes{I: hostTagId})
 	}
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
 		key := data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 		mi, _ := s.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, nil, nil)
-		mi.Tail.AddCounterHost(rng, float64(value), hostTagId)
+		mi.Tail.AddCounterHost(rng, float64(value), data_model.TagUnionBytes{I: hostTagId})
 	}
 	for _, v := range bucket.IngestionStatusOk {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
@@ -715,7 +715,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 		a.mu.Unlock()
 		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
 		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, host, format.BuiltinMetricMetaAutoConfig)
+		a.sh2.AddCounterHost(key, 1, data_model.TagUnionBytes{I: host}, format.BuiltinMetricMetaAutoConfig)
 		return err
 	}
 	oldestTime := a.recentBuckets[0].time // Most ready for insert
@@ -746,7 +746,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil, nil)
-	mi.Tail.AddCounterHost(rng, 1, host)
+	mi.Tail.AddCounterHost(rng, 1, data_model.TagUnionBytes{I: host})
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 
 	return errHijack

@@ -64,17 +64,17 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 		if err != nil {
 			// TODO - write to actual log from time to time
 			agg.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "error", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), err.Error())
-			ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
+			ms.sh2.AddValueCounterHost(key, 0, 1, data_model.TagUnionBytes{I: extra.Host}, meta)
 		} else {
 			switch c {
 			case format.TagValueIDAggMappingCreatedStatusFlood:
 				// TODO - more efficient flood processing - do not write to log, etc
 				agg.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "flood", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), extra.HostName)
-				ms.sh2.AddValueCounterHost(key, 0, 1, extra.Host, meta)
+				ms.sh2.AddValueCounterHost(key, 0, 1, data_model.TagUnionBytes{I: extra.Host}, meta)
 			case format.TagValueIDAggMappingCreatedStatusCreated:
 				agg.appendInternalLog("map_tag", strconv.Itoa(int(extra.AgentEnv)), "created", askedKey, extra.Metric, strconv.Itoa(int(metricID)), strconv.Itoa(int(extra.TagIDKey)), strconv.Itoa(int(keyValue)))
 				// if askedKey is created, it is valid and safe to write
-				ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, extra.Host, data_model.TagUnion{S: askedKey, I: 0}, meta)
+				ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, data_model.TagUnion{S: askedKey, I: 0}, meta)
 			}
 		}
 		return pcache.Int32ToValue(keyValue), d, err
