@@ -362,6 +362,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	measurementCentroids := 0
 	measurementUniqueBytes := 0
 	measurementStringTops := 0
+	measurementIntTops := 0
 	unknownTags := map[string]format.CreateMappingExtra{}
 	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
 	mappingHits := 0
@@ -392,12 +393,16 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	for _, item := range bucket.Metrics {
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)
-		measurementStringTops += len(item.Top)
 		measurementCentroids += len(item.Tail.Centroids)
 		measurementUniqueBytes += len(item.Tail.Uniques)
 		for _, v := range item.Top {
 			measurementCentroids += len(v.Value.Centroids)
 			measurementUniqueBytes += len(v.Value.Uniques)
+			if v.IsSetTag() {
+				measurementIntTops++
+			} else {
+				measurementStringTops++
+			}
 		}
 		k, sID, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
 		if clampedTag != 0 {
@@ -554,6 +559,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1)
 
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
