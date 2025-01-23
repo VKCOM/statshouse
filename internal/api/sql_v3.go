@@ -101,12 +101,8 @@ func (b *queryBuilder) tagValueIDsQueryV3(lod *data_model.LOD) *tagValuesSelectC
 	return &q
 }
 
-func (b *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, tagX int, lod *data_model.LOD) bool {
-	version3StrcmpOn := lod.Version == Version3 && !b.strcmpOff
-	if !version3StrcmpOn || metric == nil || len(metric.Tags) <= tagX {
-		return version3StrcmpOn
-	}
-	return metric.Tags[tagX].SkipMapping
+func (b *queryBuilder) version3StrcmpOn(metric *format.MetricMetaValue, lod *data_model.LOD) bool {
+	return lod.Version == Version3 && !b.strcmpOff
 }
 
 func (b *queryBuilder) mappedColumnNameV3(tagID string, lod *data_model.LOD) string {

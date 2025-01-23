@@ -54,7 +54,6 @@ type KnownTag struct {
 	ID          string   `json:"id,omitempty"`
 	Description string   `json:"description,omitempty"`
 	RawKind     string   `json:"raw_kind,omitempty"`
-	SkipMapping bool     `json:"skip_mapping,omitempty"`
 	Whitelist   []string `json:"whitelist,omitempty"`
 }
 
@@ -388,9 +387,6 @@ func publishDraftTags(meta *format.MetricMetaValue, knownTags []KnownTag) int {
 						draftTag.Raw = true
 						draftTag.RawKind = rawKind
 					}
-				}
-				if knownTag.SkipMapping {
-					draftTag.SkipMapping = true
 				}
 				if len(meta.Tags) <= x {
 					meta.Tags = append(make([]format.MetricMetaTag, 0, x+1), meta.Tags...)
