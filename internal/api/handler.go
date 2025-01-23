@@ -200,6 +200,7 @@ type (
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
 		promEngine            promql.Engine
+		configListener        *config.ConfigListener
 		bufferBytesAlloc      statshouse.MetricRef
 		bufferBytesFree       statshouse.MetricRef
 		bufferPoolBytesAlloc  statshouse.MetricRef
@@ -577,7 +578,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal settings to JSON: %w", err)
 	}
-	cl := config.NewConfigListener(data_model.APIRemoteConfig, cfg)
+	cl := config.NewConfigListener(data_model.StatshouseAPIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache, nil, cl.ApplyEventCB)
 	h := &Handler{
 		HandlerOptions: opt,
@@ -631,6 +632,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		cacheInvalidateTicker: time.NewTicker(cacheInvalidateCheckInterval),
 		cacheInvalidateStop:   make(chan chan struct{}),
 		jwtHelper:             jwtHelper,
+		configListener:        cl,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
 		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
@@ -647,6 +649,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
+		chV2.SetLimits(cfg.UserLimits)
 	})
 	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -1648,7 +1651,14 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	var resp format.MetricMetaValue
 	var err error
 	if metric.PreKeyOnly && (metric.PreKeyFrom == 0 || metric.PreKeyTagID == "") {
-		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
+		return format.MetricMetaValue{},
+			httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
+	}
+	if metric.Name == data_model.StatshouseAPIRemoteConfig {
+		if err := h.configListener.ValidateConfig(metric.Description); err != nil {
+			return format.MetricMetaValue{},
+				httpErr(http.StatusBadRequest, fmt.Errorf("invalid builtin metric: %w", err))
+		}
 	}
 	if create {
 		if !ai.CanEditMetric(true, metric, metric) {
@@ -1664,14 +1674,17 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 	} else {
 		if _, ok := format.BuiltinMetrics[metric.MetricID]; ok {
-			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
+			return format.MetricMetaValue{},
+				httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
 		}
 		old := h.metricsStorage.GetMetaMetric(metric.MetricID)
 		if old == nil {
-			return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
+			return format.MetricMetaValue{},
+				httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
 		}
 		if !ai.CanEditMetric(false, *old, metric) {
-			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
+			return format.MetricMetaValue{},
+				httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
 		if diffContainsRawTagChanges(*old, metric) {
 			if isAdmin := ai.isAdmin() || ai.insecureMode; !isAdmin {

@@ -1,11 +1,13 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/spf13/pflag"
 	"github.com/vkcom/statshouse/internal/config"
+	"github.com/vkcom/statshouse/internal/util"
 )
 
 type Config struct {
@@ -13,14 +15,27 @@ type Config struct {
 	Version3Start      int64
 	Version3Prob       float64
 	Version3StrcmpOff  bool
+	UserLimitsStr      string
+	UserLimits         []util.ConnLimits
 }
 
 func (argv *Config) ValidateConfig() error {
+	if argv.UserLimitsStr != "" {
+		var userLimits []util.ConnLimits
+		err := json.Unmarshal([]byte(argv.UserLimitsStr), &userLimits)
+		if err != nil {
+			return fmt.Errorf("failed to parse user limit config: %w err", err)
+		}
+		argv.UserLimits = userLimits
+	}
+
 	return nil
 }
 
 func (argv *Config) Copy() config.Config {
 	cp := *argv
+	cp.UserLimits = make([]util.ConnLimits, len(cp.UserLimits))
+	copy(cp.UserLimits, argv.UserLimits)
 	return &cp
 }
 
@@ -30,6 +45,7 @@ func (argv *Config) Bind(pflag *pflag.FlagSet, defaultI config.Config) {
 	pflag.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
 	pflag.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
 	pflag.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
+	pflag.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
 
 func DefaultConfig() *Config {
