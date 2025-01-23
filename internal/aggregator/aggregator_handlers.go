@@ -491,8 +491,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		for i, str := range item.Skeys {
 			processStringTag(i, str, false)
 		}
-		for i, tb := range item.Top {
-			processStringTag(i, tb.Stag, true)
+		if configR.MapStringTop {
+			for i, tb := range item.Top {
+				processStringTag(i, tb.Stag, true)
+			}
 		}
 		keyBytes = keyBytes[:0]
 		switch configR.Shard {

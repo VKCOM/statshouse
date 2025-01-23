@@ -32,6 +32,7 @@ type ConfigAggregatorRemote struct {
 	Shard                int // aggreagator sharding
 	MappingCacheSize     int64
 	MappingCacheTTL      int
+	MapStringTop         bool
 
 	configTagsMapper2
 }
@@ -91,6 +92,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			Shard:                ShardAgentHash,
 			MappingCacheSize:     1 << 30,
 			MappingCacheTTL:      86400 * 7,
+			MapStringTop:         false, // disabled by default because API doesn't support it yet
 
 			configTagsMapper2: configTagsMapper2{
 				MaxUnknownTagsInBucket:    1024,
@@ -117,6 +119,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.Shard, "shard", d.Shard, "Sharding strategy")
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
+		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
 
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
