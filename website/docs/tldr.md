@@ -118,3 +118,15 @@ Imagine you send two data rows: `[a=1, b=2]` и `[a=1, b=3]` — they are differ
 different tag values. It does not matter if you write four values or one million values to these rows (it works for
 _counter_ and _value_ types). But if your metric generates **two million rows per second**, they **will likely be
 sampled**.
+
+### Why StatsHouse cannot guarantee the absence of sampling
+
+You can't get rid of sampling in general. StatsHouse is designed to work as a communal cluster: the resource is 
+fairly distributed among tenants.
+
+The resource allocated to a tenant is the fixed percentage of the total resource.
+If the resource in your organization has already been distributed among tenants and there are no new ones, then 
+tenants will not interfere with each other, and it is even possible to empirically [minimize sampling](#how-to-minimize-sampling).
+
+Upon scaling (when new tenants appear), the actual budget in bytes may decrease. To solve this problem in the real 
+organization, one should increase the total budget, i.e., physically scale up the cluster.

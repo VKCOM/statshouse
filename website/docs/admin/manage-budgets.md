@@ -45,10 +45,6 @@ Find the examples below:
 | The administrators have created the `foo` namespace for you.     | The `foo:bar` metric belongs to the `foo` namespace.<br/>The `abc` metric belongs to a default namespace. |
 | There is **no** `buz` namespace in your StatsHouse installation. | The `buz:bar` metric belongs to a default namespace.                                                      |
 
-Namespaces allow you to budget the cluster resources. You can allocate the disk space for your namespace so that you
-can send at least N bytes per second and nobody interferes with your data. This kind of budgeting may be crucial when
-you need minimum sampling.
-
 As an administrator, create a namespace using the admin panel in the left StatsHouse menu:
 
 <img src={NamespaceAdd} width="800"/>
