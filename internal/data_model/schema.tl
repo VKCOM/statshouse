@@ -37,7 +37,7 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
     max_counter_host_tag: fields_mask.9?int
     = statshouse.MultiValue fields_mask;
 
-statshouse.top_element key:string fields_mask:# value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
+statshouse.top_element#9ffdea42 stag:string fields_mask:# tag:fields_mask.10?int value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
 
 statshouse.multi_item#0c803e07
     fields_mask: # // contains shard num in top 8 bits
