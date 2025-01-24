@@ -188,17 +188,7 @@ func (g *tsCacheGroup) Get(ctx context.Context, h *requestHandler, pq *queryBuil
 		return nil, err
 	}
 	res := make([][]tsSelectRow, x)
-	switch pq.metricID() {
-	case format.BuiltinMetricIDGeneratorConstCounter:
-		generateConstCounter(lod, res)
-	case format.BuiltinMetricIDGeneratorSinCounter:
-		generateSinCounter(lod, res)
-	case format.BuiltinMetricIDGeneratorGapsCounter:
-		generateGapsCounter(lod, res)
-	default:
-		return g.pointCaches[lod.Version][lod.StepSec].get(ctx, h, pq, lod, avoidCache, res)
-	}
-	return res, nil
+	return g.pointCaches[lod.Version][lod.StepSec].get(ctx, h, pq, lod, avoidCache, res)
 }
 
 type tsCache struct {
