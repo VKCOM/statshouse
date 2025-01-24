@@ -419,7 +419,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 1)
-			require.Len(t, m.journal.journalOld, 1)
 
 			require.Equal(t, metric.Version, m.journal.versionLocked())
 
@@ -448,7 +447,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 1)
-			require.Len(t, m.journal.journalOld, 1)
 
 			require.Equal(t, metric.Version, m.journal.versionLocked())
 
@@ -478,7 +476,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 1)
-			require.Len(t, m.journal.journalOld, 1)
 
 			require.Equal(t, metric.Version, m.journal.versionLocked())
 
@@ -503,7 +500,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 2)
-			require.Len(t, m.journal.journalOld, 1)
 
 			require.Equal(t, dashboard.Version, m.journal.versionLocked())
 
@@ -533,7 +529,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 2)
-			require.Len(t, m.journal.journalOld, 1)
 
 			require.Equal(t, dashboard.Version, m.journal.versionLocked())
 
@@ -591,7 +586,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 4)
-			require.Len(t, m.journal.journalOld, 2)
 
 			require.Equal(t, dashboard.Version, m.journal.versionLocked())
 
@@ -607,7 +601,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 4)
-			require.Len(t, m.journal.journalOld, 2)
 
 			require.Equal(t, dashboard.Version, m.journal.versionLocked())
 
@@ -690,7 +683,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 6)
-			require.Len(t, m.journal.journalOld, 3)
 
 			require.Equal(t, metricCopy.Version, m.journal.versionLocked())
 
@@ -717,7 +709,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, m.journal.journal, 6)
-			require.Len(t, m.journal.journalOld, 3)
 
 			require.Equal(t, group1.Version, m.journal.versionLocked())
 

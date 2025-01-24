@@ -10,11 +10,9 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -60,11 +58,7 @@ type Journal struct {
 	stopWriteToDiscCache bool
 	journalRequestDelay  time.Duration // to avoid overusing of CPU by handling journal updates
 
-	journal    []tlmetadata.Event
-	journalOld []*struct {
-		version int64
-		JSON    string
-	}
+	journal []tlmetadata.Event
 
 	clientsMu              sync.Mutex // Always taken after mu
 	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
@@ -198,52 +192,6 @@ func (ms *Journal) parseDiscCache() {
 	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
 }
 
-func regenerateOldJSON(src []tlmetadata.Event) (res []*struct {
-	version int64
-	JSON    string
-}) {
-	for _, li := range src {
-		// todo remove after update all receiver's
-		if li.EventType == format.MetricEvent {
-			value := &format.MetricMetaValue{}
-			err := json.Unmarshal([]byte(li.Data), value)
-			if err != nil {
-				log.Printf("Cannot marshal MetricMetaValue, skipping")
-				continue
-			}
-			value.Version = li.Version
-			value.Name = li.Name
-			value.MetricID = int32(li.Id) // TODO - beware!
-			value.UpdateTime = li.UpdateTime
-			oldValie := &format.MetricMetaValueOld{
-				MetricID:             value.MetricID,
-				Name:                 value.Name,
-				Description:          value.Description,
-				Tags:                 value.Tags,
-				Visible:              value.Visible,
-				Kind:                 value.Kind,
-				Weight:               int64(math.Round(value.Weight)),
-				Resolution:           value.Resolution,
-				StringTopName:        value.StringTopName,
-				StringTopDescription: value.StringTopDescription,
-				PreKeyTagID:          value.PreKeyTagID,
-				PreKeyFrom:           value.PreKeyFrom,
-				UpdateTime:           value.UpdateTime,
-				Version:              value.Version,
-			}
-			JSONOld, _ := json.Marshal(oldValie)
-			res = append(res, &struct {
-				version int64
-				JSON    string
-			}{
-				version: value.Version,
-				JSON:    string(JSONOld),
-			})
-		}
-	}
-	return res
-}
-
 func calculateStateHashLocked(events []tlmetadata.Event) string {
 	r := &tlmetadata.GetJournalResponsenew{Events: events}
 	bytes := r.Write(nil, 0)
@@ -275,7 +223,6 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 		return err
 	}
 	newJournal := updateEntriesJournal(oldJournal, src)
-	newJournalOld := regenerateOldJSON(newJournal)
 	stateHash := calculateStateHashLocked(newJournal)
 
 	// TODO - check invariants here before saving
@@ -318,7 +265,6 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 
 	ms.mu.Lock()
 	ms.journal = newJournal
-	ms.journalOld = newJournalOld
 	ms.stateHash = stateHash
 	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false
