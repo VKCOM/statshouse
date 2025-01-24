@@ -20,6 +20,7 @@ type HandlerArgs struct {
 	Description    string
 	ScrapeInterval int
 	MapCallback    MapCallbackFunc
+	Scratch        *[]byte
 }
 
 type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)
@@ -117,6 +118,7 @@ func (h *MappedMetricHeader) OriginalMarshalAppend(buffer []byte) []byte {
 	return buffer
 }
 
+// returns possibly reallocated scratch
 func (h *MappedMetricHeader) OriginalHash(scratch []byte) ([]byte, uint64) {
 	scratch = h.OriginalMarshalAppend(scratch[:0])
 	return scratch, xxhash.Sum64(scratch)

@@ -75,7 +75,7 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 			w.printMetric("cached", *args.MetricBytes, h)
 		}
 		w.sh2.TimingsMapping.AddValueCounter(float64(time.Since(h.ReceiveTime).Nanoseconds()), 1)
-		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached)
+		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached, args.Scratch)
 	}
 	return h, done
 }
@@ -137,7 +137,7 @@ func (w *worker) handleMappedMetricUnlocked(m tlstatshouse.MetricBytes, h data_m
 		w.printMetric("uncached", m, h)
 	}
 	w.sh2.TimingsMappingSlow.AddValueCounter(float64(time.Since(h.ReceiveTime).Nanoseconds()), 1)
-	w.sh2.ApplyMetric(m, h, format.TagValueIDSrcIngestionStatusOKUncached)
+	w.sh2.ApplyMetric(m, h, format.TagValueIDSrcIngestionStatusOKUncached, nil) // will be allocation for resolution hash, but this is slow path
 }
 
 func (w *worker) HandleParseError(pkt []byte, err error) {

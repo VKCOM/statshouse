@@ -195,7 +195,6 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			BucketsToSend:       make(chan compressedBucketData),
 			BucketsToPreprocess: make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
-			perm:                rnd.Perm(data_model.AggregationShardsPerSecond),
 			rng:                 rnd,
 			CurrentTime:         nowUnix,
 			SendTime:            nowUnix - 2, // accept previous seconds at the start of the agent
@@ -506,9 +505,11 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
-func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, meta *format.MetricMetaValue) *BuiltInItemValue {
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, meta, s.NumShards(), s.builtinNewSharding.Load())
+func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.MetricMetaValue) *BuiltInItemValue {
+	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
+		panic("incorrectly set key Metric")
+	}
+	shardId, _, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return nil
 	}
@@ -520,7 +521,7 @@ func (s *Agent) UseNewConveyor() bool {
 	return s.builtinNewConveyor.Load()
 }
 
-func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32) {
+func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32, scratch *[]byte) {
 	start := time.Now()
 	// Simply writing everything we know about metric ingestion errors would easily double how much metrics data we write
 	// So below is basically a compromise. All info is stored in MappingMetricHeader, if needed we can easily write more
@@ -534,8 +535,17 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
-	keyHash := h.Key.Hash()
-	shardId, strategy, err := sharding.Shard(&h.Key, keyHash, h.MetricMeta, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, strategy, resolutionHash, err := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.builtinNewSharding.Load())
+	if strategy != format.ShardBy16MappedTagsHashId && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
+		var scr []byte
+		if scratch != nil {
+			scr = *scratch
+		}
+		scr, resolutionHash = h.OriginalHash(scr)
+		if scratch != nil {
+			*scratch = scr
+		}
+	}
 	if err != nil {
 		s.AddCounter(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
@@ -613,47 +623,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	shard := s.Shards[shardId]
 	if len(m.Unique) != 0 {
-		// if we shard by metric all values of a given metric will go to the same shard anyway,
-		// so there is no need for special sharding for unique values
-		numShards := s.NumShards()
-		if h.MetricMeta != nil && h.MetricMeta.ShardUniqueValues && numShards > 1 && strategy == format.ShardBy16MappedTagsHashId {
-			// we want unique value sets to have no intersections
-			// so we first shard by unique value, then shard among 3 replicas by keys
-			skipShards := int(s.skipShards.Load())
-			notSkippedShards := numShards
-			if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
-				notSkippedShards = numShards - skipShards
-			}
-
-			if len(m.Unique) == 1 { // very common case, optimize
-				uniqueShard := int(m.Unique[0] % int64(notSkippedShards)) // TODO - optimize %
-				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(&h.Key, keyHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
-				return
-			}
-			uniqueValuesCache := shard.getUniqueValuesCache(notSkippedShards) // TOO - better reuse without lock?
-			defer shard.putUniqueValuesCache(uniqueValuesCache)
-			for _, v := range m.Unique {
-				uniqueShard := v % int64(notSkippedShards) // TODO - optimize %
-				uniqueValuesCache[uniqueShard] = append(uniqueValuesCache[uniqueShard], v)
-			}
-			for uniqueShard, vv := range uniqueValuesCache {
-				if len(vv) == 0 {
-					continue
-				}
-				shard2 := s.Shards[skipShards+uniqueShard]
-				shard2.ApplyUnique(&h.Key, keyHash, h.TopValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricMeta)
-			}
-			return
-		}
-		shard.ApplyUnique(&h.Key, keyHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
 		return
 	}
 	if len(m.Histogram) != 0 || len(m.Value) != 0 {
-		shard.ApplyValues(&h.Key, keyHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta)
 		return
 	}
-	shard.ApplyCounter(&h.Key, keyHash, h.TopValue, m.Counter, h.HostTag, h.MetricMeta)
+	shard.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag, h.MetricMeta)
 }
 
 // count should be > 0 and not NaN
@@ -665,13 +642,15 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	if count <= 0 {
 		return
 	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
+		panic("incorrectly set key Metric")
+	}
+	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(key, legacyKeyHash, count, hostTag, metricInfo)
 }
 
 func (s *Agent) AddCounterStringBytes(key *data_model.Key, str []byte, count float64, metricInfo *format.MetricMetaValue) {
@@ -684,26 +663,15 @@ func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count
 	if count <= 0 {
 		return
 	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
+		panic("incorrectly set key Metric")
+	}
+	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(key, keyHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
-}
-
-func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
-	if counter <= 0 {
-		return
-	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
-	if err != nil {
-		return
-	}
-	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, keyHash, value, counter, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(key, legacyKeyHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
 }
 
 // value should be not NaN.
@@ -711,64 +679,31 @@ func (s *Agent) AddValueCounter(key *data_model.Key, value float64, counter floa
 	s.AddValueCounterHost(key, value, counter, data_model.TagUnionBytes{}, metricInfo)
 }
 
-func (s *Agent) AddValueArrayCounterStringBytes(key *data_model.Key, values []float64, mult float64, topValue data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
-	s.AddValueArrayCounterHostStringBytes(key, values, mult, data_model.TagUnionBytes{}, topValue, metricInfo)
-}
-
-func (s *Agent) AddValueArrayCounterHostStringBytes(key *data_model.Key, values []float64, mult float64, hostTag data_model.TagUnionBytes, topValue data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
-	if len(values) == 0 || mult < 0 {
-		return
-	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
-	if err != nil {
-		return
-	}
-	shard := s.Shards[shardId]
-	shard.AddValueArrayCounterHostStringBytes(key, keyHash, values, mult, hostTag, topValue, metricInfo)
-}
-
-func (s *Agent) AddValueCounterHostString(key *data_model.Key, value float64, counter float64, hostTag data_model.TagUnionBytes, topValue data_model.TagUnion, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
 	if counter <= 0 {
 		return
 	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
+		panic("incorrectly set key Metric")
+	}
+	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHostString(key, keyHash, value, counter, hostTag, topValue, metricInfo)
+	shard.AddValueCounterHost(key, legacyKeyHash, value, counter, hostTag, metricInfo)
 }
 
 func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	if item.Count() <= 0 {
 		return
 	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(key, keyHash, item, metricInfo)
-}
-
-func (s *Agent) AddUniqueStringBytes(key *data_model.Key, topValue data_model.TagUnionBytes, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
-	s.AddUniqueHostStringBytes(key, data_model.TagUnionBytes{}, topValue, hashes, count, metricInfo)
-}
-
-func (s *Agent) AddUniqueHostStringBytes(key *data_model.Key, hostTag data_model.TagUnionBytes, topValue data_model.TagUnionBytes, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
-	if len(hashes) == 0 || count < 0 {
-		return
-	}
-	keyHash := key.Hash()
-	shardId, _, err := sharding.Shard(key, keyHash, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
-	if err != nil {
-		return
-	}
-	shard := s.Shards[shardId]
-	shard.ApplyUnique(key, keyHash, topValue, hashes, count, hostTag, metricInfo)
+	shard.MergeItemValue(key, legacyKeyHash, item, metricInfo)
 }
 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) *data_model.Key {

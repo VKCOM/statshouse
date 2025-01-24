@@ -110,8 +110,6 @@ const (
 	MappingNegativeCacheTTL  = 5 * time.Second
 	MappingMinInterval       = 1 * time.Millisecond
 
-	SimulatorMetricPrefix = "simulator_metric_"
-
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
 	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
