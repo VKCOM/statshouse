@@ -138,7 +138,7 @@ func (m *stringTopMetric) Update(now time.Time, rng *rand.Rand) {
 			v++
 		}
 	}
-	m.stringTop = fmt.Sprint("value_", v)
+	m.stringTop = fmt.Sprint(now.Format("15:04")+"value_", v)
 	updateNamedTags(m.tags, now)
 }
 
