@@ -120,7 +120,7 @@ func (k *Key) STagSlice() []string {
 	return result[:i]
 }
 
-func (k *Key) Marshal(buffer []byte) (updatedBuffer []byte, newKey []byte) {
+func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte) {
 	// compile time assert to ensure that 1 byte is enough for tags count
 	const _ = uint(255 - len(k.Tags))
 	const _ = uint(255 - len(k.STags))
@@ -197,9 +197,10 @@ func (k *Key) Hash() uint64 {
 	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }
 
-func (k *Key) XXHash(b []byte) ([]byte, uint64) {
-	b, _ = k.Marshal(b)
-	return b, xxhash.Sum64(b[4:]) // skip timestamp in first 4 bytes
+// returns possibly reallocated scratch
+func (k *Key) XXHash(scratch []byte) ([]byte, uint64) {
+	scratch, _ = k.MarshalAppend(scratch[:0])
+	return scratch, xxhash.Sum64(scratch[4:]) // skip timestamp in first 4 bytes
 }
 
 func SimpleItemValue(value float64, count float64, hostTag TagUnionBytes) ItemValue {
@@ -294,7 +295,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, met
 		b.keysBuffer = append(b.keysBuffer, keyBytes...)
 		keyBytes = b.keysBuffer[wasLen:] // we want unsafe pointer into b.keysBuffer
 	} else {
-		b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+		b.keysBuffer, keyBytes = key.MarshalAppend(b.keysBuffer)
 	}
 	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
 	// Strings in map are unsafe references to bytes of b.keysBuffer.
@@ -319,7 +320,7 @@ func (b *MultiItemMap) DeleteMultiItem(key *Key) {
 		return
 	}
 	var keyBytes []byte
-	b.keysBuffer, keyBytes = key.Marshal(b.keysBuffer)
+	b.keysBuffer, keyBytes = key.MarshalAppend(b.keysBuffer)
 	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
 	delete(b.MultiItems, keyString)
 	b.keysBuffer = b.keysBuffer[:len(b.keysBuffer)-len(keyBytes)]

@@ -112,16 +112,11 @@ func addSizeByTypeMetric[B *tlstatshouse.SourceBucket2 | *tlstatshouse.SourceBuc
 	}
 }
 
-func lessByShard(a *tlstatshouse.MultiItem, b *tlstatshouse.MultiItem, perm []int) bool {
-	aID := a.FieldsMask >> 24
-	bID := b.FieldsMask >> 24
-	if aID != bID {
-		return perm[aID] < perm[bID]
-	}
+func lessByMetric(a *tlstatshouse.MultiItem, b *tlstatshouse.MultiItem) bool {
 	return a.Metric < b.Metric
 }
 
-func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, perm []int, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket2) {
+func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket2) {
 	var marshalBuf []byte
 	var sizeBuf []byte
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
@@ -193,13 +188,13 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, perm []int, sampl
 
 	// Sort metrics in both buckets
 	sort.Slice(sb.Metrics, func(i, j int) bool {
-		return lessByShard(&sb.Metrics[i], &sb.Metrics[j], perm)
+		return lessByMetric(&sb.Metrics[i], &sb.Metrics[j])
 	})
 
 	return sb
 }
 
-func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, perm []int, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket3) {
+func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket3) {
 	var marshalBuf []byte
 	var sizeBuf []byte
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
@@ -269,7 +264,7 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, perm []int, sampl
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(sizeBuf))
 
 	sort.Slice(sb.Metrics, func(i, j int) bool {
-		return lessByShard(&sb.Metrics[i], &sb.Metrics[j], perm)
+		return lessByMetric(&sb.Metrics[i], &sb.Metrics[j])
 	})
 
 	return sb
@@ -392,10 +387,10 @@ func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors [
 	// Process sb
 	var sbdata []byte
 	if version == 3 {
-		sb := bucketToSourceBucket3TL(bucket, s.perm, sampleFactors)
+		sb := bucketToSourceBucket3TL(bucket, sampleFactors)
 		sbdata = sb.WriteBoxed(nil)
 	} else {
-		sb := bucketToSourceBucket2TL(bucket, s.perm, sampleFactors)
+		sb := bucketToSourceBucket2TL(bucket, sampleFactors)
 		sbdata = sb.WriteBoxed(nil)
 	}
 

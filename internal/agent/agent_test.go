@@ -87,7 +87,7 @@ func Benchmark_XXHash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		k.Tags[14]++
 		k.Tags[0] = int32(i)
-		buf, hash = k.XXHash(buf[:0])
+		buf, hash = k.XXHash(buf)
 		result += hash
 	}
 }
@@ -104,7 +104,7 @@ func Benchmark_Marshal(b *testing.B) {
 		k.Tags[14]++
 		k.Tags[0] = int32(i)
 		var kb []byte
-		buf, kb = k.Marshal(buf[:0])
+		buf, kb = k.MarshalAppend(buf[:0])
 		result += len(kb)
 	}
 }
@@ -245,25 +245,6 @@ func Benchmark_SampleFactor(b *testing.B) {
 	}
 }
 
-func Benchmark_sampleFactorDeterministic(b *testing.B) {
-	sampleFactors := map[int32]float64{}
-	for i := 0; i < 1000; i++ {
-		sampleFactors[int32(i)] = 0.1
-	}
-
-	var k data_model.Key
-	var result uint64
-	for i := 0; i < b.N; i++ {
-		k.Metric = int32(i & 2047)
-		k.Tags[14]++
-		k.Tags[0] = int32(i)
-		_, ok := data_model.SampleFactorDeterministic(sampleFactors, k, uint32(i))
-		if ok {
-			result++
-		}
-	}
-}
-
 /* complicated test which tests trivial thing. Commented for now.
 func Test_AgentSharding(t *testing.T) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
@@ -356,9 +337,10 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	rng := rand.New()
 	b.ResetTimer()
 	b.ReportAllocs()
+	var scratch []byte
 	for i := 0; i < b.N; i++ {
 		h.Key = randKey(rng, nowUnix, 1)
-		agent.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached)
+		agent.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached, &scratch)
 	}
 }
 

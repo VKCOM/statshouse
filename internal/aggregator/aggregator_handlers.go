@@ -530,22 +530,20 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				}
 			}
 		}
-		keyBytes = keyBytes[:0]
 		var hash uint64
 		keyBytes, hash = k.XXHash(keyBytes)
 		sID := int(hash % data_model.AggregationShardsPerSecond)
-
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
 		mi.MergeWithTLMultiItem(rng, &item, hostTag)
+		// we unlock shard to calculate hash and do other heavy operations not under lock
+		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
 				newKeys = append(newKeys, k)
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
-		// we unlock shard to calculate hash not under it
-		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	}
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)

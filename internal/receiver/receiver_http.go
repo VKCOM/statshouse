@@ -53,7 +53,7 @@ func (s *HTTP) httpFunction(h Handler, r *http.Request) error {
 		ch <- mapping.MapErrorFromHeader(m, h)
 	}
 	var batch tlstatshouse.AddMetricsBatchBytes
-	if err := s.parse(h, cb, &notDoneCount, &firstError, body, &batch); err != nil {
+	if err := s.parse(h, cb, &notDoneCount, &firstError, body, &batch, nil); err != nil {
 		return fmt.Errorf("error parsing HTTP body: %w", err)
 	}
 	for i := 0; i < notDoneCount; i++ {

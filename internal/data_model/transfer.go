@@ -95,7 +95,6 @@ func (k *Key) TLMultiItemFromKey(defaultTimestamp uint32) tlstatshouse.MultiItem
 	if k.Timestamp != 0 && k.Timestamp != defaultTimestamp {
 		item.SetT(k.Timestamp)
 	}
-	item.FieldsMask |= uint32(k.Hash()%AggregationShardsPerSecond) << 24
 	return item
 }
 
