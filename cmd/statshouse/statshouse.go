@@ -139,9 +139,6 @@ func runMain() int {
 			return 0
 		case "tlclient":
 			return mainTLClient()
-		case "simulator":
-			mainSimulator()
-			return 0
 		case "agent":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)

@@ -44,7 +44,7 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
 statshouse.top_element#9ffdea42 stag:string fields_mask:# tag:fields_mask.10?int value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
 
 statshouse.multi_item#0c803e07
-    fields_mask: # // contains shard num in top 8 bits
+    fields_mask: # // conveyor V2 agents send shard num in top 8 bits here
     metric: int
     keys: (vector int)
     skeys: fields_mask.12?(vector string)
@@ -57,7 +57,7 @@ statshouse.multi_item#0c803e07
     = statshouse.MultiItem;
 
 statshouse.sourceBucket2#3af6e822
-      metrics: (vector (statshouse.multi_item)) // must be sorted by aggregation shard
+      metrics: (vector (statshouse.multi_item)) // must be sorted by metric (but for now order is not used)
 
       sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
       ingestion_status_ok: (vector statshouse.sample_factor) // legacy, never sent by 1.0 agents. TODO - rename to unused
@@ -73,7 +73,7 @@ statshouse.sourceBucket2#3af6e822
 statshouse.sourceBucket3#16c4dd7b
     fields_mask: #
     // TODO: check how it is used and maybe change to a new version
-    metrics: (vector (statshouse.multi_item)) // must be sorted by aggregation shard
+    metrics: (vector (statshouse.multi_item)) // must be sorted by metric (but for now order is not used)
     sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
     ingestion_status_ok2: (vector statshouse.ingestion_status2) // We need as compact representation as possible.
   = statshouse.SourceBucket3;

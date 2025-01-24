@@ -347,6 +347,8 @@ const (
 	TagValueIDAggBucketInfoUniqueBytes        = 9
 	TagValueIDAggBucketInfoStringTops         = 10
 	TagValueIDAggBucketInfoIntTops            = 11
+	TagValueIDAggBucketInfoNewKeys            = 12
+	TagValueIDAggBucketInfoMetrics            = 13
 
 	TagValueIDMappingCacheEventHit                 = 1
 	TagValueIDMappingCacheEventMiss                = 2
