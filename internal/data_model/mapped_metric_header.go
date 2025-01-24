@@ -10,9 +10,9 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/zeebo/xxh3"
 )
 
 type HandlerArgs struct {
@@ -121,5 +121,5 @@ func (h *MappedMetricHeader) OriginalMarshalAppend(buffer []byte) []byte {
 // returns possibly reallocated scratch
 func (h *MappedMetricHeader) OriginalHash(scratch []byte) ([]byte, uint64) {
 	scratch = h.OriginalMarshalAppend(scratch[:0])
-	return scratch, xxhash.Sum64(scratch)
+	return scratch, xxh3.Hash(scratch)
 }

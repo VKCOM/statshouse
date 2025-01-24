@@ -14,9 +14,9 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/dchest/siphash"
 	"github.com/hrissan/tdigest"
+	"github.com/zeebo/xxh3"
 
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -200,7 +200,7 @@ func (k *Key) Hash() uint64 {
 // returns possibly reallocated scratch
 func (k *Key) XXHash(scratch []byte) ([]byte, uint64) {
 	scratch, _ = k.MarshalAppend(scratch[:0])
-	return scratch, xxhash.Sum64(scratch[4:]) // skip timestamp in first 4 bytes
+	return scratch, xxh3.Hash(scratch[4:]) // skip timestamp in first 4 bytes
 }
 
 func SimpleItemValue(value float64, count float64, hostTag TagUnionBytes) ItemValue {
