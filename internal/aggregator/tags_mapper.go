@@ -57,9 +57,8 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 		}
 		keyValue, c, d, err := loader.GetTagMapping(ctx, askedKey, metricName, extra.Create)
 		key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorOld, 0, keyValue})
-		meta := format.BuiltinMetricMetaAggMappingCreated
 		key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
-		ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, meta)
+		ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, format.BuiltinMetricMetaAggMappingCreated)
 		return pcache.Int32ToValue(keyValue), d, err
 	}, "_a_"+suffix, dc)
 
@@ -137,13 +136,13 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 }
 
 // safe only to access fields mask in args, other fields point to reused memory
-func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key *data_model.Key, meta *format.MetricMetaValue) (err error) {
+func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key *data_model.Key) (err error) {
 	if r.Err != nil {
 		key.Tags[5] = format.TagValueIDAggMappingStatusErrUncached
-		ms.sh2.AddCounter(key, 1, meta)
+		ms.sh2.AddCounter(key, 1, format.BuiltinMetricMetaAggMapping)
 		return r.Err
 	}
-	ms.sh2.AddCounter(key, 1, meta)
+	ms.sh2.AddCounter(key, 1, format.BuiltinMetricMetaAggMapping)
 	result := tlstatshouse.GetTagMappingResult{Value: pcache.ValueToInt32(r.Value), TtlNanosec: int64(r.TTL)}
 	hctx.Response, err = args.WriteResult(hctx.Response, result)
 	return err
@@ -165,7 +164,6 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	}
 	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAggMappingStatusOKCached})
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	meta := format.BuiltinMetricMetaAggMapping
 
 	r := ms.tagValue.GetCached(now, args.Key)
 	if !r.Found() {
@@ -191,7 +189,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			defer ms.mu.Unlock()
 			if *bb {
 				key.Tags[5] = format.TagValueIDAggMappingStatusOKUncached
-				err := ms.sendCreateTagMappingResult(hctx, args, v, key, meta)
+				err := ms.sendCreateTagMappingResult(hctx, args, v, key)
 				hctx.SendHijackedResponse(err)
 			}
 		})
@@ -202,5 +200,5 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			return hctx.HijackResponse(ms)
 		}
 	}
-	return ms.sendCreateTagMappingResult(hctx, args, r, key, meta)
+	return ms.sendCreateTagMappingResult(hctx, args, r, key)
 }

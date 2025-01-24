@@ -8,6 +8,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
+// legacyKeyHash will be 0 for all new sharding strategies
 func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (shardID uint32, strategy int, legacyKeyHash uint64, err error) {
 	if len(meta.Sharding) == 0 {
 		return 0, -1, 0, fmt.Errorf("bad metric meta, no sharding defined")
@@ -28,9 +29,9 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, bui
 		}
 		return sh.Shard.V, sh.StrategyId, 0, nil
 	case format.ShardBy16MappedTagsHashId:
-		legacyHash = key.Hash()
-		shard := shardByMappedTags(legacyHash, numShards)
-		return shard, sh.StrategyId, legacyHash, nil
+		legacyKeyHash = key.Hash()
+		shard := shardByMappedTags(legacyKeyHash, numShards)
+		return shard, sh.StrategyId, legacyKeyHash, nil
 	case format.ShardByTagId:
 		if !sh.TagId.IsDefined() {
 			return 0, -1, 0, fmt.Errorf("invalid sharding config: tag_id is not defined")

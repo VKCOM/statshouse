@@ -49,7 +49,6 @@ var (
 		BuiltinMetricIDAggKeepAlive:               BuiltinMetricMetaAggKeepAlive,
 		BuiltinMetricIDAggSizeCompressed:          BuiltinMetricMetaAggSizeCompressed,
 		BuiltinMetricIDAggSizeUncompressed:        BuiltinMetricMetaAggSizeUncompressed,
-		BuiltinMetricIDAggAdditionsToEstimator:    BuiltinMetricMetaAggAdditionsToEstimator,
 		BuiltinMetricIDAggHourCardinality:         BuiltinMetricMetaAggHourCardinality,
 		BuiltinMetricIDAggSamplingFactor:          BuiltinMetricMetaAggSamplingFactor,
 		BuiltinMetricIDIngestionStatus:            BuiltinMetricMetaIngestionStatus,
