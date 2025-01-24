@@ -64,20 +64,21 @@ type (
 		contributorsSimulatedErrors map[*rpc.HandlerContext]struct{} // put into most future bucket, so receive error after >7 seconds
 	}
 	Aggregator struct {
-		h               tlstatshouse.Handler
-		recentBuckets   []*aggregatorBucket          // We collect into several buckets before sending
-		historicBuckets map[uint32]*aggregatorBucket // timestamp->bucket. Each agent sends not more than X historic buckets, so size is limited.
-		bucketsToSend   chan *aggregatorBucket
-		mu              sync.Mutex
-		server          *rpc.Server
-		hostName        []byte
-		aggregatorHost  int32
-		withoutCluster  bool
-		shardKey        int32 // never changes after start, can be used without lock
-		replicaKey      int32 // never changes after start, can be used without lock
-		buildArchTag    int32 // never changes after start, can be used without lock
-		startTimestamp  uint32
-		addresses       []string
+		h                 tlstatshouse.Handler
+		recentBuckets     []*aggregatorBucket          // We collect into several buckets before sending
+		historicBuckets   map[uint32]*aggregatorBucket // timestamp->bucket. Each agent sends not more than X historic buckets, so size is limited.
+		bucketsToSend     chan *aggregatorBucket
+		mu                sync.Mutex
+		server            *rpc.Server
+		hostName          []byte
+		aggregatorHost    int32
+		aggregatorHostTag data_model.TagUnionBytes
+		withoutCluster    bool
+		shardKey          int32 // never changes after start, can be used without lock
+		replicaKey        int32 // never changes after start, can be used without lock
+		buildArchTag      int32 // never changes after start, can be used without lock
+		startTimestamp    uint32
+		addresses         []string
 
 		cancelInsertsFunc context.CancelFunc
 		cancelInsertsCtx  context.Context
@@ -310,6 +311,7 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
 
 	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricMetaBudgetAggregatorHost.Name)
+	a.aggregatorHostTag = data_model.TagUnionBytes{I: a.aggregatorHost}
 
 	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
 
@@ -490,12 +492,12 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
 
 	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
-	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaAggActiveSenders)
+	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHostTag, format.BuiltinMetricMetaAggActiveSenders)
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
-	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaAggActiveSenders)
+	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHostTag, format.BuiltinMetricMetaAggActiveSenders)
 
 	key = a.aggKey(nowUnix, format.BuiltinMetricIDMappingQueueSize, [16]int32{})
-	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaMappingQueueSize)
+	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHostTag, format.BuiltinMetricMetaMappingQueueSize)
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()
@@ -696,7 +698,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				a.mu.Unlock()
 				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
-				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, data_model.TagUnionBytes{I: a.aggregatorHost}, format.BuiltinMetricMetaTimingErrors) // This bucket is combination of many hosts
+				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHostTag, format.BuiltinMetricMetaTimingErrors) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
 				break
@@ -777,11 +779,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTime)
+			a.sh2.AddValueCounter(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, format.BuiltinMetricMetaAggInsertTime)
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertSizeReal)
-		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTimeReal)
+		a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, format.BuiltinMetricMetaAggInsertSizeReal)
+		a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, format.BuiltinMetricMetaAggInsertTimeReal)
 
 		if mirrorChWrite {
 			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], !writeToV3First)
@@ -796,8 +798,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					Description: sendErr.Error(),
 				}
 			}
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertSizeReal)
-			a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggInsertTimeReal)
+			a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, format.BuiltinMetricMetaAggInsertSizeReal)
+			a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, format.BuiltinMetricMetaAggInsertTimeReal)
 		}
 
 		sendErr = fmt.Errorf("simulated error")

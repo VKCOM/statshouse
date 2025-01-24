@@ -48,7 +48,7 @@ func (s *Shard) flushBuckets(now time.Time) {
 				Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
 			}
 			mi, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, nil, nil)
-			mi.Tail.AddValueCounterHost(s.rng, float64(gap), 1, data_model.TagUnionBytes{}) // values record jumps f more than 1 second
+			mi.Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
 		}
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered

@@ -528,10 +528,10 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	if h.IngestionStatus != 0 {
 		// h.InvalidString was validated before mapping attempt.
 		// In case of utf decoding error, it contains hex representation of original string
-		s.AddCounterHostStringBytes(&data_model.Key{
+		s.AddCounterStringBytes(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
-		}, h.InvalidString, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaIngestionStatus)
+		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
 	keyHash := h.Key.Hash()
@@ -556,18 +556,18 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterHostStringBytes(&data_model.Key{
+		s.AddCounterStringBytes(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
-		}, h.NotFoundTagName, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaIngestionStatus)
+		}, h.NotFoundTagName, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
 		// FoundDraftTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterHostStringBytes(&data_model.Key{
+		s.AddCounterStringBytes(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
-		}, h.FoundDraftTagName, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaIngestionStatus)
+		}, h.FoundDraftTagName, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.TagSetTwiceKey != 0 {
 		s.AddCounter(&data_model.Key{
@@ -576,10 +576,10 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.InvalidRawTagKey != 0 {
-		s.AddCounterHostStringBytes(&data_model.Key{
+		s.AddCounterStringBytes(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
-		}, h.InvalidRawValue, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaIngestionStatus)
+		}, h.InvalidRawValue, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.LegacyCanonicalTagKey != 0 {
 		s.AddCounter(&data_model.Key{
@@ -674,6 +674,10 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	shard.AddCounterHost(key, keyHash, count, hostTag, metricInfo)
 }
 
+func (s *Agent) AddCounterStringBytes(key *data_model.Key, str []byte, count float64, metricInfo *format.MetricMetaValue) {
+	s.AddCounterHostStringBytes(key, str, count, data_model.TagUnionBytes{}, metricInfo)
+}
+
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
 // count should be > 0 and not NaN
 func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
@@ -705,6 +709,10 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 // value should be not NaN.
 func (s *Agent) AddValueCounter(key *data_model.Key, value float64, counter float64, metricInfo *format.MetricMetaValue) {
 	s.AddValueCounterHost(key, value, counter, data_model.TagUnionBytes{}, metricInfo)
+}
+
+func (s *Agent) AddValueArrayCounterStringBytes(key *data_model.Key, values []float64, mult float64, topValue data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+	s.AddValueArrayCounterHostStringBytes(key, values, mult, data_model.TagUnionBytes{}, topValue, metricInfo)
 }
 
 func (s *Agent) AddValueArrayCounterHostStringBytes(key *data_model.Key, values []float64, mult float64, hostTag data_model.TagUnionBytes, topValue data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
@@ -744,6 +752,10 @@ func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, 
 	}
 	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, keyHash, item, metricInfo)
+}
+
+func (s *Agent) AddUniqueStringBytes(key *data_model.Key, topValue data_model.TagUnionBytes, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
+	s.AddUniqueHostStringBytes(key, data_model.TagUnionBytes{}, topValue, hashes, count, metricInfo)
 }
 
 func (s *Agent) AddUniqueHostStringBytes(key *data_model.Key, hostTag data_model.TagUnionBytes, topValue data_model.TagUnionBytes, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {

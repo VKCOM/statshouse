@@ -496,7 +496,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
 			key := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
-			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, data_model.TagUnionBytes{I: a.aggregatorHost}), metricCache, usedTimestamps, v3Format)
+			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps, v3Format)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 		},
 		KeepF: func(item *data_model.MultiItem, bt uint32) { insertItem(item, item.SF, bt) },
@@ -592,7 +592,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [16]int32{0, 5, 0, 0, historicTag}),
 		float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 	res = appendValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [16]int32{0, 0, 0, 0, historicTag}),
-		data_model.SimpleItemCounter(float64(sampler.ItemCount()), data_model.TagUnionBytes{I: a.aggregatorHost}), metricCache, usedTimestamps, v3Format)
+		data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, usedTimestamps, v3Format)
 
 	// report budget used
 	budgetKey := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, historicTag})
