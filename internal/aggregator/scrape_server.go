@@ -231,9 +231,9 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 			}
 			if s.sh2 != nil {
 				// success, targets_ready
-				s.sh2.AddCounterHostStringBytes(
+				s.sh2.AddCounterStringBytes(
 					s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 1}),
-					[]byte(host), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+					[]byte(host), 1, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 			}
 		}
 	}()
@@ -267,9 +267,9 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 
 func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 	v := s.configH.Load()
-	s.sh2.AddCounterHostStringBytes(
+	s.sh2.AddCounterStringBytes(
 		s.sh2.AggKey(nowUnix, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
-		nil, 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeConfigHash)
+		nil, 1, format.BuiltinMetricMetaAggScrapeConfigHash)
 }
 
 func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -329,14 +329,14 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 	if s.sh2 != nil {
 		if err != nil {
 			// failure, targets_sent
-			s.sh2.AddCounterHostStringBytes(
+			s.sh2.AddCounterStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 2}),
-				[]byte(req.addr.String()), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+				[]byte(req.addr.String()), 1, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		} else {
 			// success, targets_sent
-			s.sh2.AddCounterHostStringBytes(
+			s.sh2.AddCounterStringBytes(
 				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 2}),
-				[]byte(req.addr.String()), 1, data_model.TagUnionBytes{}, format.BuiltinMetricMetaAggScrapeTargetDispatch)
+				[]byte(req.addr.String()), 1, format.BuiltinMetricMetaAggScrapeTargetDispatch)
 		}
 	}
 	return true, err

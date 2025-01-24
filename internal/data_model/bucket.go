@@ -441,8 +441,16 @@ func (s *MultiValue) Empty() bool {
 	return s.Value.Count() <= 0
 }
 
+func (s *MultiValue) AddCounter(rng *rand.Rand, count float64) {
+	s.Value.AddCounterHost(rng, count, TagUnionBytes{})
+}
+
 func (s *MultiValue) AddCounterHost(rng *rand.Rand, count float64, hostTag TagUnionBytes) {
 	s.Value.AddCounterHost(rng, count, hostTag)
+}
+
+func (s *MultiValue) AddValueCounter(rng *rand.Rand, value float64, count float64) {
+	s.Value.AddValueCounterHost(rng, value, count, TagUnionBytes{})
 }
 
 func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes) {
