@@ -653,19 +653,3 @@ func roundSampleFactor(sf float64, rnd *rand.Rand) float64 {
 	}
 	return floor
 }
-
-// This function assumes structure of hour table with time = toStartOfHour(time)
-// This turned out bad idea, so we do not use it anywhere now
-func SampleFactorDeterministic(sampleFactors map[int32]float64, key Key, time uint32) (float64, bool) {
-	sf, ok := sampleFactors[key.Metric]
-	if !ok {
-		return 1, true
-	}
-	// Deterministic sampling - we select random set of allowed keys per hour
-	key.Metric = int32(time/3600) * 3600 // a bit of hack, we do not need metric here, so we replace it with toStartOfHour(time)
-	ha := key.Hash()
-	if float64(ha>>32)*sf < (1 << 32) { // 0.XXXX * sf < 1 condition shifted left by 32
-		return sf, true
-	}
-	return 0, false
-}

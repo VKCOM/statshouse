@@ -172,7 +172,7 @@ func (u *parser) StatBatchesTotalOK() uint64  { return u.statBatchesTotalOK.Load
 func (u *parser) StatBatchesTotalErr() uint64 { return u.statBatchesTotalErr.Load() }
 func (u *parser) StatBytesTotal() uint64      { return u.statBytesTotal.Load() }
 
-func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *int, ingestionError *error, pkt []byte, batch *tlstatshouse.AddMetricsBatchBytes) error {
+func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *int, ingestionError *error, pkt []byte, batch *tlstatshouse.AddMetricsBatchBytes, scratch *[]byte) error {
 	pktLen := len(pkt)
 	if u.logPacket != nil { // formatting is slow
 		u.logPacket("Incoming packet %x", pkt)
@@ -187,7 +187,7 @@ func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *i
 			var err error
 			was := pkt
 			pkt, err = batch.ReadBoxed(pkt)
-			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, was, err) {
+			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, was, err, scratch) {
 				setValueSize(u.batchSizeTLErr, len(was))
 				setValueSize(u.packetSizeTLErr, pktLen)
 				return err
@@ -197,7 +197,7 @@ func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *i
 		setValueSize(u.packetSizeTLOK, pktLen)
 	case len(pkt) >= len(jsonPacketPrefix) && string(pkt[0:len(jsonPacketPrefix)]) == jsonPacketPrefix:
 		err := batch.UnmarshalJSON(pkt)
-		if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, pkt, err) {
+		if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, pkt, err, scratch) {
 			setValueSize(u.batchSizeJSONErr, pktLen)
 			setValueSize(u.packetSizeJSONErr, pktLen)
 			return err
@@ -211,7 +211,7 @@ func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *i
 			var err error
 			was := pkt
 			pkt, err = msgpackUnmarshalStatshouseAddMetricBatch(batch, pkt)
-			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, was, err) {
+			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, was, err, scratch) {
 				setValueSize(u.batchSizeMsgPackErr, len(was))
 				setValueSize(u.packetSizeMsgPackErr, pktLen)
 				return err
@@ -224,7 +224,7 @@ func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *i
 			var err error
 			was := pkt
 			pkt, err = protobufUnmarshalStatshouseAddMetricBatch(batch, pkt)
-			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, pkt, err) {
+			if !u.handleMetricsBatch(h, cb, notDoneCount, ingestionError, batch, pkt, err, scratch) {
 				setValueSize(u.batchSizeProtobufErr, len(was))
 				setValueSize(u.packetSizeProtobufErr, pktLen)
 				return err
@@ -236,7 +236,7 @@ func (u *parser) parse(h Handler, cb data_model.MapCallbackFunc, notDoneCount *i
 	return nil
 }
 
-func (u *parser) handleMetricsBatch(handler Handler, cb data_model.MapCallbackFunc, notDoneCount *int, ingestionError *error, b *tlstatshouse.AddMetricsBatchBytes, pkt []byte, parseErr error) bool {
+func (u *parser) handleMetricsBatch(handler Handler, cb data_model.MapCallbackFunc, notDoneCount *int, ingestionError *error, b *tlstatshouse.AddMetricsBatchBytes, pkt []byte, parseErr error, scratch *[]byte) bool {
 	if parseErr != nil {
 		u.statBatchesTotalErr.Inc()
 		if len(pkt) != 0 {
@@ -246,7 +246,11 @@ func (u *parser) handleMetricsBatch(handler Handler, cb data_model.MapCallbackFu
 	}
 	u.statBatchesTotalOK.Inc()
 	for i := range b.Metrics {
-		h, done := handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: &b.Metrics[i], MapCallback: cb}) // might move out metric, if needs to
+		h, done := handler.HandleMetrics(data_model.HandlerArgs{
+			MetricBytes: &b.Metrics[i],
+			MapCallback: cb,
+			Scratch:     scratch,
+		}) // might move out metric, if needs to
 		if done && ingestionError != nil && *ingestionError == nil && h.IngestionStatus != 0 {
 			*ingestionError = mapping.MapErrorFromHeader(b.Metrics[i], h)
 		}
@@ -257,7 +261,7 @@ func (u *parser) handleMetricsBatch(handler Handler, cb data_model.MapCallbackFu
 	return true
 }
 
-func (u *parser) handleAndWaitMetrics(handler Handler, args *tlstatshouse.AddMetricsBatchBytes) error {
+func (u *parser) handleAndWaitMetrics(handler Handler, args *tlstatshouse.AddMetricsBatchBytes, scratch *[]byte) error {
 	var firstError error
 	notDoneCount := 0
 	// TODO - store both channel and callback in UserData to prevent 2 allocations
@@ -265,7 +269,7 @@ func (u *parser) handleAndWaitMetrics(handler Handler, args *tlstatshouse.AddMet
 	cb := func(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
 		ch <- mapping.MapErrorFromHeader(m, h)
 	}
-	_ = u.handleMetricsBatch(handler, cb, &notDoneCount, &firstError, args, nil, nil)
+	_ = u.handleMetricsBatch(handler, cb, &notDoneCount, &firstError, args, nil, nil, scratch)
 	for i := 0; i < notDoneCount; i++ {
 		err := <-ch
 		if firstError == nil {

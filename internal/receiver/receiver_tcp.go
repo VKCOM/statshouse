@@ -244,6 +244,7 @@ func (s *TCP) dropConn(sc *serverConn) {
 func (s *TCP) receiveLoop(h Handler, sc *serverConn) error {
 	var batch tlstatshouse.AddMetricsBatchBytes
 	data := make([]byte, 4+math.MaxUint16) // max size we support
+	var scratch []byte
 	size := 0
 	for {
 		n, err := sc.conn.Read(data[size:]) // fill as much as possible
@@ -268,7 +269,7 @@ func (s *TCP) receiveLoop(h Handler, sc *serverConn) error {
 			if 4+offset+int(bodyLen) > size { // careful with overflow!
 				break
 			}
-			if err := s.parse(h, nil, nil, nil, data[4+offset:4+offset+int(bodyLen)], &batch); err != nil {
+			if err := s.parse(h, nil, nil, nil, data[4+offset:4+offset+int(bodyLen)], &batch, &scratch); err != nil {
 				return fmt.Errorf("parsing error: %w", err) // do not allow format violation in TCP, as next data will be garbage
 			}
 			offset += 4 + int(bodyLen)

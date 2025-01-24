@@ -124,20 +124,16 @@ func (ms *tagsMapper2) goRun() {
 			if counter > maxCreateTagsPerIteration {
 				break // simply forget the rest, will load/create more on the next iteration
 			}
-			tagValue := ms.createTag(str, extra)
-			if tagValue != 0 {
-				pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-			}
+			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
+			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
 		}
 		for _, str := range loadTags { // also limited to maxCreateOrLoadTagsPerIteration
 			extra := format.CreateMappingExtra{
 				Create: false, // for documenting intent
 				Host:   ms.agg.aggregatorHost,
 			}
-			tagValue := ms.createTag(str, extra)
-			if tagValue != 0 {
-				pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-			}
+			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
+			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
 		}
 		nowUnix := uint32(time.Now().Unix())
 		ms.agg.mappingsCache.AddValues(nowUnix, pairs)
@@ -160,16 +156,11 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 		// Journal can be stale, while mapping works.
 		// Explicit metric for this situation allows resetting limit from UI, like any other metric
 	}
-	keyValue, c, _, err := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
-	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew})
+	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
+	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, 0, keyValue})
 	meta := format.BuiltinMetricMetaAggMappingCreated
 	key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
-	if err == nil && c == format.TagValueIDAggMappingCreatedStatusCreated {
-		// if str is created, it is valid and safe to write
-		ms.sh2.AddValueCounterHostString(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, data_model.TagUnion{S: str, I: 0}, meta)
-	} else {
-		ms.sh2.AddValueCounterHost(key, 0, 1, data_model.TagUnionBytes{I: extra.Host}, meta)
-	}
+	ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, meta)
 	return keyValue
 }
 

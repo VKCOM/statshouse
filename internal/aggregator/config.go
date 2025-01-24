@@ -29,7 +29,7 @@ type ConfigAggregatorRemote struct {
 	DenyOldAgents        bool
 	MirrorChWrite        bool
 	WriteToV3First       bool
-	Shard                int // aggreagator sharding
+	Shard                int // aggregator sharding. not used, remove here after removing from remote config
 	MappingCacheSize     int64
 	MappingCacheTTL      int
 	MapStringTop         bool
@@ -89,7 +89,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 			DenyOldAgents:        true,
 			MirrorChWrite:        true,
 			WriteToV3First:       false,
-			Shard:                ShardAgentHash,
 			MappingCacheSize:     1 << 30,
 			MappingCacheTTL:      86400 * 7,
 			MapStringTop:         false, // disabled by default because API doesn't support it yet

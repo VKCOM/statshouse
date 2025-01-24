@@ -498,27 +498,19 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				processStringTag(i, tb.Stag, true)
 			}
 		}
-		keyBytes = keyBytes[:0]
-		switch configR.Shard {
-		case ShardAggregatorHash:
-			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
-		case ShardAggregatorXXHash:
-			var hash uint64
-			keyBytes, hash = k.XXHash(keyBytes)
-			sID = int(hash % data_model.AggregationShardsPerSecond)
-		}
+		var hash uint64
+		keyBytes, hash = k.XXHash(keyBytes)
+		sID = int(hash % data_model.AggregationShardsPerSecond)
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
 		mi.MergeWithTLMultiItem(rng, &item, hostId)
+		// we unlock shard to calculate hash and do other heavy operations not under lock
+		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
 				newKeys = append(newKeys, k)
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
-		}
-		if configR.Shard == ShardAggregatorHash || configR.Shard == ShardAggregatorXXHash {
-			// we unlock shard to calculate hash not under it
-			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		}
 	}
 	if lockedShard != -1 {

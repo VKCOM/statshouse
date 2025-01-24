@@ -108,6 +108,7 @@ func (u *UDP) Addr() string {
 
 func (u *UDP) Serve(h Handler) error {
 	var batch tlstatshouse.AddMetricsBatchBytes
+	var scratch []byte
 	data := make([]byte, math.MaxUint16) // enough for any UDP packet
 	for {
 		pktLen, readErr := u.conn.Read(data)
@@ -124,7 +125,7 @@ func (u *UDP) Serve(h Handler) error {
 			_, _ = u.mirrorUdpConn.Write(pkt) // we intentionally ignore errors here
 		}
 
-		_ = u.parse(h, nil, nil, nil, pkt, &batch) // ignore errors and read the next packet
+		_ = u.parse(h, nil, nil, nil, pkt, &batch, &scratch) // ignore errors and read the next packet
 	}
 }
 
