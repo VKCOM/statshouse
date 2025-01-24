@@ -1036,32 +1036,6 @@ var BuiltinMetricMetaUsageCPU = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDGeneratorConstCounter = -45
-
-var BuiltinMetricMetaGeneratorConstCounter = &MetricMetaValue{
-	Name:                    "__fn_const_counter",
-	Kind:                    MetricKindCounter,
-	Description:             "Counter generated on the fly by constant function",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags:                    []MetricMetaTag{},
-}
-
-const BuiltinMetricIDGeneratorSinCounter = -46
-
-var BuiltinMetricMetaGeneratorSinCounter = &MetricMetaValue{
-	Name:                    "__fn_sin_counter",
-	Kind:                    MetricKindCounter,
-	Description:             "Test counter generated on the fly by sine function",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags:                    []MetricMetaTag{},
-}
-
 const BuiltinMetricIDHeartbeatVersion = -47
 
 var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
@@ -1321,19 +1295,6 @@ Value is delta between second value and time it was inserted.`,
 		Description: "insert_timestamp",
 		RawKind:     "timestamp",
 	}},
-}
-
-const BuiltinMetricIDGeneratorGapsCounter = -63
-
-var BuiltinMetricMetaGeneratorGapsCounter = &MetricMetaValue{
-	Name:                    "__fn_gaps_counter",
-	Kind:                    MetricKindCounter,
-	Description:             "Test counter with constant value, but with multiple gaps",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{},
 }
 
 const BuiltinMetricIDGroupSizeBeforeSampling = -64
