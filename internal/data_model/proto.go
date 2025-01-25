@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/hrissan/tdigest"
 )
 
 type ColUnique []ChUnique
@@ -16,7 +15,7 @@ func (col *ColUnique) Type() proto.ColumnType {
 }
 
 func (col *ColUnique) Reset() {
-	*col = (*col)[:0]
+	*col = nil // objects are owned by cache after reading, can not reuse
 }
 
 func (col *ColUnique) DecodeColumn(r *proto.Reader, rows int) error {
@@ -85,14 +84,14 @@ func (u *ChUnique) read(r *proto.Reader) error {
 	return nil
 }
 
-type ColTDigest []*tdigest.TDigest
+type ColTDigest []*TDigest
 
 func (col *ColTDigest) Type() proto.ColumnType {
 	return "AggregateFunction(quantilesTDigest(0.5), Float32)"
 }
 
 func (col *ColTDigest) Reset() {
-	*col = (*col)[:0]
+	*col = nil // objects are owned by cache after reading, can not reuse
 }
 
 func (col *ColTDigest) Rows() int {
@@ -113,7 +112,7 @@ func (col *ColTDigest) DecodeColumn(r *proto.Reader, rows int) error {
 			return err
 		}
 		if res[i] == nil {
-			res[i] = tdigest.NewWithCompression(256) // clickhouse has compression of 256 by default
+			res[i] = NewWithCompression(256) // clickhouse has compression of 256 by default
 		} else {
 			res[i].Reset()
 		}
@@ -121,11 +120,12 @@ func (col *ColTDigest) DecodeColumn(r *proto.Reader, rows int) error {
 			if err = r.ReadFull(bs[:]); err != nil {
 				return err
 			}
-			res[i].AddCentroid(tdigest.Centroid{
+			res[i].AddCentroid(Centroid{
 				Mean:   float64(math.Float32frombits(binary.LittleEndian.Uint32(bs[:4]))),
 				Weight: float64(math.Float32frombits(binary.LittleEndian.Uint32(bs[4:]))),
 			})
 		}
+		res[i].MakeSafeForParallelReading()
 	}
 	(*col) = res
 	return nil

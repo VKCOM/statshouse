@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hrissan/tdigest"
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
@@ -53,7 +52,7 @@ type tsValues struct {
 	count       float64
 	sumsquare   float64
 	unique      data_model.ChUnique
-	percentile  *tdigest.TDigest
+	percentile  *data_model.TDigest
 	mergeCount  int
 	cardinality float64
 
@@ -279,7 +278,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	key := pq.getOrBuildCacheKey()
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(h, pq, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
-		if realLoadFrom == 0 && realLoadTo == 0 {
+		if realLoadFrom == realLoadTo {
 			ChCacheRate(cachedRows, 0, pq.metricID(), lod.Table, "")
 			return ret, nil
 		}
@@ -287,7 +286,11 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 
 	loadAtNano := time.Now().UnixNano()
 	loadLOD := data_model.LOD{FromSec: realLoadFrom, ToSec: realLoadTo, StepSec: c.stepSec, Table: lod.Table, HasPreKey: lod.HasPreKey, PreKeyOnly: lod.PreKeyOnly, Location: lod.Location, Version: lod.Version}
-	chRows, err := c.loader(ctx, h, pq, loadLOD, ret, int((realLoadFrom-lod.FromSec)/c.stepSec))
+	startX, err := lod.IndexOf(realLoadFrom)
+	if err != nil {
+		return nil, err
+	}
+	chRows, err := c.loader(ctx, h, pq, loadLOD, ret, startX)
 	if err != nil {
 		return nil, err
 	}
@@ -295,12 +298,16 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	ChCacheRate(cachedRows, chRows, pq.metricID(), lod.Table, "")
 
 	// map string tags
+	endX, err := lod.IndexOf(realLoadTo)
+	if err != nil {
+		return nil, err
+	}
 	if pq.metric != nil && len(pq.by) != 0 {
 		for _, x := range pq.by {
 			if x < 0 || len(pq.metric.Tags) <= x {
 				continue
 			}
-			for i := 0; i < len(ret); i++ {
+			for i := startX; i < endX; i++ {
 				for j := 0; j < len(ret[i]); j++ {
 					if s := ret[i][j].stag[x]; s != "" {
 						v, err := h.getRichTagValueID(&pq.metric.Tags[x], h.version, s)
@@ -334,12 +341,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	}
 
 	e.lru.Store(time.Now().UnixNano())
-	i, err := lod.IndexOf(realLoadFrom)
-	if err != nil {
-		return nil, err
-	}
-	for t := realLoadFrom; t < realLoadTo; i++ {
-		nextRealLoadFrom := data_model.StepForward(t, c.stepSec, lod.Location)
+	for i, t := startX, realLoadFrom; i < endX; i++ {
 		cached, ok := e.secRows[t]
 		if !ok {
 			cached = &tsVersionedRows{}
@@ -356,8 +358,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 			cached.rows = loadedRows
 			c.bytesAlloc.Value(float64(cached.sizeInBytes()))
 		}
-
-		t = nextRealLoadFrom
+		t = data_model.StepForward(t, c.stepSec, lod.Location)
 	}
 
 	return ret, nil
@@ -396,33 +397,40 @@ func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fr
 
 	e.lru.Store(time.Now().UnixNano())
 
-	var loadFrom, loadTo int64
+	cacheStartX := retStartIx
+	cacheFrom := fromSec
+	cacheTo := fromSec
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
 		nextStartFrom := data_model.StepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
-		if !ok || cached.loadedAtNano < c.invalidatedAtNano[t]+int64(invalidateLinger) {
-			if loadFrom == 0 {
-				loadFrom = t
+		if ok {
+			ok = c.invalidatedAtNano[t]+int64(invalidateLinger) < cached.loadedAtNano
+		}
+		if ok {
+			if t != cacheTo {
+				cacheFrom = t
+				cacheStartX = ix
 			}
-			loadTo = nextStartFrom
+			cacheTo = nextStartFrom
 		}
 		t = nextStartFrom
 	}
 
-	if loadFrom != 0 || loadTo != 0 {
-		if loadFrom == fromSec {
-			if loadTo == toSec {
-				return fromSec, toSec
-			} else {
-				fromSec = loadTo
-			}
+	if cacheFrom == cacheTo || fromSec < cacheFrom && cacheTo < toSec {
+		return fromSec, toSec
+	} else if fromSec == cacheFrom {
+		if cacheTo == toSec {
+			fromSec = 0
+			toSec = 0
 		} else {
-			toSec = loadFrom
+			fromSec = cacheTo
 		}
+	} else { // cacheTo == toSec
+		toSec = cacheFrom
 	}
 
 	var hit int
-	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
+	for t, ix := cacheFrom, cacheStartX; t < cacheTo; ix++ {
 		// map string tags
 		cached := e.secRows[t]
 		for i := 0; i < len(cached.rows); i++ {
@@ -446,9 +454,9 @@ func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fr
 	}
 
 	reqCount := (toSec - fromSec) / c.stepSec
-	h.Tracef("CACHE step %d, count %d, range [%d,%d), hit %d, miss [%d,%d), key %q", c.stepSec, reqCount, fromSec, toSec, hit, loadFrom, loadTo, key)
+	h.Tracef("CACHE step %d, count %d, range [%d,%d), hit %d, miss [%d,%d), key %q", c.stepSec, reqCount, fromSec, toSec, hit, fromSec, toSec, key)
 
-	return loadFrom, loadTo
+	return fromSec, toSec
 }
 
 func (c *tsCache) evictLocked() int {
@@ -496,7 +504,7 @@ func (v *tsValues) merge(rhs tsValues) {
 		u.Merge(rhs.unique)
 		v.unique = u
 		if v.percentile != nil || rhs.percentile != nil {
-			p := tdigest.New()
+			p := data_model.New()
 			if v.percentile != nil {
 				p.Merge(v.percentile)
 			}
