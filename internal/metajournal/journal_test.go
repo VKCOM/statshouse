@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//sqlite> .once journal.json
-//sqlite> SELECT version, id, name, updated_at, type, deleted_at, namespace_id, REPLACE(data, CHAR(10), '\n') FROM metrics_v5 ORDER BY version asc;
-//sqlite> .quit
-
 func Benchmark_Load(b *testing.B) {
 	loader, err := getJournalFileLoader("journal.json")
 	require.NoError(b, err)

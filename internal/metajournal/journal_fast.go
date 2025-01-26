@@ -16,6 +16,10 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 )
 
+//sqlite> .once journal.json
+//sqlite> SELECT version, id, name, updated_at, type, deleted_at, namespace_id, REPLACE(data, CHAR(10), '\n') FROM metrics_v5 ORDER BY version asc;
+//sqlite> .quit
+
 func getJournalFileLoader(fName string) (MetricsStorageLoader, error) {
 	data, err := os.ReadFile(fName)
 	if err != nil {
@@ -23,7 +27,7 @@ func getJournalFileLoader(fName string) (MetricsStorageLoader, error) {
 	}
 	lines := strings.Split(string(data), "\n")
 	var events []tlmetadata.Event
-	for _, l := range lines {
+	for i, l := range lines {
 		if l == "" {
 			continue
 		}
@@ -54,7 +58,7 @@ func getJournalFileLoader(fName string) (MetricsStorageLoader, error) {
 			Data:        values[7],
 		}
 		if len(events) != 0 && version <= events[len(events)-1].Version {
-			fmt.Printf("hren")
+			return nil, fmt.Errorf("events not sorted at %d", i)
 		}
 		events = append(events, event)
 	}
