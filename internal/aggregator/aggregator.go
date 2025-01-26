@@ -108,6 +108,7 @@ type (
 		configMu sync.RWMutex
 
 		metricStorage  *metajournal.MetricsStorage
+		journal        *metajournal.Journal
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 		tagsMapper2    *tagsMapper2
@@ -229,7 +230,7 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	a.h = tlstatshouse.Handler{
 		GetConfig2: a.handleGetConfig2,
 		RawGetMetrics3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
-			return a.metricStorage.Journal().HandleGetMetrics3(ctx, hctx)
+			return a.journal.HandleGetMetrics3(ctx, hctx)
 		},
 		RawGetTagMapping2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.tagsMapper.handleCreateTagMapping(ctx, hctx)
@@ -283,12 +284,14 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
 	}
-	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, data_model.JournalDDOSProtectionTimeout, dc, func(configID int32, configS string) {
+	a.metricStorage = metajournal.MakeMetricsStorage(func(configID int32, configS string) {
 		a.scrape.applyConfig(configID, configS)
 		if a.autoCreate != nil {
 			a.autoCreate.applyConfig(configID, configS)
 		}
 	})
+	a.journal = metajournal.MakeJournal(a.config.Cluster, data_model.JournalDDOSProtectionTimeout, dc,
+		[]metajournal.ApplyEvent{a.metricStorage.ApplyEvent})
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
@@ -304,7 +307,7 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	if a.autoCreate != nil {
 		a.autoCreate.run(a.metricStorage)
 	}
-	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
+	a.journal.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, metricMetaLoader, a.config.Cluster)

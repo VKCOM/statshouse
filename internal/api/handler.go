@@ -578,7 +578,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		return nil, fmt.Errorf("failed to marshal settings to JSON: %w", err)
 	}
 	cl := config.NewConfigListener(data_model.StatshouseAPIRemoteConfig, cfg)
-	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache, nil, cl.ApplyEventCB)
+	metricStorage := metajournal.MakeMetricsStorage(nil)
+	journal := metajournal.MakeJournal(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache,
+		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
 	h := &Handler{
 		HandlerOptions: opt,
 		showInvisible:  showInvisible,
@@ -650,7 +652,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		chV2.SetLimits(cfg.UserLimits)
 	})
-	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
+	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
 	go h.invalidateLoop()
@@ -3073,7 +3075,7 @@ func (h *httpRequestHandler) checkReadOnlyMode() (readOnlyMode bool) {
 func (h *Handler) waitVersionUpdate(ctx context.Context, version int64) error {
 	ctx, cancel := context.WithTimeout(ctx, journalUpdateTimeout)
 	defer cancel()
-	return h.metricsStorage.Journal().WaitVersion(ctx, version)
+	return h.metricsStorage.WaitVersion(ctx, version)
 }
 
 func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale time.Duration) {

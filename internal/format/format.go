@@ -235,17 +235,17 @@ type MetricSharding struct {
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
-	MetricID    int32  `json:"metric_id"`
-	NamespaceID int32  `json:"namespace_id"` // RO
-	Name        string `json:"name"`
+	MetricID    int32  `json:"metric_id,omitempty"`
+	NamespaceID int32  `json:"namespace_id,omitempty"` // RO
+	Name        string `json:"name,omitempty"`
 	Version     int64  `json:"version,omitempty"`
-	UpdateTime  uint32 `json:"update_time"`
+	UpdateTime  uint32 `json:"update_time,omitempty"`
 
 	Description          string                   `json:"description,omitempty"`
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
 	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
 	Visible              bool                     `json:"visible,omitempty"`
-	Kind                 string                   `json:"kind"`
+	Kind                 string                   `json:"kind,omitempty"`
 	Weight               float64                  `json:"weight,omitempty"`
 	Resolution           int                      `json:"resolution,omitempty"`             // no invariants
 	StringTopName        string                   `json:"string_top_name,omitempty"`        // no invariants
@@ -256,7 +256,7 @@ type MetricMetaValue struct {
 	SkipMinHost          bool                     `json:"skip_min_host,omitempty"`
 	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
-	MetricType           string                   `json:"metric_type"`
+	MetricType           string                   `json:"metric_type,omitempty"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
@@ -270,7 +270,7 @@ type MetricMetaValue struct {
 	RoundSampleFactors   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues    bool                     `json:"-"` // Experimental, set if magic word in description is found
 	WhalesOff            bool                     `json:"-"` // "whales" sampling algorithm disabled
-	HistorgamBuckets     []float32                `json:"-"` // Prometheus histogram buckets
+	HistogramBuckets     []float32                `json:"-"` // Prometheus histogram buckets
 	IsHardwareSlowMetric bool                     `json:"-"`
 	GroupID              int32                    `json:"-"`
 
@@ -494,13 +494,13 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			s := m.Description[i+len(HistogramBucketsStartMark):]
 			if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
 				s = s[:i]
-				m.HistorgamBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
+				m.HistogramBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
 				for i, j := 0, 1; i < len(s); {
 					for j < len(s) && s[j] != HistogramBucketsDelimC {
 						j++
 					}
 					if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
-						m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
+						m.HistogramBuckets = append(m.HistogramBuckets, float32(f))
 					}
 					i = j + 1
 					j = i + 1

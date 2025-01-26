@@ -7,16 +7,15 @@
 package metajournal
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/pcache"
 )
 
 type GroupWithMetricsList struct {
@@ -59,10 +58,13 @@ type MetricsStorage struct {
 
 	applyPromConfig ApplyPromConfig
 
-	journal *Journal // can be easily moved out, if desired
+	versionClientMu sync.Mutex
+	lastVersion     int64
+	lastHash        string
+	versionClients  []versionClient
 }
 
-func MakeMetricsStorage(namespaceSuffix string, journalRequestDelay time.Duration, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
+func MakeMetricsStorage(applyPromConfig ApplyPromConfig) *MetricsStorage {
 	result := &MetricsStorage{
 		metaSnapshot: &metaSnapshot{
 			metricsByNameSnapshot: map[string]*format.MetricMetaValue{},
@@ -84,7 +86,6 @@ func MakeMetricsStorage(namespaceSuffix string, journalRequestDelay time.Duratio
 	for id, g := range format.BuiltInNamespaceDefault {
 		result.builtInNamespace[id] = g
 	}
-	result.journal = MakeJournal(namespaceSuffix, journalRequestDelay, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
 }
 
@@ -127,20 +128,18 @@ func (snapshot *metaSnapshot) updateSnapshotUnlocked(
 	snapshot.metricsByNameSnapshot = metricsByNameSnapshot
 }
 
-func (snapshot *metaSnapshot) getCopyUnlocked() SnapshotMeta {
-	snapshot.mu.RLock()
-	defer snapshot.mu.RUnlock()
-	return SnapshotMeta{
-		MetricsByIDSnapshot:   snapshot.metricsByIDSnapshot,
-		MetricsByNameSnapshot: snapshot.metricsByNameSnapshot,
-	}
+// satisfy format.MetaStorageInterface
+func (ms *MetricsStorage) Version() int64 {
+	ms.versionClientMu.Lock()
+	defer ms.versionClientMu.Unlock()
+	return ms.lastVersion
 }
 
-// satisfy format.MetaStorageInterface
-func (ms *MetricsStorage) Version() int64    { return ms.journal.Version() }
-func (ms *MetricsStorage) StateHash() string { return ms.journal.StateHash() }
-
-func (ms *MetricsStorage) Journal() *Journal { return ms.journal }
+func (ms *MetricsStorage) StateHash() string {
+	ms.versionClientMu.Lock()
+	defer ms.versionClientMu.Unlock()
+	return ms.lastHash
+}
 
 func (ms *MetricsStorage) PromConfig() tlmetadata.Event {
 	ms.mu.RLock()
@@ -160,10 +159,6 @@ func (ms *MetricsStorage) KnownTags() tlmetadata.Event {
 	return ms.knownTags
 }
 
-func (ms *MetricsStorage) GetSnapshotMeta() SnapshotMeta {
-	return ms.metaSnapshot.getCopyUnlocked()
-}
-
 func (ms *MetricsStorage) GetMetaMetricDelayed(metricID int32) *format.MetricMetaValue {
 	return ms.metaSnapshot.GetMetaMetric(metricID)
 }
@@ -181,8 +176,7 @@ func (ms *MetricsStorage) GetMetaMetric(metricID int32) *format.MetricMetaValue 
 func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.getMetaMetricByNameLocked(metricName)
-
+	return ms.metricsByName[metricName]
 }
 
 func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta {
@@ -213,10 +207,6 @@ func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
 		}
 	}
 	return nil
-}
-
-func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string) *format.MetricMetaValue {
-	return ms.metricsByName[metricName]
 }
 
 // TODO some fixes to avoid allocation
@@ -371,7 +361,7 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	return namespaces
 }
 
-func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
+func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersion int64, stateHash string) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
@@ -508,6 +498,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
 		}
 	}
+	ms.broadcastJournalVersionClient(currentVersion, stateHash)
 }
 
 func (ms *MetricsStorage) copyToSnapshotUnlocked() {
@@ -661,4 +652,46 @@ func (ms *MetricsStorage) calcGroupNamesMapLocked() {
 		newM[g.Name] = g
 	}
 	ms.groupsByName = newM
+}
+
+func (ms *MetricsStorage) WaitVersion(ctx context.Context, version int64) error {
+	select {
+	case <-ms.waitVersion(version):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (ms *MetricsStorage) waitVersion(version int64) chan struct{} {
+	ms.versionClientMu.Lock()
+	defer ms.versionClientMu.Unlock()
+	ch := make(chan struct{})
+	if ms.lastVersion >= version {
+		close(ch)
+		return ch
+	}
+
+	ms.versionClients = append(ms.versionClients, versionClient{
+		expectedVersion: version,
+		ch:              ch,
+	})
+	return ch
+}
+
+func (ms *MetricsStorage) broadcastJournalVersionClient(currentVersion int64, stateHash string) {
+	ms.versionClientMu.Lock()
+	defer ms.versionClientMu.Unlock()
+	ms.lastVersion = currentVersion
+	ms.lastHash = stateHash
+	keepPos := 0
+	for _, client := range ms.versionClients {
+		if client.expectedVersion <= currentVersion {
+			close(client.ch)
+		} else {
+			ms.versionClients[keepPos] = client
+			keepPos++
+		}
+	}
+	ms.versionClients = ms.versionClients[:keepPos]
 }

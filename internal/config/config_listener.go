@@ -73,7 +73,7 @@ func (l *ConfigListener) AddChangeCB(f func(config Config)) {
 	l.changeCB = append(l.changeCB, f)
 }
 
-func (l *ConfigListener) ApplyEventCB(newEntries []tlmetadata.Event) {
+func (l *ConfigListener) ApplyEventCB(newEntries []tlmetadata.Event, currentVersion int64, stateHash string) {
 	for _, e := range newEntries {
 		if e.EventType == format.MetricEvent && e.Name == l.configMetric {
 			metric := format.MetricMetaValue{}

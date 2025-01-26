@@ -200,7 +200,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	if sr.Meta.Metric == nil {
 		return nil, fmt.Errorf("metric meta not found")
 	}
-	if len(sr.Meta.Metric.HistorgamBuckets) == 0 {
+	if len(sr.Meta.Metric.HistogramBuckets) == 0 {
 		return nil, fmt.Errorf("histogram meta not found")
 	}
 	m, _, err := sr.group(ev, hashOptions{
@@ -212,7 +212,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	}
 	var res []histogram
 	for _, xs := range m {
-		buckets := make([]bucket, 0, len(sr.Meta.Metric.HistorgamBuckets))
+		buckets := make([]bucket, 0, len(sr.Meta.Metric.HistogramBuckets))
 		for _, x := range xs {
 			if t, ok := sr.Data[x].Tags.Get(labels.BucketLabel); ok {
 				var le float32

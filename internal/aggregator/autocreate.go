@@ -295,7 +295,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1, format.BuiltinMetricMetaAutoCreateMetric)
 	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
-	_ = ac.storage.Journal().WaitVersion(ctx, ret.Version)
+	_ = ac.storage.WaitVersion(ctx, ret.Version)
 	return nil
 }
 

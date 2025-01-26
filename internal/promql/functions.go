@@ -1175,7 +1175,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 					var hi float64    // bucket upper bound count
 					var x int         // bucket upper bound index
 					rank := q * total // quantile corresponding count
-					buckets := res[i].Meta.Metric.HistorgamBuckets
+					buckets := res[i].Meta.Metric.HistogramBuckets
 					for k := 0; x < len(buckets) && k < len(h.buckets); x++ {
 						if buckets[x] == h.buckets[k].le {
 							v := (*d[h.buckets[k].x].Values)[j]
