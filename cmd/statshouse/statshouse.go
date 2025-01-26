@@ -287,9 +287,19 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 	runPprof()
 
 	var (
-		receiversUDP  []*receiver.UDP
-		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, data_model.JournalDDOSProtectionAgentTimeout, dc, nil)
+		receiversUDP []*receiver.UDP
 	)
+	metricStorage := metajournal.MakeMetricsStorage(nil)
+	journal := metajournal.MakeJournal(argv.configAgent.Cluster, data_model.JournalDDOSProtectionAgentTimeout, dc,
+		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
+	// This code is used to investigate journal loading efficiency. TODO - remove after journal is fast and compact
+	// if err := metajournal.LoadTestJournalFromFile(journal, "../internal/metajournal/journal.json"); err != nil {
+	//	panic(err)
+	// }
+	// if err := http.ListenAndServe(":9999", nil); err != nil {
+	//	panic(err)
+	// }
+
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
 	sh2, err := agent.MakeAgent("tcp",
@@ -385,7 +395,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 		return 1
 	}
 	sh2.Run(0, 0, 0)
-	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
+	journal.Start(sh2, nil, sh2.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
 	if argv.configAgent.AutoCreate {

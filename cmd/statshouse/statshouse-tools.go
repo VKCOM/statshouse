@@ -250,8 +250,9 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		}
 		goodMetric.Inc()
 	}
-	metricStorage := metajournal.MakeMetricsStorage("", data_model.JournalDDOSProtectionTimeout, nil, nil)
-	metricStorage.Journal().Start(nil, nil, dolphinLoader)
+	metricStorage := metajournal.MakeMetricsStorage(nil)
+	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil, []metajournal.ApplyEvent{metricStorage.ApplyEvent})
+	journal.Start(nil, nil, dolphinLoader)
 	mapper := mapping.NewMapper("", pmcLoader, nil, nil, 1000, handleMappedMetric)
 
 	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil, nil)
@@ -470,7 +471,7 @@ func mainSimulator() {
 
 	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 
-	metricStorage := metajournal.MakeMetricsStorage("simulator", data_model.JournalDDOSProtectionTimeout, nil, nil)
+	var metricStorage *metajournal.MetricsStorage // simulator code is deprecated, we do not want to fix it
 
 	client, cryptoKey := argvCreateClient()
 
@@ -480,7 +481,6 @@ func mainSimulator() {
 		Address: "127.0.0.1:2442",
 	}
 	loader := metajournal.NewMetricMetaLoader(metaDataClient, metajournal.DefaultMetaTimeout)
-	metricStorage.Journal().Start(nil, nil, loader.LoadJournal)
 	time.Sleep(time.Second) // enough to sync in testing
 
 	for i := 1; i < 20; i++ {
@@ -520,7 +520,7 @@ func mainSimulator() {
 			log.Panicf("Failed to create simulator metric: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		if err := metricStorage.Journal().WaitVersion(ctx, ms.Version); err != nil {
+		if err := metricStorage.WaitVersion(ctx, ms.Version); err != nil {
 			log.Panicf("Failed to create simulator metric: %v", err)
 		}
 		cancel()
@@ -627,55 +627,57 @@ func mainPublishTagDrafts() {
 		work     = make(map[int32]map[int32]format.MetricMetaValue)
 		workCond = sync.NewCond(&workMu)
 	)
-	storage = metajournal.MakeMetricsStorage("", data_model.JournalDDOSProtectionTimeout, nil,
-		func(configID int32, configString string) {
-			switch configID {
-			case format.KnownTagsConfigID:
-				v, err := aggregator.ParseKnownTags([]byte(configString), storage)
-				fmt.Fprintln(os.Stderr, configString)
+	applyPromConfig := func(configID int32, configString string) {
+		switch configID {
+		case format.KnownTagsConfigID:
+			v, err := aggregator.ParseKnownTags([]byte(configString), storage)
+			fmt.Fprintln(os.Stderr, configString)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				break
+			}
+			workCond.L.Lock()
+			config = v
+			workCond.L.Unlock()
+		}
+	}
+	applyEvents := func(newEntries []tlmetadata.Event, currentVersion int64, stateHash string) {
+		var n int
+		for _, e := range newEntries {
+			switch e.EventType {
+			case format.MetricEvent:
+				meta := format.MetricMetaValue{}
+				err := meta.UnmarshalBinary([]byte(e.Data))
 				if err != nil {
+					fmt.Fprintln(os.Stderr, e.Data)
 					fmt.Fprintln(os.Stderr, err)
-					break
+					continue
 				}
+				if meta.NamespaceID == 0 || meta.NamespaceID == format.BuiltinNamespaceIDDefault {
+					continue
+				}
+				if len(meta.TagsDraft) == 0 {
+					continue
+				}
+				// log.Printf("FOUND tag draft %s\n", meta.Name)
 				workCond.L.Lock()
-				config = v
-				workCond.L.Unlock()
-			}
-		},
-		func(newEntries []tlmetadata.Event) {
-			var n int
-			for _, e := range newEntries {
-				switch e.EventType {
-				case format.MetricEvent:
-					meta := format.MetricMetaValue{}
-					err := meta.UnmarshalBinary([]byte(e.Data))
-					if err != nil {
-						fmt.Fprintln(os.Stderr, e.Data)
-						fmt.Fprintln(os.Stderr, err)
-						continue
-					}
-					if meta.NamespaceID == 0 || meta.NamespaceID == format.BuiltinNamespaceIDDefault {
-						continue
-					}
-					if len(meta.TagsDraft) == 0 {
-						continue
-					}
-					// log.Printf("FOUND tag draft %s\n", meta.Name)
-					workCond.L.Lock()
-					if m := work[meta.NamespaceID]; m != nil {
-						m[meta.MetricID] = meta
-					} else {
-						work[meta.NamespaceID] = map[int32]format.MetricMetaValue{meta.MetricID: meta}
-					}
-					workCond.L.Unlock()
-					n++
+				if m := work[meta.NamespaceID]; m != nil {
+					m[meta.MetricID] = meta
+				} else {
+					work[meta.NamespaceID] = map[int32]format.MetricMetaValue{meta.MetricID: meta}
 				}
+				workCond.L.Unlock()
+				n++
 			}
-			if n != 0 {
-				workCond.Signal()
-			}
-		})
-	storage.Journal().Start(nil, nil, loader.LoadJournal)
+		}
+		if n != 0 {
+			workCond.Signal()
+		}
+	}
+	storage = metajournal.MakeMetricsStorage(applyPromConfig)
+	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
+		[]metajournal.ApplyEvent{storage.ApplyEvent, applyEvents}) // order important
+	journal.Start(nil, nil, loader.LoadJournal)
 	fmt.Println("Press <Enter> to start publishing tag drafts")
 	if dryRun {
 		fmt.Println("DRY RUN!")
@@ -728,7 +730,7 @@ func mainPublishTagDrafts() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		err = storage.Journal().WaitVersion(context.Background(), meta.Version)
+		err = storage.WaitVersion(context.Background(), meta.Version)
 		if err != nil {
 			log.Fatal(err)
 		}

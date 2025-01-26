@@ -228,6 +228,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     from: long // строго больше
     limit: long
     return_if_empty: field_mask.3?true
+    // filter_for_agent: field_mask.4?true // will remove everything agent does not need
      = metadata.GetJournalResponsenew fields_mask;
 
 @readwrite statshouse.getTagMapping2#4285ff56

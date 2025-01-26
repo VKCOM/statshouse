@@ -43,7 +43,7 @@ type journalEventID struct {
 
 type MetricsStorageLoader func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
 
-type ApplyEvent func(newEntries []tlmetadata.Event)
+type ApplyEvent func(newEntries []tlmetadata.Event, currentVersion int64, stateHash string)
 
 type Journal struct {
 	mu         sync.RWMutex
@@ -55,6 +55,7 @@ type Journal struct {
 	metricsDead          bool      // together with this bool
 	lastUpdateTime       time.Time // we no more use this information for logic
 	stateHash            string
+	currentVersion       int64
 	stopWriteToDiscCache bool
 	journalRequestDelay  time.Duration // to avoid overusing of CPU by handling journal updates
 
@@ -62,9 +63,6 @@ type Journal struct {
 
 	clientsMu              sync.Mutex // Always taken after mu
 	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
-
-	versionClientMu sync.Mutex
-	versionClients  []versionClient
 
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
@@ -126,33 +124,6 @@ func (ms *Journal) LoadJournal(ctx context.Context, lastVersion int64, returnIfE
 	return ms.metaLoader(ctx, lastVersion, returnIfEmpty)
 }
 
-func (ms *Journal) WaitVersion(ctx context.Context, version int64) error {
-	select {
-	case <-ms.waitVersion(version):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func (ms *Journal) waitVersion(version int64) chan struct{} {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	ms.versionClientMu.Lock()
-	defer ms.versionClientMu.Unlock()
-	ch := make(chan struct{})
-	if ms.versionLocked() >= version {
-		close(ch)
-		return ch
-	}
-
-	ms.versionClients = append(ms.versionClients, versionClient{
-		expectedVersion: version,
-		ch:              ch,
-	})
-	return ch
-}
-
 func (ms *Journal) builtinAddValue(m *data_model.ItemValue, value float64) {
 	ms.MetricsMu.Lock()
 	defer ms.MetricsMu.Unlock()
@@ -183,23 +154,33 @@ func (ms *Journal) parseDiscCache() {
 	sort.Slice(journal2, func(i, j int) bool {
 		return journal2[i].Version < journal2[j].Version
 	})
+	ms.journal = journal2
+	ms.currentVersion, ms.stateHash = calculateVersionStateHashLocked(journal2)
 	// TODO - check invariants here before saving
 	for _, f := range ms.applyEvent {
-		f(journal2)
+		f(journal2, ms.currentVersion, ms.stateHash)
 	}
-	ms.journal = journal2
-	ms.stateHash = calculateStateHashLocked(journal2)
 	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
 }
 
-func calculateStateHashLocked(events []tlmetadata.Event) string {
+func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string) {
+	version := int64(0)
+	if len(events) > 0 {
+		version = events[len(events)-1].Version
+	}
 	r := &tlmetadata.GetJournalResponsenew{Events: events}
 	bytes := r.Write(nil, 0)
 	hash := sha1.Sum(bytes)
-	return hex.EncodeToString(hash[:])
+	return version, hex.EncodeToString(hash[:])
 }
 
 func (ms *Journal) updateJournal(aggLog AggLog) error {
+	_, err := ms.updateJournalIsFinished(aggLog)
+	return err
+}
+
+// for tests to stop when all events are played back
+func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	ms.mu.RLock()
 	isDead := ms.metricsDead
 	stopWriteToDiscCache := ms.stopWriteToDiscCache
@@ -220,16 +201,16 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 		if aggLog != nil {
 			aggLog("journal_update", "", "error", "", "", "", "", err.Error())
 		}
-		return err
+		return false, err
 	}
 	newJournal := updateEntriesJournal(oldJournal, src)
-	stateHash := calculateStateHashLocked(newJournal)
+	currentVersion, stateHash := calculateVersionStateHashLocked(newJournal)
 
 	// TODO - check invariants here before saving
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
-		f(src)
+		f(src, currentVersion, stateHash)
 	}
 
 	if ms.dc != nil && !stopWriteToDiscCache {
@@ -251,8 +232,8 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 	if len(newJournal) > 0 {
 		lastEntry := newJournal[len(newJournal)-1]
 		// TODO - remove this printf in tests
-		log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'",
-			oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
+		//log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'",
+		//	oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
 		if aggLog != nil {
 			aggLog("journal_update", "", "ok",
 				strconv.FormatInt(oldVersion, 10),
@@ -266,15 +247,19 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 	ms.mu.Lock()
 	ms.journal = newJournal
 	ms.stateHash = stateHash
+	ms.currentVersion = currentVersion
 	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false
 	ms.stopWriteToDiscCache = stopWriteToDiscCache
 	ms.mu.Unlock()
 	ms.broadcastJournal()
-	return nil
+	return len(src) == 0, nil
 }
 
 func updateEntriesJournal(oldJournal, newEntries []tlmetadata.Event) []tlmetadata.Event {
+	// newEntries can contain the same event several times
+	// also for all edits old journals contains this event
+	// we want all events once and in order in the journal, hence this code
 	var result []tlmetadata.Event
 	newEntriesMap := map[journalEventID]int64{}
 	for _, entry := range newEntries {
@@ -352,11 +337,6 @@ func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalRes
 }
 
 func (ms *Journal) broadcastJournal() {
-	ms.broadcastJournalRPC()
-	ms.broadcastJournalVersionClient()
-}
-
-func (ms *Journal) broadcastJournalRPC() {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	ms.clientsMu.Lock()
@@ -382,24 +362,6 @@ func (ms *Journal) broadcastJournalRPC() {
 		}
 		hctx.SendHijackedResponse(err)
 	}
-}
-
-func (ms *Journal) broadcastJournalVersionClient() {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	ms.versionClientMu.Lock()
-	defer ms.versionClientMu.Unlock()
-	currentVersion := ms.versionLocked()
-	keepPos := 0
-	for _, client := range ms.versionClients {
-		if client.expectedVersion <= currentVersion {
-			close(client.ch)
-		} else {
-			ms.versionClients[keepPos] = client
-			keepPos++
-		}
-	}
-	ms.versionClients = ms.versionClients[:keepPos]
 }
 
 func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
