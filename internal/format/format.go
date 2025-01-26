@@ -283,23 +283,6 @@ type MetricMetaValue struct {
 	Namespace *NamespaceMeta `json:"-"` // don't use directly
 }
 
-type MetricMetaValueOld struct {
-	MetricID             int32           `json:"metric_id"`
-	Name                 string          `json:"name"`
-	Description          string          `json:"description,omitempty"`
-	Tags                 []MetricMetaTag `json:"tags,omitempty"`
-	Visible              bool            `json:"visible,omitempty"`
-	Kind                 string          `json:"kind"`
-	Weight               int64           `json:"weight,omitempty"`
-	Resolution           int             `json:"resolution,omitempty"`             // no invariants
-	StringTopName        string          `json:"string_top_name,omitempty"`        // no invariants
-	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
-	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
-	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
-	UpdateTime           uint32          `json:"update_time"`
-	Version              int64           `json:"version,omitempty"`
-}
-
 // TODO - better place?
 type CreateMappingExtra struct {
 	Create    bool
