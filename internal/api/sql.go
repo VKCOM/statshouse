@@ -77,13 +77,19 @@ func (b *queryBuilder) getOrBuildCacheKey() string {
 	b.WriteString(fmt.Sprint(b.isStringTop()))
 	b.WriteString(`,"what":[`)
 	i := 0
-	for ; b.what.specifiedAt(i); i++ {
+	lastWhat := data_model.DigestUnspecified
+	for j := 0; b.what.specifiedAt(j); j++ {
+		if lastWhat == b.what[j].What {
+			continue
+		}
+		lastWhat = b.what[j].What
 		if i > 0 {
 			b.WriteString(",")
 		}
 		b.WriteString(`"`)
-		b.WriteString(b.what[i].String())
+		b.WriteString(b.what[j].What.String())
 		b.WriteString(`"`)
+		i++
 	}
 	if b.minMaxHost[0] {
 		if i > 0 {
@@ -465,7 +471,7 @@ func (q *pointsSelectCols) loadPointsSelectWhat(lod *data_model.LOD) {
 			q.WriteString(columnName)
 			j++
 		default:
-			panic(fmt.Errorf("unsupported operation kind: %q", q.what[i]))
+			panic(fmt.Errorf("unsupported operation kind: %q", q.what[i].What))
 		}
 		has[q.what[i].What] = true
 		comma = true

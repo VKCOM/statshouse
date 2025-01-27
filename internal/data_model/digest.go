@@ -6,8 +6,6 @@
 
 package data_model
 
-import "fmt"
-
 type DigestSelector struct {
 	What     DigestWhat
 	Argument float64
@@ -29,8 +27,8 @@ const (
 	DigestLast
 )
 
-func (k DigestSelector) String() string {
-	switch k.What {
+func (k DigestWhat) String() string {
+	switch k {
 	case DigestAvg:
 		return "avg"
 	case DigestCount:
@@ -42,7 +40,7 @@ func (k DigestSelector) String() string {
 	case DigestSum:
 		return "sum"
 	case DigestPercentile:
-		return fmt.Sprintf("p%.3f", k.Argument)
+		return "percentile"
 	case DigestCardinality:
 		return "cardinality"
 	case DigestUnique:
