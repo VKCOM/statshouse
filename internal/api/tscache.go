@@ -9,14 +9,11 @@ package api
 import (
 	"context"
 	"math"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"go.uber.org/atomic"
 )
 
@@ -99,87 +96,11 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 				invalidatedAtNano: map[int64]int64{},
 				lastDrop:          now,
 				dropEvery:         data_model.CacheDropInterval(version),
-				bytesAlloc: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheBytesAlloc.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
-				}),
-				bytesFreeStale: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheBytesFree.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "1",
-				}),
-				bytesFreeLRU: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheBytesFree.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "2",
-				}),
-				bytesFreeOverride: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheBytesFree.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "3",
-				}),
-				bytesTotal: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheBytesTotal.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
-				}),
-				ageTotal: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheAgeTotal.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10),
-				}),
-				ageEvictStale: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheAgeEvict.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "1",
-				}),
-				ageEvictLRU: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheAgeEvict.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "2",
-				}),
-				ageEvictOverride: statshouse.GetMetricRef(format.BuiltinMetricMetaAPICacheAgeEvict.Name, statshouse.Tags{
-					1: srvfunc.HostnameForStatshouse(), 2: version, 3: strconv.FormatInt(stepSec, 10), 4: "3",
-				}),
 			}
 		}
 	}
 
-	var ctx context.Context
-	ctx, g.shutdown = context.WithCancel(context.Background())
-	go func() {
-		timer := time.NewTimer(time.Hour)
-		if !timer.Stop() {
-			<-timer.C
-		}
-		for interval := time.Duration(15 * time.Second); ; {
-			now := time.Now()
-			timer.Reset(now.Truncate(interval).Add(interval).Sub(now))
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				g.reportStats()
-			}
-		}
-	}()
 	return g
-}
-
-func (g *tsCacheGroup) reportStats() {
-	for _, v := range g.pointCaches {
-		for _, v := range v {
-			v.reportStats()
-		}
-	}
-}
-
-func (c *tsCache) reportStats() {
-	var n int64
-	c.cacheMu.RLock()
-	defer c.cacheMu.RUnlock()
-	for _, v := range c.cache {
-		for _, v := range v.secRows {
-			n += v.sizeInBytes()
-			c.ageTotal.Value(v.ageInSeconds())
-		}
-	}
-	if n != 0 {
-		c.bytesTotal.Value(float64(n))
-	}
-}
-
-func (c *tsVersionedRows) ageInSeconds() float64 {
-	return time.Since(time.Unix(0, c.loadedAtNano)).Seconds()
-}
-
-func (c *tsVersionedRows) sizeInBytes() int64 {
-	return int64(tsSelectRowSize * len(c.rows))
 }
 
 func (g *tsCacheGroup) changeMaxSize(newSize int) {
@@ -215,15 +136,6 @@ type tsCache struct {
 	invalidatedAtNano map[int64]int64
 	lastDrop          time.Time
 	dropEvery         time.Duration
-	bytesAlloc        statshouse.MetricRef
-	bytesFreeStale    statshouse.MetricRef
-	bytesFreeLRU      statshouse.MetricRef
-	bytesFreeOverride statshouse.MetricRef
-	bytesTotal        statshouse.MetricRef
-	ageTotal          statshouse.MetricRef
-	ageEvictStale     statshouse.MetricRef
-	ageEvictLRU       statshouse.MetricRef
-	ageEvictOverride  statshouse.MetricRef
 }
 
 type tsLoadFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error)
@@ -257,8 +169,6 @@ func (c *tsCache) maybeDropCache() {
 				cached, ok := e.secRows[t]
 				if ok {
 					c.size -= len(cached.rows)
-					c.ageEvictStale.Value(cached.ageInSeconds())
-					c.bytesFreeStale.Value(float64(cached.sizeInBytes()))
 					delete(e.secRows, t)
 				}
 			}
@@ -350,13 +260,8 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 		if loadAtNano > cached.loadedAtNano {
 			loadedRows := ret[i]
 			c.size += len(loadedRows) - len(cached.rows)
-			if n := cached.sizeInBytes(); n != 0 {
-				c.ageEvictOverride.Value(cached.ageInSeconds())
-				c.bytesFreeOverride.Value(float64(cached.sizeInBytes()))
-			}
 			cached.loadedAtNano = loadAtNano
 			cached.rows = loadedRows
-			c.bytesAlloc.Value(float64(cached.sizeInBytes()))
 		}
 		t = data_model.StepForward(t, c.stepSec, lod.Location)
 	}
@@ -479,8 +384,6 @@ func (c *tsCache) evictLocked() int {
 	n := 0
 	for _, cached := range v.secRows {
 		n += len(cached.rows)
-		c.ageEvictLRU.Value(cached.ageInSeconds())
-		c.bytesFreeLRU.Value(float64(cached.sizeInBytes()))
 	}
 	delete(c.cache, k)
 	return n

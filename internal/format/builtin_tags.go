@@ -364,31 +364,6 @@ const (
 )
 
 var (
-	versionToValue = map[int32]string{
-		1: "v1",
-		2: "v2",
-	}
-
-	secondsToValue = map[int32]string{
-		1:       "1s",
-		5:       "5s",
-		15:      "15s",
-		60:      "1m",
-		300:     "5m",
-		900:     "15m",
-		3600:    "1h",
-		14400:   "4h",
-		86400:   "24h",
-		604800:  "7d",
-		2678400: "1M",
-	}
-
-	apiCacheEvictionReason = map[int32]string{
-		1: "stale",  // known to be stale
-		2: "LRU",    // evicted to free up memory
-		3: "update", // evicted by more recent load
-	}
-
 	apiBufferKind = map[int32]string{
 		1: "pool", // "sync.Pool", allocated buffer is subject for reuse (good)
 		2: "heap", // large buffer won't be reused (bad, should not happen)
