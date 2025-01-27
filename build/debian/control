@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 9)
 Standards-Version: 3.9.5
 Homepage: https://github.com/VKCOM/statshouse
 
-Package: statshouse
+Package: statshouse-video
 Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: statshouse provides the main daemon of the StatsHouse monitoring system.

@@ -1,0 +1,27 @@
+[Unit]
+Description=The main daemon of the StatsHouse monitoring system
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# NB! Do not modify '-u' and '-g' parameters
+ExecStart=/usr/share/engine/bin/statshouse-video -u='' -g=''\
+ --agg-addr='localhost:13335,localhost:13335,localhost:13335'\
+ --cache-dir=/var/lib/statshouse-video
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+
+DynamicUser=true
+StateDirectory=statshouse-video
+WorkingDirectory=/var/lib/statshouse-video
+PrivateUsers=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

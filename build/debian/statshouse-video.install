@@ -1,0 +1,2 @@
+../target/statshouse-video usr/share/engine/bin/
+../cmd/statshouse/statshouse-video.service usr/lib/systemd/system/
