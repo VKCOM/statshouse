@@ -43,8 +43,8 @@ fi
 docker build --file build/packages.Dockerfile \
     --build-arg BUILD_TIME \
     --build-arg BUILD_MACHINE \
-    --build-arg BUILD_COMMIT \
-    --build-arg BUILD_COMMIT_TS \
+    --build-arg BUILD_COMMIT=$BUILD_COMMIT \
+    --build-arg BUILD_COMMIT_TS=$BUILD_COMMIT_TS \
     --build-arg BUILD_ID \
     --build-arg BUILD_VERSION=$UPSTREAM \
     --build-arg BUILD_TRUSTED_SUBNET_GROUPS \
