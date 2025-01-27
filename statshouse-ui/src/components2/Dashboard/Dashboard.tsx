@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useStatsHouseShallow } from '@/store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
@@ -19,6 +19,8 @@ import { useLinkPlot } from '@/hooks/useLinkPlot';
 import { useGlobalLoader } from '@/store2/plotQueryStore';
 import { useTvModeStore } from '@/store2/tvModeStore';
 import { ErrorMessages } from '@/components/ErrorMessages';
+import { produce } from '~immer/dist/immer';
+import { HistoryList } from '../HistoryList';
 
 export type DashboardProps = {
   className?: string;
@@ -37,6 +39,8 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
     setDashboardLayoutEdit,
     isDashboard,
     saveDashboard,
+    dashboardId,
+    setParams,
   } = useStatsHouseShallow(
     useCallback(
       ({
@@ -45,6 +49,7 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
         dashboardLayoutEdit,
         setDashboardLayoutEdit,
         saveDashboard,
+        setParams,
       }) => ({
         tabNum,
         isEmbed,
@@ -55,21 +60,36 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
         setDashboardLayoutEdit,
         isDashboard: dashboardId != null,
         saveDashboard,
+        dashboardId,
+        setParams,
       }),
       []
     )
   );
 
-  const onSaveDashboard = useCallback(() => {
-    saveDashboard().then(() => {
+  const onSaveDashboard = async () => {
+    const dashResponse = await saveDashboard();
+    if (dashResponse) {
+      setParams(
+        produce((params) => {
+          params.dashboardCurrentVersion = undefined;
+        })
+      );
       setDashboardLayoutEdit(false);
-    });
-  }, [saveDashboard, setDashboardLayoutEdit]);
+    }
+  };
 
   const dashboardLink = useLinkPlot('-1', true);
   const dashboardSettingLink = useLinkPlot('-2', true);
+  const dashboardHistoryLink = useLinkPlot('-3', true);
 
   const isPlot = +tabNum > -1;
+
+  const onVersionClick = useCallback(() => {
+    setDashboardLayoutEdit?.(false);
+  }, [setDashboardLayoutEdit]);
+
+  const mainPath = useMemo(() => `/view?id=${dashboardId}`, [dashboardId]);
 
   return (
     <div className={className}>
@@ -87,6 +107,13 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
             <Link className={cn('nav-link', tabNum === '-2' && 'active')} to={dashboardSettingLink}>
               Setting
             </Link>
+          </li>
+          <li className="nav-item">
+            {dashboardId && (
+              <Link className={cn('nav-link', tabNum === '-3' && 'active')} to={dashboardHistoryLink}>
+                History
+              </Link>
+            )}
           </li>
 
           <li className="nav-item flex-grow-1"></li>
@@ -119,6 +146,9 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
       )}
       <DashboardLayout className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
       {tabNum === '-2' && <DashboardSettings />}
+      {tabNum === '-3' && dashboardId && (
+        <HistoryList id={dashboardId} onVersionClick={onVersionClick} mainPath={mainPath} pathVersionParam={'&dv'} />
+      )}
     </div>
   );
 });
