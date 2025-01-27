@@ -2187,124 +2187,13 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	}},
 }
 
-// const BuiltinMetricIDAggAgentSharding           = -98  // deprecated
-const BuiltinMetricIDAPICacheBytesAlloc = -99
-
-var BuiltinMetricMetaAPICacheBytesAlloc = &MetricMetaValue{
-	Name:                    "__api_cache_bytes_alloc",
-	Kind:                    MetricKindValue,
-	Description:             "API cache memory allocation in bytes.",
-	MetricType:              MetricByte,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "host",
-	}, {
-		Description:   "version",
-		ValueComments: convertToValueComments(versionToValue),
-	}, {
-		Description:   "step",
-		ValueComments: convertToValueComments(secondsToValue),
-	}},
-}
-
-const BuiltinMetricIDAPICacheBytesFree = -100
-
-var BuiltinMetricMetaAPICacheBytesFree = &MetricMetaValue{
-	Name:                    "__api_cache_bytes_free",
-	Kind:                    MetricKindValue,
-	Description:             "API cache memory deallocation in bytes.",
-	MetricType:              MetricByte,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "host",
-	}, {
-		Description:   "version",
-		ValueComments: convertToValueComments(versionToValue),
-	}, {
-		Description:   "step",
-		ValueComments: convertToValueComments(secondsToValue),
-	}, {
-		Description:   "reason",
-		ValueComments: convertToValueComments(apiCacheEvictionReason),
-	}},
-}
-
-const BuiltinMetricIDAPICacheBytesTotal = -101
-
-var BuiltinMetricMetaAPICacheBytesTotal = &MetricMetaValue{
-	Name:                    "__api_cache_bytes_total",
-	Kind:                    MetricKindValue,
-	Resolution:              15,
-	Description:             "API cache size in bytes.",
-	MetricType:              MetricByte,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "host",
-	}, {
-		Description:   "version",
-		ValueComments: convertToValueComments(versionToValue),
-	}, {
-		Description:   "step",
-		ValueComments: convertToValueComments(secondsToValue),
-	}},
-}
-
-const BuiltinMetricIDAPICacheAgeEvict = -102
-
-var BuiltinMetricMetaAPICacheAgeEvict = &MetricMetaValue{
-	Name:                    "__api_cache_age_evict",
-	Kind:                    MetricKindValue,
-	Description:             "API cache entry age when evicted in seconds.",
-	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "host",
-	}, {
-		Description:   "version",
-		ValueComments: convertToValueComments(versionToValue),
-	}, {
-		Description:   "step",
-		ValueComments: convertToValueComments(secondsToValue),
-	}, {
-		Description:   "reason",
-		ValueComments: convertToValueComments(apiCacheEvictionReason),
-	}},
-}
-
-const BuiltinMetricIDAPICacheAgeTotal = -103
-
-var BuiltinMetricMetaAPICacheAgeTotal = &MetricMetaValue{
-	Name:                    "__api_cache_age_total",
-	Kind:                    MetricKindValue,
-	Resolution:              15,
-	Description:             "API cache age in seconds.",
-	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "host",
-	}, {
-		Description:   "version",
-		ValueComments: convertToValueComments(versionToValue),
-	}, {
-		Description:   "step",
-		ValueComments: convertToValueComments(secondsToValue),
-	}},
-}
+// DEPRECATED:
+// const BuiltinMetricIDAggAgentSharding = -98
+// const BuiltinMetricIDAPICacheBytesAlloc = -99
+// const BuiltinMetricIDAPICacheBytesFree = -100
+// const BuiltinMetricIDAPICacheBytesTotal = -101
+// const BuiltinMetricIDAPICacheAgeEvict = -102
+// const BuiltinMetricIDAPICacheAgeTotal = -103
 
 const BuiltinMetricIDAPIBufferBytesAlloc = -104
 
