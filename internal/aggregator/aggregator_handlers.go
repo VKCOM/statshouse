@@ -541,7 +541,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
-		mi.MergeWithTLMultiItem(rng, &item, hostId)
+		mi.MergeWithTLMultiItem(rng, &item, hostTag)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
 				newKeys = append(newKeys, k)
