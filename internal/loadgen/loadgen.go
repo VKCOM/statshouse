@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/api"
-
+	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse-go"
@@ -79,4 +79,41 @@ func makeInterruptibleContext() context.Context {
 		cancel()
 	}()
 	return ctx
+}
+
+func RunEnableNewPipeline() {
+	ctx := makeInterruptibleContext()
+	c := api.NewClient("http://127.0.0.1:10888", "loadgen")
+	ensureMetricWithDescription(ctx, c, "statshouse_api_remote_config", `
+--version3-start=1
+--version3-prob=1
+`)
+	ensureMetricWithDescription(ctx, c, "statshouse_agent_remote_config", `
+-buitin-new-conveyor=true
+`)
+	ensureMetricWithDescription(ctx, c, "statshouse_aggregator_remote_config", `
+-map-string-top=true
+`)
+}
+
+func ensureMetricWithDescription(ctx context.Context, client *api.Client, name, desc string) {
+	m, err := client.GetMetric(ctx, name)
+	if err != nil {
+		log.Fatalf("Failed to get metric: %v", err)
+	}
+	if m == nil {
+		m = &api.MetricInfo{
+			Metric: format.MetricMetaValue{
+				Name:       "statshouse_api_remote_config",
+				Kind:       format.MetricKindMixed,
+				Resolution: 1,
+				Visible:    true,
+			},
+		}
+	}
+	m.Metric.Description = desc
+	err = client.PostMetric(ctx, m)
+	if err != nil {
+		log.Fatalf("Failed to post metric: %v", err)
+	}
 }
