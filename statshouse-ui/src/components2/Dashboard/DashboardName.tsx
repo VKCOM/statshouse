@@ -70,7 +70,7 @@ export const DashboardName = memo(function DashboardName() {
     <StickyTop>
       <div className="container-xl d-flex">
         <Tooltip
-          className="d-flex flex-row gap-2 w-75"
+          className="d-flex flex-row gap-2 w-75 my-auto"
           title={<DashboardNameTitle name={dashboardName} description={dashboardDescription} />}
           hover
           horizontal="left"

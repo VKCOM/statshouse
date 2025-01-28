@@ -17,7 +17,7 @@ export const StickyTop = memo(function StickyTop({ children, className, ...props
   const scrollY = useWindowSize((s) => s.scrollY > 16);
 
   return (
-    <div className={cn('sticky-top mt-2 bg-body mb-3', scrollY && 'shadow-sm small', className)} {...props}>
+    <div className={cn('sticky-top mt-2 bg-body', scrollY && 'shadow-sm small', className)} {...props}>
       {children}
     </div>
   );

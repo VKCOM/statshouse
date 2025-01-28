@@ -31,8 +31,8 @@ export const HistoryLink = memo(function HistoryLink({
           style={{ width: '400px' }}
           onClick={onVersionClick}
         >
-          <span className="text-muted">{`time: ${timeChange || 'unknown'}`}</span>
-          <span className="fw-semibold">{`name: ${event?.metadata?.user_email || 'unknown'}`}</span>
+          {timeChange && <span className="text-muted">{`time: ${timeChange}`}</span>}
+          <span className="fw-semibold">{`author: ${event?.metadata?.user_email || 'unknown'}`}</span>
           <span>
             {`version: ${event?.version || 'unknown'}`}
             {isActualVersion && <span className="badge bg-primary ms-2">current</span>}
