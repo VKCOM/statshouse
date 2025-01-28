@@ -344,8 +344,7 @@ type TagValueQuery struct {
 
 type TagValueIDQuery struct {
 	Version  string
-	Metric   *format.MetricMetaValue
-	TagIndex int
+	Tag      format.MetricMetaTag
 	TagValue string
 }
 

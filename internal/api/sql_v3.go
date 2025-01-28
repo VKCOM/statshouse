@@ -14,16 +14,11 @@ func (q *pointsSelectCols) writeTagsV3(lod *data_model.LOD, opt writeTagsOptions
 		opt.comma = true
 	}
 	if opt.cols {
-		q.tag = make([]proto.ColInt32, 0, len(q.by))
-		q.stag = make([]proto.ColStr, 0, len(q.by))
+		q.tag = make([]tagCol, 0, len(q.by))
+		q.stag = make([]stagCol, 0, len(q.by))
 	}
 	for _, x := range q.by {
 		switch x {
-		case format.StringTopTagIndex:
-			if opt.cols {
-				q.res = append(q.res, proto.ResultColumn{Name: "stag_s", Data: &q.tagStr})
-			}
-			q.writeMaybeCommaString("stag47 AS stag_s", opt.comma)
 		case format.ShardTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "key_shard_num", Data: &q.shardNum})
@@ -32,11 +27,10 @@ func (q *pointsSelectCols) writeTagsV3(lod *data_model.LOD, opt writeTagsOptions
 		default:
 			id := format.TagID(x)
 			if opt.cols {
-				q.tag = append(q.tag, proto.ColInt32{})
-				q.res = append(q.res, proto.ResultColumn{Name: "tag" + id, Data: &q.tag[len(q.tag)-1]})
-				q.stag = append(q.stag, proto.ColStr{})
-				q.res = append(q.res, proto.ResultColumn{Name: "stag" + id, Data: &q.stag[len(q.tag)-1]})
-				q.tagX = append(q.tagX, x)
+				q.tag = append(q.tag, tagCol{tagX: x})
+				q.res = append(q.res, proto.ResultColumn{Name: "tag" + id, Data: &q.tag[len(q.tag)-1].data})
+				q.stag = append(q.stag, stagCol{tagX: x})
+				q.res = append(q.res, proto.ResultColumn{Name: "stag" + id, Data: &q.stag[len(q.stag)-1].data})
 			}
 			q.writeMaybeCommaString(q.mappedColumnNameV3(id, lod), opt.comma)
 			q.WriteString(" AS tag")

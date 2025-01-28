@@ -7,7 +7,6 @@
 package api
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -1060,8 +1059,9 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			continue // we only support production tables for v1
 		}
 		if k == format.StringTopTagID {
+			stringTop := &m.Tags[format.StringTopTagIndexV3]
 			for _, val := range values {
-				m.StringTop = append(m.StringTop, unspecifiedToEmpty(val))
+				stringTop.Values = append(stringTop.Values, data_model.NewTagValueS(val))
 			}
 		} else {
 			ids, err := h.getRichTagValueIDs(metricMeta, version, k, values)
@@ -2647,7 +2647,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 			continue
 		}
 		k := id
-		v := SeriesMetaTag{Value: tag.SValue}
+		v := SeriesMetaTag{Value: emptyToUnspecified(tag.SValue)}
 		if tag.Index != 0 {
 			var name string
 			index := tag.Index - promql.SeriesTagIndexOffset
@@ -2754,10 +2754,8 @@ type pointsSelectCols struct {
 	step    proto.ColInt64
 
 	// tags
-	tag    []proto.ColInt32
-	stag   []proto.ColStr
-	tagX   []int
-	tagStr proto.ColStr
+	tag  []tagCol
+	stag []stagCol
 
 	// values
 	min         proto.ColFloat64
@@ -2779,6 +2777,16 @@ type pointsSelectCols struct {
 	res proto.Results
 }
 
+type tagCol struct {
+	data proto.ColInt32
+	tagX int
+}
+
+type stagCol struct {
+	data proto.ColStr
+	tagX int
+}
+
 func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	row := tsSelectRow{
 		what:    c.what,
@@ -2787,17 +2795,16 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
-		if c.tag[j][i] != 0 {
-			row.tag[c.tagX[j]] = c.tag[j][i]
-		} else if len(c.stag) != 0 {
-			hasSTag := c.stag[j].Pos[i].Start < c.stag[j].Pos[i].End && c.stag[j].Pos[i].End <= len(c.stag[j].Buf)
-			if hasSTag {
-				row.stag[c.tagX[j]] = string(c.stag[j].Buf[c.stag[j].Pos[i].Start:c.stag[j].Pos[i].End])
-			}
+		if c.tag[j].data[i] != 0 {
+			row.tag[c.tag[j].tagX] = c.tag[j].data[i]
 		}
 	}
-	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
-		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+	for j := range c.stag {
+		start := c.stag[j].data.Pos[i].Start
+		end := c.stag[j].data.Pos[i].End
+		if start < end && end <= len(c.stag[j].data.Buf) {
+			row.stag[c.stag[j].tagX] = string(c.stag[j].data.Buf[start:end])
+		}
 	}
 	if len(c.minHostV2) != 0 {
 		row.minHost = c.minHostV2[i]
@@ -2821,10 +2828,7 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 	var row pSelectRow
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
-		row.tag[c.tagX[j]] = c.tag[j][i]
-	}
-	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
-		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+		row.tag[c.tag[j].tagX] = c.tag[j].data[i]
 	}
 	if len(c.minHostV2) != 0 {
 		row.minHost = c.minHostV2[i]
@@ -2874,9 +2878,7 @@ func (c *pointsSelectCols) valuesAt(x int, dst *tsValues) {
 	}
 }
 
-func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagValuePtr *stringFixed) string {
-	tagValue := skeyFromFixedString(tagValuePtr)
-
+func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagValue string) string {
 	if containsString(by, format.StringTopTagID) {
 		m[format.LegacyStringTopTagID] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
 		return tagValue
@@ -2884,18 +2886,6 @@ func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, 
 	return ""
 }
 
-func skeyFromFixedString(tagValuePtr *stringFixed) string {
-	tagValue := ""
-	nullIx := bytes.IndexByte(tagValuePtr[:], 0)
-	switch nullIx {
-	case 0: // do nothing
-	case -1:
-		tagValue = string(tagValuePtr[:])
-	default:
-		tagValue = string(tagValuePtr[:nullIx])
-	}
-	return tagValue
-}
 func replaceInfNan(v *float64) {
 	if math.IsNaN(*v) {
 		*v = -1.111111 // Motivation - 99.9% of our graphs are >=0, -1.111111 will stand out. But we do not expect NaNs.
@@ -3051,13 +3041,6 @@ func containsString(s []string, v string) bool {
 func emptyToUnspecified(s string) string {
 	if s == "" {
 		return format.CodeTagValue(format.TagValueIDUnspecified)
-	}
-	return s
-}
-
-func unspecifiedToEmpty(s string) string {
-	if s == format.CodeTagValue(format.TagValueIDUnspecified) {
-		return ""
 	}
 	return s
 }

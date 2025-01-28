@@ -14,30 +14,36 @@ func (q *pointsSelectCols) writeTagsV2(lod *data_model.LOD, opt writeTagsOptions
 		opt.comma = true
 	}
 	if opt.cols {
-		q.tag = make([]proto.ColInt32, 0, len(q.by))
+		q.tag = make([]tagCol, 0, len(q.by))
 	}
 	for _, x := range q.by {
 		switch x {
-		case format.StringTopTagIndex:
-			if opt.cols {
-				q.res = append(q.res, proto.ResultColumn{Name: "key_s", Data: &q.tagStr})
-			}
-			q.writeMaybeCommaString("skey AS key_s", opt.comma)
 		case format.ShardTagIndex:
 			if opt.cols {
 				q.res = append(q.res, proto.ResultColumn{Name: "key_shard_num", Data: &q.shardNum})
+				q.writeMaybeCommaString("_shard_num AS key_shard_num", opt.comma)
+			} else {
+				q.writeMaybeCommaString("key_shard_num", opt.comma)
 			}
-			q.writeMaybeCommaString("_shard_num AS key_shard_num", opt.comma)
 		default:
 			id := format.TagID(x)
 			if opt.cols {
-				q.tag = append(q.tag, proto.ColInt32{})
-				q.res = append(q.res, proto.ResultColumn{Name: "key" + id, Data: &q.tag[len(q.tag)-1]})
-				q.tagX = append(q.tagX, x)
+				var data proto.ColResult
+				if x == format.StringTopTagIndexV3 {
+					q.stag = append(q.stag, stagCol{tagX: x})
+					data = &q.stag[len(q.stag)-1].data
+				} else {
+					q.tag = append(q.tag, tagCol{tagX: x})
+					data = &q.tag[len(q.tag)-1].data
+				}
+				q.res = append(q.res, proto.ResultColumn{Name: "key" + id, Data: data})
+				q.writeMaybeCommaString(q.mappedColumnNameV2(id, lod), opt.comma)
+				q.WriteString(" AS key")
+				q.WriteString(id)
+			} else {
+				q.writeMaybeCommaString("key", opt.comma)
+				q.WriteString(id)
 			}
-			q.writeMaybeCommaString(q.mappedColumnNameV2(id, lod), opt.comma)
-			q.WriteString(" AS key")
-			q.WriteString(id)
 		}
 		opt.comma = true
 	}
@@ -91,7 +97,7 @@ func (b *queryBuilder) mappedColumnNameV2(tagID string, lod *data_model.LOD) str
 	// intentionally not using constants from 'format' package,
 	// because it is a table column name, not an external contract
 	switch tagID {
-	case format.StringTopTagID:
+	case format.StringTopTagID, format.StringTopTagIDV3:
 		return "skey"
 	case format.ShardTagID:
 		return "_shard_num"

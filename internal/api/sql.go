@@ -7,7 +7,6 @@
 package api
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 	"strings"
@@ -162,15 +161,17 @@ func (b *queryBuilder) writeTagFiltersCacheKey(f data_model.TagFilters, s []stri
 		}
 		n++
 	}
-	if f.StringTopRe2 != "" {
+	if stringTop := &f.Tags[format.StringTopTagIndexV3]; stringTop.Re2 != "" {
 		if n != 0 {
 			b.WriteString(",")
 		}
 		b.WriteString(`"_s":"`)
-		b.WriteString(f.StringTopRe2)
+		b.WriteString(stringTop.Re2)
 		b.WriteString(`"`)
-	} else if len(f.StringTop) != 0 {
-		s = append(s[:0], f.StringTop...)
+	} else if len(stringTop.Values) != 0 {
+		for _, v := range stringTop.Values {
+			s = append(s[:0], v.Value)
+		}
 		sort.Strings(s)
 		if n != 0 {
 			b.WriteString(",")
@@ -237,19 +238,20 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		b.WriteString(" AND (")
 		// mapped
 		tagID := format.TagID(i)
+		legacyStringTOP := i == format.StringTopTagIndexV3 && lod.Version != "3"
 		var hasMapped bool
 		var hasValue bool
-		var version3HasEmpty bool
+		var hasEmpty bool
 		var started bool
 		for _, v := range filter.Values {
-			if version3StrcmpOn && v.Empty() {
-				version3HasEmpty = true
+			if v.Empty() {
+				hasEmpty = true
 				continue
 			}
 			if v.HasValue() {
 				hasValue = true
 			}
-			if v.IsMapped() {
+			if v.IsMapped() && !legacyStringTOP {
 				if !hasMapped {
 					if started {
 						b.WriteString(sep)
@@ -268,7 +270,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		}
 		if hasMapped {
 			b.WriteString(")")
-		} else {
+		} else if !legacyStringTOP {
 			if in {
 				// empty positive filter means there are no items satisfaing search criteria
 				b.WriteString("0!=0")
@@ -279,7 +281,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 			started = true
 		}
 		// not mapped
-		if version3StrcmpOn {
+		if version3StrcmpOn || legacyStringTOP {
 			if filter.Re2 != "" {
 				if started {
 					b.WriteString(sep)
@@ -321,7 +323,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 			}
 		}
 		// empty
-		if version3HasEmpty {
+		if hasEmpty {
 			if started {
 				b.WriteString(sep)
 			}
@@ -329,35 +331,16 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 				b.WriteString("NOT ")
 			}
 			b.WriteString("(")
-			b.WriteString(b.mappedColumnNameV3(tagID, lod))
-			b.WriteString("=0 AND ")
-			b.WriteString(b.unmappedColumnNameV3(tagID))
-			b.WriteString("='')")
+			b.WriteString(b.unmappedColumnName(tagID, lod.Version))
+			b.WriteString("=''")
+			if lod.Version == "3" {
+				b.WriteString(" AND ")
+				b.WriteString(b.mappedColumnNameV3(tagID, lod))
+				b.WriteString("=0")
+			}
+			b.WriteString(")")
 		}
 		b.WriteString(")")
-	}
-	// String top
-	if f.StringTopRe2 != "" {
-		b.WriteString(" AND")
-		if !in {
-			b.WriteString(" NOT")
-		}
-		b.WriteString(" match(")
-		b.WriteString(b.unmappedColumnName(format.StringTopTagID, lod.Version))
-		b.WriteString(",'")
-		b.WriteString(escapeReplacer.Replace(f.StringTopRe2))
-		b.WriteString("')")
-	} else if len(f.StringTop) != 0 {
-		b.WriteString(" AND ")
-		b.WriteString(b.unmappedColumnName(format.StringTopTagID, lod.Version))
-		b.WriteString(predicate)
-		b.WriteString(" ('")
-		b.WriteString(escapeReplacer.Replace(f.StringTop[0]))
-		for i := 1; i < len(f.StringTop); i++ {
-			b.WriteString("','")
-			b.WriteString(escapeReplacer.Replace(f.StringTop[i]))
-		}
-		b.WriteString("')")
 	}
 }
 
@@ -678,25 +661,6 @@ func metricColumn(version string) string {
 		return "stats"
 	}
 	return "metric"
-}
-
-type stringFixed [format.MaxStringLen]byte
-
-func (s *stringFixed) UnmarshalBinary(data []byte) error {
-	copy(s[:], data)
-	return nil
-}
-
-func (s *stringFixed) String() string {
-	nullIx := bytes.IndexByte(s[:], 0)
-	switch nullIx {
-	case 0:
-		return ""
-	case -1:
-		return string(s[:])
-	default:
-		return string(s[:nullIx])
-	}
 }
 
 func (b *queryBuilder) preKeyTableName(lod *data_model.LOD) string {

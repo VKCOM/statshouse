@@ -103,7 +103,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 						})
 					}
 				}
-				skey := maybeAddQuerySeriesTagValueString(kvs, req.by, &tags.tagStr)
+				skey := maybeAddQuerySeriesTagValueString(kvs, req.by, tags.stag[format.StringTopTagIndexV3])
 				rowRepr.SKey = skey
 				key := tableRowKey{
 					time:   rows[i].time,
@@ -179,12 +179,12 @@ func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, 
 
 func inRange(row tsSelectRow, from, to RowMarker, fromEnd bool) bool {
 	if from.Time != 0 {
-		if !lessThan(from, row, skeyFromFixedString(&row.tsTags.tagStr), false, fromEnd) {
+		if !lessThan(from, row, row.tsTags.stag[format.StringTopTagIndexV3], false, fromEnd) {
 			return false
 		}
 	}
 	if to.Time != 0 {
-		if lessThan(to, row, skeyFromFixedString(&row.tsTags.tagStr), true, fromEnd) {
+		if lessThan(to, row, row.tsTags.stag[format.StringTopTagIndexV3], true, fromEnd) {
 			return false
 		}
 	}

@@ -21,10 +21,8 @@ type QueryFilter struct {
 }
 
 type TagFilters struct {
-	Metrics      []*format.MetricMetaValue
-	Tags         [format.NewMaxTags]TagFilter
-	StringTop    []string
-	StringTopRe2 string
+	Metrics []*format.MetricMetaValue
+	Tags    [format.NewMaxTags]TagFilter
 }
 
 type TagFilter struct {
