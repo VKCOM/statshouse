@@ -84,11 +84,15 @@ type (
 	}
 )
 
-func (lhs TagUnionBytes) Equal(rhs TagUnionBytes) bool {
-	if lhs.I != 0 || rhs.I != 0 {
-		return lhs.I == rhs.I
+func (t TagUnionBytes) Equal(rhs TagUnionBytes) bool {
+	if t.I != 0 || rhs.I != 0 {
+		return t.I == rhs.I
 	}
-	return bytes.Equal(lhs.S, rhs.S)
+	return bytes.Equal(t.S, rhs.S)
+}
+
+func (t TagUnionBytes) Empty() bool {
+	return t.I == 0 && len(t.S) == 0
 }
 
 // Randomly selected, do not change. Which keys go to which shard depends on this.
