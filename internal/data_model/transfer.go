@@ -217,7 +217,7 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 	if !ok { // sanity check/check for empty String Top tail
 		return
 	}
-	s.AddCounterHost(rng, counter, TagUnionBytes{I: s2.MaxCounterHostTag}) // TODO: restore string host from TL
+	s.AddCounterHost(rng, counter, TagUnionBytes{I: s2.MaxCounterHostTag, S: s2.MaxCounterHostStag})
 	if !s2.IsSetValueSet(fields_mask) {
 		return
 	}
@@ -230,26 +230,25 @@ func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValue
 	s.ValueSum += s2.ValueSum
 	s.ValueSumSquare += s2.ValueSumSquare
 
-	// TODO: Restore string host from TL
 	if !s.ValueSet || s2.ValueMin < s.ValueMin {
 		s.ValueMin = s2.ValueMin
-		s.MinHostTag.I = s2.MinHostTag
+		s.MinHostTag = TagUnionBytes{I: s2.MinHostTag, S: s2.MinHostStag}
 	}
 	if !s.ValueSet || s2.ValueMax > s.ValueMax {
 		s.ValueMax = s2.ValueMax
-		s.MaxHostTag.I = s2.MaxHostTag
+		s.MaxHostTag = TagUnionBytes{I: s2.MaxHostTag, S: s2.MaxHostStag}
 	}
 	s.ValueSet = true
 }
 
-func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, s2 *tlstatshouse.MultiItemBytes, hostTagId int32) {
+func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, s2 *tlstatshouse.MultiItemBytes, hostTag TagUnionBytes) {
 	for _, v := range s2.Top {
 		mi := s.MapStringTopBytes(rng, TagUnionBytes{S: v.Stag, I: v.Tag}, v.Value.Counter)
 		v.Stag, _ = format.AppendValidStringValue(v.Stag[:0], v.Stag) // TODO - report this error via builtin metrics
 		// we want to validate all incoming strings. In case of encoding error, v.Key will be truncated to 0
-		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTagId, AggregatorPercentileCompression)
+		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
 	}
-	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTagId, AggregatorPercentileCompression)
+	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)
 }
 
 func (s *MultiItem) TLSizeEstimate() int {
@@ -260,7 +259,7 @@ func (s *MultiItem) TLSizeEstimate() int {
 	return size
 }
 
-func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTagId int32, compression float64) {
+func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag TagUnionBytes, compression float64) {
 	if s2.IsSetUniques(fields_mask) {
 		_ = s.HLL.MergeRead(bytes.NewBuffer(s2.Uniques)) // return error, write meta metric
 	}
@@ -272,14 +271,22 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 			s.ValueTDigest.Add(float64(c.Value), float64(c.Count))
 		}
 	}
-	if !s2.IsSetMaxHostTag(fields_mask) {
-		s2.MaxHostTag = hostTagId
+	if !s2.IsSetMaxHostTag(fields_mask) && !s2.IsSetMaxHostStag(fields_mask) {
+		if hostTag.I != 0 {
+			s2.MaxHostTag = hostTag.I
+		} else if len(hostTag.S) > 0 {
+			s2.MaxHostStag = hostTag.S
+		}
 	}
-	if !s2.IsSetMinHostTag(fields_mask) {
-		s2.MinHostTag = s2.MaxHostTag // either original or set above
+	if !s2.IsSetMinHostTag(fields_mask) && !s2.IsSetMinHostStag(fields_mask) {
+		// either original or set above
+		s2.MinHostTag = s2.MaxHostTag
+		s2.MinHostStag = s2.MaxHostStag
 	}
-	if !s2.IsSetMaxCounterHostTag(fields_mask) {
-		s2.MaxCounterHostTag = s2.MaxHostTag // either original or set above
+	if !s2.IsSetMaxCounterHostTag(fields_mask) && !s2.IsSetMaxCounterHostStag(fields_mask) {
+		// either original or set above
+		s2.MaxCounterHostTag = s2.MaxHostTag
+		s2.MaxCounterHostStag = s2.MaxHostStag
 	}
 	s.Value.MergeWithTLItem2(rng, s2, fields_mask)
 }
