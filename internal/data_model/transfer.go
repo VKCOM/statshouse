@@ -144,15 +144,24 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		return
 	}
 	// host tags are passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
-	// TODO: add string hosts
 	if s.Value.MaxHostTag.I != 0 {
 		item.SetMaxHostTag(s.Value.MaxHostTag.I, fieldsMask)
+	} else if len(s.Value.MaxHostTag.S) > 0 {
+		item.SetMaxHostStag(string(s.Value.MaxHostTag.S), fieldsMask)
 	}
-	if s.Value.MinHostTag.I != s.Value.MaxHostTag.I {
-		item.SetMinHostTag(s.Value.MinHostTag.I, fieldsMask)
+	if !s.Value.MinHostTag.Equal(s.Value.MaxHostTag) {
+		if s.Value.MinHostTag.I != 0 {
+			item.SetMinHostTag(s.Value.MinHostTag.I, fieldsMask)
+		} else if len(s.Value.MinHostTag.S) > 0 {
+			item.SetMinHostStag(string(s.Value.MinHostTag.S), fieldsMask)
+		}
 	}
-	if s.Value.MaxCounterHostTag.I != s.Value.MaxHostTag.I {
-		item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag.I, fieldsMask)
+	if !s.Value.MaxCounterHostTag.Equal(s.Value.MaxHostTag) {
+		if s.Value.MaxCounterHostTag.I != 0 {
+			item.SetMaxHostTag(s.Value.MaxCounterHostTag.I, fieldsMask)
+		} else if len(s.Value.MaxCounterHostTag.S) > 0 {
+			item.SetMaxHostStag(string(s.Value.MaxCounterHostTag.S), fieldsMask)
+		}
 	}
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
