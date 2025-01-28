@@ -60,11 +60,14 @@ func addMetrics(g *Generator, resolution int) {
 	g.AddConstCounter(resolution)
 	g.AddConstValue(resolution)
 	g.AddConstPercentile(resolution)
+	g.AddConstValueHost(resolution, "host_1")
+	g.AddConstValueHost(resolution, "host_2")
 	// metrics with changing tag values
 	g.AddChangingCounter(resolution)
 	g.AddChangingValue(resolution)
 	g.AddChangingPercentile(resolution)
 	g.AddChangingStringTop(resolution, 10)
+	g.AddChangingValueHost(resolution)
 }
 
 func makeInterruptibleContext() context.Context {

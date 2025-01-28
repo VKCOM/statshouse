@@ -22,6 +22,7 @@ const secTag = "sec"        // 2 tag
 const minTag = "min"        // 3 tag
 const tenMinTag = "ten_min" // 4 tag
 const rawTag = "raw"        // 5 tag
+const hostTag = "_h"
 
 type GenericMetric interface {
 	Write(c *statshouse.Client)
@@ -34,6 +35,7 @@ type valueMetric struct {
 	tags         statshouse.NamedTags
 	resolution   int
 	isPercentile bool // use values normally distributed around 10 and 100 instead of random walk
+	changingHost bool
 
 	value float64
 }
@@ -44,6 +46,13 @@ func (m *valueMetric) Write(c *statshouse.Client) {
 
 func (m *valueMetric) Update(now time.Time, rng *rand.Rand) {
 	updateNamedTags(m.tags, now)
+	if m.changingHost {
+		for i := range m.tags {
+			if m.tags[i][0] == hostTag {
+				m.tags[i][1] = "min_" + now.Format("15:04")
+			}
+		}
+	}
 	if m.isPercentile {
 		// 90% of values are around 10, rest around 100
 		// so we can look at median and 95 percentile to validate
@@ -241,6 +250,15 @@ func (g *Generator) AddConstValue(resolution int) {
 	g.metrics = append(g.metrics, &m)
 }
 
+func (g *Generator) AddConstValueHost(resolution int, host string) {
+	m := valueMetric{
+		name:       metricPrefixG + "const_val_host_" + fmt.Sprint(resolution),
+		tags:       statshouse.NamedTags{{constTag, "constant"}, {hostTag, host}},
+		resolution: resolution,
+	}
+	g.metrics = append(g.metrics, &m)
+}
+
 func (g *Generator) AddChangingCounter(resolution int) {
 	m := countMetric{
 		name: metricPrefixG + "changing_cnt_" + fmt.Sprint(resolution),
@@ -265,6 +283,22 @@ func (g *Generator) AddChangingValue(resolution int) {
 			{tenMinTag, ""},
 		},
 		resolution: resolution,
+	}
+	g.metrics = append(g.metrics, &m)
+}
+
+func (g *Generator) AddChangingValueHost(resolution int) {
+	m := valueMetric{
+		name: metricPrefixG + "changing_val_host_" + fmt.Sprint(resolution),
+		tags: statshouse.NamedTags{
+			{constTag, "constant"},
+			{secTag, ""},
+			{minTag, ""},
+			{tenMinTag, ""},
+			{hostTag, ""},
+		},
+		resolution:   resolution,
+		changingHost: true,
 	}
 	g.metrics = append(g.metrics, &m)
 }

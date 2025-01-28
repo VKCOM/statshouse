@@ -649,6 +649,180 @@
           "totalLine": false,
           "filledGraph": true,
           "logScale": false
+        },
+        {
+          "id": "21",
+          "metricName": "loadgen_const_val_host_1",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
+        },
+        {
+          "id": "22",
+          "metricName": "loadgen_const_val_host_15",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
+        },
+        {
+          "id": "23",
+          "metricName": "loadgen_const_val_host_60",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
+        },
+        {
+          "id": "24",
+          "metricName": "loadgen_changing_val_host_1",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
+        },
+        {
+          "id": "25",
+          "metricName": "loadgen_changing_val_host_15",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
+        },
+        {
+          "id": "26",
+          "metricName": "loadgen_changing_val_host_60",
+          "customName": "",
+          "customDescription": "",
+          "promQL": "",
+          "metricType": "",
+          "what": [
+            "avg"
+          ],
+          "customAgg": 0,
+          "groupBy": [],
+          "filterIn": {},
+          "filterNotIn": {},
+          "numSeries": 100,
+          "useV2": true,
+          "yLock": {
+            "min": 0,
+            "max": 0
+          },
+          "maxHost": true,
+          "type": 0,
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "totalLine": false,
+          "filledGraph": true,
+          "logScale": false
         }
       ],
       "timeShifts": [],
@@ -678,6 +852,20 @@
             "count": 3,
             "size": "3",
             "show": true
+          },
+          {
+            "name": "Custom host - 2 constant values",
+            "description": "",
+            "count": 3,
+            "size": "3",
+            "show": true
+          },
+          {
+            "name": "Custom host - changing every minute",
+            "description": "",
+            "count": 3,
+            "size": "3",
+            "show": true
           }
         ]
       },
@@ -685,11 +873,19 @@
       "searchParams": [
         [
           "tn",
-          "-2"
+          "-1"
+        ],
+        [
+          "id",
+          "37"
         ],
         [
           "dn",
           "loadgen"
+        ],
+        [
+          "dv",
+          "110"
         ],
         [
           "t",
@@ -952,8 +1148,104 @@
           "100"
         ],
         [
+          "t23.s",
+          "loadgen_const_val_host_1"
+        ],
+        [
+          "t23.qw",
+          "avg"
+        ],
+        [
+          "t23.n",
+          "100"
+        ],
+        [
+          "t23.mh",
+          "1"
+        ],
+        [
+          "t24.s",
+          "loadgen_const_val_host_15"
+        ],
+        [
+          "t24.qw",
+          "avg"
+        ],
+        [
+          "t24.n",
+          "100"
+        ],
+        [
+          "t24.mh",
+          "1"
+        ],
+        [
+          "t25.s",
+          "loadgen_const_val_host_60"
+        ],
+        [
+          "t25.qw",
+          "avg"
+        ],
+        [
+          "t25.n",
+          "100"
+        ],
+        [
+          "t25.mh",
+          "1"
+        ],
+        [
+          "t26.s",
+          "loadgen_changing_val_host_1"
+        ],
+        [
+          "t26.qw",
+          "avg"
+        ],
+        [
+          "t26.n",
+          "100"
+        ],
+        [
+          "t26.mh",
+          "1"
+        ],
+        [
+          "t27.s",
+          "loadgen_changing_val_host_15"
+        ],
+        [
+          "t27.qw",
+          "avg"
+        ],
+        [
+          "t27.n",
+          "100"
+        ],
+        [
+          "t27.mh",
+          "1"
+        ],
+        [
+          "t28.s",
+          "loadgen_changing_val_host_60"
+        ],
+        [
+          "t28.qw",
+          "avg"
+        ],
+        [
+          "t28.n",
+          "100"
+        ],
+        [
+          "t28.mh",
+          "1"
+        ],
+        [
           "op",
-          "0.1.2.3.4.5.6.7.8.9.10.11.12.13.14.15.16.17.20.21.22"
+          "0.1.2.3.4.5.6.7.8.9.10.11.12.13.14.15.16.17.20.21.22.23.24.25.26.27.28"
         ],
         [
           "g0.t",
@@ -992,8 +1284,32 @@
           "3"
         ],
         [
+          "g3.t",
+          "Custom host - 2 constant values"
+        ],
+        [
+          "g3.n",
+          "3"
+        ],
+        [
+          "g3.s",
+          "3"
+        ],
+        [
+          "g4.t",
+          "Custom host - changing every minute"
+        ],
+        [
+          "g4.n",
+          "3"
+        ],
+        [
+          "g4.s",
+          "3"
+        ],
+        [
           "og",
-          "0.1.2"
+          "0.1.2.3.4"
         ]
       ]
     }
