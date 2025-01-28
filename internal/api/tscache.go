@@ -35,9 +35,8 @@ type tsSelectRow struct {
 
 // all numeric tags are stored as int32 to save space
 type tsTags struct {
-	tag       [format.MaxTags]int32
-	stag      [format.MaxTags]string
-	tagStr    stringFixed
+	tag       [format.NewMaxTags]int32
+	stag      [format.NewMaxTags]string
 	shardNum  uint32
 	stagCount int
 }

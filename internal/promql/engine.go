@@ -1120,7 +1120,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				groupBy = append(groupBy, format.ShardTagIndex)
 			} else if t, ok, _ := metric.APICompatGetTag(k); ok {
 				if t.Index == format.StringTopTagIndex {
-					groupBy = append(groupBy, format.StringTopTagIndex)
+					groupBy = append(groupBy, format.StringTopTagIndexV3)
 				} else {
 					addGroupBy(t)
 				}
@@ -1139,70 +1139,52 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if !ok {
 			return SeriesQuery{}, fmt.Errorf("not found tag %q", matcher.Name)
 		}
-		if tag.Index == format.StringTopTagIndex {
-			switch matcher.Type {
-			case labels.MatchEqual:
-				sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, matcher.Value)
-			case labels.MatchNotEqual:
-				sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, matcher.Value)
-			case labels.MatchRegexp:
-				if matcher.Value != "" {
-					sel.FilterIn.StringTopRe2 = matcher.Value
-				} else {
-					sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, "")
-				}
-			case labels.MatchNotRegexp:
-				if matcher.Value != "" {
-					sel.FilterNotIn.StringTopRe2 = matcher.Value
-				} else {
-					sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, "")
+		i := tag.Index
+		if i == format.StringTopTagIndex {
+			i = format.StringTopTagIndexV3
+		}
+		switch matcher.Type {
+		case labels.MatchEqual:
+			if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+				sel.FilterIn.Append(i, v)
+			} else {
+				return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
+			}
+		case labels.MatchNotEqual:
+			if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+				sel.FilterNotIn.Append(i, v)
+			} else {
+				return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
+			}
+		case labels.MatchRegexp:
+			m, err := ev.getTagValues(ctx, metric, i, offset)
+			if err != nil {
+				return SeriesQuery{}, err
+			}
+			var matchCount int
+			for _, tag := range m {
+				if matcher.Matches(tag.Value) {
+					sel.FilterIn.Append(i, tag)
+					matchCount++
 				}
 			}
-		} else {
-			i := tag.Index
-			switch matcher.Type {
-			case labels.MatchEqual:
-				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
-					sel.FilterIn.Append(i, v)
-				} else {
-					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
-				}
-			case labels.MatchNotEqual:
-				if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
-					sel.FilterNotIn.Append(i, v)
-				} else {
-					return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
-				}
-			case labels.MatchRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, offset)
-				if err != nil {
-					return SeriesQuery{}, err
-				}
-				var matchCount int
-				for _, tag := range m {
-					if matcher.Matches(tag.Value) {
-						sel.FilterIn.Append(i, tag)
-						matchCount++
-					}
-				}
-				if matchCount == 0 && ev.opt.Version != data_model.Version3 {
-					// there no data satisfying the filter
-					emptyCount[i]++
-					continue
-				}
-				sel.FilterIn.Tags[i].Re2 = matcher.Value
-			case labels.MatchNotRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, offset)
-				if err != nil {
-					return SeriesQuery{}, err
-				}
-				for _, tag := range m {
-					if !matcher.Matches(tag.Value) {
-						sel.FilterNotIn.Append(i, tag)
-					}
-				}
-				sel.FilterNotIn.Tags[i].Re2 = matcher.Value
+			if matchCount == 0 && ev.opt.Version != data_model.Version3 {
+				// there no data satisfying the filter
+				emptyCount[i]++
+				continue
 			}
+			sel.FilterIn.Tags[i].Re2 = matcher.Value
+		case labels.MatchNotRegexp:
+			m, err := ev.getTagValues(ctx, metric, i, offset)
+			if err != nil {
+				return SeriesQuery{}, err
+			}
+			for _, tag := range m {
+				if !matcher.Matches(tag.Value) {
+					sel.FilterNotIn.Append(i, tag)
+				}
+			}
+			sel.FilterNotIn.Tags[i].Re2 = matcher.Value
 		}
 	}
 	for i, n := range emptyCount {
@@ -1321,39 +1303,38 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 			return data_model.NewTagValue("", 0), nil
 		}
 	}
-	if tagX < 0 || len(metric.Tags) <= tagX {
-		return data_model.NewTagValue(tagV, format.TagValueIDDoesNotExist), nil
-	}
-	t := metric.Tags[tagX]
-	if t.Raw {
-		// histogram bucket label
-		if t.Name == labels.BucketLabel {
-			if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-				return data_model.NewTagValueM(statshouse.LexEncode(float32(v))), nil
-			}
-		}
-		// mapping from raw value comments
-		var s string
-		for k, v := range t.ValueComments {
-			if v == tagV {
-				if s != "" {
-					return data_model.TagValue{}, fmt.Errorf("ambiguous comment to value mapping")
+	var t format.MetricMetaTag
+	if 0 <= tagX && tagX < len(metric.Tags) {
+		t = metric.Tags[tagX]
+		if t.Raw {
+			// histogram bucket label
+			if t.Name == labels.BucketLabel {
+				if v, err := strconv.ParseFloat(tagV, 32); err == nil {
+					return data_model.NewTagValueM(statshouse.LexEncode(float32(v))), nil
 				}
-				s = k
 			}
-		}
-		if s != "" {
-			v, err := format.ParseCodeTagValue(s)
-			if err != nil {
-				return data_model.TagValue{}, err
+			// mapping from raw value comments
+			var s string
+			for k, v := range t.ValueComments {
+				if v == tagV {
+					if s != "" {
+						return data_model.TagValue{}, fmt.Errorf("ambiguous comment to value mapping")
+					}
+					s = k
+				}
 			}
-			return data_model.NewTagValueM(v), nil
+			if s != "" {
+				v, err := format.ParseCodeTagValue(s)
+				if err != nil {
+					return data_model.TagValue{}, err
+				}
+				return data_model.NewTagValueM(v), nil
+			}
 		}
 	}
 	v, err := ev.GetTagValueID(TagValueIDQuery{
 		Version:  ev.opt.Version,
-		Metric:   metric,
-		TagIndex: tagX,
+		Tag:      t,
 		TagValue: tagV,
 	})
 	switch err {

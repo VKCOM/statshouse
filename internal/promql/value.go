@@ -751,7 +751,7 @@ func (ts *TimeSeries) MarshalJSON() ([]byte, error) {
 		if len(s.Tags.ID2Tag) != 0 {
 			m = make(map[string]string, len(s.Tags.ID2Tag))
 			for _, tag := range s.Tags.ID2Tag {
-				if !tag.stringified || tag.SValue == format.TagValueCodeZero {
+				if !tag.stringified || tag.SValue == "" {
 					continue
 				}
 				if len(tag.Name) != 0 {
@@ -789,7 +789,7 @@ func decodeTagIndexLegacy(i int) (ix int, id string, ok bool) {
 	ix = i - SeriesTagIndexOffset
 	if 0 <= ix && ix < format.MaxTags {
 		id, ok = format.TagIDLegacy(ix), true
-	} else if i == format.StringTopTagIndex {
+	} else if i == format.StringTopTagIndex || i == format.StringTopTagIndexV3 {
 		id, ok = format.LegacyStringTopTagID, true
 	}
 	return ix, id, ok

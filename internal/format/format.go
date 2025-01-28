@@ -1026,7 +1026,7 @@ func bytePrint(c byte) bool {
 
 func CodeTagValue(code int32) string {
 	if code == 0 {
-		return TagValueCodeZero // fast-path with no allocations
+		return "" // fast-path with no allocations
 	}
 	return tagValueCodePrefix + strconv.Itoa(int(code))
 }

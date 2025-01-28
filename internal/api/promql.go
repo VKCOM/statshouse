@@ -412,7 +412,7 @@ func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 }
 
 func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
-	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
+	res, err := h.getRichTagValueID(&qry.Tag, qry.Version, qry.TagValue)
 	if err != nil {
 		var httpErr httpError
 		if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
@@ -621,13 +621,14 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 			for v, tag := range tagX {
 				for _, x := range qry.GroupBy {
 					switch x {
-					case format.StringTopTagIndex:
+					case format.StringTopTagIndex, format.StringTopTagIndexV3:
 						res.AddTagAt(i+tag.x, &promql.SeriesTag{
 							Metric: qry.Metric,
-							Index:  format.StringTopTagIndex + promql.SeriesTagIndexOffset,
+							Index:  format.StringTopTagIndexV3 + promql.SeriesTagIndexOffset,
 							ID:     format.StringTopTagID,
 							Name:   qry.Metric.StringTopName,
-							SValue: emptyToUnspecified(v.tagStr.String()),
+							Value:  v.tag[format.StringTopTagIndexV3],
+							SValue: v.stag[format.StringTopTagIndexV3],
 						})
 					case format.ShardTagIndex:
 						res.AddTagAt(i+tag.x, &promql.SeriesTag{
