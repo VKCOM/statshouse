@@ -26,9 +26,9 @@ type StatshouseMultiValue struct {
 	MaxHostTag         int32                     // Conditional: nat_fields_mask.7
 	MinHostTag         int32                     // Conditional: nat_fields_mask.8
 	MaxCounterHostTag  int32                     // Conditional: nat_fields_mask.9
-	MaxHostStag        int32                     // Conditional: nat_fields_mask.14
-	MinHostStag        int32                     // Conditional: nat_fields_mask.15
-	MaxCounterHostStag int32                     // Conditional: nat_fields_mask.16
+	MaxHostStag        string                    // Conditional: nat_fields_mask.14
+	MinHostStag        string                    // Conditional: nat_fields_mask.15
+	MaxCounterHostStag string                    // Conditional: nat_fields_mask.16
 }
 
 func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
@@ -220,14 +220,14 @@ func (item StatshouseMultiValue) IsSetMaxCounterHostTag(nat_fields_mask uint32) 
 	return nat_fields_mask&(1<<9) != 0
 }
 
-func (item *StatshouseMultiValue) SetMaxHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValue) SetMaxHostStag(v string, nat_fields_mask *uint32) {
 	item.MaxHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 14
 	}
 }
 func (item *StatshouseMultiValue) ClearMaxHostStag(nat_fields_mask *uint32) {
-	item.MaxHostStag = 0
+	item.MaxHostStag = ""
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 14
 	}
@@ -236,14 +236,14 @@ func (item StatshouseMultiValue) IsSetMaxHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<14) != 0
 }
 
-func (item *StatshouseMultiValue) SetMinHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValue) SetMinHostStag(v string, nat_fields_mask *uint32) {
 	item.MinHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 15
 	}
 }
 func (item *StatshouseMultiValue) ClearMinHostStag(nat_fields_mask *uint32) {
-	item.MinHostStag = 0
+	item.MinHostStag = ""
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 15
 	}
@@ -252,14 +252,14 @@ func (item StatshouseMultiValue) IsSetMinHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<15) != 0
 }
 
-func (item *StatshouseMultiValue) SetMaxCounterHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValue) SetMaxCounterHostStag(v string, nat_fields_mask *uint32) {
 	item.MaxCounterHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 16
 	}
 }
 func (item *StatshouseMultiValue) ClearMaxCounterHostStag(nat_fields_mask *uint32) {
-	item.MaxCounterHostStag = 0
+	item.MaxCounterHostStag = ""
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 16
 	}
@@ -279,9 +279,9 @@ func (item *StatshouseMultiValue) Reset() {
 	item.MaxHostTag = 0
 	item.MinHostTag = 0
 	item.MaxCounterHostTag = 0
-	item.MaxHostStag = 0
-	item.MinHostStag = 0
-	item.MaxCounterHostStag = 0
+	item.MaxHostStag = ""
+	item.MinHostStag = ""
+	item.MaxCounterHostStag = ""
 }
 
 func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -356,25 +356,25 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 		item.MaxCounterHostTag = 0
 	}
 	if nat_fields_mask&(1<<14) != 0 {
-		if w, err = basictl.IntRead(w, &item.MaxHostStag); err != nil {
+		if w, err = basictl.StringRead(w, &item.MaxHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MaxHostStag = 0
+		item.MaxHostStag = ""
 	}
 	if nat_fields_mask&(1<<15) != 0 {
-		if w, err = basictl.IntRead(w, &item.MinHostStag); err != nil {
+		if w, err = basictl.StringRead(w, &item.MinHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MinHostStag = 0
+		item.MinHostStag = ""
 	}
 	if nat_fields_mask&(1<<16) != 0 {
-		if w, err = basictl.IntRead(w, &item.MaxCounterHostStag); err != nil {
+		if w, err = basictl.StringRead(w, &item.MaxCounterHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MaxCounterHostStag = 0
+		item.MaxCounterHostStag = ""
 	}
 	return w, nil
 }
@@ -416,13 +416,13 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) []byte
 		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
 	if nat_fields_mask&(1<<14) != 0 {
-		w = basictl.IntWrite(w, item.MaxHostStag)
+		w = basictl.StringWrite(w, item.MaxHostStag)
 	}
 	if nat_fields_mask&(1<<15) != 0 {
-		w = basictl.IntWrite(w, item.MinHostStag)
+		w = basictl.StringWrite(w, item.MinHostStag)
 	}
 	if nat_fields_mask&(1<<16) != 0 {
-		w = basictl.IntWrite(w, item.MaxCounterHostStag)
+		w = basictl.StringWrite(w, item.MaxCounterHostStag)
 	}
 	return w
 }
@@ -589,7 +589,7 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if nat_fields_mask&(1<<14) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MaxHostStag); err != nil {
+				if err := Json2ReadString(in, &item.MaxHostStag); err != nil {
 					return err
 				}
 				propMaxHostStagPresented = true
@@ -600,7 +600,7 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if nat_fields_mask&(1<<15) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MinHostStag); err != nil {
+				if err := Json2ReadString(in, &item.MinHostStag); err != nil {
 					return err
 				}
 				propMinHostStagPresented = true
@@ -611,7 +611,7 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if nat_fields_mask&(1<<16) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MaxCounterHostStag); err != nil {
+				if err := Json2ReadString(in, &item.MaxCounterHostStag); err != nil {
 					return err
 				}
 				propMaxCounterHostStagPresented = true
@@ -656,13 +656,13 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 		item.MaxCounterHostTag = 0
 	}
 	if !propMaxHostStagPresented {
-		item.MaxHostStag = 0
+		item.MaxHostStag = ""
 	}
 	if !propMinHostStagPresented {
-		item.MinHostStag = 0
+		item.MinHostStag = ""
 	}
 	if !propMaxCounterHostStagPresented {
-		item.MaxCounterHostStag = 0
+		item.MaxCounterHostStag = ""
 	}
 	return nil
 }
@@ -730,17 +730,17 @@ func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if nat_fields_mask&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxHostStag)
+		w = basictl.JSONWriteString(w, item.MaxHostStag)
 	}
 	if nat_fields_mask&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"min_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MinHostStag)
+		w = basictl.JSONWriteString(w, item.MinHostStag)
 	}
 	if nat_fields_mask&(1<<16) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_counter_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxCounterHostStag)
+		w = basictl.JSONWriteString(w, item.MaxCounterHostStag)
 	}
 	return append(w, '}')
 }
@@ -758,9 +758,9 @@ type StatshouseMultiValueBytes struct {
 	MaxHostTag         int32                     // Conditional: nat_fields_mask.7
 	MinHostTag         int32                     // Conditional: nat_fields_mask.8
 	MaxCounterHostTag  int32                     // Conditional: nat_fields_mask.9
-	MaxHostStag        int32                     // Conditional: nat_fields_mask.14
-	MinHostStag        int32                     // Conditional: nat_fields_mask.15
-	MaxCounterHostStag int32                     // Conditional: nat_fields_mask.16
+	MaxHostStag        []byte                    // Conditional: nat_fields_mask.14
+	MinHostStag        []byte                    // Conditional: nat_fields_mask.15
+	MaxCounterHostStag []byte                    // Conditional: nat_fields_mask.16
 }
 
 func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
@@ -952,14 +952,14 @@ func (item StatshouseMultiValueBytes) IsSetMaxCounterHostTag(nat_fields_mask uin
 	return nat_fields_mask&(1<<9) != 0
 }
 
-func (item *StatshouseMultiValueBytes) SetMaxHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValueBytes) SetMaxHostStag(v []byte, nat_fields_mask *uint32) {
 	item.MaxHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 14
 	}
 }
 func (item *StatshouseMultiValueBytes) ClearMaxHostStag(nat_fields_mask *uint32) {
-	item.MaxHostStag = 0
+	item.MaxHostStag = item.MaxHostStag[:0]
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 14
 	}
@@ -968,14 +968,14 @@ func (item StatshouseMultiValueBytes) IsSetMaxHostStag(nat_fields_mask uint32) b
 	return nat_fields_mask&(1<<14) != 0
 }
 
-func (item *StatshouseMultiValueBytes) SetMinHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValueBytes) SetMinHostStag(v []byte, nat_fields_mask *uint32) {
 	item.MinHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 15
 	}
 }
 func (item *StatshouseMultiValueBytes) ClearMinHostStag(nat_fields_mask *uint32) {
-	item.MinHostStag = 0
+	item.MinHostStag = item.MinHostStag[:0]
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 15
 	}
@@ -984,14 +984,14 @@ func (item StatshouseMultiValueBytes) IsSetMinHostStag(nat_fields_mask uint32) b
 	return nat_fields_mask&(1<<15) != 0
 }
 
-func (item *StatshouseMultiValueBytes) SetMaxCounterHostStag(v int32, nat_fields_mask *uint32) {
+func (item *StatshouseMultiValueBytes) SetMaxCounterHostStag(v []byte, nat_fields_mask *uint32) {
 	item.MaxCounterHostStag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 16
 	}
 }
 func (item *StatshouseMultiValueBytes) ClearMaxCounterHostStag(nat_fields_mask *uint32) {
-	item.MaxCounterHostStag = 0
+	item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 16
 	}
@@ -1011,9 +1011,9 @@ func (item *StatshouseMultiValueBytes) Reset() {
 	item.MaxHostTag = 0
 	item.MinHostTag = 0
 	item.MaxCounterHostTag = 0
-	item.MaxHostStag = 0
-	item.MinHostStag = 0
-	item.MaxCounterHostStag = 0
+	item.MaxHostStag = item.MaxHostStag[:0]
+	item.MinHostStag = item.MinHostStag[:0]
+	item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
 }
 
 func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -1088,25 +1088,25 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 		item.MaxCounterHostTag = 0
 	}
 	if nat_fields_mask&(1<<14) != 0 {
-		if w, err = basictl.IntRead(w, &item.MaxHostStag); err != nil {
+		if w, err = basictl.StringReadBytes(w, &item.MaxHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MaxHostStag = 0
+		item.MaxHostStag = item.MaxHostStag[:0]
 	}
 	if nat_fields_mask&(1<<15) != 0 {
-		if w, err = basictl.IntRead(w, &item.MinHostStag); err != nil {
+		if w, err = basictl.StringReadBytes(w, &item.MinHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MinHostStag = 0
+		item.MinHostStag = item.MinHostStag[:0]
 	}
 	if nat_fields_mask&(1<<16) != 0 {
-		if w, err = basictl.IntRead(w, &item.MaxCounterHostStag); err != nil {
+		if w, err = basictl.StringReadBytes(w, &item.MaxCounterHostStag); err != nil {
 			return w, err
 		}
 	} else {
-		item.MaxCounterHostStag = 0
+		item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
 	}
 	return w, nil
 }
@@ -1148,13 +1148,13 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) [
 		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
 	if nat_fields_mask&(1<<14) != 0 {
-		w = basictl.IntWrite(w, item.MaxHostStag)
+		w = basictl.StringWriteBytes(w, item.MaxHostStag)
 	}
 	if nat_fields_mask&(1<<15) != 0 {
-		w = basictl.IntWrite(w, item.MinHostStag)
+		w = basictl.StringWriteBytes(w, item.MinHostStag)
 	}
 	if nat_fields_mask&(1<<16) != 0 {
-		w = basictl.IntWrite(w, item.MaxCounterHostStag)
+		w = basictl.StringWriteBytes(w, item.MaxCounterHostStag)
 	}
 	return w
 }
@@ -1321,7 +1321,7 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if nat_fields_mask&(1<<14) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MaxHostStag); err != nil {
+				if err := Json2ReadStringBytes(in, &item.MaxHostStag); err != nil {
 					return err
 				}
 				propMaxHostStagPresented = true
@@ -1332,7 +1332,7 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if nat_fields_mask&(1<<15) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MinHostStag); err != nil {
+				if err := Json2ReadStringBytes(in, &item.MinHostStag); err != nil {
 					return err
 				}
 				propMinHostStagPresented = true
@@ -1343,7 +1343,7 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if nat_fields_mask&(1<<16) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := Json2ReadInt32(in, &item.MaxCounterHostStag); err != nil {
+				if err := Json2ReadStringBytes(in, &item.MaxCounterHostStag); err != nil {
 					return err
 				}
 				propMaxCounterHostStagPresented = true
@@ -1388,13 +1388,13 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 		item.MaxCounterHostTag = 0
 	}
 	if !propMaxHostStagPresented {
-		item.MaxHostStag = 0
+		item.MaxHostStag = item.MaxHostStag[:0]
 	}
 	if !propMinHostStagPresented {
-		item.MinHostStag = 0
+		item.MinHostStag = item.MinHostStag[:0]
 	}
 	if !propMaxCounterHostStagPresented {
-		item.MaxCounterHostStag = 0
+		item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
 	}
 	return nil
 }
@@ -1462,17 +1462,17 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if nat_fields_mask&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxHostStag)
+		w = basictl.JSONWriteStringBytes(w, item.MaxHostStag)
 	}
 	if nat_fields_mask&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"min_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MinHostStag)
+		w = basictl.JSONWriteStringBytes(w, item.MinHostStag)
 	}
 	if nat_fields_mask&(1<<16) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_counter_host_stag":`...)
-		w = basictl.JSONWriteInt32(w, item.MaxCounterHostStag)
+		w = basictl.JSONWriteStringBytes(w, item.MaxCounterHostStag)
 	}
 	return append(w, '}')
 }

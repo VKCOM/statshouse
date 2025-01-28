@@ -36,9 +36,9 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
     min_host_tag: fields_mask.8?int
     max_counter_host_tag: fields_mask.9?int
     // field mask bits 10 - 12 are used in statshouse.multi_item
-    max_host_stag: fields_mask.14?int
-    min_host_stag: fields_mask.15?int
-    max_counter_host_stag: fields_mask.16?int
+    max_host_stag: fields_mask.14?string
+    min_host_stag: fields_mask.15?string
+    max_counter_host_stag: fields_mask.16?string
     = statshouse.MultiValue fields_mask;
 
 statshouse.top_element#9ffdea42 stag:string fields_mask:# tag:fields_mask.10?int value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
