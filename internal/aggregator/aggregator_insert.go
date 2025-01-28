@@ -303,28 +303,49 @@ func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_mod
 	}
 	// min_host, max_host
 	if newFormat {
-		var encodedTag [5]byte
 		if v.ValueSet {
-			if skipMinHost {
+			if skipMinHost || v.MinHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
+			} else if v.MinHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MinHostTag.I))
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMin))
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTag.I))
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMin))
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MinHostTag.S)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMin))
 			}
-			if skipMaxHost {
+			if skipMaxHost || v.MaxHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
+			} else if v.MaxHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MaxHostTag.I))
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMax))
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTag.I))
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMax))
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MaxHostTag.S)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMax))
 			}
 		} else {
 			res = rowbinary.AppendArgMinMaxStringEmpty(res)
-			if skipMaxHost {
+			if skipMaxHost || v.MaxCounterHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
-			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTag.I))
+			} else if v.MaxCounterHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MaxCounterHostTag.I))
 				cc := float32(data_model.SkewMaxCounterHost(rng, count)) // explanation is in Skew function
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), cc)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), cc)
+			} else {
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MaxCounterHostTag.S)
+				cc := float32(data_model.SkewMaxCounterHost(rng, count)) // explanation is in Skew function
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen]), cc)
 			}
 		}
 	}
@@ -375,29 +396,50 @@ func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, 
 	}
 	// min_host, max_host
 	if v3Format {
-		var encodedTag [5]byte
 		v := value.Value
 		if v.ValueSet {
-			if skipMinHost {
+			if skipMinHost || v.MinHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
+			} else if v.MinHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MinHostTag.I))
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMin))
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MinHostTag.I))
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMin))
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MinHostTag.S)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMin))
 			}
-			if skipMaxHost {
+			if skipMaxHost || v.MaxHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
+			} else if v.MaxHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MaxHostTag.I))
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMax))
 			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxHostTag.I))
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), float32(v.ValueMax))
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MinHostTag.S)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), float32(v.ValueMax))
 			}
 		} else {
 			res = rowbinary.AppendArgMinMaxStringEmpty(res)
-			if skipMaxHost {
+			if skipMaxHost || v.MaxHostTag.Empty() {
 				res = rowbinary.AppendArgMinMaxStringEmpty(res)
-			} else {
-				binary.LittleEndian.PutUint32(encodedTag[1:], uint32(v.MaxCounterHostTag.I))
+			} else if v.MaxCounterHostTag.I != 0 {
+				wasLen := len(res)
+				res = append(res, 0)
+				res = binary.LittleEndian.AppendUint32(res, uint32(v.MaxCounterHostTag.I))
 				cc := float32(data_model.SkewMaxCounterHost(rng, counter)) // explanation is in Skew function
-				res = rowbinary.AppendArgMinMaxStringFloat32(res, string(encodedTag[:]), cc)
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), cc)
+			} else {
+				wasLen := len(res)
+				res = append(res, 1)
+				res = rowbinary.AppendBytes(res, v.MaxHostTag.S)
+				cc := float32(data_model.SkewMaxCounterHost(rng, counter))
+				res = rowbinary.AppendArgMinMaxStringFloat32(res[:wasLen], string(res[wasLen:]), cc)
 			}
 		}
 	}
