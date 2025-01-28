@@ -1060,8 +1060,9 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			continue // we only support production tables for v1
 		}
 		if k == format.StringTopTagID {
+			stringTop := &m.Tags[format.StringTopTagIndexV3]
 			for _, val := range values {
-				m.StringTop = append(m.StringTop, unspecifiedToEmpty(val))
+				stringTop.Values = append(stringTop.Values, data_model.NewTagValueS(unspecifiedToEmpty(val)))
 			}
 		} else {
 			ids, err := h.getRichTagValueIDs(metricMeta, version, k, values)

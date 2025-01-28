@@ -156,15 +156,17 @@ func (b *queryBuilder) writeTagFiltersCacheKey(f data_model.TagFilters, s []stri
 		}
 		n++
 	}
-	if f.StringTopRe2 != "" {
+	if stringTop := &f.Tags[format.StringTopTagIndexV3]; stringTop.Re2 != "" {
 		if n != 0 {
 			b.WriteString(",")
 		}
 		b.WriteString(`"_s":"`)
-		b.WriteString(f.StringTopRe2)
+		b.WriteString(stringTop.Re2)
 		b.WriteString(`"`)
-	} else if len(f.StringTop) != 0 {
-		s = append(s[:0], f.StringTop...)
+	} else if len(stringTop.Values) != 0 {
+		for _, v := range stringTop.Values {
+			s = append(s[:0], v.Value)
+		}
 		sort.Strings(s)
 		if n != 0 {
 			b.WriteString(",")
@@ -331,7 +333,7 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		b.WriteString(")")
 	}
 	// String top
-	if f.StringTopRe2 != "" {
+	if stringTop := &f.Tags[format.StringTopTagIndexV3]; stringTop.Re2 != "" {
 		b.WriteString(" AND")
 		if !in {
 			b.WriteString(" NOT")
@@ -339,17 +341,17 @@ func (b *queryBuilder) writeTagCond(lod *data_model.LOD, in bool) {
 		b.WriteString(" match(")
 		b.WriteString(b.unmappedColumnName(format.StringTopTagID, lod.Version))
 		b.WriteString(",'")
-		b.WriteString(escapeReplacer.Replace(f.StringTopRe2))
+		b.WriteString(escapeReplacer.Replace(stringTop.Re2))
 		b.WriteString("')")
-	} else if len(f.StringTop) != 0 {
+	} else if len(stringTop.Values) != 0 {
 		b.WriteString(" AND ")
 		b.WriteString(b.unmappedColumnName(format.StringTopTagID, lod.Version))
 		b.WriteString(predicate)
 		b.WriteString(" ('")
-		b.WriteString(escapeReplacer.Replace(f.StringTop[0]))
-		for i := 1; i < len(f.StringTop); i++ {
+		b.WriteString(escapeReplacer.Replace(stringTop.Values[0].Value))
+		for i := 1; i < len(stringTop.Values); i++ {
 			b.WriteString("','")
-			b.WriteString(escapeReplacer.Replace(f.StringTop[i]))
+			b.WriteString(escapeReplacer.Replace(stringTop.Values[i].Value))
 		}
 		b.WriteString("')")
 	}

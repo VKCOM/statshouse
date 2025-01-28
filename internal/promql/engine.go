@@ -1142,20 +1142,20 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if tag.Index == format.StringTopTagIndex {
 			switch matcher.Type {
 			case labels.MatchEqual:
-				sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, matcher.Value)
+				sel.FilterIn.Append(format.StringTopTagIndexV3, data_model.NewTagValueS(matcher.Value))
 			case labels.MatchNotEqual:
-				sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, matcher.Value)
+				sel.FilterNotIn.Append(format.StringTopTagIndexV3, data_model.NewTagValueS(matcher.Value))
 			case labels.MatchRegexp:
 				if matcher.Value != "" {
-					sel.FilterIn.StringTopRe2 = matcher.Value
+					sel.FilterIn.Tags[format.StringTopTagIndexV3].Re2 = matcher.Value
 				} else {
-					sel.FilterIn.StringTop = append(sel.FilterIn.StringTop, "")
+					sel.FilterIn.Append(format.StringTopTagIndexV3, data_model.NewTagValue("", 0))
 				}
 			case labels.MatchNotRegexp:
 				if matcher.Value != "" {
-					sel.FilterNotIn.StringTopRe2 = matcher.Value
+					sel.FilterNotIn.Tags[format.StringTopTagIndexV3].Re2 = matcher.Value
 				} else {
-					sel.FilterNotIn.StringTop = append(sel.FilterNotIn.StringTop, "")
+					sel.FilterNotIn.Append(format.StringTopTagIndexV3, data_model.NewTagValue("", 0))
 				}
 			}
 		} else {
