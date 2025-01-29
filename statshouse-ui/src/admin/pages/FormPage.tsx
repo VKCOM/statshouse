@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
@@ -38,12 +38,15 @@ const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
   const { metricName } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isHistoryRoute = location.pathname.endsWith('/history');
+  const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
 
   const [searchParams] = useSearchParams();
   const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
 
   const [initMetric, setInitMetric] = useState<Partial<IMetric> | null>(null);
-  const [isShowHistory, setIsShowHistory] = useState(false);
 
   const isHistoricalMetric = useMemo(
     () => !!initMetric?.version && !!historicalMetricVersion && initMetric.version !== Number(historicalMetricVersion),
@@ -81,18 +84,14 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   }, [metricName]);
 
   const handleShowHistory = () => {
-    setIsShowHistory(true);
+    navigate('history');
   };
 
   const handleShowEdit = () => {
-    setIsShowHistory(false);
+    if (isHistoryRoute) {
+      navigate(mainPath);
+    }
   };
-
-  const onVersionClick = useCallback(() => {
-    handleShowEdit?.();
-  }, []);
-
-  const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
 
   return (
     <div className="container-xl pt-3 pb-3" style={{ paddingLeft: `${yAxisSize}px` }}>
@@ -105,15 +104,15 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
             >
               {metricName}
               <span
-                className={`me-4 ${isShowHistory ? 'text-primary fw-normal small cursor-pointer' : 'text-secondary'}`}
-                style={{ cursor: isShowHistory ? 'pointer' : 'default' }}
+                className={`me-4 ${isHistoryRoute ? 'text-primary fw-normal small cursor-pointer' : 'text-secondary'}`}
+                style={{ cursor: isHistoryRoute ? 'pointer' : 'default' }}
                 onClick={handleShowEdit}
               >
                 : edit
               </span>
               <span
-                className={`me-4 ${isShowHistory ? 'text-secondary' : 'text-primary fw-normal small cursor-pointer'}`}
-                style={{ cursor: isShowHistory ? 'default' : 'pointer' }}
+                className={`me-4 ${isHistoryRoute ? 'text-secondary' : 'text-primary fw-normal small cursor-pointer'}`}
+                style={{ cursor: isHistoryRoute ? 'default' : 'pointer' }}
                 onClick={handleShowHistory}
               >
                 history
@@ -127,27 +126,23 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
           {isHistoricalMetric && <HistoryDashboardLabel />}
         </div>
       </StickyTop>
-
+      {initMetric?.id && (
+        <Routes>
+          <Route
+            path="history"
+            element={<HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={'?mv'} />}
+          />
+        </Routes>
+      )}
       {metricName && !initMetric ? (
         <div className="d-flex justify-content-center align-items-center mt-5">
           <div className="spinner-border text-secondary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
-      ) : isShowHistory && initMetric?.id ? (
-        <HistoryList
-          id={initMetric.id.toString()}
-          mainPath={mainPath}
-          onVersionClick={onVersionClick}
-          pathVersionParam={'?mv'}
-        />
       ) : (
         <MetricFormValuesStorage initialMetric={initMetric || {}}>
-          <EditForm
-            isReadonly={false} // !!metricName && metricName.startsWith('__')
-            adminMode={adminMode}
-            isHistoricalMetric={isHistoricalMetric}
-          />
+          <EditForm isReadonly={false} adminMode={adminMode} isHistoricalMetric={isHistoricalMetric} />
         </MetricFormValuesStorage>
       )}
     </div>

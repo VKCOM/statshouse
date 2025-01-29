@@ -7,7 +7,7 @@ import { HistoryShortInfo } from '@/api/history';
 export type IHistoryLink = {
   mainPath: string;
   pathVersionParam: string;
-  onVersionClick: () => void;
+  onVersionClick?: () => void;
   event?: HistoryShortInfo;
   timeChange?: string | 0 | undefined;
   isActualVersion?: boolean;

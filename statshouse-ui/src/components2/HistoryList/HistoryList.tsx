@@ -7,7 +7,7 @@ import { fmtInputDateTime } from '@/view/utils2';
 
 export type IHistoryList = {
   id: string;
-  onVersionClick: () => void;
+  onVersionClick?: () => void;
   mainPath: string;
   pathVersionParam: string;
 };

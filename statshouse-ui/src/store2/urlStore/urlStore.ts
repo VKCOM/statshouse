@@ -230,7 +230,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         s.dashboardLayoutEdit = status;
       });
       if (!status) {
-        setUrlStore((s) => {
+        setState((s) => {
           if (s.params.tabNum === '-2' || s.params.tabNum === '-3') {
             s.params.tabNum = '-1';
           }
