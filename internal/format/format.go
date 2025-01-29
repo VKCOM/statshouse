@@ -264,7 +264,7 @@ type MetricMetaValue struct {
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
-	name2Tag             map[string]*MetricMetaTag `json:"-"` // Should be restored from Tags after reading
+	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
 	FairKey              []int                     `json:"-"`
@@ -346,20 +346,61 @@ func (t *MetricMetaTag) equalsToDefault(index int) bool {
 }
 
 // this method is faster than string hash, plus saves a lot of memory in maps
-func (m *MetricMetaValue) name2TagFast(name mem.RO) *MetricMetaTag {
-	if name.Len() == 0 || name.Len() > 2 {
+func (m *MetricMetaValue) name2TagFast(name string) *MetricMetaTag {
+	var num uint
+	switch len(name) {
+	case 0:
 		return nil
-	}
-	num := uint(name.At(0)) - '0'
-	if num > 9 {
-		return nil
-	}
-	if name.Len() == 2 {
-		num2 := uint(name.At(1)) - '0'
+	case 1:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+	case 2:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+		num2 := uint(name[1]) - '0'
 		if num2 > 9 {
 			return nil
 		}
 		num = num*10 + num2
+	default:
+		return nil
+	}
+	if num < uint(len(m.Tags)) {
+		return &m.Tags[num]
+	}
+	if num < uint(len(defaultMetaTags)) {
+		return &defaultMetaTags[num]
+	}
+	return nil
+}
+
+// this method is faster than string hash, plus saves a lot of memory in maps
+func (m *MetricMetaValue) name2TagFastBytes(name []byte) *MetricMetaTag {
+	var num uint
+	switch len(name) {
+	case 0:
+		return nil
+	case 1:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+	case 2:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+		num2 := uint(name[1]) - '0'
+		if num2 > 9 {
+			return nil
+		}
+		num = num*10 + num2
+	default:
+		return nil
 	}
 	if num < uint(len(m.Tags)) {
 		return &m.Tags[num]
@@ -371,22 +412,25 @@ func (m *MetricMetaValue) name2TagFast(name mem.RO) *MetricMetaTag {
 }
 
 func (m *MetricMetaValue) Name2Tag(name string) *MetricMetaTag {
-	if tag := m.name2TagFast(mem.S(name)); tag != nil {
+	if tag := m.name2TagFast(name); tag != nil {
 		return tag
 	}
 	return m.name2Tag[name]
 }
 
 func (m *MetricMetaValue) Name2TagBytes(name []byte) *MetricMetaTag {
-	if tag := m.name2TagFast(mem.B(name)); tag != nil {
+	if tag := m.name2TagFastBytes(name); tag != nil {
 		return tag
 	}
 	return m.name2Tag[string(name)]
 }
 
 func (m *MetricMetaValue) AppendTagNames(res []string) []string {
-	for k := range m.name2Tag {
-		res = append(res, k)
+	for name := range m.name2Tag {
+		res = append(res, name)
+	}
+	for _, name := range tagIDs[:MaxTags] {
+		res = append(res, name)
 	}
 	return res
 }
