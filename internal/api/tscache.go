@@ -74,7 +74,6 @@ func (s tsWhat) specifiedAt(n int) bool {
 
 type tsCacheGroup struct {
 	pointCaches map[string]map[int64]*tsCache // by version, step
-	shutdown    func()
 }
 
 func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, utcOffset int64, loader tsLoadFunc) *tsCacheGroup {
