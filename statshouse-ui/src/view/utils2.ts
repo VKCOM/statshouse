@@ -4,12 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { MetricMetaValue } from '../api/metric';
-import { isTagKey, TAG_KEY, TagKey } from '../api/enum';
+import { MetricMetaValue } from '@/api/metric';
+import { isTagKey, TAG_KEY, TagKey } from '@/api/enum';
 import uPlot from 'uplot';
-import { TimeRange } from '../common/TimeRange';
-import { formatFixed } from '../common/formatFixed';
-import { formatFixedFloor } from '../common/formatFixedFloor';
+import { TimeRange } from '@/common/TimeRange';
+import { formatFixed } from '@/common/formatFixed';
+import { formatFixedFloor } from '@/common/formatFixedFloor';
 import { RawValueKind } from './api';
 
 export function isValidVariableName(name: string): boolean {
@@ -43,6 +43,16 @@ export function getTagDescription(meta: MetricMetaValue | undefined, tagKey: num
     }
   }
   return `tag ${tagKey}`;
+}
+
+export function getTagValue(meta: MetricMetaValue | undefined, tagKey: TagKey | null, values: string[]): string[] {
+  if (tagKey != null) {
+    const infoTag = meta?.tags?.[+tagKey];
+    if (infoTag?.raw) {
+      return values.map((v) => (v[0] === ' ' ? v : ' ' + parseRawToInt(infoTag.raw_kind, v)));
+    }
+  }
+  return values;
 }
 
 export function secondsRangeToString(seconds: number, short?: boolean): string {
@@ -438,9 +448,46 @@ export function ieee32ToFloat(intval: number): number {
   }
   return fval;
 }
+export function floatToIeee32(value: number): number {
+  if (isNaN(value)) {
+    return NaN;
+  }
+  if (!value) {
+    return 0;
+  }
+  const dataView = new DataView(new ArrayBuffer(4));
+  dataView.setFloat32(0, value);
+  return dataView.getInt32(0, false);
+}
+
+export function intToUint(value: number): number {
+  if (isNaN(value)) {
+    return NaN;
+  }
+  const dataView = new DataView(new ArrayBuffer(4));
+  dataView.setInt32(0, value);
+  return dataView.getUint32(0, false);
+}
+
+export function uintToInt(value: number): number {
+  if (isNaN(value)) {
+    return NaN;
+  }
+  const dataView = new DataView(new ArrayBuffer(4));
+  dataView.setUint32(0, value);
+  return dataView.getInt32(0, false);
+}
 
 export function lexDecode(intval: number): number {
   return ieee32ToFloat(intval < 0 ? (intval >>> 0) ^ 0x7fffffff : intval >>> 0);
+}
+
+export function lexEncode(value: number): number {
+  const num = floatToIeee32(value);
+  if (isNaN(num)) {
+    return NaN;
+  }
+  return num < 0 ? (num >>> 0) ^ 0x7fffffff : num >>> 0;
 }
 
 export function convert(kind: RawValueKind | undefined, input: number): string {
@@ -456,24 +503,62 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
           `00${((input >> 24) & 255).toString(16)}`.slice(-2))
       );
     case 'timestamp':
-      return fmtInputDateTime(uPlot.tzDate(new Date(input * 1000), 'UTC'));
+      return fmtInputDateTime(uPlot.tzDate(new Date(intToUint(input) * 1000), 'UTC'));
     case 'timestamp_local':
-      return fmtInputDateTime(new Date(input * 1000));
+      return fmtInputDateTime(new Date(intToUint(input) * 1000));
     case 'ip':
       return ((input >> 24) & 255) + '.' + ((input >> 16) & 255) + '.' + ((input >> 8) & 255) + '.' + (input & 255);
     case 'ip_bswap':
       return (input & 255) + '.' + ((input >> 8) & 255) + '.' + ((input >> 16) & 255) + '.' + ((input >> 24) & 255);
     case 'uint':
-      return (input >>> 0).toString(10);
+      return intToUint(input).toString(10);
     case 'lexenc_float':
       return parseFloat(lexDecode(input).toPrecision(8)).toString(10);
-    case 'float': {
-      const buffer = new ArrayBuffer(4);
-      const dataView = new DataView(buffer);
-      dataView.setInt32(0, input, false);
-      return parseFloat(dataView.getFloat32(0, false).toPrecision(8)).toString(10);
-    }
+    case 'float':
+      return parseFloat(ieee32ToFloat(input).toPrecision(8)).toString(10);
     default:
       return input.toString(10);
+  }
+}
+export function parseRawToInt(kind: RawValueKind | undefined, value: string): number {
+  switch (kind) {
+    case 'hex':
+      return parseInt(value, 16) << 0;
+    case 'hex_bswap':
+      return parseInt(value.slice(-2) + value.slice(-4, -2) + value.slice(-6, -4) + value.slice(-8, -6), 16) << 0; //(
+    case 'timestamp': {
+      const date = new Date(value);
+      return intToUint(Math.floor((+date - date.getTimezoneOffset() * 6e4) / 1000));
+    }
+    case 'timestamp_local':
+      return intToUint(Math.floor(+new Date(value) / 1000));
+    case 'ip': {
+      const strSplit = value.split('.');
+      return (
+        parseInt(strSplit[3]) +
+        (parseInt(strSplit[2]) << 8) +
+        (parseInt(strSplit[1]) << 16) +
+        (parseInt(strSplit[0]) << 24)
+      );
+    }
+    case 'ip_bswap': {
+      const strSplit = value.split('.');
+      return (
+        parseInt(strSplit[0]) +
+        (parseInt(strSplit[1]) << 8) +
+        (parseInt(strSplit[2]) << 16) +
+        (parseInt(strSplit[3]) << 24)
+      );
+    }
+    case 'uint':
+      return uintToInt(parseInt(value, 10));
+    case 'lexenc_float':
+      return lexEncode(parseFloat(value));
+    case 'float': {
+      const input = parseFloat(value);
+      return floatToIeee32(input);
+    }
+    default:
+      return parseInt(value);
   }
 }
