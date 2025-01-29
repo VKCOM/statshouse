@@ -8,7 +8,6 @@ package pcache
 
 import (
 	"cmp"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -16,10 +15,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/zeebo/xxh3"
 	"pgregory.net/rand"
 )
 
@@ -101,41 +100,19 @@ func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
 // if fp nil, then cache works in memory-only mode
 func LoadMappingsCacheFile(fp *os.File, maxSize int64, maxTTL int) *MappingsCache {
 	c := NewMappingsCache(maxSize, maxTTL)
-	if fp == nil {
-		return c
-	}
-	c.writeAt = func(offset int64, data []byte) error {
-		_, err := fp.WriteAt(data, offset)
-		return err
-	}
-	c.truncate = func(offset int64) error {
-		return fp.Truncate(offset)
-	}
-	fileSize, _ := fp.Seek(0, 2) // should be never, but we do not care
-	_ = c.load(fileSize, func(b []byte, offset int64) error {
-		_, err := fp.ReadAt(b, offset)
-		return err
-	})
+	w, t, r, fs := data_model.ChunkedStorageFile(fp)
+	c.writeAt = w
+	c.truncate = t
+	_ = c.load(fs, r)
 	return c
 }
 
 func LoadMappingsCacheSlice(fp *[]byte, maxSize int64) *MappingsCache {
 	c := NewMappingsCache(maxSize, 0)
-	c.writeAt = func(offset int64, data []byte) error {
-		if len(*fp) < int(offset)+len(data) {
-			*fp = append(*fp, make([]byte, int(offset)+len(data)-len(*fp))...)
-		}
-		copy((*fp)[offset:], data)
-		return nil
-	}
-	c.truncate = func(offset int64) error {
-		*fp = (*fp)[:offset]
-		return nil
-	}
-	_ = c.load(int64(len(*fp)), func(data []byte, offset int64) error {
-		copy(data, (*fp)[offset:])
-		return nil
-	})
+	w, t, r, fs := data_model.ChunkedStorageSlice(fp)
+	c.writeAt = w
+	c.truncate = t
+	_ = c.load(fs, r)
 	return c
 }
 
@@ -318,7 +295,7 @@ func (c *MappingsCache) AddValues(nowUnix uint32, pairs []MappingPair) {
 	var newItemsSizeDisk int64
 	nextPos := 0
 	for _, p := range pairs { // some elements could be added already, do not remove excess elements to fit them
-		if _, ok := c.cache[p.Str]; ok || len(p.Str) > mappingsChunkSize/2 { // also protect against long strings (approximation)
+		if _, ok := c.cache[p.Str]; ok {
 			continue
 		}
 		if len(p.Str) == 0 || p.Value == 0 || p.Value == format.TagValueIDMappingFlood || p.Value == format.TagValueIDDoesNotExist {
@@ -438,18 +415,6 @@ func (c *MappingsCache) removeItem(k string, v int32, accessTS uint32) {
 	c.evicts.Add(1)
 }
 
-// File format is chunk-based so that reading and writing requires not so much memory.
-// Also, we can start saving changes incrementally later.
-// file: [chunk]...
-// chunk: [magic] [body size] [body] [xxhash of all previous bytes]
-// body:  [element]...
-// element: [string value] [int value] [access time]
-
-const mappingsChunkMagic = 0x83a28d18
-const mappingsChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
-const mappingsChunkHeaderSize = 4 + 4 // magic + body size
-const mappingsChunkHashSize = 16
-
 func elementSizeDisk(k string) int64 { // max, can be less if short string, requires no padding, etc.
 	return 4 + int64(len(k)) + 3 + 4 + 4 // strlen, string, padding, value accessTS
 }
@@ -463,46 +428,22 @@ func (c *MappingsCache) Save() error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	chunk := make([]byte, mappingsChunkSize)
-	var offset int64
-
-	startChunk := func() {
-		chunk = basictl.NatWrite(chunk[:0], mappingsChunkMagic)
-		chunk = basictl.NatWrite(chunk, 0) // placeholder for body size
+	saver := data_model.ChunkedStorageSaver{
+		WriteAt:  c.writeAt,
+		Truncate: c.truncate,
 	}
 
-	// call once before app exit
-	finishChunk := func() error {
-		if len(chunk) == mappingsChunkHeaderSize {
-			return nil
-		}
-		binary.LittleEndian.PutUint32(chunk[4:8], uint32(len(chunk)-mappingsChunkHeaderSize))
-		h := xxh3.Hash128(chunk)
-		chunk = binary.BigEndian.AppendUint64(chunk, h.Hi)
-		chunk = binary.BigEndian.AppendUint64(chunk, h.Lo)
-		if err := c.writeAt(offset, chunk); err != nil {
-			return err
-		}
-		offset += int64(len(chunk))
-		startChunk()
-		return nil
-	}
+	chunk := saver.StartWrite(data_model.ChunkedMagicMappings)
 
 	appendItem := func(k string, v int32, accessTS uint32) error {
-		sz := elementSizeDisk(k)
-		var err error
-		if mappingsChunkHeaderSize+int64(len(chunk))+sz+mappingsChunkHashSize >= mappingsChunkSize {
-			if err = finishChunk(); err != nil {
-				return err
-			}
-		}
 		chunk = basictl.StringWrite(chunk, k)
 		chunk = basictl.IntWrite(chunk, v)
 		chunk = basictl.NatWrite(chunk, accessTS)
+		var err error
+		chunk, err = saver.FinishItem(chunk)
 		return err
 	}
 
-	startChunk()         // content of chunk is applied to cache already
 	if c.deterministic { // for deterministic tests
 		items := make([]cacheKeyValue, 0, len(c.cache))
 		for k, p := range c.cache {
@@ -526,10 +467,7 @@ func (c *MappingsCache) Save() error {
 			}
 		}
 	}
-	if err := finishChunk(); err != nil {
-		return err
-	}
-	return c.truncate(offset)
+	return saver.FinishWrite(chunk)
 }
 
 // callers are expected to ignore error from this method
@@ -541,45 +479,27 @@ func (c *MappingsCache) load(fileSize int64, readAt func(b []byte, offset int64)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	chunk := make([]byte, mappingsChunkSize)
-	var offset int64
-	for offset != fileSize {
-		if offset+mappingsChunkHeaderSize+mappingsChunkHashSize > fileSize {
-			return fmt.Errorf("chunk at %d header overflows file size %d", offset, fileSize)
-		}
-		if err := readAt(chunk[:mappingsChunkHeaderSize], offset); err != nil {
+	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
+
+	loader.StartRead(fileSize, data_model.ChunkedMagicMappings)
+	for {
+		chunk, err := loader.ReadNext()
+		if err != nil {
 			return err
 		}
-		if m := binary.LittleEndian.Uint32(chunk[:]); m != mappingsChunkMagic {
-			return fmt.Errorf("chunk at %d invalid magic 0x%x", offset, m)
+		if len(chunk) == 0 {
+			break
 		}
-		s := int64(binary.LittleEndian.Uint32(chunk[4:]))
-		if mappingsChunkHeaderSize+s+mappingsChunkHashSize > mappingsChunkSize {
-			return fmt.Errorf("chunk at %d body size %d overflows hard limit %d", offset, s, mappingsChunkSize)
-		}
-		nextChunkOffset := offset + mappingsChunkHeaderSize + s + mappingsChunkHashSize
-		if nextChunkOffset > fileSize {
-			return fmt.Errorf("chunk at %d body size %d overflows file size %d", offset, s, fileSize)
-		}
-		if err := readAt(chunk[:mappingsChunkHeaderSize+s+mappingsChunkHashSize], offset); err != nil { // read header again for simplicity
-			return err
-		}
-		h := xxh3.Hash128(chunk[:mappingsChunkHeaderSize+s])
-		if h.Hi != binary.BigEndian.Uint64(chunk[mappingsChunkHeaderSize+s:]) ||
-			h.Lo != binary.BigEndian.Uint64(chunk[mappingsChunkHeaderSize+s+8:]) {
-			return fmt.Errorf("chunk at %d has wrong xxhash", offset)
-		}
-		chunkBody := chunk[mappingsChunkHeaderSize : mappingsChunkHeaderSize+s]
 		var val cacheKeyValue
-		for len(chunkBody) != 0 {
+		for len(chunk) != 0 {
 			var err error
-			if chunkBody, err = basictl.StringRead(chunkBody, &val.str); err != nil {
+			if chunk, err = basictl.StringRead(chunk, &val.str); err != nil {
 				return err
 			}
-			if chunkBody, err = basictl.IntRead(chunkBody, &val.val.value); err != nil {
+			if chunk, err = basictl.IntRead(chunk, &val.val.value); err != nil {
 				return err
 			}
-			if chunkBody, err = basictl.NatRead(chunkBody, &val.val.accessTS); err != nil {
+			if chunk, err = basictl.NatRead(chunk, &val.val.accessTS); err != nil {
 				return err
 			}
 			if _, ok := c.cache[val.str]; ok { // check existence for correct accounting
@@ -589,7 +509,6 @@ func (c *MappingsCache) load(fileSize int64, readAt func(b []byte, offset int64)
 			c.addSumTSLocked(int64(val.val.accessTS))
 			c.cache[val.str] = val.val
 		}
-		offset = nextChunkOffset
 	}
 	return nil
 }
