@@ -212,13 +212,14 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	}
 	if pq.metric != nil && len(pq.by) != 0 {
 		for _, x := range pq.by {
-			if x < 0 || len(pq.metric.Tags) <= x {
-				continue
+			var tag format.MetricMetaTag
+			if 0 <= x && x < len(pq.metric.Tags) {
+				tag = pq.metric.Tags[x]
 			}
 			for i := startX; i < endX; i++ {
 				for j := 0; j < len(ret[i]); j++ {
 					if s := ret[i][j].stag[x]; s != "" {
-						v, err := h.getRichTagValueID(&pq.metric.Tags[x], h.version, s)
+						v, err := h.getRichTagValueID(&tag, h.version, s)
 						if err == nil {
 							ret[i][j].tag[x] = v
 							ret[i][j].stag[x] = ""
@@ -337,14 +338,17 @@ func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fr
 		// map string tags
 		cached := e.secRows[t]
 		for i := 0; i < len(cached.rows); i++ {
-			if row := &cached.rows[i]; row.stagCount != 0 {
-				for k := 0; k < len(row.stag) && k < len(pq.metric.Tags); k++ {
-					if s := row.stag[k]; s != "" {
-						if v, err := h.getRichTagValueID(&pq.metric.Tags[k], h.version, s); err == nil {
-							row.tag[k] = v
-							row.stag[k] = ""
-							row.stagCount--
-						}
+			row := &cached.rows[i]
+			for k := 0; k < len(row.stag) && row.stagCount != 0; k++ {
+				if s := row.stag[k]; s != "" {
+					var tag format.MetricMetaTag
+					if 0 <= k && k < len(pq.metric.Tags) {
+						tag = pq.metric.Tags[k]
+					}
+					if v, err := h.getRichTagValueID(&tag, h.version, s); err == nil {
+						row.tag[k] = v
+						row.stag[k] = ""
+						row.stagCount--
 					}
 				}
 			}
