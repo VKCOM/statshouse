@@ -138,7 +138,7 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 
 // aggregator is also run in this method
 func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
-	storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
+	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
 		return nil, fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
@@ -296,8 +296,8 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
-	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, nil, mappingsCache,
+	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
+		format.TagValueIDComponentAggregator, a.metricStorage, mappingsCache,
 		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)

@@ -14,10 +14,10 @@ import (
 const shutdownInfoFileName = "shutdown_stats.tmp"
 
 // actual metrics reported depend on contents of .tmp file
-func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string, startDiscCache time.Time) {
+func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, cacheDir string, startDiscCache time.Time) {
 	si := tlstatshouse.ShutdownInfo{}
-	if storageDir != "" {
-		fn := filepath.Join(storageDir, shutdownInfoFileName)
+	if cacheDir != "" {
+		fn := filepath.Join(cacheDir, shutdownInfoFileName)
 		data, err := os.ReadFile(fn)
 		if err != nil {
 			logErr.Printf("error reading %q, no shutdown metrics will be written", fn)
@@ -97,9 +97,9 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, storageDir string,
 	}
 }
 
-func shutdownInfoSave(storageDir string, si tlstatshouse.ShutdownInfo) {
-	if storageDir != "" {
-		_ = os.WriteFile(filepath.Join(argv.cacheDir, shutdownInfoFileName), si.WriteBoxed(nil), os.ModePerm)
+func shutdownInfoSave(cacheDir string, si tlstatshouse.ShutdownInfo) {
+	if cacheDir != "" {
+		_ = os.WriteFile(filepath.Join(cacheDir, shutdownInfoFileName), si.WriteBoxed(nil), os.ModePerm)
 	}
 }
 
