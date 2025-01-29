@@ -645,12 +645,13 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(key, legacyKeyHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
 }
 
 func (s *Agent) AddCounterStringBytes(key *data_model.Key, str []byte, count float64, metricInfo *format.MetricMetaValue) {
@@ -666,12 +667,13 @@ func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(key, legacyKeyHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
 }
 
 // value should be not NaN.
@@ -686,24 +688,26 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, legacyKeyHash, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
 }
 
 func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, _, legacyKeyHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.builtinNewSharding.Load())
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	if err != nil {
 		return
 	}
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(key, legacyKeyHash, item, metricInfo)
+	shard.MergeItemValue(key, resolutionHash, item, metricInfo)
 }
 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) *data_model.Key {

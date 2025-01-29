@@ -158,9 +158,8 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 	}
 	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
 	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, 0, keyValue})
-	meta := format.BuiltinMetricMetaAggMappingCreated
 	key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
-	ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, meta)
+	ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, format.BuiltinMetricMetaAggMappingCreated)
 	return keyValue
 }
 
