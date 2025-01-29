@@ -406,7 +406,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				measurementStringTops++
 			}
 		}
-		k, sID, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		k, _, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
@@ -531,14 +531,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 		}
 		keyBytes = keyBytes[:0]
-		switch configR.Shard {
-		case ShardAggregatorHash:
-			sID = int(k.Hash() % data_model.AggregationShardsPerSecond)
-		case ShardAggregatorXXHash:
-			var hash uint64
-			keyBytes, hash = k.XXHash(keyBytes)
-			sID = int(hash % data_model.AggregationShardsPerSecond)
-		}
+		var hash uint64
+		keyBytes, hash = k.XXHash(keyBytes)
+		sID := int(hash % data_model.AggregationShardsPerSecond)
+
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, data_model.AggregatorStringTopCapacity, nil, keyBytes)
 		mi.MergeWithTLMultiItem(rng, &item, hostTag)
@@ -548,10 +544,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 			usedMetrics = append(usedMetrics, k.Metric)
 		}
-		if configR.Shard == ShardAggregatorHash || configR.Shard == ShardAggregatorXXHash {
-			// we unlock shard to calculate hash not under it
-			aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
-		}
+		// we unlock shard to calculate hash not under it
+		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	}
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
