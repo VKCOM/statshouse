@@ -406,7 +406,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				measurementStringTops++
 			}
 		}
-		k, _, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
@@ -606,6 +606,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1)
+	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1)
 
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
 	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
@@ -623,7 +625,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addValueCounterHost(format.BuiltinMetricMetaAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(args.OriginalSize), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}, receiveDelay, 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketAggregateTimeSec, [16]int32{0, 0, 0, 0, conveyor, spare}, now2.Sub(now).Seconds(), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggAdditionsToEstimator, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(len(newKeys)), 1)
 	if bucket.MissedSeconds != 0 { // TODO - remove after all agents upgraded to write this metric with tag format.TagValueIDTimingMissedSecondsAgent
 		addValueCounterHost(format.BuiltinMetricMetaTimingErrors, [16]int32{0, format.TagValueIDTimingMissedSeconds}, float64(bucket.MissedSeconds), 1)
 	}

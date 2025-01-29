@@ -192,32 +192,8 @@ var BuiltinMetricMetaAggSizeUncompressed = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggAdditionsToEstimator = -8 // How many new tags were inserted into bucket
-var BuiltinMetricMetaAggAdditionsToEstimator = &MetricMetaValue{
-	Name: "__agg_additions_to_estimator",
-	Kind: MetricKindValue,
-	Description: `How many unique metric-tag combinations were inserted into aggregation bucket.
-Set by aggregator. Max(value)@host shows host responsible for most combinations, and is very order-dependent.`,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   true,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description:   "conveyor",
-		ValueComments: convertToValueComments(conveyorToValue),
-	}, {
-		Description:   "aggregator_role",
-		ValueComments: convertToValueComments(aggregatorRoleToValue),
-	}, {
-		Description: "-",
-	}},
-}
+// const BuiltinMetricIDAggAdditionsToEstimator = -8 // How many new tags were inserted into bucket
+// We merged this metric into BuiltinMetricIDAggBucketInfo
 
 const BuiltinMetricIDAggHourCardinality = -9
 
@@ -2726,6 +2702,8 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoUniqueBytes:        "unique_bytes",
 			TagValueIDAggBucketInfoStringTops:         "string_tops",
 			TagValueIDAggBucketInfoIntTops:            "int_tops",
+			TagValueIDAggBucketInfoNewKeys:            "new_keys",
+			TagValueIDAggBucketInfoMetrics:            "metrics",
 		}),
 	}, {
 		Description: "-",

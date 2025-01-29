@@ -198,7 +198,7 @@ func roundTripKey(key Key, bucketTimestamp uint32, newestTime uint32) Key {
 	}
 
 	// Convert MultiItemBytes back to Key
-	reconstructedKey, _, _ := KeyFromStatshouseMultiItem(multiItemBytes, bucketTimestamp, newestTime)
+	reconstructedKey, _ := KeyFromStatshouseMultiItem(multiItemBytes, bucketTimestamp, newestTime)
 	for i, str := range multiItemBytes.Skeys {
 		reconstructedKey.SetSTag(i, string(str))
 	}
