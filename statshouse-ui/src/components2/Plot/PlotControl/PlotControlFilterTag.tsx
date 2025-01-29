@@ -15,7 +15,7 @@ import { setUpdatedTag, useVariableListStore } from '@/store2/variableList';
 import { type PlotKey, QueryParams } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
 import { useVariableLink } from '@/hooks/useVariableLink';
-import { getTagDescription } from '@/view/utils2';
+import { getTagDescription, getTagValue } from '@/view/utils2';
 import { VariableControl } from '@/components/VariableControl';
 
 export type PlotControlFilterTagProps = {
@@ -125,6 +125,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
       if (tagKey == null) {
         return;
       }
+      values = getTagValue(meta, tagKey, values);
       if (variableInfo) {
         setParams(
           produce((p) => {
@@ -149,7 +150,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         );
       }
     },
-    [negativeTag, plotKey, setParams, variableInfo]
+    [meta, negativeTag, plotKey, setParams, variableInfo]
   );
   const onSetUpdateTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
