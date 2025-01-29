@@ -1087,7 +1087,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	// grouping
 	var (
 		groupBy    []int
-		addGroupBy = func(t format.MetricMetaTag) {
+		addGroupBy = func(t *format.MetricMetaTag) {
 			groupBy = append(groupBy, t.Index)
 		}
 	)
@@ -1103,8 +1103,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	} else if sel.GroupWithout {
 		skip := make(map[int]bool)
 		for _, name := range sel.GroupBy {
-			t, ok, _ := metric.APICompatGetTag(name)
-			if ok {
+			t, _ := metric.APICompatGetTag(name)
+			if t != nil {
 				skip[t.Index] = true
 			}
 		}
@@ -1118,7 +1118,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		for _, k := range sel.GroupBy {
 			if k == LabelShard {
 				groupBy = append(groupBy, format.ShardTagIndex)
-			} else if t, ok, _ := metric.APICompatGetTag(k); ok {
+			} else if t, _ := metric.APICompatGetTag(k); t != nil {
 				if t.Index == format.StringTopTagIndex {
 					groupBy = append(groupBy, format.StringTopTagIndexV3)
 				} else {
@@ -1135,8 +1135,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if strings.HasPrefix(matcher.Name, "__") {
 			continue
 		}
-		tag, ok, _ := metric.APICompatGetTag(matcher.Name)
-		if !ok {
+		tag, _ := metric.APICompatGetTag(matcher.Name)
+		if tag == nil {
 			return SeriesQuery{}, fmt.Errorf("not found tag %q", matcher.Name)
 		}
 		i := tag.Index

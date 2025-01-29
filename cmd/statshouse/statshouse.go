@@ -228,7 +228,7 @@ func runMain() int {
 		}
 		defer fpmc.Close()
 	}
-	mappingsCache := pcache.LoadMappingsCacheFile(fpmc, mappingCacheSize, mappingCacheTTL)
+	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, mappingCacheSize, mappingCacheTTL) // we ignore error because cache can be damaged
 
 	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 
@@ -287,15 +287,25 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 		receiversUDP []*receiver.UDP
 	)
 	metricStorage := metajournal.MakeMetricsStorage(nil)
-	journal := metajournal.MakeJournal(argv.configAgent.Cluster, data_model.JournalDDOSProtectionAgentTimeout, dc,
+	var fj *os.File
+	if argv.cacheDir != "" {
+		// we do not want to confuse journal from different clusters, this would be a disaster
+		var err error
+		fj, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			logErr.Printf("failed to open journal cache: %v", err)
+			return 1
+		}
+		defer fj.Close()
+	}
+
+	// we ignore error because cache can be damaged
+	journal, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
-	// This code is used to investigate journal loading efficiency. TODO - remove after journal is fast and compact
-	// if err := metajournal.LoadTestJournalFromFile(journal, "../internal/metajournal/journal.json"); err != nil {
+	// This code is used to investigate journal loading efficiency.
+	//if err := http.ListenAndServe(":9999", nil); err != nil {
 	//	panic(err)
-	// }
-	// if err := http.ListenAndServe(":9999", nil); err != nil {
-	//	panic(err)
-	// }
+	//}
 
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
@@ -578,6 +588,9 @@ loop:
 	logOk.Printf("8. Saving mappings...")
 	_ = mcagent.Save()
 	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
+	logOk.Printf("9. Saving journal...")
+	_ = journal.Save()
+	shutdownInfo.SaveJournal = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")

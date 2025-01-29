@@ -1831,7 +1831,7 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags:                    []MetricMetaTag{{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+	Tags:                    []MetricMetaTag{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
 
 const BuiltinMetricIDStatsHouseErrors = -85
@@ -2285,6 +2285,7 @@ var BuiltinMetricMetaRestartTimings = &MetricMetaValue{
 			TagValueIDRestartTimingsPhaseStopInserters:     "stop_inserters",
 			TagValueIDRestartTimingsPhaseStopRPCServer:     "stop_rpc_server",
 			TagValueIDRestartTimingsPhaseSaveMappings:      "save_mappings",
+			TagValueIDRestartTimingsPhaseSaveJournal:       "save_journal",
 		}),
 	}, {
 		Description: "-",

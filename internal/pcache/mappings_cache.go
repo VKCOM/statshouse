@@ -98,13 +98,13 @@ func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
 
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
-func LoadMappingsCacheFile(fp *os.File, maxSize int64, maxTTL int) *MappingsCache {
+func LoadMappingsCacheFile(fp *os.File, maxSize int64, maxTTL int) (*MappingsCache, error) {
 	c := NewMappingsCache(maxSize, maxTTL)
 	w, t, r, fs := data_model.ChunkedStorageFile(fp)
 	c.writeAt = w
 	c.truncate = t
-	_ = c.load(fs, r)
-	return c
+	err := c.load(fs, r)
+	return c, err
 }
 
 func LoadMappingsCacheSlice(fp *[]byte, maxSize int64) *MappingsCache {

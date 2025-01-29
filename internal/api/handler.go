@@ -1033,7 +1033,7 @@ func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, 
 	}
 	ids := make([]int32, 0, len(tagValues))
 	for _, v := range tagValues {
-		id, err := h.getRichTagValueID(&tag, version, v)
+		id, err := h.getRichTagValueID(tag, version, v)
 		if err != nil {
 			if httpCode(err) == http.StatusNotFound {
 				continue // ignore values with no mapping

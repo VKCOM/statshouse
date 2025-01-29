@@ -37,10 +37,10 @@ func ValidateMetricData(metricBytes *tlstatshouse.MetricBytes) (ingestionStatus 
 	return
 }
 
-func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta format.MetricMetaTag, tagIDKey int32, valid bool) {
-	tagMeta, ok, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
+func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, valid bool) {
+	tagMeta, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
 	valid = true
-	if !ok {
+	if tagMeta == nil {
 		validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
 		if err != nil {
 			valid = false
