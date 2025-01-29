@@ -1840,9 +1840,10 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		strcmpOff:   h.Version3StrcmpOff.Load(),
 	}
 
-	tagInfo := map[selectRow]float64{}
+	valueCount := map[string]float64{}
+	valueIDCount := map[int32]float64{}
 	if version == Version1 && tagID == format.EnvTagID {
-		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
+		valueIDCount[format.TagValueIDProductionLegacy] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
 			query := tagValuesQuery(pq, lod)
@@ -1859,7 +1860,11 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 				OnResult: func(_ context.Context, b proto.Block) error {
 					for i := 0; i < b.Rows; i++ {
 						tag := query.rowAt(i)
-						tagInfo[selectRow{valID: tag.valID, val: tag.val}] += tag.cnt
+						if tag.valID != 0 {
+							valueIDCount[tag.valID] += tag.cnt
+						} else {
+							valueCount[tag.val] += tag.cnt
+						}
 					}
 					return nil
 				}})
@@ -1869,28 +1874,21 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		}
 	}
 
-	data := make([]selectRow, 0, len(tagInfo))
-	for k, count := range tagInfo {
-		data = append(data, selectRow{valID: k.valID, val: k.val, cnt: count})
+	for k, v := range valueIDCount {
+		valueCount[h.getRichTagValue(metricMeta, version, tagID, k)] += v
 	}
-	sort.Slice(data, func(i int, j int) bool { return data[i].cnt > data[j].cnt })
 
+	data := make([]MetricTagValueInfo, 0, len(valueCount))
+	for k, v := range valueCount {
+		data = append(data, MetricTagValueInfo{Value: emptyToUnspecified(k), Count: v})
+	}
+	sort.Slice(data, func(i int, j int) bool { return data[i].Count > data[j].Count })
 	ret := &GetMetricTagValuesResp{
-		TagValues: []MetricTagValueInfo{},
+		TagValues: data,
 	}
-	if len(data) > numResults {
-		data = data[:numResults]
+	if len(ret.TagValues) > numResults {
+		ret.TagValues = ret.TagValues[:numResults]
 		ret.TagValuesMore = true
-	}
-	for _, d := range data {
-		v := d.val
-		if v == "" && d.valID != 0 {
-			v = h.getRichTagValue(metricMeta, version, tagID, d.valID)
-		}
-		ret.TagValues = append(ret.TagValues, MetricTagValueInfo{
-			Value: emptyToUnspecified(v),
-			Count: d.cnt,
-		})
 	}
 
 	immutable = to.Before(time.Now().Add(invalidateFrom))
