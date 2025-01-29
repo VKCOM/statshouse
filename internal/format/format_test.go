@@ -231,6 +231,38 @@ func BenchmarkAllowedResolutionTable(b *testing.B) {
 	fmt.Printf("result: %d\n", allowed) // do not allow to optimize out
 }
 
+var sum int
+
+func BenchmarkName2Tag(b *testing.B) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "some",
+	}
+	_ = meta.RestoreCachedInfo()
+	for i := 0; i < b.N; i++ {
+		if t := meta.name2Tag[TagID(i&15)]; t != nil {
+			sum += t.Index
+		}
+	}
+}
+
+func BenchmarkName2TagX(b *testing.B) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "some",
+	}
+	_ = meta.RestoreCachedInfo()
+	for i := 0; i < b.N; i++ {
+		if t := meta.Name2Tag(TagID(i & 15)); t != nil {
+			sum += t.Index
+		}
+	}
+}
+
 func TestNamespaceConst(t *testing.T) {
 	require.Equal(t, NamespaceSeparator, string(NamespaceSeparatorRune))
 }

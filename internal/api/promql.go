@@ -184,9 +184,7 @@ func HandlePromLabelsQuery(r *httpRequestHandler) {
 					if sel.Name == "__name__" {
 						metricName := prefix + sel.Value
 						if meta := r.metricsStorage.GetMetaMetricByName(metricName); meta != nil {
-							for k := range meta.Name2Tag {
-								res = append(res, k)
-							}
+							res = meta.AppendTagNames(res)
 						}
 					}
 				}
@@ -1027,7 +1025,7 @@ func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) str
 		return ""
 	}
 	if m != nil {
-		if t := m.Name2Tag[tagID]; t.Raw && !t.IsMetric && !t.IsNamespace && !t.IsGroup && len(t.ValueComments) != 0 {
+		if t := m.Name2Tag(tagID); t.Raw && !t.IsMetric && !t.IsNamespace && !t.IsGroup && len(t.ValueComments) != 0 {
 			if v := t.ValueComments[s]; v != "" {
 				return v
 			}
@@ -1038,7 +1036,7 @@ func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) str
 
 func promqlTagName(tagID string, m *format.MetricMetaValue) string {
 	if m != nil {
-		if t := m.Name2Tag[tagID]; t.Name != "" {
+		if t := m.Name2Tag(tagID); t.Name != "" {
 			return t.Name
 		}
 	}

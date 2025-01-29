@@ -264,7 +264,7 @@ type MetricMetaValue struct {
 	Sharding             []MetricSharding         `json:"sharding,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
-	Name2Tag             map[string]*MetricMetaTag `json:"-"` // Should be restored from Tags after reading
+	name2Tag             map[string]*MetricMetaTag `json:"-"` // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
 	FairKey              []int                     `json:"-"`
@@ -345,6 +345,52 @@ func (t *MetricMetaTag) equalsToDefault(index int) bool {
 	return t.Index == index
 }
 
+// this method is faster than string hash, plus saves a lot of memory in maps
+func (m *MetricMetaValue) name2TagFast(name mem.RO) *MetricMetaTag {
+	if name.Len() == 0 || name.Len() > 2 {
+		return nil
+	}
+	num := uint(name.At(0)) - '0'
+	if num > 9 {
+		return nil
+	}
+	if name.Len() == 2 {
+		num2 := uint(name.At(1)) - '0'
+		if num2 > 9 {
+			return nil
+		}
+		num = num*10 + num2
+	}
+	if num < uint(len(m.Tags)) {
+		return &m.Tags[num]
+	}
+	if num < uint(len(defaultMetaTags)) {
+		return &defaultMetaTags[num]
+	}
+	return nil
+}
+
+func (m *MetricMetaValue) Name2Tag(name string) *MetricMetaTag {
+	if tag := m.name2TagFast(mem.S(name)); tag != nil {
+		return tag
+	}
+	return m.name2Tag[name]
+}
+
+func (m *MetricMetaValue) Name2TagBytes(name []byte) *MetricMetaTag {
+	if tag := m.name2TagFast(mem.B(name)); tag != nil {
+		return tag
+	}
+	return m.name2Tag[string(name)]
+}
+
+func (m *MetricMetaValue) AppendTagNames(res []string) []string {
+	for k := range m.name2Tag {
+		res = append(res, k)
+	}
+	return res
+}
+
 // updates error if name collision happens
 func (m *MetricMetaValue) setName2Tag(name string, sTag *MetricMetaTag, canonical bool, err *error) {
 	if name == "" {
@@ -355,13 +401,13 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag *MetricMetaTag, canonica
 			*err = fmt.Errorf("invalid tag name %q", name)
 		}
 	}
-	if _, ok := m.Name2Tag[name]; ok {
+	if tag := m.Name2Tag(name); tag != nil {
 		if err != nil {
 			*err = fmt.Errorf("name %q collision, tags must have unique alternative names and cannot have collisions with canonical (0, 1 .. , _s, _h) names", name)
 		}
 		return
 	}
-	m.Name2Tag[name] = sTag
+	m.name2Tag[name] = sTag
 }
 
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
@@ -388,7 +434,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
 
-	m.Name2Tag = make(map[string]*MetricMetaTag, NewMaxTags*3/2)
+	m.name2Tag = map[string]*MetricMetaTag{}
 
 	if m.StringTopName == StringTopTagID { // remove redundancy
 		m.StringTopName = ""
@@ -418,6 +464,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		)
 		if tag.Name == tagID { // remove redundancy
 			tag.Name = ""
+		}
+		if tag.Name != "" && !ValidTagName(mem.S(tag.Name)) {
+			err = multierr.Append(err, fmt.Errorf("invalid tag name %q of tag %d", tag.Name, i))
 		}
 		if m.PreKeyFrom != 0 { // restore prekey index
 			switch m.PreKeyTagID {
@@ -464,17 +513,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.setName2Tag(StringTopTagID, sTag, true, &err)
 	}
 	m.setName2Tag(HostTagID, &defaultHTag, true, &err)
-	for i := 0; i < MaxTags; i++ { // separate pass to overwrite potential collisions with canonical names in the loop above
-		if i < len(tags) {
-			if tags[i].equalsToDefault(i) {
-				m.setName2Tag(TagID(i), &defaultMetaTags[i], true, &err)
-			} else {
-				m.setName2Tag(TagID(i), &tags[i], true, &err)
-			}
-		} else {
-			m.setName2Tag(TagID(i), &defaultMetaTags[i], true, &err)
-		}
-	}
 	m.EffectiveResolution = AllowedResolution(m.Resolution)
 	if m.EffectiveResolution != m.Resolution && m.Resolution != 0 { // Resolution 0 is good default for JSON
 		err = multierr.Append(err, fmt.Errorf("resolution %d must be factor of 60", m.Resolution))
@@ -530,7 +568,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if len(m.FairKeyTagIDs) != 0 {
 		m.FairKey = make([]int, 0, len(m.FairKeyTagIDs))
 		for _, v := range m.FairKeyTagIDs {
-			if tag, ok := m.Name2Tag[v]; ok {
+			if tag := m.Name2Tag(v); tag != nil {
 				m.FairKey = append(m.FairKey, tag.Index)
 			}
 		}
@@ -560,22 +598,22 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 
 // 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
 func (m *MetricMetaValue) APICompatGetTag(tagNameOrID string) (tag *MetricMetaTag, legacyName bool) {
-	if res := m.Name2Tag[tagNameOrID]; res != nil {
+	if res := m.Name2Tag(tagNameOrID); res != nil {
 		return res, false
 	}
 	if tagID, ok := apiCompatTagID[tagNameOrID]; ok {
-		return m.Name2Tag[tagID], true
+		return m.Name2Tag(tagID), true
 	}
 	return nil, false
 }
 
 // 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
 func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag *MetricMetaTag, legacyName bool) {
-	if res := m.Name2Tag[string(tagNameOrID)]; res != nil {
+	if res := m.Name2TagBytes(tagNameOrID); res != nil {
 		return res, false
 	}
 	if tagID, ok := apiCompatTagID[string(tagNameOrID)]; ok {
-		return m.Name2Tag[tagID], true
+		return m.Name2Tag(tagID), true
 	}
 	return nil, false
 }
