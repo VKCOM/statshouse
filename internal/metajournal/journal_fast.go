@@ -74,13 +74,13 @@ func MakeJournalFast(journalRequestDelay time.Duration, applyEvent []ApplyEvent)
 
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
-func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, applyEvent []ApplyEvent) *JournalFast {
+func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, applyEvent []ApplyEvent) (*JournalFast, error) {
 	c := MakeJournalFast(journalRequestDelay, applyEvent)
 	w, t, r, fs := data_model.ChunkedStorageFile(fp)
 	c.writeAt = w
 	c.truncate = t
-	_ = c.load(fs, r)
-	return c
+	err := c.load(fs, r)
+	return c, err
 }
 
 func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
@@ -94,7 +94,7 @@ func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) 
 
 func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error) ([]tlmetadata.Event, error) {
 	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
-	loader.StartRead(fileSize, data_model.ChunkedMagicMappings)
+	loader.StartRead(fileSize, data_model.ChunkedMagicJournal)
 	var scratch []byte
 	var src []tlmetadata.Event
 	for {
