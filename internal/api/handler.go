@@ -723,7 +723,6 @@ func (h *Handler) savePanic(requestURI string, err any, stack []byte) {
 
 func (h *Handler) Close() error {
 	statshouse.StopRegularMeasurement(h.rmID)
-	h.cache.shutdown()
 	h.cacheInvalidateTicker.Stop()
 
 	ch := make(chan struct{})
@@ -2639,7 +2638,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 	tags := make(map[string]SeriesMetaTag, len(d.Tags.ID2Tag))
 	timsShift := -d.Offset
 	for id, tag := range d.Tags.ID2Tag {
-		if len(tag.SValue) == 0 || tag.ID == labels.MetricName || tag.ID == promql.LabelWhat {
+		if tag.ID == labels.MetricName || tag.ID == promql.LabelWhat {
 			continue
 		}
 		if tag.ID == promql.LabelOffset {
@@ -3040,7 +3039,7 @@ func containsString(s []string, v string) bool {
 
 func emptyToUnspecified(s string) string {
 	if s == "" {
-		return format.CodeTagValue(format.TagValueIDUnspecified)
+		return format.TagValueCodeZero
 	}
 	return s
 }
