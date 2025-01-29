@@ -216,7 +216,7 @@ func (ac *AutoCreate) synchronizeWithJournal(metric string, task *autoCreateTask
 		// remove existing mappings from the task
 		tags := make(map[string]int, len(task.tags))
 		for k, v := range task.tags {
-			if _, ok := meta.Name2Tag[k]; !ok {
+			if tag := meta.Name2Tag(k); tag == nil {
 				tags[k] = v
 			}
 		}

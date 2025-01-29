@@ -932,8 +932,8 @@ func (h *Handler) getTagValue(tagValueID int32) (string, error) {
 
 func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version string, tagID string, tagValueID int32) string {
 	// Rich mapping between integers and strings must be perfect (with no duplicates on both sides)
-	tag, ok := metricMeta.Name2Tag[tagID]
-	if !ok {
+	tag := metricMeta.Name2Tag(tagID)
+	if tag == nil {
 		return format.CodeTagValue(tagValueID)
 	}
 	if tag.IsMetric {
@@ -1027,8 +1027,8 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 }
 
 func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
-	tag, ok := metricMeta.Name2Tag[tagID]
-	if !ok {
+	tag := metricMeta.Name2Tag(tagID)
+	if tag == nil {
 		return nil, fmt.Errorf("tag with name %s not found for metric %s", tagID, metricMeta.Name)
 	}
 	ids := make([]int32, 0, len(tagValues))
@@ -1067,7 +1067,10 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			if err != nil {
 				return data_model.TagFilters{}, err
 			}
-			m.AppendMapped(metricMeta.Name2Tag[k].Index, ids...)
+			tag := metricMeta.Name2Tag(k)
+			if tag != nil { // TODO - correct?
+				m.AppendMapped(tag.Index, ids...)
+			}
 		}
 	}
 	return m, nil
@@ -2654,7 +2657,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 				name = format.TagID(index)
 			}
 			if s.Series.Meta.Metric != nil {
-				if meta, ok := s.Series.Meta.Metric.Name2Tag[name]; ok {
+				if meta := s.Series.Meta.Metric.Name2Tag(name); meta != nil {
 					v.Comment = meta.ValueComments[v.Value]
 					v.Raw = meta.Raw
 					v.RawKind = meta.RawKind
@@ -2732,7 +2735,7 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 		return false
 	}
 	metaTag := SeriesMetaTag{Value: h.getRichTagValue(metricMeta, version, tagID, tagValueID)}
-	if tag, ok := metricMeta.Name2Tag[tagID]; ok {
+	if tag := metricMeta.Name2Tag(tagID); tag != nil {
 		metaTag.Comment = tag.ValueComments[metaTag.Value]
 		metaTag.Raw = tag.Raw
 		metaTag.RawKind = tag.RawKind

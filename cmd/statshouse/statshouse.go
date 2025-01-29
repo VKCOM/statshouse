@@ -277,9 +277,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 	journal, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	// This code is used to investigate journal loading efficiency.
-	//if err := http.ListenAndServe(":9999", nil); err != nil {
-	//	panic(err)
-	//}
+	if err := http.ListenAndServe(":9999", nil); err != nil {
+		panic(err)
+	}
 
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 

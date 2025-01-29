@@ -423,8 +423,8 @@ func parseFilterValues(filter []tlstatshouseApi.Filter, meta *format.MetricMetaV
 			case tlstatshouseApi.FlagRaw():
 				tagValue = format.AddRawValuePrefix(tagValue)
 			case tlstatshouseApi.FlagAuto():
-				tag, ok := meta.Name2Tag[tid]
-				if !ok {
+				tag := meta.Name2Tag(tid)
+				if tag == nil {
 					return nil, nil, fmt.Errorf("tag with name %q not found", f.Key)
 				}
 				if !tag.Raw {

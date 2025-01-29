@@ -234,7 +234,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		if len(value.TagsDraft) >= format.MaxDraftTags {
 			break
 		}
-		if _, ok := value.Name2Tag[string(tagName)]; ok {
+		if tag := value.Name2TagBytes(tagName); tag != nil {
 			continue // already mapped
 		}
 		if _, ok := value.GetTagDraft(tagName); ok {
