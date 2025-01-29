@@ -99,12 +99,10 @@ func RunEnableNewPipeline() {
 func ensureMetricWithDescription(ctx context.Context, client *api.Client, name, desc string) {
 	m, err := client.GetMetric(ctx, name)
 	if err != nil {
-		log.Fatalf("Failed to get metric: %v", err)
-	}
-	if m == nil {
+		log.Printf("Failed to get metric: %v", err)
 		m = &api.MetricInfo{
 			Metric: format.MetricMetaValue{
-				Name:       "statshouse_api_remote_config",
+				Name:       name,
 				Kind:       format.MetricKindMixed,
 				Resolution: 1,
 				Visible:    true,
