@@ -239,7 +239,7 @@ type MetricMetaValue struct {
 	NamespaceID int32  `json:"namespace_id,omitempty"` // RO
 	Name        string `json:"name,omitempty"`
 	Version     int64  `json:"version,omitempty"`
-	UpdateTime  uint32 `json:"update_time,omitempty"`
+	UpdateTime  uint32 `json:"-"` // updated from event
 
 	Description          string                   `json:"description,omitempty"`
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
@@ -337,7 +337,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 	}
 	if _, ok := m.Name2Tag[name]; ok {
 		if err != nil {
-			*err = fmt.Errorf("name %q collision, tags must have unique alternative names and cannot have collisions with canonical (key*, skey, environment) names", name)
+			*err = fmt.Errorf("name %q collision, tags must have unique alternative names and cannot have collisions with canonical (0, 1 .. , _s, _h) names", name)
 		}
 		return
 	}
@@ -453,8 +453,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	m.EffectiveResolution = AllowedResolution(m.Resolution)
-	if m.EffectiveResolution != m.Resolution {
+	if m.EffectiveResolution != m.Resolution && m.Resolution != 0 { // Resolution 0 is good default for JSON
 		err = multierr.Append(err, fmt.Errorf("resolution %d must be factor of 60", m.Resolution))
+	}
+	if m.Weight == 0 { // Weight 0 is good default for JSON
+		m.Weight = 1
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = multierr.Append(err, fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32))
@@ -509,9 +512,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			}
 		}
 	}
-	// default strategy if it's not configured
-	if len(m.Sharding) == 0 {
-		m.Sharding = []MetricSharding{{Strategy: ShardBy16MappedTagsHash}}
+	// strip default strategy from array
+	if len(m.Sharding) == 1 && m.Sharding[0].Strategy == ShardBy16MappedTagsHash {
+		m.Sharding = nil
 	}
 	for _, sh := range m.Sharding {
 		if id, validationErr := ShardingStrategyId(sh); validationErr != nil {
@@ -521,8 +524,8 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			sh.StrategyId = id
 		}
 	}
-	if m.PipelineVersion != 2 && m.PipelineVersion != 3 {
-		m.PipelineVersion = 2
+	if m.PipelineVersion != 3 { // PipelineVersion 0 is good default for JSON
+		m.PipelineVersion = 0
 	}
 
 	if slowHostMetricID[m.MetricID] {
