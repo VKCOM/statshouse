@@ -1884,13 +1884,11 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 	for _, d := range data {
 		v := d.val
-		if len(v) > 0 {
-			v = emptyToUnspecified(v)
-		} else {
+		if v == "" && d.valID != 0 {
 			v = h.getRichTagValue(metricMeta, version, tagID, d.valID)
 		}
 		ret.TagValues = append(ret.TagValues, MetricTagValueInfo{
-			Value: v,
+			Value: emptyToUnspecified(v),
 			Count: d.cnt,
 		})
 	}
