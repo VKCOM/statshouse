@@ -14,12 +14,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 )
 
-const (
-	ShardAgentHash        = 0
-	ShardAggregatorHash   = 1 // calc hash on aggregator
-	ShardAggregatorXXHash = 2 // calc xxhash that works with strings
-)
-
 type ConfigAggregatorRemote struct {
 	InsertBudget         int // for single replica, in bytes per contributor, when many contributors
 	StringTopCountInsert int
@@ -29,7 +23,6 @@ type ConfigAggregatorRemote struct {
 	DenyOldAgents        bool
 	MirrorChWrite        bool
 	WriteToV3First       bool
-	Shard                int // aggreagator sharding
 	MappingCacheSize     int64
 	MappingCacheTTL      int
 	MapStringTop         bool
@@ -89,7 +82,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 			DenyOldAgents:        true,
 			MirrorChWrite:        true,
 			WriteToV3First:       false,
-			Shard:                ShardAgentHash,
 			MappingCacheSize:     1 << 30,
 			MappingCacheTTL:      86400 * 7,
 			MapStringTop:         false, // disabled by default because API doesn't support it yet
@@ -116,7 +108,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
 		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both v3 and v2 tables")
 		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
-		f.IntVar(&c.Shard, "shard", d.Shard, "Sharding strategy")
+		var shard int
+		f.IntVar(&shard, "shard", 0, "Deprecated!") // TODO: remove after deploy and remote config cleanup
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
