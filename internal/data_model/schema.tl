@@ -148,8 +148,9 @@ statshouse.shutdownInfo#4124cf9c
     stopInserters:long // for aggregator
     stopRPCServer:long // for aggregator
     saveMappings:long
+    saveJournal:long
     // we might want more timeouts later without changing format, so we reserve some space
-    b:long c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
+    c:long d:long e:long f:long g:long h:long i:long j:long k:long l:long m:long n:long
 = statshouse.ShutdownInfo;
 
 statshouse.sendSourceBucket3Response#0e177acc

@@ -335,6 +335,7 @@ const (
 	TagValueIDRestartTimingsPhaseStopInserters     = 106
 	TagValueIDRestartTimingsPhaseStopRPCServer     = 107
 	TagValueIDRestartTimingsPhaseSaveMappings      = 108
+	TagValueIDRestartTimingsPhaseSaveJournal       = 109
 
 	TagValueIDAggBucketInfoRows               = 1
 	TagValueIDAggBucketInfoIntKeys            = 2

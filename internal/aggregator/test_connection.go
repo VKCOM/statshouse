@@ -20,7 +20,6 @@ import (
 )
 
 const MaxTestResponseSize = 10 << 20
-const MinTestResponseSize = 10
 
 const MaxTestResponseTimeoutSec = 86400
 
@@ -64,7 +63,7 @@ func (ms *TestConnection) broadcastResponses() {
 		}
 		delete(ms.testConnectionClients, hctx)
 		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize])
+		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize]) // size checked in handler
 		hctx.SendHijackedResponse(err)
 	}
 }
@@ -84,8 +83,8 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime.UnixNano()))
 	hctx.Response, _ = args.WriteResult(hctx.Response, buf[:])
-	hctx.Response = append(hctx.Response, testResponse[:args.ResponseSize]...) // approximate
 	if args.ResponseTimeoutSec <= 0 {
+		hctx.Response = append(hctx.Response, testResponse[:args.ResponseSize]...) // approximate
 		return nil
 	}
 	ms.clientsMu.Lock()
