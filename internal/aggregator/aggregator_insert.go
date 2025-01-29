@@ -710,7 +710,7 @@ func appendArgMinMaxTag(res []byte, tag data_model.TagUnionBytes, value float32)
 		return res
 	}
 	res = append(res, 1)
-	res = rowbinary.AppendBytes(res, tag.S)
+	res = append(res, tag.S...)
 	res = rowbinary.AppendArgMinMaxBytesFloat32(res[:wasLen], res[wasLen+4:], value)
 	return res
 }
