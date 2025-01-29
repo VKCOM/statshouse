@@ -9,9 +9,6 @@ import (
 )
 
 func Shard(key *data_model.Key, keyHash uint64, meta *format.MetricMetaValue, numShards int, builtinNewSharding bool) (uint32, int, error) {
-	if len(meta.Sharding) == 0 {
-		return 0, -1, fmt.Errorf("bad metric meta, no sharding defined")
-	}
 	sh := choseShardingStrategy(key, meta)
 	if key.Metric < 0 && !builtinNewSharding {
 		// fallback to legacy format
@@ -58,6 +55,9 @@ func shardByMetricId(key *data_model.Key, numShards int) uint32 {
 }
 
 func choseShardingStrategy(key *data_model.Key, meta *format.MetricMetaValue) (sh format.MetricSharding) {
+	if len(meta.Sharding) == 0 {
+		return format.MetricSharding{Strategy: format.ShardBy16MappedTagsHash, StrategyId: format.ShardBy16MappedTagsHashId}
+	}
 	ts := key.Timestamp
 	if ts == 0 {
 		ts = uint32(time.Now().Unix())

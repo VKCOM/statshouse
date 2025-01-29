@@ -54,7 +54,7 @@ type Journal struct {
 
 	metricsDead          bool      // together with this bool
 	lastUpdateTime       time.Time // we no more use this information for logic
-	stateHash            string
+	stateHashStr         string
 	currentVersion       int64
 	stopWriteToDiscCache bool
 	journalRequestDelay  time.Duration // to avoid overusing of CPU by handling journal updates
@@ -108,16 +108,13 @@ func (ms *Journal) Version() int64 {
 }
 
 func (ms *Journal) versionLocked() int64 {
-	if len(ms.journal) == 0 {
-		return 0
-	}
-	return ms.journal[len(ms.journal)-1].Version
+	return ms.currentVersion
 }
 
 func (ms *Journal) StateHash() string {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.stateHash
+	return ms.stateHashStr
 }
 
 func (ms *Journal) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
@@ -155,12 +152,12 @@ func (ms *Journal) parseDiscCache() {
 		return journal2[i].Version < journal2[j].Version
 	})
 	ms.journal = journal2
-	ms.currentVersion, ms.stateHash = calculateVersionStateHashLocked(journal2)
+	ms.currentVersion, ms.stateHashStr = calculateVersionStateHashLocked(journal2)
 	// TODO - check invariants here before saving
 	for _, f := range ms.applyEvent {
-		f(journal2, ms.currentVersion, ms.stateHash)
+		f(journal2, ms.currentVersion, ms.stateHashStr)
 	}
-	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
+	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHashStr)
 }
 
 func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string) {
@@ -204,13 +201,13 @@ func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		return false, err
 	}
 	newJournal := updateEntriesJournal(oldJournal, src)
-	currentVersion, stateHash := calculateVersionStateHashLocked(newJournal)
+	currentVersion, stateHashStr := calculateVersionStateHashLocked(newJournal)
 
 	// TODO - check invariants here before saving
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
-		f(src, currentVersion, stateHash)
+		f(src, currentVersion, stateHashStr)
 	}
 
 	if ms.dc != nil && !stopWriteToDiscCache {
@@ -239,14 +236,14 @@ func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 				strconv.FormatInt(oldVersion, 10),
 				strconv.FormatInt(lastEntry.Version, 10),
 				lastEntry.Name,
-				stateHash,
+				stateHashStr,
 				"")
 		}
 	}
 
 	ms.mu.Lock()
 	ms.journal = newJournal
-	ms.stateHash = stateHash
+	ms.stateHashStr = stateHashStr
 	ms.currentVersion = currentVersion
 	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false
