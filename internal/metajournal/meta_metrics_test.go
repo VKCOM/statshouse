@@ -22,6 +22,8 @@ func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *Journal) {
 	m := MakeMetricsStorage(nil)
 	j := MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
 		[]ApplyEvent{m.ApplyEvent})
+	//j := MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+	//	[]ApplyEvent{m.ApplyEvent})
 	j.metaLoader = loader
 	j.parseDiscCache()
 	return m, j
