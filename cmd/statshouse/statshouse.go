@@ -306,7 +306,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage,
-		dc,
 		mcagent,
 		log.Printf,
 		func(a *agent.Agent, unixNow uint32) {

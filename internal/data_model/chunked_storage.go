@@ -29,6 +29,7 @@ import (
 
 const ChunkedMagicMappings = 0x83a28d18
 const ChunkedMagicJournal = 0x83a28d19
+const ChunkedMagicConfig = 0x83a28d1a
 
 const mappingsChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
 const mappingsChunkHeaderSize = 4 + 4 // magic + body size

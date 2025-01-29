@@ -109,8 +109,8 @@ type Agent struct {
 }
 
 // All shard aggregators must be on the same network
-func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
-	dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache, logF func(format string, args ...interface{}),
+func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
+	mappingsCache *pcache.MappingsCache, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
@@ -170,7 +170,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		if len(config.AggregatorAddresses) < 3 {
 			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
-		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.stagingLevel, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
+		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.stagingLevel, result.componentTag, result.buildArchTag, config.Cluster, cacheDir, logF)
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
 	now := time.Now()
@@ -178,8 +178,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.beforeFlushTime = nowUnix
 
 	result.startTimestamp = nowUnix
-	if storageDir != "" {
-		dbc, err := MakeDiskBucketStorage(storageDir, len(config.AggregatorAddresses), logF)
+	if cacheDir != "" {
+		dbc, err := MakeDiskBucketStorage(cacheDir, len(config.AggregatorAddresses), logF)
 		if err != nil {
 			return nil, err
 		}
