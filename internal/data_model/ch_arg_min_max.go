@@ -195,7 +195,7 @@ func (res *ArgMinMaxStringFloat32) unmarshal(r *proto.Reader, tmp []byte) ([]byt
 		if n == 6 && tmp[0] == 0 {
 			res.AsInt32 = int32(binary.LittleEndian.Uint32(tmp[1:]))
 		} else {
-			res.Arg = string(tmp)
+			res.Arg = string(tmp[1:])
 		}
 	}
 	// read value
