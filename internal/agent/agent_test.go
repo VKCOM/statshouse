@@ -251,7 +251,7 @@ func Test_AgentSharding(t *testing.T) {
 	nowUnix := uint32(startTime.Unix())
 	config := Config{}
 	agent := makeAgent(config, nowUnix)
-	agent.builtinNewSharding.Store(true)
+	agent.newSharding.Store(true)
 
 	rng := rand.New()
 	fixedShard := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
