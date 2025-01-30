@@ -509,10 +509,7 @@ func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.M
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, _, err := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
-	if err != nil {
-		return nil
-	}
+	shardId, _ := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	shard := s.Shards[shardId]
 	return shard.CreateBuiltInItemValue(key)
 }
@@ -535,8 +532,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
-	shardId, strategy, resolutionHash, err := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
-	if strategy != format.ShardBy16MappedTagsHashId && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
+	shardId, resolutionHash := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
+	if resolutionHash == 0 && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
 		var scr []byte
 		if scratch != nil {
 			scr = *scratch
@@ -545,13 +542,6 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		if scratch != nil {
 			*scratch = scr
 		}
-	}
-	if err != nil {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, h.IngestionTagKey},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
-		return
 	}
 	// after this point we are sure that metric will be applied
 	defer func() {
@@ -645,11 +635,8 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	if err != nil {
-		return
-	}
 	shard := s.Shards[shardId]
 	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
 }
@@ -667,11 +654,8 @@ func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	if err != nil {
-		return
-	}
 	shard := s.Shards[shardId]
 	shard.AddCounterHostStringBytes(key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
 }
@@ -688,11 +672,8 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	if err != nil {
-		return
-	}
 	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
 }
@@ -701,11 +682,8 @@ func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, 
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, _, resolutionHash, err := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	if err != nil {
-		return
-	}
 	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, resolutionHash, item, metricInfo)
 }
