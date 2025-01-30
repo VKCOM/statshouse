@@ -47,6 +47,7 @@ Group: misc
 /usr/share/engine/bin/statshouse-metadata
 
 %package igp
+Summary: Provides ingress proxy for StatsHouse.
 %description igp
 StatsHouse ingress proxy daemon.
 %install igp
