@@ -7,21 +7,21 @@
 package metajournal
 
 import (
-	"cmp"
 	"context"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/btree"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/zeebo/xxh3"
 )
 
@@ -30,7 +30,14 @@ type journalEvent struct {
 	hash xxh3.Uint128
 }
 
+type journalOrder struct {
+	key     journalEventID
+	version int64
+}
+
 type JournalFast struct {
+	modifyMu sync.Mutex // allows consistency through modifier functions without taking mu.Lock
+
 	mu         sync.RWMutex
 	metaLoader MetricsStorageLoader
 	applyEvent []ApplyEvent
@@ -43,6 +50,11 @@ type JournalFast struct {
 	journalRequestDelay time.Duration // to avoid overusing of CPU by handling journal updates
 
 	journal map[journalEventID]journalEvent
+	order   *btree.BTreeG[journalOrder]
+
+	getJournalResponse     tlmetadata.GetJournalResponsenew // this slice is heavily reused
+	clientsMu              sync.Mutex                       // Always taken after mu
+	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
 
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
@@ -61,10 +73,15 @@ type JournalFast struct {
 	truncate func(offset int64) error
 }
 
+func journalOrderLess(a, b journalOrder) bool {
+	return a.version < b.version
+}
+
 func MakeJournalFast(journalRequestDelay time.Duration, applyEvent []ApplyEvent) *JournalFast {
 	return &JournalFast{
 		journalRequestDelay: journalRequestDelay,
 		journal:             map[journalEventID]journalEvent{},
+		order:               btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
 		applyEvent:          applyEvent,
 		lastUpdateTime:      time.Now(),
 		writeAt:             func(offset int64, data []byte) error { return nil },
@@ -84,7 +101,7 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, applyEv
 }
 
 func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
-	src, err := ms.loadImpl(fileSize, readAt)
+	src, err := ms.loadImpl(fileSize, readAt) // in case of error, returns events to apply
 	newVersion, stateHashStr := ms.finishUpdateLocked()
 	for _, f := range ms.applyEvent {
 		f(src, newVersion, stateHashStr)
@@ -123,28 +140,33 @@ func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int
 }
 
 func (ms *JournalFast) Save() error {
+	// We exclude writers so that they do not block on Lock() while code below runs in RLock().
+	// If we allow this, all new readers (GetValue) block on RLock(), effectively waiting for Save to finish.
+	ms.modifyMu.Lock()
+	defer ms.modifyMu.Unlock()
+
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
 	saver := data_model.ChunkedStorageSaver{
 		WriteAt:  ms.writeAt,
 		Truncate: ms.truncate,
 	}
 
 	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
-
 	// we must write in order, because we must deliver them in order during load
-	items := make([]tlmetadata.Event, 0, len(ms.journal))
-	for _, event := range ms.journal {
-		items = append(items, event.Event)
-	}
-	slices.SortFunc(items, func(a, b tlmetadata.Event) int {
-		return cmp.Compare(a.Version, b.Version)
-	})
-	for _, event := range items {
-		chunk = event.WriteBoxed(chunk)
-		var err error
-		chunk, err = saver.FinishItem(chunk)
-		if err != nil {
-			return err
+	var iteratorError error
+	ms.order.Ascend(func(order journalOrder) bool {
+		event, ok := ms.journal[order.key]
+		if !ok {
+			panic("journal order violation - entry not found")
 		}
+		chunk = event.WriteBoxed(chunk)
+		chunk, iteratorError = saver.FinishItem(chunk)
+		return iteratorError == nil // ok, save only elements that fit
+	})
+	if iteratorError != nil {
+		return iteratorError
 	}
 	return saver.FinishWrite(chunk)
 }
@@ -182,21 +204,30 @@ func (ms *JournalFast) parseDiscCache() {
 }
 
 func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []byte {
+	if entry.Version <= ms.currentVersion {
+		panic("journal order invariant violated - adding old element")
+	}
 	scratch = entry.Write(scratch[:0])
 	hash := xxh3.Hash128(scratch)
 	key := journalEventID{
 		typ: entry.EventType,
 		id:  entry.Id,
 	}
-	old := ms.journal[key] // hash is 0 if not there
+	old, ok := ms.journal[key] // hash is 0 if not there
+	if ok {
+		if _, ok = ms.order.Delete(journalOrder{version: old.Version}); !ok {
+			panic("journal order invariant violation - not found element being removed")
+		}
+	}
 	ms.stateHash.Hi ^= old.hash.Hi
 	ms.stateHash.Lo ^= old.hash.Lo
 	ms.stateHash.Hi ^= hash.Hi
 	ms.stateHash.Lo ^= hash.Lo
 	ms.journal[key] = journalEvent{Event: entry, hash: hash}
-	if entry.Version > ms.currentVersion {
-		ms.currentVersion = entry.Version
+	if _, ok = ms.order.ReplaceOrInsert(journalOrder{key: key, version: entry.Version}); ok {
+		panic("journal order invariant violation - found element being inserted")
 	}
+	ms.currentVersion = entry.Version
 	return scratch
 }
 
@@ -225,9 +256,14 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	src, _, err := ms.metaLoader(context.Background(), oldVersion, isDead)
 	if err != nil {
 		if !isDead {
-			ms.mu.Lock()
-			ms.metricsDead = true
-			ms.mu.Unlock()
+			func() {
+				ms.modifyMu.Lock()
+				defer ms.modifyMu.Unlock()
+				ms.mu.Lock()
+				defer ms.mu.Unlock()
+				ms.metricsDead = true
+			}()
+			ms.broadcastJournal()
 		}
 		ms.builtinAddValue(&ms.BuiltinJournalUpdateError, 0)
 		log.Printf("error updating journal: %v", err)
@@ -241,14 +277,18 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	// newEntries can contain the same event several times
 	// also for all edits old journals contains this event
 	// we want all events once and in order in the journal, hence this code
-	ms.mu.Lock()
-	for _, entry := range src {
-		scratch = ms.addEventLocked(scratch, entry)
-	}
-	newVersion, stateHashStr := ms.finishUpdateLocked()
-	ms.mu.Unlock()
-
-	// TODO - check invariants here before saving
+	var newVersion int64
+	var stateHashStr string
+	func() {
+		ms.modifyMu.Lock()
+		defer ms.modifyMu.Unlock()
+		ms.mu.Lock()
+		defer ms.mu.Unlock()
+		for _, entry := range src {
+			scratch = ms.addEventLocked(scratch, entry)
+		}
+		newVersion, stateHashStr = ms.finishUpdateLocked()
+	}()
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
@@ -269,6 +309,7 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 				"")
 		}
 	}
+	ms.broadcastJournal()
 	return len(src) == 0, nil
 }
 
@@ -285,150 +326,4 @@ func (ms *JournalFast) goUpdateMetrics(aggLog AggLog) {
 		log.Printf("Failed to update metrics from sqliteengine, will retry: %v", err)
 		time.Sleep(backoffTimeout)
 	}
-}
-
-//sqlite> .once journal.json
-//sqlite> SELECT version, id, name, updated_at, type, deleted_at, namespace_id, REPLACE(data, CHAR(10), '\n') FROM metrics_v5 ORDER BY version asc;
-//sqlite> .quit
-
-func getJournalFileLoader(fName string) (MetricsStorageLoader, []tlmetadata.Event, error) {
-	data, err := os.ReadFile(fName)
-	if err != nil {
-		return nil, nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	//var newData bytes.Buffer
-	var events []tlmetadata.Event
-	for i, l := range lines {
-		if l == "" {
-			continue
-		}
-		values := strings.SplitN(l, "|", 8)
-		version, err := strconv.ParseInt(values[0], 10, 64)
-		if err != nil {
-			return nil, nil, err
-		}
-		id, err := strconv.ParseInt(values[1], 10, 64)
-		if err != nil {
-			return nil, nil, err
-		}
-		updateTime, err := strconv.ParseUint(values[3], 10, 32)
-		if err != nil {
-			return nil, nil, err
-		}
-		tt, err := strconv.ParseInt(values[4], 10, 32)
-		if err != nil {
-			return nil, nil, err
-		}
-		_, err = strconv.ParseUint(values[5], 10, 32)
-		if err != nil {
-			return nil, nil, err
-		}
-		nID, err := strconv.ParseInt(values[6], 10, 64)
-		if err != nil {
-			return nil, nil, err
-		}
-		event := tlmetadata.Event{
-			FieldMask:   0,
-			Id:          id,
-			Name:        values[2],
-			NamespaceId: nID,
-			UpdateTime:  uint32(updateTime),
-			EventType:   int32(tt),
-			Version:     version,
-			Data:        values[7],
-		}
-		if len(events) != 0 && version <= events[len(events)-1].Version {
-			return nil, nil, fmt.Errorf("events not sorted at %d", i)
-		}
-		events = append(events, event)
-		/*
-			switch event.EventType {
-			case format.MetricEvent:
-				value := &format.MetricMetaValue{}
-				err := json.Unmarshal([]byte(event.Data), value)
-				if err != nil {
-					return nil, nil, err
-				}
-				value.NamespaceID = int32(event.NamespaceId)
-				value.Version = event.Version
-				value.Name = event.Name
-				value.MetricID = int32(event.Id) // TODO - beware!
-				value.UpdateTime = event.UpdateTime
-				_ = value.RestoreCachedInfo()
-				value.Name = "" // restored from event anyway
-				value.Version = 0
-				value.MetricID = 0
-				value.Description = ""
-				value.Resolution = 0
-				value.Weight = 0
-				value.StringTopDescription = ""
-				if value.NamespaceID == -5 {
-					value.NamespaceID = 0
-				}
-				value.InVisible = !value.Visible
-				value.Visible = false
-				cutTags := 0
-				for ti := range value.Tags {
-					tag := &value.Tags[ti]
-					tag.Description = ""
-					tag.ID2Value = nil
-					tag.ValueComments = nil
-					if tag.Raw || tag.RawKind != "" || tag.Name != "" {
-						cutTags = ti + 1 // keep this tag
-					}
-				}
-				value.Tags = value.Tags[:cutTags]
-				for k, v := range value.TagsDraft {
-					v.Name = ""
-					value.TagsDraft[k] = v
-				}
-				if !value.HasPercentiles {
-					value.Kind = ""
-				}
-				shortData, err := value.MarshalBinary()
-				if err != nil {
-					return nil, nil, err
-				}
-				values[7] = string(shortData)
-				newData.WriteString(strings.Join(values, "|"))
-				newData.WriteString("\n")
-			}
-		*/
-	}
-	// _ = os.WriteFile(fName+".short", newData.Bytes(), 0666)
-	return func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
-		var result []tlmetadata.Event
-		for _, e := range events {
-			if e.Version > lastVersion {
-				result = append(result, e)
-			}
-			if len(result) >= 100 {
-				break
-			}
-		}
-		var v int64
-		if len(result) > 0 {
-			v = result[len(result)-1].Version
-		}
-		return result, v, nil
-	}, events, nil
-}
-
-func LoadTestJournalFromFile(journal *JournalFast, fName string) error {
-	loader, _, err := getJournalFileLoader("../internal/metajournal/journal.json")
-	if err != nil {
-		return err
-	}
-	journal.metaLoader = loader
-	for {
-		fin, err := journal.updateJournalIsFinished(nil)
-		if err != nil {
-			return err
-		}
-		if fin {
-			break
-		}
-	}
-	return nil
 }
