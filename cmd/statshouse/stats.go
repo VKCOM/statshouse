@@ -10,9 +10,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/vkcom/statshouse/internal/metajournal"
-
 	"github.com/vkcom/statshouse/internal/agent"
+	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
