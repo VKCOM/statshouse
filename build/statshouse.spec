@@ -23,6 +23,7 @@ install -m 755 %{_topdir}/target/statshouse-metadata %{buildroot}/usr/share/engi
 cp -a %{_topdir}/statshouse-ui/build/* %{buildroot}/usr/lib/statshouse-api/statshouse-ui/
 install -m 444 %{_topdir}/cmd/statshouse-api/statshouse-api.service %{buildroot}/usr/lib/systemd/system/
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/
+install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 
 %files
 /usr/share/engine/bin/statshouse
@@ -50,10 +51,6 @@ Group: misc
 Summary: Provides ingress proxy for StatsHouse.
 %description igp
 StatsHouse ingress proxy daemon.
-%install igp
-mkdir -p %{buildroot}/usr/share/engine/bin/
-mkdir -p %{buildroot}/usr/lib/systemd/system/
-install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 %files igp
 /usr/share/engine/bin/statshouse-igp
 /usr/lib/systemd/system/statshouse-igp.service
