@@ -39,8 +39,8 @@ type Config struct {
 	StatsHouseEnv          string
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
-	BuiltinNewSharding     bool
-	BuiltinNewConveyor     bool
+	NewSharding            bool
+	NewConveyor            bool
 
 	MappingCacheSize int64
 	MappingCacheTTL  int
@@ -73,8 +73,8 @@ func DefaultConfig() Config {
 		SaveSecondsImmediately:           false,
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
-		BuiltinNewSharding:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		BuiltinNewConveyor:               false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
+		NewSharding:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
+		NewConveyor:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
 
 		MappingCacheSize: 100 << 20,
 		MappingCacheTTL:  86400,
@@ -119,8 +119,8 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
-	f.BoolVar(&c.BuiltinNewSharding, "buitin-new-sharding", d.BuiltinNewSharding, "Put builtin metrics into 0 shard, except for ingestion and bages which sharded by metric")
-	f.BoolVar(&c.BuiltinNewConveyor, "buitin-new-conveyor", d.BuiltinNewConveyor, "All metrics go through new mapping conveyor")
+	f.BoolVar(&c.NewSharding, "new-sharding", d.NewSharding, "Shard by metric_id % 16, by default")
+	f.BoolVar(&c.NewConveyor, "new-conveyor", d.NewConveyor, "All metrics go through new mapping conveyor")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
