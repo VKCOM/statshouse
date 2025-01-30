@@ -18,8 +18,6 @@ import (
 
 	"go.uber.org/multierr"
 	"go4.org/mem"
-
-	"github.com/mailru/easyjson/opt"
 )
 
 const (
@@ -214,27 +212,15 @@ type MetricsGroup struct {
 
 // possible sharding strategies
 const (
-	ShardBy16MappedTagsHash   = "16_mapped_tags_hash"
-	ShardBy16MappedTagsHashId = 0
-	ShardFixed                = "fixed_shard"
-	ShardFixedId              = 1
-	ShardByTag                = "tag"
-	ShardByTagId              = 2
-	// some builtin metrics are produced direclty by aggregator, so they are written to shard in which they are produced
-	ShardAggInternal   = "agg_internal"
-	ShardAggInternalId = 3
-	// shard = metric_id % num_shards
-	// it's only used for hardware metrics, overall not recommended because shard depends on total number of shards
-	ShardByMetric   = "metric_id"
-	ShardByMetricId = 4
+	ShardByTagsHash  = "tags_hash"
+	ShardFixed       = "fixed_shard"
+	ShardByMetric    = "metric_id"    // shard = metric_id % num_shards
+	ShardAggInternal = "agg_internal" // distributed by all shards equally
 )
 
 type MetricSharding struct {
-	Strategy   string `json:"strategy"` // possible values: mapped_tags, fixed_shard, tag
-	StrategyId int
-	Shard      opt.Uint32 `json:"shard,omitempty"`  // only for "fixed_shard" strategy
-	TagId      opt.Uint32 `json:"tag_id,omitempty"` // only for "tag" strategy
-	AfterTs    opt.Uint32 `json:"after_ts,omitempty"`
+	Strategy string `json:"strategy,omitempty"` // possible values: tags_hash, fixed_shard, metric_id
+	Shard    uint32 `json:"shard,omitempty"`    // only for "fixed_shard" strategy
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -262,7 +248,7 @@ type MetricMetaValue struct {
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type,omitempty"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
-	Sharding             []MetricSharding         `json:"sharding,omitempty"`
+	Sharding             MetricSharding           `json:"shard,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
@@ -600,18 +586,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			}
 		}
 	}
-	// strip default strategy from array
-	if len(m.Sharding) == 1 && m.Sharding[0].Strategy == ShardBy16MappedTagsHash {
-		m.Sharding = nil
-	}
-	for _, sh := range m.Sharding {
-		if id, validationErr := ShardingStrategyId(sh); validationErr != nil {
-			err = multierr.Append(err, validationErr)
-			break
-		} else {
-			sh.StrategyId = id
-		}
-	}
 	if m.PipelineVersion != 3 { // PipelineVersion 0 is good default for JSON
 		m.PipelineVersion = 0
 	}
@@ -802,43 +776,6 @@ func ValidRawKind(s string) bool {
 		return true
 	}
 	return false
-}
-
-func ShardingStrategyId(sharding MetricSharding) (int, error) {
-	switch sharding.Strategy {
-	case ShardBy16MappedTagsHash:
-		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy is incompative with shard or tag_id", sharding.Strategy)
-		}
-		return ShardBy16MappedTagsHashId, nil
-	case ShardAggInternal:
-		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy is incompative with shard or tag_id", sharding.Strategy)
-		}
-		return ShardAggInternalId, nil
-	case ShardByMetric:
-		if sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy is incompative with shard or tag_id", sharding.Strategy)
-		}
-		return ShardByMetricId, nil
-	case ShardFixed:
-		if !sharding.Shard.IsDefined() || sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy requires shard to be set", ShardFixed)
-		}
-		if sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy is incompative with tag_id", ShardFixed)
-		}
-		return ShardFixedId, nil
-	case ShardByTag:
-		if !sharding.TagId.IsDefined() {
-			return -1, fmt.Errorf("%s strategy requires tag_id to be set", ShardByTag)
-		}
-		if sharding.Shard.IsDefined() {
-			return -1, fmt.Errorf("%s strategy is incompative with shard", ShardByTag)
-		}
-		return ShardByTagId, nil
-	}
-	return -1, fmt.Errorf("unknown strategy %s", sharding.Strategy)
 }
 
 func TagIndex(tagID string) int { // inverse of 'TagID'

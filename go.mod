@@ -21,7 +21,7 @@ require (
 	github.com/grafana/grafana-plugin-sdk-go v0.250.0
 	github.com/hrissan/tdigest v0.0.2
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/mailru/easyjson v0.7.8-0.20240109111231-141f9c7d7ffe
+	github.com/mailru/easyjson v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9
 	github.com/pierrec/lz4 v2.6.1+incompatible
