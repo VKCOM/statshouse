@@ -10,8 +10,6 @@ import (
 	"log"
 	"math"
 	"strconv"
-
-	"github.com/mailru/easyjson/opt"
 )
 
 const (
@@ -216,7 +214,7 @@ func init() {
 		}
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
-		v.Sharding = []MetricSharding{{Strategy: ShardByMetric}}
+		v.Sharding = MetricSharding{Strategy: ShardByMetric}
 		BuiltinMetrics[k] = v
 		// v.NoSampleAgent = false
 		v.BuiltinAllowedToReceive = true
@@ -319,13 +317,6 @@ func init() {
 			// Also some tags are simply marked with Raw:true above
 		}
 
-		// init sharding strategy if it's not explicitly defined
-		if len(m.Sharding) == 0 {
-			m.Sharding = []MetricSharding{{
-				Strategy: ShardFixed,
-				Shard:    opt.OUint32(0),
-			}}
-		}
 		_ = m.RestoreCachedInfo()
 	}
 }

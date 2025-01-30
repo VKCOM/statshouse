@@ -160,14 +160,12 @@ func Test_AgentQueue(t *testing.T) {
 	agent.Shards = append(agent.Shards, shard)
 	agent.initBuiltInMetrics()
 
-	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1, Sharding: []format.MetricSharding{format.MetricSharding{
-		Strategy:   format.ShardBy16MappedTagsHash,
-		StrategyId: format.ShardBy16MappedTagsHashId,
-	}}}
-	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5, Sharding: []format.MetricSharding{format.MetricSharding{
-		Strategy:   format.ShardBy16MappedTagsHash,
-		StrategyId: format.ShardBy16MappedTagsHashId,
-	}}}
+	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1, Sharding: format.MetricSharding{
+		Strategy: format.ShardByTagsHash,
+	}}
+	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5, Sharding: format.MetricSharding{
+		Strategy: format.ShardByTagsHash,
+	}}
 	// TODO - here we metrics at the perfect moments, odd metrics at wrong moments
 	agent.goFlushIteration(startTime)
 	testEnsureNoFlush(t, shard)
@@ -258,14 +256,14 @@ func Test_AgentSharding(t *testing.T) {
 		if meta == nil {
 			meta = &format.MetricMetaValue{}
 		}
-		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardFixed, Shard: opt.OUint32(uint32(key.Metric) % 5)}}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardFixed, Sharding: opt.OUint32(uint32(key.Metric) % 5)}}
 		return meta
 	}
 	byMappedTags := func(meta *format.MetricMetaValue, key data_model.Key) *format.MetricMetaValue {
 		if meta == nil {
 			meta = &format.MetricMetaValue{}
 		}
-		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}}
+		meta.Sharding = []format.MetricSharding{{Strategy: format.ShardByTagsHash}}
 		return meta
 	}
 	byTagIngestion := &format.MetricMetaValue{Sharding: []format.MetricSharding{{Strategy: format.ShardByTag, TagId: opt.OUint32(1)}}}
@@ -295,11 +293,11 @@ func Test_AgentSharding(t *testing.T) {
 					shardCount += int(item.Tail.Value.Count())
 					expectedShardNum := uint32(0) // buitin metrics
 					if item.Key.Metric > 0 && item.Key.Metric < 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), fixedShard(nil, item.Key), agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Sharding(&item.Key, item.Key.Hash(), fixedShard(nil, item.Key), agent.NumShards(), true)
 					} else if item.Key.Metric >= 300_001 {
-						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), byMappedTags(nil, item.Key), agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Sharding(&item.Key, item.Key.Hash(), byMappedTags(nil, item.Key), agent.NumShards(), true)
 					} else if item.Key.Metric == format.BuiltinMetricIDIngestionStatus {
-						expectedShardNum, _, _ = sharding.Shard(&item.Key, item.Key.Hash(), byTagIngestion, agent.NumShards(), true)
+						expectedShardNum, _, _ = sharding.Sharding(&item.Key, item.Key.Hash(), byTagIngestion, agent.NumShards(), true)
 					}
 					if int(expectedShardNum) != si {
 						t.Fatalf("failed for metric %v expected shard %d but got %d", item.Key, expectedShardNum, si)
@@ -329,7 +327,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	h := data_model.MappedMetricHeader{
 		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: 1,
-			Sharding:            []format.MetricSharding{{Strategy: format.ShardBy16MappedTagsHash}},
+			Sharding:            format.MetricSharding{Strategy: format.ShardByTagsHash},
 			PipelineVersion:     3,
 		},
 	}

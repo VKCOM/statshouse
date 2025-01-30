@@ -6,8 +6,6 @@
 
 package format
 
-import "github.com/mailru/easyjson/opt"
-
 // metric metas for builtin metrics are accessible directly without search in map
 // Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
@@ -311,10 +309,6 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 		Description: "tag_id",
 	}},
 	PreKeyTagID: "1",
-	Sharding: []MetricSharding{{
-		Strategy: ShardByTag,
-		TagId:    opt.OUint32(1),
-	}},
 }
 
 const BuiltinMetricIDAggInsertTime = -12
@@ -874,9 +868,6 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		IsMetric:    true,
 	}},
 	PreKeyTagID: "2",
-	Sharding: []MetricSharding{{
-		Strategy: ShardAggInternal,
-	}},
 }
 
 const BuiltinMetricIDAutoConfig = -36
