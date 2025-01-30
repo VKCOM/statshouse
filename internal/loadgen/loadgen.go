@@ -89,7 +89,7 @@ func RunEnableNewPipeline() {
 --version3-prob=1
 `)
 	ensureMetricWithDescription(ctx, c, "statshouse_agent_remote_config", `
--buitin-new-conveyor=true
+-new-conveyor=true
 `)
 	ensureMetricWithDescription(ctx, c, "statshouse_aggregator_remote_config", `
 -map-string-top=true

@@ -5,7 +5,7 @@
 
 создать метрику statshouse_agent_remote_config, в нее написать
 ```
---buitin-new-conveyor
+--new-conveyor
 ```
 
 создать метрику statshouse_aggregator_remote_config, в нее написать
