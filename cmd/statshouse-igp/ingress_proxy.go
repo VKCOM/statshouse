@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package aggregator
+package main
 
 import (
 	"context"
@@ -48,7 +48,6 @@ const (
 
 type ConfigIngressProxy struct {
 	Cluster               string
-	Network               string
 	ListenAddr            string
 	ListenAddrIPV6        string
 	ExternalAddresses     []string // exactly 3 comma-separated external ingress points
@@ -130,7 +129,7 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 	return nil
 }
 
-func RunIngressProxy2(ctx context.Context, config ConfigIngressProxy, aesPwd string, mappingsCache *pcache.MappingsCache) error {
+func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd string, mappingsCache *pcache.MappingsCache) error {
 	p := ingressProxy{
 		ctx:             ctx,
 		cluster:         config.Cluster,

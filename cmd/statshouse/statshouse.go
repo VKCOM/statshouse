@@ -8,7 +8,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -116,7 +115,6 @@ func runMain() int {
 		argvAddCommonFlags()
 		argvAddAgentFlags(true)
 		argvAddAggregatorFlags(true)
-		argvAddIngressProxyFlags()
 		build.FlagParseShowVersionHelp()
 	} else {
 		switch verb {
@@ -151,17 +149,6 @@ func runMain() int {
 			build.FlagParseShowVersionHelp()
 			mappingCacheSize = argv.configAggregator.MappingCacheSize
 			mappingCacheTTL = argv.configAggregator.MappingCacheTTL
-		case "ingress_proxy":
-			argvAddCommonFlags()
-			argvAddAgentFlags(false)
-			argvAddIngressProxyFlags()
-			flag.Int64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
-			flag.StringVar(&argv.configAggregator.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
-			flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
-			argv.configAgent = agent.DefaultConfig()
-			build.FlagParseShowVersionHelp()
-			mappingCacheSize = argv.configAgent.MappingCacheSize
-			mappingCacheTTL = argv.configAgent.MappingCacheTTL
 		case "tag_mapping":
 			mainTagMapping()
 			return 0
@@ -180,13 +167,6 @@ func runMain() int {
 	}
 
 	aesPwd := readAESPwd()
-
-	if argv.ingressPwdDir != "" {
-		if err := argv.configIngress.ReadIngressKeys(argv.ingressPwdDir); err != nil {
-			logErr.Printf("could not read ingress keys: %v", err)
-			return 1
-		}
-	}
 
 	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
 		logErr.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
@@ -250,12 +230,6 @@ func runMain() int {
 		mainAgent(aesPwd, dc, mappingsCache)
 	case "aggregator":
 		mainAggregator(aesPwd, dc, mappingsCache)
-	case "ingress_proxy":
-		if len(argv.configAgent.AggregatorAddresses) != 3 {
-			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
-			return 1
-		}
-		mainIngressProxy(aesPwd, mappingsCache)
 	default:
 		logErr.Printf("Wrong command line verb or -new-conveyor argument %q, see --help for valid values", verb)
 	}
@@ -654,47 +628,6 @@ loop:
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
 	return 0
-}
-
-func mainIngressProxy(aesPwd string, mappingsCache *pcache.MappingsCache) {
-	// Ensure proxy configuration is valid
-	config := argv.configIngress
-	config.Network = "tcp"
-	config.Cluster = argv.cluster
-	config.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
-	config.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
-	config.Version = argv.ingressVersion
-	config.UpstreamAddr = argv.ingressUpstreamAddr
-	config.ConfigAgent = argv.configAgent
-	config.ConfigAgent.Cluster = argv.cluster
-
-	// Ensure agent configuration is valid
-	if err := argv.configAgent.ValidateConfigSource(); err != nil {
-		logErr.Fatalf("%v", err)
-	}
-
-	runPprof()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	exit := make(chan error, 1)
-	go func() {
-		exit <- aggregator.RunIngressProxy2(ctx, config, aesPwd, mappingsCache)
-	}()
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, syscall.SIGINT)
-	select {
-	case <-sigint:
-		cancel()
-		select {
-		case <-exit:
-		case <-time.After(5 * time.Second):
-		}
-		logOk.Println("Buy")
-	case err := <-exit:
-		logErr.Println(err)
-		cancel()
-	}
-	_ = mappingsCache.Save()
 }
 
 func listen(network, address string) net.Listener {

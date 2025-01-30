@@ -93,7 +93,7 @@ docker run -i --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
   -e BUILD_TIME \
   $BUILD_IMAGE /bin/bash <<EOF
   set -x &&\
-  make build-sh build-sh-metadata build-sh-api &&\
+  make build-sh build-sh-metadata build-sh-api build-igp &&\
   mkdir -p BUILD BUILDROOT SOURCES SPECS SRPMS RPMS &&\
   cp build/statshouse.spec SPECS/statshouse.spec &&\
   BUILD_VERSION=\$(echo $BUILD_VERSION | sed -e 's:-:.:g') &&\

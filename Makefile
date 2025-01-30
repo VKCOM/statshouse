@@ -22,9 +22,9 @@ COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 	build-sh-ui build-grafana-ui
 
 all: build-go build-ui
-build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana
+build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-igp
 build-ui: build-sh-ui build-grafana-ui
-build-main-daemons: build-sh build-sh-api build-sh-metadata
+build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp
 
 build-sh:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
@@ -37,6 +37,9 @@ build-sh-api-embed:
 
 build-sh-metadata:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
+
+build-igp:
+	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-igp ./cmd/statshouse-igp
 
 build-sh-grafana:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-grafana-plugin ./cmd/statshouse-grafana-plugin
