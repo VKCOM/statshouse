@@ -45,3 +45,14 @@ Group: misc
 %description metadata
 %files metadata
 /usr/share/engine/bin/statshouse-metadata
+
+%package igp
+%description igp
+StatsHouse ingress proxy daemon.
+%install igp
+mkdir -p %{buildroot}/usr/share/engine/bin/
+mkdir -p %{buildroot}/usr/lib/systemd/system/
+install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
+%files igp
+/usr/share/engine/bin/statshouse-igp
+/usr/lib/systemd/system/statshouse-igp.service

@@ -60,13 +60,6 @@ var (
 
 		configAggregator aggregator.ConfigAggregator
 
-		configIngress       aggregator.ConfigIngressProxy
-		ingressExtAddr      string
-		ingressExtAddrIPv6  string
-		ingressPwdDir       string
-		ingressVersion      string
-		ingressUpstreamAddr string
-
 		// for old mode
 		historicStorageDir string
 		diskCacheFilename  string
@@ -184,17 +177,6 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 
 	flag.StringVar(&argv.configAggregator.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
-}
-
-func argvAddIngressProxyFlags() {
-	flag.StringVar(&argv.configIngress.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
-	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
-	flag.StringVar(&argv.configIngress.ListenAddrIPV6, "ingress-addr-ipv6", "", "IPv6 listen address of ingress proxy")
-	flag.StringVar(&argv.ingressExtAddrIPv6, "ingress-external-addr-ipv6", "", "Comma-separate list of IPv6 external addresses of ingress proxies.")
-	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
-	flag.StringVar(&argv.ingressVersion, "ingress-version", "", "")
-	flag.IntVar(&argv.configIngress.ResponseMemoryLimit, "max-response-mem", rpc.DefaultResponseMemoryLimit, "Response memory limit")
-	flag.StringVar(&argv.ingressUpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
 }
 
 func printVerbUsage() {

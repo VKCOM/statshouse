@@ -1,2 +1,2 @@
-#!/usr/bin/dh-exec
-../target/statshouse => usr/share/engine/bin/statshouse-igp
+../target/statshouse-igp usr/share/engine/bin/
+../cmd/statshouse/statshouse.service usr/lib/systemd/system/statshouse-igp.service
