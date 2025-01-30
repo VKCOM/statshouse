@@ -61,7 +61,7 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 		return
 	}
 
-	tagIDKey = int32(tagMeta.Index + format.TagIDShift)
+	tagIDKey = tagMeta.Index + format.TagIDShift
 	if legacyName {
 		h.LegacyCanonicalTagKey = tagIDKey
 	}

@@ -1088,7 +1088,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	var (
 		groupBy    []int
 		addGroupBy = func(t *format.MetricMetaTag) {
-			groupBy = append(groupBy, t.Index)
+			groupBy = append(groupBy, int(t.Index))
 		}
 	)
 	if len(ev.opt.GroupBy) != 0 {
@@ -1105,7 +1105,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		for _, name := range sel.GroupBy {
 			t, _ := metric.APICompatGetTag(name)
 			if t != nil {
-				skip[t.Index] = true
+				skip[int(t.Index)] = true
 			}
 		}
 		for i := 0; i < format.MaxTags; i++ {
@@ -1139,7 +1139,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if tag == nil {
 			return SeriesQuery{}, fmt.Errorf("not found tag %q", matcher.Name)
 		}
-		i := tag.Index
+		i := int(tag.Index)
 		if i == format.StringTopTagIndex {
 			i = format.StringTopTagIndexV3
 		}

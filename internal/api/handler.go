@@ -1069,7 +1069,7 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			}
 			tag := metricMeta.Name2Tag(k)
 			if tag != nil { // TODO - correct?
-				m.AppendMapped(tag.Index, ids...)
+				m.AppendMapped(int(tag.Index), ids...)
 			}
 		}
 	}

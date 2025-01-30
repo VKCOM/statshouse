@@ -231,7 +231,7 @@ func BenchmarkAllowedResolutionTable(b *testing.B) {
 	fmt.Printf("result: %d\n", allowed) // do not allow to optimize out
 }
 
-var sum int
+var sum int32
 
 func BenchmarkName2Tag(b *testing.B) {
 	meta := &MetricMetaValue{

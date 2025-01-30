@@ -149,6 +149,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
+// We want it compact, so reorder fields and use int32 index
 type MetricMetaTag struct {
 	Name          string            `json:"name,omitempty"`
 	Description   string            `json:"description,omitempty"`
@@ -157,7 +158,7 @@ type MetricMetaTag struct {
 	ValueComments map[string]string `json:"value_comments,omitempty"`
 
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
-	Index         int               `json:"-"` // Should be restored from position in MetricMetaValue.Tags
+	Index         int32             `json:"-"` // Should be restored from position in MetricMetaValue.Tags
 	Raw           bool              `json:"raw,omitempty"`
 	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
 	IsGroup       bool              `json:"-"` // Only for built-in metrics so never saved or parsed
@@ -329,7 +330,7 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 }
 
 // used to save memory for tags
-func (t *MetricMetaTag) equalsToDefault(index int) bool {
+func (t *MetricMetaTag) equalsToDefault(index int32) bool {
 	if t.Name != "" || t.Description != "" {
 		return false
 	}
@@ -429,14 +430,12 @@ func (m *MetricMetaValue) AppendTagNames(res []string) []string {
 	for name := range m.name2Tag {
 		res = append(res, name)
 	}
-	for _, name := range tagIDs[:MaxTags] {
-		res = append(res, name)
-	}
+	res = append(res, tagIDs[:MaxTags]...)
 	return res
 }
 
 // updates error if name collision happens
-func (m *MetricMetaValue) setName2Tag(name string, sTag *MetricMetaTag, canonical bool, err *error) {
+func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canonical bool, err *error) {
 	if name == "" {
 		return
 	}
@@ -451,7 +450,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag *MetricMetaTag, canonica
 		}
 		return
 	}
-	m.name2Tag[name] = sTag
+	m.name2Tag[name] = newTag
 }
 
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
@@ -547,7 +546,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			c2v[c] = v
 		}
 		tag.Comment2Value = c2v
-		tag.Index = i
+		tag.Index = int32(i)
 
 		m.setName2Tag(tag.Name, tag, false, &err) // not set if equalsToDefault
 	}
@@ -613,7 +612,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.FairKey = make([]int, 0, len(m.FairKeyTagIDs))
 		for _, v := range m.FairKeyTagIDs {
 			if tag := m.Name2Tag(v); tag != nil {
-				m.FairKey = append(m.FairKey, tag.Index)
+				m.FairKey = append(m.FairKey, int(tag.Index))
 			}
 		}
 	}
@@ -673,7 +672,7 @@ func (m *MetricMetaValue) GetTagDraft(tagName []byte) (tag MetricMetaTag, ok boo
 func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 	for _, name := range groupBy {
 		if t, _ := m.APICompatGetTag(name); t != nil {
-			res = append(res, t.Index)
+			res = append(res, int(t.Index))
 		}
 	}
 	return res
