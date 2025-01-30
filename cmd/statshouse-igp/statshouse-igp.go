@@ -44,11 +44,17 @@ var argv struct {
 }
 
 func main() {
+	os.Exit(mainIngressProxy())
+}
+
+func mainIngressProxy() int {
 	if err := parseCommandLine(); err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return 1
 	}
 	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
-		log.Fatalf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
+		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
+		return 1
 	}
 
 	// Read AES password
@@ -60,14 +66,16 @@ func main() {
 		}
 	} else if v, err := os.ReadFile(argv.aesPwdFile); err != nil {
 		// fatal if could not read file at path specified explicitly
-		log.Fatalf("Could not read AES password file %s: %s", argv.aesPwdFile, err)
+		log.Printf("Could not read AES password file %s: %s", argv.aesPwdFile, err)
+		return 1
 	} else {
 		aesPwd = string(v)
 	}
 
 	if argv.ingressPwdDir != "" {
 		if err := argv.ReadIngressKeys(argv.ingressPwdDir); err != nil {
-			log.Fatalf("could not read ingress keys: %v", err)
+			log.Printf("could not read ingress keys: %v", err)
+			return 1
 		}
 	}
 	if argv.pprofListenAddr != "" {
@@ -116,24 +124,26 @@ func main() {
 		log.Println(err)
 		cancel()
 	}
+	return 0
 }
 
 func parseCommandLine() error {
 	if len(os.Args) > 1 {
+		const conveyorName = "ingress_proxy"
 		switch os.Args[1] {
-		case "ingress_proxy", "-ingress_proxy":
+		case conveyorName, "-" + conveyorName:
 			log.Printf("positional argument %q is deprecated, it is safe to remove it", os.Args[1])
 			os.Args = append(os.Args[:1], os.Args[2:]...)
 		}
 		const conveyorArgPrefix = "-new-conveyor="
 		for i, v := range os.Args {
 			if strings.HasPrefix(v, conveyorArgPrefix) {
-				if s := v[len(conveyorArgPrefix):]; s == "ingress_proxy" {
+				if s := v[len(conveyorArgPrefix):]; s == conveyorName {
 					log.Printf("option %q is deprecated, it is safe to remove it", v)
 					os.Args = append(os.Args[:i], os.Args[i+1:]...)
 					break
 				} else {
-					return fmt.Errorf("wrong value for -new-conveyor option %s, must be 'ingress_proxy'", s)
+					return fmt.Errorf("wrong value for -new-conveyor option %s, must be %q", s, conveyorName)
 				}
 			}
 		}
@@ -155,9 +165,9 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
 	flag.StringVar(&argv.Version, "ingress-version", "", "")
 	flag.StringVar(&argv.UpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
-
-	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig(), false)
+	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	build.FlagParseShowVersionHelp()
+
 	argv.ConfigAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 	argv.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	argv.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
@@ -165,11 +175,9 @@ func parseCommandLine() error {
 	if len(argv.ConfigAgent.AggregatorAddresses) != 3 {
 		return fmt.Errorf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 	}
-	if err := argv.ConfigAgent.ValidateConfigSource(); err != nil {
-		return err
-	}
 	if argv.pprofHTTP {
 		log.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
 	}
-	return nil
+
+	return argv.ConfigAgent.ValidateConfigSource()
 }

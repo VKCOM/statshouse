@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -17,7 +18,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/env"
@@ -40,6 +39,39 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
+
+const defaultPathToPwd = `/etc/engine/pass`
+
+var argv struct {
+	logFile                      string
+	logLevel                     string
+	userLogin                    string // логин для setuid
+	userGroup                    string // логин для setguid
+	maxOpenFiles                 uint64
+	pprofListenAddr              string
+	pprofHTTP                    bool
+	aesPwdFile                   string
+	cacheDir                     string
+	customHostName               string // useful for testing and in some environments
+	aggAddr                      string // common, different meaning
+	maxCores                     int
+	listenAddr                   string
+	listenAddrIPv6               string
+	listenAddrUnix               string
+	mirrorUdpAddr                string
+	coresUDP                     int
+	bufferSizeUDP                int
+	promRemoteMod                bool
+	hardwareMetricScrapeInterval time.Duration
+	hardwareMetricScrapeDisable  bool
+	envFilePath                  string
+
+	// for old mode
+	historicStorageDir string
+	diskCacheFilename  string
+
+	agent.Config
+}
 
 var (
 	logOk  *log.Logger
@@ -59,107 +91,64 @@ func reopenLog() {
 	logErr.SetOutput(logFd)
 }
 
-var globalStartTime = time.Now() // good enough for us
-
 func main() {
 	// data_model.PrintLinearMaxHostProbabilities()
-	os.Exit(runMain())
+	os.Exit(mainAgent())
 }
 
-func findVerb() (string, bool) {
-	const legacyVerbArgName = "-new-conveyor="
-	for i, a := range os.Args { // this is legacy and must be removed after all launch arguments fixed
-		if pos := strings.Index(a, legacyVerbArgName); pos >= 0 {
-			newConveyor := a[pos+len(legacyVerbArgName):]
-			switch newConveyor {
-			case "agent", "duplicate_map":
-				logErr.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse agent ...' or 'statshouse -agent ...'", a)
-				newConveyor = "agent"
-			case "ingress_proxy":
-				logErr.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse ingress_proxy ...' or 'statshouse -ingress_proxy ...'", a)
-			default:
-				logErr.Printf("Wrong value for -new-conveyor argument %s, must be 'agent', 'duplicate_map' (also means agent) or 'ingress_proxy'", newConveyor)
-				return "", true
-			}
-			os.Args = slices.Delete(os.Args, i, i+1)
-			return newConveyor, true
-		}
-	}
-	verb := os.Args[1]
-	os.Args = slices.Delete(os.Args, 1, 2)
-	return verb, false
-}
-
-func runMain() int {
+func mainAgent() int {
 	pidStr := strconv.Itoa(os.Getpid())
 	logOk = log.New(os.Stdout, "LOG "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 	logErr = log.New(os.Stderr, "ERR "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
-	if len(os.Args) < 2 {
-		printVerbUsage()
+	verb, err := parseCommandLine()
+	if err != nil {
+		log.Println(err)
 		return 1
 	}
-	var mappingCacheSize int64
-	var mappingCacheTTL int
-	// Motivation - some engine infrastructure cannot add options without dash. so wi allow both
-	// $> statshouse agent -a -b -c
-	// and
-	// $> statshouse -agent -a -b -c
-	rawVerb, legacyVerb := findVerb()
-	verb := strings.TrimPrefix(strings.TrimPrefix(rawVerb, "-"), "-")
-	if legacyVerb {
-		if rawVerb == "" { // findVerb already printed the problem
-			return 1
-		}
-		argvAddDeprecatedFlags()
-		argvAddCommonFlags()
-		argvAddAgentFlags(true)
-		argvAddAggregatorFlags(true)
-		build.FlagParseShowVersionHelp()
-	} else {
-		switch verb {
-		case "test_parser":
-			return mainTestParser()
-		case "benchmark":
-			mainBenchmarks()
-			return 0
-		case "test_map":
-			mainTestMap()
-			return 0
-		case "test_longpoll":
-			mainTestLongpoll()
-			return 0
-		case "simple_fsync":
-			mainSimpleFSyncTest()
-			return 0
-		case "tlclient.api":
-			mainTLClientAPI()
-			return 0
-		case "tlclient":
-			return mainTLClient()
-		case "agent":
-			argvAddCommonFlags()
-			argvAddAgentFlags(false)
-			build.FlagParseShowVersionHelp()
-			mappingCacheSize = argv.configAgent.MappingCacheSize
-			mappingCacheTTL = argv.configAgent.MappingCacheTTL
-		case "aggregator":
-			argvAddCommonFlags()
-			argvAddAggregatorFlags(false)
-			build.FlagParseShowVersionHelp()
-			mappingCacheSize = argv.configAggregator.MappingCacheSize
-			mappingCacheTTL = argv.configAggregator.MappingCacheTTL
-		case "tag_mapping":
-			mainTagMapping()
-			return 0
-		case "publish_tag_drafts":
-			mainPublishTagDrafts()
-			return 0
-		default:
-			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", rawVerb)
-			printVerbUsage()
-			return 1
-		}
+
+	switch verb {
+	case "agent":
+		// main mode
+	case "test_parser":
+		return mainTestParser()
+	case "benchmark":
+		mainBenchmarks()
+		return 0
+	case "test_map":
+		mainTestMap()
+		return 0
+	case "test_longpoll":
+		mainTestLongpoll()
+		return 0
+	case "simple_fsync":
+		mainSimpleFSyncTest()
+		return 0
+	case "tlclient.api":
+		mainTLClientAPI()
+		return 0
+	case "tlclient":
+		return mainTLClient()
+	case "tag_mapping":
+		mainTagMapping()
+		return 0
+	case "publish_tag_drafts":
+		mainPublishTagDrafts()
+		return 0
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown verb %q:\n\n", verb)
+		fmt.Fprintf(os.Stderr, "Daemons usage:\n")
+		fmt.Fprintf(os.Stderr, "statshouse agent <options>             daemon receiving data from clients and sending to aggregators\n")
+		fmt.Fprintf(os.Stderr, "Tools usage:\n")
+		fmt.Fprintf(os.Stderr, "statshouse tlclient <options>          use as TL client to send JSON metrics to another statshouse\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_map <options>          test key mapping pipeline\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_parser <options>       parse and print packets received by UDP\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_longpoll <options>     test longpoll journal\n")
+		fmt.Fprintf(os.Stderr, "statshouse simple_fsync <options>      simple SSD benchmark\n")
+		fmt.Fprintf(os.Stderr, "statshouse tlclient.api <options>      test API\n")
+		fmt.Fprintf(os.Stderr, "statshouse simulator <options>         simulate 10 agents sending data\n")
+		fmt.Fprintf(os.Stderr, "statshouse benchmark <options>         some brnchmark\n")
+		return 1
 	}
 
 	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
@@ -167,7 +156,6 @@ func runMain() int {
 	}
 
 	aesPwd := readAESPwd()
-
 	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
 		logErr.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
 		return 1
@@ -179,12 +167,6 @@ func runMain() int {
 		_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
 	}
 
-	if argv.cacheDir == "" && argv.historicStorageDir != "" { // legacy mode option. TODO - remove
-		argv.cacheDir = argv.historicStorageDir
-	}
-	if argv.cacheDir == "" && argv.diskCacheFilename != "" { // legacy mode option. TODO - remove
-		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
-	}
 	var dc *pcache.DiskCache // We support working without touching disk (on readonly filesystems, in stateless containers, etc)
 	var fpmc *os.File
 	if argv.cacheDir != "" {
@@ -201,71 +183,29 @@ func runMain() int {
 		// }()
 
 		// we do not want to confuse mappings from different clusters, this would be a disaster
-		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			logErr.Printf("failed to open agent mappings cache: %v", err)
 			return 1
 		}
 		defer fpmc.Close()
 	}
-	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, mappingCacheSize, mappingCacheTTL) // we ignore error because cache can be damaged
+	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
 
-	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
-
-	if _, err := strconv.Atoi(argv.listenAddr); err == nil { // old convention of using port
-		argv.listenAddr = ":" + argv.listenAddr // convert to addr
-	}
-
-	if argv.customHostName == "" {
-		argv.customHostName = srvfunc.HostnameForStatshouse()
-		logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
-	}
-
-	switch verb {
-	case "agent":
-		if !legacyVerb && len(argv.configAgent.AggregatorAddresses) != 3 {
-			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
-			return 1
-		}
-		mainAgent(aesPwd, dc, mappingsCache)
-	case "aggregator":
-		mainAggregator(aesPwd, dc, mappingsCache)
-	default:
-		logErr.Printf("Wrong command line verb or -new-conveyor argument %q, see --help for valid values", verb)
-	}
-	return 0
-}
-
-func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCache) int {
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	argv.configAgent.Cluster = argv.cluster
-	if err := argv.configAgent.ValidateConfigSource(); err != nil {
-		logErr.Printf("%s", err)
-		return 1
-	}
-
-	if argv.coresUDP < 0 {
-		logErr.Printf("--cores-udp must be set to at least 0")
-		return 1
-	}
-	if argv.maxCores < 0 {
-		argv.maxCores = 1 + argv.coresUDP*3/2
-	}
 	if argv.maxCores > 0 {
 		runtime.GOMAXPROCS(argv.maxCores)
 	}
 
 	runPprof()
 
-	var (
-		receiversUDP []*receiver.UDP
-	)
+	var receiversUDP []*receiver.UDP
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	var fj *os.File
 	if argv.cacheDir != "" {
 		// we do not want to confuse journal from different clusters, this would be a disaster
 		var err error
-		fj, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		fj, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			logErr.Printf("failed to open journal cache: %v", err)
 			return 1
@@ -286,11 +226,11 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
-		argv.configAgent,
+		argv.Config,
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage,
-		mcagent,
+		mappingsCache,
 		log.Printf,
 		func(a *agent.Agent, unixNow uint32) {
 			k := data_model.Key{
@@ -378,7 +318,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 	journal.Start(sh2, nil, sh2.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
-	if argv.configAgent.AutoCreate {
+	if argv.AutoCreate {
 		ac = data_model.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
 		defer ac.Shutdown()
 	}
@@ -388,7 +328,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache, mcagent *pcache.MappingsCach
 		sh2.LoadOrCreateMapping,
 		dc,
 		ac,
-		argv.configAgent.Cluster,
+		argv.Cluster,
 		logPackets,
 	)
 	//code to populate cache for test below
@@ -559,8 +499,12 @@ loop:
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
 	sh2.WaitPreprocessor()
 	shutdownInfo.StopPreprocessor = shutdownInfoDuration(&now).Nanoseconds()
-	logOk.Printf("8. Saving mappings...")
-	_ = mcagent.Save()
+	if mappingsCache != nil {
+		logOk.Printf("8. Saving mappings...")
+		_ = mappingsCache.Save()
+	} else {
+		logOk.Printf("8. Saving mappings... (nothing to do)")
+	}
 	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("9. Saving journal...")
 	_ = journal.Save()
@@ -568,65 +512,7 @@ loop:
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
-	return 0
-}
 
-func mainAggregator(aesPwd string, dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache) int {
-	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	if err := aggregator.ValidateConfigAggregator(argv.configAggregator); err != nil {
-		logErr.Printf("%s", err)
-		return 1
-	}
-
-	argv.configAggregator.Cluster = argv.cluster
-
-	if len(argv.aggAddr) == 0 {
-		logErr.Printf("--agg-addr to listen must be specified")
-		return 1
-	}
-	agg, err := aggregator.MakeAggregator(dc, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.configAggregator, argv.customHostName, argv.logLevel == "trace")
-	if err != nil {
-		logErr.Printf("%v", err)
-		return 1
-	}
-	shutdownInfoReport(agg.Agent(), format.TagValueIDComponentAggregator, argv.cacheDir, startDiscCacheTime)
-
-	chSignal := make(chan os.Signal, 1)
-	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGUSR1)
-
-loop:
-	for {
-		sig := <-chSignal
-		switch sig {
-		case syscall.SIGINT:
-			break loop
-		case syscall.SIGUSR1:
-			logOk.Printf("Aggregators do not support log rotation") // admin might expect rotation, tell them.
-		}
-	}
-	shutdownInfo := tlstatshouse.ShutdownInfo{}
-	now := time.Now()
-	shutdownInfo.StartShutdownTime = now.UnixNano()
-
-	logOk.Printf("Shutting down...")
-	logOk.Printf("1. Disabling inserting new data to clickhouses...")
-	agg.DisableNewInsert()
-	logOk.Printf("2. Waiting all inserts to finish...")
-	agg.WaitInsertsFinish(data_model.ClickHouseTimeoutShutdown)
-	shutdownInfo.StopInserters = shutdownInfoDuration(&now).Nanoseconds()
-	// Now when inserts are finished and responses are in send queues of RPC connections,
-	// we can initiate shutdown by sending LetsFIN packets and waiting to actual FINs.
-	logOk.Printf("3. Starting gracefull RPC shutdown...")
-	agg.ShutdownRPCServer()
-	logOk.Printf("4. Waiting RPC clients to receive responses and disconnect...")
-	agg.WaitRPCServer(10 * time.Second)
-	shutdownInfo.StopRPCServer = shutdownInfoDuration(&now).Nanoseconds()
-	logOk.Printf("5. Saving mappings...")
-	_ = mappingsCache.Save()
-	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
-	shutdownInfo.FinishShutdownTime = now.UnixNano()
-	shutdownInfoSave(argv.cacheDir, shutdownInfo)
-	logOk.Printf("Bye")
 	return 0
 }
 
@@ -656,4 +542,117 @@ func runPprof() {
 			}
 		}()
 	}
+}
+
+func readAESPwd() string {
+	var aesPwd []byte
+	var err error
+	if argv.aesPwdFile == "" {
+		aesPwd, _ = os.ReadFile(defaultPathToPwd)
+	} else {
+		aesPwd, err = os.ReadFile(argv.aesPwdFile)
+		if err != nil {
+			log.Fatalf("Could not read AES password file %s: %s", argv.aesPwdFile, err)
+		}
+	}
+	return string(aesPwd)
+}
+
+func argvCreateClient() (*rpc.Client, string) {
+	cryptoKey := readAESPwd()
+	return rpc.NewClient(
+		rpc.ClientWithLogf(logErr.Printf), rpc.ClientWithCryptoKey(cryptoKey), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())), cryptoKey
+}
+
+func parseCommandLine() (verb string, _ error) {
+	if len(os.Args) < 2 {
+		return "", nil
+	}
+
+	const conveyorArgPrefix = "-new-conveyor="
+	for i := 0; i < len(os.Args) && verb == ""; i++ {
+		if !strings.HasPrefix(os.Args[i], conveyorArgPrefix) {
+			continue
+		}
+		s := os.Args[i][len(conveyorArgPrefix):]
+		switch s {
+		case "agent", "duplicate_map":
+			verb = "agent"
+			log.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse agent ...' or 'statshouse -agent ...'", os.Args[i])
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+		default:
+			return "", fmt.Errorf("wrong value for -new-conveyor argument %s, must be 'agent', 'duplicate_map' (also means agent)", s)
+		}
+	}
+	if verb == "" {
+		verb = strings.TrimPrefix(strings.TrimPrefix(os.Args[1], "-"), "-")
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+	}
+
+	// DEPRECATED but still in use
+	var sampleFactor int
+	var maxMemLimit uint64
+	flag.IntVar(&sampleFactor, "sample-factor", 1, "Deprecated - If 2, 50% of stats will be throw away, if 10, 90% of stats will be thrown away. If <= 1, keep all stats.")
+	flag.Uint64Var(&maxMemLimit, "m", 0, "Deprecated - max memory usage limit")
+	flag.StringVar(&argv.historicStorageDir, "historic-storage", "", "Data that cannot be immediately sent will be stored here together with metric cache.")
+	flag.StringVar(&argv.diskCacheFilename, "disk-cache-filename", "", "disk cache file name")
+
+	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+	flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
+	flag.StringVar(&argv.logLevel, "log-level", "info", "log level. can be 'info' or 'trace' for now. 'trace' will print all incoming packets")
+	flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
+	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
+	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
+	flag.BoolVar(&argv.pprofHTTP, "pprof-http", false, "Serve Go pprof HTTP on RPC port (deprecated due to security reasons)")
+	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
+	flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
+	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma-separated list of 3 aggregator addresses (shard 1 is recommended). For aggregator, listen addr.")
+	flag.StringVar(&argv.Cluster, "cluster", "statlogs2", "clickhouse cluster name to autodetect configuration, local shard and replica")
+	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
+	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
+	flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
+	flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "", "Unix datagram listen address.")
+	flag.StringVar(&argv.mirrorUdpAddr, "mirror-udp", "", "mirrors UDP datagrams to the given address")
+	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
+	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
+	flag.IntVar(&argv.maxCores, "cores", -1, "CPU cores usage limit. 0 all available, <0 use (cores-udp*3/2 + 1)")
+	flag.BoolVar(&argv.promRemoteMod, "prometheus-push-remote", false, "use remote pusher for prom metrics")
+	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
+	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
+	flag.StringVar(&argv.envFilePath, "env-file-path", "/etc/statshouse_env.yml", "statshouse environment file path")
+	argv.Config.Bind(flag.CommandLine, agent.DefaultConfig())
+	build.FlagParseShowVersionHelp()
+
+	// TODO: legacy mode options, to be removed
+	if argv.cacheDir == "" && argv.historicStorageDir != "" {
+		argv.cacheDir = argv.historicStorageDir
+	}
+	if argv.cacheDir == "" && argv.diskCacheFilename != "" {
+		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
+	}
+
+	argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
+	if len(argv.AggregatorAddresses) != 3 {
+		return "", fmt.Errorf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
+	}
+	if argv.coresUDP < 0 {
+		return "", fmt.Errorf("--cores-udp must be set to at least 0")
+	}
+	if _, err := strconv.Atoi(argv.listenAddr); err == nil { // old convention of using port
+		argv.listenAddr = ":" + argv.listenAddr // convert to addr
+	}
+	if argv.customHostName == "" {
+		argv.customHostName = srvfunc.HostnameForStatshouse()
+		logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
+	}
+	if argv.maxCores < 0 {
+		argv.maxCores = 1 + argv.coresUDP*3/2
+	}
+	if verb == "agent" {
+		if err := argv.ValidateConfigSource(); err != nil {
+			return "", err
+		}
+	}
+
+	return verb, nil
 }

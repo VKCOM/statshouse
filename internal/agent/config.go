@@ -90,7 +90,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
+func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.IntVar(&c.SampleBudget, "sample-budget", d.SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
 	f.Int64Var(&c.MaxHistoricDiskSize, "max-disk-size", d.MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
 	f.IntVar(&c.SkipShards, "skip-shards", d.SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
@@ -113,16 +113,14 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	f.StringVar(&c.RemoteWriteAddr, "remote-write-addr", d.RemoteWriteAddr, "Prometheus remote write listen address (deprecated).")
 	f.StringVar(&c.RemoteWritePath, "remote-write-path", d.RemoteWritePath, "Prometheus remote write path (deprecated).")
 
-	if !legacyVerb {
-		f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
-		f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", d.DisableRemoteConfig, "Disable remote configuration.")
-		f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
-		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
-		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
-		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
-		f.BoolVar(&c.BuiltinNewSharding, "buitin-new-sharding", d.BuiltinNewSharding, "Put builtin metrics into 0 shard, except for ingestion and bages which sharded by metric")
-		f.BoolVar(&c.BuiltinNewConveyor, "buitin-new-conveyor", d.BuiltinNewConveyor, "All metrics go through new mapping conveyor")
-	}
+	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
+	f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", d.DisableRemoteConfig, "Disable remote configuration.")
+	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
+	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
+	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
+	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
+	f.BoolVar(&c.BuiltinNewSharding, "buitin-new-sharding", d.BuiltinNewSharding, "Put builtin metrics into 0 shard, except for ingestion and bages which sharded by metric")
+	f.BoolVar(&c.BuiltinNewConveyor, "buitin-new-conveyor", d.BuiltinNewConveyor, "All metrics go through new mapping conveyor")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
@@ -131,7 +129,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 func (c *Config) updateFromRemoteDescription(description string) error {
 	var f flag.FlagSet
 	f.Init("", flag.ContinueOnError)
-	c.Bind(&f, *c, false)
+	c.Bind(&f, *c)
 	s := strings.Split(description, "\n")
 	for i := 0; i < len(s); {
 		t := strings.TrimSpace(s[i])

@@ -36,7 +36,7 @@ ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
-    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp
+    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
 FROM golang:1.22-bookworm AS build-go-bookworm
 WORKDIR /src
@@ -61,7 +61,7 @@ ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
-    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp
+    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
 FROM golang:1.22-buster AS build-go-buster
 WORKDIR /src
@@ -86,7 +86,7 @@ ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
-    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp
+    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
 FROM golang:1.22-focal AS build-go-focal
 WORKDIR /src
@@ -111,7 +111,7 @@ ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
-    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp
+    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
 FROM golang:1.22-jammy AS build-go-jammy 
 WORKDIR /src
@@ -136,7 +136,7 @@ ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
-    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp
+    make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
 FROM debian:bullseye AS debuild-bullseye
 ENV DEBIAN_FRONTEND=noninteractive

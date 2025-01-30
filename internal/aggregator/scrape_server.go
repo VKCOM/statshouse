@@ -23,7 +23,6 @@ import (
 	"sync"
 
 	"github.com/prometheus/common/model"
-	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/relabel"
 	"go.uber.org/atomic"

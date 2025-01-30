@@ -1,2 +1,3 @@
 #!/usr/bin/dh-exec
-../target/statshouse => usr/share/engine/bin/statshouse-agg
+../target/statshouse-agg => usr/share/engine/bin/statshouse-agg
+../cmd/statshouse/statshouse.service => usr/lib/systemd/system/statshouse-agg.service

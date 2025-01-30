@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -22,9 +23,9 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, cacheDir string, s
 		fn := filepath.Join(cacheDir, shutdownInfoFileName)
 		data, err := os.ReadFile(fn)
 		if err != nil {
-			logErr.Printf("error reading %q, no shutdown metrics will be written", fn)
+			log.Printf("error reading %q, no shutdown metrics will be written", fn)
 		} else if _, err := si.ReadBoxed(data); err != nil {
-			logErr.Printf("error parsing %q, no shutdown metrics will be written", fn)
+			log.Printf("error parsing %q, no shutdown metrics will be written", fn)
 		}
 		_ = os.Remove(fn) // We do not want duplicates. If we crash before saving metrics, we better lose them.
 	}
@@ -98,9 +99,9 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, cacheDir string, s
 		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
 			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseTotal}},
 			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
-		logOk.Printf("restart finished in %v (since shutdown start time recorded by previous instance)", dur)
+		log.Printf("restart finished in %v (since shutdown start time recorded by previous instance)", dur)
 	} else {
-		logOk.Printf("start finished in %v (since this main() launched)", time.Since(globalStartTime))
+		log.Printf("start finished in %v (since this main() launched)", time.Since(globalStartTime))
 	}
 }
 
