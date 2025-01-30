@@ -233,7 +233,7 @@ func init() {
 		apiCompatTagID[legacyName] = name
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only
-		defaultMetaTags = append(defaultMetaTags, MetricMetaTag{Index: i})
+		defaultMetaTags = append(defaultMetaTags, MetricMetaTag{Index: int32(i)})
 	}
 	defaultMetaTags[0].Description = "environment" // the only fixed description
 	defaultSTag.Index = StringTopTagIndex

@@ -59,7 +59,7 @@ type MappedMetricHeader struct {
 
 // TODO - implement InvalidRawValue and InvalidRawTagKey
 
-func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
+func (h *MappedMetricHeader) SetTag(index int32, id int32, tagIDKey int32) {
 	if index == format.HostTagIndex {
 		h.HostTag.I = id
 		if h.IsHKeySet {
@@ -75,7 +75,7 @@ func (h *MappedMetricHeader) SetTag(index int, id int32, tagIDKey int32) {
 	}
 }
 
-func (h *MappedMetricHeader) SetSTag(index int, value []byte, tagIDKey int32) {
+func (h *MappedMetricHeader) SetSTag(index int32, value []byte, tagIDKey int32) {
 	if index == format.HostTagIndex {
 		h.HostTag.S = value
 		if h.IsHKeySet {
@@ -83,7 +83,7 @@ func (h *MappedMetricHeader) SetSTag(index int, value []byte, tagIDKey int32) {
 		}
 		h.IsHKeySet = true
 	} else {
-		h.Key.SetSTag(index, string(value))
+		h.Key.SetSTag(int(index), string(value))
 		if h.IsTagSet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}
