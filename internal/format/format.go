@@ -329,23 +329,6 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// used to save memory for tags
-func (t *MetricMetaTag) equalsToDefault(index int32) bool {
-	if t.Name != "" || t.Description != "" {
-		return false
-	}
-	if t.Raw || t.RawKind != "" {
-		return false
-	}
-	if len(t.ID2Value) != 0 || len(t.ValueComments) != 0 || len(t.Comment2Value) != 0 {
-		return false
-	}
-	if t.IsMetric || t.IsGroup || t.IsNamespace {
-		return false
-	}
-	return t.Index == index
-}
-
 // this method is faster than string hash, plus saves a lot of memory in maps
 func (m *MetricMetaValue) name2TagFast(name string) *MetricMetaTag {
 	var num uint
@@ -436,9 +419,6 @@ func (m *MetricMetaValue) AppendTagNames(res []string) []string {
 
 // updates error if name collision happens
 func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canonical bool, err *error) {
-	if name == "" {
-		return
-	}
 	if !canonical && !ValidTagName(mem.S(name)) {
 		if err != nil {
 			*err = fmt.Errorf("invalid tag name %q", name)
@@ -482,12 +462,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if m.StringTopName == StringTopTagID { // remove redundancy
 		m.StringTopName = ""
 	}
-	sTag := &MetricMetaTag{
-		Name:        m.StringTopName,
-		Description: m.StringTopDescription,
-		Index:       StringTopTagIndex,
-	}
-	m.setName2Tag(m.StringTopName, sTag, false, &err) // not set if equalsToDefault
 	if len(m.Tags) != 0 {
 		// for mast metrics in database, this name is set to "env". We do not want to continue using it.
 		// We want mapEnvironment() to work even when metric is not found, so we must not allow users to
@@ -548,11 +522,21 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		tag.Comment2Value = c2v
 		tag.Index = int32(i)
 
-		m.setName2Tag(tag.Name, tag, false, &err) // not set if equalsToDefault
+		if tag.Name != "" {
+			m.setName2Tag(tag.Name, tag, false, &err) // not set if equalsToDefault
+		}
 	}
-	if sTag.equalsToDefault(StringTopTagIndex) {
+	if m.StringTopName == "" && m.StringTopDescription == "" {
 		m.setName2Tag(StringTopTagID, &defaultSTag, true, &err)
 	} else {
+		sTag := &MetricMetaTag{
+			Name:        m.StringTopName,
+			Description: m.StringTopDescription,
+			Index:       StringTopTagIndex,
+		}
+		if m.StringTopName != "" {
+			m.setName2Tag(m.StringTopName, sTag, false, &err) // not set if equalsToDefault
+		}
 		m.setName2Tag(StringTopTagID, sTag, true, &err)
 	}
 	m.setName2Tag(HostTagID, &defaultHTag, true, &err)
