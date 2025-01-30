@@ -8,6 +8,7 @@ package format
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode"
@@ -232,6 +233,33 @@ func BenchmarkAllowedResolutionTable(b *testing.B) {
 }
 
 var sum int32
+
+func TestName2Tag(t *testing.T) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "some",
+	}
+	for i := 0; i < 100; i++ {
+		meta.Tags = append(meta.Tags, MetricMetaTag{Index: int32(i)})
+	}
+	require.Nil(t, meta.Name2Tag(""))    // test short string
+	require.Nil(t, meta.Name2Tag("100")) // test long string
+	for i := 0; i < 256; i++ {
+		for j := 0; j < 256; j++ {
+			str := string(byte(i)) + string(byte(j)) // test all 2-digit strings
+			index, err := strconv.Atoi(str)
+			tag := meta.Name2Tag(str)
+			if err != nil || strings.Index(str, "+") >= 0 || strings.Index(str, "-") >= 0 { // +1, -0 is parsed by Atoi, but not Name2Tag
+				require.Nil(t, tag)
+			} else {
+				require.NotNil(t, tag)
+				require.True(t, tag.Index == int32(index))
+			}
+		}
+	}
+}
 
 func BenchmarkName2Tag(b *testing.B) {
 	meta := &MetricMetaValue{
