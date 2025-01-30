@@ -18,12 +18,12 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *Journal) {
+func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *JournalFast) {
 	m := MakeMetricsStorage(nil)
-	j := MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
-		[]ApplyEvent{m.ApplyEvent})
-	//j := MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+	//j := MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
 	//	[]ApplyEvent{m.ApplyEvent})
+	j := MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+		[]ApplyEvent{m.ApplyEvent})
 	j.metaLoader = loader
 	j.parseDiscCache()
 	return m, j
@@ -52,7 +52,7 @@ type testCase struct {
 func TestMetricStorage1(t *testing.T) {
 	events := []tlmetadata.Event{}
 	var m *MetricsStorage
-	var journal *Journal
+	var journal *JournalFast
 	createEntity := func(id, namespaceID int64, name string, typ int32, version int64, data any) tlmetadata.Event {
 		b, err := json.Marshal(data)
 		if err != nil {
@@ -362,14 +362,12 @@ func TestMetricStorage1(t *testing.T) {
 
 func TestMetricsStorage(t *testing.T) {
 	events := []tlmetadata.Event{}
-	var version int64 = 1
+	var version int64 = 0
 	incVersion := func() int64 {
-		defer func() {
-			version++
-		}()
+		version++
 		return version
 	}
-	m, journal := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+	loader := func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
 		var result []tlmetadata.Event
 		for _, e := range events {
 			if e.Version > lastVersion {
@@ -381,7 +379,8 @@ func TestMetricsStorage(t *testing.T) {
 			v = events[len(events)-1].Version
 		}
 		return result, v, nil
-	})
+	}
+	m, journal := newMetricStorage(loader)
 	// actually 1 test, but grouped by small test case (need to run together)
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
@@ -909,22 +908,13 @@ func TestMetricsStorage(t *testing.T) {
 			require.Equal(t, group2Metric6.MetricID, metric.MetricID)
 		})
 	})
+	journal = MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+		nil)
+	journal.metaLoader = loader
+
 	t.Run("test getJournalDiffLocked3", func(t *testing.T) {
-		a := tlmetadata.Event{
-			Id:      1,
-			Version: 1,
-		}
-		b := tlmetadata.Event{
-			Id:      2,
-			Version: 2,
-		}
-		c := tlmetadata.Event{
-			Id:      3,
-			Version: 3,
-		}
-		test := func(clientVersion int64, jj, expected []tlmetadata.Event) func(t *testing.T) {
+		test := func(clientVersion int64, expected []tlmetadata.Event) func(t *testing.T) {
 			return func(t *testing.T) {
-				journal.journal = jj
 				res := journal.getJournalDiffLocked3(clientVersion)
 				if len(expected) == 0 {
 					require.Len(t, res.Events, 0)
@@ -934,12 +924,19 @@ func TestMetricsStorage(t *testing.T) {
 				require.Equal(t, journal.versionLocked(), res.CurrentVersion)
 			}
 		}
-		t.Run("empty journal", test(0, nil, nil))
-		t.Run("full journal", test(0, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{a, b, c}))
-		t.Run("part of journal1", test(1, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{b, c}))
-		t.Run("part of journal2", test(2, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{c}))
-		t.Run("part of journal3", test(3, []tlmetadata.Event{a, b, c}, nil))
-		t.Run("part of journal4", test(999, []tlmetadata.Event{a, b, c}, nil))
+		t.Run("empty journal", test(0, nil))
+		events = []tlmetadata.Event{
+			{FieldMask: 1, Id: 1, Version: 1},
+			{FieldMask: 1, Id: 2, Version: 2},
+			{FieldMask: 1, Id: 3, Version: 3},
+		}
+		err := journal.updateJournal(nil)
+		require.NoError(t, err)
+		t.Run("full journal", test(0, events))
+		t.Run("part of journal1", test(1, events[1:]))
+		t.Run("part of journal2", test(2, events[2:]))
+		t.Run("part of journal3", test(3, nil))
+		t.Run("part of journal4", test(999, nil))
 	})
 }
 
