@@ -228,24 +228,6 @@ func (ms *MetricsStorage) MatchMetrics(f *data_model.QueryFilter) {
 	f.MatchMetrics(ms.metricsByName)
 }
 
-func (ms *MetricsStorage) GetGroupBy(metric *format.MetricMetaValue) *format.MetricsGroup {
-	if metric.MetricID >= 0 {
-		return metric.Group
-	}
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	return metric.Group
-}
-
-func (ms *MetricsStorage) GetNamespaceBy(metric *format.MetricMetaValue) *format.NamespaceMeta {
-	if metric.MetricID >= 0 {
-		return metric.Namespace
-	}
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	return metric.Namespace
-}
-
 func (ms *MetricsStorage) GetDashboardMeta(dashboardID int32) *format.DashboardMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -378,7 +360,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			}
 			ms.updateMetric(value)
 			ms.calcGroupForMetricLocked(value)
-			ms.calcNamespaceForMetricLocked(value)
 			ms.mu.Unlock()
 		case format.DashboardEvent:
 			m := map[string]interface{}{}
@@ -416,7 +397,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]
 				ms.groupsByID[value.ID] = value
-				ms.calcNamespaceForGroupLocked(value)
 			} else {
 				old = ms.builtInGroup[value.ID]
 				ms.builtInGroup[value.ID] = value
@@ -466,7 +446,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			} else {
 				ms.builtInNamespace[value.ID] = value
 			}
-			ms.calcNamespaceForMetricsAndGroupsLocked(value)
 			ms.calcGroupNamesMapLocked()
 			ms.mu.Unlock()
 		}
@@ -499,63 +478,6 @@ func (ms *MetricsStorage) copyToSnapshotUnlocked() {
 	ms.metaSnapshot.updateSnapshotUnlocked(metricsByIDSnapshot, metricsByNameSnapshot)
 }
 
-// call when namespace is added or changed O(number of metrics + numb of groups)
-func (ms *MetricsStorage) calcNamespaceForMetricsAndGroupsLocked(new *format.NamespaceMeta) {
-	for _, m := range ms.metricsByID {
-		if m.NamespaceID == new.ID {
-			mCopy := *m
-			mCopy.Namespace = new
-			ms.metricsByID[m.MetricID] = &mCopy
-			ms.metricsByName[m.Name] = &mCopy
-		}
-	}
-
-	for _, group := range ms.groupsByID {
-		if group.NamespaceID == new.ID {
-			groupCopy := *group
-			groupCopy.Namespace = new
-			ms.groupsByID[groupCopy.ID] = &groupCopy
-		}
-	}
-	for _, m := range format.BuiltinMetrics {
-		if m.NamespaceID == new.ID {
-			m.Namespace = new
-		}
-	}
-
-	for _, group := range ms.builtInGroup {
-		if group.NamespaceID == new.ID {
-			group.Namespace = new
-		}
-	}
-}
-
-// call when metric is added or changed O(1)
-func (ms *MetricsStorage) calcNamespaceForMetricLocked(new *format.MetricMetaValue) {
-	if new.NamespaceID > 0 {
-		if n, ok := ms.namespaceByID[new.NamespaceID]; ok {
-			new.Namespace = n
-		}
-	} else {
-		if new.NamespaceID == 0 || new.NamespaceID == format.BuiltinNamespaceIDDefault {
-			new.Namespace = ms.builtInNamespace[format.BuiltinNamespaceIDDefault]
-		}
-	}
-}
-
-// call when metric is added or changed O(1)
-func (ms *MetricsStorage) calcNamespaceForGroupLocked(new *format.MetricsGroup) {
-	if new.NamespaceID != 0 {
-		if n, ok := ms.namespaceByID[new.NamespaceID]; ok {
-			new.Namespace = n
-		}
-	} else {
-		if new.NamespaceID == 0 || new.NamespaceID == format.BuiltinNamespaceIDDefault {
-			new.Namespace = ms.namespaceByID[format.BuiltinNamespaceIDDefault]
-		}
-	}
-}
-
 // call when group is added or changed O(number of metrics)
 func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGroup) {
 	if new.ID >= 0 {
@@ -564,7 +486,6 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 				if m.GroupID == new.ID {
 					mCopy := *m
 					mCopy.GroupID = format.BuiltinGroupIDDefault
-					mCopy.Group = ms.builtInGroup[format.BuiltinGroupIDDefault]
 					ms.updateMetric(&mCopy)
 				}
 			}
@@ -574,7 +495,6 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 			if new.MetricIn(m) {
 				mCopy := *m
 				mCopy.GroupID = new.ID
-				mCopy.Group = new
 				ms.updateMetric(&mCopy)
 			}
 		}
@@ -583,15 +503,8 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 			if new.ID == format.BuiltinGroupIDDefault && (m.GroupID == 0 || m.GroupID == format.BuiltinGroupIDDefault) {
 				mCopy := *m
 				mCopy.GroupID = new.ID
-				mCopy.Group = new
 				ms.updateMetric(&mCopy)
 			}
-		}
-	}
-
-	for _, m := range format.BuiltinMetrics {
-		if m.GroupID == new.ID {
-			m.Group = new
 		}
 	}
 }
@@ -599,11 +512,9 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 // call when metric is added or changed O(number of groups)
 func (ms *MetricsStorage) calcGroupForMetricLocked(new *format.MetricMetaValue) {
 	new.GroupID = format.BuiltinGroupIDDefault
-	new.Group = ms.builtInGroup[format.BuiltinGroupIDDefault]
 	for _, g := range ms.groupsByID {
 		if g.MetricIn(new) {
 			new.GroupID = g.ID
-			new.Group = g
 			return
 		}
 	}
