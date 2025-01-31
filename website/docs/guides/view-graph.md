@@ -43,6 +43,9 @@ import MetricTabDelete from '../img/metric-tab-delete.png'
 import DeltaResAggr from '../img/delta-res-aggr.png'
 import ResYellow from '../img/res-yellow.png'
 import ResRed from '../img/res-red.png'
+import MarkdownMetric from '../img/markdown_metric.png'
+import MarkdownEdit from '../img/markdown_edit.png'
+
 
 # View metric data
 
@@ -101,13 +104,23 @@ in the metric description section. Otherwise, use your organization's internal c
 To compare metrics, [create a dashboard](dashboards.md). To find relationships 
 between the metrics or events, use [Event overlay](#11--event-overlay).
 
-## 2 — Graph name
+## 2 — Graph name and description
 
-You can edit the graph name so that the metric name remains the same.
+You can edit the graph name so that the [metric name](#1--metric-name) remains the same.
 
 <img src={RenameGraph} width="800"/>
 
 This changed graph name is saved in URL only.
+
+To add or modify a graph description, click the "pencil" icon near the graph name.
+
+Feel free to use the [standard Markdown formatting](https://commonmark.org/help/) for descriptions.
+
+<img src={MarkdownEdit} width="600"/>
+
+Please note that formatting appears only upon hovering over descriptions (in the "tooltip" descriptions).
+
+<img src={MarkdownMetric} width="600"/>
 
 ## 3 — Descriptive statistics
 

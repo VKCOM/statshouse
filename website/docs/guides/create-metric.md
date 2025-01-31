@@ -83,7 +83,7 @@ Most likely, you should not worry about it.
 #### "Can I rename a metric?"
 
 You cannot rename an existing metric, so please create a new one with the name you want. You can
-[edit the graph name](view-graph.md#2--graph-name) so that the metric name remains the same.
+[edit the graph name](view-graph.md#2--graph-name-and-description) so that the metric name remains the same.
 [Disable](edit-metrics.md#disabling-a-metric) an unused metric.
 
 #### "I want to re-design my metric. Should I refactor it or create a new one?"
