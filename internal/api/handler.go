@@ -1355,7 +1355,7 @@ func HandlePostKnownTags(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("config body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)))
 		return
 	}
-	_, err = aggregator.ParseKnownTags(res, r.metricsStorage)
+	_, err = data_model.ParseKnownTags(res, r.metricsStorage)
 	if err != nil {
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -1377,7 +1377,7 @@ func HandleGetKnownTags(h *httpRequestHandler) {
 		respondJSON(h, nil, 0, 0, err)
 		return
 	}
-	var res []aggregator.SelectorTags
+	var res []data_model.SelectorTags
 	err := json.Unmarshal([]byte(h.metricsStorage.KnownTags().Data), &res)
 	if err != nil {
 		respondJSON(h, nil, 0, 0, err)
