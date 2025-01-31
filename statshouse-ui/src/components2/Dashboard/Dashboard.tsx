@@ -23,6 +23,7 @@ import { produce } from 'immer';
 import { HistoryList } from '../HistoryList';
 
 const PATH_VERSION_PARAM = '&dv';
+import { DashboardLayoutNew } from './DashboardLayoutNew';
 
 export type DashboardProps = {
   className?: string;
@@ -148,7 +149,8 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
       {variablesLength > 0 && tabNum === '-1' && !tvModeEnable && (
         <DashboardVariablesControl className="col-12 container-xl mb-3 z-100 position-relative" />
       )}
-      <DashboardLayout className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
+      {/* <DashboardLayout className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} /> */}
+      <DashboardLayoutNew className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
       {tabNum === '-2' && <DashboardSettings />}
       {tabNum === '-3' && dashboardId && (
         <HistoryList
