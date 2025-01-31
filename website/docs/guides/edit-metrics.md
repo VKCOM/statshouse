@@ -59,11 +59,12 @@ Then scroll back to the top of the page to view your metric with the changes app
 
 ## Description
 
-Add a metric description on one or multiple lines to show in the UI. No formatting is supported.
+Add a metric description on one or multiple lines to show in the UI. Feel free to use the [standard Markdown formatting](https://commonmark.org/help/) for descriptions.
 
 <img src={Description} width="800"/>
 
-You can [edit the graph name](view-graph.md#2--graph-name-and-description) to customize the look of the dashboard or the graph view 
+You can [edit the graph name or description](view-graph.md#2--graph-name-and-description) to customize the look of the 
+dashboard or the graph view 
 without changing the name of the metric itself. You [cannot rename a metric](create-metric.md#can-i-rename-a-metric).
 
 ## Aggregation
@@ -115,10 +116,6 @@ per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
-Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
-in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../overview/concepts.md#resolution).
-
 You see custom resolution near the metric name in a graph view:
 
 <img src={ResolutionView} width="600"/>
@@ -130,6 +127,8 @@ the smaller [aggregation interval](view-graph.md#6--aggregation-interval):
 you cannot show per-second data if the resolution is set to 5 seconds.
 :::
 
+See more about metric [resolution](../overview/concepts.md#resolution).
+
 ## Unit
 
 Set up measurement units for the _value_ metric data you send to StatsHouse. 
@@ -138,7 +137,10 @@ With this unit information, StatsHouse generates the Y-axis label for a graph.
 For example, if you set up _milliseconds_ for your metric, you can see _seconds_, _minutes_, or even _days_ as the 
 Y-axis label on the graph:
 
-<img src={Milliseconds} width="900"/>
+<img src={Milliseconds} width="400"/>
+
+Please note that the _«byte (shown as bits)»_ option means that you send bytes to StatsHouse, but they are converted to 
+bits to appear on the Y-axis in the UI. It may be useful for those who work with network metrics.
 
 :::note
 If you have a _counter_ metric or view the _count_ and _count/sec_ statistics, you should not set a particular 
