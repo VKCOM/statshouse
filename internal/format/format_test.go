@@ -251,7 +251,7 @@ func TestName2Tag(t *testing.T) {
 			str := string(byte(i)) + string(byte(j)) // test all 2-digit strings
 			index, err := strconv.Atoi(str)
 			tag := meta.Name2Tag(str)
-			if err != nil || strings.Index(str, "+") >= 0 || strings.Index(str, "-") >= 0 { // +1, -0 is parsed by Atoi, but not Name2Tag
+			if err != nil || strings.Contains(str, "+") || strings.Contains(str, "-") { // +1, -0 is parsed by Atoi, but not Name2Tag
 				require.Nil(t, tag)
 			} else {
 				require.NotNil(t, tag)
