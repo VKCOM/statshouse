@@ -1,9 +1,9 @@
 package config
 
 import (
+	"flag"
 	"testing"
 
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -13,7 +13,7 @@ type config struct {
 	S string
 }
 
-func (c *config) Bind(f *pflag.FlagSet, default_ Config) {
+func (c *config) Bind(f *flag.FlagSet, default_ Config) {
 	def := default_.(*config)
 	f.StringVar(&c.S, "s", def.S, "")
 }
