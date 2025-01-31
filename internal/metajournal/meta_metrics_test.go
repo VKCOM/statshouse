@@ -22,7 +22,7 @@ func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *JournalFas
 	m := MakeMetricsStorage(nil)
 	//j := MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
 	//	[]ApplyEvent{m.ApplyEvent})
-	j := MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+	j := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil,
 		[]ApplyEvent{m.ApplyEvent})
 	j.metaLoader = loader
 	j.parseDiscCache()
@@ -908,7 +908,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Equal(t, group2Metric6.MetricID, metric.MetricID)
 		})
 	})
-	journal = MakeJournalFast(data_model.JournalDDOSProtectionTimeout,
+	journal = MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil,
 		nil)
 	journal.metaLoader = loader
 

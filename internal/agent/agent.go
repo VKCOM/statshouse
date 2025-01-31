@@ -76,6 +76,10 @@ type Agent struct {
 	mappingsCache *pcache.MappingsCache
 	metricStorage format.MetaStorageInterface
 
+	journalHV        func() (int64, string, string)
+	journalFastHV    func() (int64, string)
+	journalCompactHV func() (int64, string)
+
 	componentTag int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
 	stagingLevel int
 	buildArchTag int32
@@ -110,7 +114,9 @@ type Agent struct {
 
 // All shard aggregators must be on the same network
 func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
-	mappingsCache *pcache.MappingsCache, logF func(format string, args ...interface{}),
+	mappingsCache *pcache.MappingsCache,
+	journalHV func() (int64, string, string), journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
+	logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
@@ -143,6 +149,9 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		logF:                  logF,
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		mappingsCache:         mappingsCache,
+		journalHV:             journalHV,
+		journalFastHV:         journalFastHV,
+		journalCompactHV:      journalCompactHV,
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
 		envLoader:             envLoader,
@@ -509,7 +518,7 @@ func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.M
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _ := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, _ := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	shard := s.Shards[shardId]
 	return shard.CreateBuiltInItemValue(key)
 }
@@ -532,8 +541,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
-	shardId, resolutionHash := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
-	if resolutionHash == 0 && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
+	shardId, newStrategy, resolutionHash := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
+	if newStrategy && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
 		var scr []byte
 		if scratch != nil {
 			scr = *scratch
@@ -635,7 +644,7 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
@@ -654,7 +663,7 @@ func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddCounterHostStringBytes(key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
@@ -672,7 +681,7 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
@@ -682,7 +691,7 @@ func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, 
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, resolutionHash, item, metricInfo)

@@ -25,6 +25,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/zeebo/xxh3"
 )
 
 var errDeadMetrics = errors.New("metrics update from storage is dead")
@@ -55,6 +56,7 @@ type Journal struct {
 	metricsDead          bool      // together with this bool
 	lastUpdateTime       time.Time // we no more use this information for logic
 	stateHashStr         string
+	stateXXHash3Str      string
 	currentVersion       int64
 	stopWriteToDiscCache bool
 	journalRequestDelay  time.Duration // to avoid overusing of CPU by handling journal updates
@@ -101,20 +103,14 @@ func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStor
 	go ms.goUpdateMetrics(aggLog)
 }
 
-func (ms *Journal) Version() int64 {
+func (ms *Journal) VersionHash() (int64, string, string) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.versionLocked()
+	return ms.currentVersion, ms.stateHashStr, ms.stateXXHash3Str
 }
 
 func (ms *Journal) versionLocked() int64 {
 	return ms.currentVersion
-}
-
-func (ms *Journal) StateHash() string {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	return ms.stateHashStr
 }
 
 func (ms *Journal) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
@@ -152,15 +148,25 @@ func (ms *Journal) parseDiscCache() {
 		return journal2[i].Version < journal2[j].Version
 	})
 	ms.journal = journal2
-	ms.currentVersion, ms.stateHashStr = calculateVersionStateHashLocked(journal2)
-	// TODO - check invariants here before saving
+	ms.currentVersion, ms.stateHashStr, ms.stateXXHash3Str = calculateVersionStateHashLocked(journal2)
 	for _, f := range ms.applyEvent {
 		f(journal2, ms.currentVersion, ms.stateHashStr)
 	}
-	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHashStr)
+	log.Printf("Loaded metric storage version %d, journal hash is %s xxhash3 is %s", ms.versionLocked(), ms.stateHashStr, ms.stateXXHash3Str)
 }
 
-func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string) {
+func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string, string) {
+	var stateHash xxh3.Uint128
+	var scratch []byte
+	for _, entry := range events {
+		var hash xxh3.Uint128
+		scratch, hash = hashJournalEvent(scratch, entry)
+		stateHash.Hi ^= hash.Hi
+		stateHash.Lo ^= hash.Lo
+	}
+	hb := stateHash.Bytes()
+	stateXXHash3Str := hex.EncodeToString(hb[:])
+
 	version := int64(0)
 	if len(events) > 0 {
 		version = events[len(events)-1].Version
@@ -168,7 +174,7 @@ func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string) 
 	r := &tlmetadata.GetJournalResponsenew{Events: events}
 	bytes := r.Write(nil, 0)
 	hash := sha1.Sum(bytes)
-	return version, hex.EncodeToString(hash[:])
+	return version, hex.EncodeToString(hash[:]), stateXXHash3Str
 }
 
 func (ms *Journal) updateJournal(aggLog AggLog) error {
@@ -201,7 +207,7 @@ func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		return false, err
 	}
 	newJournal := updateEntriesJournal(oldJournal, src)
-	currentVersion, stateHashStr := calculateVersionStateHashLocked(newJournal)
+	currentVersion, stateHashStr, stateXXHash3Str := calculateVersionStateHashLocked(newJournal)
 
 	// TODO - check invariants here before saving
 
@@ -237,13 +243,14 @@ func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 				strconv.FormatInt(lastEntry.Version, 10),
 				lastEntry.Name,
 				stateHashStr,
-				"")
+				stateXXHash3Str)
 		}
 	}
 
 	ms.mu.Lock()
 	ms.journal = newJournal
 	ms.stateHashStr = stateHashStr
+	ms.stateXXHash3Str = stateXXHash3Str
 	ms.currentVersion = currentVersion
 	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false

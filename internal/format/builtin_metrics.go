@@ -931,6 +931,14 @@ var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 	}, {
 		Description: "journal_hash",
 		RawKind:     "hex",
+	}, {
+		Description: "journal_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDMetaJournalVersionsKindLegacySHA1:  "legacy_sha1",
+			TagValueIDMetaJournalVersionsKindLegacyXXH3:  "legacy_xxh3",
+			TagValueIDMetaJournalVersionsKindNormalXXH3:  "normal_xxh3",
+			TagValueIDMetaJournalVersionsKindCompactXXH3: "compact_xxh3",
+		}),
 	}},
 }
 
