@@ -20,6 +20,8 @@ import PqlDash1 from '../img/pql-dash-1.png'
 import PqlDash2 from '../img/pql-dash-2.png'
 import PqlDash3 from '../img/pql-dash-3.png'
 import PqlDash4 from '../img/pql-dash-4.png'
+import MarkdownDashboard from '../img/markdown_dashboard.png'
+import MarkdownDashboardEdit from '../img/markdown_dashboard_edit.png'
 
 # Как пользоваться дашбордами
 
@@ -77,6 +79,15 @@ StatsHouse автоматически помещает открытый граф
 В разделе _Setting_ можно указать название дашборда и добавить более подробное описание:
 
 <img src={DashName} width="800"/>
+
+В описаниях можно использовать [стандартную разметку Markdown](https://commonmark.org/help/).
+
+<img src={MarkdownDashboardEdit} width="650"/>
+
+Обратите внимание: форматирование отобразится только при наведении курсора на описание графика (в "тултипе" с
+описанием).
+
+<img src={MarkdownDashboard} width="650"/>
 
 Чтобы завершить создание дашборда, нажмите кнопку _Create_. Кнопка активна только тогда, когда у дашборда есть название.
 
