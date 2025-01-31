@@ -213,7 +213,6 @@ func init() {
 			v.Resolution = 15
 		}
 		v.GroupID = BuiltinGroupIDHost
-		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		v.Sharding = MetricSharding{Strategy: ShardByMetric}
 		BuiltinMetrics[k] = v
 		// v.NoSampleAgent = false
@@ -248,7 +247,6 @@ func init() {
 		m.MetricID = id
 		if m.GroupID == 0 {
 			m.GroupID = BuiltinGroupIDBuiltin
-			m.Group = BuiltInGroupDefault[BuiltinGroupIDBuiltin]
 		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
