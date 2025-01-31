@@ -2,10 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/spf13/pflag"
 	"github.com/vkcom/statshouse/internal/config"
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -39,13 +40,13 @@ func (argv *Config) Copy() config.Config {
 	return &cp
 }
 
-func (argv *Config) Bind(pflag *pflag.FlagSet, defaultI config.Config) {
+func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
-	pflag.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
-	pflag.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
-	pflag.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
-	pflag.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
-	pflag.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
+	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
+	f.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
+	f.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
+	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
+	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
 
 func DefaultConfig() *Config {
@@ -55,32 +56,36 @@ func DefaultConfig() *Config {
 }
 
 type HandlerOptions struct {
-	insecureMode            bool
-	LocalMode               bool
-	querySequential         bool
-	readOnly                bool
-	verbose                 bool
-	timezone                string
-	protectedMetricPrefixes []string
-	querySelectTimeout      time.Duration
-	weekStartAt             int
-	location                *time.Location
-	utcOffset               int64
+	insecureMode             bool
+	LocalMode                bool
+	querySequential          bool
+	readOnly                 bool
+	verbose                  bool
+	timezone                 string
+	protectedMetricPrefixesS string
+	protectedMetricPrefixes  []string
+	querySelectTimeout       time.Duration
+	weekStartAt              int
+	location                 *time.Location
+	utcOffset                int64
 }
 
-func (argv *HandlerOptions) Bind(pflag *pflag.FlagSet) {
-	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
-	pflag.BoolVar(&argv.LocalMode, "local-mode", false, "set local-mode if you need to have default access without access token")
-	pflag.BoolVar(&argv.querySequential, "query-sequential", false, "disables query parallel execution")
-	pflag.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
-	pflag.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
-	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", QuerySelectTimeoutDefault, "query select timeout")
-	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
-	pflag.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
-	pflag.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
+func (argv *HandlerOptions) Bind(f *flag.FlagSet) {
+	f.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
+	f.BoolVar(&argv.LocalMode, "local-mode", false, "set local-mode if you need to have default access without access token")
+	f.BoolVar(&argv.querySequential, "query-sequential", false, "disables query parallel execution")
+	f.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
+	f.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
+	f.DurationVar(&argv.querySelectTimeout, "query-select-timeout", QuerySelectTimeoutDefault, "query select timeout")
+	f.StringVar(&argv.protectedMetricPrefixesS, "protected-metric-prefixes", "", "comma-separated list of metric prefixes that require access bits set")
+	f.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
+	f.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
 }
 
-func (argv *HandlerOptions) LoadLocation() error {
+func (argv *HandlerOptions) Parse() error {
+	argv.protectedMetricPrefixes = strings.Split(argv.protectedMetricPrefixesS, ",")
+
+	// Parse location
 	if argv.weekStartAt < int(time.Sunday) || argv.weekStartAt > int(time.Saturday) {
 		return fmt.Errorf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
 	}
