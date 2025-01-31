@@ -1,4 +1,10 @@
-package main
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package agent
 
 import (
 	"log"
@@ -6,7 +12,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -17,7 +22,7 @@ const shutdownInfoFileName = "shutdown_stats.tmp"
 var globalStartTime = time.Now() // good enough for us
 
 // actual metrics reported depend on contents of .tmp file
-func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, cacheDir string, startDiscCache time.Time) {
+func ShutdownInfoReport(sh2 *Agent, componentTag int32, cacheDir string, startDiscCache time.Time) {
 	si := tlstatshouse.ShutdownInfo{}
 	if cacheDir != "" {
 		fn := filepath.Join(cacheDir, shutdownInfoFileName)
@@ -105,13 +110,13 @@ func shutdownInfoReport(sh2 *agent.Agent, componentTag int32, cacheDir string, s
 	}
 }
 
-func shutdownInfoSave(cacheDir string, si tlstatshouse.ShutdownInfo) {
+func ShutdownInfoSave(cacheDir string, si tlstatshouse.ShutdownInfo) {
 	if cacheDir != "" {
 		_ = os.WriteFile(filepath.Join(cacheDir, shutdownInfoFileName), si.WriteBoxed(nil), os.ModePerm)
 	}
 }
 
-func shutdownInfoDuration(ct *time.Time) time.Duration {
+func ShutdownInfoDuration(ct *time.Time) time.Duration {
 	now := time.Now()
 	dur := now.Sub(*ct)
 	if dur <= 0 {

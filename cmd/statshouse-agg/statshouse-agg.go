@@ -119,7 +119,7 @@ func mainAggregator() int {
 	}
 
 	// Run
-	shutdownInfoReport(agg.Agent(), format.TagValueIDComponentAggregator, argv.cacheDir, startDiscCacheTime)
+	agent.ShutdownInfoReport(agg.Agent(), format.TagValueIDComponentAggregator, argv.cacheDir, startDiscCacheTime)
 	waitSIGINT := make(chan os.Signal, 1)
 	signal.Notify(waitSIGINT, syscall.SIGINT)
 	<-waitSIGINT
@@ -133,22 +133,22 @@ func mainAggregator() int {
 	agg.DisableNewInsert()
 	log.Printf("2. Waiting all inserts to finish...")
 	agg.WaitInsertsFinish(data_model.ClickHouseTimeoutShutdown)
-	shutdownInfo.StopInserters = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.StopInserters = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	// Now when inserts are finished and responses are in send queues of RPC connections,
 	// we can initiate shutdown by sending LetsFIN packets and waiting to actual FINs.
 	log.Printf("3. Starting gracefull RPC shutdown...")
 	agg.ShutdownRPCServer()
 	log.Printf("4. Waiting RPC clients to receive responses and disconnect...")
 	agg.WaitRPCServer(10 * time.Second)
-	shutdownInfo.StopRPCServer = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.StopRPCServer = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	log.Printf("5. Saving mappings...")
 	_ = mappingsCache.Save()
-	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.SaveMappings = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	log.Printf("6. Saving journals...")
 	agg.SaveJournals()
-	shutdownInfo.SaveJournal = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.SaveJournal = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
-	shutdownInfoSave(argv.cacheDir, shutdownInfo)
+	agent.ShutdownInfoSave(argv.cacheDir, shutdownInfo)
 	log.Printf("Bye")
 
 	return 0
