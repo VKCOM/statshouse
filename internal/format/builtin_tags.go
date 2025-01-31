@@ -140,6 +140,11 @@ const (
 	TagValueIDPacketFormatProtobuf = 5
 	TagValueIDPacketFormatRPC      = 6
 	TagValueIDPacketFormatEmpty    = 7
+
+	TagValueIDMetaJournalVersionsKindLegacySHA1  = 1
+	TagValueIDMetaJournalVersionsKindLegacyXXH3  = 2
+	TagValueIDMetaJournalVersionsKindNormalXXH3  = 3
+	TagValueIDMetaJournalVersionsKindCompactXXH3 = 4
 )
 const (
 	TagValueIDPacketProtocolUDP      = 1

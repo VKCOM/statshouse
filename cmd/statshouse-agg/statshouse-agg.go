@@ -79,30 +79,40 @@ func mainAggregator() int {
 	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
 		log.Printf("Could not set new rlimit: %v", err)
 	}
-	if argv.cacheDir != "" {
-		_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
+	if argv.cacheDir == "" {
+		log.Printf("aggregator cannot run without -cache-dir for now")
+		return 1
 	}
-
-	var dc *pcache.DiskCache // We support working without touching disk (on readonly filesystems, in stateless containers, etc)
-	var fpmc *os.File
-	if argv.cacheDir != "" {
-		var err error
-		if dc, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
-			log.Printf("failed to open disk cache: %v", err)
-			return 1
-		}
-		// we do not want to confuse mappings from different clusters, this would be a disaster
-		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
-		if err != nil {
-			log.Printf("failed to open agent mappings cache: %v", err)
-			return 1
-		}
-		defer fpmc.Close()
+	_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
+	dc, err := pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration)
+	if err != nil {
+		log.Printf("failed to open disk cache: %v", err)
+		return 1
 	}
+	// we do not want to confuse mappings from different clusters, this would be a disaster
+	fpmc, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("failed to open aggregator mappings cache: %v", err)
+		return 1
+	}
+	defer fpmc.Close()
+	// we do not want to confuse journal from different clusters, this would be a disaster
+	fj, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("failed to open journal cache: %v", err)
+		return 1
+	}
+	defer fj.Close()
+	fjCompact, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-compact-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("failed to open journal cache: %v", err)
+		return 1
+	}
+	defer fjCompact.Close()
 
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
 	startDiscCacheTime := time.Now()                                                                    // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(dc, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(dc, fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
@@ -134,6 +144,9 @@ func mainAggregator() int {
 	log.Printf("5. Saving mappings...")
 	_ = mappingsCache.Save()
 	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
+	log.Printf("6. Saving journals...")
+	agg.SaveJournals()
+	shutdownInfo.SaveJournal = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)
 	log.Printf("Bye")

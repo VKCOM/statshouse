@@ -66,7 +66,7 @@ func Benchmark_LoadJournal(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil)
+		journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil, nil)
 		journal.metaLoader = loader
 		for {
 			fin, err := journal.updateJournalIsFinished(nil)
@@ -94,7 +94,7 @@ func Benchmark_LoadJournal(b *testing.B) {
 func Benchmark_SaveJournal(b *testing.B) {
 	loader, _, err := getJournalFileLoader("journal.json")
 	require.NoError(b, err)
-	journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil)
+	journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, nil, nil)
 	journal.metaLoader = loader
 	for {
 		fin, err := journal.updateJournalIsFinished(nil)
@@ -135,7 +135,7 @@ func Benchmark_LoadFast(b *testing.B) {
 	fp, err := os.OpenFile(testFile, os.O_CREATE|os.O_RDWR, 0666)
 	require.NoError(b, err)
 
-	j, err := LoadJournalFastFile(fp, data_model.JournalDDOSProtectionTimeout,
+	j, err := LoadJournalFastFile(fp, data_model.JournalDDOSProtectionTimeout, nil,
 		[]ApplyEvent{m.ApplyEvent})
 	require.NoError(b, err)
 	j.metaLoader = loader
@@ -155,7 +155,7 @@ func Benchmark_LoadFast(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		m2 := MakeMetricsStorage(nil)
-		_, err = LoadJournalFastFile(fp, data_model.JournalDDOSProtectionTimeout,
+		_, err = LoadJournalFastFile(fp, data_model.JournalDDOSProtectionTimeout, nil,
 			[]ApplyEvent{m2.ApplyEvent})
 		require.NoError(b, err)
 		require.Equal(b, len(m.metricsByID), len(m2.metricsByID))

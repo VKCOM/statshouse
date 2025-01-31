@@ -109,6 +109,8 @@ type (
 
 		metricStorage  *metajournal.MetricsStorage
 		journal        *metajournal.Journal
+		journalFast    *metajournal.JournalFast
+		journalCompact *metajournal.JournalFast
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 		tagsMapper2    *tagsMapper2
@@ -137,11 +139,8 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 // aggregator is also run in this method
-func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
+func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
 	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
-	if dc == nil { // TODO - make sure aggregator works without cache dir?
-		return nil, fmt.Errorf("aggregator cannot run without -cache-dir for now")
-	}
 	localAddresses := strings.Split(listenAddr, ",")
 	if len(localAddresses) != 1 {
 		if len(localAddresses) != 3 {
@@ -292,12 +291,19 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	})
 	a.journal = metajournal.MakeJournal(a.config.Cluster, data_model.JournalDDOSProtectionTimeout, dc,
 		[]metajournal.ApplyEvent{a.metricStorage.ApplyEvent})
+	// we ignore errors because cache can be damaged
+	a.journalCompact, _ = metajournal.LoadJournalFastFile(fjCompact, data_model.JournalDDOSProtectionTimeout, nil,
+		nil)
+	a.journalFast, _ = metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionTimeout, a.journalCompact,
+		nil)
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, mappingsCache,
+		format.TagValueIDComponentAggregator,
+		a.metricStorage, mappingsCache,
+		a.journal.VersionHash, a.journalFast.VersionHash, a.journalCompact.VersionHash,
 		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
@@ -308,6 +314,7 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 		a.autoCreate.run(a.metricStorage)
 	}
 	a.journal.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
+	a.journalFast.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, metricMetaLoader, a.config.Cluster)
@@ -339,7 +346,21 @@ func MakeAggregator(dc *pcache.DiskCache, mappingsCache *pcache.MappingsCache,
 	}()
 
 	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
+
+	go func() {
+		for {
+			time.Sleep(time.Hour) // arbitrary
+			_ = mappingsCache.Save()
+			a.SaveJournals()
+		}
+	}()
+
 	return a, nil
+}
+
+func (a *Aggregator) SaveJournals() {
+	_ = a.journalFast.Save()
+	_ = a.journalCompact.Save()
 }
 
 func (a *Aggregator) Agent() *agent.Agent {

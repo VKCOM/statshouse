@@ -230,7 +230,7 @@ func run() int {
 	}
 
 	// we ignore error because cache can be damaged
-	journal, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout,
+	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, nil,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	// This code is used to investigate journal loading efficiency.
 	//if err := http.ListenAndServe(":9999", nil); err != nil {
@@ -245,8 +245,8 @@ func run() int {
 		argv.Config,
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
-		metricStorage,
-		mappingsCache,
+		metricStorage, mappingsCache,
+		nil, journalFast.VersionHash, nil,
 		log.Printf,
 		main.beforeFlushBucket,
 		nil,
@@ -286,7 +286,7 @@ func run() int {
 		return 1
 	}
 	main.Run(0, 0, 0)
-	journal.Start(main.Agent, nil, main.LoadMetaMetricJournal)
+	journalFast.Start(main.Agent, nil, main.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
 	if argv.AutoCreate {
@@ -446,7 +446,7 @@ loop:
 	_ = mappingsCache.Save()
 	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("9. Saving journal...")
-	_ = journal.Save()
+	_ = journalFast.Save()
 	shutdownInfo.SaveJournal = shutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	shutdownInfoSave(argv.cacheDir, shutdownInfo)

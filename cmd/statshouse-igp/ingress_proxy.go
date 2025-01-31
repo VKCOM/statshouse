@@ -146,7 +146,11 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 	} else {
 		var err error
 		p.agent, err = agent.MakeAgent(
-			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(), format.TagValueIDComponentIngressProxy, nil, mappingsCache, log.Printf,
+			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(),
+			format.TagValueIDComponentIngressProxy,
+			nil, mappingsCache,
+			nil, nil, nil,
+			log.Printf,
 			func(s *agent.Agent, nowUnix uint32) {
 				// __igp_vm_size
 				var vmSize, vmRSS float64

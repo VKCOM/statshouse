@@ -62,12 +62,6 @@ type (
 
 		BucketsToPreprocess chan *data_model.MetricsBucket
 
-		// only used by single shard randomly selected for sending this infp
-		currentJournalVersion     int64
-		currentJournalHash        string
-		currentJournalHashTag     int32
-		currentJournalHashSeconds float64 // for how many seconds currentJournalHash did not change and was not added to metrics. This saves tons of traffic
-
 		HistoricBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
 		HistoricBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
 		cond                    *sync.Cond
@@ -329,51 +323,43 @@ func (s *Shard) addBuiltInsLocked() {
 		s.addBuiltInsHeartbeatsLocked(resolutionShard, s.CurrentTime, 1) // send start event immediately
 		s.agent.heartBeatEventType = format.TagValueIDHeartbeatEventHeartbeat
 	}
-	// this logic with currentJournalHashSeconds and currentJournalVersion ensures there is exactly 60 samples per minute,
-	// sending is once per minute when no changes, but immediate sending of journal version each second when it changed
-	// standard metrics do not allow this, but heartbeats are magic.
-	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
-		key := s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
+
+	writeJournalVersion := func(version int64, hashStr string, journalTag int32) {
+		hashTag := int32(0)
+		hashRaw, _ := hex.DecodeString(hashStr)
+		if len(hashRaw) >= 4 {
+			hashTag = int32(binary.BigEndian.Uint32(hashRaw))
+		}
+
+		key := s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDJournalVersions, [format.MaxTags]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag, journalTag})
 		item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
-		item.MapStringTop(s.rng, data_model.TagUnion{S: hash, I: 0}, count).AddCounterHost(s.rng, count, data_model.TagUnionBytes{})
-	}
-	if s.agent.metricStorage != nil { // nil only on ingress proxy for now
-		metricJournalVersion := s.agent.metricStorage.Version()
-		metricJournalHash := s.agent.metricStorage.StateHash()
-
-		metricJournalHashTag := int32(0)
-		metricJournalHashRaw, _ := hex.DecodeString(metricJournalHash)
-		if len(metricJournalHashRaw) >= 4 {
-			metricJournalHashTag = int32(binary.BigEndian.Uint32(metricJournalHashRaw))
-		}
-
-		if metricJournalHash != s.currentJournalHash {
-			if s.currentJournalHashSeconds != 0 {
-				writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, s.currentJournalHashSeconds)
-				s.currentJournalHashSeconds = 0
-			}
-			s.currentJournalVersion = metricJournalVersion
-			s.currentJournalHash = metricJournalHash
-			s.currentJournalHashTag = metricJournalHashTag
-			writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, 1)
-		} else {
-			s.currentJournalHashSeconds++
-		}
+		item.MapStringTop(s.rng, data_model.TagUnion{S: hashStr, I: 0}, 1).AddCounterHost(s.rng, 1, data_model.TagUnionBytes{})
 	}
 
-	currentTimeMinute := ((s.CurrentTime / 60) * 60)
-	resolutionShard = s.SuperQueue[(currentTimeMinute+60+uint32(s.agent.heartBeatSecondBucket))%superQueueLen]
+	if s.agent.journalHV != nil {
+		version, hashStr, hashStrXXH3 := s.agent.journalHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindLegacySHA1)
+		writeJournalVersion(version, hashStrXXH3, format.TagValueIDMetaJournalVersionsKindLegacyXXH3)
+	}
+	if s.agent.journalFastHV != nil {
+		version, hashStr := s.agent.journalFastHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindNormalXXH3)
+	}
+	if s.agent.journalCompactHV != nil {
+		version, hashStr := s.agent.journalCompactHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindCompactXXH3)
+	}
 
 	prevRUsage := s.agent.rUsage
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &s.agent.rUsage)
 	userTime := float64(s.agent.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 	sysTime := float64(s.agent.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-	key := s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser})
+	key := s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser})
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
 	item.Tail.AddValueCounter(s.rng, userTime, 1)
 
-	key = s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys})
+	key = s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDUsageCPU, [format.MaxTags]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
 	item.Tail.AddValueCounter(s.rng, sysTime, 1)
 
@@ -381,21 +367,19 @@ func (s *Shard) addBuiltInsLocked() {
 		// IF we sample once per minute, we do it right before sending to reduce latency
 		return
 	}
-	if s.currentJournalHashSeconds != 0 {
-		writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, s.currentJournalHashSeconds)
-		s.currentJournalHashSeconds = 0
-	}
+
+	resolutionShard = s.SuperQueue[(s.CurrentTime+uint32(s.agent.heartBeatSecondBucket))%superQueueLen]
 
 	var rss float64
 	if st, _ := srvfunc.GetMemStat(0); st != nil {
 		rss = float64(st.Res)
 	}
 
-	key = s.agent.AggKey(currentTimeMinute, format.BuiltinMetricIDUsageMemory, [format.MaxTags]int32{0, s.agent.componentTag})
+	key = s.agent.AggKey(s.CurrentTime, format.BuiltinMetricIDUsageMemory, [format.MaxTags]int32{0, s.agent.componentTag})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
 	item.Tail.AddValueCounter(s.rng, rss, 60)
 
-	s.addBuiltInsHeartbeatsLocked(resolutionShard, currentTimeMinute, 60) // heartbeat once per minute
+	s.addBuiltInsHeartbeatsLocked(resolutionShard, s.CurrentTime, 60) // heartbeat once per minute
 }
 
 func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
@@ -405,7 +389,6 @@ func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsB
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
 	item.MapStringTop(s.rng, data_model.TagUnion{S: build.Commit(), I: 0}, count).AddValueCounter(s.rng, uptimeSec, count)
 
-	// we send format.BuiltinMetricIDHeartbeatArgs only. Args1, Args2, Args3 are deprecated
 	key = s.agent.AggKey(nowUnix, format.BuiltinMetricIDHeartbeatArgs, [format.MaxTags]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
 	item, _ = resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, nil, nil)
 	item.MapStringTop(s.rng, data_model.TagUnion{S: s.agent.args, I: 0}, count).AddValueCounter(s.rng, uptimeSec, count)
