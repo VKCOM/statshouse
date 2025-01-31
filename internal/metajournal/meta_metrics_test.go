@@ -146,7 +146,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
-		require.NotNil(t, actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group before namespace", func(t *testing.T) {
@@ -159,7 +158,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
-		require.NotNil(t, actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"put group in namespace", func(t *testing.T) {
@@ -172,13 +170,11 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
-		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 		events = append(events, createEntity(2, 1, "namespace@group", format.MetricsGroupEvent, 3, format.MetricsGroup{}))
 		err = journal.updateJournal(nil)
 		require.NoError(t, err)
 		actualGroup = m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
-		require.NotNil(t, actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"remove group from namespace", func(t *testing.T) {
@@ -191,14 +187,12 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
-		require.NotNil(t, actualGroup.Namespace)
 
 		events = append(events, createEntity(2, 0, "group", format.MetricsGroupEvent, 3, format.MetricsGroup{}))
 		err = journal.updateJournal(nil)
 		require.NoError(t, err)
 		actualGroup = m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
-		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group after metric", func(t *testing.T) {
@@ -820,7 +814,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.namespaceByID, 1)
 
 			require.Contains(t, m.groupsByID, group1.ID)
-			require.Equal(t, *m.groupsByID[group1.ID].Namespace, namespace)
 		})
 		t.Run("metric created (check new metric not in group)", func(t *testing.T) {
 			group2Metric6.Version = incVersion()

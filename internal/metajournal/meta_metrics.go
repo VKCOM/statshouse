@@ -397,7 +397,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]
 				ms.groupsByID[value.ID] = value
-				ms.calcNamespaceForGroupLocked(value)
 			} else {
 				old = ms.builtInGroup[value.ID]
 				ms.builtInGroup[value.ID] = value
@@ -447,7 +446,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			} else {
 				ms.builtInNamespace[value.ID] = value
 			}
-			ms.calcNamespaceForMetricsAndGroupsLocked(value)
 			ms.calcGroupNamesMapLocked()
 			ms.mu.Unlock()
 		}
@@ -478,36 +476,6 @@ func (ms *MetricsStorage) copyToSnapshotUnlocked() {
 	}
 	ms.mu.Unlock()
 	ms.metaSnapshot.updateSnapshotUnlocked(metricsByIDSnapshot, metricsByNameSnapshot)
-}
-
-// call when namespace is added or changed O(number of metrics + numb of groups)
-func (ms *MetricsStorage) calcNamespaceForMetricsAndGroupsLocked(new *format.NamespaceMeta) {
-	for _, group := range ms.groupsByID {
-		if group.NamespaceID == new.ID {
-			groupCopy := *group
-			groupCopy.Namespace = new
-			ms.groupsByID[groupCopy.ID] = &groupCopy
-		}
-	}
-
-	for _, group := range ms.builtInGroup {
-		if group.NamespaceID == new.ID {
-			group.Namespace = new
-		}
-	}
-}
-
-// call when metric is added or changed O(1)
-func (ms *MetricsStorage) calcNamespaceForGroupLocked(new *format.MetricsGroup) {
-	if new.NamespaceID != 0 {
-		if n, ok := ms.namespaceByID[new.NamespaceID]; ok {
-			new.Namespace = n
-		}
-	} else {
-		if new.NamespaceID == 0 || new.NamespaceID == format.BuiltinNamespaceIDDefault {
-			new.Namespace = ms.namespaceByID[format.BuiltinNamespaceIDDefault]
-		}
-	}
 }
 
 // call when group is added or changed O(number of metrics)

@@ -204,8 +204,7 @@ type MetricsGroup struct {
 	Weight  float64 `json:"weight,omitempty"`
 	Disable bool    `json:"disable,omitempty"`
 
-	EffectiveWeight int64          `json:"-"`
-	Namespace       *NamespaceMeta `json:"-"`
+	EffectiveWeight int64 `json:"-"`
 }
 
 // possible sharding strategies
@@ -648,7 +647,6 @@ func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	}
 	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
 		m.NamespaceID = BuiltinNamespaceIDDefault
-		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
 	}
 	return err
 }
