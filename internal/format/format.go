@@ -265,9 +265,6 @@ type MetricMetaValue struct {
 	BuiltinAllowedToReceive bool `json:"-"` // we allow only small subset of built-in metrics through agent receiver.
 	WithAgentEnvRouteArch   bool `json:"-"` // set for some built-in metrics to add common set of tags
 	WithAggregatorID        bool `json:"-"` // set for some built-in metrics to add common set of tags
-
-	Group     *MetricsGroup  `json:"-"` // don't use directly
-	Namespace *NamespaceMeta `json:"-"` // don't use directly
 }
 
 // TODO - better place?
@@ -566,13 +563,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	// m.NoSampleAgent we never set it here, it is set in code for some built-in metrics
-	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
+	if m.GroupID == 0 {
 		m.GroupID = BuiltinGroupIDDefault
-		m.Group = BuiltInGroupDefault[BuiltinGroupIDDefault]
 	}
-	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+	if m.NamespaceID == 0 {
 		m.NamespaceID = BuiltinNamespaceIDDefault
-		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
 	}
 	// restore fair key index
 	if len(m.FairKeyTagIDs) != 0 {
