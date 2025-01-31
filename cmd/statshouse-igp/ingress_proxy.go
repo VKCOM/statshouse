@@ -47,7 +47,6 @@ const (
 )
 
 type ConfigIngressProxy struct {
-	Cluster               string
 	ListenAddr            string
 	ListenAddrIPV6        string
 	ExternalAddresses     []string // exactly 3 comma-separated external ingress points
@@ -132,7 +131,7 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd string, mappingsCache *pcache.MappingsCache) error {
 	p := ingressProxy{
 		ctx:             ctx,
-		cluster:         config.Cluster,
+		cluster:         config.ConfigAgent.Cluster,
 		clientOpts:      rpc.ClientOptions{CryptoKey: aesPwd},
 		serverKeys:      config.IngressKeys,
 		startTime:       uint32(time.Now().Unix()),

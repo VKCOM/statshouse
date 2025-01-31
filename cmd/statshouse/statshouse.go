@@ -73,6 +73,21 @@ var argv struct {
 	agent.Config
 }
 
+type mainAgent struct {
+	*agent.Agent
+	*pcache.DiskCache
+	*worker
+	mirrorUdpConn   net.Conn
+	receiverHTTP    *receiver.HTTP
+	receiverTCP     *receiver.TCP
+	receiversUDP    []*receiver.UDP
+	hijackHTTP      *rpc.HijackListener
+	hijackTCP       *rpc.HijackListener
+	receiversWG     sync.WaitGroup
+	logPackets      func(format string, args ...interface{})
+	hardwareMetrics *stats.CollectorManager
+}
+
 var (
 	logOk  *log.Logger
 	logErr *log.Logger
@@ -93,10 +108,10 @@ func reopenLog() {
 
 func main() {
 	// data_model.PrintLinearMaxHostProbabilities()
-	os.Exit(mainAgent())
+	os.Exit(run())
 }
 
-func mainAgent() int {
+func run() int {
 	pidStr := strconv.Itoa(os.Getpid())
 	logOk = log.New(os.Stdout, "LOG "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 	logErr = log.New(os.Stderr, "ERR "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
@@ -167,11 +182,11 @@ func mainAgent() int {
 		_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
 	}
 
-	var dc *pcache.DiskCache // We support working without touching disk (on readonly filesystems, in stateless containers, etc)
+	var main mainAgent
 	var fpmc *os.File
-	if argv.cacheDir != "" {
+	if argv.cacheDir != "" { // we support working without touching disk (on readonly filesystems, in stateless containers, etc)
 		var err error
-		if dc, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
+		if main.DiskCache, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
 			logErr.Printf("failed to open disk cache: %v", err)
 			return 1
 		}
@@ -197,9 +212,10 @@ func mainAgent() int {
 		runtime.GOMAXPROCS(argv.maxCores)
 	}
 
-	runPprof()
+	if argv.pprofListenAddr != "" {
+		go main.runPprof()
+	}
 
-	var receiversUDP []*receiver.UDP
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	var fj *os.File
 	if argv.cacheDir != "" {
@@ -223,7 +239,7 @@ func mainAgent() int {
 
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
-	sh2, err := agent.MakeAgent("tcp",
+	main.Agent, err = agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
 		argv.Config,
@@ -232,22 +248,7 @@ func mainAgent() int {
 		metricStorage,
 		mappingsCache,
 		log.Printf,
-		func(a *agent.Agent, unixNow uint32) {
-			k := data_model.Key{
-				Timestamp: unixNow,
-				Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
-			}
-			for _, r := range receiversUDP {
-				v := float64(r.ReceiveBufferSize())
-				a.AddValueCounter(&k, v, 1, format.BuiltinMetricMetaAgentUDPReceiveBufferSize)
-			}
-			if dc != nil {
-				s, err := dc.DiskSizeBytes()
-				if err == nil {
-					a.AddValueCounter(&data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Tags: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
-				}
-			}
-		},
+		main.beforeFlushBucket,
 		nil,
 		envLoader)
 	if err != nil {
@@ -255,81 +256,51 @@ func mainAgent() int {
 		return 1
 	}
 
-	var logPackets func(format string, args ...interface{})
-
 	switch argv.logLevel {
 	case "info", "":
 		break
 	case "trace":
-		logPackets = logOk.Printf
+		main.logPackets = logOk.Printf
 	default:
 		logErr.Printf("--log-level should be either 'trace', 'info' or empty (which is synonym for 'info')")
 		return 1
 	}
-	var mirrorUdpConn net.Conn
 	if argv.mirrorUdpAddr != "" {
 		logOk.Printf("mirror UDP addr %q", argv.mirrorUdpAddr)
 		var err error
-		mirrorUdpConn, err = net.Dial("udp", argv.mirrorUdpAddr)
+		main.mirrorUdpConn, err = net.Dial("udp", argv.mirrorUdpAddr)
 		if err != nil {
 			logErr.Printf("failed to connect to mirror UDP addr %q: %v", argv.mirrorUdpAddr, err)
 			// not fatal, we can continue without mirror
 		} else {
-			defer func() { _ = mirrorUdpConn.Close() }()
+			defer func() { _ = main.mirrorUdpConn.Close() }()
 		}
 	}
-	listenUDP := func(network string, addr string) error {
-		if argv.coresUDP == 0 || addr == "" {
-			return nil
-		}
-		reusePort := argv.coresUDP > 1 && network != "unixgram"
-		u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, reusePort, sh2, mirrorUdpConn, logPackets)
-		if err != nil {
-			logErr.Printf("listen %q failed: %v", network, err)
-			return err
-		}
-		receiversUDP = append(receiversUDP, u)
-		for i := 1; i < argv.coresUDP; i++ {
-			var dup *receiver.UDP
-			if network == "unixgram" {
-				dup, err = u.Duplicate()
-			} else {
-				dup, err = receiver.ListenUDP(network, addr, argv.bufferSizeUDP, true, sh2, mirrorUdpConn, logPackets)
-			}
-			if err != nil {
-				logErr.Printf("duplicate listen socket failed: %v", err)
-				return err
-			}
-			receiversUDP = append(receiversUDP, dup)
-		}
-		logOk.Printf("listen %q addr %q by %d cores", network, addr, argv.coresUDP)
-		return nil
-	}
-	if err := listenUDP("udp4", argv.listenAddr); err != nil {
+	if err := main.listenUDP("udp4", argv.listenAddr); err != nil {
 		return 1
 	}
-	if err := listenUDP("udp6", argv.listenAddrIPv6); err != nil {
+	if err := main.listenUDP("udp6", argv.listenAddrIPv6); err != nil {
 		return 1
 	}
-	if err := listenUDP("unixgram", argv.listenAddrUnix); err != nil {
+	if err := main.listenUDP("unixgram", argv.listenAddrUnix); err != nil {
 		return 1
 	}
-	sh2.Run(0, 0, 0)
-	journal.Start(sh2, nil, sh2.LoadMetaMetricJournal)
+	main.Run(0, 0, 0)
+	journal.Start(main.Agent, nil, main.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
 	if argv.AutoCreate {
-		ac = data_model.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
+		ac = data_model.NewAutoCreate(metricStorage, main.AutoCreateMetric)
 		defer ac.Shutdown()
 	}
 
-	w := startWorker(sh2,
+	main.worker = startWorker(main.Agent,
 		metricStorage,
-		sh2.LoadOrCreateMapping,
-		dc,
+		main.LoadOrCreateMapping,
+		main.DiskCache,
 		ac,
 		argv.Cluster,
-		logPackets,
+		main.logPackets,
 	)
 	//code to populate cache for test below
 	//for i := 0; i != 10000000; i++ {
@@ -349,18 +320,18 @@ func mainAgent() int {
 	//		log.Printf("Get() took %v error %v", time.Since(slowNow), err)
 	//	}
 	//}()
-	tagsCacheEmpty := w.mapper.TagValueDiskCacheEmpty()
+	tagsCacheEmpty := main.mapper.TagValueDiskCacheEmpty()
 	if !tagsCacheEmpty {
 		logOk.Printf("Tag Value cache not empty")
 	} else {
 		logOk.Printf("Tag Value cache empty, loading boostrap...")
-		mappings, ttl, err := sh2.GetTagMappingBootstrap(context.Background())
+		mappings, ttl, err := main.GetTagMappingBootstrap(context.Background())
 		if err != nil {
 			logErr.Printf("failed to load boostrap mappings: %v", err)
 		} else {
 			now := time.Now()
 			for _, ma := range mappings {
-				if err := w.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
+				if err := main.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
 					logErr.Printf("failed to set boostrap mapping %q <-> %d: %v", ma.Str, ma.Value, err)
 				}
 			}
@@ -368,20 +339,12 @@ func mainAgent() int {
 		}
 	}
 
-	receiversWG := sync.WaitGroup{}
-	for i, u := range receiversUDP {
-		receiversWG.Add(1)
-		go func(u *receiver.UDP, num int) {
-			err := u.Serve(w)
-			if err != nil {
-				logErr.Fatalf("Serve: %v", err)
-			}
-			log.Printf("UDP listener %d finished", num)
-			receiversWG.Done()
-		}(u, i)
+	for i, u := range main.receiversUDP {
+		main.receiversWG.Add(1)
+		go main.serve(u, i)
 	}
 	// UDP receivers are receiving data, so we consider agent started (not losing UDP packets already)
-	shutdownInfoReport(sh2, format.TagValueIDComponentAgent, argv.cacheDir, startDiscCacheTime)
+	shutdownInfoReport(main.Agent, format.TagValueIDComponentAgent, argv.cacheDir, startDiscCacheTime)
 
 	// Open TCP ports
 	listeners := make([]net.Listener, 0, 2)
@@ -391,27 +354,19 @@ func mainAgent() int {
 	}
 
 	// Run pprof server
-	hijackTCP := rpc.NewHijackListener(listeners[0].Addr())
-	hijackHTTP := rpc.NewHijackListener(listeners[0].Addr())
-	defer func() { _ = hijackTCP.Close() }()
-	defer func() { _ = hijackHTTP.Close() }()
+	main.hijackTCP = rpc.NewHijackListener(listeners[0].Addr())
+	main.hijackHTTP = rpc.NewHijackListener(listeners[0].Addr())
+	defer func() { _ = main.hijackTCP.Close() }()
+	defer func() { _ = main.hijackHTTP.Close() }()
 
-	receiverTCP := receiver.NewTCPReceiver(sh2, logPackets)
-	go func() {
-		if err := receiverTCP.Serve(w, hijackTCP); err != nil {
-			logErr.Printf("error serving TCP: %v", err)
-		}
-	}()
+	main.receiverTCP = receiver.NewTCPReceiver(main.Agent, main.logPackets)
+	go main.serveTCP()
 
-	receiverHTTP := receiver.NewHTTPReceiver(sh2, logPackets)
-	go func() {
-		if err := receiverHTTP.Serve(w, hijackHTTP); err != nil {
-			logErr.Printf("error serving HTTP: %v", err)
-		}
-	}()
+	main.receiverHTTP = receiver.NewHTTPReceiver(main.Agent, main.logPackets)
+	go main.serveHTTP()
 
 	// Run RPC server
-	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
+	receiverRPC := receiver.MakeRPCReceiver(main.Agent, main.worker)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
@@ -422,17 +377,10 @@ func mainAgent() int {
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats),
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.Agent, metricsStorage: metricStorage}.handleStats),
 		metrics.ServerWithMetrics,
 	}
-	options = append(options, rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-		if strings.HasPrefix(string(conn.Magic), receiver.TCPPrefix) {
-			conn.Magic = conn.Magic[len(receiver.TCPPrefix):]
-			hijackTCP.AddConnection(conn)
-			return
-		}
-		hijackHTTP.AddConnection(conn)
-	}))
+	options = append(options, rpc.ServerWithSocketHijackHandler(main.hijackConnection))
 	srv := rpc.NewServer(options...)
 	defer metrics.Run(srv)()
 	for _, ln := range listeners {
@@ -440,19 +388,14 @@ func mainAgent() int {
 	}
 
 	// Run scrape
-	receiver.RunScrape(sh2, w)
+	receiver.RunScrape(main.Agent, main.worker)
 	if !argv.hardwareMetricScrapeDisable {
-		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, envLoader, logErr)
+		main.hardwareMetrics, err = stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, main.worker, envLoader, logErr)
 		if err != nil {
 			logErr.Println("failed to init hardware collector", err.Error())
 		} else {
-			go func() {
-				err := m.RunCollector()
-				if err != nil {
-					logErr.Println("failed to run hardware collector", err.Error())
-				}
-			}()
-			defer m.StopCollector()
+			go main.startHardwareMetricsCollector()
+			defer main.hardwareMetrics.StopCollector()
 		}
 	}
 	chSignal := make(chan os.Signal, 1)
@@ -475,36 +418,32 @@ loop:
 
 	logOk.Printf("Shutting down...")
 	logOk.Printf("1. Disabling sending new data to aggregators...")
-	sh2.DisableNewSends()
+	main.DisableNewSends()
 	logOk.Printf("2. Waiting recent senders to finish sending data...")
-	sh2.WaitRecentSenders(time.Second * data_model.InsertDelay)
+	main.WaitRecentSenders(time.Second * data_model.InsertDelay)
 	shutdownInfo.StopRecentSenders = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("3. Closing UDP/unixdgram/RPC server and flusher...")
-	for _, u := range receiversUDP {
+	for _, u := range main.receiversUDP {
 		_ = u.Close()
 	}
-	sh2.ShutdownFlusher()
+	main.ShutdownFlusher()
 	srv.Shutdown()
-	receiversWG.Wait()
+	main.receiversWG.Wait()
 	shutdownInfo.StopReceivers = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("4. All UDP readers finished...")
 	/// TODO - we receive almost no metrics via RPC, we do not want risk waiting here for the long time
 	/// _ = srv.Close()
 	/// logOk.Printf("5. RPC server stopped...")
-	sh2.WaitFlusher()
+	main.WaitFlusher()
 	shutdownInfo.StopFlusher = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("6. Flusher stopped, flushing remainig data to preprocessors...")
-	nonEmpty := sh2.FlushAllData()
+	nonEmpty := main.FlushAllData()
 	shutdownInfo.StopFlushing = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
-	sh2.WaitPreprocessor()
+	main.WaitPreprocessor()
 	shutdownInfo.StopPreprocessor = shutdownInfoDuration(&now).Nanoseconds()
-	if mappingsCache != nil {
-		logOk.Printf("8. Saving mappings...")
-		_ = mappingsCache.Save()
-	} else {
-		logOk.Printf("8. Saving mappings... (nothing to do)")
-	}
+	logOk.Printf("8. Saving mappings...")
+	_ = mappingsCache.Save()
 	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("9. Saving journal...")
 	_ = journal.Save()
@@ -514,6 +453,88 @@ loop:
 	logOk.Printf("Bye")
 
 	return 0
+}
+
+func (main *mainAgent) listenUDP(network string, addr string) error {
+	if argv.coresUDP == 0 || addr == "" {
+		return nil
+	}
+	reusePort := argv.coresUDP > 1 && network != "unixgram"
+	u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, reusePort, main.Agent, main.mirrorUdpConn, main.logPackets)
+	if err != nil {
+		logErr.Printf("listen %q failed: %v", network, err)
+		return err
+	}
+	main.receiversUDP = append(main.receiversUDP, u)
+	for i := 1; i < argv.coresUDP; i++ {
+		var dup *receiver.UDP
+		if network == "unixgram" {
+			dup, err = u.Duplicate()
+		} else {
+			dup, err = receiver.ListenUDP(network, addr, argv.bufferSizeUDP, true, main.Agent, main.mirrorUdpConn, main.logPackets)
+		}
+		if err != nil {
+			logErr.Printf("duplicate listen socket failed: %v", err)
+			return err
+		}
+		main.receiversUDP = append(main.receiversUDP, dup)
+	}
+	logOk.Printf("listen %q addr %q by %d cores", network, addr, argv.coresUDP)
+	return nil
+}
+
+func (main *mainAgent) serve(u *receiver.UDP, num int) {
+	defer main.receiversWG.Done()
+	err := u.Serve(main.worker)
+	if err != nil {
+		logErr.Fatalf("Serve: %v", err)
+	}
+	log.Printf("UDP listener %d finished", num)
+}
+
+func (main *mainAgent) serveHTTP() {
+	if err := main.receiverHTTP.Serve(main.worker, main.hijackHTTP); err != nil {
+		logErr.Printf("error serving HTTP: %v", err)
+	}
+}
+
+func (main *mainAgent) serveTCP() {
+	if err := main.receiverTCP.Serve(main.worker, main.hijackTCP); err != nil {
+		logErr.Printf("error serving TCP: %v", err)
+	}
+}
+
+func (main *mainAgent) hijackConnection(conn *rpc.HijackConnection) {
+	if strings.HasPrefix(string(conn.Magic), receiver.TCPPrefix) {
+		conn.Magic = conn.Magic[len(receiver.TCPPrefix):]
+		main.hijackTCP.AddConnection(conn)
+		return
+	}
+	main.hijackHTTP.AddConnection(conn)
+}
+
+func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
+	k := data_model.Key{
+		Timestamp: unixNow,
+		Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
+	}
+	for _, r := range main.receiversUDP {
+		v := float64(r.ReceiveBufferSize())
+		a.AddValueCounter(&k, v, 1, format.BuiltinMetricMetaAgentUDPReceiveBufferSize)
+	}
+	if main.DiskCache != nil {
+		s, err := main.DiskCache.DiskSizeBytes()
+		if err == nil {
+			a.AddValueCounter(&data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Tags: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
+		}
+	}
+}
+
+func (main *mainAgent) startHardwareMetricsCollector() {
+	err := main.hardwareMetrics.RunCollector()
+	if err != nil {
+		logErr.Println("failed to run hardware collector", err.Error())
+	}
 }
 
 func listen(network, address string) net.Listener {
@@ -531,16 +552,9 @@ func serveRPC(ln net.Listener, server *rpc.Server) {
 	}
 }
 
-func runPprof() {
-	if argv.pprofHTTP {
-		logErr.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
-	}
-	if argv.pprofListenAddr != "" {
-		go func() {
-			if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
-				logErr.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
-			}
-		}()
+func (main *mainAgent) runPprof() {
+	if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
+		logErr.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
 	}
 }
 
@@ -631,6 +645,9 @@ func parseCommandLine() (verb string, _ error) {
 		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
 	}
 
+	if argv.pprofHTTP {
+		logErr.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
+	}
 	argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 	if len(argv.AggregatorAddresses) != 3 {
 		return "", fmt.Errorf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")

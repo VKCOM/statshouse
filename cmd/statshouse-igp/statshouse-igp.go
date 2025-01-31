@@ -89,22 +89,18 @@ func mainIngressProxy() int {
 		log.Printf("Could not set new rlimit: %v", err)
 	}
 	// we support working without touching disk (on readonly filesystems, in stateless containers, etc)
-	var mappingsCache *pcache.MappingsCache
+	var fpmc *os.File
 	if argv.cacheDir != "" {
 		// do not want to confuse mappings from different clusters, this would be a disaster
-		if fpmc, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666); err == nil {
+		var err error
+		if fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.ConfigAgent.Cluster)), os.O_CREATE|os.O_RDWR, 0666); err == nil {
 			defer fpmc.Close()
-			mappingsCache, err = pcache.LoadMappingsCacheFile(fpmc, argv.ConfigAgent.MappingCacheSize, argv.ConfigAgent.MappingCacheTTL)
-			if err == nil {
-				defer mappingsCache.Save()
-			} else {
-				// ignore error because cache can be damaged
-				log.Printf("failed to load mappings cache: %v", err)
-			}
 		} else {
 			log.Printf("failed to open mappings cache: %v", err)
 		}
 	}
+	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.ConfigAgent.MappingCacheSize, argv.ConfigAgent.MappingCacheTTL)
+	defer mappingsCache.Save()
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
@@ -157,7 +153,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
 	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma-separated list of 3 aggregator addresses (shard 1 is recommended).")
-	flag.StringVar(&argv.Cluster, "cluster", "statlogs2", "clickhouse cluster name to autodetect configuration, local shard and replica")
+	flag.StringVar(&argv.ConfigAgent.Cluster, "cluster", "statlogs2", "clickhouse cluster name to autodetect configuration, local shard and replica")
 	flag.StringVar(&argv.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
 	flag.StringVar(&argv.ListenAddrIPV6, "ingress-addr-ipv6", "", "IPv6 listen address of ingress proxy")
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
