@@ -956,7 +956,7 @@ func (h *requestHandler) getPromQuery(req seriesRequest) (string, error) {
 		}
 		expr := fmt.Sprintf("@what=%q", sb.String())
 		expr = strings.Join(append([]string{expr}, filterGroupBy...), ",")
-		expr = fmt.Sprintf("%s{%s}", req.metricName, expr)
+		expr = fmt.Sprintf("{@name=%q,%s}", req.metricName, expr)
 		switch i {
 		case cum:
 			expr = fmt.Sprintf("prefix_sum(%s)", expr)
