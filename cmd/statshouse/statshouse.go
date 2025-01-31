@@ -74,9 +74,9 @@ var argv struct {
 }
 
 type mainAgent struct {
-	*agent.Agent
-	*pcache.DiskCache
-	*worker
+	agent           *agent.Agent
+	diskCache       *pcache.DiskCache
+	worker          *worker
 	mirrorUdpConn   net.Conn
 	receiverHTTP    *receiver.HTTP
 	receiverTCP     *receiver.TCP
@@ -186,7 +186,7 @@ func run() int {
 	var fpmc *os.File
 	if argv.cacheDir != "" { // we support working without touching disk (on readonly filesystems, in stateless containers, etc)
 		var err error
-		if main.DiskCache, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
+		if main.diskCache, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
 			logErr.Printf("failed to open disk cache: %v", err)
 			return 1
 		}
@@ -239,7 +239,7 @@ func run() int {
 
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
-	main.Agent, err = agent.MakeAgent("tcp",
+	main.agent, err = agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
 		argv.Config,
@@ -285,19 +285,19 @@ func run() int {
 	if err := main.listenUDP("unixgram", argv.listenAddrUnix); err != nil {
 		return 1
 	}
-	main.Run(0, 0, 0)
-	journalFast.Start(main.Agent, nil, main.LoadMetaMetricJournal)
+	main.agent.Run(0, 0, 0)
+	journalFast.Start(main.agent, nil, main.agent.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
 	if argv.AutoCreate {
-		ac = data_model.NewAutoCreate(metricStorage, main.AutoCreateMetric)
+		ac = data_model.NewAutoCreate(metricStorage, main.agent.AutoCreateMetric)
 		defer ac.Shutdown()
 	}
 
-	main.worker = startWorker(main.Agent,
+	main.worker = startWorker(main.agent,
 		metricStorage,
-		main.LoadOrCreateMapping,
-		main.DiskCache,
+		main.agent.LoadOrCreateMapping,
+		main.diskCache,
 		ac,
 		argv.Cluster,
 		main.logPackets,
@@ -320,18 +320,18 @@ func run() int {
 	//		log.Printf("Get() took %v error %v", time.Since(slowNow), err)
 	//	}
 	//}()
-	tagsCacheEmpty := main.mapper.TagValueDiskCacheEmpty()
+	tagsCacheEmpty := main.worker.mapper.TagValueDiskCacheEmpty()
 	if !tagsCacheEmpty {
 		logOk.Printf("Tag Value cache not empty")
 	} else {
 		logOk.Printf("Tag Value cache empty, loading boostrap...")
-		mappings, ttl, err := main.GetTagMappingBootstrap(context.Background())
+		mappings, ttl, err := main.agent.GetTagMappingBootstrap(context.Background())
 		if err != nil {
 			logErr.Printf("failed to load boostrap mappings: %v", err)
 		} else {
 			now := time.Now()
 			for _, ma := range mappings {
-				if err := main.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
+				if err := main.worker.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
 					logErr.Printf("failed to set boostrap mapping %q <-> %d: %v", ma.Str, ma.Value, err)
 				}
 			}
@@ -344,7 +344,7 @@ func run() int {
 		go main.serve(u, i)
 	}
 	// UDP receivers are receiving data, so we consider agent started (not losing UDP packets already)
-	shutdownInfoReport(main.Agent, format.TagValueIDComponentAgent, argv.cacheDir, startDiscCacheTime)
+	agent.ShutdownInfoReport(main.agent, format.TagValueIDComponentAgent, argv.cacheDir, startDiscCacheTime)
 
 	// Open TCP ports
 	listeners := make([]net.Listener, 0, 2)
@@ -359,14 +359,14 @@ func run() int {
 	defer func() { _ = main.hijackTCP.Close() }()
 	defer func() { _ = main.hijackHTTP.Close() }()
 
-	main.receiverTCP = receiver.NewTCPReceiver(main.Agent, main.logPackets)
+	main.receiverTCP = receiver.NewTCPReceiver(main.agent, main.logPackets)
 	go main.serveTCP()
 
-	main.receiverHTTP = receiver.NewHTTPReceiver(main.Agent, main.logPackets)
+	main.receiverHTTP = receiver.NewHTTPReceiver(main.agent, main.logPackets)
 	go main.serveHTTP()
 
 	// Run RPC server
-	receiverRPC := receiver.MakeRPCReceiver(main.Agent, main.worker)
+	receiverRPC := receiver.MakeRPCReceiver(main.agent, main.worker)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
@@ -377,7 +377,7 @@ func run() int {
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.Agent, journal: journalFast}.handleStats),
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.agent, journal: journalFast}.handleStats),
 		metrics.ServerWithMetrics,
 	}
 	options = append(options, rpc.ServerWithSocketHijackHandler(main.hijackConnection))
@@ -388,7 +388,7 @@ func run() int {
 	}
 
 	// Run scrape
-	receiver.RunScrape(main.Agent, main.worker)
+	receiver.RunScrape(main.agent, main.worker)
 	if !argv.hardwareMetricScrapeDisable {
 		main.hardwareMetrics, err = stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, main.worker, envLoader, logErr)
 		if err != nil {
@@ -418,38 +418,38 @@ loop:
 
 	logOk.Printf("Shutting down...")
 	logOk.Printf("1. Disabling sending new data to aggregators...")
-	main.DisableNewSends()
+	main.agent.DisableNewSends()
 	logOk.Printf("2. Waiting recent senders to finish sending data...")
-	main.WaitRecentSenders(time.Second * data_model.InsertDelay)
-	shutdownInfo.StopRecentSenders = shutdownInfoDuration(&now).Nanoseconds()
+	main.agent.WaitRecentSenders(time.Second * data_model.InsertDelay)
+	shutdownInfo.StopRecentSenders = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("3. Closing UDP/unixdgram/RPC server and flusher...")
 	for _, u := range main.receiversUDP {
 		_ = u.Close()
 	}
-	main.ShutdownFlusher()
+	main.agent.ShutdownFlusher()
 	srv.Shutdown()
 	main.receiversWG.Wait()
-	shutdownInfo.StopReceivers = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.StopReceivers = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("4. All UDP readers finished...")
 	/// TODO - we receive almost no metrics via RPC, we do not want risk waiting here for the long time
 	/// _ = srv.Close()
 	/// logOk.Printf("5. RPC server stopped...")
-	main.WaitFlusher()
-	shutdownInfo.StopFlusher = shutdownInfoDuration(&now).Nanoseconds()
+	main.agent.WaitFlusher()
+	shutdownInfo.StopFlusher = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("6. Flusher stopped, flushing remainig data to preprocessors...")
-	nonEmpty := main.FlushAllData()
-	shutdownInfo.StopFlushing = shutdownInfoDuration(&now).Nanoseconds()
+	nonEmpty := main.agent.FlushAllData()
+	shutdownInfo.StopFlushing = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
-	main.WaitPreprocessor()
-	shutdownInfo.StopPreprocessor = shutdownInfoDuration(&now).Nanoseconds()
+	main.agent.WaitPreprocessor()
+	shutdownInfo.StopPreprocessor = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("8. Saving mappings...")
 	_ = mappingsCache.Save()
-	shutdownInfo.SaveMappings = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.SaveMappings = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("9. Saving journal...")
 	_ = journalFast.Save()
-	shutdownInfo.SaveJournal = shutdownInfoDuration(&now).Nanoseconds()
+	shutdownInfo.SaveJournal = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
-	shutdownInfoSave(argv.cacheDir, shutdownInfo)
+	agent.ShutdownInfoSave(argv.cacheDir, shutdownInfo)
 	logOk.Printf("Bye")
 
 	return 0
@@ -460,7 +460,7 @@ func (main *mainAgent) listenUDP(network string, addr string) error {
 		return nil
 	}
 	reusePort := argv.coresUDP > 1 && network != "unixgram"
-	u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, reusePort, main.Agent, main.mirrorUdpConn, main.logPackets)
+	u, err := receiver.ListenUDP(network, addr, argv.bufferSizeUDP, reusePort, main.agent, main.mirrorUdpConn, main.logPackets)
 	if err != nil {
 		logErr.Printf("listen %q failed: %v", network, err)
 		return err
@@ -471,7 +471,7 @@ func (main *mainAgent) listenUDP(network string, addr string) error {
 		if network == "unixgram" {
 			dup, err = u.Duplicate()
 		} else {
-			dup, err = receiver.ListenUDP(network, addr, argv.bufferSizeUDP, true, main.Agent, main.mirrorUdpConn, main.logPackets)
+			dup, err = receiver.ListenUDP(network, addr, argv.bufferSizeUDP, true, main.agent, main.mirrorUdpConn, main.logPackets)
 		}
 		if err != nil {
 			logErr.Printf("duplicate listen socket failed: %v", err)
@@ -522,8 +522,8 @@ func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
 		v := float64(r.ReceiveBufferSize())
 		a.AddValueCounter(&k, v, 1, format.BuiltinMetricMetaAgentUDPReceiveBufferSize)
 	}
-	if main.DiskCache != nil {
-		s, err := main.DiskCache.DiskSizeBytes()
+	if main.diskCache != nil {
+		s, err := main.diskCache.DiskSizeBytes()
 		if err == nil {
 			a.AddValueCounter(&data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Tags: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
 		}
