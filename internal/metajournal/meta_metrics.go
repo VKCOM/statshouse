@@ -60,7 +60,6 @@ type MetricsStorage struct {
 
 	versionClientMu sync.Mutex
 	lastVersion     int64
-	lastHash        string
 	versionClients  []versionClient
 }
 
@@ -126,19 +125,6 @@ func (snapshot *metaSnapshot) updateSnapshotUnlocked(
 	defer snapshot.mu.Unlock()
 	snapshot.metricsByIDSnapshot = metricsByIDSnapshot
 	snapshot.metricsByNameSnapshot = metricsByNameSnapshot
-}
-
-// satisfy format.MetaStorageInterface
-func (ms *MetricsStorage) Version() int64 {
-	ms.versionClientMu.Lock()
-	defer ms.versionClientMu.Unlock()
-	return ms.lastVersion
-}
-
-func (ms *MetricsStorage) StateHash() string {
-	ms.versionClientMu.Lock()
-	defer ms.versionClientMu.Unlock()
-	return ms.lastHash
 }
 
 func (ms *MetricsStorage) PromConfig() tlmetadata.Event {
@@ -361,7 +347,7 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	return namespaces
 }
 
-func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersion int64, stateHash string) {
+func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersion int64) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
@@ -498,7 +484,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
 		}
 	}
-	ms.broadcastJournalVersionClient(currentVersion, stateHash)
+	ms.broadcastJournalVersionClient(currentVersion)
 }
 
 func (ms *MetricsStorage) copyToSnapshotUnlocked() {
@@ -679,11 +665,10 @@ func (ms *MetricsStorage) waitVersion(version int64) chan struct{} {
 	return ch
 }
 
-func (ms *MetricsStorage) broadcastJournalVersionClient(currentVersion int64, stateHash string) {
+func (ms *MetricsStorage) broadcastJournalVersionClient(currentVersion int64) {
 	ms.versionClientMu.Lock()
 	defer ms.versionClientMu.Unlock()
 	ms.lastVersion = currentVersion
-	ms.lastHash = stateHash
 	keepPos := 0
 	for _, client := range ms.versionClients {
 		if client.expectedVersion <= currentVersion {

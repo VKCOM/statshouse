@@ -16,10 +16,10 @@ import (
 )
 
 type statsHandler struct {
-	receiversUDP   []*receiver.UDP
-	receiverRPC    *receiver.RPCReceiver
-	sh2            *agent.Agent
-	metricsStorage *metajournal.MetricsStorage
+	receiversUDP []*receiver.UDP
+	receiverRPC  *receiver.RPCReceiver
+	sh2          *agent.Agent
+	journal      *metajournal.JournalFast
 }
 
 func (h statsHandler) handleStats(stats map[string]string) {
@@ -57,7 +57,11 @@ func (h statsHandler) handleStats(stats map[string]string) {
 	stats["statshouse_rpc_recv_calls_ok"] = strconv.FormatUint(h.receiverRPC.StatBatchesTotalOK(), 10)
 	stats["statshouse_rpc_recv_calls_err"] = strconv.FormatUint(h.receiverRPC.StatBatchesTotalErr(), 10)
 
-	stats["statshouse_journal_version"] = strconv.FormatInt(h.metricsStorage.Version(), 10)
+	{
+		version, hash := h.journal.VersionHash()
+		stats["statshouse_journal_version"] = strconv.FormatInt(version, 10)
+		stats["statshouse_journal_hash"] = hash
+	}
 	for i, s := range h.sh2.Shards {
 		t, u := s.HistoricBucketsDataSizeDisk()
 		stats[fmt.Sprintf("statshouse_queue_size_disk_total_%d", i)] = fmt.Sprintf("%d", t)

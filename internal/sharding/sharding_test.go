@@ -82,14 +82,16 @@ func TestShard(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotShard, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, tt.args.newSharding)
+			gotShard, newStrategy, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, tt.args.newSharding)
 			if gotShard != tt.expectedShard {
 				t.Errorf("Sharding() = %v, want %v", gotShard, tt.expectedShard)
 			}
 			// hash calculated only for ShardByTagsHash
 			if tt.args.meta.Sharding.Strategy == format.ShardByTagsHash || tt.args.meta.Sharding.Strategy == "" && !tt.args.newSharding {
-				assert.NotZero(t, gotHash)
+				assert.False(t, newStrategy)
+				assert.NotZero(t, gotHash) // this fails with 2^-64 probability
 			} else {
+				assert.True(t, newStrategy)
 				assert.Zero(t, gotHash)
 			}
 		})

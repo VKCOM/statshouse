@@ -108,9 +108,9 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 
 func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
 	src, err := ms.loadImpl(fileSize, readAt) // in case of error, returns events to apply
-	newVersion, stateHashStr := ms.finishUpdateLocked()
+	newVersion, _ := ms.finishUpdateLocked()
 	for _, f := range ms.applyEvent {
-		f(src, newVersion, stateHashStr)
+		f(src, newVersion)
 	}
 	return err
 }
@@ -136,9 +136,9 @@ func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int
 			src = append(src, entry)
 			scratch = ms.addEventLocked(scratch, entry)
 		}
-		newVersion, stateHashStr := ms.finishUpdateLocked()
+		newVersion, _ := ms.finishUpdateLocked()
 		for _, f := range ms.applyEvent {
-			f(src, newVersion, stateHashStr)
+			f(src, newVersion)
 		}
 		src = src[:0]
 	}
@@ -392,7 +392,7 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog, compac
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
-		f(src, newVersion, stateHashStr)
+		f(src, newVersion)
 	}
 	if ms.compact != nil {
 		ms.compact.applyUpdate(src, aggLog, true)

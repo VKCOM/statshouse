@@ -377,7 +377,7 @@ func run() int {
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
-		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.Agent, metricsStorage: metricStorage}.handleStats),
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.Agent, journal: journalFast}.handleStats),
 		metrics.ServerWithMetrics,
 	}
 	options = append(options, rpc.ServerWithSocketHijackHandler(main.hijackConnection))
