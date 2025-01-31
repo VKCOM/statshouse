@@ -1062,15 +1062,14 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			for _, val := range values {
 				stringTop.Values = append(stringTop.Values, data_model.NewTagValueS(val))
 			}
-		} else {
+		} else if tag := metricMeta.Name2Tag(k); tag != nil {
 			ids, err := h.getRichTagValueIDs(metricMeta, version, k, values)
 			if err != nil {
 				return data_model.TagFilters{}, err
 			}
-			tag := metricMeta.Name2Tag(k)
-			if tag != nil { // TODO - correct?
-				m.AppendMapped(int(tag.Index), ids...)
-			}
+			m.AppendMapped(int(tag.Index), ids...)
+		} else {
+			return data_model.TagFilters{}, fmt.Errorf("not found tag %s", k)
 		}
 	}
 	return m, nil
