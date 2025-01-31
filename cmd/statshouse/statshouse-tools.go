@@ -23,7 +23,6 @@ import (
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -102,7 +101,7 @@ func mainTestMap() {
 		log.Fatalf("--agg-addr must not be empty")
 	}
 
-	aggregator.TestMapper(strings.Split(argv.aggAddr, ","), mapString, client)
+	metajournal.TestMapper(strings.Split(argv.aggAddr, ","), mapString, client)
 }
 
 func mainTestLongpoll() {
@@ -116,7 +115,7 @@ func mainTestLongpoll() {
 		log.Fatalf("--agg-addr must not be empty")
 	}
 
-	aggregator.TestLongpoll(strings.Split(argv.aggAddr, ","), client, 60)
+	metajournal.TestLongpoll(strings.Split(argv.aggAddr, ","), client, 60)
 }
 
 func mainSimpleFSyncTest() {
@@ -546,7 +545,7 @@ func mainPublishTagDrafts() {
 	}
 	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
 	var (
-		config   aggregator.KnownTags
+		config   data_model.KnownTags
 		storage  *metajournal.MetricsStorage
 		workMu   sync.Mutex
 		work     = make(map[int32]map[int32]format.MetricMetaValue)
@@ -555,7 +554,7 @@ func mainPublishTagDrafts() {
 	applyPromConfig := func(configID int32, configString string) {
 		switch configID {
 		case format.KnownTagsConfigID:
-			v, err := aggregator.ParseKnownTags([]byte(configString), storage)
+			v, err := data_model.ParseKnownTags([]byte(configString), storage)
 			fmt.Fprintln(os.Stderr, configString)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
