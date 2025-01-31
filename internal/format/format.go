@@ -135,8 +135,6 @@ var (
 type MetricKind int
 
 type MetaStorageInterface interface { // agent uses this to avoid circular dependencies
-	Version() int64
-	StateHash() string
 	GetMetaMetric(metricID int32) *MetricMetaValue
 	GetMetaMetricDelayed(metricID int32) *MetricMetaValue
 	GetMetaMetricByName(metricName string) *MetricMetaValue
@@ -212,10 +210,9 @@ type MetricsGroup struct {
 
 // possible sharding strategies
 const (
-	ShardByTagsHash  = "tags_hash"
-	ShardFixed       = "fixed_shard"
-	ShardByMetric    = "metric_id"    // shard = metric_id % num_shards
-	ShardAggInternal = "agg_internal" // distributed by all shards equally
+	ShardByTagsHash = "tags_hash"
+	ShardFixed      = "fixed_shard"
+	ShardByMetric   = "metric_id" // shard = metric_id % num_shards
 )
 
 type MetricSharding struct {
