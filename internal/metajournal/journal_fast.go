@@ -79,13 +79,14 @@ func journalOrderLess(a, b journalOrder) bool {
 
 func MakeJournalFast(journalRequestDelay time.Duration, applyEvent []ApplyEvent) *JournalFast {
 	return &JournalFast{
-		journalRequestDelay: journalRequestDelay,
-		journal:             map[journalEventID]journalEvent{},
-		order:               btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
-		applyEvent:          applyEvent,
-		lastUpdateTime:      time.Now(),
-		writeAt:             func(offset int64, data []byte) error { return nil },
-		truncate:            func(offset int64) error { return nil },
+		journalRequestDelay:    journalRequestDelay,
+		journal:                map[journalEventID]journalEvent{},
+		order:                  btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
+		applyEvent:             applyEvent,
+		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
+		lastUpdateTime:         time.Now(),
+		writeAt:                func(offset int64, data []byte) error { return nil },
+		truncate:               func(offset int64) error { return nil },
 	}
 }
 
