@@ -39,7 +39,7 @@ func TestConfigListener_ApplyEventCB(t *testing.T) {
 			Name:      remoteConfig,
 			Data:      "",
 			EventType: format.MetricEvent,
-		}}, 0)
+		}})
 		require.Equal(t, config{"default"}, *cfg.config.(*config))
 	})
 	t.Run("check non default value", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestConfigListener_ApplyEventCB(t *testing.T) {
 			Name:      remoteConfig,
 			Data:      string(data),
 			EventType: format.MetricEvent,
-		}}, 0)
+		}})
 		require.Equal(t, config{"test1"}, *cfg.config.(*config))
 	})
 

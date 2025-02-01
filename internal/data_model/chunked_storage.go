@@ -28,7 +28,7 @@ import (
 // body:  [element]...
 
 const ChunkedMagicMappings = 0x83a28d18
-const ChunkedMagicJournal = 0x83a28d19
+const ChunkedMagicJournal = 0x83a28d1b
 const ChunkedMagicConfig = 0x83a28d1a
 
 const mappingsChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
@@ -152,35 +152,36 @@ func (c *ChunkedStorageLoader) StartRead(fileSize int64, magic uint32) {
 	c.fileSize = fileSize
 }
 
-func (c *ChunkedStorageLoader) ReadNext() ([]byte, error) {
+func (c *ChunkedStorageLoader) ReadNext() (chunk []byte, first bool, err error) {
+	first = c.offset == 0
 	if c.offset == c.fileSize {
-		return nil, nil
+		return nil, first, nil
 	}
 	if c.offset+mappingsChunkHeaderSize+mappingsChunkHashSize > c.fileSize {
-		return nil, fmt.Errorf("chunk at %d header overflows file size %d", c.offset, c.fileSize)
+		return nil, first, fmt.Errorf("chunk at %d header overflows file size %d", c.offset, c.fileSize)
 	}
 	if err := c.ReadAt(c.scratch[:mappingsChunkHeaderSize], c.offset); err != nil {
-		return nil, err
+		return nil, first, err
 	}
 	if m := binary.LittleEndian.Uint32(c.scratch[:]); m != c.magic {
-		return nil, fmt.Errorf("chunk at %d invalid magic 0x%x", c.offset, m)
+		return nil, first, fmt.Errorf("chunk at %d invalid magic 0x%x", c.offset, m)
 	}
 	s := int64(binary.LittleEndian.Uint32(c.scratch[4:]))
 	if s > mappingsChunkSize {
-		return nil, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, mappingsChunkSize)
+		return nil, first, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, mappingsChunkSize)
 	}
 	nextChunkOffset := c.offset + mappingsChunkHeaderSize + s + mappingsChunkHashSize
 	if nextChunkOffset > c.fileSize {
-		return nil, fmt.Errorf("chunk at %d body size %d overflows file size %d", c.offset, s, c.fileSize)
+		return nil, first, fmt.Errorf("chunk at %d body size %d overflows file size %d", c.offset, s, c.fileSize)
 	}
 	if err := c.ReadAt(c.scratch[:mappingsChunkHeaderSize+s+mappingsChunkHashSize], c.offset); err != nil { // read header again for simplicity
-		return nil, err
+		return nil, first, err
 	}
 	h := xxh3.Hash128(c.scratch[:mappingsChunkHeaderSize+s])
 	if h.Hi != binary.BigEndian.Uint64(c.scratch[mappingsChunkHeaderSize+s:]) ||
 		h.Lo != binary.BigEndian.Uint64(c.scratch[mappingsChunkHeaderSize+s+8:]) {
-		return nil, fmt.Errorf("chunk at %d has wrong xxhash", c.offset)
+		return nil, first, fmt.Errorf("chunk at %d has wrong xxhash", c.offset)
 	}
 	c.offset = nextChunkOffset
-	return c.scratch[mappingsChunkHeaderSize : mappingsChunkHeaderSize+s], nil
+	return c.scratch[mappingsChunkHeaderSize : mappingsChunkHeaderSize+s], first, nil
 }

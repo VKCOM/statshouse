@@ -483,7 +483,7 @@ func (c *MappingsCache) load(fileSize int64, readAt func(b []byte, offset int64)
 
 	loader.StartRead(fileSize, data_model.ChunkedMagicMappings)
 	for {
-		chunk, err := loader.ReadNext()
+		chunk, _, err := loader.ReadNext()
 		if err != nil {
 			return err
 		}

@@ -329,7 +329,7 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	return namespaces
 }
 
-func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersion int64) {
+func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
@@ -463,7 +463,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event, currentVersi
 			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
 		}
 	}
-	ms.broadcastJournalVersionClient(currentVersion)
+	if ll := len(newEntries); ll != 0 {
+		ms.broadcastJournalVersionClient(newEntries[ll-1].Version)
+	}
 }
 
 func (ms *MetricsStorage) copyToSnapshotUnlocked() {
