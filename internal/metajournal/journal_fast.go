@@ -23,6 +23,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/zeebo/xxh3"
 )
@@ -61,7 +62,7 @@ type JournalFast struct {
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
 
-	compact *JournalFast // compact journal driven by this journal
+	compact bool
 
 	BuiltinLongPollImmediateOK    data_model.ItemValue
 	BuiltinLongPollImmediateError data_model.ItemValue
@@ -81,7 +82,7 @@ func journalOrderLess(a, b journalOrder) bool {
 	return a.version < b.version
 }
 
-func MakeJournalFast(journalRequestDelay time.Duration, compact *JournalFast, applyEvent []ApplyEvent) *JournalFast {
+func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) *JournalFast {
 	return &JournalFast{
 		journalRequestDelay:    journalRequestDelay,
 		journal:                map[journalEventID]journalEvent{},
@@ -97,7 +98,7 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact *JournalFast, ap
 
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
-func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact *JournalFast, applyEvent []ApplyEvent) (*JournalFast, error) {
+func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
 	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
 	w, t, r, fs := data_model.ChunkedStorageFile(fp)
 	c.writeAt = w
@@ -107,38 +108,44 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 }
 
 func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
-	src, err := ms.loadImpl(fileSize, readAt) // in case of error, returns events to apply
-	newVersion, _ := ms.finishUpdateLocked()
+	var explicitNewVersion int64
+	src, err := ms.loadImpl(fileSize, readAt, &explicitNewVersion) // in case of error, returns events to apply
+	ms.finishUpdateLocked(explicitNewVersion)
 	for _, f := range ms.applyEvent {
-		f(src, newVersion)
+		f(src)
 	}
 	return err
 }
 
-func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error) ([]tlmetadata.Event, error) {
+func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error, explicitNewVersion *int64) ([]tlmetadata.Event, error) {
 	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
 	loader.StartRead(fileSize, data_model.ChunkedMagicJournal)
 	var scratch []byte
 	var src []tlmetadata.Event
 	for {
-		chunk, err := loader.ReadNext()
+		chunk, first, err := loader.ReadNext()
 		if err != nil {
 			return src, err
 		}
 		if len(chunk) == 0 {
 			break
 		}
+		if first {
+			if chunk, err = basictl.LongRead(chunk, explicitNewVersion); err != nil {
+				return src, fmt.Errorf("error parsing journal version: %v", err)
+			}
+		}
 		var entry tlmetadata.Event
 		for len(chunk) != 0 {
 			if chunk, err = entry.ReadBoxed(chunk); err != nil {
-				return src, fmt.Errorf("clearing journal, error parsing journal entry: %v", err)
+				return src, fmt.Errorf("error parsing journal entry: %v", err)
 			}
 			src = append(src, entry)
 			scratch = ms.addEventLocked(scratch, entry)
 		}
-		newVersion, _ := ms.finishUpdateLocked()
+		ms.finishUpdateLocked(ms.currentVersion)
 		for _, f := range ms.applyEvent {
-			f(src, newVersion)
+			f(src)
 		}
 		src = src[:0]
 	}
@@ -160,6 +167,8 @@ func (ms *JournalFast) Save() error {
 	}
 
 	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
+	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we need explicit version for compact journal
+	// we do not FinishItem after version because version is small
 	// we must write in order, because we must deliver them in order during load
 	var iteratorError error
 	ms.order.Ascend(func(order journalOrder) bool {
@@ -239,14 +248,15 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 	return scratch
 }
 
-func (ms *JournalFast) finishUpdateLocked() (int64, string) {
+func (ms *JournalFast) finishUpdateLocked(explicitNewVersion int64) {
+	if explicitNewVersion > ms.currentVersion {
+		ms.currentVersion = explicitNewVersion // we could panic instead, but decided to simplify
+	}
 	hb := ms.stateHash.Bytes()
 	stateHashStr := hex.EncodeToString(hb[:])
-	newVersion := ms.currentVersion
 	ms.stateHashStr = stateHashStr
 	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false
-	return newVersion, stateHashStr
 }
 
 func (ms *JournalFast) updateJournal(aggLog AggLog) error {
@@ -258,7 +268,7 @@ func (ms *JournalFast) updateJournal(aggLog AggLog) error {
 func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	ms.mu.RLock()
 	isDead := ms.metricsDead
-	oldVersion := ms.versionLocked()
+	oldVersion := ms.currentVersion
 	ms.mu.RUnlock()
 
 	src, _, err := ms.metaLoader(context.Background(), oldVersion, isDead)
@@ -280,7 +290,7 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		}
 		return false, err
 	}
-	ms.applyUpdate(src, aggLog, false)
+	ms.applyUpdate(src, aggLog)
 	return len(src) == 0, nil
 }
 
@@ -352,10 +362,15 @@ func compactJournalEvent(event *tlmetadata.Event) bool {
 	return true
 }
 
-func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog, compact bool) {
+func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog) {
+	if len(src) == 0 {
+		return
+	}
+	explicitNewVersion := src[len(src)-1].Version // compact journal can throw last item out
+
 	var scratch []byte
 
-	if compact {
+	if ms.compact {
 		pos := 0
 		for _, entry := range src {
 			if !compactJournalEvent(&entry) {
@@ -376,7 +391,6 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog, compac
 	// also for all edits old journals contains this event
 	// we want all events once and in order in the journal, hence this code
 	var oldVersion int64
-	var newVersion int64
 	var stateHashStr string
 	func() {
 		ms.modifyMu.Lock()
@@ -387,15 +401,13 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog, compac
 		for _, entry := range src {
 			scratch = ms.addEventLocked(scratch, entry)
 		}
-		newVersion, stateHashStr = ms.finishUpdateLocked()
+		ms.finishUpdateLocked(explicitNewVersion)
+		stateHashStr = ms.stateHashStr
 	}()
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
-		f(src, newVersion)
-	}
-	if ms.compact != nil {
-		ms.compact.applyUpdate(src, aggLog, true)
+		f(src)
 	}
 
 	if len(src) > 0 {

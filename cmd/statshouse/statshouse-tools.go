@@ -565,7 +565,7 @@ func mainPublishTagDrafts() {
 			workCond.L.Unlock()
 		}
 	}
-	applyEvents := func(newEntries []tlmetadata.Event, currentVersion int64) {
+	applyEvents := func(newEntries []tlmetadata.Event) {
 		var n int
 		for _, e := range newEntries {
 			switch e.EventType {

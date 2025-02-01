@@ -44,7 +44,7 @@ type journalEventID struct {
 
 type MetricsStorageLoader func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
 
-type ApplyEvent func(newEntries []tlmetadata.Event, currentVersion int64)
+type ApplyEvent func(newEntries []tlmetadata.Event)
 
 type Journal struct {
 	mu         sync.RWMutex
@@ -150,7 +150,7 @@ func (ms *Journal) parseDiscCache() {
 	ms.journal = journal2
 	ms.currentVersion, ms.stateHashStr, ms.stateXXHash3Str = calculateVersionStateHashLocked(journal2)
 	for _, f := range ms.applyEvent {
-		f(journal2, ms.currentVersion)
+		f(journal2)
 	}
 	log.Printf("Loaded metric storage version %d, journal hash is %s xxhash3 is %s", ms.versionLocked(), ms.stateHashStr, ms.stateXXHash3Str)
 }
@@ -213,7 +213,7 @@ func (ms *Journal) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
 	for _, f := range ms.applyEvent {
-		f(src, currentVersion)
+		f(src)
 	}
 
 	if ms.dc != nil && !stopWriteToDiscCache {

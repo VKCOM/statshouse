@@ -230,7 +230,7 @@ func run() int {
 	}
 
 	// we ignore error because cache can be damaged
-	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, nil,
+	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, false,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	// This code is used to investigate journal loading efficiency.
 	//if err := http.ListenAndServe(":9999", nil); err != nil {

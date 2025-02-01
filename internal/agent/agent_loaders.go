@@ -103,7 +103,7 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 	_, _, r, fs := data_model.ChunkedStorageFile(fp)
 	loader := data_model.ChunkedStorageLoader{ReadAt: r}
 	loader.StartRead(fs, data_model.ChunkedMagicConfig)
-	chunk, err := loader.ReadNext()
+	chunk, _, err := loader.ReadNext()
 	if err != nil {
 		return res, fmt.Errorf("failed to read config cache: %v", err)
 	}
