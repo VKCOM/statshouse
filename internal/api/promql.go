@@ -588,7 +588,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 					lodStep := data[i][0].stepSec
 					for _, tagV := range tagX {
 						if tagV.tx == k {
-							what.copyRowValuesAt(res.Data, tagV.x, k, &tagV.tsValues, int64(step), lodStep)
+							what.copyRowValuesAt(res.Data, tagV.x, k, &tagV.tsValues, step, lodStep)
 						}
 					}
 				}
@@ -1025,7 +1025,7 @@ func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) str
 		return ""
 	}
 	if m != nil {
-		if t := m.Name2Tag(tagID); t.Raw && !t.IsMetric && !t.IsNamespace && !t.IsGroup && len(t.ValueComments) != 0 {
+		if t := m.Name2Tag(tagID); t.Raw && t.BuiltinKind == 0 && len(t.ValueComments) != 0 {
 			if v := t.ValueComments[s]; v != "" {
 				return v
 			}

@@ -24,7 +24,7 @@ Set only if greater than 1.`,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "-",
 	}, {
@@ -216,7 +216,7 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		Description: "-",
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}},
 	PreKeyTagID: "4",
 }
@@ -241,7 +241,7 @@ Set only if greater than 1.`,
 		Description: "-",
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "-", // we do not show sampling reason for now because there is single reason. We write it, though.
 		ValueComments: convertToValueComments(map[int32]string{
@@ -268,7 +268,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -784,7 +784,7 @@ Set by aggregator.`,
 		Description: "-",
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -865,7 +865,7 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		}),
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}},
 	PreKeyTagID: "2",
 }
@@ -1378,7 +1378,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 		},
 		{
 			Description: "metric",
-			IsMetric:    true,
+			BuiltinKind: BuiltinKindMetric,
 		},
 		{
 			Description: "table",
@@ -1447,7 +1447,7 @@ var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
 		},
 		{
 			Description: "metric",
-			IsMetric:    true,
+			BuiltinKind: BuiltinKindMetric,
 		},
 		{
 			Description: "table",
@@ -1562,7 +1562,7 @@ var BuiltinMetricMetaAPIMetricUsage = &MetricMetaValue{
 		},
 		{
 			Description: "metric",
-			IsMetric:    true,
+			BuiltinKind: BuiltinKindMetric,
 		},
 	},
 }
@@ -1610,7 +1610,7 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 		Raw:         true,
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "priority",
 		Raw:         true,
@@ -1657,7 +1657,7 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 		Raw:         true,
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "priority",
 		Raw:         true,
@@ -1763,14 +1763,14 @@ var BuiltinMetricMetaSrcSamplingSizeBytes = &MetricMetaValue{
 		}),
 	}, {
 		Name:        "namespace",
-		IsNamespace: true,
+		BuiltinKind: BuiltinKindNamespace,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinNamespaceIDDefault: "default",
 			BuiltinNamespaceIDMissing: "missing",
 		}),
 	}, {
-		Name:    "group",
-		IsGroup: true,
+		Name:        "group",
+		BuiltinKind: BuiltinKindGroup,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinGroupIDDefault: "default",
 			BuiltinGroupIDBuiltin: "builtin",
@@ -1802,14 +1802,14 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 		}),
 	}, {
 		Name:        "namespace",
-		IsNamespace: true,
+		BuiltinKind: BuiltinKindNamespace,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinNamespaceIDDefault: "default",
 			BuiltinNamespaceIDMissing: "missing",
 		}),
 	}, {
-		Name:    "group",
-		IsGroup: true,
+		Name:        "group",
+		BuiltinKind: BuiltinKindGroup,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinGroupIDDefault: "default",
 			BuiltinGroupIDBuiltin: "builtin",
@@ -1905,14 +1905,14 @@ var BuiltinMetricMetaSrcSamplingGroupBudget = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Name:        "namespace",
-		IsNamespace: true,
+		BuiltinKind: BuiltinKindNamespace,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinNamespaceIDDefault: "default",
 			BuiltinNamespaceIDMissing: "missing",
 		}),
 	}, {
-		Name:    "group",
-		IsGroup: true,
+		Name:        "group",
+		BuiltinKind: BuiltinKindGroup,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinGroupIDDefault: "default",
 			BuiltinGroupIDBuiltin: "builtin",
@@ -1938,14 +1938,14 @@ var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
 		Name:        "namespace",
-		IsNamespace: true,
+		BuiltinKind: BuiltinKindNamespace,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinNamespaceIDDefault: "default",
 			BuiltinNamespaceIDMissing: "missing",
 		}),
 	}, {
-		Name:    "group",
-		IsGroup: true,
+		Name:        "group",
+		BuiltinKind: BuiltinKindGroup,
 		ValueComments: convertToValueComments(map[int32]string{
 			BuiltinGroupIDDefault: "default",
 			BuiltinGroupIDBuiltin: "builtin",
@@ -2032,7 +2032,7 @@ var BuiltinMetricMetaAPICacheHit = &MetricMetaValue{
 		Description: "source",
 	}, {
 		Description: "metric",
-		IsMetric:    true,
+		BuiltinKind: BuiltinKindMetric,
 		Raw:         true,
 	}, {
 		Description: "table",

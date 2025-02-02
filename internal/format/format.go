@@ -156,10 +156,12 @@ type MetricMetaTag struct {
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	Index         int32             `json:"-"` // Should be restored from position in MetricMetaValue.Tags
 	Raw           bool              `json:"raw,omitempty"`
-	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
-	IsGroup       bool              `json:"-"` // Only for built-in metrics so never saved or parsed
-	IsNamespace   bool              `json:"-"` // Only for built-in metrics so never saved or parsed
+	BuiltinKind   uint8             `json:"-"` // Only for built-in metrics so never saved or parsed
 }
+
+func (t *MetricMetaTag) IsMetric() bool    { return t.BuiltinKind == BuiltinKindMetric }
+func (t *MetricMetaTag) IsGroup() bool     { return t.BuiltinKind == BuiltinKindGroup }
+func (t *MetricMetaTag) IsNamespace() bool { return t.BuiltinKind == BuiltinKindNamespace }
 
 const (
 	MetricEvent       int32 = 0
@@ -167,6 +169,10 @@ const (
 	MetricsGroupEvent int32 = 2
 	PromConfigEvent   int32 = 3
 	NamespaceEvent    int32 = 4
+
+	BuiltinKindMetric    = 1
+	BuiltinKindGroup     = 2
+	BuiltinKindNamespace = 3
 )
 
 type NamespaceMeta struct {
