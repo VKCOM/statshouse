@@ -936,14 +936,14 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 	if tag == nil {
 		return format.CodeTagValue(tagValueID)
 	}
-	if tag.IsMetric {
+	if tag.IsMetric() {
 		v, err := h.getMetricNameWithNamespace(tagValueID)
 		if err != nil {
 			return format.CodeTagValue(tagValueID)
 		}
 		return v
 	}
-	if tag.IsNamespace {
+	if tag.IsNamespace() {
 		if tagValueID != format.TagValueIDUnspecified {
 			if meta := h.metricsStorage.GetNamespace(tagValueID); meta != nil {
 				return meta.Name
@@ -951,7 +951,7 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 		}
 		return format.CodeTagValue(tagValueID)
 	}
-	if tag.IsGroup {
+	if tag.IsGroup() {
 		if tagValueID != format.TagValueIDUnspecified {
 			if meta := h.metricsStorage.GetGroup(tagValueID); meta != nil {
 				return meta.Name
@@ -994,10 +994,10 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 		}
 		return id, nil
 	}
-	if tag.IsMetric {
+	if tag.IsMetric() {
 		return h.getMetricID(tagValue) // we don't consider metric ID to be private
 	}
-	if tag.IsNamespace {
+	if tag.IsNamespace() {
 		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
 			return format.TagValueIDUnspecified, nil
 		}
@@ -1006,7 +1006,7 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 		}
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %q not found", tagValue))
 	}
-	if tag.IsGroup {
+	if tag.IsGroup() {
 		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
 			return format.TagValueIDUnspecified, nil
 		}

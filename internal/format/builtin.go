@@ -292,25 +292,26 @@ func init() {
 			}
 		}
 
-		for i, t := range m.Tags {
+		for i := range m.Tags {
+			t := &m.Tags[i]
 			if t.Description == "tag_id" {
-				m.Tags[i].ValueComments = convertToValueComments(tagIDTag2TagID)
-				m.Tags[i].Raw = true
+				t.ValueComments = convertToValueComments(tagIDTag2TagID)
+				t.Raw = true
 				continue
 			}
 			if i == 0 { // env is not raw
 				continue
 			}
-			if m.Tags[i].RawKind != "" {
-				m.Tags[i].Raw = true
+			if t.RawKind != "" {
+				t.Raw = true
 				continue
 			}
-			if m.Tags[i].Description == "-" && m.Tags[i].Name == "" {
-				m.Tags[i].Raw = true
+			if t.Description == "-" && t.Name == "" {
+				t.Raw = true
 				continue
 			}
-			if m.Tags[i].IsMetric || m.Tags[i].ValueComments != nil {
-				m.Tags[i].Raw = true
+			if t.BuiltinKind != 0 || t.ValueComments != nil {
+				t.Raw = true
 			}
 			// Also some tags are simply marked with Raw:true above
 		}
