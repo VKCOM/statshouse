@@ -503,8 +503,10 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 				}
 				in.Delim(']')
 			}
-		case "shard":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &out.Sharding)
+		case "shard_strategy":
+			out.ShardStrategy = string(in.String())
+		case "shard_num":
+			out.ShardNum = uint32(in.Uint32())
 		case "pipeline_version":
 			out.PipelineVersion = uint8(in.Uint8())
 		default:
@@ -759,15 +761,25 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 			out.RawByte(']')
 		}
 	}
-	if true {
-		const prefix string = ",\"shard\":"
+	if in.ShardStrategy != "" {
+		const prefix string = ",\"shard_strategy\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, in.Sharding)
+		out.String(string(in.ShardStrategy))
+	}
+	if in.ShardNum != 0 {
+		const prefix string = ",\"shard_num\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.ShardNum))
 	}
 	if in.PipelineVersion != 0 {
 		const prefix string = ",\"pipeline_version\":"
@@ -778,61 +790,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 			out.RawString(prefix)
 		}
 		out.Uint8(uint8(in.PipelineVersion))
-	}
-	out.RawByte('}')
-}
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.MetricSharding) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "strategy":
-			out.Strategy = string(in.String())
-		case "shard":
-			out.Shard = uint32(in.Uint32())
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.MetricSharding) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	if in.Strategy != "" {
-		const prefix string = ",\"strategy\":"
-		first = false
-		out.RawString(prefix[1:])
-		out.String(string(in.Strategy))
-	}
-	if in.Shard != 0 {
-		const prefix string = ",\"shard\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint32(uint32(in.Shard))
 	}
 	out.RawByte('}')
 }
@@ -1376,7 +1333,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer
 		}
 		switch key {
 		case "namespace":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in, &out.Namespace)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &out.Namespace)
 		default:
 			in.SkipRecursive()
 		}
@@ -1394,7 +1351,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Wri
 	{
 		const prefix string = ",\"namespace\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out, in.Namespace)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, in.Namespace)
 	}
 	out.RawByte('}')
 }
@@ -1408,7 +1365,7 @@ func (v NamespaceInfo) MarshalEasyJSON(w *jwriter.Writer) {
 func (v *NamespaceInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Lexer, out *format.NamespaceMeta) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.NamespaceMeta) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1451,7 +1408,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.Writer, in format.NamespaceMeta) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.NamespaceMeta) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1512,7 +1469,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer
 		}
 		switch key {
 		case "group":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat4(in, &out.Group)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in, &out.Group)
 		case "metrics":
 			if in.IsNull() {
 				in.Skip()
@@ -1553,7 +1510,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Wri
 	{
 		const prefix string = ",\"group\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat4(out, in.Group)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out, in.Group)
 	}
 	{
 		const prefix string = ",\"metrics\":"
@@ -1583,7 +1540,7 @@ func (v MetricsGroupInfo) MarshalEasyJSON(w *jwriter.Writer) {
 func (v *MetricsGroupInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat4(in *jlexer.Lexer, out *format.MetricsGroup) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Lexer, out *format.MetricsGroup) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1626,7 +1583,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat4(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat4(out *jwriter.Writer, in format.MetricsGroup) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.Writer, in format.MetricsGroup) {
 	out.RawByte('{')
 	first := true
 	_ = first

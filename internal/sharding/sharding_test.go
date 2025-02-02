@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -27,39 +28,39 @@ func TestShard(t *testing.T) {
 		// Verify core sharding strategies
 		{"ok-by-tags-hash-1", args{
 			key:         metric1,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardByTagsHash}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
 		}, 8},
 		{"ok-by-tags-hash-2", args{
 			key:         metric2,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardByTagsHash}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
 		}, 15},
 		{"ok-by-tags-builtin", args{
 			key:         metricBuiltin,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardByTagsHash}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
 		}, 5},
 
 		{"ok-fixed-shard", args{
 			key:         metric1,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardFixed, Shard: 3}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardFixed, ShardNum: 3},
 			numShards:   16,
 			newSharding: true,
 		}, 3},
 		{"ok-fixed-builtin", args{
 			key:         metricBuiltin,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardFixed, Shard: 0}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardFixed, ShardNum: 0},
 			numShards:   16,
 			newSharding: true,
 		}, 0},
 
 		{"ok-by-metric-id", args{
 			key:         metric1,
-			meta:        &format.MetricMetaValue{Sharding: format.MetricSharding{Strategy: format.ShardByMetric}},
+			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByMetric},
 			numShards:   16,
 			newSharding: true,
 		}, 1},
@@ -87,7 +88,7 @@ func TestShard(t *testing.T) {
 				t.Errorf("Sharding() = %v, want %v", gotShard, tt.expectedShard)
 			}
 			// hash calculated only for ShardByTagsHash
-			if tt.args.meta.Sharding.Strategy == format.ShardByTagsHash || tt.args.meta.Sharding.Strategy == "" && !tt.args.newSharding {
+			if tt.args.meta.ShardStrategy == format.ShardByTagsHash || tt.args.meta.ShardStrategy == "" && !tt.args.newSharding {
 				assert.False(t, newStrategy)
 				assert.NotZero(t, gotHash) // this fails with 2^-64 probability
 			} else {
