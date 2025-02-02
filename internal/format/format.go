@@ -156,6 +156,7 @@ type MetricMetaTag struct {
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	Index         int32             `json:"-"` // Should be restored from position in MetricMetaValue.Tags
 	Raw           bool              `json:"raw,omitempty"`
+	Raw64         bool              `json:"-"`
 	BuiltinKind   uint8             `json:"-"` // Only for built-in metrics so never saved or parsed
 }
 
@@ -478,6 +479,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
+		tag.Raw64 = tag.Raw && IsRaw64Kind(tag.RawKind)
+		if tag.Raw64 && tag.Index == MaxTags-1 {
+			err = multierr.Append(err, fmt.Errorf("last tag cannot be raw64 kind %q of tag %d", tag.RawKind, i))
+			tag.Raw64 = false
+		}
 	}
 	if m.PreKeyIndex == -1 && m.PreKeyTagID != "" {
 		err = multierr.Append(err, fmt.Errorf("invalid pre_key_tag_id: %q", m.PreKeyTagID))
@@ -752,6 +758,7 @@ func ValidMetricKind(kind string) bool {
 }
 
 func ValidRawKind(s string) bool {
+	// TODO - add int64, uint64
 	// Do not change values, they are stored in DB
 	// uint:            interpret number bits as uint32, print as decimal number
 	// ip:              167901850 (0xA01FA9A) -> 10.1.250.154, interpret number bits as uint32, high byte contains first element of IP address, lower byte contains last element of IP address
@@ -764,6 +771,14 @@ func ValidRawKind(s string) bool {
 	// EMPTY:           decimal number, can be negative
 	switch s {
 	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float":
+		return true
+	}
+	return false
+}
+
+func IsRaw64Kind(s string) bool {
+	switch s {
+	case "int64", "uint64":
 		return true
 	}
 	return false
@@ -1071,6 +1086,22 @@ func ValidTagValueForAPI(s string) bool {
 func ContainsRawTagValue(s mem.RO) (int32, bool) {
 	i, err := mem.ParseInt(s, 10, 64) // TODO - remove allocation in case of error
 	return int32(i), err == nil && i >= math.MinInt32 && i <= math.MaxUint32
+}
+
+func ContainsRawTagValue64(s mem.RO) (lo int32, hi int32, ok bool) {
+	if s.Len() == 0 { // never happens, but seems rather cheap check
+		return 0, 0, false
+	}
+	if s.At(0) == '-' { // save allocation of error on half input space
+		i, err := mem.ParseInt(s, 10, 64) // TODO - remove allocation in case of error
+		lo = int32(i)
+		hi = int32(i >> 32)
+		return lo, hi, err == nil
+	}
+	i, err := mem.ParseUint(s, 10, 64) // TODO - remove allocation in case of error
+	lo = int32(uint32(i))
+	hi = int32(uint32(i >> 32))
+	return lo, hi, err == nil
 }
 
 // Limit build arch for built in-metrics collected by source
