@@ -14,8 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/pcache"
 	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse/internal/pcache"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -160,12 +161,8 @@ func Test_AgentQueue(t *testing.T) {
 	agent.Shards = append(agent.Shards, shard)
 	agent.initBuiltInMetrics()
 
-	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1, Sharding: format.MetricSharding{
-		Strategy: format.ShardByTagsHash,
-	}}
-	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5, Sharding: format.MetricSharding{
-		Strategy: format.ShardByTagsHash,
-	}}
+	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1}
+	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5}
 	// TODO - here we metrics at the perfect moments, odd metrics at wrong moments
 	agent.goFlushIteration(startTime)
 	testEnsureNoFlush(t, shard)
@@ -255,7 +252,6 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	h := data_model.MappedMetricHeader{
 		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: 1,
-			Sharding:            format.MetricSharding{Strategy: format.ShardByTagsHash},
 			PipelineVersion:     3,
 		},
 	}

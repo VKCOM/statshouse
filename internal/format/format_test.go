@@ -7,6 +7,7 @@
 package format
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -316,4 +317,12 @@ func TestValidDashboardName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMetricMetaJson(t *testing.T) {
+	mm := MetricMetaValue{}
+
+	jsonB, err := json.Marshal(mm)
+	require.NoError(t, err)
+	require.Equal(t, "{}", string(jsonB))
 }

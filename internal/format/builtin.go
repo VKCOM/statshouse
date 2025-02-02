@@ -213,7 +213,7 @@ func init() {
 			v.Resolution = 15
 		}
 		v.GroupID = BuiltinGroupIDHost
-		v.Sharding = MetricSharding{Strategy: ShardByMetric}
+		v.ShardStrategy = ShardByMetric
 		BuiltinMetrics[k] = v
 		// v.NoSampleAgent = false
 		v.BuiltinAllowedToReceive = true

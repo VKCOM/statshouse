@@ -214,11 +214,6 @@ const (
 	ShardByMetric   = "metric_id" // shard = metric_id % num_shards
 )
 
-type MetricSharding struct {
-	Strategy string `json:"strategy,omitempty"` // possible values: tags_hash, fixed_shard, metric_id
-	Shard    uint32 `json:"shard,omitempty"`    // only for "fixed_shard" strategy
-}
-
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id,omitempty"`
@@ -244,7 +239,8 @@ type MetricMetaValue struct {
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type,omitempty"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
-	Sharding             MetricSharding           `json:"shard,omitempty"`
+	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
+	ShardNum             uint32                   `json:"shard_num,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
