@@ -162,14 +162,14 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
 
   const customValue = useMemo(
     () =>
-      tagList?.more &&
+      (!tagList?.list?.length || tagList?.more) &&
       ((v: string): SelectOptionProps => {
         const value = getTagValue(meta, tagKey, v);
         const tagMeta = meta?.tags?.[+tagKey];
         const name = formatTagValue(value, tagMeta?.value_comments?.[value], tagMeta?.raw, tagMeta?.raw_kind);
         return { value, name };
       }),
-    [meta, tagKey, tagList?.more]
+    [meta, tagKey, tagList?.list?.length, tagList?.more]
   );
 
   return (

@@ -20,7 +20,7 @@ export function saveMetric(metric: IMetric) {
     tags: metric.tags.map((tag) => ({
       name: tag.name,
       description: tag.alias,
-      raw: tag.isRaw || false,
+      raw: tag.raw_kind != null,
       raw_kind: tag.raw_kind,
       value_comments:
         tag.customMapping.length > 0

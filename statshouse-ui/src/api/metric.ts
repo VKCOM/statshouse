@@ -60,6 +60,9 @@ export type MetricMetaValue = {
 export type MetricMetaTag = {
   name?: string;
   description?: string;
+  /**
+   * @deprecated
+   */
   raw?: boolean;
   raw_kind?: MetricMetaTagRawKind;
   id2value?: Record<number, string>;

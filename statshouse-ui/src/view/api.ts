@@ -118,8 +118,9 @@ export function formatTagValue(value: string, comment?: string, raw?: boolean, k
   if (value.length < 1 || value[0] !== ' ') {
     return value;
   }
-  if (raw && kind) {
-    return `⚡ ${convert(kind, parseInt(value))}`;
+  raw = raw || kind != null; // fix raw deprecated
+  if (raw || kind != null) {
+    return `⚡ ${convert(kind, value)}`;
   }
   const i = parseInt(value.substring(1));
   if (i === 0 && !raw) {
@@ -522,9 +523,10 @@ export type metricKind = 'counter' | 'value' | 'value_p' | 'unique' | 'mixed' | 
  * hex_bswap:       same as hex, but do bswap after interpreting number bits as uint32
  * timestamp:       UNIX timestamp, show as is (in GMT)
  * timestamp_local: UNIX timestamp, show local time for this TS
- * EMPTY:           decimal number, can be negative
+ * '', EMPTY:       default int32 decimal number, can be negative
  */
 export type RawValueKind =
+  | 'int'
   | 'uint'
   | 'hex'
   | 'hex_bswap'
@@ -533,6 +535,10 @@ export type RawValueKind =
   | 'ip'
   | 'ip_bswap'
   | 'lexenc_float'
+  | 'int64'
+  | 'uint64'
+  | 'hex64'
+  | 'hex64_bswap'
   /** @deprecated 'float' raw value kind */
   | 'float';
 

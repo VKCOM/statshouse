@@ -49,14 +49,7 @@ export function getTagValue(meta: MetricMetaValue | undefined, tagKey: TagKey | 
   if (tagKey != null) {
     const infoTag = meta?.tags?.[+tagKey];
     if (infoTag?.raw || infoTag?.raw_kind != null) {
-      if (value[0] === ' ') {
-        return value;
-      }
-      const tagValue = parseRawToInt(infoTag.raw_kind, value);
-      if (isNaN(tagValue)) {
-        return value;
-      }
-      return ' ' + tagValue;
+      return parseRawToInt(infoTag.raw_kind, value);
     }
   }
   return value;
@@ -485,6 +478,12 @@ export function uintToInt(value: number): number {
   return dataView.getInt32(0, false);
 }
 
+export function bigUInt64ToBigInt64(value: bigint): bigint {
+  const dataView = new DataView(new ArrayBuffer(8));
+  dataView.setBigUint64(0, value);
+  return dataView.getBigInt64(0, false);
+}
+
 export function lexDecode(intval: number): number {
   return ieee32ToFloat(intval < 0 ? (intval >>> 0) ^ 0x7fffffff : intval >>> 0);
 }
@@ -497,75 +496,148 @@ export function lexEncode(value: number): number {
   return num < 0 ? (num >>> 0) ^ 0x7fffffff : num >>> 0;
 }
 
-export function convert(kind: RawValueKind | undefined, input: number): string {
+export function convert(kind: RawValueKind | undefined, input: string): string {
+  if (input[0] !== ' ') {
+    return input;
+  }
+  const input32 = parseInt(input);
   switch (kind) {
-    case 'hex':
-      return '0x' + `00000000${(input >>> 0).toString(16)}`.slice(-8);
-    case 'hex_bswap':
-      return (
-        '0x' +
-        (`00${(input & 255).toString(16)}`.slice(-2) +
-          `00${((input >> 8) & 255).toString(16)}`.slice(-2) +
-          `00${((input >> 16) & 255).toString(16)}`.slice(-2) +
-          `00${((input >> 24) & 255).toString(16)}`.slice(-2))
-      );
+    case 'hex': {
+      const biteArr = new Uint8Array(4);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setInt32(0, input32);
+      return '0x' + ('00000000' + dataView.getUint32(0, false).toString(16)).slice(-8);
+    }
+    case 'hex_bswap': {
+      const biteArr = new Uint8Array(4);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setInt32(0, input32);
+      biteArr.reverse();
+      return '0x' + ('00000000' + dataView.getUint32(0, false).toString(16)).slice(-8);
+    }
+    case 'hex64': {
+      const biteArr = new Uint8Array(8);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setBigInt64(0, BigInt(input));
+      return '0x' + ('0000000000000000' + dataView.getBigUint64(0, false).toString(16)).slice(-16);
+    }
+    case 'hex64_bswap': {
+      const biteArr = new Uint8Array(8);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setBigInt64(0, BigInt(input));
+      biteArr.reverse();
+      return '0x' + ('0000000000000000' + dataView.getBigUint64(0, false).toString(16)).slice(-16);
+    }
     case 'timestamp':
-      return fmtInputDateTime(uPlot.tzDate(new Date(intToUint(input) * 1000), 'UTC'));
+      return fmtInputDateTime(uPlot.tzDate(new Date(intToUint(input32) * 1000), 'UTC'));
     case 'timestamp_local':
-      return fmtInputDateTime(new Date(intToUint(input) * 1000));
+      return fmtInputDateTime(new Date(intToUint(input32) * 1000));
     case 'ip':
-      return ((input >> 24) & 255) + '.' + ((input >> 16) & 255) + '.' + ((input >> 8) & 255) + '.' + (input & 255);
+      return (
+        ((input32 >> 24) & 255) + '.' + ((input32 >> 16) & 255) + '.' + ((input32 >> 8) & 255) + '.' + (input32 & 255)
+      );
     case 'ip_bswap':
-      return (input & 255) + '.' + ((input >> 8) & 255) + '.' + ((input >> 16) & 255) + '.' + ((input >> 24) & 255);
+      return (
+        (input32 & 255) + '.' + ((input32 >> 8) & 255) + '.' + ((input32 >> 16) & 255) + '.' + ((input32 >> 24) & 255)
+      );
     case 'uint':
-      return intToUint(input).toString(10);
+      return intToUint(input32).toString(10);
     case 'lexenc_float':
-      return parseFloat(lexDecode(input).toPrecision(8)).toString(10);
+      return parseFloat(lexDecode(input32).toPrecision(8)).toString(10);
     case 'float':
-      return parseFloat(ieee32ToFloat(input).toPrecision(8)).toString(10);
+      return parseFloat(ieee32ToFloat(input32).toPrecision(8)).toString(10);
+    case 'int64':
+      try {
+        return BigInt(input).toString(10);
+      } catch (_) {
+        return input;
+      }
+    case 'uint64':
+      try {
+        return BigInt.asUintN(64, BigInt(input)).toString(10);
+      } catch (_) {
+        return input;
+      }
+    case 'int':
+      return input32.toString(10);
     default:
-      return input.toString(10);
+      return input;
   }
 }
-export function parseRawToInt(kind: RawValueKind | undefined, value: string): number {
+export function parseRawToInt(kind: RawValueKind | undefined, value: string): string {
+  if (value[0] === ' ') {
+    return value;
+  }
   switch (kind) {
     case 'hex':
-      return parseInt(value, 16) << 0;
-    case 'hex_bswap':
-      return parseInt(value.slice(-2) + value.slice(-4, -2) + value.slice(-6, -4) + value.slice(-8, -6), 16) << 0; //(
+      return ' ' + (parseInt(value, 16) << 0);
+    case 'hex_bswap': {
+      const biteArr = new Uint8Array(4);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setInt32(0, parseInt(value, 16) << 0);
+      biteArr.reverse();
+      return ' ' + dataView.getInt32(0, false);
+    }
+    case 'hex64':
+      return ' ' + BigInt.asIntN(64, BigInt(value)).toString(10);
+    case 'hex64_bswap': {
+      const biteArr = new Uint8Array(8);
+      const dataView = new DataView(biteArr.buffer);
+      dataView.setBigInt64(0, BigInt.asIntN(64, BigInt(value)));
+      biteArr.reverse();
+      return ' ' + dataView.getBigInt64(0, false).toString(10);
+    }
     case 'timestamp': {
       const date = new Date(value);
-      return intToUint(Math.floor((+date - date.getTimezoneOffset() * 6e4) / 1000));
+      return ' ' + uintToInt(Math.floor((+date - date.getTimezoneOffset() * 6e4) / 1000));
     }
     case 'timestamp_local':
-      return intToUint(Math.floor(+new Date(value) / 1000));
+      return ' ' + uintToInt(Math.floor(+new Date(value) / 1000));
     case 'ip': {
       const strSplit = value.split('.');
-      return (
-        parseInt(strSplit[3]) +
-        (parseInt(strSplit[2]) << 8) +
-        (parseInt(strSplit[1]) << 16) +
-        (parseInt(strSplit[0]) << 24)
-      );
+      const biteArr = new Uint8Array(4);
+      biteArr[0] = parseInt(strSplit[0]) ?? 0;
+      biteArr[1] = parseInt(strSplit[1]) ?? 0;
+      biteArr[2] = parseInt(strSplit[2]) ?? 0;
+      biteArr[3] = parseInt(strSplit[3]) ?? 0;
+      const dataView = new DataView(biteArr.buffer);
+      return ' ' + dataView.getInt32(0, false).toString(10);
     }
     case 'ip_bswap': {
       const strSplit = value.split('.');
-      return (
-        parseInt(strSplit[0]) +
-        (parseInt(strSplit[1]) << 8) +
-        (parseInt(strSplit[2]) << 16) +
-        (parseInt(strSplit[3]) << 24)
-      );
+      const biteArr = new Uint8Array(4);
+      biteArr[3] = parseInt(strSplit[0]) ?? 0;
+      biteArr[2] = parseInt(strSplit[1]) ?? 0;
+      biteArr[1] = parseInt(strSplit[2]) ?? 0;
+      biteArr[0] = parseInt(strSplit[3]) ?? 0;
+      const dataView = new DataView(biteArr.buffer);
+      return ' ' + dataView.getInt32(0, false).toString(10);
     }
     case 'uint':
-      return uintToInt(parseInt(value, 10));
+      return ' ' + uintToInt(parseInt(value, 10));
     case 'lexenc_float':
-      return lexEncode(parseFloat(value));
+      return ' ' + lexEncode(parseFloat(value));
     case 'float': {
       const input = parseFloat(value);
-      return floatToIeee32(input);
+      return ' ' + floatToIeee32(input);
     }
+    case 'int64': {
+      try {
+        return ' ' + BigInt(value);
+      } catch (_) {
+        return value;
+      }
+    }
+    case 'uint64': {
+      try {
+        return ' ' + bigUInt64ToBigInt64(BigInt(value));
+      } catch (_) {
+        return value;
+      }
+    }
+    case 'int':
+      return ' ' + parseInt(value);
     default:
-      return parseInt(value);
+      return value;
   }
 }
