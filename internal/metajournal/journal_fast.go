@@ -330,7 +330,6 @@ func compactJournalEvent(event *tlmetadata.Event) bool {
 	for ti := range value.Tags {
 		tag := &value.Tags[ti]
 		tag.Description = ""
-		tag.ID2Value = nil
 		tag.ValueComments = nil
 		if tag.Raw || tag.RawKind != "" || tag.Name != "" {
 			cutTags = ti + 1 // keep this tag

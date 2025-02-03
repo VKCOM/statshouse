@@ -71,66 +71,13 @@ func getJournalFileLoader(fName string) (MetricsStorageLoader, []tlmetadata.Even
 			return nil, nil, fmt.Errorf("events not sorted at %d", i)
 		}
 		events = append(events, event)
-		/*
-			switch event.EventType {
-			case format.MetricEvent:
-				value := &format.MetricMetaValue{}
-				err := json.Unmarshal([]byte(event.Data), value)
-				if err != nil {
-					return nil, nil, err
-				}
-				value.NamespaceID = int32(event.NamespaceId)
-				value.Version = event.Version
-				value.Name = event.Name
-				value.MetricID = int32(event.Id) // TODO - beware!
-				value.UpdateTime = event.UpdateTime
-				_ = value.RestoreCachedInfo()
-				value.Name = "" // restored from event anyway
-				value.Version = 0
-				value.MetricID = 0
-				value.Description = ""
-				value.Resolution = 0
-				value.Weight = 0
-				value.StringTopDescription = ""
-				if value.NamespaceID == -5 {
-					value.NamespaceID = 0
-				}
-				cutTags := 0
-				for ti := range value.Tags {
-					tag := &value.Tags[ti]
-					tag.Description = ""
-					tag.ID2Value = nil
-					tag.ValueComments = nil
-					if tag.Raw || tag.RawKind != "" || tag.Name != "" {
-						cutTags = ti + 1 // keep this tag
-					}
-				}
-				value.Tags = value.Tags[:cutTags]
-				for k, v := range value.TagsDraft {
-					v.Name = ""
-					value.TagsDraft[k] = v
-				}
-				if !value.HasPercentiles {
-					value.Kind = ""
-				}
-				value.MetricType = ""
-				value.PreKeyTagID = ""
-				value.PreKeyFrom = 0
-				value.SkipMinHost = false
-				value.SkipMaxHost = false
-				value.SkipSumSquare = false
-				value.PreKeyOnly = false
-				shortData, err := value.MarshalBinary()
-				if err != nil {
-					return nil, nil, err
-				}
-				values[7] = string(shortData)
-				newData.WriteString(strings.Join(values, "|"))
-				newData.WriteString("\n")
-			}
-		*/
+		//if compactJournalEvent(&event) {
+		//	values[7] = event.Data
+		//	newData.WriteString(strings.Join(values, "|"))
+		//	newData.WriteString("\n")
+		//}
 	}
-	// _ = os.WriteFile(fName+".short", newData.Bytes(), 0666)
+	//_ = os.WriteFile(fName+".short", newData.Bytes(), 0666)
 	return func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
 		var result []tlmetadata.Event
 		for _, e := range events {

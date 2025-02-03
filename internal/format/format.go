@@ -150,7 +150,6 @@ type MetricMetaTag struct {
 	Name          string            `json:"name,omitempty"`
 	Description   string            `json:"description,omitempty"`
 	RawKind       string            `json:"raw_kind,omitempty"` // UI can show some raw values beautifully - timestamps, hex values, etc.
-	ID2Value      map[int32]string  `json:"id2value,omitempty"`
 	ValueComments map[string]string `json:"value_comments,omitempty"`
 
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
@@ -501,10 +500,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	for i := range tags {
 		tag := &tags[i]
 
-		if len(tag.ID2Value) > 0 { // Legacy info, set for many metrics. Move to modern one.
-			tag.ValueComments = convertToValueComments(tag.ID2Value)
-			tag.ID2Value = nil
-		}
 		var c2v map[string]string
 		if len(tag.ValueComments) > 0 {
 			c2v = make(map[string]string, len(tag.ValueComments))
