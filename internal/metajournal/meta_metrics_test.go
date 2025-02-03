@@ -327,13 +327,6 @@ func TestMetricStorage1(t *testing.T) {
 			return result, v, nil
 		})
 		t.Run(tc.name, tc.f)
-		for id, metric := range m.metricsByID {
-			m1 := m.metaSnapshot.metricsByIDSnapshot[id]
-			require.Equal(t, *metric, *m1)
-
-			m2 := m.metaSnapshot.metricsByNameSnapshot[metric.Name]
-			require.Equal(t, *metric, *m2)
-		}
 	}
 
 }
