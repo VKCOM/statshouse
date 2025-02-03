@@ -476,6 +476,12 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 				m.PreKeyTagID = tagID // fix legacy name
 			}
 		}
+		if !tag.Raw {
+			tag.RawKind = ""
+		}
+		if tag.Raw && tag.RawKind == "" {
+			tag.RawKind = "int"
+		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}

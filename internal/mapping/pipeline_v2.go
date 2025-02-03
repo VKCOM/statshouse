@@ -69,11 +69,11 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for ; h.CheckedTagIndex < len(metric.Tags); h.CheckedTagIndex++ {
 		v := &metric.Tags[h.CheckedTagIndex]
-		tagMeta, tagIDKey, valid := data_model.ValidateTag(v, metric, h, mp.autoCreate)
-		if !valid {
+		tagMeta, tagIDKey, validEvent := data_model.ValidateTag(v, metric, h, mp.autoCreate)
+		if !validEvent { // invalid tag key encoding, drop the whole event
 			return true
 		}
-		if tagIDKey == 0 { // that tag is not in metric meta
+		if tagMeta == nil { // that tag is not in metric meta
 			continue
 		}
 		switch {

@@ -29,11 +29,11 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-		tagMeta, tagIDKey, valid := data_model.ValidateTag(v, metric, h, autoCreate)
-		if !valid {
-			continue
+		tagMeta, tagIDKey, validEvent := data_model.ValidateTag(v, metric, h, autoCreate)
+		if !validEvent { // invalid tag key encoding, drop the whole event
+			return
 		}
-		if tagIDKey == 0 { // that tag is not in metric meta
+		if tagMeta == nil { // that tag is not in metric meta
 			continue
 		}
 		var tagValue data_model.TagUnionBytes

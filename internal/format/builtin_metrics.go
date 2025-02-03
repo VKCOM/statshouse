@@ -595,10 +595,10 @@ var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 		}),
 	}, {
 		Description: "http_status",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "clickhouse_exception",
-		Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
+		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
 	}, {
 		Description: "experiment",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -690,10 +690,10 @@ var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 		}),
 	}, {
 		Description: "http_status",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "clickhouse_exception",
-		Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
+		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
 	}, {
 		Description: "experiment",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -831,7 +831,7 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Description: "commit_date",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "commit_timestamp",
 		RawKind:     "timestamp",
@@ -898,10 +898,10 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 		}),
 	}, {
 		Description: "shard_replica",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "total_shard_replicas",
-		Raw:         true,
+		RawKind:     "int",
 	}},
 }
 
@@ -927,7 +927,7 @@ var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 		Description: "-",
 	}, {
 		Description: "version",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "journal_hash",
 		RawKind:     "hex",
@@ -1084,7 +1084,7 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 		RawKind:     "hex",
 	}, {
 		Description: "commit_date",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "commit_timestamp",
 		RawKind:     "timestamp",
@@ -1219,7 +1219,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 		Description: "host", // filled by aggregator for ingress proxy
 	}, {
 		Description: "protocol",
-		Raw:         true,
+		RawKind:     "int",
 	}},
 }
 
@@ -1291,7 +1291,7 @@ var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Description: "group",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1317,7 +1317,7 @@ var BuiltinMetricMetaGroupSizeAfterSampling = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Description: "group",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1397,7 +1397,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 		},
 		{
 			Description: "shard", // metric % 16 for now, experimental
-			Raw:         true,
+			RawKind:     "int",
 		},
 	},
 }
@@ -1592,7 +1592,6 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 		Description: "data_format",
 	}, {
 		Description: "lane",
-		Raw:         true,
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPILaneFastLightv2:    "fast_light",
 			TagValueIDAPILaneFastHeavyv2:    "fast_heavy",
@@ -1607,13 +1606,13 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 		Description: "token_name",
 	}, {
 		Description: "response_code",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "priority",
-		Raw:         true,
+		RawKind:     "int",
 	}},
 }
 
@@ -1642,7 +1641,6 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 		Description: "data_format",
 	}, {
 		Description: "lane",
-		Raw:         true,
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPILaneFastLightv2: "fastlight",
 			TagValueIDAPILaneFastHeavyv2: "fastheavy",
@@ -1654,13 +1652,13 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 		Description: "token_name",
 	}, {
 		Description: "response_code",
-		Raw:         true,
+		RawKind:     "int",
 	}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "priority",
-		Raw:         true,
+		RawKind:     "int",
 	}},
 }
 
@@ -1847,7 +1845,6 @@ var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 	Tags: []MetricMetaTag{
 		{
 			Description: "error_type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				TagValueIDDMESGParseError: "dmesg_parse",
 				TagValueIDAPIPanicError:   "api_panic",
@@ -2033,7 +2030,6 @@ var BuiltinMetricMetaAPICacheHit = &MetricMetaValue{
 	}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
-		Raw:         true,
 	}, {
 		Description: "table",
 	}, {
@@ -2055,7 +2051,6 @@ var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 	Tags: []MetricMetaTag{
 		{
 			Description: "status",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				0: "success",
 				1: "failure",
@@ -2063,7 +2058,6 @@ var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 		},
 		{
 			Description: "event_type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				1: "targets_ready",
 				2: "targets_sent",
@@ -2098,7 +2092,6 @@ var BuiltinMetricMetaAggScrapeConfigHash = &MetricMetaValue{
 	Tags: []MetricMetaTag{
 		{
 			Description: "config_hash",
-			Raw:         true,
 			RawKind:     "hex",
 		},
 	},
