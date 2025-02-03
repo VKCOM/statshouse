@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { TagKey } from '@/api/enum';
 import { Tooltip } from '@/components/UI';
 import { produce } from 'immer';
@@ -17,6 +17,8 @@ import { useStatsHouseShallow } from '@/store2';
 import { useVariableLink } from '@/hooks/useVariableLink';
 import { getTagDescription, getTagValue } from '@/view/utils2';
 import { VariableControl } from '@/components/VariableControl';
+import { SelectOptionProps } from '@/components/Select';
+import { formatTagValue } from '@/view/api';
 
 export type PlotControlFilterTagProps = {
   plotKey: PlotKey;
@@ -125,7 +127,6 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
       if (tagKey == null) {
         return;
       }
-      values = getTagValue(meta, tagKey, values);
       if (variableInfo) {
         setParams(
           produce((p) => {
@@ -150,13 +151,25 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         );
       }
     },
-    [meta, negativeTag, plotKey, setParams, variableInfo]
+    [negativeTag, plotKey, setParams, variableInfo]
   );
   const onSetUpdateTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
       setUpdatedTag(plotKey, tagKey, value);
     },
     [plotKey]
+  );
+
+  const customValue = useMemo(
+    () =>
+      tagList?.more &&
+      ((v: string): SelectOptionProps => {
+        const value = getTagValue(meta, tagKey, v);
+        const tagMeta = meta?.tags?.[+tagKey];
+        const name = formatTagValue(value, tagMeta?.value_comments?.[value], tagMeta?.raw, tagMeta?.raw_kind);
+        return { value, name };
+      }),
+    [meta, tagKey, tagList?.more]
   );
 
   return (
@@ -176,7 +189,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
       list={tagList?.list}
       loaded={tagList?.loaded}
       more={tagList?.more}
-      customValue={tagList?.more}
+      customValue={customValue}
       customBadge={
         variable && (
           <Tooltip<'span'>

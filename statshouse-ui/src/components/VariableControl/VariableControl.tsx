@@ -7,14 +7,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import cn from 'classnames';
 import { TagSelect } from '../TagSelect';
-import { formatTagValue } from '../../view/api';
-import { SelectOptionProps } from '../Select';
-import { normalizeTagValues } from '../../view/utils';
-import { MetricMetaTag } from '../../api/metric';
-import { MetricTagValueInfo } from '../../api/metricTagValues';
-import { escapeHTML } from '../../common/helpers';
-import { Button } from '../UI';
-import { formatPercent } from '../../view/utils2';
+import { formatTagValue } from '@/view/api';
+import { SelectOptionProps } from '@/components/Select';
+import { normalizeTagValues } from '@/view/utils';
+import { MetricMetaTag } from '@/api/metric';
+import { MetricTagValueInfo } from '@/api/metricTagValues';
+import { escapeHTML } from '@/common/helpers';
+import { Button } from '@/components/UI';
+import { formatPercent } from '@/view/utils2';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];
@@ -32,7 +32,7 @@ export type VariableControlProps<T> = {
   onChange?: (name: T | undefined, value: string[]) => void;
   tagMeta?: MetricMetaTag;
   more?: boolean;
-  customValue?: boolean;
+  customValue?: boolean | ((value: string) => SelectOptionProps);
   loaded?: boolean;
   list?: MetricTagValueInfo[];
   small?: boolean;

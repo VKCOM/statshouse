@@ -46,7 +46,7 @@ export type SelectProps = {
   moreItems?: boolean;
   showCountItems?: boolean;
   onceSelectByClick?: boolean;
-  customValue?: boolean;
+  customValue?: boolean | ((value: string) => SelectOptionProps);
   listOnlyOpen?: boolean;
   onChange?: (value?: string | string[], name?: string) => void;
   onFocus?: () => void;
@@ -311,7 +311,11 @@ export const Select: FC<SelectProps> = ({
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
     if (customValue && !resultLength && searchValueDebounce) {
-      result.push({ value: searchValueDebounce, name: searchValueDebounce });
+      if (typeof customValue == 'function') {
+        result.push(customValue(searchValueDebounce));
+      } else {
+        result.push({ value: searchValueDebounce, name: searchValueDebounce });
+      }
     }
     return result;
   }, [

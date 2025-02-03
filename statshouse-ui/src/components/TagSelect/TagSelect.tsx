@@ -17,7 +17,7 @@ export type TagSelectProps = {
   onBlur?: () => void;
   options?: SelectOptionProps[];
   moreOption?: boolean;
-  customValue?: boolean;
+  customValue?: boolean | ((value: string) => SelectOptionProps);
   groupBy?: boolean;
   setGroupBy?: (value: boolean) => void;
   sort?: boolean;
