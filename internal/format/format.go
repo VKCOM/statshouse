@@ -758,7 +758,6 @@ func ValidMetricKind(kind string) bool {
 }
 
 func ValidRawKind(s string) bool {
-	// TODO - add int64, uint64
 	// Do not change values, they are stored in DB
 	// uint:            interpret number bits as uint32, print as decimal number
 	// ip:              167901850 (0xA01FA9A) -> 10.1.250.154, interpret number bits as uint32, high byte contains first element of IP address, lower byte contains last element of IP address
@@ -770,7 +769,7 @@ func ValidRawKind(s string) bool {
 	// lexenc_float:    See @LexEncode - float encoding that preserves ordering
 	// EMPTY:           decimal number, can be negative
 	switch s {
-	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float":
+	case "", "int", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float", "int64", "uint64":
 		return true
 	}
 	return false

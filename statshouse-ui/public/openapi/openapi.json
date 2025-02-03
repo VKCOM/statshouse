@@ -757,7 +757,9 @@
           "ip",
           "ip_bswap",
           "lexenc_float",
-          "float"
+          "float",
+          "int64",
+          "uint64"
         ]
       },
       "MetricMetaTag": {
