@@ -63,7 +63,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
                   to,
                 }))
               : [],
-            isRaw: tag.raw,
+            isRaw: tag.raw || tag.raw_kind != null,
             raw_kind: tag.raw_kind,
           })),
           tags_draft,
@@ -74,6 +74,9 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
           version: metric.version,
           group_id: metric.group_id,
           fair_key_tag_ids: metric.fair_key_tag_ids,
+          skip_max_host: !!metric.skip_max_host,
+          skip_min_host: !!metric.skip_min_host,
+          skip_sum_square: !!metric.skip_sum_square,
         });
       });
   }, [metricName]);
@@ -712,7 +715,12 @@ function AliasField(props: {
                     className="form-check-input"
                     type="checkbox"
                     disabled={tagNumber <= 0 || disabled}
-                    onChange={(e) => onChange({ isRaw: e.target.checked })}
+                    onChange={(e) =>
+                      onChange({
+                        isRaw: e.target.checked,
+                        raw_kind: e.target.checked ? (value.raw_kind ?? 'int') : undefined,
+                      })
+                    }
                   />
                   <label className="form-check-label" htmlFor={`roSelect_${tagNumber}`}>
                     Raw
@@ -722,10 +730,10 @@ function AliasField(props: {
               {!!value.isRaw && (
                 <select
                   className="form-control form-select"
-                  value={value.raw_kind ?? ''}
-                  onChange={(e) => onChange({raw_kind: e.target.value as RawValueKind})}
+                  value={value.raw_kind ?? 'int'}
+                  onChange={(e) => onChange({ raw_kind: e.target.value as RawValueKind })}
                 >
-                  <option value="">int</option>
+                  <option value="int">int</option>
                   <option value="uint">uint</option>
                   <option value="hex">hex</option>
                   <option value="hex_bswap">hex_bswap</option>
@@ -736,6 +744,8 @@ function AliasField(props: {
                   <option value="lexenc_float">lexenc_float</option>
                   <option value="int64">int64</option>
                   <option value="uint64">uint64</option>
+                  <option value="hex64">hex64</option>
+                  <option value="hex64_bswap">hex64_bswap</option>
                 </select>
               )}
             </div>
