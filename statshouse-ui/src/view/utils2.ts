@@ -45,14 +45,21 @@ export function getTagDescription(meta: MetricMetaValue | undefined, tagKey: num
   return `tag ${tagKey}`;
 }
 
-export function getTagValue(meta: MetricMetaValue | undefined, tagKey: TagKey | null, values: string[]): string[] {
+export function getTagValue(meta: MetricMetaValue | undefined, tagKey: TagKey | null, value: string): string {
   if (tagKey != null) {
     const infoTag = meta?.tags?.[+tagKey];
-    if (infoTag?.raw) {
-      return values.map((v) => (v[0] === ' ' ? v : ' ' + parseRawToInt(infoTag.raw_kind, v)));
+    if (infoTag?.raw || infoTag?.raw_kind != null) {
+      if (value[0] === ' ') {
+        return value;
+      }
+      const tagValue = parseRawToInt(infoTag.raw_kind, value);
+      if (isNaN(tagValue)) {
+        return value;
+      }
+      return ' ' + tagValue;
     }
   }
-  return values;
+  return value;
 }
 
 export function secondsRangeToString(seconds: number, short?: boolean): string {
