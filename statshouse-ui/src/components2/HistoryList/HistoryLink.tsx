@@ -27,7 +27,7 @@ export const HistoryLink = memo(function HistoryLink({
 
   return (
     <Link to={path} className="text-decoration-none text-reset">
-      <div className="d-flex  align-items-center py-2" onClick={onVersionClick}>
+      <div className="d-flex justify-content-between align-items-center py-2" onClick={onVersionClick}>
         <div className="me-4" style={{ minWidth: '160px' }}>
           {event?.metadata?.user_email && <div className="text-truncate">{event.metadata.user_email}</div>}
           <div className="d-flex align-items-center gap-2 text-nowrap">
