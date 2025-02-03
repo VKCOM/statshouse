@@ -399,6 +399,13 @@ func (h *requestHandler) GetHostName(hostID int32) string {
 	return v
 }
 
+func (h *requestHandler) GetHostName64(hostID int64) string {
+	if hostID < math.MinInt32 || math.MaxInt32 < hostID {
+		return format.CodeTagValue64(hostID)
+	}
+	return h.GetHostName(int32(hostID))
+}
+
 func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
@@ -409,7 +416,7 @@ func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 	return h.getRichTagValue(qry.Metric, qry.Version, tagID, qry.TagValueID)
 }
 
-func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
+func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int64, error) {
 	res, err := h.getRichTagValueID(&qry.Tag, qry.Version, qry.TagValue)
 	if err != nil {
 		var httpErr httpError
@@ -585,10 +592,9 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 							tagX[data[i][j].tsTags] = tagV
 						}
 					}
-					lodStep := data[i][0].stepSec
 					for _, tagV := range tagX {
 						if tagV.tx == k {
-							what.copyRowValuesAt(res.Data, tagV.x, k, &tagV.tsValues, step, lodStep)
+							what.copyRowValuesAt(res.Data, tagV.x, k, &tagV.tsValues, step, lod.StepSec)
 						}
 					}
 				}
@@ -632,7 +638,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 						res.AddTagAt(i+tag.x, &promql.SeriesTag{
 							Metric: qry.Metric,
 							ID:     promql.LabelShard,
-							Value:  int32(v.shardNum),
+							Value:  int64(v.shardNum),
 						})
 					default:
 						if 0 <= x && x < len(v.tag) && x < len(qry.Metric.Tags) {
@@ -653,7 +659,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				if tagWhat {
 					res.AddTagAt(i+tag.x, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
-						Value: int32(what.Digest),
+						Value: int64(what.Digest),
 					})
 				}
 			}
@@ -669,20 +675,20 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 	return res, cleanup, nil
 }
 
-func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
+func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int64, error) {
 	var (
 		pq = &queryBuilder{
 			version:    h.version,
 			metric:     qry.Metric,
-			tagID:      format.TagID(qry.TagIndex),
+			tag:        qry.Tag,
 			numResults: math.MaxInt - 1,
 			strcmpOff:  h.Version3StrcmpOff.Load(),
 			utcOffset:  h.utcOffset,
 		}
-		tags = make(map[int32]bool)
+		tags = make(map[int64]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		query := pq.tagValueIDsQuery(lod)
+		query := pq.buildTagValueIDsQuery(lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 		err := h.doSelect(ctx, chutil.QueryMetaInto{
 			IsFast:  isFast,
@@ -703,7 +709,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 			return nil, err
 		}
 	}
-	res := make([]int32, 0, len(tags))
+	res := make([]int64, 0, len(tags))
 	for v := range tags {
 		res = append(res, v)
 	}
@@ -780,12 +786,12 @@ func (w *handlerWhat) copyRowValuesAt(data []promql.SeriesData, x, y int, row *t
 	}
 }
 
-func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, queryStep int64) []float64 {
+func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, queryStep int64, lod *data_model.LOD) []float64 {
 	if queryStep == 0 {
-		queryStep = row.stepSec
+		queryStep = lod.StepSec
 	}
 	for i := 0; i < len(w.sel); i++ {
-		s = append(s, row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, row.stepSec))
+		s = append(s, row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, lod.StepSec))
 	}
 	return s
 }

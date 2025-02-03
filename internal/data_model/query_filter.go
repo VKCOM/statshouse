@@ -35,7 +35,7 @@ type TagValues []TagValue
 type TagValue struct {
 	flags  TagValueFlags
 	Value  string
-	Mapped int32
+	Mapped int64
 }
 
 type TagValueFlags int
@@ -107,7 +107,7 @@ func (f *TagFilters) AppendValue(tag int, val ...string) {
 	f.Append(tag, s...)
 }
 
-func (f *TagFilters) AppendMapped(tag int, val ...int32) {
+func (f *TagFilters) AppendMapped(tag int, val ...int64) {
 	s := make(TagValues, len(val))
 	for i := 0; i < len(val); i++ {
 		s[i] = NewTagValueM(val[i])
@@ -120,7 +120,7 @@ func (f *TagFilters) Append(tag int, filter ...TagValue) {
 }
 
 func (f *TagFilters) Contains(tag int) bool {
-	return 0 <= tag && tag < len(f.Tags) && len(f.Tags[tag].Values) != 0
+	return 0 <= tag && int(tag) < len(f.Tags) && len(f.Tags[tag].Values) != 0
 }
 
 func (f *TagFilter) Empty() bool {
@@ -136,7 +136,7 @@ func (v TagValues) Sort() {
 	})
 }
 
-func NewTagValue(s string, n int32) TagValue {
+func NewTagValue(s string, n int64) TagValue {
 	return TagValue{
 		flags:  tagHasValue | tagIsMapped,
 		Value:  s,
@@ -151,7 +151,7 @@ func NewTagValueS(s string) TagValue {
 	}
 }
 
-func NewTagValueM(n int32) TagValue {
+func NewTagValueM(n int64) TagValue {
 	return TagValue{
 		flags:  tagIsMapped,
 		Mapped: n,
@@ -175,7 +175,7 @@ func (v TagValue) String() string {
 		return v.Value
 	}
 	if v.IsMapped() {
-		return strconv.Itoa(int(v.Mapped))
+		return strconv.FormatInt(v.Mapped, 10)
 	}
 	return ""
 }

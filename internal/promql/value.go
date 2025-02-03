@@ -60,7 +60,7 @@ type SeriesTag struct {
 	Index       int    // shifted by "SeriesTagIndexOffset", zero means not set
 	ID          string // canonical name, always set
 	Name        string // optional custom name
-	Value       int32
+	Value       int64
 	SValue      string
 	stringified bool
 }
@@ -224,7 +224,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 					}
 					le = float32(v)
 				} else {
-					le = statshouse.LexDecode(t.Value)
+					le = statshouse.LexDecode(int32(t.Value))
 				}
 				buckets = append(buckets, bucket{le: le, x: x})
 			}
@@ -277,7 +277,7 @@ func (h *histogram) data() []SeriesData {
 }
 
 type secondsFormat struct {
-	n int32  // number of seconds
+	n int64  // number of seconds
 	s string // corresponding format string
 }
 
@@ -303,7 +303,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	case LabelWhat:
 		v = DigestWhat(tg.Value).String()
 	case LabelShard:
-		v = strconv.FormatUint(uint64(tg.Value), 10)
+		v = strconv.FormatInt(tg.Value, 10)
 	case LabelOffset:
 		n := tg.Value // seconds
 		if n < 0 {
@@ -319,11 +319,11 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 		if tg.SValue != "" {
 			v = tg.SValue
 		} else {
-			v = ev.GetHostName(tg.Value)
+			v = ev.GetHostName64(tg.Value)
 		}
 	default:
 		if !ev.opt.RawBucketLabel && tg.Name == labels.BucketLabel {
-			v = strconv.FormatFloat(float64(statshouse.LexDecode(tg.Value)), 'f', -1, 32)
+			v = strconv.FormatFloat(float64(statshouse.LexDecode(int32(tg.Value))), 'f', -1, 32)
 		} else {
 			v = ev.GetTagValue(TagValueQuery{
 				Version:    ev.opt.Version,
@@ -510,7 +510,7 @@ func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []Serie
 		}
 		data.Tags.add(&SeriesTag{
 			ID:     tagID,
-			Value:  h.AsInt32,
+			Value:  int64(h.AsInt32),
 			SValue: h.Arg,
 		}, nil)
 		res = append(res, data)

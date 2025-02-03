@@ -27,16 +27,15 @@ const (
 )
 
 type tsSelectRow struct {
-	what    tsWhat
-	time    int64
-	stepSec int64 // TODO - do not get using strange logic in clickhouse, set directly
+	what tsWhat
+	time int64
 	tsTags
 	tsValues
 }
 
 // all numeric tags are stored as int32 to save space
 type tsTags struct {
-	tag       [format.NewMaxTags]int32
+	tag       [format.NewMaxTags]int64
 	stag      [format.NewMaxTags]string
 	shardNum  uint32
 	stagCount int
@@ -222,7 +221,7 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 					if s := ret[i][j].stag[x]; s != "" {
 						v, err := h.getRichTagValueID(&tag, h.version, s)
 						if err == nil {
-							ret[i][j].tag[x] = v
+							ret[i][j].tag[x] = int64(v)
 							ret[i][j].stag[x] = ""
 						} else {
 							ret[i][j].stagCount++
@@ -347,7 +346,7 @@ func (c *tsCache) loadCached(h *requestHandler, pq *queryBuilder, key string, fr
 						tag = pq.metric.Tags[k]
 					}
 					if v, err := h.getRichTagValueID(&tag, h.version, s); err == nil {
-						row.tag[k] = v
+						row.tag[k] = int64(v)
 						row.stag[k] = ""
 						row.stagCount--
 					}

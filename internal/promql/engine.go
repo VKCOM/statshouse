@@ -1012,7 +1012,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					if len(sel.OriginalOffsetEx) != 0 {
 						sr.AddTagAt(k, &SeriesTag{
 							ID:    LabelOffset,
-							Value: int32(selOffset)})
+							Value: selOffset})
 					}
 					sr.Data[k].Offset = offset
 				}
@@ -1257,13 +1257,17 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 		m2 = make(map[int64]data_model.TagValues)
 		m[tagX] = m2
 	}
+	var tag format.MetricMetaTag
+	if tagX < len(metric.Tags) {
+		tag = metric.Tags[tagX]
+	}
 	var res data_model.TagValues
 	if res, ok = m2[offset]; ok {
 		return res, nil
 	}
 	ids, err := ev.QueryTagValueIDs(ctx, TagValuesQuery{
 		Metric:    metric,
-		TagIndex:  tagX,
+		Tag:       tag,
 		Timescale: ev.t,
 		Offset:    offset,
 		Options:   ev.opt,
@@ -1278,7 +1282,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 			Version:    ev.opt.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
-			TagValueID: id,
+			TagValueID: int64(id),
 		})
 		if s == " 0" {
 			s = ""
@@ -1311,7 +1315,7 @@ func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV 
 			// histogram bucket label
 			if t.Name == labels.BucketLabel {
 				if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-					return data_model.NewTagValueM(statshouse.LexEncode(float32(v))), nil
+					return data_model.NewTagValueM(int64(statshouse.LexEncode(float32(v)))), nil
 				}
 			}
 			// mapping from raw value comments
