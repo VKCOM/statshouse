@@ -221,7 +221,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "state",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagUser:      "user",
 				RawIDTagNice:      "nice",
@@ -237,7 +236,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		},
 			{
 				Description: "core",
-				Raw:         true,
+				RawKind:     "int",
 			},
 		},
 	},
@@ -249,7 +248,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "state",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagFree:    "free",
 				RawIDTagUsed:    "used",
@@ -270,7 +268,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagRead:    "read",
 					RawIDTagWrite:   "write",
@@ -302,7 +299,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "status",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagBlocked: "blocked",
 				RawIDTagRunning: "running",
@@ -325,7 +321,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagFull: "full",
 				RawIDTagSome: "some",
@@ -339,7 +334,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagFull: "full",
 				RawIDTagSome: "some",
@@ -353,7 +347,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagFull: "full",
 				RawIDTagSome: "some",
@@ -369,7 +362,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		NoSampleAgent: true,
 		Tags: []MetricMetaTag{{
 			Description: "type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagReceived: "received",
 				RawIDTagSent:     "sent",
@@ -383,7 +375,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Description: "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
 		Tags: []MetricMetaTag{{
 			Description: "type",
-			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagReceived: "receive",
 				RawIDTagSent:     "transmit",
@@ -408,7 +399,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagReceived: "receive",
 					RawIDTagSent:     "transmit",
@@ -426,7 +416,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagReceived: "receive",
 					RawIDTagSent:     "transmit",
@@ -445,7 +434,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagReceived: "received",
 					RawIDTagSent:     "sent",
@@ -453,7 +441,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "protocol",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagTCP:   "tcp",
 					RawIDTagUDP:   "udp",
@@ -471,7 +458,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagInHdrError:     "InHdrError",
 					RawIDTagInDiscard:      "InDiscard",
@@ -491,7 +477,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "protocol",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagTCP:   "tcp",
 					RawIDTagUDP:   "udp",
@@ -510,7 +495,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagFree:            "free",
 					RawIDTagUsed:            "used",
@@ -532,7 +516,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagFree: "free",
 					RawIDTagUsed: "used",
@@ -555,7 +538,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagInUse:  "inuse",
 					RawIDTagOrphan: "orphan",
@@ -581,7 +563,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "protocol",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagTCP:     "tcp",
 					RawIDTagUDP:     "udp",
@@ -600,7 +581,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "protocol",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagTCP:     "tcp",
 					RawIDTagUDP:     "udp",
@@ -619,7 +599,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagHI:          "HI",
 					RawIDTagTimer:       "Timer",
@@ -656,7 +635,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagDirty: "dirty",
 					RawIDTagWrite: "writeback",
@@ -675,7 +653,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagRead:    "read",
 					RawIDTagWrite:   "write",
@@ -705,7 +682,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagMajor: "major",
 					RawIDTagMinor: "minor",
@@ -721,7 +697,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagIn:  "in",
 					RawIDTagOut: "out",
@@ -736,7 +711,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagReclaimable:   "reclaimable",
 					RawIDTagUnreclaimable: "unreclaimable",
@@ -750,7 +724,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "type",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTagForeign:         "foreign",
 					RawIDTagInterleave:      "interleave",
@@ -771,7 +744,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Tags: []MetricMetaTag{
 			{
 				Description: "facility",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTag_kern:     "kern",
 					RawIDTag_user:     "user",
@@ -789,7 +761,6 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "level",
-				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
 					RawIDTag_Emerg:  "emerg",
 					RawIDTag_Alert:  "alert",

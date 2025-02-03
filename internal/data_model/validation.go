@@ -37,13 +37,14 @@ func ValidateMetricData(metricBytes *tlstatshouse.MetricBytes) (ingestionStatus 
 	return
 }
 
-func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, valid bool) {
+func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, validEvent bool) {
 	tagMeta, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
-	valid = true
-	if tagMeta == nil {
+	validEvent = true
+	if tagMeta == nil || tagMeta.Index >= format.MaxTags {
+		tagMeta = nil // pretend we did not find that tag
 		validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
-		if err != nil {
-			valid = false
+		if err != nil { // important case with garbage in tag name
+			validEvent = false
 			v.Key = format.AppendHexStringValue(v.Key[:0], v.Key)
 			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, v.Key)
 			return
@@ -57,10 +58,9 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 		if autoCreate != nil && format.ValidTagName(mem.B(v.Key)) {
 			_ = autoCreate.AutoCreateTag(metricBytes, v.Key, h.ReceiveTime)
 		}
-		// metric without meta gives valid=true, but tagMeta will be empty
+		// metric without meta gives validEvent=true, but tagMeta will be empty
 		return
 	}
-
 	tagIDKey = tagMeta.Index + format.TagIDShift
 	if legacyName {
 		h.LegacyCanonicalTagKey = tagIDKey
@@ -68,7 +68,7 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 
 	validValue, err := format.AppendValidStringValue(v.Value[:0], v.Value)
 	if err != nil {
-		valid = false
+		validEvent = false
 		v.Value = format.AppendHexStringValue(v.Value[:0], v.Value)
 		h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, v.Value)
 		return

@@ -264,8 +264,8 @@ func init() {
 		}
 		if m.WithAggregatorID {
 			m.Tags[AggHostTag] = MetricMetaTag{Description: "aggregator_host"}
-			m.Tags[AggShardTag] = MetricMetaTag{Description: "aggregator_shard", Raw: true}
-			m.Tags[AggReplicaTag] = MetricMetaTag{Description: "aggregator_replica", Raw: true}
+			m.Tags[AggShardTag] = MetricMetaTag{Description: "aggregator_shard", RawKind: "int"}
+			m.Tags[AggReplicaTag] = MetricMetaTag{Description: "aggregator_replica", RawKind: "int"}
 		}
 		if _, ok := hostMetrics[id]; ok {
 			m.Tags[0] = MetricMetaTag{Description: "env"}
@@ -294,9 +294,15 @@ func init() {
 
 		for i := range m.Tags {
 			t := &m.Tags[i]
+			if t.Raw {
+				panic("for built-in metric definitions please set only raw_kind, not raw flag")
+			}
 			if t.Description == "tag_id" {
 				t.ValueComments = convertToValueComments(tagIDTag2TagID)
 				t.Raw = true
+				if t.RawKind == "" {
+					t.RawKind = "int"
+				}
 				continue
 			}
 			if i == 0 { // env is not raw
@@ -308,12 +314,17 @@ func init() {
 			}
 			if t.Description == "-" && t.Name == "" {
 				t.Raw = true
+				if t.RawKind == "" {
+					t.RawKind = "int"
+				}
 				continue
 			}
 			if t.BuiltinKind != 0 || t.ValueComments != nil {
 				t.Raw = true
+				if t.RawKind == "" {
+					t.RawKind = "int"
+				}
 			}
-			// Also some tags are simply marked with Raw:true above
 		}
 
 		_ = m.RestoreCachedInfo()
