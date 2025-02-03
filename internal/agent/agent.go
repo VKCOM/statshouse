@@ -542,6 +542,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		return
 	}
 	shardId, newStrategy, resolutionHash := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
+	if shardId >= uint32(len(s.Shards)) {
+		s.AddCounter(&data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
+		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		return
+	}
+	shard := s.Shards[shardId]
 	if newStrategy && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
 		var scr []byte
 		if scratch != nil {
@@ -620,7 +628,6 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
-	shard := s.Shards[shardId]
 	if len(m.Unique) != 0 {
 		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
 		return
