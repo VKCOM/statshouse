@@ -818,26 +818,6 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Le
 			out.Description = string(in.String())
 		case "raw_kind":
 			out.RawKind = string(in.String())
-		case "id2value":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				in.Delim('{')
-				if !in.IsDelim('}') {
-					out.ID2Value = make(map[int32]string)
-				} else {
-					out.ID2Value = nil
-				}
-				for !in.IsDelim('}') {
-					key := int32(in.Int32Str())
-					in.WantColon()
-					var v17 string
-					v17 = string(in.String())
-					(out.ID2Value)[key] = v17
-					in.WantComma()
-				}
-				in.Delim('}')
-			}
 		case "value_comments":
 			if in.IsNull() {
 				in.Skip()
@@ -899,30 +879,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.
 			out.RawString(prefix)
 		}
 		out.String(string(in.RawKind))
-	}
-	if len(in.ID2Value) != 0 {
-		const prefix string = ",\"id2value\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		{
-			out.RawByte('{')
-			v19First := true
-			for v19Name, v19Value := range in.ID2Value {
-				if v19First {
-					v19First = false
-				} else {
-					out.RawByte(',')
-				}
-				out.Int32Str(int32(v19Name))
-				out.RawByte(':')
-				out.String(string(v19Value))
-			}
-			out.RawByte('}')
-		}
 	}
 	if len(in.ValueComments) != 0 {
 		const prefix string = ",\"value_comments\":"
