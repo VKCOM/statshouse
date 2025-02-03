@@ -723,7 +723,7 @@ function AliasField(props: {
                 <select
                   className="form-control form-select"
                   value={value.raw_kind ?? ''}
-                  onChange={(e) => onChange({ raw_kind: e.target.value as RawValueKind })}
+                  onChange={(e) => onChange({raw_kind: e.target.value as RawValueKind})}
                 >
                   <option value="">int</option>
                   <option value="uint">uint</option>
@@ -734,6 +734,8 @@ function AliasField(props: {
                   <option value="ip">ip</option>
                   <option value="ip_bswap">ip_bswap</option>
                   <option value="lexenc_float">lexenc_float</option>
+                  <option value="int64">int64</option>
+                  <option value="uint64">uint64</option>
                 </select>
               )}
             </div>
