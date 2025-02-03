@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { TimeRange } from '../common/TimeRange';
-import { uniqueArray } from '../common/helpers';
+import { TimeRange } from '@/common/TimeRange';
+import { uniqueArray } from '@/common/helpers';
 import {
   encodeVariableConfig,
   encodeVariableValues,
@@ -15,8 +15,8 @@ import {
   PlotParams,
   QueryParams,
   toIndexTag,
-} from '../url/queryParams';
-import { MetricMetaValue } from '../api/metric';
+} from '@/url/queryParams';
+import { MetricMetaValue } from '@/api/metric';
 import {
   GET_PARAMS,
   METRIC_VALUE_BACKEND_VERSION,
@@ -533,6 +533,7 @@ export type RawValueKind =
   | 'ip'
   | 'ip_bswap'
   | 'lexenc_float'
+  /** @deprecated 'float' raw value kind */
   | 'float';
 
 export interface metricTag {
