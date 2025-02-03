@@ -242,6 +242,10 @@ func MapErrorFromHeader(m tlstatshouse.MetricBytes, h data_model.MappedMetricHea
 		return fmt.Errorf("not utf-8 metric name %q (hex) (envTag %d)", h.InvalidString, envTag)
 	case format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding:
 		return fmt.Errorf("not utf-8 name %q (hex) for key of metric %q (envTag %d)", h.InvalidString, m.Name, envTag)
+	case format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet:
+		return fmt.Errorf("both value and unique fields set in metric event %q (envTag %d)", m.Name, envTag)
+	case format.TagValueIDSrcIngestionStatusErrShardingFailed:
+		return fmt.Errorf("metric %q shard is beyond configured shards (envTag %d)", m.Name, envTag)
 	case format.TagValueIDSrcIngestionStatusErrMetricBuiltin:
 		return fmt.Errorf("metric %q is builtin (envTag %d)", m.Name, envTag)
 	default:

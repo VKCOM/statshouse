@@ -300,7 +300,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
 			TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 			TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
-			TagValueIDSrcIngestionStatusErrShardingFailed:            "err_sharding_failed",
+			TagValueIDSrcIngestionStatusErrShardingFailed:            "err_metric_sharding_failed",
 			TagValueIDSrcIngestionStatusWarnTimestampClampedPast:     "warn_timestamp_clamped_past",
 			TagValueIDSrcIngestionStatusWarnTimestampClampedFuture:   "warn_timestamp_clamped_future",
 			TagValueIDSrcIngestionStatusErrMetricBuiltin:             "err_metric_builtin",
