@@ -523,7 +523,7 @@ type (
 
 	RawTag struct {
 		Index int   `json:"index"`
-		Value int32 `json:"value"`
+		Value int64 `json:"value"`
 	}
 
 	RowMarker struct {
@@ -930,12 +930,13 @@ func (h *Handler) getTagValue(tagValueID int32) (string, error) {
 	return pcache.ValueToString(r.Value), r.Err
 }
 
-func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version string, tagID string, tagValueID int32) string {
+func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version string, tagID string, valueID int64) string {
 	// Rich mapping between integers and strings must be perfect (with no duplicates on both sides)
 	tag := metricMeta.Name2Tag(tagID)
-	if tag == nil {
-		return format.CodeTagValue(tagValueID)
+	if tag == nil || valueID < math.MinInt32 || math.MaxInt32 < valueID {
+		return format.CodeTagValue64(valueID)
 	}
+	tagValueID := int32(valueID)
 	if tag.IsMetric() {
 		v, err := h.getMetricNameWithNamespace(tagValueID)
 		if err != nil {
@@ -986,7 +987,7 @@ func (h *Handler) getTagValueID(tagValue string) (int32, error) {
 	return pcache.ValueToInt32(r.Value), r.Err
 }
 
-func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version string, tagValue string) (int32, error) {
+func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version string, tagValue string) (int64, error) {
 	id, err := format.ParseCodeTagValue(tagValue)
 	if err == nil {
 		if version == Version1 && tag.Raw {
@@ -995,14 +996,15 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 		return id, nil
 	}
 	if tag.IsMetric() {
-		return h.getMetricID(tagValue) // we don't consider metric ID to be private
+		metricID, err := h.getMetricID(tagValue)
+		return int64(metricID), err // we don't consider metric ID to be private
 	}
 	if tag.IsNamespace() {
 		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
 			return format.TagValueIDUnspecified, nil
 		}
 		if meta := h.metricsStorage.GetNamespaceByName(tagValue); meta != nil {
-			return meta.ID, nil
+			return int64(meta.ID), nil
 		}
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %q not found", tagValue))
 	}
@@ -1011,7 +1013,7 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 			return format.TagValueIDUnspecified, nil
 		}
 		if meta := h.metricsStorage.GetGroupByName(tagValue); meta != nil {
-			return meta.ID, nil
+			return int64(meta.ID), nil
 		}
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("group %q not found", tagValue))
 	}
@@ -1023,15 +1025,16 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 		}
 		// We could return error, but this will stop rendering, so we try conventional mapping also, even for raw tags
 	}
-	return h.getTagValueID(tagValue)
+	v, err := h.getTagValueID(tagValue)
+	return int64(v), err
 }
 
-func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int32, error) {
+func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int64, error) {
 	tag := metricMeta.Name2Tag(tagID)
 	if tag == nil {
 		return nil, fmt.Errorf("tag with name %s not found for metric %s", tagID, metricMeta.Name)
 	}
-	ids := make([]int32, 0, len(tagValues))
+	ids := make([]int64, 0, len(tagValues))
 	for _, v := range tagValues {
 		id, err := h.getRichTagValueID(tag, version, v)
 		if err != nil {
@@ -1743,34 +1746,27 @@ func HandleGetMetricTagValues(r *httpRequestHandler) {
 }
 
 type selectRow struct {
-	valID int32
+	valID int64
 	val   string
 	cnt   float64
 }
 
-type tagValuesSelectCols struct {
+type tagValuesQuery struct {
 	*queryBuilder
 	body  string
-	valID proto.ColInt32
+	valID proto.ColInt64
 	val   proto.ColStr
 	cnt   proto.ColFloat64
 	res   proto.Results
-	stag  bool
-	mixed bool // both mapped and unmapped values for v3 requests
 }
 
-func (q *tagValuesSelectCols) rowAt(i int) selectRow {
+func (q *tagValuesQuery) rowAt(i int) selectRow {
 	row := selectRow{cnt: q.cnt[i]}
-	if q.mixed {
+	if q.val.Pos != nil {
 		pos := q.val.Pos[i]
 		row.val = string(q.val.Buf[pos.Start:pos.End])
-		row.valID = q.valID[i]
-		return row
 	}
-	if q.stag {
-		pos := q.val.Pos[i]
-		row.val = string(q.val.Buf[pos.Start:pos.End])
-	} else {
+	if q.valID != nil {
 		row.valID = q.valID[i]
 	}
 	return row
@@ -1798,6 +1794,11 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	tagID, err := parseTagID(req.tagID)
 	if err != nil {
 		return nil, false, err
+	}
+
+	tag := metricMeta.Name2Tag(tagID)
+	if tag == nil {
+		return nil, false, fmt.Errorf("not found tag %s", tagID)
 	}
 
 	from, to, err := parseFromTo(req.from, req.to)
@@ -1835,7 +1836,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 
 	pq := &queryBuilder{
 		metric:      metricMeta,
-		tagID:       tagID,
+		tag:         *tag,
 		numResults:  numResults,
 		filterIn:    mappedFilterIn,
 		filterNotIn: mappedFilterNotIn,
@@ -1843,12 +1844,12 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	valueCount := map[string]float64{}
-	valueIDCount := map[int32]float64{}
+	valueIDCount := map[int64]float64{}
 	if version == Version1 && tagID == format.EnvTagID {
 		valueIDCount[format.TagValueIDProductionLegacy] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query := tagValuesQuery(pq, lod)
+			query := pq.buildTagValuesQuery(lod)
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, chutil.QueryMetaInto{
 				IsFast:  isFast,
@@ -1863,7 +1864,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 					for i := 0; i < b.Rows; i++ {
 						tag := query.rowAt(i)
 						if tag.valID != 0 {
-							valueIDCount[tag.valID] += tag.cnt
+							valueIDCount[int64(tag.valID)] += tag.cnt
 						} else {
 							valueCount[tag.val] += tag.cnt
 						}
@@ -2640,7 +2641,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 			continue
 		}
 		if tag.ID == promql.LabelOffset {
-			timsShift = -(d.Offset + int64(tag.Value))
+			timsShift = -(d.Offset + tag.Value)
 			continue
 		}
 		k := id
@@ -2728,7 +2729,7 @@ func (h *Handler) putFloatsSlice(s *[]float64) {
 	h.pointFloatsPoolSize.Sub(int64(sizeInBytes))
 }
 
-func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tagValueID int32) bool {
+func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tagValueID int64) bool {
 	tagID := format.TagID(tagIndex)
 	if !containsString(by, tagID) {
 		return false
@@ -2743,12 +2744,11 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 	return true
 }
 
-type pointsSelectCols struct {
+type seriesQuery struct {
 	*queryBuilder
 	body    string
 	version string
 	time    proto.ColInt64
-	step    proto.ColInt64
 
 	// tags
 	tag  []tagCol
@@ -2775,7 +2775,7 @@ type pointsSelectCols struct {
 }
 
 type tagCol struct {
-	data proto.ColInt32
+	data proto.ColInt64
 	tagX int
 }
 
@@ -2784,11 +2784,10 @@ type stagCol struct {
 	tagX int
 }
 
-func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
+func (c *seriesQuery) rowAt(i int) tsSelectRow {
 	row := tsSelectRow{
-		what:    c.what,
-		time:    c.time[i],
-		stepSec: c.step[i],
+		what: c.what,
+		time: c.time[i],
 	}
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
@@ -2821,7 +2820,7 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	return row
 }
 
-func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
+func (c *seriesQuery) rowAtPoint(i int) pSelectRow {
 	var row pSelectRow
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
@@ -2836,7 +2835,7 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 	return row
 }
 
-func (c *pointsSelectCols) valuesAt(x int, dst *tsValues) {
+func (c *seriesQuery) valuesAt(x int, dst *tsValues) {
 	if len(c.min) != 0 {
 		dst.min = c.min[x]
 	}
@@ -2908,7 +2907,7 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query := pq.loadPointsQuery(lod)
+	query := pq.buildSeriesQuery(lod)
 	rows := 0
 	isFast := lod.IsFast()
 	isLight := query.isLight()
@@ -2965,7 +2964,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error) {
-	query := pq.loadPointsQuery(lod)
+	query := pq.buildSeriesQuery(lod)
 	ret := make([]pSelectRow, 0)
 	rows := 0
 	isFast := lod.IsFast()

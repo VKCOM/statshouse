@@ -30,7 +30,7 @@ type (
 )
 
 type loadPointsFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
-type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
+type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int64) bool
 
 func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams tableReqParams,
 	loadPoints loadPointsFunc,
@@ -127,7 +127,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 					shouldSort = shouldSort || qIndex > 0
 				}
 				used[ix] = struct{}{}
-				queryRows[ix].Data = q.appendRowValues(queryRows[ix].Data, &rows[i], tableReqParams.desiredStepMul)
+				queryRows[ix].Data = q.appendRowValues(queryRows[ix].Data, &rows[i], tableReqParams.desiredStepMul, &lod)
 			}
 			for _, ix := range rowsIdx {
 				if _, ok := used[ix]; ok {

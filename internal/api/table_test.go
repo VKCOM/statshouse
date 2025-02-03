@@ -42,7 +42,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	}
 	rows := []tsSelectRow{genRow(1), genRow(2), genRow(3), genRow(4), genRow(5), genRow(6), genRow(7), genRow(8)}
 	var rowsByTime [][]tsSelectRow
-	nop := func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool {
+	nop := func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int64) bool {
 		return false
 	}
 	load := func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
@@ -91,7 +91,7 @@ func reverse(rows []tsSelectRow) []tsSelectRow {
 }
 
 func genRow(time int64) tsSelectRow {
-	return tsSelectRow{time: time, stepSec: 1}
+	return tsSelectRow{time: time}
 }
 
 func Test_limitQueries(t *testing.T) {

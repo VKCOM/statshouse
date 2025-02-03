@@ -1064,18 +1064,22 @@ func CodeTagValue(code int32) string {
 	return tagValueCodePrefix + strconv.Itoa(int(code))
 }
 
-func ParseCodeTagValue(s string) (int32, error) {
+func CodeTagValue64(code int64) string {
+	if code == 0 {
+		return "" // fast-path with no allocations
+	}
+	return tagValueCodePrefix + strconv.FormatInt(code, 10)
+}
+
+func ParseCodeTagValue(s string) (int64, error) {
 	if !strings.HasPrefix(s, tagValueCodePrefix) {
 		return 0, errInvalidCodeTagValue
 	}
-	i, err := strconv.Atoi(s[len(tagValueCodePrefix):])
+	i, err := strconv.ParseInt(s[len(tagValueCodePrefix):], 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	if i < math.MinInt32 || i > math.MaxInt32 {
-		return 0, errInvalidCodeTagValue
-	}
-	return int32(i), nil
+	return int64(i), nil
 }
 
 func ValidTagValueForAPI(s string) bool {

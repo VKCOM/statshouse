@@ -339,7 +339,7 @@ type TagValueQuery struct {
 	Metric     *format.MetricMetaValue
 	TagIndex   int
 	TagID      string
-	TagValueID int32
+	TagValueID int64
 }
 
 type TagValueIDQuery struct {
@@ -350,7 +350,7 @@ type TagValueIDQuery struct {
 
 type TagValuesQuery struct {
 	Metric    *format.MetricMetaValue
-	TagIndex  int
+	Tag       format.MetricMetaTag
 	Timescale data_model.Timescale
 	Offset    int64
 	Options   Options
@@ -362,8 +362,9 @@ type Handler interface {
 	//
 
 	GetHostName(hostID int32) string
+	GetHostName64(hostID int64) string
 	GetTagValue(qry TagValueQuery) string
-	GetTagValueID(qry TagValueIDQuery) (int32, error)
+	GetTagValueID(qry TagValueIDQuery) (int64, error)
 
 	//
 	// # Metric Metadata
@@ -376,7 +377,7 @@ type Handler interface {
 	//
 
 	QuerySeries(ctx context.Context, qry *SeriesQuery) (Series, func(), error)
-	QueryTagValueIDs(ctx context.Context, qry TagValuesQuery) ([]int32, error)
+	QueryTagValueIDs(ctx context.Context, qry TagValuesQuery) ([]int64, error)
 
 	//
 	// # Allocator
