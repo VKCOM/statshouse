@@ -880,7 +880,7 @@ func (h *requestHandler) getMetricID(metricName string) (int32, error) {
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m.MetricID, nil
 	}
-	v := h.metricsStorage.GetMetaMetricByNameDelayed(metricName)
+	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricName))
 	}
@@ -892,7 +892,7 @@ func (h *requestHandler) getMetricMeta(metricName string) (*format.MetricMetaVal
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m, nil
 	}
-	v := h.metricsStorage.GetMetaMetricByNameDelayed(metricName)
+	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricName))
 	}
@@ -919,7 +919,7 @@ func (h *Handler) getMetricIDForStat(metricName string) int32 {
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
 		return m.MetricID
 	}
-	v := h.metricsStorage.GetMetaMetricByNameDelayed(metricName)
+	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
 		return 0
 	}

@@ -99,7 +99,7 @@ func (p *metricIndexCache) metric(metricID int32) bool {
 		p.lastMetric.lastMetricSkipSumSquare = bm.SkipSumSquare
 		return true
 	}
-	if metaMetric := p.journal.GetMetaMetricDelayed(metricID); metaMetric != nil {
+	if metaMetric := p.journal.GetMetaMetric(metricID); metaMetric != nil {
 		p.lastMetric.lastMetricPrekey = metaMetric.PreKeyIndex
 		p.lastMetric.lastMetricPrekeyOnly = metaMetric.PreKeyOnly
 		p.lastMetric.lastMetricSkipMinHost = metaMetric.SkipMinHost
