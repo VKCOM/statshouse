@@ -126,24 +126,27 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
           {isHistoricalMetric && <HistoryDashboardLabel />}
         </div>
       </StickyTop>
-      {initMetric?.id && (
+      {initMetric?.id && metricName && isHistoryRoute ? (
         <Routes>
           <Route
             path="history"
             element={<HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={'?mv'} />}
           />
         </Routes>
-      )}
-      {metricName && !initMetric ? (
-        <div className="d-flex justify-content-center align-items-center mt-5">
-          <div className="spinner-border text-secondary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
       ) : (
-        <MetricFormValuesStorage initialMetric={initMetric || {}}>
-          <EditForm isReadonly={false} adminMode={adminMode} isHistoricalMetric={isHistoricalMetric} />
-        </MetricFormValuesStorage>
+        <div>
+          {!initMetric ? (
+            <div className="d-flex justify-content-center align-items-center mt-5">
+              <div className="spinner-border text-secondary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : (
+            <MetricFormValuesStorage initialMetric={initMetric || {}}>
+              <EditForm isReadonly={false} adminMode={adminMode} isHistoricalMetric={isHistoricalMetric} />
+            </MetricFormValuesStorage>
+          )}
+        </div>
       )}
     </div>
   );
