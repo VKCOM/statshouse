@@ -9,7 +9,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -37,12 +36,9 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
-func mainBenchmarks() {
-	flag.StringVar(&argv.listenAddr, "p", "127.0.0.1:13337", "RAW UDP & RPC TCP write/listen port")
-
-	build.FlagParseShowVersionHelp()
-
+func mainBenchmarks() int {
 	FakeBenchmarkMetricsPerSecond(argv.listenAddr)
+	return 0
 }
 
 type packetPrinter struct {
@@ -58,11 +54,6 @@ func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 }
 
 func mainTestParser() int {
-	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
-	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
-
-	build.FlagParseShowVersionHelp()
-
 	u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, false, nil, nil, log.Printf)
 	if err != nil {
 		logErr.Printf("ListenUDP: %v", err)
@@ -85,42 +76,22 @@ func mainTestParser() int {
 	return 0
 }
 
-func mainTestMap() {
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-	flag.StringVar(&argv.aggAddr, "agg-addr", "", "comma-separated list of aggregator addresses to test.")
-	var mapString string
-	flag.StringVar(&mapString, "string", "production", "string to map.")
+func mainTestMap() int {
 	// TODO - we have no such RPC call
 	// var mapInt int
 	// flag.IntVar(&mapInt, "int", 0, "int to map back.")
-
-	build.FlagParseShowVersionHelp()
-
 	client, _ := argvCreateClient()
-	if argv.aggAddr == "" {
-		log.Fatalf("--agg-addr must not be empty")
-	}
-
-	metajournal.TestMapper(strings.Split(argv.aggAddr, ","), mapString, client)
+	metajournal.TestMapper(argv.AggregatorAddresses, argv.mapString, client)
+	return 0
 }
 
-func mainTestLongpoll() {
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-	flag.StringVar(&argv.aggAddr, "agg-addr", "", "comma-separated list of aggregator addresses to test.")
-
-	build.FlagParseShowVersionHelp()
-
+func mainTestLongpoll() int {
 	client, _ := argvCreateClient()
-	if argv.aggAddr == "" {
-		log.Fatalf("--agg-addr must not be empty")
-	}
-
-	metajournal.TestLongpoll(strings.Split(argv.aggAddr, ","), client, 60)
+	metajournal.TestLongpoll(argv.AggregatorAddresses, client, 60)
+	return 0
 }
 
-func mainSimpleFSyncTest() {
-	build.FlagParseShowVersionHelp()
-
+func mainSimpleFSyncTest() int {
 	const smallName = "fsync.small.test"
 	const bigName = "fsync.big.test"
 	const bigSize = 1 << 30
@@ -154,6 +125,7 @@ func mainSimpleFSyncTest() {
 	_ = big.Close()
 	_ = os.Remove(smallName)
 	_ = os.Remove(bigName)
+	return 0
 }
 
 func simpleFSync(f *os.File) {
@@ -341,23 +313,14 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 }
 
 func mainTLClient() int {
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-
-	var statshouseAddr string
-	var statshouseNet string
-	flag.StringVar(&statshouseNet, "statshouse-net", "tcp4", "statshouse network for tlclient")
-	flag.StringVar(&statshouseAddr, "statshouse-addr", "127.0.0.1:13337", "statshouse address for tlclient")
-
-	build.FlagParseShowVersionHelp()
-
 	client, _ := argvCreateClient()
 
 	// use like this
 	// echo '{"metrics":[{"name":"gbuteyko_investigation","tags":{"env":"dev","1":"I_test_statshouse","2":"1"},"counter":1}]}' | /usr/share/engine/bin/statshouse --new-conveyor=tlclient --statshouse-addr=localhost:13333
 	tlclient := tlstatshouse.Client{
 		Client:  client,
-		Network: statshouseNet,
-		Address: statshouseAddr,
+		Network: argv.statshouseNet,
+		Address: argv.statshouseAddr,
 	}
 	pkt, err := io.ReadAll(os.Stdin)
 	if err != nil && err != io.EOF {
@@ -381,11 +344,7 @@ func mainTLClient() int {
 	return 0
 }
 
-func mainTLClientAPI() {
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-
-	build.FlagParseShowVersionHelp()
-
+func mainTLClientAPI() int {
 	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
@@ -454,44 +413,27 @@ func mainTLClientAPI() {
 			log.Printf("ReleaseChunks response: %#v\n\n", cc)
 		}
 	}
+	return 0
 }
 
-func mainTagMapping() {
-	// Parse command line tags
-	var (
-		metric          string
-		tags            string
-		budget          int
-		metadataNet     string
-		metadataAddr    string
-		metadataActorID int64
-	)
-	flag.StringVar(&metric, "metric", "", "metric name, if specified then strings are considered metric tags")
-	flag.StringVar(&tags, "tag", "", "string to be searched for a int32 mapping")
-	flag.IntVar(&budget, "budget", 0, "mapping budget to set")
-	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
-	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
-	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-	build.FlagParseShowVersionHelp()
-	flag.Parse()
+func mainTagMapping() int {
 	// Create metadata client
 	var (
 		aesPwd = readAESPwd()
 		client = tlmetadata.Client{
 			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
-			Network: metadataNet,
-			Address: metadataAddr,
-			ActorID: metadataActorID,
+			Network: argv.metadataNet,
+			Address: argv.metadataAddr,
+			ActorID: argv.metadataActorID,
 		}
 	)
 	// Run tag mapping queries
-	for _, tag := range strings.Split(tags, ",") {
+	for _, tag := range strings.Split(argv.tags, ",") {
 		if len(tag) == 0 {
 			continue
 		}
 		var (
-			qry = tlmetadata.GetMapping{Metric: metric, Key: tag}
+			qry = tlmetadata.GetMapping{Metric: argv.metric, Key: tag}
 			ret tlmetadata.GetMappingResponse
 			err = client.GetMapping(context.Background(), qry, nil, &ret)
 		)
@@ -504,44 +446,32 @@ func mainTagMapping() {
 		}
 		fmt.Println()
 	}
-	if budget != 0 {
+	if argv.budget != 0 {
 		var ( // Set mapping budget
-			arg = tlmetadata.ResetFlood2{Metric: metric}
+			arg = tlmetadata.ResetFlood2{Metric: argv.metric}
 			res tlmetadata.ResetFloodResponse2
 		)
-		if budget > 0 {
-			arg.SetValue(int32(budget))
+		if argv.budget > 0 {
+			arg.SetValue(int32(argv.budget))
 		}
 		err := client.ResetFlood2(context.Background(), arg, nil, &res)
 		if err == nil {
-			fmt.Printf("%q set mapping budget %d, was %d, now %d\n", metric, budget, res.BudgetBefore, res.BudgetAfter)
+			fmt.Printf("%q set mapping budget %d, was %d, now %d\n", argv.metric, argv.budget, res.BudgetBefore, res.BudgetAfter)
 		} else {
-			fmt.Printf("%q ERROR <%v> setting mapping budget %d\n", metric, err, budget)
+			fmt.Printf("%q ERROR <%v> setting mapping budget %d\n", argv.metric, err, argv.budget)
 		}
 	}
+	return 0
 }
 
-func mainPublishTagDrafts() {
-	var (
-		metadataNet     string
-		metadataAddr    string
-		metadataActorID int64
-		dryRun          bool
-	)
-	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
-	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
-	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-	flag.BoolVar(&dryRun, "dry-run", true, "do not publish changes")
-	build.FlagParseShowVersionHelp()
-	flag.Parse()
+func mainPublishTagDrafts() int {
 	client := tlmetadata.Client{
 		Client: rpc.NewClient(
 			rpc.ClientWithCryptoKey(readAESPwd()),
 			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
-		Network: metadataNet,
-		Address: metadataAddr,
-		ActorID: metadataActorID,
+		Network: argv.metadataNet,
+		Address: argv.metadataAddr,
+		ActorID: argv.metadataActorID,
 	}
 	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
 	var (
@@ -603,7 +533,7 @@ func mainPublishTagDrafts() {
 		[]metajournal.ApplyEvent{storage.ApplyEvent, applyEvents}) // order important
 	journal.Start(nil, nil, loader.LoadJournal)
 	fmt.Println("Press <Enter> to start publishing tag drafts")
-	if dryRun {
+	if argv.dryRun {
 		fmt.Println("DRY RUN!")
 	}
 	fmt.Println()
@@ -645,7 +575,7 @@ func mainPublishTagDrafts() {
 			continue
 		}
 		fmt.Println(meta.NamespaceID, meta.Name, meta.Version)
-		if dryRun {
+		if argv.dryRun {
 			continue
 		}
 		var err error

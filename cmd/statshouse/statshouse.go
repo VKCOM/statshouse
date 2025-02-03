@@ -66,6 +66,24 @@ var argv struct {
 	hardwareMetricScrapeDisable  bool
 	envFilePath                  string
 
+	// test_map mode
+	mapString string
+
+	// tlclient mode
+	statshouseAddr string
+	statshouseNet  string
+
+	// tag_mapping mode
+	metric          string
+	tags            string
+	budget          int
+	metadataNet     string
+	metadataAddr    string
+	metadataActorID int64
+
+	// publish_tag_drafts mode
+	dryRun bool
+
 	// for old mode
 	historicStorageDir string
 	diskCacheFilename  string
@@ -107,65 +125,20 @@ func reopenLog() {
 }
 
 func main() {
-	// data_model.PrintLinearMaxHostProbabilities()
-	os.Exit(run())
-}
-
-func run() int {
 	pidStr := strconv.Itoa(os.Getpid())
 	logOk = log.New(os.Stdout, "LOG "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 	logErr = log.New(os.Stderr, "ERR "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
-
-	verb, err := parseCommandLine()
-	if err != nil {
-		log.Println(err)
-		return 1
+	// data_model.PrintLinearMaxHostProbabilities()
+	if entrypoint, err := parseCommandLine(); err != nil {
+		log.Fatalln(err)
+	} else if entrypoint != nil {
+		code := entrypoint()
+		fmt.Println() // ensure command prompt starts at new line, it's annoying when not
+		os.Exit(code)
 	}
+}
 
-	switch verb {
-	case "agent":
-		// main mode
-	case "test_parser":
-		return mainTestParser()
-	case "benchmark":
-		mainBenchmarks()
-		return 0
-	case "test_map":
-		mainTestMap()
-		return 0
-	case "test_longpoll":
-		mainTestLongpoll()
-		return 0
-	case "simple_fsync":
-		mainSimpleFSyncTest()
-		return 0
-	case "tlclient.api":
-		mainTLClientAPI()
-		return 0
-	case "tlclient":
-		return mainTLClient()
-	case "tag_mapping":
-		mainTagMapping()
-		return 0
-	case "publish_tag_drafts":
-		mainPublishTagDrafts()
-		return 0
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown verb %q:\n\n", verb)
-		fmt.Fprintf(os.Stderr, "Daemons usage:\n")
-		fmt.Fprintf(os.Stderr, "statshouse agent <options>             daemon receiving data from clients and sending to aggregators\n")
-		fmt.Fprintf(os.Stderr, "Tools usage:\n")
-		fmt.Fprintf(os.Stderr, "statshouse tlclient <options>          use as TL client to send JSON metrics to another statshouse\n")
-		fmt.Fprintf(os.Stderr, "statshouse test_map <options>          test key mapping pipeline\n")
-		fmt.Fprintf(os.Stderr, "statshouse test_parser <options>       parse and print packets received by UDP\n")
-		fmt.Fprintf(os.Stderr, "statshouse test_longpoll <options>     test longpoll journal\n")
-		fmt.Fprintf(os.Stderr, "statshouse simple_fsync <options>      simple SSD benchmark\n")
-		fmt.Fprintf(os.Stderr, "statshouse tlclient.api <options>      test API\n")
-		fmt.Fprintf(os.Stderr, "statshouse simulator <options>         simulate 10 agents sending data\n")
-		fmt.Fprintf(os.Stderr, "statshouse benchmark <options>         some brnchmark\n")
-		return 1
-	}
-
+func run() int {
 	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
 		logErr.Printf("Could not set new rlimit: %v", err)
 	}
@@ -239,6 +212,7 @@ func run() int {
 
 	envLoader, _ := env.ListenEnvFile(argv.envFilePath)
 
+	var err error
 	main.agent, err = agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
@@ -578,11 +552,22 @@ func argvCreateClient() (*rpc.Client, string) {
 		rpc.ClientWithLogf(logErr.Printf), rpc.ClientWithCryptoKey(cryptoKey), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())), cryptoKey
 }
 
-func parseCommandLine() (verb string, _ error) {
+func parseCommandLine() (entrypoint func() int, _ error) {
 	if len(os.Args) < 2 {
-		return "", nil
+		fmt.Fprintf(os.Stderr, "Daemons usage:\n")
+		fmt.Fprintf(os.Stderr, "statshouse agent <options>             daemon receiving data from clients and sending to aggregators\n")
+		fmt.Fprintf(os.Stderr, "Tools usage:\n")
+		fmt.Fprintf(os.Stderr, "statshouse tlclient <options>          use as TL client to send JSON metrics to another statshouse\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_map <options>          test key mapping pipeline\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_parser <options>       parse and print packets received by UDP\n")
+		fmt.Fprintf(os.Stderr, "statshouse test_longpoll <options>     test longpoll journal\n")
+		fmt.Fprintf(os.Stderr, "statshouse simple_fsync <options>      simple SSD benchmark\n")
+		fmt.Fprintf(os.Stderr, "statshouse tlclient.api <options>      test API\n")
+		fmt.Fprintf(os.Stderr, "statshouse benchmark <options>         some benchmarks\n")
+		return nil, nil
 	}
 
+	var verb string
 	const conveyorArgPrefix = "-new-conveyor="
 	for i := 0; i < len(os.Args) && verb == ""; i++ {
 		if !strings.HasPrefix(os.Args[i], conveyorArgPrefix) {
@@ -595,7 +580,7 @@ func parseCommandLine() (verb string, _ error) {
 			log.Printf("-new-conveyor argument is deprecated, instead of 'statshouse ... %s ...' run 'statshouse agent ...' or 'statshouse -agent ...'", os.Args[i])
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 		default:
-			return "", fmt.Errorf("wrong value for -new-conveyor argument %s, must be 'agent', 'duplicate_map' (also means agent)", s)
+			return nil, fmt.Errorf("wrong value for -new-conveyor argument %s, must be 'agent', 'duplicate_map' (also means agent)", s)
 		}
 	}
 	if verb == "" {
@@ -603,73 +588,136 @@ func parseCommandLine() (verb string, _ error) {
 		os.Args = append(os.Args[:1], os.Args[2:]...)
 	}
 
-	// DEPRECATED but still in use
-	var sampleFactor int
-	var maxMemLimit uint64
-	flag.IntVar(&sampleFactor, "sample-factor", 1, "Deprecated - If 2, 50% of stats will be throw away, if 10, 90% of stats will be thrown away. If <= 1, keep all stats.")
-	flag.Uint64Var(&maxMemLimit, "m", 0, "Deprecated - max memory usage limit")
-	flag.StringVar(&argv.historicStorageDir, "historic-storage", "", "Data that cannot be immediately sent will be stored here together with metric cache.")
-	flag.StringVar(&argv.diskCacheFilename, "disk-cache-filename", "", "disk cache file name")
+	switch verb {
+	case "agent":
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
+		flag.StringVar(&argv.logLevel, "log-level", "info", "log level. can be 'info' or 'trace' for now. 'trace' will print all incoming packets")
+		flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
+		flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
+		flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
+		flag.BoolVar(&argv.pprofHTTP, "pprof-http", false, "Serve Go pprof HTTP on RPC port (deprecated due to security reasons)")
+		flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
+		flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
+		flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma-separated list of 3 aggregator addresses (shard 1 is recommended). For aggregator, listen addr.")
+		flag.StringVar(&argv.Cluster, "cluster", "statlogs2", "clickhouse cluster name to autodetect configuration, local shard and replica")
+		flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
+		flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
+		flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
+		flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "", "Unix datagram listen address.")
+		flag.StringVar(&argv.mirrorUdpAddr, "mirror-udp", "", "mirrors UDP datagrams to the given address")
+		flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
+		flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
+		flag.IntVar(&argv.maxCores, "cores", -1, "CPU cores usage limit. 0 all available, <0 use (cores-udp*3/2 + 1)")
+		flag.BoolVar(&argv.promRemoteMod, "prometheus-push-remote", false, "use remote pusher for prom metrics")
+		flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
+		flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
+		flag.StringVar(&argv.envFilePath, "env-file-path", "/etc/statshouse_env.yml", "statshouse environment file path")
+		argv.Config.Bind(flag.CommandLine, agent.DefaultConfig())
+		// DEPRECATED but still in use
+		var sampleFactor int
+		var maxMemLimit uint64
+		flag.IntVar(&sampleFactor, "sample-factor", 1, "Deprecated - If 2, 50% of stats will be throw away, if 10, 90% of stats will be thrown away. If <= 1, keep all stats.")
+		flag.Uint64Var(&maxMemLimit, "m", 0, "Deprecated - max memory usage limit")
+		flag.StringVar(&argv.historicStorageDir, "historic-storage", "", "Data that cannot be immediately sent will be stored here together with metric cache.")
+		flag.StringVar(&argv.diskCacheFilename, "disk-cache-filename", "", "disk cache file name")
 
-	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
-	flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
-	flag.StringVar(&argv.logLevel, "log-level", "info", "log level. can be 'info' or 'trace' for now. 'trace' will print all incoming packets")
-	flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
-	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
-	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
-	flag.BoolVar(&argv.pprofHTTP, "pprof-http", false, "Serve Go pprof HTTP on RPC port (deprecated due to security reasons)")
-	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
-	flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
-	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma-separated list of 3 aggregator addresses (shard 1 is recommended). For aggregator, listen addr.")
-	flag.StringVar(&argv.Cluster, "cluster", "statlogs2", "clickhouse cluster name to autodetect configuration, local shard and replica")
-	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
-	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
-	flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
-	flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "", "Unix datagram listen address.")
-	flag.StringVar(&argv.mirrorUdpAddr, "mirror-udp", "", "mirrors UDP datagrams to the given address")
-	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
-	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
-	flag.IntVar(&argv.maxCores, "cores", -1, "CPU cores usage limit. 0 all available, <0 use (cores-udp*3/2 + 1)")
-	flag.BoolVar(&argv.promRemoteMod, "prometheus-push-remote", false, "use remote pusher for prom metrics")
-	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
-	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
-	flag.StringVar(&argv.envFilePath, "env-file-path", "/etc/statshouse_env.yml", "statshouse environment file path")
-	argv.Config.Bind(flag.CommandLine, agent.DefaultConfig())
-	build.FlagParseShowVersionHelp()
+		build.FlagParseShowVersionHelp()
+		parseListenAddress()
 
-	// TODO: legacy mode options, to be removed
-	if argv.cacheDir == "" && argv.historicStorageDir != "" {
-		argv.cacheDir = argv.historicStorageDir
-	}
-	if argv.cacheDir == "" && argv.diskCacheFilename != "" {
-		argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
-	}
+		// TODO: legacy mode options, to be removed
+		if argv.cacheDir == "" && argv.historicStorageDir != "" {
+			argv.cacheDir = argv.historicStorageDir
+		}
+		if argv.cacheDir == "" && argv.diskCacheFilename != "" {
+			argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
+		}
 
-	if argv.pprofHTTP {
-		logErr.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
+		argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
+		if len(argv.AggregatorAddresses) != 3 {
+			return nil, fmt.Errorf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
+		}
+		if argv.coresUDP < 0 {
+			return nil, fmt.Errorf("--cores-udp must be set to at least 0")
+		}
+		if argv.maxCores < 0 {
+			argv.maxCores = 1 + argv.coresUDP*3/2
+		}
+		if argv.customHostName == "" {
+			argv.customHostName = srvfunc.HostnameForStatshouse()
+			logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
+		}
+		if argv.pprofHTTP {
+			logErr.Printf("warning: --pprof-http option deprecated due to security reasons. Please use explicit --pprof=127.0.0.1:11123 option")
+		}
+
+		return run, argv.Config.ValidateConfigSource()
+	case "test_parser":
+		flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
+		flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
+		build.FlagParseShowVersionHelp()
+		parseListenAddress()
+		return mainTestParser, nil
+	case "test_map":
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.aggAddr, "agg-addr", "", "comma-separated list of aggregator addresses to test.")
+		flag.StringVar(&argv.mapString, "string", "production", "string to map.")
+		build.FlagParseShowVersionHelp()
+		argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
+		if len(argv.AggregatorAddresses) == 0 {
+			return nil, fmt.Errorf("--agg-addr must not be empty")
+		}
+		return mainTestMap, nil
+	case "test_longpoll":
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.aggAddr, "agg-addr", "", "comma-separated list of aggregator addresses to test.")
+		build.FlagParseShowVersionHelp()
+		argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
+		if len(argv.AggregatorAddresses) == 0 {
+			return nil, fmt.Errorf("--agg-addr must not be empty")
+		}
+		return mainTestLongpoll, nil
+	case "tlclient":
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.statshouseAddr, "statshouse-addr", "127.0.0.1:13337", "statshouse address for tlclient")
+		flag.StringVar(&argv.statshouseNet, "statshouse-net", "tcp4", "statshouse network for tlclient")
+		build.FlagParseShowVersionHelp()
+		return mainTLClient, nil
+	case "tlclient.api":
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		build.FlagParseShowVersionHelp()
+		return mainTLClientAPI, nil
+	case "tag_mapping":
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.IntVar(&argv.budget, "budget", 0, "mapping budget to set")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		flag.StringVar(&argv.metric, "metric", "", "metric name, if specified then strings are considered metric tags")
+		flag.StringVar(&argv.tags, "tag", "", "string to be searched for a int32 mapping")
+		build.FlagParseShowVersionHelp()
+		return mainTagMapping, nil
+	case "publish_tag_drafts":
+		flag.BoolVar(&argv.dryRun, "dry-run", true, "do not publish changes")
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		build.FlagParseShowVersionHelp()
+		return mainPublishTagDrafts, nil
+	case "simple_fsync":
+		return mainSimpleFSyncTest, nil
+	case "benchmark":
+		flag.StringVar(&argv.listenAddr, "p", "127.0.0.1:13337", "RAW UDP & RPC TCP write/listen port")
+		build.FlagParseShowVersionHelp()
+		return mainBenchmarks, nil
+	default:
+		return nil, fmt.Errorf("unknown verb %q", verb)
 	}
-	argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
-	if len(argv.AggregatorAddresses) != 3 {
-		return "", fmt.Errorf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
-	}
-	if argv.coresUDP < 0 {
-		return "", fmt.Errorf("--cores-udp must be set to at least 0")
-	}
+}
+
+func parseListenAddress() {
 	if _, err := strconv.Atoi(argv.listenAddr); err == nil { // old convention of using port
 		argv.listenAddr = ":" + argv.listenAddr // convert to addr
 	}
-	if argv.customHostName == "" {
-		argv.customHostName = srvfunc.HostnameForStatshouse()
-		logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
-	}
-	if argv.maxCores < 0 {
-		argv.maxCores = 1 + argv.coresUDP*3/2
-	}
-	if verb == "agent" {
-		if err := argv.ValidateConfigSource(); err != nil {
-			return "", err
-		}
-	}
-
-	return verb, nil
 }
