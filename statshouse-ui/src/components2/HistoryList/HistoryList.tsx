@@ -4,6 +4,7 @@ import { HistorySpinner } from './HistorySpinner';
 import { HistoryLink } from './HistoryLink';
 import { HistoryShortInfo, useHistoryList } from '@/api/history';
 import { fmtInputDateTime } from '@/view/utils2';
+import styles from './style.module.css';
 
 export type IHistoryList = {
   id: string;
@@ -20,13 +21,14 @@ export const HistoryList = memo(function HistoryList({ id, onVersionClick, mainP
   const currentVersion = data?.[0]?.version;
 
   return (
-    <div className="mx-auto w-100" style={{ maxWidth: '500px' }}>
-      <ul className="list-group">
+    <div className="d-flex justify-content-center">
+      <ul className="list-group list-group-flush">
         {data?.length ? (
           data.map((event: HistoryShortInfo, index: number) => {
             const timeChange = event?.update_time && fmtInputDateTime(new Date(event.update_time * 1000));
+
             return (
-              <div key={index}>
+              <li key={index} className={`list-group-item ${styles.historyItem}`}>
                 <HistoryLink
                   event={event}
                   timeChange={timeChange}
@@ -35,7 +37,7 @@ export const HistoryList = memo(function HistoryList({ id, onVersionClick, mainP
                   isActualVersion={event.version === currentVersion}
                   pathVersionParam={pathVersionParam}
                 />
-              </div>
+              </li>
             );
           })
         ) : (
