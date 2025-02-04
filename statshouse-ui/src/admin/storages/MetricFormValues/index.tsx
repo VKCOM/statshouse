@@ -4,18 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import * as React from 'react';
 import { IMetric } from '../../models/metric';
 import { IActions, initialValues, reducer } from './reducer';
+import React, { Dispatch, FC, ReactNode, useEffect, useMemo, useReducer } from 'react';
 
 interface IMetricFormValuesProps {
   initialMetric?: Partial<IMetric>;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 interface IMetricFormValuesContext {
   values: IMetric;
-  dispatch: React.Dispatch<IActions>;
+  dispatch: Dispatch<IActions>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -24,11 +24,16 @@ export const MetricFormValuesContext = React.createContext<IMetricFormValuesCont
   dispatch: () => {},
 });
 
-export const MetricFormValuesStorage: React.FC<IMetricFormValuesProps> = (props) => {
+export const MetricFormValuesStorage: FC<IMetricFormValuesProps> = (props) => {
   const { initialMetric, children } = props;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const initValues = React.useMemo(() => ({ ...initialValues, ...initialMetric }), []);
-  const [values, dispatch] = React.useReducer(reducer, initValues);
+
+  const initValues = useMemo(() => ({ ...initialValues, ...initialMetric }), [initialMetric]);
+
+  const [values, dispatch] = useReducer(reducer, initValues);
+
+  useEffect(() => {
+    dispatch({ type: 'reset', newState: initValues });
+  }, [initValues, initialMetric]);
 
   return <MetricFormValuesContext.Provider value={{ values, dispatch }}>{children}</MetricFormValuesContext.Provider>;
 };

@@ -45,7 +45,7 @@ import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import { fixMessageTrouble } from '@/url/fixMessageTrouble';
 import { isNotNil } from '../../common/helpers';
 import { getUrlObject } from '../../common/getUrlObject';
-import { apiDashboardSave } from '../../api/dashboard';
+import { ApiDashboard, apiDashboardSave } from '../../api/dashboard';
 import { ExtendedError } from '../../api/api';
 
 export type UrlStore = {
@@ -74,7 +74,7 @@ export type UrlStore = {
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
   setNextDashboardSchemePlot(nextScheme: { groupKey: GroupKey; plots: PlotKey[] }[]): void;
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
-  saveDashboard(): Promise<void>;
+  saveDashboard(copy?: boolean): Promise<void | ApiDashboard>;
   removeDashboard(): Promise<void>;
   removeVariableLinkByPlotKey(plotKey: PlotKey): void;
 };
@@ -99,7 +99,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         if (res.error != null && res.error.status !== ExtendedError.ERROR_STATUS_ABORT) {
           useErrorStore.getState().addError(res.error);
         }
-        if (s.params.tabNum === '-2') {
+        if (s.params.tabNum === '-2' || s.params.tabNum === '-3') {
           s.dashboardLayoutEdit = true;
         }
       });
@@ -230,8 +230,8 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
         s.dashboardLayoutEdit = status;
       });
       if (!status) {
-        setUrlStore((s) => {
-          if (s.params.tabNum === '-2') {
+        setState((s) => {
+          if (s.params.tabNum === '-2' || s.params.tabNum === '-3') {
             s.params.tabNum = '-1';
           }
         });
@@ -312,18 +312,21 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     async autoSearchVariable() {
       return getAutoSearchVariable(getState);
     },
-    async saveDashboard() {
-      const { response, error } = await apiDashboardSave(getState().params);
+    async saveDashboard(copy?: boolean) {
+      const { response, error } = await apiDashboardSave(getState().params, false, copy);
       if (error && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
         useErrorStore.getState().addError(error);
       }
       if (response) {
         const saveParams = readDataDashboard(response.data);
+
         setUrlStore((store) => {
           store.saveParams = saveParams;
           store.params.dashboardVersion = saveParams.dashboardVersion;
           store.params.dashboardId = saveParams.dashboardId;
         });
+
+        return response;
       }
     },
     async removeDashboard() {

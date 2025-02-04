@@ -15,12 +15,10 @@ export type DashboardSettingsProps = {
 export const DashboardSettings = memo(function DashboardSettings() {
   return (
     <div className="w-max-720 mx-auto">
-      <div className="">
-        <div className="mb-4">
-          <DashboardInfo />
-        </div>
-        <div className="mb-4">{<DashboardVariable />}</div>
+      <div className="mb-4">
+        <DashboardInfo />
       </div>
+      <div className="mb-4">{<DashboardVariable />}</div>
     </div>
   );
 });

@@ -1,0 +1,12 @@
+.historyItem {
+  transition: all 0.3s ease;
+}
+
+.historyItem:hover {
+  background-color: var(--bs-primary-bg-subtle);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.arrowIcon {
+  transform: scale(1.2);
+}

@@ -16,7 +16,8 @@ export function Admin(props: { yAxisSize: number; adminMode: boolean }) {
   return (
     <Routes>
       <Route path="create" element={<CreatePage yAxisSize={yAxisSize} />} />
-      <Route path="edit/:metricName" element={<FormPage adminMode={adminMode} yAxisSize={yAxisSize} />} />
+      <Route path="edit/:metricName/*" element={<FormPage adminMode={adminMode} yAxisSize={yAxisSize} />} />
+
       <Route path="dash/" element={<AdminDashControl />} />
     </Routes>
   );

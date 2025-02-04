@@ -10,6 +10,7 @@ import { debug } from '@/common/debug';
 import { apiDashboard } from '@/api/dashboard';
 import { readDataDashboard } from './readDataDashboard';
 import { ExtendedError } from '../../api/api';
+import { useErrorStore } from '@/store/errors';
 
 export function getDashboardId(urlTree: TreeParamsObject) {
   return urlTree[GET_PARAMS.dashboardID]?.[treeParamsObjectValueSymbol]?.[0];
@@ -34,6 +35,9 @@ export async function loadDashboard(
     }
     if (response) {
       dashboardParams = readDataDashboard(response.data, defaultParams);
+      if (!dashboardParams.dashboardId || !dashboardParams.dashboardVersion) {
+        useErrorStore.getState().addError(new Error('The dashboard does not exist. Displayed the default dashboards'));
+      }
     }
   }
   return { params: dashboardParams };
