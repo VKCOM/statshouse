@@ -608,7 +608,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 2)
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 
 		t.Run("metric renamed (check old metric removed from group and new metric added)", func(t *testing.T) {
@@ -635,7 +635,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 2)
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 		t.Run("metric created (check new metric in group)", func(t *testing.T) {
 			var id int32 = 65463
@@ -664,7 +664,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 3)
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 		t.Run("group renamed (check old metric removed from group and metric added)", func(t *testing.T) {
 			group1.Version = incVersion()
@@ -690,7 +690,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 3)
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 		t.Run("broadcast prom clients", func(t *testing.T) {
 			v1 := incVersion()
@@ -741,7 +741,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 3)
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 			require.Len(t, m.namespaceByID, 1)
 		})
 
@@ -771,7 +771,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 3)
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 			require.Len(t, m.namespaceByID, 1)
 
 			require.Contains(t, m.metricsByID, metric.MetricID)
@@ -803,7 +803,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 3)
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 			require.Len(t, m.namespaceByID, 1)
 
 			require.Contains(t, m.groupsByID, group1.ID)
@@ -843,7 +843,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 5)
 			require.Len(t, m.metricsByName, 5)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 		t.Run("metric change namespace (check metric in group)", func(t *testing.T) {
 			group2Metric6.Version = incVersion()
@@ -870,7 +870,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 5)
 			require.Len(t, m.metricsByName, 5)
 			require.Len(t, m.dashboardByID, 2)
-			require.Len(t, m.groupsByID, 1)
+			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
 		})
 		t.Run("get metric 6", func(t *testing.T) {
 			metric := m.GetMetaMetricByName(namespace.Name + format.NamespaceSeparator + group2Metric6.Name)
