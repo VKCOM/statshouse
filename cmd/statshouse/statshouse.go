@@ -677,6 +677,8 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 			return nil, fmt.Errorf("--agg-addr must not be empty")
 		}
 		return mainTestLongpoll, nil
+	case "modules":
+		return mainModules, nil
 	case "tlclient":
 		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 		flag.StringVar(&argv.statshouseAddr, "statshouse-addr", "127.0.0.1:13337", "statshouse address for tlclient")
