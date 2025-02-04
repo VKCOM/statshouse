@@ -248,8 +248,12 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			if ok && valueOld.Name != value.Name {
 				delete(ms.metricsByName, valueOld.Name)
 			}
+			if ok && valueOld.Name == value.Name {
+				value.GroupID = valueOld.GroupID
+			} else {
+				ms.calcGroupForMetricLocked(value)
+			}
 			ms.updateMetric(value)
-			ms.calcGroupForMetricLocked(value)
 			ms.mu.Unlock()
 		case format.DashboardEvent:
 			m := map[string]interface{}{}
