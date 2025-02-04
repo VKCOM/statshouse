@@ -309,6 +309,12 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (m *MetricMetaValue) CloneWithGroupID(groupID int32) *MetricMetaValue {
+	c := *m
+	c.GroupID = groupID
+	return &c
+}
+
 // this method is faster than string hash, plus saves a lot of memory in maps
 func (m *MetricMetaValue) name2TagFast(name string) *MetricMetaTag {
 	var num uint
