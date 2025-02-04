@@ -742,7 +742,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
-			require.Len(t, m.namespaceByID, 1)
+			require.Len(t, m.namespaceByID, 1+len(format.BuiltInNamespaceDefault))
 		})
 
 		t.Run("metric added to namespace", func(t *testing.T) {
@@ -772,7 +772,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
-			require.Len(t, m.namespaceByID, 1)
+			require.Len(t, m.namespaceByID, 1+len(format.BuiltInNamespaceDefault))
 
 			require.Contains(t, m.metricsByID, metric.MetricID)
 		})
@@ -804,7 +804,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1+len(format.BuiltInGroupDefault))
-			require.Len(t, m.namespaceByID, 1)
+			require.Len(t, m.namespaceByID, 1+len(format.BuiltInNamespaceDefault))
 
 			require.Contains(t, m.groupsByID, group1.ID)
 		})
