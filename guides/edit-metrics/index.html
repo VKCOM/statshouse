@@ -13,7 +13,7 @@
 <noscript>
                             <div><img src="https://mc.yandex.ru/watch/96098475" style="position:absolute; left:-9999px;" alt=""></div>
                         </noscript><link rel="stylesheet" href="/statshouse/assets/css/styles.8b14ad53.css">
-<script src="/statshouse/assets/js/runtime~main.005416d9.js" defer="defer"></script>
+<script src="/statshouse/assets/js/runtime~main.d62bdd88.js" defer="defer"></script>
 <script src="/statshouse/assets/js/main.d0f988b1.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard" data-theme="light">
@@ -54,9 +54,10 @@ With the editing options, try more settings or change the look of your metric in
 <p>Then scroll back to the top of the page to view your metric with the changes applied:</p>
 <img src="/statshouse/assets/images/edit-view-bb7d1639c98eaf57c947e73085cbc9cb.png" width="800">
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="description">Description<a href="#description" class="hash-link" aria-label="Direct link to Description" title="Direct link to Description">​</a></h2>
-<p>Add a metric description on one or multiple lines to show in the UI. No formatting is supported.</p>
+<p>Add a metric description on one or multiple lines to show in the UI. Feel free to use the <a href="https://commonmark.org/help/" target="_blank" rel="noopener noreferrer">standard Markdown formatting</a> for descriptions.</p>
 <img src="/statshouse/assets/images/description-1f020bc0ebbdf78fb68dceb24e4d6140.png" width="800">
-<p>You can <a href="/statshouse/guides/view-graph#2--graph-name-and-description">edit the graph name</a> to customize the look of the dashboard or the graph view
+<p>You can <a href="/statshouse/guides/view-graph#2--graph-name-and-description">edit the graph name or description</a> to customize the look of the
+dashboard or the graph view
 without changing the name of the metric itself. You <a href="/statshouse/guides/create-metric#can-i-rename-a-metric">cannot rename a metric</a>.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="aggregation">Aggregation<a href="#aggregation" class="hash-link" aria-label="Direct link to Aggregation" title="Direct link to Aggregation">​</a></h2>
 <p>Basically, a <a href="/statshouse/guides/design-metric#metric-types">metric type</a> affects the range of descriptive statistics
@@ -91,22 +92,22 @@ per-hour data for any period you want.</p>
 to reduce <a href="/statshouse/overview/concepts#sampling">sampling</a>, reduce your metric resolution.
 For example, choose a custom resolution to make the <a href="/statshouse/overview/components#agent">agent</a> send data once
 per 15 seconds instead of sending per-second data:</p>
-<img src="/statshouse/assets/images/resolution-edit-f9a673db42d8b97713756b7086298e3d.png" width="400">
-<p>Some resolution levels are marked as &quot;native&quot;: 1, 5, 15, 60 seconds. They correspond to levels of details (LOD)
-in the UI, so we recommend using them to avoid jitter on a graph. See more about metric
-<a href="/statshouse/overview/concepts#resolution">resolution</a>.</p>
+<img src="/statshouse/assets/images/resolution-edit-9f95789aa7268fd25aa5209ee3a7d439.png" width="400">
 <p>You see custom resolution near the metric name in a graph view:</p>
 <img src="/statshouse/assets/images/resolution-view-9b9881288ee445cc80d8575d135b3baa.png" width="600">
 <div class="theme-admonition theme-admonition-important admonition_xJq3 alert alert--info"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"></path></svg></span>important</div><div class="admonitionContent_BuS1"><p>Setting up resolution affects processing data—not showing data in the UI.
 For a metric with custom resolution, it is impossible to display data on a graph with
 the smaller <a href="/statshouse/guides/view-graph#6--aggregation-interval">aggregation interval</a>:
 you cannot show per-second data if the resolution is set to 5 seconds.</p></div></div>
+<p>See more about metric <a href="/statshouse/overview/concepts#resolution">resolution</a>.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="unit">Unit<a href="#unit" class="hash-link" aria-label="Direct link to Unit" title="Direct link to Unit">​</a></h2>
 <p>Set up measurement units for the <em>value</em> metric data you send to StatsHouse.
 With this unit information, StatsHouse generates the Y-axis label for a graph.</p>
 <p>For example, if you set up <em>milliseconds</em> for your metric, you can see <em>seconds</em>, <em>minutes</em>, or even <em>days</em> as the
 Y-axis label on the graph:</p>
-<img src="/statshouse/assets/images/milliseconds-43c0427a2f223d0bd93b0f57d0c45077.png" width="900">
+<img src="/statshouse/assets/images/milliseconds-1f09d6cf4ee5dd005790842b6762440a.png" width="400">
+<p>Please note that the <em>«byte (shown as bits)»</em> option means that you send bytes to StatsHouse, but they are converted to
+bits to appear on the Y-axis in the UI. It may be useful for those who work with network metrics.</p>
 <div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"></path></svg></span>note</div><div class="admonitionContent_BuS1"><p>If you have a <em>counter</em> metric or view the <em>count</em> and <em>count/sec</em> statistics, you should not set a particular
 unit. A counter means the &quot;number of times,&quot; so choose the <em>no unit</em> option.</p></div></div>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="tags">Tags<a href="#tags" class="hash-link" aria-label="Direct link to Tags" title="Direct link to Tags">​</a></h2>
