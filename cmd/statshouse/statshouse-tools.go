@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -341,6 +342,18 @@ func mainTLClient() int {
 		return 1
 	}
 	log.Printf("Success")
+	return 0
+}
+
+func mainModules() int {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		log.Printf("Failed to read build info")
+		return 1
+	}
+	for _, dep := range bi.Deps {
+		fmt.Printf("%s %s\n", dep.Path, dep.Version)
+	}
 	return 0
 }
 
