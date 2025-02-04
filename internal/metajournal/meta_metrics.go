@@ -35,9 +35,8 @@ type MetricsStorage struct {
 	groupsByID   map[int32]*format.MetricsGroup
 	groupsByName map[string]*format.MetricsGroup
 
-	builtInNamespace map[int32]*format.NamespaceMeta
-	namespaceByID    map[int32]*format.NamespaceMeta
-	namespaceByName  map[string]*format.NamespaceMeta
+	namespaceByID   map[int32]*format.NamespaceMeta
+	namespaceByName map[string]*format.NamespaceMeta
 
 	promConfig          tlmetadata.Event
 	promConfigGenerated tlmetadata.Event
@@ -52,22 +51,22 @@ type MetricsStorage struct {
 
 func MakeMetricsStorage(applyPromConfig ApplyPromConfig) *MetricsStorage {
 	result := &MetricsStorage{
-		metricsByID:      map[int32]*format.MetricMetaValue{},
-		metricsByName:    map[string]*format.MetricMetaValue{},
-		dashboardByID:    map[int32]*format.DashboardMeta{},
-		groupsByID:       map[int32]*format.MetricsGroup{},
-		groupsByName:     map[string]*format.MetricsGroup{},
-		builtInNamespace: map[int32]*format.NamespaceMeta{},
-		namespaceByID:    map[int32]*format.NamespaceMeta{},
-		namespaceByName:  map[string]*format.NamespaceMeta{},
-		applyPromConfig:  applyPromConfig,
+		metricsByID:     map[int32]*format.MetricMetaValue{},
+		metricsByName:   map[string]*format.MetricMetaValue{},
+		dashboardByID:   map[int32]*format.DashboardMeta{},
+		groupsByID:      map[int32]*format.MetricsGroup{},
+		groupsByName:    map[string]*format.MetricsGroup{},
+		namespaceByID:   map[int32]*format.NamespaceMeta{},
+		namespaceByName: map[string]*format.NamespaceMeta{},
+		applyPromConfig: applyPromConfig,
 	}
 	for id, g := range format.BuiltInGroupDefault {
 		result.groupsByID[id] = g
 		result.groupsByName[g.Name] = g
 	}
 	for id, g := range format.BuiltInNamespaceDefault {
-		result.builtInNamespace[id] = g
+		result.namespaceByID[id] = g
+		result.namespaceByName[g.Name] = g
 	}
 	return result
 }
@@ -105,16 +104,7 @@ func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricM
 func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	ns, ok := ms.namespaceByName[name]
-	if ok {
-		return ns
-	}
-	for _, ns := range ms.builtInNamespace {
-		if ns.Name == name {
-			return ns
-		}
-	}
-	return nil
+	return ms.namespaceByName[name]
 }
 
 func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
@@ -216,11 +206,7 @@ func (ms *MetricsStorage) GetGroupsList(showInvisible bool) []*format.MetricsGro
 func (ms *MetricsStorage) GetNamespace(id int32) *format.NamespaceMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	m, ok := ms.namespaceByID[id]
-	if ok {
-		return m
-	}
-	return ms.builtInNamespace[id]
+	return ms.namespaceByID[id]
 }
 
 func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
@@ -228,9 +214,6 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	defer ms.mu.RUnlock()
 	var namespaces []*format.NamespaceMeta
 	for _, namespace := range ms.namespaceByID {
-		namespaces = append(namespaces, namespace)
-	}
-	for _, namespace := range ms.builtInNamespace {
 		namespaces = append(namespaces, namespace)
 	}
 	return namespaces
@@ -341,16 +324,12 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			_ = value.RestoreCachedInfo(value.ID < 0)
 
 			ms.mu.Lock()
-			if value.ID >= 0 {
-				if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
-					delete(ms.namespaceByName, oldNamespace.Name)
-				}
-
-				ms.namespaceByID[value.ID] = value
-				ms.namespaceByName[value.Name] = value
-			} else {
-				ms.builtInNamespace[value.ID] = value
+			if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
+				delete(ms.namespaceByName, oldNamespace.Name)
 			}
+
+			ms.namespaceByID[value.ID] = value
+			ms.namespaceByName[value.Name] = value
 			ms.mu.Unlock()
 		}
 	}
