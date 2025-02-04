@@ -101,9 +101,9 @@ To query the aggregate components, use the  `__what__` selector. The possible va
 They are the [descriptive statistics](view-graph.md#3--descriptive-statistics) you see in the StatsHouse UI.
 The "sec" postfix means that the value is normalized—divided by the aggregation interval in seconds.
 
-For example, this selector returns the counter for the `api_methods` metric associated with the aggregation interval:
+For example, this selector returns the counter for the `api_requests` metric associated with the aggregation interval:
 ```
-api_methods{__what__="count"}
+api_requests{__what__="count"}
 ```
 
 If the  `__what__` selector is not specified, StatsHouse tries to guess based on the PromQL functions you use in your 
@@ -114,10 +114,10 @@ query:
 | "increase"<br/>"irate"<br/>"rate"<br/>"resets"                           | `__what__="count"`        |
 | "delta"<br/>"deriv"<br/>"holt_winters"<br/>"idelta"<br/>"predict_linear" | `__what__="avg"`          |
 
-For example, this query returns the `api_methods` metric's counter rate for five minutes:
+For example, this query returns the `api_requests` metric's counter rate for five minutes:
 
 ```
-rate(api_methods[5m])
+rate(api_requests[5m])
 ```
 
 If StatsHouse fails to guess, it returns the counter for the [_counter_ metrics](design-metric.md#counters) 
@@ -147,14 +147,14 @@ To get access to percentiles (if enabled), specify the necessary one in the `__w
 For example, this expression returns the 99th percentile:
 
 ```
-api_methods{__what__="p99"}
+api_requests{__what__="p99"}
 ```
 
 ### No data grouping by default
 
 If you query data in Prometheus by a metric name, it returns all the data rows for this metric—all label combinations.
 
-On the contrary, StatsHouse returns the result of aggregation. For example, in StatsHouse, the "api_methods" query 
+On the contrary, StatsHouse returns the result of aggregation. For example, in StatsHouse, the "api_requests" query 
 returns the single row.
 To group data by tags, specify the necessary ones using the `__by__` PromQL operator.
 
@@ -175,7 +175,7 @@ To bind the tag to the previously created variable in your PromQL query, use the
 
 The resulting query may look like this:
 
-`topk(5,api_methods{@what="countsec",0:$env})`
+`topk(5,api_requests{@what="countsec",0:$env})`
 
 Find more about [setting up variables for PromQL-based graphs and dashboards](dashboards.md#set-up-promql-based-dashboards).
 
