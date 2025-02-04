@@ -344,17 +344,19 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo(value.ID < 0)
 			ms.mu.Lock()
-			var old *format.MetricsGroup
 			if value.ID >= 0 {
-				old = ms.groupsByID[value.ID]
+				valueOld, ok := ms.groupsByID[value.ID]
 				ms.groupsByID[value.ID] = value
+				if ok && valueOld.Name != value.Name {
+					delete(ms.groupsByName, valueOld.Name)
+				}
+				ms.groupsByName[value.Name] = value
+				if !ok || valueOld.Name != value.Name {
+					ms.calcGroupForMetricsLocked(valueOld, value)
+				}
 			} else {
-				old = ms.builtInGroup[value.ID]
 				ms.builtInGroup[value.ID] = value
-
 			}
-			ms.calcGroupForMetricsLocked(old, value)
-			ms.calcGroupNamesMapLocked()
 			ms.mu.Unlock()
 		case format.PromConfigEvent:
 			ms.mu.Lock()
@@ -397,7 +399,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			} else {
 				ms.builtInNamespace[value.ID] = value
 			}
-			ms.calcGroupNamesMapLocked()
 			ms.mu.Unlock()
 		}
 	}
@@ -420,31 +421,14 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 
 // call when group is added or changed O(number of metrics)
 func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGroup) {
-	if new.ID >= 0 {
-		if (old != nil && old.Name != new.Name) || new.Disable {
-			for _, m := range ms.metricsByID {
-				if m.GroupID == new.ID {
-					mCopy := *m
-					mCopy.GroupID = format.BuiltinGroupIDDefault
-					ms.updateMetric(&mCopy)
-				}
-			}
-		}
-
-		for _, m := range ms.metricsByID {
-			if new.MetricIn(m) {
-				mCopy := *m
-				mCopy.GroupID = new.ID
-				ms.updateMetric(&mCopy)
-			}
-		}
-	} else {
-		for _, m := range ms.metricsByID {
-			if new.ID == format.BuiltinGroupIDDefault && (m.GroupID == 0 || m.GroupID == format.BuiltinGroupIDDefault) {
-				mCopy := *m
-				mCopy.GroupID = new.ID
-				ms.updateMetric(&mCopy)
-			}
+	cleanupOld := (old != nil && old.Name != new.Name) || new.Disable
+	for _, m := range ms.metricsByID {
+		if new.MetricIn(m) && m.GroupID != new.ID {
+			c := m.CloneWithGroupID(new.ID)
+			ms.updateMetric(c)
+		} else if cleanupOld && m.GroupID == new.ID {
+			c := m.CloneWithGroupID(format.BuiltinGroupIDDefault)
+			ms.updateMetric(c)
 		}
 	}
 }
@@ -481,14 +465,6 @@ func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int32) bool 
 		}
 	}
 	return true
-}
-
-func (ms *MetricsStorage) calcGroupNamesMapLocked() {
-	newM := make(map[string]*format.MetricsGroup, len(ms.groupsByID))
-	for _, g := range ms.groupsByID {
-		newM[g.Name] = g
-	}
-	ms.groupsByName = newM
 }
 
 func (ms *MetricsStorage) WaitVersion(ctx context.Context, version int64) error {
