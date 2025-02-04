@@ -25,11 +25,6 @@ type GroupWithMetricsList struct {
 
 type ApplyPromConfig func(configID int32, configString string)
 
-type SnapshotMeta struct {
-	MetricsByIDSnapshot   map[int32]*format.MetricMetaValue
-	MetricsByNameSnapshot map[string]*format.MetricMetaValue
-}
-
 type MetricsStorage struct {
 	mu            sync.RWMutex
 	metricsByID   map[int32]*format.MetricMetaValue
@@ -75,18 +70,6 @@ func MakeMetricsStorage(applyPromConfig ApplyPromConfig) *MetricsStorage {
 		result.builtInNamespace[id] = g
 	}
 	return result
-}
-
-func (snapshot SnapshotMeta) GetMetaMetric(metricID int32) *format.MetricMetaValue {
-	return snapshot.MetricsByIDSnapshot[metricID]
-}
-
-func (snapshot SnapshotMeta) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
-	return snapshot.MetricsByNameSnapshot[metricName]
-}
-
-func (snapshot SnapshotMeta) GetMetaMetricByNameBytes(metric []byte) *format.MetricMetaValue {
-	return snapshot.MetricsByNameSnapshot[string(metric)]
 }
 
 func (ms *MetricsStorage) PromConfig() tlmetadata.Event {
