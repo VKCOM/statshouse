@@ -118,7 +118,7 @@ export const fetchAndProcessMetric = async (url: string) => {
             to,
           }))
         : [],
-      isRaw: tag.raw,
+      isRaw: tag.raw || tag.raw_kind != null,
       raw_kind: tag.raw_kind,
     })),
     tags_draft,
@@ -129,5 +129,8 @@ export const fetchAndProcessMetric = async (url: string) => {
     version: metric.version,
     group_id: metric.group_id,
     fair_key_tag_ids: metric.fair_key_tag_ids,
+    skip_max_host: !!metric.skip_max_host,
+    skip_min_host: !!metric.skip_min_host,
+    skip_sum_square: !!metric.skip_sum_square,
   };
 };
