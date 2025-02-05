@@ -26,8 +26,12 @@ type (
 	CommonProxyHeaderBytes            = internal.StatshouseCommonProxyHeaderBytes
 	GetConfig2                        = internal.StatshouseGetConfig2
 	GetConfig2Bytes                   = internal.StatshouseGetConfig2Bytes
+	GetConfig3                        = internal.StatshouseGetConfig3
+	GetConfig3Bytes                   = internal.StatshouseGetConfig3Bytes
 	GetConfigResult                   = internal.StatshouseGetConfigResult
 	GetConfigResultBytes              = internal.StatshouseGetConfigResultBytes
+	GetConfigResult3                  = internal.StatshouseGetConfigResult3
+	GetConfigResult3Bytes             = internal.StatshouseGetConfigResult3Bytes
 	GetMetrics3                       = internal.StatshouseGetMetrics3
 	GetMetrics3Bytes                  = internal.StatshouseGetMetrics3Bytes
 	GetMetricsResult                  = internal.StatshouseGetMetricsResult
@@ -254,6 +258,64 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetConfig3Bytes(ctx context.Context, args GetConfig3Bytes, extra *rpc.InvokeReqExtra, ret *GetConfigResult3Bytes) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "statshouse.getConfig3"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouse.getConfig3", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("statshouse.getConfig3", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("statshouse.getConfig3", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetConfig3(ctx context.Context, args GetConfig3, extra *rpc.InvokeReqExtra, ret *GetConfigResult3) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "statshouse.getConfig3"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouse.getConfig3", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("statshouse.getConfig3", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("statshouse.getConfig3", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -785,6 +847,7 @@ type Handler struct {
 	AddMetricsBatch        func(ctx context.Context, args AddMetricsBatch) (internal.True, error)                       // statshouse.addMetricsBatch
 	AutoCreate             func(ctx context.Context, args AutoCreate) (internal.True, error)                            // statshouse.autoCreate
 	GetConfig2             func(ctx context.Context, args GetConfig2) (GetConfigResult, error)                          // statshouse.getConfig2
+	GetConfig3             func(ctx context.Context, args GetConfig3) (GetConfigResult3, error)                         // statshouse.getConfig3
 	GetMetrics3            func(ctx context.Context, args GetMetrics3) (internal.MetadataGetJournalResponsenew, error)  // statshouse.getMetrics3
 	GetTagMapping2         func(ctx context.Context, args GetTagMapping2) (GetTagMappingResult, error)                  // statshouse.getTagMapping2
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrapResult, error) // statshouse.getTagMappingBootstrap
@@ -798,6 +861,7 @@ type Handler struct {
 	RawAddMetricsBatch        func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.addMetricsBatch
 	RawAutoCreate             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.autoCreate
 	RawGetConfig2             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getConfig2
+	RawGetConfig3             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getConfig3
 	RawGetMetrics3            func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getMetrics3
 	RawGetTagMapping2         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMapping2
 	RawGetTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMappingBootstrap
@@ -902,6 +966,37 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouse.getConfig2", err)
+			}
+			return nil
+		}
+	case 0x7d7b4991: // statshouse.getConfig3
+		hctx.RequestFunctionName = "statshouse.getConfig3"
+		if h.RawGetConfig3 != nil {
+			hctx.Request = r
+			err = h.RawGetConfig3(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouse.getConfig3", err)
+			}
+			return nil
+		}
+		if h.GetConfig3 != nil {
+			var args GetConfig3
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("statshouse.getConfig3", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetConfig3(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouse.getConfig3", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("statshouse.getConfig3", err)
 			}
 			return nil
 		}

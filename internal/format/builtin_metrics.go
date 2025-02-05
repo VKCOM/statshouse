@@ -1191,6 +1191,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 			0x193f1b22: "rpcCancelReq", // recorded by ingress proxy, so we added it here
 			0x28bea524: "statshouse.autoCreate",
 			0x4285ff57: "statshouse.getConfig2",
+			0x7d7b4991: "statshouse.getConfig3",
 			0x42855554: "statshouse.getMetrics3",
 			0x4285ff56: "statshouse.getTagMapping2",
 			0x75a7f68e: "statshouse.getTagMappingBootstrap",

@@ -43,7 +43,7 @@ type Agent struct {
 
 	ShardReplicas   []*ShardReplica // 3 * number of shards
 	Shards          []*Shard
-	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
+	GetConfigResult tlstatshouse.GetConfigResult3 // for ingress proxy
 
 	cancelSendsFunc   context.CancelFunc
 	cancelSendsCtx    context.Context
@@ -56,6 +56,7 @@ type Agent struct {
 
 	network         string // to communicate to aggregators
 	cacheDir        string
+	rpcClientConfig *rpc.Client
 	diskBucketCache *DiskBucketStorage
 	hostName        []byte
 	argsHash        int32
@@ -68,6 +69,7 @@ type Agent struct {
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
 	newSharding                  atomic.Bool  // copy from config.
+	shardByMetricCount           uint32       // never changes, access without lock
 	newConveyor                  atomic.Bool  // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
@@ -119,7 +121,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	mappingsCache *pcache.MappingsCache,
 	journalHV func() (int64, string, string), journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult, envLoader *env.Loader) (*Agent, error) {
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult3, envLoader *env.Loader) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
 			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
@@ -127,7 +129,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 			rpc.ClientWithLogf(logF))
 	}
-	rpcClient := newClient() // for autoconfig + first shard
 	rnd := rand.New()
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
@@ -146,6 +147,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		heartBeatSecondBucket: rnd.Intn(60),
 		config:                config,
 		cacheDir:              cacheDir,
+		rpcClientConfig:       newClient(),
 		network:               network,
 		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
 		argsLen:               int32(len(allArgs)),
@@ -183,29 +185,29 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		if len(config.AggregatorAddresses) < 3 {
 			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
-		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.stagingLevel, result.componentTag, result.buildArchTag, config.Cluster, cacheDir, logF)
+		result.GetConfigResult = result.getInitialConfig()
 	}
-	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
+	result.shardByMetricCount = result.GetConfigResult.ShardByMetricCount
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	result.beforeFlushTime = nowUnix
 
 	result.startTimestamp = nowUnix
 	if cacheDir != "" {
-		dbc, err := MakeDiskBucketStorage(cacheDir, len(config.AggregatorAddresses), logF)
+		dbc, err := MakeDiskBucketStorage(cacheDir, len(result.GetConfigResult.Addresses), logF) // TODO - /3?
 		if err != nil {
 			return nil, err
 		}
 		result.diskBucketCache = dbc
 	}
-	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
-	for i := 0; i < len(config.AggregatorAddresses)/3; i++ {
+	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(result.GetConfigResult.Addresses))))
+	for i := 0; i < len(result.GetConfigResult.Addresses)/3; i++ {
 		shard := &Shard{
 			config:              config,
 			agent:               result,
 			ShardNum:            i,
 			ShardKey:            int32(i) + 1,
-			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
 			BucketsToSend:       make(chan compressedBucketData),
 			BucketsToPreprocess: make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
 			rng:                 rnd,
@@ -227,21 +229,18 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
 	}
-	for i, a := range config.AggregatorAddresses {
-		shardReplicaClient := rpcClient
-		if i != 0 {
-			// We want separate connection per shard even in case of ingress proxy,
-			// where many/all shards have the same address.
-			// So proxy can simply proxy packet conn, not rpc
-			shardReplicaClient = newClient()
-		}
+	for i, a := range result.GetConfigResult.Addresses {
+		shardReplicaClient := newClient()
+		// We want separate connection per shard even in case of ingress proxy,
+		// where many/all shards have the same address.
+		// So proxy can simply proxy packet conn, not rpc
 		shardReplica := &ShardReplica{
 			config:          config,
 			agent:           result,
 			ShardReplicaNum: i,
 			ShardKey:        int32(i/3) + 1,
 			ReplicaKey:      int32(i%3) + 1,
-			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
 			clientField: tlstatshouse.Client{
 				Client:  shardReplicaClient,
 				Network: network,
@@ -516,7 +515,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, legacyKeyHash uint64) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load())
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket

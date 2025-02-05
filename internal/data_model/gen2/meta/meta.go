@@ -446,6 +446,8 @@ func init() {
 	fillFunction("statshouse.autoCreate#28bea524", "#28bea524", &TLItem{tag: 0x28bea524, annotations: 0x8, tlName: "statshouse.autoCreate", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.centroidFloat#73fd01e0", "#73fd01e0", &TLItem{tag: 0x73fd01e0, annotations: 0x0, tlName: "statshouse.centroidFloat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.getConfig2#4285ff57", "#4285ff57", &TLItem{tag: 0x4285ff57, annotations: 0x8, tlName: "statshouse.getConfig2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getConfig3#7d7b4991", "#7d7b4991", &TLItem{tag: 0x7d7b4991, annotations: 0x8, tlName: "statshouse.getConfig3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.getConfigResult3#f13698cb", "#f13698cb", &TLItem{tag: 0xf13698cb, annotations: 0x0, tlName: "statshouse.getConfigResult3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.getMetrics3#42855554", "#42855554", &TLItem{tag: 0x42855554, annotations: 0x8, tlName: "statshouse.getMetrics3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.getMetricsResult#0c803d05", "#0c803d05", &TLItem{tag: 0x0c803d05, annotations: 0x0, tlName: "statshouse.getMetricsResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.getTagMapping2#4285ff56", "#4285ff56", &TLItem{tag: 0x4285ff56, annotations: 0x8, tlName: "statshouse.getTagMapping2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})

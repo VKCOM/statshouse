@@ -183,6 +183,12 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 	}
+	if config.ShardByMetricShards < 0 || config.ShardByMetricShards > len(addresses)/3 {
+		return nil, fmt.Errorf("failed configuration - shard-by-metric-shards %d is outside %d configured shards", config.ShardByMetricShards, len(addresses)/3)
+	}
+	if config.ShardByMetricShards == 0 {
+		config.ShardByMetricShards = len(addresses) / 3
+	}
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
@@ -228,6 +234,9 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
 		GetConfig2: a.handleGetConfig2,
+		RawGetConfig3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
+			return a.handleGetConfig3(ctx, hctx)
+		},
 		RawGetMetrics3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.journal.HandleGetMetrics3(ctx, hctx)
 		},
@@ -299,7 +308,7 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
-	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
+	getConfigResult := a.getConfigResult3() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
 		format.TagValueIDComponentAggregator,
 		a.metricStorage, mappingsCache,

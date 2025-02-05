@@ -259,7 +259,13 @@ func run() int {
 	if err := main.listenUDP("unixgram", argv.listenAddrUnix); err != nil {
 		return 1
 	}
+	chSignal := make(chan os.Signal, 1)
+	go func() {
+		main.agent.GoGetConfig() // if terminates, agent must restart
+		chSignal <- syscall.SIGINT
+	}()
 	main.agent.Run(0, 0, 0)
+
 	journalFast.Start(main.agent, nil, main.agent.LoadMetaMetricJournal)
 
 	var ac *data_model.AutoCreate
@@ -372,7 +378,6 @@ func run() int {
 			defer main.hardwareMetrics.StopCollector()
 		}
 	}
-	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGUSR1)
 
 loop:

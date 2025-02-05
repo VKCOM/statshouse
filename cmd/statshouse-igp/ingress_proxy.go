@@ -82,7 +82,8 @@ type ingressProxy struct {
 
 type proxyServer struct {
 	*ingressProxy
-	config    tlstatshouse.GetConfigResult
+	config2   tlstatshouse.GetConfigResult
+	config3   tlstatshouse.GetConfigResult3
 	network   string
 	listeners []net.Listener
 }
@@ -139,9 +140,9 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 	}
 	if config.UpstreamAddr != "" {
 		addresses := strings.Split(config.UpstreamAddr, ",")
-		p.agent = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult{
-			Addresses:         addresses,
-			MaxAddressesCount: int32(len(addresses)),
+		p.agent = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult3{
+			Addresses:          addresses,
+			ShardByMetricCount: uint32(len(addresses) / 3),
 		}}
 	} else {
 		var err error
@@ -235,10 +236,14 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 func (p *ingressProxy) newProxyServer(network string) proxyServer {
 	return proxyServer{
 		ingressProxy: p,
-		config: tlstatshouse.GetConfigResult{
+		config2: tlstatshouse.GetConfigResult{
 			Addresses:         make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
-			MaxAddressesCount: p.agent.GetConfigResult.MaxAddressesCount,
-			PreviousAddresses: p.agent.GetConfigResult.PreviousAddresses,
+			MaxAddressesCount: int32(len(p.agent.GetConfigResult.Addresses)),
+			PreviousAddresses: int32(len(p.agent.GetConfigResult.Addresses)),
+		},
+		config3: tlstatshouse.GetConfigResult3{
+			Addresses:          make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
+			ShardByMetricCount: p.agent.GetConfigResult.ShardByMetricCount,
 		},
 		network: network,
 	}
@@ -273,7 +278,7 @@ func (p *ingressProxy) getHostnameID(aesPwd string) int32 {
 		Metric: format.BuiltinMetricMetaBudgetAggregatorHost.Name,
 		Key:    srvfunc.HostnameForStatshouse(),
 		Header: tlstatshouse.CommonProxyHeader{
-			ShardReplicaTotal: p.agent.GetConfigResult.MaxAddressesCount,
+			ShardReplicaTotal: int32(len(p.agent.GetConfigResult.Addresses)),
 			HostName:          srvfunc.HostnameForStatshouse(),
 			ComponentTag:      format.TagValueIDComponentIngressProxy,
 		},
@@ -329,8 +334,9 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 			s = append(s, externalAddr[i])
 		}
 	}
-	p.config.Addresses = s
-	log.Printf("External %s addr %s\n", p.network, strings.Join(p.config.Addresses, ", "))
+	p.config2.Addresses = s
+	p.config3.Addresses = s
+	log.Printf("External %s addr %s\n", p.network, strings.Join(p.config2.Addresses, ", "))
 	return nil
 }
 
@@ -617,7 +623,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
 					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
 				} else {
-					req.Response, _ = args.WriteResult(req.Response[:0], p.config)
+					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
 				}
 			}
 			if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
@@ -672,7 +678,7 @@ func (req *proxyRequest) shardReplica(p *proxyConn) uint32 {
 		return 0
 	}
 	n := binary.LittleEndian.Uint32(req.Request[8:])
-	return n % uint32(len(p.agent.GetConfigResult.Addresses))
+	return n % uint32(len(p.agent.GetConfigResult.Addresses)) // if configured number is wrong, request will end on wrong aggregator returning error and writing metric
 }
 
 func (r *proxyRequest) tag() uint32 {

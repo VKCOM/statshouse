@@ -121,7 +121,9 @@ const (
 	StatshouseCentroidFloat                      = 0x73fd01e0 // statshouse.centroidFloat
 	StatshouseCommonProxyHeader                  = 0x6c803d07 // statshouse.commonProxyHeader
 	StatshouseGetConfig2                         = 0x4285ff57 // statshouse.getConfig2
+	StatshouseGetConfig3                         = 0x7d7b4991 // statshouse.getConfig3
 	StatshouseGetConfigResult                    = 0x0c803d07 // statshouse.getConfigResult
+	StatshouseGetConfigResult3                   = 0xf13698cb // statshouse.getConfigResult3
 	StatshouseGetMetrics3                        = 0x42855554 // statshouse.getMetrics3
 	StatshouseGetMetricsResult                   = 0x0c803d05 // statshouse.getMetricsResult
 	StatshouseGetTagMapping2                     = 0x4285ff56 // statshouse.getTagMapping2

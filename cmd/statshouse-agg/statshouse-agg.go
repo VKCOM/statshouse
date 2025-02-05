@@ -182,7 +182,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
 	flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
-	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma-separated list of 3 aggregator addresses (shard 1 is recommended). For aggregator, listen addr.")
+	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma separated list of aggregator listen addresses")
 	flag.StringVar(&argv.Cluster, "cluster", aggregator.DefaultConfigAggregator().Cluster, "clickhouse cluster name to autodetect configuration, local shard and replica")
 	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
 	flag.IntVar(&argv.ShortWindow, "short-window", aggregator.DefaultConfigAggregator().ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
@@ -198,6 +198,7 @@ func parseCommandLine() error {
 	flag.BoolVar(&argv.DisableRemoteConfig, "disable-remote-config", aggregator.DefaultConfigAggregator().DisableRemoteConfig, "disable remote configuration")
 	flag.StringVar(&argv.ExternalPort, "agg-external-port", aggregator.DefaultConfigAggregator().ExternalPort, "external port for aggregator autoconfiguration if different from port set in agg-addr")
 	flag.IntVar(&argv.PreviousNumShards, "previous-shards", aggregator.DefaultConfigAggregator().PreviousNumShards, "Previous number of shard*replicas in cluster. During transition, clients with previous configuration are also allowed to send data.")
+	flag.IntVar(&argv.ShardByMetricShards, "shard-by-metric-shards", aggregator.DefaultConfigAggregator().ShardByMetricShards, "When increasing cluster size, we want to pin metrics without explicit shards to their former shards.")
 	flag.IntVar(&argv.LocalReplica, "local-replica", aggregator.DefaultConfigAggregator().LocalReplica, "Replica number for local test cluster [1..3]")
 	flag.Int64Var(&argv.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
 	flag.StringVar(&argv.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
@@ -216,6 +217,5 @@ func parseCommandLine() error {
 		log.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
 	}
 
-	argv.configAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 	return aggregator.ValidateConfigAggregator(argv.ConfigAggregator)
 }
