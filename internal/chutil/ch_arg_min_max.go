@@ -1,4 +1,4 @@
-package data_model
+package chutil
 
 import (
 	"encoding/binary"

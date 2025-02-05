@@ -2766,10 +2766,10 @@ type pointsSelectCols struct {
 	shardNum    proto.ColUInt32
 	minHostV1   proto.ColUInt8
 	maxHostV1   proto.ColUInt8
-	minHostV2   data_model.ColArgMinInt32Float32
-	maxHostV2   data_model.ColArgMaxInt32Float32
-	minHostV3   data_model.ColArgMinStringFloat32
-	maxHostV3   data_model.ColArgMaxStringFloat32
+	minHostV2   chutil.ColArgMinInt32Float32
+	maxHostV2   chutil.ColArgMaxInt32Float32
+	minHostV3   chutil.ColArgMinStringFloat32
+	maxHostV3   chutil.ColArgMaxStringFloat32
 
 	res proto.Results
 }

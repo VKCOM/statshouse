@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"go.uber.org/atomic"
@@ -52,10 +53,10 @@ type tsValues struct {
 	mergeCount  int
 	cardinality float64
 
-	minHost    data_model.ArgMinInt32Float32
-	maxHost    data_model.ArgMaxInt32Float32
-	minHostStr data_model.ArgMinStringFloat32
-	maxHostStr data_model.ArgMaxStringFloat32
+	minHost    chutil.ArgMinInt32Float32
+	maxHost    chutil.ArgMaxInt32Float32
+	minHostStr chutil.ArgMinStringFloat32
+	maxHostStr chutil.ArgMaxStringFloat32
 }
 
 type tsWhat [tsValueCount]data_model.DigestSelector

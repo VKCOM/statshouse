@@ -563,10 +563,10 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 								for y := range *v {
 									(*v)[y] = promql.NilValue
 								}
-								var h [2][]data_model.ArgMinMaxStringFloat32
+								var h [2][]chutil.ArgMinMaxStringFloat32
 								for z, qryHost := range qry.MinMaxHost {
 									if qryHost {
-										h[z] = make([]data_model.ArgMinMaxStringFloat32, len(qry.Timescale.Time))
+										h[z] = make([]chutil.ArgMinMaxStringFloat32, len(qry.Timescale.Time))
 									}
 								}
 								res.Data = append(res.Data, promql.SeriesData{

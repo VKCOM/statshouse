@@ -20,6 +20,7 @@ import (
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
@@ -1668,7 +1669,7 @@ func parseSelectorWhat(str string) (DigestWhat, string, bool) {
 	return res, queryFunc, true
 }
 
-func getHostName(h Handler, arg data_model.ArgMinMaxStringFloat32) string {
+func getHostName(h Handler, arg chutil.ArgMinMaxStringFloat32) string {
 	if arg.Arg != "" {
 		return arg.Arg
 	} else if arg.AsInt32 != 0 {
