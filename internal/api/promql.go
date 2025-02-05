@@ -622,7 +622,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 					case format.StringTopTagIndex, format.StringTopTagIndexV3:
 						res.AddTagAt(i+tag.x, &promql.SeriesTag{
 							Metric: qry.Metric,
-							Index:  format.StringTopTagIndexV3 + promql.SeriesTagIndexOffset,
+							Index:  format.StringTopTagIndex + promql.SeriesTagIndexOffset,
 							ID:     format.StringTopTagID,
 							Name:   qry.Metric.StringTopName,
 							Value:  v.tag[format.StringTopTagIndexV3],
