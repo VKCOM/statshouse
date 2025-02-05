@@ -309,7 +309,10 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (m *MetricMetaValue) CloneWithGroupID(groupID int32) *MetricMetaValue {
+func (m *MetricMetaValue) WithGroupID(groupID int32) *MetricMetaValue {
+	if m.GroupID == groupID {
+		return m
+	}
 	c := *m
 	c.GroupID = groupID
 	return &c
