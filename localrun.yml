@@ -30,7 +30,8 @@ services:
     container_name: kh
     hostname: aggregator
     environment:
-      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      # that is fine only for local run
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     volumes:
       - kh:/var/lib/clickhouse
       - type: bind
