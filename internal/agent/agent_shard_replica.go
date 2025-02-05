@@ -36,7 +36,7 @@ type ShardReplica struct {
 
 	timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
-	client tlstatshouse.Client
+	clientField tlstatshouse.Client
 
 	// aggregator is considered live at start.
 	// then, if K of L last recent conveyor sends fail, it is considered dead and keepalive process started
@@ -58,6 +58,12 @@ type ShardReplica struct {
 	stats *shardStat
 }
 
+func (s *ShardReplica) client() tlstatshouse.Client {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.clientField
+}
+
 func (s *ShardReplica) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
 }
@@ -77,11 +83,11 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
-	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
+	c := s.client()
+	if c.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		//if err := s.client.SendSourceBucket2(ctx, args, &extra, ret); err != nil {
 		//	return err
 		//}
-		c := s.client
 		var err error
 		// copy SendSourceBucket2 method to add more bytes
 		req := c.Client.GetRequest()
@@ -139,8 +145,9 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 	args.SetHistoric(historic)
 	args.SetSpare(spare)
 
-	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
-		if err := s.client.SendSourceBucket3(ctx, args, &extra, response); err != nil {
+	client := s.client()
+	if client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
+		if err := client.SendSourceBucket3(ctx, args, &extra, response); err != nil {
 			return err
 		}
 	}
@@ -155,7 +162,8 @@ func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.D
 	var ret []byte
 
 	start := time.Now()
-	err = s.client.TestConnection2Bytes(ctx, args, &extra, &ret)
+	client := s.client()
+	err = client.TestConnection2Bytes(ctx, args, &extra, &ret)
 	finish := time.Now()
 	duration = finish.Sub(start)
 	if err == nil && len(ret) >= 8 {
@@ -220,6 +228,9 @@ func (s *ShardReplica) goTestConnectionLoop() {
 			s.successTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			if aggTimeDiff != 0 {
 				s.aggTimeDiffBucket.AddValueCounter(aggTimeDiff.Seconds(), 1)
+				if aggTimeDiff.Abs() > 2*time.Second {
+					s.agent.logF("WARNING: time difference with aggregator is %v, more then 2 seconds, agent will be working poorly", aggTimeDiff)
+				}
 			}
 		} else {
 			var rpcError rpc.Error

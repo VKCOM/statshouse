@@ -412,20 +412,18 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
 			k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			if k.Metric == format.BuiltinMetricIDAgentHeartbeatVersion {
+			switch k.Metric {
+			case format.BuiltinMetricIDAgentHeartbeatVersion:
 				// Remap legacy metric to a new one
 				k.Metric = format.BuiltinMetricIDHeartbeatVersion
 				k.Tags[2] = k.Tags[1]
 				k.Tags[1] = format.TagValueIDComponentAgent
-			}
-			if k.Metric == format.BuiltinMetricIDAgentHeartbeatArgs {
+			case format.BuiltinMetricIDAgentHeartbeatArgs:
 				// Remap legacy metric to a new one
 				k.Metric = format.BuiltinMetricIDHeartbeatArgs
 				k.Tags[2] = k.Tags[1]
 				k.Tags[1] = format.TagValueIDComponentAgent
-			}
-			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
-				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
+			case format.BuiltinMetricIDHeartbeatVersion, format.BuiltinMetricIDHeartbeatArgs:
 				// In case of agent we need to set IP anyway, so set other keys here, not by source
 				// In case of api other tags are already set, so don't overwrite them
 				if k.Tags[4] == 0 {
@@ -440,8 +438,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				// Valid for api as well because it is on the same host as agent
 				k.Tags[8] = int32(addrIPV4)
 				k.Tags[9] = ownerTagId
-			}
-			if k.Metric == format.BuiltinMetricIDRPCRequests {
+			case format.BuiltinMetricIDRPCRequests:
 				k.Tags[7] = hostId // agent cannot easily map its own host for now
 			}
 		}

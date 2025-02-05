@@ -42,7 +42,7 @@ func (s *ShardReplica) recordSendResult(success bool) {
 	if len(s.lastSendSuccessful) == s.config.LivenessResponsesWindowLength && succ < s.config.LivenessResponsesWindowSuccesses {
 		s.alive.Store(false)
 		s.lastSendSuccessful = s.lastSendSuccessful[:0]
-		s.client.Client.Logf("Aggregator Dead: # of successful recent sends dropped below %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowSuccesses, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
+		s.agent.logF("Aggregator Dead: # of successful recent sends dropped below %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowSuccesses, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
 	}
 }
 
@@ -53,7 +53,7 @@ func (s *ShardReplica) recordKeepLiveResult(err error, dur time.Duration) {
 
 	succ := s.appendlastSendSuccessfulLocked(success)
 	if succ == s.config.LivenessResponsesWindowLength {
-		s.client.Client.Logf("Aggregator Alive: # of successful keepalive sends reached %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowLength, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
+		s.agent.logF("Aggregator Alive: # of successful keepalive sends reached %d out of %d for shard %d replica %d", s.config.LivenessResponsesWindowLength, s.config.LivenessResponsesWindowLength, s.ShardKey, s.ReplicaKey)
 		s.alive.Store(true)
 	}
 }
@@ -69,7 +69,8 @@ func (s *ShardReplica) sendKeepLive() error {
 	// We do not use FailIfNoConnect:true, because we want exponential backoff to connection attempts in rpc Client.
 	// We do not want to implement yet another exponential backoff here.
 	var ret string
-	err := s.client.SendKeepAlive2(ctx, args, nil, &ret)
+	client := s.client()
+	err := client.SendKeepAlive2(ctx, args, nil, &ret)
 	dur := time.Since(now)
 	s.recordKeepLiveResult(err, dur)
 	return err
