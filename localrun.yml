@@ -50,7 +50,7 @@ services:
       - scrape
     build:
       context: .
-      dockerfile: build/statshouse.Dockerfile
+      dockerfile: build/statshouse-agg.Dockerfile
       args:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
         - BUILD_COMMIT
@@ -59,7 +59,7 @@ services:
         - BUILD_TIME
     container_name: sh-aggregator
     user: "root:root"
-    command: aggregator -u=root -g=root --cluster=local_test_cluster --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --auto-create-default-namespace --cache-dir=/var/lib/statshouse/cache/aggregator
+    command: -u=root -g=root --cluster=local_test_cluster --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --auto-create-default-namespace --cache-dir=/var/lib/statshouse/cache/aggregator
     ports:
       - "13336:13336"
     depends_on:
