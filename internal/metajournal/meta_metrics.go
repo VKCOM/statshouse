@@ -253,11 +253,11 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			_ = value.RestoreCachedInfo()
 			ms.metricUpdMu.Lock()
 			ms.mu.Lock()
-			valueOld, ok := ms.metricsByID[value.MetricID]
-			if ok && valueOld.Name != value.Name {
+			valueOld, idExists := ms.metricsByID[value.MetricID]
+			if idExists && valueOld.Name != value.Name {
 				delete(ms.metricsByName, valueOld.Name)
 			}
-			if ok && valueOld.Name == value.Name {
+			if idExists && valueOld.Name == value.Name {
 				value.GroupID = valueOld.GroupID
 			} else {
 				ms.calcGroupForMetricLocked(value)
@@ -297,9 +297,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo(value.ID < 0)
 			ms.mu.Lock()
-			valueOld, ok := ms.groupsByID[value.ID]
+			valueOld, idExists := ms.groupsByID[value.ID]
 			ms.groupsByID[value.ID] = value
-			if ok && valueOld.Name != value.Name {
+			if idExists && valueOld.Name != value.Name {
 				delete(ms.groupsByName, valueOld.Name)
 			}
 			ms.groupsByName[value.Name] = value
@@ -307,7 +307,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			// 1. added new
 			// 2. name changed
 			// 3. enabled/disabled
-			if !ok || valueOld.Name != value.Name || valueOld.Disable != value.Disable {
+			if !idExists || valueOld.Name != value.Name || valueOld.Disable != value.Disable {
 				changedGroups = append(changedGroups, groupWithMeta{
 					old: valueOld,
 					new: value,
@@ -345,7 +345,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			_ = value.RestoreCachedInfo(value.ID < 0)
 
 			ms.mu.Lock()
-			if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
+			if oldNamespace, idExists := ms.namespaceByID[value.ID]; idExists && oldNamespace.Name != value.Name {
 				delete(ms.namespaceByName, oldNamespace.Name)
 			}
 
