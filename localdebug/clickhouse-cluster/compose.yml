@@ -12,6 +12,9 @@ services:
     image: clickhouse/clickhouse-server:${CH_VERSION}
     container_name: kh
     hostname: localhost  # in order for autoconfigure to work
+    environment:
+      # that is fine only for local run
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     volumes:
       - kh:/var/lib/clickhouse
       - type: bind
