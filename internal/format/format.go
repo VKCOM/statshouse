@@ -6,6 +6,8 @@
 
 package format
 
+//go:generate easyjson -no_std_marshalers format.go
+
 import (
 	"bytes"
 	"encoding/json"
@@ -174,6 +176,7 @@ const (
 	BuiltinKindNamespace = 3
 )
 
+//easyjson:json
 type NamespaceMeta struct {
 	ID         int32  `json:"namespace_id"`
 	Name       string `json:"name"`
@@ -199,6 +202,8 @@ type DashboardMeta struct {
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
+//
+//easyjson:json
 type MetricsGroup struct {
 	ID          int32  `json:"group_id"`
 	NamespaceID int32  `json:"namespace_id"`
@@ -220,6 +225,8 @@ const (
 )
 
 // This struct is immutable, it is accessed by mapping code without any locking
+//
+//easyjson:json
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id,omitempty"`
 	NamespaceID int32  `json:"namespace_id,omitempty"` // RO
