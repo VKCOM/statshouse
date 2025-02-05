@@ -8,7 +8,6 @@ import AggregationComponents from '../img/aggregation-components.png'
 import Bottlenecks from '../img/bottlenecks.png'
 import CardinalitySamplingNoise from '../img/cardinality-sampling-noise.png'
 import HigherSamplingCoef from '../img/higher-sampling-coef.png'
-import Lod from '../img/lod.png'
 import MetricFormulaType from '../img/metric-formula-type.png'
 import MinAvailableAggregation from '../img/min-available-aggregation.png'
 import TldrSfCorner from '../img/t-sf-corner.png'
@@ -128,15 +127,6 @@ The processing delay will increase by **ten** seconds:
 * and will be sending data for the next **five** seconds—one shard per second.
 
 This way of sending data ensures fair channel sharing for the metrics with differing resolution.
-
-The resolution level may be a divisor of 60. To avoid jitter on a graph, use the "native" resolution levels:
-1, 5, 15, 60 seconds. These levels correspond to levels of details (LOD) in the UI.
-If you choose a 2-second resolution level, the events will be distributed between 5-second LODs unevenly—two or
-three events per LOD:
-
-<img src={Lod} width="300"/>
-
-This uneven distribution leads to a jitter on a graph.
 
 ## Cardinality
 
