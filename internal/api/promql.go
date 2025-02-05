@@ -24,11 +24,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/util"
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", data_model.MaxSlice)
@@ -684,7 +684,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
 		query := pq.tagValueIDsQuery(lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-		err := h.doSelect(ctx, util.QueryMetaInto{
+		err := h.doSelect(ctx, chutil.QueryMetaInto{
 			IsFast:  isFast,
 			IsLight: true,
 			User:    h.accessInfo.user,

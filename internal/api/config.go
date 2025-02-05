@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/config"
-	"github.com/vkcom/statshouse/internal/util"
 )
 
 type Config struct {
@@ -17,12 +17,12 @@ type Config struct {
 	Version3Prob       float64
 	Version3StrcmpOff  bool
 	UserLimitsStr      string
-	UserLimits         []util.ConnLimits
+	UserLimits         []chutil.ConnLimits
 }
 
 func (argv *Config) ValidateConfig() error {
 	if argv.UserLimitsStr != "" {
-		var userLimits []util.ConnLimits
+		var userLimits []chutil.ConnLimits
 		err := json.Unmarshal([]byte(argv.UserLimitsStr), &userLimits)
 		if err != nil {
 			return fmt.Errorf("failed to parse user limit config: %w err", err)
@@ -35,7 +35,7 @@ func (argv *Config) ValidateConfig() error {
 
 func (argv *Config) Copy() config.Config {
 	cp := *argv
-	cp.UserLimits = make([]util.ConnLimits, len(cp.UserLimits))
+	cp.UserLimits = make([]chutil.ConnLimits, len(cp.UserLimits))
 	copy(cp.UserLimits, argv.UserLimits)
 	return &cp
 }
