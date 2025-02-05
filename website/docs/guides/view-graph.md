@@ -45,6 +45,8 @@ import ResYellow from '../img/res-yellow.png'
 import ResRed from '../img/res-red.png'
 import MarkdownMetric from '../img/markdown_metric.png'
 import MarkdownEdit from '../img/markdown_edit.png'
+import FavoriteMetrics from '../img/favorite-metrics.png'
+import FavoriteMetricsOnly from '../img/favorite-metrics-only.png'
 
 
 # View metric data
@@ -92,6 +94,18 @@ You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 
 If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
 engines, services, microservices, proxies, etc. in the organization.
+
+### Favorite metrics
+
+Mark the frequently used metrics as favorites — click on the "star" next to the metric name:
+
+<img src={FavoriteMetrics} width="300"/>
+
+To display the list of your favorite metrics only, click on the "starred bookmark":
+
+<img src={FavoriteMetricsOnly} width="300"/>
+
+You can also [mark dashboards as favorites](./dashboards.md#mark-dashboards-as-favorites).
 
 ### "How can I find the metrics author?"
 
