@@ -22,6 +22,7 @@ import PqlDash3 from '../img/pql-dash-3.png'
 import PqlDash4 from '../img/pql-dash-4.png'
 import MarkdownDashboard from '../img/markdown_dashboard.png'
 import MarkdownDashboardEdit from '../img/markdown_dashboard_edit.png'
+import FavoriteDashboards from '../img/favorite-dashboards.png'
 
 # Как пользоваться дашбордами
 
@@ -50,6 +51,14 @@ import MarkdownDashboardEdit from '../img/markdown_dashboard_edit.png'
 Выберите нужный дашборд из списка:
 
 <img src={DashList} width="700"/>
+
+## Избранные дашборды
+
+Чтобы поместить часто используемый дашборд в список избранного, нажмите на "звёздочку" рядом с названием дашборда:
+
+<img src={FavoriteDashboards} width="400"/>
+
+Метрики тоже можно [помещать в список избранного](./view-graph.md#избранные-метрики).
 
 ## Создание дашборда
 

@@ -22,6 +22,7 @@ import PqlDash3 from '../img/pql-dash-3.png'
 import PqlDash4 from '../img/pql-dash-4.png'
 import MarkdownDashboard from '../img/markdown_dashboard.png'
 import MarkdownDashboardEdit from '../img/markdown_dashboard_edit.png'
+import FavoriteDashboards from '../img/favorite-dashboards.png'
 
 # Create and view dashboards
 
@@ -50,6 +51,14 @@ In this section, you will find information on how to:
 Choose an existing dashboard from a list:
 
 <img src={DashList} width="700"/>
+
+## Mark dashboards as favorites
+
+Mark the frequently used dashboards as favorites — click on the "star" next to the dashboard name:
+
+<img src={FavoriteDashboards} width="400"/>
+
+You can also [add metrics to your list of favorites](./view-graph.md#favorite-metrics).
 
 ## Create a dashboard
 
