@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"maps"
 	"strings"
 	"sync"
 
@@ -27,6 +28,7 @@ type ApplyPromConfig func(configID int32, configString string)
 
 type MetricsStorage struct {
 	mu            sync.RWMutex
+	metricUpdMu   sync.Mutex // allows consistency through metric update functions without taking mu.Lock
 	metricsByID   map[int32]*format.MetricMetaValue
 	metricsByName map[string]*format.MetricMetaValue
 
@@ -227,6 +229,11 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	promConfigGeneratedData := ""
 	knownTagsSet := false
 	knownTagsData := ""
+	type groupWithMeta struct {
+		old *format.MetricsGroup
+		new *format.MetricsGroup
+	}
+	var changedGroups []groupWithMeta
 
 	for _, e := range newEntries {
 		switch e.EventType {
@@ -243,6 +250,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.MetricID = int32(e.Id) // TODO - beware!
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo()
+			ms.metricUpdMu.Lock()
 			ms.mu.Lock()
 			valueOld, ok := ms.metricsByID[value.MetricID]
 			if ok && valueOld.Name != value.Name {
@@ -255,6 +263,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			}
 			ms.updateMetric(value)
 			ms.mu.Unlock()
+			ms.metricUpdMu.Unlock()
 		case format.DashboardEvent:
 			m := map[string]interface{}{}
 			err := json.Unmarshal([]byte(e.Data), &m)
@@ -293,8 +302,15 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				delete(ms.groupsByName, valueOld.Name)
 			}
 			ms.groupsByName[value.Name] = value
-			if !ok || valueOld.Name != value.Name {
-				ms.calcGroupForMetricsLocked(valueOld, value)
+			// cases when group might change for metrics:
+			// 1. added new
+			// 2. name changed
+			// 3. enabled/disabled
+			if !ok || valueOld.Name != value.Name || valueOld.Disable != value.Disable {
+				changedGroups = append(changedGroups, groupWithMeta{
+					old: valueOld,
+					new: value,
+				})
 			}
 			ms.mu.Unlock()
 		case format.PromConfigEvent:
@@ -337,6 +353,46 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.mu.Unlock()
 		}
 	}
+	if len(changedGroups) > 0 {
+		// we need separate lock in order to upgrade mu from read to write
+		ms.metricUpdMu.Lock()
+		ms.mu.RLock()
+		metricsByID := maps.Clone(ms.metricsByID)
+		metricsByName := maps.Clone(ms.metricsByName)
+		ms.mu.RUnlock()
+
+		// O(metrics * changed_groups)
+		// doesn't slow down read requests
+		// can be optimized by storing metricsByName in trie or by adding metricsByGroupID
+		metricsChanged := false
+		for id, m := range metricsByID {
+			um := m // updated metric
+			for _, g := range changedGroups {
+				if g.old != nil && g.old.MetricIn(um) && g.old.Name != g.new.Name {
+					um = um.WithGroupID(format.BuiltinGroupIDDefault)
+				}
+				if g.new.MetricIn(um) {
+					if g.new.Disable {
+						um = um.WithGroupID(format.BuiltinGroupIDDefault)
+					} else {
+						um = um.WithGroupID(g.new.ID)
+					}
+				}
+			}
+			if um != m {
+				metricsByID[id] = um
+				metricsByName[um.Name] = um
+				metricsChanged = true
+			}
+		}
+		if metricsChanged {
+			ms.mu.Lock()
+			ms.metricsByID = metricsByID
+			ms.metricsByName = metricsByName
+			ms.mu.Unlock()
+		}
+		ms.metricUpdMu.Unlock()
+	}
 	if ms.applyPromConfig != nil {
 		// outside of lock, once
 		if promConfigSet {
@@ -351,20 +407,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	}
 	if ll := len(newEntries); ll != 0 {
 		ms.broadcastJournalVersionClient(newEntries[ll-1].Version)
-	}
-}
-
-// call when group is added or changed O(number of metrics)
-func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGroup) {
-	cleanupOld := (old != nil && old.Name != new.Name) || new.Disable
-	for _, m := range ms.metricsByID {
-		if new.MetricIn(m) && m.GroupID != new.ID {
-			c := m.CloneWithGroupID(new.ID)
-			ms.updateMetric(c)
-		} else if cleanupOld && m.GroupID == new.ID {
-			c := m.CloneWithGroupID(format.BuiltinGroupIDDefault)
-			ms.updateMetric(c)
-		}
 	}
 }
 
