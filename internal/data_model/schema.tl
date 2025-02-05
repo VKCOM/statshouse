@@ -89,12 +89,20 @@ statshouse.putTagMappingBootstrapResult#486affde
 // metrics are row in JSON format, version is opaque string interpreted by aggregator
 statshouse.getMetricsResult#0c803d05 version: string metrics: (vector string) = statshouse.GetMetricsResult;
 
+// Deprecated, not used by new conveyor agents
 statshouse.getConfigResult#0c803d07 {fields_mask:#}
     addresses: (vector string)
     max_addresses_count: int // when reducing # of shards, will return full list of addresses, limit by this number. Important for proxy
     previous_addresses: int // currently unused, but can be helpful for proxy in the future
     ts: fields_mask.0?long // aggregator timestamp, for detecting clock discrepancy
 = statshouse.GetConfigResult fields_mask;
+
+statshouse.getConfigResult3#f13698cb
+    addresses: (vector string) // 3 replicas for each shard
+    shard_by_metric_count: # // should be <= len(addresses), so that we can add 17'th shard without breaking all metrics which are spread automatically between first 16.
+    unused: 12*[int] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
+    unused_s: 4*[string] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
+= statshouse.GetConfigResult3;
 
 // proxy uses and fills data in this header for all requests
 statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
@@ -162,12 +170,20 @@ statshouse.sendSourceBucket3Response#0e177acc
 
 ---functions---
 
+// Deprecated, not used by new conveyor agents
 @readwrite statshouse.getConfig2#4285ff57
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
     ts: fields_mask.0?true
      = statshouse.GetConfigResult fields_mask;
+
+@readwrite statshouse.getConfig3#7d7b4991
+    fields_mask:#
+    header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
+    cluster:string // prevent wrong configuration
+    previousConfig: fields_mask.0?statshouse.getConfigResult3 // if sent, will long poll on it
+     = statshouse.GetConfigResult3;
 
 // For ingress proxy, we pass shard_replica/shard_total immediately after fields mask
 // TODO - remove shard_replica, shard_replica_total fields from the wrong place

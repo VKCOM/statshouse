@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/pierrec/lz4"
@@ -59,6 +60,13 @@ func (a *Aggregator) getConfigResult() tlstatshouse.GetConfigResult {
 	}
 }
 
+func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
+	return tlstatshouse.GetConfigResult3{
+		Addresses:          a.addresses,
+		ShardByMetricCount: uint32(a.config.ShardByMetricShards),
+	}
+}
+
 func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
 	mask := 0
 	if isSetStaging0 {
@@ -82,6 +90,7 @@ func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) *data_mo
 	return data_model.AggKey(t, m, k, a.aggregatorHost, a.shardKey, a.replicaKey)
 }
 
+// TODO - remove after all clients are new conveyor
 func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetConfig2) (tlstatshouse.GetConfigResult, error) {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -104,6 +113,50 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 	a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
 	return a.getConfigResult(), nil
+}
+
+func equalConfigResult3(a, b tlstatshouse.GetConfigResult3) bool {
+	return slices.Equal(a.Addresses, b.Addresses) &&
+		a.ShardByMetricCount == b.ShardByMetricCount
+}
+
+func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.GetConfig3
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.getConfig3 request: %w", err)
+	}
+
+	now := time.Now()
+	nowUnix := uint32(now.Unix())
+	hostId := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricMetaBudgetHost.Name, false)
+	hostTag := data_model.TagUnionBytes{I: hostId}
+	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
+	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	route := int32(format.TagValueIDRouteDirect)
+	if args.Header.IsSetIngressProxy(args.FieldsMask) {
+		route = int32(format.TagValueIDRouteIngressProxy)
+	}
+
+	if args.Cluster != a.config.Cluster {
+		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
+		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
+	}
+	cc := a.getConfigResult3()
+	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
+		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive})
+		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		// longpoll forever until aggregator restarts
+		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
+	}
+	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
+	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+	a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+	hctx.Response, err = args.WriteResult(hctx.Response, cc)
+	return err
 }
 
 func decompressOriginal(originalSize uint32, compressedData []byte) ([]byte, error) {

@@ -173,6 +173,8 @@ func init() {
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x28bea524, func() meta.Object { var ret internal.StatshouseAutoCreateBytes; return &ret }, func() meta.Function { var ret internal.StatshouseAutoCreateBytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObjectBytes(0x73fd01e0, func() meta.Object { var ret internal.StatshouseCentroidFloat; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x4285ff57, func() meta.Object { var ret internal.StatshouseGetConfig2Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseGetConfig2Bytes; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForFunctionBytes(0x7d7b4991, func() meta.Object { var ret internal.StatshouseGetConfig3Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseGetConfig3Bytes; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForObjectBytes(0xf13698cb, func() meta.Object { var ret internal.StatshouseGetConfigResult3Bytes; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x42855554, func() meta.Object { var ret internal.StatshouseGetMetrics3Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseGetMetrics3Bytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObjectBytes(0x0c803d05, func() meta.Object { var ret internal.StatshouseGetMetricsResultBytes; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x4285ff56, func() meta.Object { var ret internal.StatshouseGetTagMapping2Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseGetTagMapping2Bytes; return &ret }, nil)

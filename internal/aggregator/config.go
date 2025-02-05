@@ -49,9 +49,10 @@ type ConfigAggregator struct {
 	MetadataAddr    string
 	MetadataActorID int64
 
-	Cluster           string
-	PreviousNumShards int
-	ExternalPort      string
+	Cluster             string
+	PreviousNumShards   int // if agents come with this # of shards, do not error as misconfiguration
+	ShardByMetricShards int
+	ExternalPort        string
 
 	LocalReplica int
 
