@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+	"github.com/vkcom/statshouse/internal/chutil"
 
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
@@ -119,7 +119,7 @@ func (es *endpointStat) reportQueryKind(isFast, isLight, isHardware bool) {
 	es.laneMutex.Lock()
 	defer es.laneMutex.Unlock()
 	if len(es.lane) == 0 {
-		es.lane = strconv.Itoa(util.QueryKind(isFast, isLight, isHardware))
+		es.lane = strconv.Itoa(chutil.QueryKind(isFast, isLight, isHardware))
 	}
 }
 

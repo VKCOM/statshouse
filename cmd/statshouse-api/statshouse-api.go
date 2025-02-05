@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -165,15 +166,15 @@ func run() int {
 		return 1
 	}
 
-	var chV1 *util.ClickHouse
+	var chV1 *chutil.ClickHouse
 	if len(argv.chV1Addrs) > 0 {
 		// argv.chV1MaxConns, argv.chV2MaxHeavyConns, argv.chV1Addrs, argv.chV1User, argv.chV1Password, argv.chV1Debug, chDialTimeout
-		chV1, err = util.OpenClickHouse(util.ChConnOptions{
+		chV1, err = chutil.OpenClickHouse(chutil.ChConnOptions{
 			Addrs:       argv.chV1Addrs,
 			User:        argv.chV1User,
 			Password:    argv.chV1Password,
 			DialTimeout: chDialTimeout,
-			ConnLimits: util.ConnLimits{
+			ConnLimits: chutil.ConnLimits{
 				FastLightMaxConns: argv.chV1MaxConns,
 				FastHeavyMaxConns: argv.chV1MaxConns,
 				SlowLightMaxConns: argv.chV1MaxConns,
@@ -187,12 +188,12 @@ func run() int {
 		defer func() { chV1.Close() }()
 	}
 	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
-	chV2, err := util.OpenClickHouse(util.ChConnOptions{
+	chV2, err := chutil.OpenClickHouse(chutil.ChConnOptions{
 		Addrs:       argv.chV2Addrs,
 		User:        argv.chV2User,
 		Password:    argv.chV2Password,
 		DialTimeout: chDialTimeout,
-		ConnLimits: util.ConnLimits{
+		ConnLimits: chutil.ConnLimits{
 			FastLightMaxConns:    argv.chV2MaxLightFastConns,
 			FastHeavyMaxConns:    argv.chV2MaxHeavyFastConns,
 			SlowLightMaxConns:    argv.chV2MaxLightSlowConns,

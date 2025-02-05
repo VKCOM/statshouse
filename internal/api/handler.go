@@ -29,6 +29,7 @@ import (
 	ttemplate "text/template"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/chutil"
 	"go.uber.org/atomic"
 	"golang.org/x/sync/semaphore"
 
@@ -51,7 +52,6 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 
@@ -181,7 +181,7 @@ type (
 		staticDir             http.FileSystem
 		indexTemplate         *template.Template
 		indexSettings         string
-		ch                    map[string]*util.ClickHouse
+		ch                    map[string]*chutil.ClickHouse
 		metricsStorage        *metajournal.MetricsStorage
 		tagValueCache         *pcache.Cache
 		tagValueIDCache       *pcache.Cache
@@ -564,7 +564,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -587,7 +587,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		indexTemplate:  tmpl,
 		indexSettings:  string(settings),
 		metadataLoader: metadataLoader,
-		ch: map[string]*util.ClickHouse{
+		ch: map[string]*chutil.ClickHouse{
 			Version1: chV1,
 			Version2: chV2,
 			Version3: chV2,
@@ -682,7 +682,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		client.Value(format.BuiltinMetricMetaApiHeapIdle.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
 		client.Value(format.BuiltinMetricMetaApiHeapInuse.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
 
-		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
+		writeActiveQuieries := func(ch *chutil.ClickHouse, versionTag string) {
 			if ch != nil {
 				fastLight := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
 				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
@@ -794,7 +794,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 			},
 		}
 	)
-	err := req.doSelect(ctx, util.QueryMetaInto{
+	err := req.doSelect(ctx, chutil.QueryMetaInto{
 		IsFast:  true,
 		IsLight: true,
 		User:    "cache-update",
@@ -843,7 +843,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	return from, newSeen
 }
 
-func (h *requestHandler) doSelect(ctx context.Context, meta util.QueryMetaInto, version string, query ch.Query) error {
+func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto, version string, query ch.Query) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
@@ -1850,7 +1850,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		for _, lod := range lods {
 			query := tagValuesQuery(pq, lod)
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-			err = h.doSelect(ctx, util.QueryMetaInto{
+			err = h.doSelect(ctx, chutil.QueryMetaInto{
 				IsFast:  isFast,
 				IsLight: true,
 				User:    req.ai.user,
@@ -2916,7 +2916,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	metric := pq.metricID()
 	table := lod.Table
 	start := time.Now()
-	err := h.doSelect(ctx, util.QueryMetaInto{
+	err := h.doSelect(ctx, chutil.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
 		IsHardware: isHardware,
@@ -2973,7 +2973,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 	isHardware := query.isHardware()
 	metric := pq.metricID()
 	table := lod.Table
-	err := h.doSelect(ctx, util.QueryMetaInto{
+	err := h.doSelect(ctx, chutil.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
 		IsHardware: isHardware,
