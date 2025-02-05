@@ -54,6 +54,8 @@ type Agent struct {
 	flusherWG         sync.WaitGroup
 	preprocessWG      sync.WaitGroup
 
+	network         string // to communicate to aggregators
+	cacheDir        string
 	diskBucketCache *DiskBucketStorage
 	hostName        []byte
 	argsHash        int32
@@ -143,6 +145,8 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		heartBeatEventType:    format.TagValueIDHeartbeatEventStart,
 		heartBeatSecondBucket: rnd.Intn(60),
 		config:                config,
+		cacheDir:              cacheDir,
+		network:               network,
 		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
 		argsLen:               int32(len(allArgs)),
 		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
@@ -224,12 +228,12 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		}
 	}
 	for i, a := range config.AggregatorAddresses {
-		shardClient := rpcClient
+		shardReplicaClient := rpcClient
 		if i != 0 {
 			// We want separate connection per shard even in case of ingress proxy,
 			// where many/all shards have the same address.
 			// So proxy can simply proxy packet conn, not rpc
-			shardClient = newClient()
+			shardReplicaClient = newClient()
 		}
 		shardReplica := &ShardReplica{
 			config:          config,
@@ -238,11 +242,10 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 			ShardKey:        int32(i/3) + 1,
 			ReplicaKey:      int32(i%3) + 1,
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			client: tlstatshouse.Client{
-				Client:  shardClient,
+			clientField: tlstatshouse.Client{
+				Client:  shardReplicaClient,
 				Network: network,
 				Address: a,
-				ActorID: 0,
 			},
 			stats: &shardStat{shardReplicaNum: strconv.FormatInt(int64(i), 10)},
 		}
@@ -293,7 +296,7 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	for _, shardReplica := range s.ShardReplicas {
 		shardReplica.InitBuiltInMetric()
 
-		if shardReplica.client.Address != "" {
+		if shardReplica.client().Address != "" {
 			go shardReplica.goLiveChecker()
 		}
 		go shardReplica.goTestConnectionLoop()
@@ -512,13 +515,17 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
+func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, legacyKeyHash uint64) {
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+}
+
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.MetricMetaValue) *BuiltInItemValue {
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, _ := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, _ := s.shard(key, metricInfo)
 	shard := s.Shards[shardId]
 	return shard.CreateBuiltInItemValue(key)
 }
@@ -541,7 +548,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
 		return
 	}
-	shardId, newStrategy, resolutionHash := sharding.Shard(&h.Key, h.MetricMeta, s.NumShards(), s.newSharding.Load())
+	shardId, newStrategy, resolutionHash := s.shard(&h.Key, h.MetricMeta)
 	if shardId >= uint32(len(s.Shards)) {
 		s.AddCounter(&data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
@@ -651,7 +658,7 @@ func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := s.shard(key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
@@ -670,7 +677,7 @@ func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := s.shard(key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddCounterHostStringBytes(key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
@@ -688,7 +695,7 @@ func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter 
 	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
 		panic("incorrectly set key Metric")
 	}
-	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := s.shard(key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
@@ -698,7 +705,7 @@ func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, 
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, _, resolutionHash := sharding.Shard(key, metricInfo, s.NumShards(), s.newSharding.Load())
+	shardId, _, resolutionHash := s.shard(key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, resolutionHash, item, metricInfo)

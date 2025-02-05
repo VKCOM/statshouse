@@ -21,5 +21,6 @@ func (s *Agent) AutoCreateMetric(ctx context.Context, args tlstatshouse.AutoCrea
 	}
 	shard.fillProxyHeader(&args.FieldsMask, &args.Header)
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	return shard.client.AutoCreate(ctx, args, &extra, nil)
+	client := shard.client()
+	return client.AutoCreate(ctx, args, &extra, nil)
 }
