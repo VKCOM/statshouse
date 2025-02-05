@@ -89,6 +89,13 @@ gen-sqlite:
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
+gen-easyjson-format:
+	go generate ./internal/format/format.go
+
+gen-easyjson-handler:
+	go generate ./internal/api/handler.go
+	@echo "!!!You need to manually updater handler_easyjson.go to convert NaN to null!!!"
+
 .PHONY: lint test check
 lint:
 	staticcheck -version
