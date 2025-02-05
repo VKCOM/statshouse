@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mailru/easyjson"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -239,7 +240,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 		switch e.EventType {
 		case format.MetricEvent:
 			value := &format.MetricMetaValue{}
-			err := json.Unmarshal([]byte(e.Data), value)
+			err := easyjson.Unmarshal([]byte(e.Data), value)
 			if err != nil {
 				log.Printf("Cannot marshal metric %s: %v", value.Name, err)
 				continue
@@ -284,7 +285,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.mu.Unlock()
 		case format.MetricsGroupEvent:
 			value := &format.MetricsGroup{}
-			err := json.Unmarshal([]byte(e.Data), value)
+			err := easyjson.Unmarshal([]byte(e.Data), value)
 			if err != nil {
 				log.Printf("Cannot marshal metric group %s: %v", value.Name, err)
 				continue
