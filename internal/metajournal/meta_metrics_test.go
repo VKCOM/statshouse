@@ -9,10 +9,13 @@ package metajournal
 import (
 	"context"
 	"encoding/json"
+	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model"
+	"pgregory.net/rapid"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -906,5 +909,215 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("part of journal2", test(2, events[2:]))
 		t.Run("part of journal3", test(3, nil))
 		t.Run("part of journal4", test(999, nil))
+	})
+}
+
+func TestMetricsStorageProperties(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		ms, _ := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+			var result []tlmetadata.Event
+			var v int64
+			return result, v, nil
+		})
+
+		events1 := rapid.SliceOf(genEvent()).Draw(t, "events")
+		ms.ApplyEvent(events1)
+		checkInvariants(t, ms)
+
+		// we want to check changes to already initialized struct
+		events2 := rapid.SliceOf(genEvent()).Draw(t, "events")
+		ms.ApplyEvent(events2)
+		checkInvariants(t, ms)
+	})
+}
+
+func checkInvariants(t *rapid.T, ms *MetricsStorage) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	checkPointerEquality(t, ms)
+	checkKeyConsistency(t, ms)
+	checkGroupPrefixes(t, ms)
+	checkDisabledGroups(t, ms)
+}
+
+func checkPointerEquality(t *rapid.T, ms *MetricsStorage) {
+	for _, byName := range ms.metricsByName {
+		byId := ms.metricsByID[byName.MetricID]
+		require.Same(t, byName, byId, "metric pointers mismatch")
+	}
+
+	for _, byName := range ms.groupsByName {
+		byId := ms.groupsByID[byName.ID]
+		require.Same(t, byName, byId, "group pointers mismatch")
+	}
+
+	for _, byName := range ms.namespaceByName {
+		byId := ms.namespaceByID[byName.ID]
+		require.Same(t, byId, byName, "namespace pointers mismatch")
+	}
+}
+
+func checkKeyConsistency(t *rapid.T, ms *MetricsStorage) {
+	for id, metric := range ms.metricsByID {
+		require.Equal(t, id, metric.MetricID, "metric ID key mismatch")
+	}
+	for name, metric := range ms.metricsByName {
+		require.Equal(t, name, metric.Name, "metric name key mismatch")
+	}
+
+	for id, group := range ms.groupsByID {
+		require.Equal(t, id, group.ID, "group ID key mismatch")
+	}
+	for name, group := range ms.groupsByName {
+		require.Equal(t, name, group.Name, "group name key mismatch")
+	}
+
+	for id, ns := range ms.namespaceByID {
+		require.Equal(t, id, ns.ID, "namespace ID key mismatch")
+	}
+	for name, ns := range ms.namespaceByName {
+		require.Equal(t, name, ns.Name, "namespace name key mismatch")
+	}
+}
+
+func checkGroupPrefixes(t *rapid.T, ms *MetricsStorage) {
+	for _, metric := range ms.metricsByID {
+		if metric.GroupID < 0 {
+			// builtin groups are exception
+			continue
+		}
+		group := ms.groupsByID[metric.GroupID]
+		if group != nil {
+			require.True(t, strings.HasPrefix(metric.Name, group.Name),
+				"metric %q name doesn't start with group %q", metric.Name, group.Name)
+		}
+	}
+}
+
+func checkDisabledGroups(t *rapid.T, ms *MetricsStorage) {
+	for _, group := range ms.groupsByID {
+		// format.BuiltinGroupIDDefault is special we set it when group is being disabled
+		if group.ID != format.BuiltinGroupIDDefault && group.Disable {
+			for _, metric := range ms.metricsByID {
+				require.NotEqual(t, group.ID, metric.GroupID,
+					"metric %q points to disabled group %q", metric.Name, group.Name)
+			}
+		}
+	}
+}
+
+func genEvent() *rapid.Generator[tlmetadata.Event] {
+	return rapid.Custom(func(t *rapid.T) tlmetadata.Event {
+		eventType := rapid.OneOf(
+			rapid.Just(format.MetricEvent),
+			rapid.Just(format.DashboardEvent),
+			rapid.Just(format.MetricsGroupEvent),
+			rapid.Just(format.PromConfigEvent),
+			rapid.Just(format.NamespaceEvent),
+		).Draw(t, "eventType")
+
+		id := rapid.Int64().Draw(t, "id")
+		name := rapid.StringN(1, 120, 120).Draw(t, "name")
+		version := rapid.Int64().Draw(t, "version")
+		namespaceID := int64(rapid.Int32().Draw(t, "namespaceID"))
+		updateTime := rapid.Uint32().Draw(t, "updateTime")
+
+		var data string
+		switch eventType {
+		case format.MetricEvent:
+			metric := genMetricMetaValue().Draw(t, "metric")
+			jsonData, err := json.Marshal(metric)
+			require.Nil(t, err, "metric marshal failed")
+			data = string(jsonData)
+
+		case format.MetricsGroupEvent:
+			group := genMetricsGroup().Draw(t, "group")
+			jsonData, err := json.Marshal(group)
+			require.Nil(t, err, "group marshal failed")
+			data = string(jsonData)
+
+		case format.NamespaceEvent:
+			ns := genNamespaceMeta(id).Draw(t, "namespace")
+			jsonData, err := json.Marshal(ns)
+			require.Nil(t, err, "namespace marshal failed")
+			data = string(jsonData)
+
+		case format.DashboardEvent:
+			dashboard := rapid.MapOf(
+				rapid.String(),
+				rapid.String(),
+			).Draw(t, "dashboard")
+			jsonData, err := json.Marshal(dashboard)
+			require.Nil(t, err, "dashboard marshal failed")
+			data = string(jsonData)
+
+		case format.PromConfigEvent:
+			data = rapid.String().Draw(t, "promConfig")
+		}
+
+		return tlmetadata.Event{
+			Id:          id,
+			Name:        name,
+			EventType:   eventType,
+			Version:     version,
+			Data:        data,
+			NamespaceId: namespaceID,
+			UpdateTime:  updateTime,
+		}
+	})
+}
+
+func genMetricMetaValue() *rapid.Generator[format.MetricMetaValue] {
+	return rapid.Custom(func(t *rapid.T) format.MetricMetaValue {
+		return format.MetricMetaValue{
+			Description:          rapid.String().Draw(t, "description"),
+			Tags:                 rapid.SliceOfN(genMetricMetaTag(), 0, 48).Draw(t, "tags"),
+			TagsDraft:            rapid.MapOf(rapid.String(), genMetricMetaTag()).Draw(t, "tagsDraft"),
+			Visible:              rapid.Bool().Draw(t, "visible"),
+			Kind:                 rapid.StringMatching("^counter$|^value$|^value_p$|^unique$|^mixed$|^mixed_p$").Draw(t, "kind"),
+			Weight:               rapid.Float64().Draw(t, "weight"),
+			Resolution:           rapid.IntRange(0, math.MaxInt32).Draw(t, "resolution"),
+			StringTopName:        rapid.String().Draw(t, "stringTopName"),
+			StringTopDescription: rapid.String().Draw(t, "stringTopDescription"),
+			PreKeyTagID:          rapid.String().Draw(t, "preKeyTagID"),
+			PreKeyFrom:           rapid.Uint32().Draw(t, "preKeyFrom"),
+			SkipMaxHost:          rapid.Bool().Draw(t, "skipMaxHost"),
+			SkipMinHost:          rapid.Bool().Draw(t, "skipMinHost"),
+			SkipSumSquare:        rapid.Bool().Draw(t, "skipSumSquare"),
+			PreKeyOnly:           rapid.Bool().Draw(t, "preKeyOnly"),
+			MetricType:           rapid.String().Draw(t, "metricType"),
+			FairKeyTagIDs:        rapid.SliceOf(rapid.String()).Draw(t, "fairKeyTagIDs"),
+			ShardStrategy:        rapid.StringMatching("^tags_hash$|^fixed_shard$|^metric_id$|^$").Draw(t, "shardStrategy"),
+			ShardNum:             rapid.Uint32Max(16).Draw(t, "shardNum"),
+			PipelineVersion:      rapid.Uint8Range(0, 3).Draw(t, "pipelineVersion"),
+		}
+	})
+}
+
+func genMetricMetaTag() *rapid.Generator[format.MetricMetaTag] {
+	return rapid.Custom(func(t *rapid.T) format.MetricMetaTag {
+		return format.MetricMetaTag{
+			Name:        rapid.String().Draw(t, "name"),
+			Description: rapid.String().Draw(t, "description"),
+		}
+	})
+}
+
+func genMetricsGroup() *rapid.Generator[format.MetricsGroup] {
+	return rapid.Custom(func(t *rapid.T) format.MetricsGroup {
+		return format.MetricsGroup{
+			Weight:  rapid.Float64().Draw(t, "weight"),
+			Disable: rapid.Bool().Draw(t, "disable"),
+		}
+	})
+}
+
+func genNamespaceMeta(id int64) *rapid.Generator[format.NamespaceMeta] {
+	return rapid.Custom(func(t *rapid.T) format.NamespaceMeta {
+		return format.NamespaceMeta{
+			ID:      int32(id),
+			Weight:  rapid.Float64().Draw(t, "weight"),
+			Disable: rapid.Bool().Draw(t, "disable"),
+		}
 	})
 }
