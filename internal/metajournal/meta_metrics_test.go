@@ -9,10 +9,12 @@ package metajournal
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model"
+	"pgregory.net/rapid"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -906,5 +908,141 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("part of journal2", test(2, events[2:]))
 		t.Run("part of journal3", test(3, nil))
 		t.Run("part of journal4", test(999, nil))
+	})
+}
+
+func TestMetricsStorageProperties(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		// Generate a list of events to apply
+		events := rapid.SliceOf(genEvent()).Draw(t, "events")
+
+		ms, _ := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+			var result []tlmetadata.Event
+			var v int64
+			return result, v, nil
+		})
+
+		// Apply all generated events
+		ms.ApplyEvent(events)
+
+		// Acquire read lock to check properties
+		ms.mu.RLock()
+		defer ms.mu.RUnlock()
+
+		// Check that metricsByID and metricsByName entries point to the same values
+		for id, metric := range ms.metricsByID {
+			require.NotNil(t, metric, "metric in metricsByID is nil")
+			byName, exists := ms.metricsByName[metric.Name]
+			require.True(t, exists, "metric %d name %s not found in metricsByName", id, metric.Name)
+			require.Same(t, metric, byName, "metric %d and name %s are not the same instance", id, metric.Name)
+		}
+
+		// Check that groupsByID and groupsByName entries point to the same values
+		for id, group := range ms.groupsByID {
+			require.NotNil(t, group, "group in groupsByID is nil")
+			byName, exists := ms.groupsByName[group.Name]
+			require.True(t, exists, "group %d name %s not found in groupsByName", id, group.Name)
+			require.Same(t, group, byName, "group %d and name %s are not the same instance", id, group.Name)
+		}
+
+		// Check that namespaceByID and namespaceByName entries point to the same values
+		for id, namespace := range ms.namespaceByID {
+			require.NotNil(t, namespace, "namespace in namespaceByID is nil")
+			byName, exists := ms.namespaceByName[namespace.Name]
+			require.True(t, exists, "namespace %d name %s not found in namespaceByName", id, namespace.Name)
+			require.Same(t, namespace, byName, "namespace %d and name %s are not the same instance", id, namespace.Name)
+		}
+
+		// Check that keys in maps correspond to the respective IDs/names
+		for id, metric := range ms.metricsByID {
+			require.Equal(t, id, metric.MetricID, "metricsByID key %d does not match MetricID", id)
+		}
+		for name, metric := range ms.metricsByName {
+			require.Equal(t, name, metric.Name, "metricsByName key %s does not match Name", name)
+		}
+
+		for id, group := range ms.groupsByID {
+			require.Equal(t, id, group.ID, "groupsByID key %d does not match ID", id)
+		}
+		for name, group := range ms.groupsByName {
+			require.Equal(t, name, group.Name, "groupsByName key %s does not match Name", name)
+		}
+
+		for id, namespace := range ms.namespaceByID {
+			require.Equal(t, id, namespace.ID, "namespaceByID key %d does not match ID", id)
+		}
+		for name, namespace := range ms.namespaceByName {
+			require.Equal(t, name, namespace.Name, "namespaceByName key %s does not match Name", name)
+		}
+
+		// Check that each metric's GroupID points to a group with a name that is a prefix of the metric's name
+		for _, metric := range ms.metricsByID {
+			if metric.GroupID <= 0 {
+				continue
+			}
+			group, exists := ms.groupsByID[metric.GroupID]
+			require.True(t, exists, "metric %s has nonexistent GroupID %d", metric.Name, metric.GroupID)
+
+			// Special case for the built-in default group (name is empty string)
+			if metric.GroupID == format.BuiltinGroupIDDefault {
+				require.Empty(t, group.Name, "built-in default group should have an empty name")
+				require.True(t, strings.HasPrefix(metric.Name, group.Name),
+					"metric %s name does not start with group %s", metric.Name, group.Name)
+			} else {
+				require.True(t, strings.HasPrefix(metric.Name, group.Name),
+					"metric %s name does not start with group %s", metric.Name, group.Name)
+			}
+		}
+
+		// Check that disabled groups have no metrics pointing to them
+		for _, group := range ms.groupsByID {
+			if group.Disable {
+				for _, metric := range ms.metricsByID {
+					require.NotEqual(t, group.ID, metric.GroupID,
+						"metric %s points to disabled group %s", metric.Name, group.Name)
+				}
+			}
+		}
+	})
+}
+
+// genEvent generates a tlmetadata.Event with valid Data for each event type
+func genEvent() *rapid.Generator[tlmetadata.Event] {
+	return rapid.Custom(func(t *rapid.T) tlmetadata.Event {
+		eventType := rapid.OneOf(
+			rapid.Just(format.MetricEvent),
+			rapid.Just(format.DashboardEvent),
+			rapid.Just(format.MetricsGroupEvent),
+			rapid.Just(format.PromConfigEvent),
+			rapid.Just(format.NamespaceEvent),
+		).Draw(t, "eventType")
+
+		id := rapid.Int64().Draw(t, "id")
+		name := rapid.String().Draw(t, "name")
+		version := rapid.Int64().Draw(t, "version")
+		namespaceID := rapid.Int32().Draw(t, "namespaceID")
+		updateTime := rapid.Uint32().Draw(t, "updateTime")
+
+		var data string
+		switch eventType {
+		case format.MetricEvent, format.MetricsGroupEvent, format.NamespaceEvent:
+			data = "{}" // Valid empty JSON for easyjson structs
+		case format.DashboardEvent:
+			data = "{}" // Valid empty JSON object
+		case format.PromConfigEvent:
+			data = rapid.String().Draw(t, "promConfigData")
+		default:
+			data = rapid.String().Draw(t, "data")
+		}
+
+		return tlmetadata.Event{
+			Id:          id,
+			Name:        name,
+			EventType:   eventType,
+			Version:     version,
+			Data:        data,
+			NamespaceId: int64(namespaceID),
+			UpdateTime:  updateTime,
+		}
 	})
 }
