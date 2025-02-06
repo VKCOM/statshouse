@@ -25,6 +25,11 @@ func (q *pointsSelectCols) writeTagsV2(lod *data_model.LOD, opt writeTagsOptions
 			} else {
 				q.writeMaybeCommaString("key_shard_num", opt.comma)
 			}
+		case 0, format.StringTopTagIndex, format.StringTopTagIndexV3:
+			if lod.Version == Version1 {
+				continue // "env" and "skey" tags do not exist in V1 schema
+			}
+			fallthrough
 		default:
 			id := format.TagID(x)
 			if opt.cols {
