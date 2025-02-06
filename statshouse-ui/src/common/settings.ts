@@ -14,7 +14,7 @@ export interface settings {
   readonly default_metric_group_by: readonly TagKey[];
   readonly default_metric_filter_in: Readonly<Partial<Record<TagKey, string[]>>>;
   readonly default_metric_filter_not_in: Readonly<Partial<Record<TagKey, string[]>>>;
-  readonly default_metric_what: readonly QueryWhat[];
+  readonly default_metric_what?: readonly QueryWhat[];
   readonly default_num_series: number;
   readonly disabled_v1: boolean;
   readonly skip_error_code: number[];
@@ -54,7 +54,7 @@ if (meta !== null) {
       default_metric_filter_not_in: serverConfig.default_metric_filter_not_in
         ? normalizeFilterKey(serverConfig.default_metric_filter_not_in)
         : defaultSettings.default_metric_filter_not_in,
-      default_metric_what: serverConfig.default_metric_what.length
+      default_metric_what: serverConfig.default_metric_what?.length
         ? serverConfig.default_metric_what
         : defaultSettings.default_metric_what,
       default_num_series: serverConfig.default_num_series
