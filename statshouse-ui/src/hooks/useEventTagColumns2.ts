@@ -5,13 +5,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { useMemo } from 'react';
-import { ApiTableRowNormalize } from '../api/tableOld';
+import { ApiTableRowNormalize } from '@/api/tableOld2';
 import { PlotParams } from '@/url2';
-import { MetricMetaValue } from '../api/metric';
-import { toTagKey } from '../url/queryParams';
-import { TAG_KEY } from '../api/enum';
+import { MetricMetaValue } from '@/api/metric';
+import { toTagKey } from '@/url/queryParams';
+import { TAG_KEY } from '@/api/enum';
 import { useStatsHouse } from '@/store2';
-import { getTagDescription } from '../view/utils2';
+import { getTagDescription } from '@/view/utils2';
 
 export function getEventTagColumns(plot?: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
   if (plot == null) {

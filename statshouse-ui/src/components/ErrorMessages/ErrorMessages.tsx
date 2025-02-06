@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useError } from '@/hooks/useError';
-import { useErrorStore } from '@/store/errors';
+import { useErrorStore } from '@/store2/errors';
 import { Button } from '@/components/UI';
 
 export type ErrorMessagesProps = {

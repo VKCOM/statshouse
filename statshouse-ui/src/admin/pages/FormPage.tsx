@@ -10,7 +10,6 @@ import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { IActions } from '../storages/MetricFormValues/reducer';
-import { useStore } from '@/store';
 import { RawValueKind } from '@/view/api';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '@/api/enum';
 import { maxTagsSize } from '@/common/settings';
@@ -30,8 +29,6 @@ import { queryClient } from '@/common/queryClient';
 import { API_HISTORY } from '@/api/history';
 import { HistoryList } from '@/components2/HistoryList';
 import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
-
-const { clearMetricsMeta } = useStore.getState();
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
 
@@ -900,7 +897,6 @@ function useSubmit(values: IMetric, dispatch: Dispatch<IActions>, isHistoricalMe
       .catch((err) => setError(err.message))
       .finally(() => {
         setRunning(false);
-        clearMetricsMeta(values.name);
       });
   };
 

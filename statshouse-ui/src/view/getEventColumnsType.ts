@@ -11,7 +11,7 @@ import {
   EventFormatterDefault,
   EventFormatterHeaderDefault,
   EventFormatterHeaderTime,
-} from '../components/Plot/EventFormatters';
+} from '@/components2/Plot/PlotView/EventFormatters';
 import { whatToWhatDesc } from './whatToWhatDesc';
 import { querySeriesMetaTag } from './api';
 

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useMetricsListStore } from '@/store/metricsList';
+import { useMetricsListStore } from '@/store2/metricsList';
 import cn from 'classnames';
 import { Select, SelectOptionProps } from '../UI/Select';
 import { useDebounceState } from '@/hooks';

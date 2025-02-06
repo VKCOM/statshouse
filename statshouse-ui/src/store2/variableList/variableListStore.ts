@@ -20,7 +20,7 @@ import type { MetricMetaTag } from '@/api/metric';
 import { createStore } from '../createStore';
 
 import { produce } from 'immer';
-import { useErrorStore } from '@/store/errors';
+import { useErrorStore } from '@/store2/errors';
 import { replaceVariable } from './replaceVariable';
 import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '@/url2';
 import { type StatsHouseStore, useStatsHouse } from '@/store2';

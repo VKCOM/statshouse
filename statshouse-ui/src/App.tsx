@@ -7,17 +7,11 @@
 import '@/store2';
 import React, { Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-// import { Admin } from './admin/Admin';
-// import { ViewPage } from './view/ViewPage';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './common/queryClient';
 import { useStatsHouse } from '@/store2';
-// import { DashboardListView } from './view/DashboardListView';
-// import { SettingsPage } from './view/Settings/SettingsPage';
-// import { GroupPage } from './view/Settings/GroupPage';
-// import { NamespacePage } from './view/Settings/NamespacePage';
-// import View2Page from './view2/ViewPage';
-// import Core from './view2/Core';
+import View2Page from './view2/ViewPage';
+import Core from './view2/Core';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 const Admin = React.lazy(() => import('./admin/Admin'));
@@ -26,8 +20,6 @@ const GroupPage = React.lazy(() => import('./view/Settings/GroupPage'));
 const NamespacePage = React.lazy(() => import('./view/Settings/NamespacePage'));
 const DashboardListView = React.lazy(() => import('./view/DashboardListView'));
 
-const View2Page = React.lazy(() => import('./view2/ViewPage'));
-const Core = React.lazy(() => import('./view2/Core'));
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
 export function App() {
@@ -69,46 +61,10 @@ export function App() {
           />
           <Route path="*" element={<NotFound />} />
         </Route>
-        {/*<Route path="/" element={<Navigate to="view" replace={true} />} />*/}
-        {/*<Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />*/}
-        {/*<Route path="/" element={<NavbarApp />}>*/}
-        {/*  <Route*/}
-        {/*    path="doc/faq"*/}
-        {/*    element={*/}
-        {/*      <Suspense fallback={<div>FAQ Loading...</div>}>*/}
-        {/*        <FAQ yAxisSize={yAxisSize} />*/}
-        {/*      </Suspense>*/}
-        {/*    }*/}
-        {/*  />*/}
-        {/*  <Route path="admin/*" element={<Admin yAxisSize={yAxisSize} adminMode={ai.admin} />} />*/}
-        {/*  <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>*/}
-        {/*    <Route path="group" element={<GroupPage />} />*/}
-        {/*    <Route path="namespace" element={<NamespacePage />} />*/}
-        {/*    /!*<Route path="prometheus" element={<PrometheusPage />} />*!/*/}
-        {/*  </Route>*/}
-
-        {/*  <Route path="view" element={<ViewPage yAxisSize={yAxisSize} />} />*/}
-        {/*  <Route path="dash-list" element={<DashboardListView />} />*/}
-        {/*  <Route path="*" element={<NotFound />} />*/}
-        {/*</Route>*/}
       </Routes>
     </QueryClientProvider>
   );
 }
-
-// const NavbarApp = function _NavbarApp() {
-//   const globalWarning: string = '';
-//   return (
-//     <div className="d-flex flex-row min-vh-100 position-relative">
-//       <HeaderMenu />
-//       <div className="flex-grow-1 w-0 d-flex flex-column">
-//         {globalWarning !== '' && <div className="alert-warning rounded px-2 py-1">{globalWarning}</div>}
-//         <Outlet />
-//         <BuildVersion className="text-end text-secondary build-version container-xl pb-3" />
-//       </div>
-//     </div>
-//   );
-// };
 
 function NotFound() {
   const location = useLocation();

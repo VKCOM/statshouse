@@ -7,12 +7,12 @@
 import type { StoreSlice } from '../createStore';
 import { apiMetric, type MetricMetaTag, type MetricMetaValue } from '@/api/metric';
 import { type TagKey, toTagKey } from '@/api/enum';
-import type { StatsHouseStore } from '../statsHouseStore';
+import type { StatsHouseStore } from '@/store2';
 import { type PlotKey, promQLMetric } from '@/url2';
-import { useErrorStore } from '@/store/errors';
+import { useErrorStore } from '@/store2/errors';
 import { debug } from '@/common/debug';
 import { updateMetricMeta } from './updateMetricMeta';
-import { ExtendedError } from '../../api/api';
+import { ExtendedError } from '@/api/api';
 
 export type MetricMeta = MetricMetaValue & {
   tagsObject: Partial<Record<TagKey, MetricMetaTag>>;

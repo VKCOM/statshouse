@@ -31,7 +31,7 @@ import { produce } from 'immer';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
 import { prepareItemsGroup } from '@/common/prepareItemsGroup';
 import { useAddLinkPlot, useLinkPlot } from '@/hooks/useLinkPlot';
-import { setDevEnabled, useStoreDev } from '@/store/dev';
+import { setDevEnabled, useStoreDev } from '@/store2/dev';
 import { setTheme, THEMES, toTheme, useThemeStore } from '@/store2/themeStore';
 
 const themeIcon = {

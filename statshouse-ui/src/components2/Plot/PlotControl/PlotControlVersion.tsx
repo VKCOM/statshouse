@@ -11,7 +11,7 @@ import { globalSettings } from '@/common/settings';
 import { getNewMetric, type PlotKey } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
 import { METRIC_VALUE_BACKEND_VERSION, toMetricValueBackendVersion } from '@/api/enum';
-import { useStoreDev } from '@/store/dev';
+import { useStoreDev } from '@/store2/dev';
 
 export type PlotControlVersionProps = {
   plotKey: PlotKey;
