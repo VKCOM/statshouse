@@ -26,6 +26,7 @@ import (
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/chutil"
+	"github.com/vkcom/statshouse/internal/config"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -54,13 +55,11 @@ var argv struct {
 	accessLog                bool
 	rpcCryptoKeyPath         string
 	brsMaxChunksCount        int
-	chV1AddrsArg             string
 	chV1Addrs                []string
 	chV1Debug                bool
 	chV1MaxConns             int
 	chV1Password             string
 	chV1User                 string
-	chV2AddrsArg             string
 	chV2Addrs                []string
 	chV2Debug                bool
 	chV2MaxLightFastConns    int
@@ -70,43 +69,38 @@ var argv struct {
 	chV2MaxHardwareFastConns int
 	chV2MaxHardwareSlowConns int
 
-	chV2Password                string
-	chV2User                    string
-	defaultMetric               string
-	defaultMetricFilterInArg    string
-	defaultMetricFilterIn       []string
-	defaultMetricFilterNotInArg string
-	defaultMetricFilterNotIn    []string
-	defaultMetricWhatS          string
-	defaultMetricWhat           []string
-	defaultMetricGroupByArg     string
-	defaultMetricGroupBy        []string
-	adminDash                   int
-	eventPresetS                string
-	eventPreset                 []string
-	defaultNumSeries            int
-	diskCache                   string // TODO: remove, use "cacheDir"
-	cacheDir                    string
-	help                        bool
-	listenHTTPAddr              string
-	listenRPCAddr               string
-	pidFile                     string
-	pprofAddr                   string
-	pprofHTTP                   bool
-	showInvisible               bool
-	slow                        time.Duration
-	staticDir                   string
-	statsHouseNetwork           string
-	statsHouseAddr              string
-	statsHouseEnv               string
-	utcOffsetHours              int // we can't support offsets not divisible by hour because we aggregate the data by hour
-	version                     bool
-	vkuthAppName                string
-	vkuthPublicKeysArg          string
-	vkuthPublicKeys             map[string][]byte
-	metadataActorID             int64
-	metadataAddr                string
-	metadataNet                 string
+	chV2Password             string
+	chV2User                 string
+	defaultMetric            string
+	defaultMetricFilterIn    []string
+	defaultMetricFilterNotIn []string
+	defaultMetricWhat        []string
+	defaultMetricGroupBy     []string
+	adminDash                int
+	eventPreset              []string
+	defaultNumSeries         int
+	diskCache                string // TODO: remove, use "cacheDir"
+	cacheDir                 string
+	help                     bool
+	listenHTTPAddr           string
+	listenRPCAddr            string
+	pidFile                  string
+	pprofAddr                string
+	pprofHTTP                bool
+	showInvisible            bool
+	slow                     time.Duration
+	staticDir                string
+	statsHouseNetwork        string
+	statsHouseAddr           string
+	statsHouseEnv            string
+	utcOffsetHours           int // we can't support offsets not divisible by hour because we aggregate the data by hour
+	version                  bool
+	vkuthAppName             string
+	vkuthPublicKeysArg       []string
+	vkuthPublicKeys          map[string][]byte
+	metadataActorID          int64
+	metadataAddr             string
+	metadataNet              string
 
 	api.HandlerOptions
 	api.Config
@@ -480,12 +474,12 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.brsMaxChunksCount, "max-chunks-count", 1000, "in memory data chunks count limit for RPC server")
 	var chMaxQueries int // not used any more, TODO - remove?
 	flag.IntVar(&chMaxQueries, "clickhouse-max-queries", 32, "maximum number of concurrent ClickHouse queries")
-	flag.StringVar(&argv.chV1AddrsArg, "clickhouse-v1-addrs", "", "comma-separated list of ClickHouse-v1 addresses")
+	config.StringSliceVar(&argv.chV1Addrs, "clickhouse-v1-addrs", "", "comma-separated list of ClickHouse-v1 addresses")
 	flag.BoolVar(&argv.chV1Debug, "clickhouse-v1-debug", false, "ClickHouse-v1 debug mode")
 	flag.IntVar(&argv.chV1MaxConns, "clickhouse-v1-max-conns", 16, "maximum number of ClickHouse-v1 connections (fast and slow)")
 	flag.StringVar(&argv.chV1Password, "clickhouse-v1-password", "", "ClickHouse-v1 password")
 	flag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
-	flag.StringVar(&argv.chV2AddrsArg, "clickhouse-v2-addrs", "", "comma-separated list of ClickHouse-v2 addresses")
+	config.StringSliceVar(&argv.chV2Addrs, "clickhouse-v2-addrs", "", "comma-separated list of ClickHouse-v2 addresses")
 	flag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
 	flag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 40, "maximum number of ClickHouse-v2 connections (light fast)")
 	flag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 12, "maximum number of ClickHouse-v2 connections (light slow)")
@@ -497,12 +491,12 @@ func parseCommandLine() (err error) {
 	flag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	flag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
 	flag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricMetaAggBucketReceiveDelaySec.Name, "default metric to show")
-	flag.StringVar(&argv.defaultMetricFilterInArg, "default-metric-filter-in", "", "default metric filter in <key0>:value")
-	flag.StringVar(&argv.defaultMetricFilterNotInArg, "default-metric-filter-not-in", "", "default metric filter not in <key0>:value")
-	flag.StringVar(&argv.defaultMetricWhatS, "default-metric-filter-what", "", "default metric function")
-	flag.StringVar(&argv.defaultMetricGroupByArg, "default-metric-group-by", "1", "default metric group by tags")
+	config.StringSliceVar(&argv.defaultMetricFilterIn, "default-metric-filter-in", "", "default metric filter in <key0>:value")
+	config.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", "", "default metric filter not in <key0>:value")
+	config.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", "", "default metric function")
+	config.StringSliceVar(&argv.defaultMetricGroupBy, "default-metric-group-by", "1", "default metric group by tags")
 	flag.IntVar(&argv.adminDash, "admin-dash-id", 0, "hardware metric dashboard")
-	flag.StringVar(&argv.eventPresetS, "event-preset", "", "event preset")
+	config.StringSliceVar(&argv.eventPreset, "event-preset", "", "event preset")
 	flag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	flag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Directory to store metric metadata cache.")
@@ -522,7 +516,7 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
 	flag.BoolVar(&argv.version, "version", false, "show version information and exit")
 	flag.StringVar(&argv.vkuthAppName, "vkuth-app-name", "statshouse-api", "vkuth application name (access bits namespace)")
-	flag.StringVar(&argv.vkuthPublicKeysArg, "vkuth-public-keys", "", "comma-separated list of trusted vkuth public keys; empty list disables token-based access control")
+	config.StringSliceVar(&argv.vkuthPublicKeysArg, "vkuth-public-keys", "", "comma-separated list of trusted vkuth public keys; empty list disables token-based access control")
 
 	flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
@@ -534,28 +528,9 @@ func parseCommandLine() (err error) {
 	if len(flag.Args()) != 0 {
 		return fmt.Errorf("unexpected command line arguments, check command line for typos: %q", flag.Args())
 	}
-	if argv.chV2AddrsArg == "" {
+	if len(argv.chV2Addrs) == 0 {
 		return fmt.Errorf("--clickhouse-v2-addrs must be specified")
 	}
-
-	splitByComma := func(s string) []string {
-		res := strings.Split(s, ",")
-		for i := 0; i < len(res); {
-			if res[i] == "" {
-				res = append(res[:i], res[i+1:]...)
-			} else {
-				i++
-			}
-		}
-		return res
-	}
-	argv.chV1Addrs = splitByComma(argv.chV1AddrsArg)
-	argv.chV2Addrs = splitByComma(argv.chV2AddrsArg)
-	argv.defaultMetricFilterIn = splitByComma(argv.defaultMetricFilterInArg)
-	argv.defaultMetricFilterNotIn = splitByComma(argv.defaultMetricFilterNotInArg)
-	argv.defaultMetricWhat = splitByComma(argv.defaultMetricWhatS)
-	argv.defaultMetricGroupBy = splitByComma(argv.defaultMetricGroupByArg)
-	argv.eventPreset = splitByComma(argv.eventPresetS)
 
 	if math.Abs(float64(argv.utcOffsetHours)) > 168 { // hours in week (24*7=168)
 		return fmt.Errorf("invalid --utc-offset value")
@@ -563,7 +538,7 @@ func parseCommandLine() (err error) {
 	if staticFS != nil && argv.staticDir != "" {
 		return fmt.Errorf("--static-dir must not be specified when static is embedded into the binary")
 	}
-	if argv.vkuthPublicKeys, err = vkuth.ParseVkuthKeys(splitByComma(argv.vkuthPublicKeysArg)); err != nil {
+	if argv.vkuthPublicKeys, err = vkuth.ParseVkuthKeys(argv.vkuthPublicKeysArg); err != nil {
 		return err
 	}
 	if err = argv.Config.ValidateConfig(); err != nil {
