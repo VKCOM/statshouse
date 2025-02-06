@@ -56,7 +56,7 @@ export function normalizePlotData(
       series_data = [];
       const colorIndex = new Map<string, number>();
       response.series.series_meta.forEach((series, indexSeries) => {
-        const indexColor = colorIndex.get(series.color);
+        const indexColor = colorIndex.get(series.color + '_' + series.time_shift);
         if (series.color && indexColor != null) {
           response.series.series_data[indexSeries].forEach((value, indexValue) => {
             if (value != null) {
@@ -66,7 +66,7 @@ export function normalizePlotData(
         } else {
           const index = series_meta.push(series) - 1;
           series_data.push([...response.series.series_data[indexSeries]]);
-          colorIndex.set(series.color, index);
+          colorIndex.set(series.color + '_' + series.time_shift, index);
         }
       });
     }
