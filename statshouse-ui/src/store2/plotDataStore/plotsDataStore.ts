@@ -18,7 +18,7 @@ import { dequal } from 'dequal/lite';
 import { changePlotParamForData } from './changePlotParamForData';
 import { useLiveModeStore } from '../liveModeStore';
 import { getPlotLoader, queryStart } from '../plotQueryStore';
-import { skipTimeout } from '../../common/helpers';
+import { skipTimeout } from '@/common/helpers';
 import { usePlotVisibilityStore } from '../plotVisibilityStore';
 import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
@@ -247,7 +247,8 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           getState().loadPlotData(iPlot, true);
         }
       });
-      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum && update) {
+
+      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum && (update || force)) {
         const { params } = getState();
         const from =
           params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom
