@@ -9,8 +9,8 @@ import { GET_PARAMS } from '@/api/enum';
 import { debug } from '@/common/debug';
 import { apiDashboard } from '@/api/dashboard';
 import { readDataDashboard } from './readDataDashboard';
-import { ExtendedError } from '../../api/api';
-import { useErrorStore } from '@/store/errors';
+import { ExtendedError } from '@/api/api';
+import { useErrorStore } from '@/store2/errors';
 
 export function getDashboardId(urlTree: TreeParamsObject) {
   return urlTree[GET_PARAMS.dashboardID]?.[treeParamsObjectValueSymbol]?.[0];

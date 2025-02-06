@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from '@/store/group';
+import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from '@/store2/group';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
 import { GroupInfo, GroupMetric } from '@/api/group';

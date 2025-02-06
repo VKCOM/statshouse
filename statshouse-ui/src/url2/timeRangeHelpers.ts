@@ -36,9 +36,13 @@ export function getEndWeek(now?: number) {
   return toTimeStamp(+time);
 }
 
+export function stringToTime(str: string) {
+  return toNumber(str) || toTimeRangeKeysTo(str);
+}
+
 export function readTimeRange(from: unknown, to: unknown): TimeRange {
   const timeNow = getNow();
-  let urlTo = toNumber(to) || toTimeRangeKeysTo(to, TIME_RANGE_KEYS_TO.default); //?
+  let urlTo = toNumber(to) || toTimeRangeKeysTo(to, TIME_RANGE_KEYS_TO.default);
   let timeTo;
   const timeAbsolute = (typeof urlTo === 'number' && urlTo > 0) || urlTo === TIME_RANGE_KEYS_TO.default;
   switch (urlTo) {

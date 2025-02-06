@@ -7,7 +7,6 @@
 import { MetricMetaValue } from '@/api/metric';
 import { isTagKey, TAG_KEY, TagKey } from '@/api/enum';
 import uPlot from 'uplot';
-import { TimeRange } from '@/common/TimeRange';
 import { formatFixed } from '@/common/formatFixed';
 import { formatFixedFloor } from '@/common/formatFixedFloor';
 import { RawValueKind } from './api';
@@ -320,39 +319,6 @@ export function timeRangeAbbrevExpand(abbr: timeRangeAbbrev, to: number): timeRa
     case 'last-2y':
       return { from: -3600 * 24 * 365 * 2, to: t };
   }
-}
-
-export function timeRangeToAbbrev(r: TimeRange): timeRangeAbbrev | '' {
-  const tolerance = 60;
-  const candidates: timeRangeAbbrev[] = [
-    'last-5m',
-    'last-15m',
-    'last-1h',
-    'last-2h',
-    'last-6h',
-    'last-12h',
-    'last-1d',
-    'last-2d',
-    'last-3d',
-    'last-7d',
-    'last-14d',
-    'last-30d',
-    'last-90d',
-    'last-180d',
-    'last-1y',
-    'last-2y',
-  ];
-
-  for (const abbr of candidates) {
-    const rr = timeRangeAbbrevExpand(abbr, now());
-    if (
-      Math.abs(rr.from - r.relativeFrom) <= tolerance &&
-      (Math.abs(rr.to - r.to) <= tolerance || Math.abs(r.relativeTo) <= tolerance)
-    ) {
-      return abbr;
-    }
-  }
-  return '';
 }
 
 export function timeRangeToAbbrev2(r: timeRange): timeRangeAbbrev | '' {

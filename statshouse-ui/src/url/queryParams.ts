@@ -16,8 +16,9 @@ import {
   QueryWhat,
   TAG_KEY,
   TagKey,
-} from '../api/enum';
-import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
+  TIME_RANGE_KEYS_TO,
+  TimeRangeKeysTo,
+} from '@/api/enum';
 import { dequal } from 'dequal/lite';
 import {
   deepClone,
@@ -29,8 +30,9 @@ import {
   toNumber,
   toString,
   uniqueArray,
-} from '../common/helpers';
-import { globalSettings } from '../common/settings';
+} from '@/common/helpers';
+import { globalSettings } from '@/common/settings';
+import { stringToTime } from '@/url2';
 
 export const filterInSep = '-';
 export const filterNotInSep = '~';
@@ -200,7 +202,7 @@ export type QueryParams = {
   live: boolean;
   theme?: string;
   dashboard?: DashboardParams;
-  timeRange: { to: number | KeysTo; from: number };
+  timeRange: { to: number | TimeRangeKeysTo; from: number };
   eventFrom: number;
   timeShifts: number[];
   tabNum: number;
@@ -261,7 +263,7 @@ export function getNewPlot(): PlotParams {
     customDescription: '',
     promQL: '',
     metricType: undefined,
-    what: globalSettings.default_metric_what.slice(),
+    what: globalSettings.default_metric_what?.slice() ?? [],
     customAgg: 0,
     groupBy: globalSettings.default_metric_group_by.slice(),
     filterIn: deepClone(globalSettings.default_metric_filter_in),
@@ -935,11 +937,4 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     tagSync,
     variables,
   };
-}
-
-export function decodeDashboardIdParam(urlSearchParams: URLSearchParams) {
-  return toNumber(urlSearchParams.get(GET_PARAMS.dashboardID));
-}
-export function decodeDashboardVersionParam(urlSearchParams: URLSearchParams) {
-  return toNumber(urlSearchParams.get(GET_PARAMS.dashboardVersion));
 }

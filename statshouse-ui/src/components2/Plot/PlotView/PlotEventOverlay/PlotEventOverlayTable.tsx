@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { ApiTable } from '@/api/tableOld';
+import type { ApiTable } from '@/api/tableOld2';
 
 import { Button } from '@/components/UI';
 import cn from 'classnames';

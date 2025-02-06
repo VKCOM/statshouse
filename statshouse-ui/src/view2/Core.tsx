@@ -24,7 +24,7 @@ export function Core() {
           <Outlet />
         </div>
         <div>
-          <BuildVersion className="text-end text-secondary build-version container-xl pb-3" prefix="SH2 " />
+          <BuildVersion className="text-end text-secondary build-version container-xl pb-3" />
         </div>
       </div>
     </div>

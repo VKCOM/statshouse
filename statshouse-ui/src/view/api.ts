@@ -4,18 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { TimeRange } from '@/common/TimeRange';
-import { uniqueArray } from '@/common/helpers';
-import {
-  encodeVariableConfig,
-  encodeVariableValues,
-  filterInSep,
-  filterNotInSep,
-  freeKeyPrefix,
-  PlotParams,
-  QueryParams,
-  toIndexTag,
-} from '@/url/queryParams';
+import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams, toIndexTag } from '@/url/queryParams';
 import { MetricMetaValue } from '@/api/metric';
 import {
   GET_PARAMS,
@@ -25,7 +14,6 @@ import {
   type QueryWhatSelector,
   type TagKey,
 } from '@/api/enum';
-import { promQLMetric } from './promQLMetric';
 import { whatToWhatDesc } from './whatToWhatDesc';
 import { convert, timeShiftDesc } from './utils2';
 
@@ -352,165 +340,6 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
 
 export function v2Value(useV2: boolean): string {
   return useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1;
-}
-
-export function queryURL(
-  sel: PlotParams,
-  timeRange: TimeRange,
-  timeShifts: number[],
-  width: number | string,
-  fetchBadges: boolean,
-  allParams?: QueryParams,
-  priority?: number
-): string {
-  let params: string[][];
-  if (sel.metricName === promQLMetric) {
-    params = [
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
-    ];
-    if (allParams) {
-      params.push(...encodeVariableValues(allParams));
-      params.push(...encodeVariableConfig(allParams));
-    }
-  } else {
-    params = [
-      [GET_PARAMS.numResults, sel.numSeries.toString()],
-      [GET_PARAMS.version, v2Value(sel.useV2)],
-      [GET_PARAMS.metricName, sel.metricName],
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
-      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, freeKeyPrefix(b)]),
-      ...filterParams(sel.filterIn, sel.filterNotIn),
-    ];
-  }
-
-  if (sel.maxHost) {
-    params.push([GET_PARAMS.metricMaxHost, '1']);
-  }
-  if (priority) {
-    params.push([GET_PARAMS.priority, priority.toString()]);
-  }
-  params.push([GET_PARAMS.excessPoints, '1']);
-  params.push([GET_PARAMS.metricVerbose, fetchBadges ? '1' : '0']);
-  const strParams = new URLSearchParams(params).toString();
-  return `/api/query?${strParams}`;
-}
-
-export function queryURLCSV(
-  sel: PlotParams,
-  timeRange: TimeRange,
-  timeShifts: number[],
-  width: number | string,
-  allParams?: QueryParams
-): string {
-  let params: string[][];
-  if (sel.metricName === promQLMetric) {
-    params = [
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      [GET_PARAMS.metricPromQL, sel.promQL],
-      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
-      [GET_PARAMS.metricDownloadFile, 'csv'],
-    ];
-    if (allParams) {
-      params.push(...encodeVariableValues(allParams));
-      params.push(...encodeVariableConfig(allParams));
-    }
-  } else {
-    params = [
-      [GET_PARAMS.numResults, sel.numSeries.toString()],
-      [GET_PARAMS.version, v2Value(sel.useV2)],
-      [GET_PARAMS.metricName, sel.metricName],
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
-      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, b]),
-      ...filterParams(sel.filterIn, sel.filterNotIn),
-      [GET_PARAMS.metricDownloadFile, 'csv'],
-    ];
-  }
-  if (sel.maxHost) {
-    params.push([GET_PARAMS.metricMaxHost, '1']);
-  }
-
-  const strParams = new URLSearchParams(params).toString();
-  return `/api/query?${strParams}`;
-}
-
-export function queryTableURL(
-  sel: PlotParams,
-  timeRange: TimeRange,
-  width: number | string,
-  key?: string,
-  fromEnd: boolean = false,
-  limit: number = 1000
-): string {
-  let params: string[][];
-  if (sel.metricName === promQLMetric) {
-    params = [
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-    ];
-  } else {
-    params = [
-      [GET_PARAMS.version, v2Value(sel.useV2)],
-      [GET_PARAMS.metricName, sel.metricName],
-      [GET_PARAMS.fromTime, timeRange.from.toString()],
-      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-      [GET_PARAMS.width, width.toString()],
-      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
-      // [queryParamVerbose, fetchBadges ? '1' : '0'],
-      // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      // ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
-      ...uniqueArray([...sel.groupBy.map(freeKeyPrefix), ...sel.eventsBy]).map((b) => [GET_PARAMS.metricGroupBy, b]),
-      ...filterParams(sel.filterIn, sel.filterNotIn),
-    ];
-  }
-  if (sel.maxHost) {
-    params.push([GET_PARAMS.metricMaxHost, '1']);
-  }
-  if (fromEnd) {
-    params.push([GET_PARAMS.metricFromEnd, '1']);
-  }
-  if (key) {
-    if (fromEnd) {
-      params.push([GET_PARAMS.metricToRow, key]);
-    } else {
-      params.push([GET_PARAMS.metricFromRow, key]);
-    }
-  }
-  params.push([GET_PARAMS.numResults, limit.toString()]);
-
-  const strParams = new URLSearchParams(params).toString();
-  return `/api/table?${strParams}`;
-}
-
-export function metricsGroupListURL(): string {
-  return '/api/group-list';
-}
-
-export function metricsGroupURL(id?: number): string {
-  if (!id) {
-    return `/api/group`;
-  }
-
-  const strParams = new URLSearchParams([[GET_PARAMS.metricsGroupID, id.toString()]]).toString();
-  return `/api/group?${strParams}`;
-}
-
-export function promConfigURL(): string {
-  return '/api/prometheus';
 }
 
 export type metricKind = 'counter' | 'value' | 'value_p' | 'unique' | 'mixed' | 'mixed_p';

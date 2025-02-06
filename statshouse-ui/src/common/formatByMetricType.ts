@@ -6,7 +6,7 @@
 
 import { formatFixed } from './formatFixed';
 import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '@/api/enum';
-import { fixFloat, floor, incrRoundUp, round } from './helpers';
+import { floor, round } from './helpers';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -207,79 +207,6 @@ export function formatByMetricType(metricType: MetricType): (n: number) => strin
       return n.toString();
     }
     return conf.format(n);
-  };
-}
-
-export function splitByMetricType(metricType: MetricType) {
-  return (
-    _self: unknown, //uPlot unknown for test
-    _axisIdx: number,
-    scaleMin: number,
-    scaleMax: number,
-    foundIncr: number,
-    _foundSpace: number
-  ): number[] => {
-    const splits: number[] = [];
-
-    const conf = suffixesByMetricType[metricType];
-    const base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
-
-    let p = 1;
-    switch (metricType) {
-      case METRIC_TYPE.nanosecond:
-        p = 0.000000001;
-        break;
-      case METRIC_TYPE.microsecond:
-        p = 0.000001;
-        break;
-      case METRIC_TYPE.millisecond:
-        p = 0.001;
-        break;
-      case METRIC_TYPE.byte_as_bits:
-        p = 8;
-        break;
-    }
-    let incr = fixFloat(foundIncr);
-    let start = incrRoundUp(scaleMin, incr);
-    let end = scaleMax + incr / 100;
-    switch (metricType) {
-      case METRIC_TYPE.nanosecond:
-      case METRIC_TYPE.microsecond:
-      case METRIC_TYPE.millisecond:
-      case METRIC_TYPE.second:
-        if (base === 3) {
-          incr = round(foundIncr * p, -1, 43200) / p || round(2 * foundIncr * p, -1, 43200) / p;
-          start = round(incrRoundUp(round(scaleMin * p, -1, 86400), incr)) / p;
-          end = scaleMax + incr / 100;
-        } else if (base > 0) {
-          incr = round(foundIncr * p, -base, 30 * base) / p || round(2 * foundIncr * p, -base, 30 * base) / p;
-          start = round(incrRoundUp(round(scaleMin * p, -base, 60), incr)) / p;
-          end = scaleMax + incr / 100;
-        }
-        break;
-
-      case METRIC_TYPE.byte:
-        if (base > 0) {
-          const r1 = Math.pow(2, 10 * base - base - 1);
-          const r2 = Math.pow(2, 10 * base);
-          const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2;
-          incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p;
-          start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p;
-          end = scaleMax + incr / 100;
-        }
-        break;
-      case METRIC_TYPE.byte_as_bits:
-        // base = conf.getBase(Math.max(Math.abs(8 * scaleMin), Math.abs(8 * scaleMax)));
-        break;
-      default:
-    }
-    if (incr > 0) {
-      for (let val = start; val <= end; val = val + incr) {
-        const pos = round(val, 10);
-        splits.push(pos === minusZero ? 0 : pos);
-      }
-    }
-    return splits;
   };
 }
 
