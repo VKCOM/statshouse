@@ -23,7 +23,7 @@ export function Core() {
         <div className={css.bottom}>
           <Outlet />
         </div>
-        <div>
+        <div hidden={isEmbed}>
           <BuildVersion className="text-end text-secondary build-version container-xl pb-3" />
         </div>
       </div>
