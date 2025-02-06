@@ -630,7 +630,11 @@ func (m *MetricMetaValue) GetTagDraft(tagName []byte) (tag MetricMetaTag, ok boo
 func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 	for _, name := range groupBy {
 		if t, _ := m.APICompatGetTag(name); t != nil {
-			res = append(res, int(t.Index))
+			x := t.Index
+			if x == StringTopTagIndex {
+				x = StringTopTagIndexV3
+			}
+			res = append(res, int(x))
 		}
 	}
 	return res
