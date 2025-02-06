@@ -30,14 +30,14 @@ func (s *stringSlice) Set(v string) error {
 }
 
 func (s *stringSlice) String() string {
-	if len(*s.p) == 0 {
-		return "[]"
+	if s == nil || s.p == nil || len(*s.p) == 0 {
+		return ""
 	}
 	return fmt.Sprint(*s.p)
 }
 
 func parseCSV(s string) []string {
-	var res []string
+	res := make([]string, 0, 1)
 	for i := 0; i < len(s); {
 		j := i
 		for ; j < len(s) && s[j] != ',' && s[j] != ';'; j++ {
