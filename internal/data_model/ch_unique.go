@@ -459,4 +459,57 @@ func (ch *ChUnique) Marshall(dst io.Writer) error {
 	return nil
 }
 
+type ProtoReader interface {
+	ReadByte() (byte, error)
+	ReadFull(buf []byte) error
+}
+
+func (u *ChUnique) ReadFromProto(r ProtoReader) error {
+	u.hasZeroItem = false
+	sd, err := r.ReadByte()
+	if err != nil {
+		return err
+	}
+	u.skipDegree = uint32(sd)
+	ic, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+	if ic > uniquesHashMaxSize {
+		return fmt.Errorf("ChUnique has too many (%d) items", ic)
+	}
+	u.itemsCount = int32(ic)
+	u.sizeDegree = uniquesHashSetInitialSizeDegree
+	if ic > 1 {
+		u.sizeDegree = uint32(math.Log2(float64(ic)) + 2)
+		if u.sizeDegree < uniquesHashSetInitialSizeDegree {
+			u.sizeDegree = uniquesHashSetInitialSizeDegree
+		}
+	}
+	bufLen := 1 << u.sizeDegree
+
+	if cap(u.buf) < bufLen {
+		u.buf = make([]uint32, bufLen)
+	} else {
+		u.buf = u.buf[:bufLen]
+		for i := range u.buf {
+			u.buf[i] = 0
+		}
+	}
+
+	var tmp [4]byte
+	for i := 0; i < int(ic); i++ {
+		if err = r.ReadFull(tmp[:]); err != nil {
+			return err
+		}
+		x := binary.LittleEndian.Uint32(tmp[:])
+		if x == 0 {
+			u.hasZeroItem = true
+			continue
+		}
+		u.reinsertImpl(x)
+	}
+	return nil
+}
+
 // TODO - test that AppendMarshal and Marshal behave the same
