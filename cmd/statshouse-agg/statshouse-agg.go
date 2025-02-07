@@ -158,7 +158,7 @@ func parseCommandLine() error {
 	if len(os.Args) > 1 {
 		const conveyorName = "aggregator"
 		switch os.Args[1] {
-		case conveyorName, "-" + conveyorName:
+		case conveyorName, "-" + conveyorName, "--" + conveyorName:
 			log.Printf("positional argument %q is deprecated, it is safe to remove it", os.Args[1])
 			os.Args = append(os.Args[:1], os.Args[2:]...)
 		}
