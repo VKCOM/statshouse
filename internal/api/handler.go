@@ -2764,8 +2764,8 @@ type seriesQuery struct {
 	sum         proto.ColFloat64
 	count       proto.ColFloat64
 	sumsquare   proto.ColFloat64
-	unique      data_model.ColUnique
-	percentile  data_model.ColTDigest
+	unique      chutil.ColUnique
+	percentile  chutil.ColTDigest
 	cardinality proto.ColFloat64
 	shardNum    proto.ColUInt32
 	minHostV1   proto.ColUInt8
