@@ -234,7 +234,7 @@ func MapErrorFromHeader(m tlstatshouse.MetricBytes, h data_model.MappedMetricHea
 		return nil // not written
 	case format.TagValueIDSrcIngestionStatusErrMetricNonCanonical:
 		return nil // not written
-	case format.TagValueIDSrcIngestionStatusErrMetricInvisible:
+	case format.TagValueIDSrcIngestionStatusErrMetricDisabled:
 		return fmt.Errorf("metric %q is disabled (envTag %d)", m.Name, envTag)
 	case format.TagValueIDSrcIngestionStatusErrLegacyProtocol:
 		return nil // not written

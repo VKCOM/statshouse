@@ -294,10 +294,10 @@ func (ms *JournalFast) updateJournal(aggLog AggLog) error {
 func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	ms.mu.RLock()
 	isDead := ms.metricsDead
-	oldVersion := ms.currentVersion
+	loaderVersion := ms.loaderVersion
 	ms.mu.RUnlock()
 
-	src, lastKnownVersion, err := ms.metaLoader(context.Background(), oldVersion, isDead)
+	src, lastKnownVersion, err := ms.metaLoader(context.Background(), loaderVersion, isDead)
 	if err != nil {
 		if !isDead {
 			func() {

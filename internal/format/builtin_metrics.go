@@ -288,7 +288,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			TagValueIDSrcIngestionStatusErrMapTagValueEncoding:       "err_validate_tag_value_utf8",
 			TagValueIDSrcIngestionStatusOKLegacy:                     "ok_legacy_protocol",
 			TagValueIDSrcIngestionStatusErrMetricNonCanonical:        "non_canonical_name",
-			TagValueIDSrcIngestionStatusErrMetricInvisible:           "err_metric_disabled",
+			TagValueIDSrcIngestionStatusErrMetricDisabled:            "err_metric_disabled",
 			TagValueIDSrcIngestionStatusErrLegacyProtocol:            "err_legacy_protocol",
 			TagValueIDSrcIngestionStatusWarnDeprecatedT:              "warn_deprecated_field_t",
 			TagValueIDSrcIngestionStatusWarnDeprecatedStop:           "warn_deprecated_field_stop",
