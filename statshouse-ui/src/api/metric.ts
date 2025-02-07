@@ -43,6 +43,7 @@ export type MetricMetaValue = {
   description?: string;
   tags?: MetricMetaTag[];
   visible?: boolean;
+  disable?: boolean;
   kind: MetricMetaKind;
   weight?: number;
   resolution?: number;

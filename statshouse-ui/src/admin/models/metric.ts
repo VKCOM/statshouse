@@ -45,6 +45,7 @@ export interface IMetric extends IShortMetric {
   readonly weight: number;
   readonly resolution: number;
   readonly visible: boolean;
+  readonly disable: boolean;
   readonly pre_key_tag_id?: string;
   readonly pre_key_from?: number;
   readonly skip_max_host?: boolean;
@@ -69,6 +70,7 @@ export interface IBackendMetric {
   readonly weight?: number;
   readonly resolution?: number;
   readonly visible?: boolean;
+  readonly disable?: boolean;
   readonly pre_key_tag_id?: string;
   readonly pre_key_from?: number;
   readonly skip_max_host?: boolean;
