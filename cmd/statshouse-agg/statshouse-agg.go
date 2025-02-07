@@ -34,6 +34,7 @@ import (
 const defaultPathToPwd = `/etc/engine/pass`
 
 var argv struct {
+	logFile        string
 	logLevel       string
 	userLogin      string // логин для setuid
 	userGroup      string // логин для setguid
@@ -48,6 +49,16 @@ var argv struct {
 	aggregator.ConfigAggregator
 }
 
+var logFile *os.File
+
+func logRotate() {
+	var err error
+	logFile, err = srvfunc.LogRotate(logFile, argv.logFile)
+	if err != nil {
+		log.Printf("logrotate %s error: %v", argv.logFile, err)
+	}
+}
+
 func main() {
 	os.Exit(mainAggregator())
 }
@@ -57,6 +68,7 @@ func mainAggregator() int {
 		log.Println(err)
 		return 1
 	}
+	logRotate()
 	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
 		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
 		return 1
@@ -120,9 +132,18 @@ func mainAggregator() int {
 
 	// Run
 	agent.ShutdownInfoReport(agg.Agent(), format.TagValueIDComponentAggregator, argv.cacheDir, startDiscCacheTime)
-	waitSIGINT := make(chan os.Signal, 1)
-	signal.Notify(waitSIGINT, syscall.SIGINT)
-	<-waitSIGINT
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGUSR1, syscall.SIGINT)
+main_loop:
+	for sig := range signals {
+		switch sig {
+		case syscall.SIGUSR1:
+			log.Println("logRotate", argv.logFile)
+			logRotate()
+		case syscall.SIGINT:
+			break main_loop
+		}
+	}
 
 	// Shutdown
 	shutdownInfo := tlstatshouse.ShutdownInfo{}
@@ -150,7 +171,6 @@ func mainAggregator() int {
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	agent.ShutdownInfoSave(argv.cacheDir, shutdownInfo)
 	log.Printf("Bye")
-
 	return 0
 }
 
@@ -177,6 +197,7 @@ func parseCommandLine() error {
 	}
 
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+	flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
 	flag.StringVar(&argv.logLevel, "log-level", "info", "log level. can be 'info' or 'trace' for now. 'trace' will print all incoming packets")
 	flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
 	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
