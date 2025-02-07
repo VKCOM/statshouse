@@ -257,10 +257,6 @@ func (l *MetricMetaLoader) GetShortHistory(ctx context.Context, id int64) (ret t
 func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMetaValue, metadata string) (m format.MetricMetaValue, _ error) {
 	create := value.MetricID == 0
 
-	// TODO - too late
-	if err := value.RestoreCachedInfo(); err != nil {
-		return m, err
-	}
 	metricBytes, err := json.Marshal(value)
 	if err != nil {
 		return m, fmt.Errorf("failed to serialize metric: %w", err)

@@ -1235,7 +1235,7 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.Name != b.Name ||
 		a.NamespaceID != b.NamespaceID ||
 		a.GroupID != b.GroupID ||
-		a.Visible != b.Visible ||
+		a.Disable != !b.Visible || // b is always original, we turn Visible into Disable for now
 		a.EffectiveWeight != b.EffectiveWeight ||
 		a.EffectiveResolution != b.EffectiveResolution ||
 		!slices.Equal(a.FairKey, b.FairKey) ||
@@ -1292,6 +1292,8 @@ func MakeCompactMetric(value *MetricMetaValue) {
 	if !keepCompactMetricDescription(value) {
 		value.Description = ""
 	}
+	value.Disable = !value.Visible // compact journal and agents strictly use new flag
+	value.Visible = false
 	value.MetricID = 0    // restored from event anyway
 	value.NamespaceID = 0 // restored from event anyway
 	value.Name = ""       // restored from event anyway

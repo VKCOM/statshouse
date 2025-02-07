@@ -81,7 +81,7 @@ func getJournalFileLoader(fName string) (MetricsStorageLoader, []tlmetadata.Even
 		//}
 		//}
 	}
-	//_ = os.WriteFile(fName+".short", newData.Bytes(), 0666)
+	// _ = os.WriteFile(fName+".short", newData.Bytes(), 0666)
 	return func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
 		var result []tlmetadata.Event
 		for _, e := range events {

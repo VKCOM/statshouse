@@ -106,7 +106,6 @@ const (
 	paramPromQuery    = "q"
 	paramFromEnd      = "fe"
 	paramExcessPoints = "ep"
-	paramLegacyEngine = "legacy"
 	paramQueryType    = "qt"
 	paramDashboardID  = "id"
 	paramShowDisabled = "sd"
@@ -1656,9 +1655,9 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	create := metric.MetricID == 0
 	var resp format.MetricMetaValue
 	var err error
-	if metric.PreKeyOnly && (metric.PreKeyFrom == 0 || metric.PreKeyTagID == "") {
+	if err := metric.RestoreCachedInfo(); err != nil {
 		return format.MetricMetaValue{},
-			httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
+			httpErr(http.StatusBadRequest, err)
 	}
 	if metric.Name == format.StatshouseAPIRemoteConfig {
 		if err := h.configListener.ValidateConfig(metric.Description); err != nil {

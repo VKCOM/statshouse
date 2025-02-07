@@ -153,7 +153,7 @@ var (
 	}
 
 	// this set is very small, and we do not want to set Visible property for hunderds of metrics
-	builtinMetricsInvisible = map[int32]bool{
+	builtinMetricsDisabled = map[int32]bool{
 		BuiltinMetricIDBudgetHost:           true,
 		BuiltinMetricIDBudgetAggregatorHost: true,
 		BuiltinMetricIDBudgetUnknownMetric:  true,
@@ -248,7 +248,8 @@ func init() {
 		if m.GroupID == 0 {
 			m.GroupID = BuiltinGroupIDBuiltin
 		}
-		m.Visible = !builtinMetricsInvisible[id]
+		m.Visible = !builtinMetricsDisabled[id]
+		m.Disable = !m.Visible
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
 		m.Weight = 1
 

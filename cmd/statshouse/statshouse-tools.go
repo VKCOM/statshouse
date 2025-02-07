@@ -550,7 +550,7 @@ func mainPublishTagDrafts() int {
 		fmt.Println("DRY RUN!")
 	}
 	fmt.Println()
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 	fmt.Println("Start publishing tag drafts!")
 	for {
 		var meta format.MetricMetaValue
@@ -577,7 +577,7 @@ func mainPublishTagDrafts() int {
 		workCond.L.Unlock()
 		v := storage.GetMetaMetric(meta.MetricID)
 		if v == nil {
-			fmt.Fprintf(os.Stderr, "Failed to get metric %q\n", meta.Name)
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to get metric %q\n", meta.Name)
 			continue
 		}
 		meta = *v
@@ -591,10 +591,15 @@ func mainPublishTagDrafts() int {
 		if argv.dryRun {
 			continue
 		}
+		if err := meta.RestoreCachedInfo(); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+
 		var err error
 		meta, err = loader.SaveMetric(context.Background(), meta, "")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		err = storage.WaitVersion(context.Background(), meta.Version)
