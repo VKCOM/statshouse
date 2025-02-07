@@ -46,7 +46,9 @@ func (q *tagValuesQuery) writeSelect(lod *data_model.LOD, mode queryBuilderMode)
 		comma.maybeWrite()
 		q.writeSelectStr(lod)
 	}
-	q.WriteString(",toFloat64(sum(count)) AS _count")
+	q.WriteString(",toFloat64(")
+	q.WriteString(sqlAggFn("sum", lod))
+	q.WriteString("(count)) AS _count")
 	q.res = append(q.res, proto.ResultColumn{Name: "_count", Data: &q.cnt})
 }
 
