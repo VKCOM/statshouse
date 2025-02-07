@@ -237,9 +237,7 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 		RawGetConfig3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.handleGetConfig3(ctx, hctx)
 		},
-		RawGetMetrics3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
-			return a.journal.HandleGetMetrics3(ctx, hctx)
-		},
+		RawGetMetrics3: a.handleGetMetrics3,
 		RawGetTagMapping2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.tagsMapper.handleCreateTagMapping(ctx, hctx)
 		},

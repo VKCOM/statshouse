@@ -7,9 +7,6 @@
 package metajournal
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -18,9 +15,9 @@ import (
 
 // returns only for old tests
 func (ms *JournalFast) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalResponsenew {
-	ms.getJournalResponse.CurrentVersion = ms.versionLocked()
+	ms.getJournalResponse.CurrentVersion = ms.currentVersion
 	ms.getJournalResponse.Events = ms.getJournalResponse.Events[:0]
-	if verNumb >= ms.versionLocked() { // wait until version changes
+	if verNumb >= ms.currentVersion { // wait until version changes
 		return ms.getJournalResponse
 	}
 	bytesSize := 0
@@ -80,11 +77,7 @@ func (ms *JournalFast) CancelHijack(hctx *rpc.HandlerContext) {
 	delete(ms.metricsVersionClients3, hctx)
 }
 
-func (ms *JournalFast) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext) error {
-	var args tlstatshouse.GetMetrics3
-	if _, err := args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
-	}
+func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rpc.HandlerContext) error {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	if ms.metricsDead {
