@@ -19,6 +19,7 @@ export function saveMetric(metric: IMetric) {
     weight: metric.weight,
     resolution: metric.resolution,
     visible: metric.visible,
+    disable: metric.disable,
     tags: metric.tags.map((tag) => ({
       name: tag.name,
       description: tag.alias,
@@ -108,6 +109,7 @@ export const fetchAndProcessMetric = async (url: string) => {
     weight: metric.weight === undefined ? 1 : metric.weight,
     resolution: metric.resolution === undefined ? 1 : metric.resolution,
     visible: metric.visible === undefined ? false : metric.visible,
+    disable: metric.disable === undefined ? false : metric.disable,
     withPercentiles: metric.kind.endsWith('_p'),
     tags: metric.tags.map((tag: ITag, index: number) => ({
       name: tag.name === undefined || tag.name === `key${index}` ? '' : tag.name,
