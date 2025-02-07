@@ -81,7 +81,9 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   }, [metricName]);
 
   const handleShowHistory = () => {
-    navigate('history');
+    if (!isHistoryRoute) {
+      navigate('history');
+    }
   };
 
   const handleShowEdit = () => {
