@@ -239,6 +239,8 @@ func DumpQueryTopDuration(r *httpRequestHandler) {
 			protocol = strconv.Itoa(v.protocol)
 		}
 		w.Write([]byte(v.expr))
+		w.Write([]byte("\n"))
+		w.Write([]byte(v.query))
 		w.Write([]byte(fmt.Sprintf(
 			"\n# duration=%v from=%d to=%d range=%d token=%s proto=%s\n\n",
 			v.duration, v.start, v.end, v.end-v.start, v.user, protocol)))

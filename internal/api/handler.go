@@ -226,6 +226,7 @@ type (
 
 	queryTopDuration struct {
 		queryArgs
+		query    string
 		duration time.Duration
 		protocol int
 		user     string
@@ -2945,7 +2946,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 			return nil
 		}})
 	duration := time.Since(start)
-	h.reportQueryDuration(duration)
+	h.reportQueryDuration(query.body, duration)
 	if err != nil {
 		return 0, err
 	}
@@ -3288,7 +3289,7 @@ func (h *requestHandler) reportQueryMemUsage(rowCount, colCount int) {
 	}
 }
 
-func (h *requestHandler) reportQueryDuration(d time.Duration) {
+func (h *requestHandler) reportQueryDuration(q string, d time.Duration) {
 	if d <= 0 {
 		return
 	}
@@ -3305,24 +3306,24 @@ func (h *requestHandler) reportQueryDuration(d time.Duration) {
 	case 0:
 		if len(s) == 0 {
 			s = make([]queryTopDuration, 0, maxLen+1)
-			s = append(s, h.queryDuration(d))
+			s = append(s, h.queryDuration(q, d))
 		} else {
 			s = append(s[:1], s...)
 			if len(s) > maxLen {
 				s = s[:maxLen]
 			}
-			s[0] = h.queryDuration(d)
+			s[0] = h.queryDuration(q, d)
 		}
 		top = true
 	case len(s):
 		if len(s) < maxLen && s[len(s)-1].expr != h.query.Expr {
-			s = append(s, h.queryDuration(d))
+			s = append(s, h.queryDuration(q, d))
 			top = true
 		}
 	default:
 		if s[i-1].expr != h.query.Expr {
 			s = append(s[:i+1], s[i+1:]...)
-			s[i] = h.queryDuration(d)
+			s[i] = h.queryDuration(q, d)
 			top = true
 		}
 	}
@@ -3348,13 +3349,14 @@ func (h *requestHandler) queryMemUsage(rowCount, colCount, memUsage int) queryTo
 	}
 }
 
-func (h *requestHandler) queryDuration(d time.Duration) queryTopDuration {
+func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDuration {
 	return queryTopDuration{
 		queryArgs: queryArgs{
 			expr:  h.query.Expr,
 			start: h.query.Start,
 			end:   h.query.End,
 		},
+		query:    q,
 		duration: d,
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
