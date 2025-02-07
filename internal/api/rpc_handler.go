@@ -244,7 +244,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 		res.Series.Time = sr.Series.Time
 		res.Series.SeriesData = make([][]float64, 0, len(sr.Series.SeriesData))
 		for _, data := range sr.Series.SeriesData {
-			res.Series.SeriesData = append(res.Series.SeriesData, *data)
+			res.Series.SeriesData = append(res.Series.SeriesData, *FloatSlicePtrToNative(data))
 		}
 	} else if chunkMaxSize < metaSize {
 		return &rpc.Error{
@@ -459,7 +459,7 @@ func chunkResponse(res *SeriesResponse, columnSize int, totalSize int, metaSize 
 	firstChunk := tlstatshouseApi.Series{Time: res.Series.Time[0:firstColumnPerChunk]}
 	firstChunk.SeriesData = make([][]float64, 0, len(res.Series.SeriesData))
 	for _, data := range res.Series.SeriesData {
-		firstChunk.SeriesData = append(firstChunk.SeriesData, (*data)[0:firstColumnPerChunk])
+		firstChunk.SeriesData = append(firstChunk.SeriesData, (*FloatSlicePtrToNative(data))[0:firstColumnPerChunk])
 	}
 	chunks = append(chunks, firstChunk)
 
@@ -473,7 +473,7 @@ func chunkResponse(res *SeriesResponse, columnSize int, totalSize int, metaSize 
 		chunk := tlstatshouseApi.Series{Time: res.Series.Time[low:high]}
 		chunk.SeriesData = make([][]float64, 0, len(res.Series.SeriesData))
 		for _, data := range res.Series.SeriesData {
-			chunk.SeriesData = append(chunk.SeriesData, (*data)[low:high])
+			chunk.SeriesData = append(chunk.SeriesData, (*FloatSlicePtrToNative(data))[low:high])
 		}
 
 		chunks = append(chunks, chunk)

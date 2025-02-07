@@ -786,12 +786,12 @@ func (w *handlerWhat) copyRowValuesAt(data []promql.SeriesData, x, y int, row *t
 	}
 }
 
-func (w *handlerWhat) appendRowValues(s []float64, row *tsSelectRow, queryStep int64, lod *data_model.LOD) []float64 {
+func (w *handlerWhat) appendRowValues(s []Float64, row *tsSelectRow, queryStep int64, lod *data_model.LOD) []Float64 {
 	if queryStep == 0 {
 		queryStep = lod.StepSec
 	}
 	for i := 0; i < len(w.sel); i++ {
-		s = append(s, row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, lod.StepSec))
+		s = append(s, Float64(row.value(w.sel[i].Digest, w.qry[i].Argument, queryStep, lod.StepSec)))
 	}
 	return s
 }

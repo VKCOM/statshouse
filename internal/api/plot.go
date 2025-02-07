@@ -223,7 +223,7 @@ type gnuplotTemplateData struct {
 func (d *gnuplotTemplateData) WriteData(i int) string {
 	var blank bool
 	for j, v := range *d.Data.Series.SeriesData[i] {
-		if math.IsNaN(v) {
+		if !v.IsDefined() {
 			if !blank {
 				// blank line tells GNUPlot to not connect adjacent points
 				fmt.Fprint(d.wr, "\n")

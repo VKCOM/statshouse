@@ -444,7 +444,7 @@ type (
 	//easyjson:json
 	GetPointResp struct {
 		PointMeta    []QueryPointsMeta `json:"point_meta"`      // M
-		PointData    []float64         `json:"point_data"`      // M
+		PointData    []Float64         `json:"point_data"`      // M
 		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
 
@@ -473,13 +473,13 @@ type (
 	querySeries struct {
 		Time       []int64             `json:"time"`        // N
 		SeriesMeta []QuerySeriesMetaV2 `json:"series_meta"` // M
-		SeriesData []*[]float64        `json:"series_data"` // MxN
+		SeriesData []*[]Float64        `json:"series_data"` // MxN
 	}
 
 	//easyjson:json
 	queryTableRow struct {
 		Time    int64                    `json:"time"`
-		Data    []float64                `json:"data"`
+		Data    []Float64                `json:"data"`
 		Tags    map[string]SeriesMetaTag `json:"tags"`
 		row     tsSelectRow
 		rowRepr RowMarker
@@ -2545,7 +2545,7 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 	res := &SeriesResponse{
 		Series: querySeries{
 			Time:       s0.TimeSeries.Time,
-			SeriesData: make([]*[]float64, 0, len(s0.Series.Data)),
+			SeriesData: make([]*[]Float64, 0, len(s0.Series.Data)),
 			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(s0.Series.Data)),
 		},
 		PromQL:           s0.promQL,
@@ -2568,11 +2568,11 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 			meta.Total = len(s0.Series.Data)
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
-		res.Series.SeriesData = append(res.Series.SeriesData, d.Values)
+		res.Series.SeriesData = append(res.Series.SeriesData, FloatSlicePtrFromNative(d.Values))
 	}
 	if res.Series.SeriesData == nil {
 		// frontend expects not "null" value
-		res.Series.SeriesData = make([]*[]float64, 0)
+		res.Series.SeriesData = make([]*[]Float64, 0)
 	}
 	// Add badges
 	if s0.metric != nil && len(s) > 1 && s[1].TimeSeries != nil && len(s[1].Time) > 0 {
@@ -2615,7 +2615,7 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 func (h *requestHandler) buildPointResponse(s seriesResponse) *GetPointResp {
 	res := &GetPointResp{
 		PointMeta:    make([]QueryPointsMeta, 0),
-		PointData:    make([]float64, 0),
+		PointData:    make([]Float64, 0),
 		DebugQueries: s.trace,
 	}
 	for i, d := range s.Series.Data {
@@ -2631,7 +2631,7 @@ func (h *requestHandler) buildPointResponse(s seriesResponse) *GetPointResp {
 			meta.MaxHost = maxHost[0]
 		}
 		res.PointMeta = append(res.PointMeta, meta)
-		res.PointData = append(res.PointData, (*d.Values)[0])
+		res.PointData = append(res.PointData, Float64((*d.Values)[0]))
 	}
 	return res
 }
