@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import type { Layout, Layouts } from 'react-grid-layout';
 import { useStatsHouseShallow } from '@/store2';
@@ -20,6 +20,7 @@ import cn from 'classnames';
 import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import { toNumber } from '@/common/helpers';
 import css from './style.module.css';
+import { GroupKey } from '@/url2';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -56,24 +57,99 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     );
 
   const [layouts, setLayouts] = useState({});
-  const itemsGroup = prepareItemsGroup({ groups, orderGroup, orderPlot });
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedPlotKey, setDraggedPlotKey] = useState<string | null>(null);
+  const [draggedGroupKey, setDraggedGroupKey] = useState<string | null>(null);
+  const [selectTargetGroup, setSelectTargetGroup] = useState<GroupKey | null>(null);
+
+  const itemsGroup = useMemo(
+    () => prepareItemsGroup({ groups, orderGroup, orderPlot }),
+    [groups, orderGroup, orderPlot]
+  );
+
+  const itemsGroupRef = useRef(itemsGroup);
 
   const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
 
-  const [isDragging, setIsDragging] = useState(false);
+  // Обновляем ref при изменении itemsGroup
+  useEffect(() => {
+    itemsGroupRef.current = itemsGroup;
+  }, [itemsGroup]);
 
-  const onLayoutChange = useCallback((layout: Layout[], layouts: Layouts) => {
-    // setLayouts(layouts);
-    // if (dashboardLayoutEdit) {
-    //   const formattedLayout = [
-    //     {
-    //       groupKey: nextGroupKey,
-    //       plots: layout.map((item) => item.i),
-    //     },
-    //   ];
-    //   setNextDashboardSchemePlot(formattedLayout);
-    // }
+  const save = useCallback(
+    (plotKey: string | null, targetGroup: GroupKey | null) => {
+      if (plotKey != null && targetGroup != null) {
+        const updatedItemsGroup = itemsGroupRef.current.map((group) => {
+          if (group.groupKey === draggedGroupKey) {
+            return {
+              ...group,
+              plots: group.plots.filter((p) => p !== plotKey),
+            };
+          }
+          if (group.groupKey === targetGroup) {
+            return {
+              ...group,
+              plots: [...group.plots, plotKey],
+            };
+          }
+          return group;
+        });
+
+        // Если это новая группа
+        if (!updatedItemsGroup.find((g) => g.groupKey === targetGroup)) {
+          updatedItemsGroup.push({
+            groupKey: targetGroup,
+            plots: [plotKey],
+          });
+        }
+
+        setNextDashboardSchemePlot(updatedItemsGroup);
+      }
+    },
+    [draggedGroupKey, setNextDashboardSchemePlot]
+  );
+
+  const onDragStart = useCallback((layout: Layout[], oldItem: Layout) => {
+    setIsDragging(true);
+    const [groupKey, plotKey] = oldItem.i.split('::');
+    setDraggedPlotKey(plotKey);
+    setDraggedGroupKey(groupKey);
+    setSelectTargetGroup(null);
   }, []);
+
+  const onDragStop = useCallback(
+    (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, e: MouseEvent, element: HTMLElement) => {
+      setIsDragging(false);
+
+      const dropElement = document.elementsFromPoint(e.clientX, e.clientY);
+      const targetGroup = dropElement.find((e) => e.getAttribute('data-group'))?.getAttribute('data-group') ?? null;
+
+      if (targetGroup && draggedPlotKey) {
+        setSelectTargetGroup(targetGroup);
+        save(draggedPlotKey, targetGroup);
+      }
+
+      setDraggedPlotKey(null);
+      setDraggedGroupKey(null);
+      setSelectTargetGroup(null);
+    },
+    [draggedPlotKey, save]
+  );
+
+  const onLayoutChange = useCallback(
+    (layout: Layout[], layouts: Layouts) => {
+      setLayouts(layouts);
+      // Обрабатываем изменения layout только если это не перетаскивание между группами
+      if (dashboardLayoutEdit && !isDragging && !selectTargetGroup) {
+        const updatedItemsGroup = itemsGroup.map((group) => ({
+          ...group,
+          plots: layout.filter((item) => item.i.startsWith(`${group.groupKey}::`)).map((item) => item.i.split('::')[1]),
+        }));
+        setNextDashboardSchemePlot(updatedItemsGroup);
+      }
+    },
+    [dashboardLayoutEdit, isDragging, itemsGroup, selectTargetGroup, setNextDashboardSchemePlot]
+  );
 
   const onAddGroup = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -82,14 +158,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     },
     [addDashboardGroup]
   );
-
-  const onDragStart = useCallback(() => {
-    setIsDragging(true);
-  }, []);
-
-  const onDragStop = useCallback(() => {
-    setIsDragging(false);
-  }, []);
 
   return (
     <div className="container-fluid">
@@ -113,16 +181,19 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 isResizable={dashboardLayoutEdit}
                 // compactType="horizontal"
                 // preventCollision
-                onLayoutChange={onLayoutChange}
+                // onLayoutChange={onLayoutChange}
                 onDragStart={onDragStart}
                 onDragStop={onDragStop}
               >
                 {plots.map((plotKey, index) => (
                   <DashboardPlotWrapper
-                    key={plotKey}
-                    data-grid={{ w: 6, h: 1, x: (index % 2) * 6, y: 0 }} /// поправить здесь выстраивание в ряд
-                    // data-grid={{ w: 6, h: 1, x: 0, y: 0 }}
-                    className={cn('plot-item p-1', dashboardLayoutEdit && css.cursorMove)}
+                    key={`${groupKey}::${plotKey}`}
+                    data-grid={{ w: 6, h: 1, x: (index % 2) * 6, y: 0 }}
+                    className={cn(
+                      'plot-item p-1',
+                      dashboardLayoutEdit && css.cursorMove
+                      // draggedPlotKey === plotKey && 'opacity-50'
+                    )}
                   >
                     <PlotView
                       className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
@@ -137,15 +208,12 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           </DashboardGroup>
         ))}
 
-        {dashboardLayoutEdit &&
-          (isDragging ? (
-            <div className="pb-5" data-group={nextGroupKey}>
-              <h6 className="border-bottom"> </h6>
+        {dashboardLayoutEdit && (
+          <div className={cn('pb-5', isDragging ? '' : 'text-center container-xl')} data-group={nextGroupKey}>
+            <h6 className="border-bottom"> </h6>
+            {isDragging ? (
               <div className="text-center text-secondary py-4">Drop here for create new group</div>
-            </div>
-          ) : (
-            <div className="pb-5 text-center container-xl" data-group={nextGroupKey}>
-              <h6 className="border-bottom"> </h6>
+            ) : (
               <Button
                 className="btn btn-outline-primary py-4 w-100"
                 data-index-group={nextGroupKey}
@@ -153,8 +221,9 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
               >
                 <SVGPlus /> Add new group
               </Button>
-            </div>
-          ))}
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
