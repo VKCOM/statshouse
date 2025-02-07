@@ -159,6 +159,21 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	return err
 }
 
+func (a *Aggregator) handleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.GetMetrics3
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
+	}
+	if args.IsSetCompactJournal() {
+		return a.journalCompact.HandleGetMetrics3(args, hctx)
+	}
+	if args.IsSetNewJournal() {
+		return a.journalFast.HandleGetMetrics3(args, hctx)
+	}
+	return a.journal.HandleGetMetrics3(args, hctx)
+}
+
 func decompressOriginal(originalSize uint32, compressedData []byte) ([]byte, error) {
 	if int(originalSize) == len(compressedData) {
 		return compressedData, nil

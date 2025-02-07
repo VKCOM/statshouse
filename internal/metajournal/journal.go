@@ -11,7 +11,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -396,12 +395,7 @@ func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
 	resp.Events = cpyArr
 }
 
-func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext) error {
-	var args tlstatshouse.GetMetrics3
-	_, err := args.Read(hctx.Request)
-	if err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
-	}
+func (ms *Journal) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rpc.HandlerContext) error {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	if ms.metricsDead {
