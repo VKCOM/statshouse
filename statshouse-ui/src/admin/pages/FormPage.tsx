@@ -458,7 +458,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
               name="visible"
               type="checkbox"
               className="form-check-input"
-              checked={values.visible || !values.disable}
+              checked={values.visible}
               onChange={(e) => dispatch({ visible: e.target.checked, disable: !e.target.checked })}
               disabled={isReadonly}
             />
