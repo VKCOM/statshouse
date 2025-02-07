@@ -244,8 +244,9 @@ func DumpQueryTopDuration(r *httpRequestHandler) {
 		default:
 			protocol = strconv.Itoa(v.protocol)
 		}
+		w.Write([]byte("PromQL\n"))
 		w.Write([]byte(v.expr))
-		w.Write([]byte("\n"))
+		w.Write([]byte("\nSQL"))
 		w.Write([]byte(v.query))
 		w.Write([]byte(fmt.Sprintf(
 			"\n# duration=%v from=%d to=%d range=%d token=%s proto=%s\n\n",
