@@ -92,6 +92,7 @@ gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metai
 	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
 gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/api/httputil.go
+	@echo "you may need to install easyjson version: go install github.com/mailru/easyjson/...@latest"
 	go generate ./internal/api/handler.go
 	go generate ./internal/format/format.go
 

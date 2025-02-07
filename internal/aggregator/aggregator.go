@@ -982,7 +982,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 		return
 	}
 	description := ""
-	if mv := a.metricStorage.GetMetaMetricByName(data_model.StatshouseAggregatorRemoteConfigMetric); mv != nil {
+	if mv := a.metricStorage.GetMetaMetricByName(format.StatshouseAggregatorRemoteConfigMetric); mv != nil {
 		description = mv.Description
 	}
 	if description == a.configS {
@@ -992,10 +992,10 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	log.Printf("Remote config:\n%s", description)
 	config := a.config.ConfigAggregatorRemote
 	if err := config.updateFromRemoteDescription(description); err != nil {
-		log.Printf("[error] Remote config: error updating config from metric %q: %v", data_model.StatshouseAggregatorRemoteConfigMetric, err)
+		log.Printf("[error] Remote config: error updating config from metric %q: %v", format.StatshouseAggregatorRemoteConfigMetric, err)
 		return
 	}
-	log.Printf("Remote config: updated config from metric %q", data_model.StatshouseAggregatorRemoteConfigMetric)
+	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
 	a.configR = config
 	a.configMu.Unlock()

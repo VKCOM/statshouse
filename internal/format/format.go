@@ -46,6 +46,7 @@ const (
 	EnvTagID                  = "0"
 	LETagName                 = "le"
 	ScrapeNamespaceTagName    = "__scrape_namespace__"
+	ToggleDescriptionMark     = "statshouse$" // all experimental toggles should have this mark
 	HistogramBucketsStartMark = "Buckets$"
 	HistogramBucketsDelim     = ","
 	HistogramBucketsDelimC    = ','
@@ -76,6 +77,10 @@ const (
 
 	// agents with older commitTs will be declined
 	LeastAllowedAgentCommitTs uint32 = 0
+
+	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
+	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
+	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
 )
 
 // Do not change values, they are stored in DB
@@ -176,6 +181,8 @@ const (
 	BuiltinKindNamespace = 3
 )
 
+// TODO - omitempty everywhere
+
 //easyjson:json
 type NamespaceMeta struct {
 	ID         int32  `json:"namespace_id"`
@@ -238,6 +245,7 @@ type MetricMetaValue struct {
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
 	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
 	Visible              bool                     `json:"visible,omitempty"`
+	Disable              bool                     `json:"disable,omitempty"` // TODO - we migrate from visible flag to this flag
 	Kind                 string                   `json:"kind,omitempty"`
 	Weight               float64                  `json:"weight,omitempty"`
 	Resolution           int                      `json:"resolution,omitempty"`             // no invariants
@@ -262,7 +270,6 @@ type MetricMetaValue struct {
 	EffectiveWeight      int64                     `json:"-"`
 	HasPercentiles       bool                      `json:"-"`
 	RoundSampleFactors   bool                      `json:"-"` // Experimental, set if magic word in description is found
-	ShardUniqueValues    bool                      `json:"-"` // Experimental, set if magic word in description is found
 	WhalesOff            bool                      `json:"-"` // "whales" sampling algorithm disabled
 	HistogramBuckets     []float32                 `json:"-"` // Prometheus histogram buckets
 	IsHardwareSlowMetric bool                      `json:"-"`
@@ -432,7 +439,7 @@ func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canoni
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
 func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var err error
-	if !ValidMetricName(mem.S(m.Name)) {
+	if !ValidMetricName(mem.S(m.Name)) && m.Name != "404_page" && m.Name != "404_page_top_urls" { // TODO - ask monolith team to update names in code before removing exceptions
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
 	}
 	if !IsValidMetricType(m.MetricType) {
@@ -449,7 +456,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			m.StringTopDescription = "string_top"
 		}
 	}
-	if !ValidMetricKind(m.Kind) {
+	if !ValidMetricKind(m.Kind) && m.Kind != "" { // Kind is empty in compact form
 		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
 
@@ -466,15 +473,19 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	m.PreKeyIndex = -1
 	tags := m.Tags
-	if len(tags) > NewMaxTags { // prevent index out of range during mapping
+	if len(tags) > NewMaxTags { // prevent various overflows in code
 		tags = tags[:NewMaxTags]
 		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", NewMaxTags))
 	}
+	for name, tag := range m.TagsDraft {
+		// in compact journal we clear tag.Name, so we must restore
+		// also in case of difference, we want key to take precedence
+		tag.Name = name
+		m.TagsDraft[name] = tag
+	}
 	for i := range tags {
-		var (
-			tag   = &tags[i]
-			tagID = TagID(i)
-		)
+		tag := &tags[i]
+		tagID := TagID(i)
 		if tag.Name == tagID { // remove redundancy
 			tag.Name = ""
 		}
@@ -490,17 +501,21 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 				m.PreKeyTagID = tagID // fix legacy name
 			}
 		}
-		if !tag.Raw {
+		// tag.Raw has priority for now.
+		// we want to set RawKind based on Raw, so that Raw == (RawKind != "")
+		// after that we can remove Raw from serialization
+		if !tag.Raw && tag.RawKind != "" {
 			tag.RawKind = ""
 		}
 		if tag.Raw && tag.RawKind == "" {
+			// we have a lot of metrics with attributes like this.
 			tag.RawKind = "int"
 		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
 		tag.Raw64 = tag.Raw && IsRaw64Kind(tag.RawKind)
-		if tag.Raw64 && tag.Index == MaxTags-1 {
+		if tag.Raw64 && tag.Index >= NewMaxTags-1 { // for now, to avoid overflows in v2 and v3 mapping
 			err = multierr.Append(err, fmt.Errorf("last tag cannot be raw64 kind %q of tag %d", tag.RawKind, i))
 			tag.Raw64 = false
 		}
@@ -563,25 +578,24 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
-	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
-	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
-	m.WhalesOff = strings.Contains(m.Description, "__whales_off")                    // Experimental
-	if m.Kind == MetricKindCounter {
-		if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
-			s := m.Description[i+len(HistogramBucketsStartMark):]
-			if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
-				s = s[:i]
-				m.HistogramBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
-				for i, j := 0, 1; i < len(s); {
-					for j < len(s) && s[j] != HistogramBucketsDelimC {
-						j++
-					}
-					if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
-						m.HistogramBuckets = append(m.HistogramBuckets, float32(f))
-					}
-					i = j + 1
-					j = i + 1
+	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") || // TODO - deprecate
+		strings.Contains(m.Description, ToggleDescriptionMark+"round_sample_factors")
+	m.WhalesOff = strings.Contains(m.Description, "__whales_off") || // TODO - deprecate
+		strings.Contains(m.Description, ToggleDescriptionMark+"whales_off")
+	if ind := strings.Index(m.Description, HistogramBucketsStartMark); ind != -1 {
+		s := m.Description[ind+len(HistogramBucketsStartMark):]
+		if ind = strings.Index(s, HistogramBucketsEndMark); ind != -1 {
+			s = s[:ind]
+			m.HistogramBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
+			for i, j := 0, 1; i < len(s); {
+				for j < len(s) && s[j] != HistogramBucketsDelimC {
+					j++
 				}
+				if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
+					m.HistogramBuckets = append(m.HistogramBuckets, float32(f))
+				}
+				i = j + 1
+				j = i + 1
 			}
 		}
 	}
@@ -1209,5 +1223,14 @@ func EventTypeToName(typ int32) string {
 		return "namespace"
 	default:
 		return "unknown"
+	}
+}
+
+func RemoteConfigMetric(name string) bool {
+	switch name {
+	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric, StatshouseAPIRemoteConfig:
+		return true
+	default:
+		return false
 	}
 }

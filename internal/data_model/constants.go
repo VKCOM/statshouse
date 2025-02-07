@@ -109,10 +109,6 @@ const (
 	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
 	MappingNegativeCacheTTL  = 5 * time.Second
 	MappingMinInterval       = 1 * time.Millisecond
-
-	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
-	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
-	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
 )
 
 var ErrEntityNotExists = &rpc.Error{
@@ -168,13 +164,4 @@ func SetProxyHeaderStagingLevel(header *tlstatshouse.CommonProxyHeader, fieldsMa
 func SetProxyHeaderBytesStagingLevel(header *tlstatshouse.CommonProxyHeaderBytes, fieldsMask *uint32, stagingLevel int) {
 	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
 	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
-}
-
-func RemoteConfigMetric(name string) bool {
-	switch name {
-	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric, StatshouseAPIRemoteConfig:
-		return true
-	default:
-		return false
-	}
 }

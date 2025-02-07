@@ -421,7 +421,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	}
 	// We'll make this metric invisible for now to avoid being edited by anybody
 	description := ""
-	if mv := s.metricStorage.GetMetaMetricByName(data_model.StatshouseAgentRemoteConfigMetric); mv != nil {
+	if mv := s.metricStorage.GetMetaMetricByName(format.StatshouseAgentRemoteConfigMetric); mv != nil {
 		description = mv.Description
 	}
 	if description == s.statshouseRemoteConfigString {
@@ -432,10 +432,10 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	s.logF("Remote config:\n%s", description)
 	config := s.config
 	if err := config.updateFromRemoteDescription(description); err != nil {
-		s.logF("Remote config: error updating config from metric %q: %v", data_model.StatshouseAgentRemoteConfigMetric, err)
+		s.logF("Remote config: error updating config from metric %q: %v", format.StatshouseAgentRemoteConfigMetric, err)
 		return
 	}
-	s.logF("Remote config: updated config from metric %q", data_model.StatshouseAgentRemoteConfigMetric)
+	s.logF("Remote config: updated config from metric %q", format.StatshouseAgentRemoteConfigMetric)
 	if config.SkipShards < s.NumShards() {
 		s.skipShards.Store(int32(config.SkipShards))
 	} else {

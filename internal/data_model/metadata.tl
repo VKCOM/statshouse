@@ -36,7 +36,7 @@ metadata.getMetricsResponse#9286abfb {field_mask: #}
     = metadata.GetMetricsResponse field_mask;
 
 metadata.getJournalResponsenew#9286aaaa {field_mask: #}
-    current_version: long // generally should be ignored by receiver logic, and version of last event in vector used .
+    current_version: long // important for receivers that want to load until 'latest' version. Also useful for reporting progress of loading.
     events: (vector metadata.event)
     = metadata.GetJournalResponsenew field_mask;
 
