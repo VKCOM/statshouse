@@ -849,7 +849,7 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
 
-	h.Tracef(query.Body)
+	h.Tracef("%s", query.Body)
 
 	start := time.Now()
 	h.endpointStat.reportQueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
