@@ -52,7 +52,7 @@ func TestTagValuesQueryV2(t *testing.T) {
 	query := pq.buildTagValuesQuery(lod)
 
 	// checks
-	assert.Equal(t, "SELECT toInt64(key2) AS _tag2,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY _tag2 HAVING _count>0 ORDER BY _count DESC,_tag2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.Equal(t, "SELECT key2,toFloat64(sum(count)) AS _count FROM statshouse_value_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (key1 IN (1,2)) AND (key0 NOT IN (3)) GROUP BY key2 HAVING _count>0 ORDER BY _count DESC,key2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
 }
 
 func TestTagValuesQueryV2_stringTop(t *testing.T) {
@@ -88,7 +88,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 	query := pq.buildTagValuesQuery(lod)
 
 	// checks
-	assert.Equal(t, "SELECT toInt64(tag2) AS _tag2,stag2,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _tag2,stag2 HAVING _count>0 ORDER BY _count DESC,_tag2,stag2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.Equal(t, "SELECT tag2,stag2,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY tag2,stag2 HAVING _count>0 ORDER BY _count DESC,tag2,stag2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
 }
 
 func TestLoadPointsQueryV2(t *testing.T) {

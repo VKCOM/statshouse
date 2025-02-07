@@ -107,7 +107,10 @@ func (b *queryBuilder) selAlias(tagX int, lod *data_model.LOD) string {
 	if lod.HasPreKey && tagX == b.preKeyTagX() {
 		return "_prekey"
 	}
-	return "_tag" + strconv.Itoa(int(tagX))
+	if b.raw64(tagX) {
+		return "_tag" + strconv.Itoa(int(tagX))
+	}
+	return b.colInt(tagX, lod)
 }
 
 func (b *queryBuilder) colInt(tagX int, lod *data_model.LOD) string {

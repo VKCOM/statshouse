@@ -51,19 +51,22 @@ func (q *tagValuesQuery) writeSelect(lod *data_model.LOD, mode queryBuilderMode)
 }
 
 func (q *tagValuesQuery) writeSelectInt(lod *data_model.LOD) {
-	expr := q.selectIntExpr(int(q.tag.Index), lod)
-	q.WriteString("toInt64(")
+	expr, colName := q.selectIntExpr(int(q.tag.Index), lod)
 	q.WriteString(expr)
-	q.WriteString(") AS ")
-	alias := q.selAlias(int(q.tag.Index), lod)
-	q.WriteString(alias)
-	q.res = append(q.res, proto.ResultColumn{Name: alias, Data: &q.valID})
+	if colName {
+		q.res = append(q.res, proto.ResultColumn{Name: expr, Data: &q.dataInt32})
+	} else {
+		q.WriteString(" AS ")
+		alias := q.selAlias(int(q.tag.Index), lod)
+		q.WriteString(alias)
+		q.res = append(q.res, proto.ResultColumn{Name: alias, Data: &q.dataInt64})
+	}
 }
 
 func (q *tagValuesQuery) writeSelectStr(lod *data_model.LOD) {
 	colStr := q.colStr(int(q.tag.Index), lod)
 	q.WriteString(colStr)
-	q.res = append(q.res, proto.ResultColumn{Name: colStr, Data: &q.val})
+	q.res = append(q.res, proto.ResultColumn{Name: colStr, Data: &q.dataStr})
 }
 
 func (q *tagValuesQuery) writeFrom(lod *data_model.LOD) {
