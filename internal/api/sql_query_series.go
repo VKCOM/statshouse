@@ -228,8 +228,6 @@ func (q *seriesQuery) writeSelectTags(lod *data_model.LOD, comma *listItemSepara
 }
 
 func (q *seriesQuery) writeSelectTagsV3(lod *data_model.LOD, comma *listItemSeparator) {
-	q.tag = make([]tagCol, 0, len(q.by))
-	q.stag = make([]stagCol, 0, len(q.by))
 	for _, x := range q.by {
 		comma.maybeWrite()
 		switch x {
@@ -244,7 +242,6 @@ func (q *seriesQuery) writeSelectTagsV3(lod *data_model.LOD, comma *listItemSepa
 }
 
 func (q *seriesQuery) writeSelectTagsV2(lod *data_model.LOD, comma *listItemSeparator) {
-	q.tag = make([]tagCol, 0, len(q.by))
 	for _, x := range q.by {
 		comma.maybeWrite()
 		switch x {
@@ -259,7 +256,6 @@ func (q *seriesQuery) writeSelectTagsV2(lod *data_model.LOD, comma *listItemSepa
 }
 
 func (q *seriesQuery) writeSelectTagsV1(lod *data_model.LOD, comma *listItemSeparator) {
-	q.tag = make([]tagCol, 0, len(q.by))
 	for _, x := range q.by {
 		switch x {
 		case 0, format.StringTopTagIndexV3, format.ShardTagIndex:
@@ -480,32 +476,36 @@ func (q *seriesQuery) writeSelectShardNum() {
 func (q *seriesQuery) writeSelectStr(tagX int, lod *data_model.LOD) {
 	colName := q.colStr(tagX, lod)
 	q.WriteString(colName)
-	q.stag = append(q.stag, stagCol{tagX: int(tagX)})
-	q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.stag[len(q.stag)-1].data})
+	col := &stagCol{tagX: int(tagX)}
+	q.stag = append(q.stag, col)
+	q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &col.data})
 }
 
 func (q *seriesQuery) writeSelectInt(tagX int, lod *data_model.LOD) {
-	expr := q.selectIntExpr(tagX, lod)
-	q.WriteString("toInt64(")
+	expr, colName := q.selectIntExpr(tagX, lod)
 	q.WriteString(expr)
-	q.WriteString(")")
-	q.WriteString(" AS ")
-	alias := q.selAlias(tagX, lod)
-	q.WriteString(alias)
-	q.tag = append(q.tag, tagCol{tagX: int(tagX)})
-	q.res = append(q.res, proto.ResultColumn{Name: alias, Data: &q.tag[len(q.tag)-1].data})
+	col := &tagCol{tagX: int(tagX)}
+	q.tag = append(q.tag, col)
+	if colName {
+		q.res = append(q.res, proto.ResultColumn{Name: expr, Data: &col.dataInt32})
+	} else {
+		q.WriteString(" AS ")
+		alias := q.selAlias(tagX, lod)
+		q.WriteString(alias)
+		q.res = append(q.res, proto.ResultColumn{Name: alias, Data: &col.dataInt64})
+	}
 }
 
 // as appears in SELECT clause
 // either column name or expression
-func (b *queryBuilder) selectIntExpr(tagX int, lod *data_model.LOD) string {
+func (b *queryBuilder) selectIntExpr(tagX int, lod *data_model.LOD) (string, bool) {
 	if lod.HasPreKey && tagX == b.preKeyTagX() {
-		return "_prekey"
+		return "_prekey", true
 	}
 	if b.raw64(tagX) {
-		return b.raw64Expr(tagX, lod)
+		return b.raw64Expr(tagX, lod), false
 	}
-	return b.colInt(tagX, lod)
+	return b.colInt(tagX, lod), true
 }
 
 // as appears in WHERE clause
@@ -516,17 +516,15 @@ func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuil
 		if lod.HasPreKey && tagX == b.preKeyTagX() {
 			return "_prekey"
 		}
-		if b.groupedBy(tagX) {
-			return "_tag" + strconv.Itoa(int(tagX))
-		}
 	case buildTagValuesQuery, buildTagValueIDsQuery:
-		if int(b.tag.Index) == tagX {
-			return "_tag" + strconv.Itoa(int(tagX))
-		}
+		// pass
 	default:
 		panic(fmt.Errorf("bad query kind"))
 	}
 	if b.raw64(tagX) {
+		if b.groupedBy(tagX) {
+			return "_tag" + strconv.Itoa(int(tagX))
+		}
 		return b.raw64Expr(tagX, lod)
 	}
 	return b.colInt(tagX, lod)

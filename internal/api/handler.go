@@ -1753,21 +1753,24 @@ type selectRow struct {
 
 type tagValuesQuery struct {
 	*queryBuilder
-	body  string
-	valID proto.ColInt64
-	val   proto.ColStr
-	cnt   proto.ColFloat64
-	res   proto.Results
+	body      string
+	dataInt32 proto.ColInt32
+	dataInt64 proto.ColInt64
+	dataStr   proto.ColStr
+	cnt       proto.ColFloat64
+	res       proto.Results
 }
 
 func (q *tagValuesQuery) rowAt(i int) selectRow {
 	row := selectRow{cnt: q.cnt[i]}
-	if q.val.Pos != nil {
-		pos := q.val.Pos[i]
-		row.val = string(q.val.Buf[pos.Start:pos.End])
+	if q.dataStr.Pos != nil {
+		pos := q.dataStr.Pos[i]
+		row.val = string(q.dataStr.Buf[pos.Start:pos.End])
 	}
-	if q.valID != nil {
-		row.valID = q.valID[i]
+	if q.dataInt32 != nil {
+		row.valID = int64(q.dataInt32[i])
+	} else if q.dataInt64 != nil {
+		row.valID = q.dataInt64[i]
 	}
 	return row
 }
@@ -2751,8 +2754,8 @@ type seriesQuery struct {
 	time    proto.ColInt64
 
 	// tags
-	tag  []tagCol
-	stag []stagCol
+	tag  []*tagCol
+	stag []*stagCol
 
 	// values
 	min         proto.ColFloat64
@@ -2775,8 +2778,9 @@ type seriesQuery struct {
 }
 
 type tagCol struct {
-	data proto.ColInt64
-	tagX int
+	dataInt32 proto.ColInt32
+	dataInt64 proto.ColInt64
+	tagX      int
 }
 
 type stagCol struct {
@@ -2791,8 +2795,10 @@ func (c *seriesQuery) rowAt(i int) tsSelectRow {
 	}
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
-		if c.tag[j].data[i] != 0 {
-			row.tag[c.tag[j].tagX] = c.tag[j].data[i]
+		if c.tag[j].dataInt32 != nil {
+			row.tag[c.tag[j].tagX] = int64(c.tag[j].dataInt32[i])
+		} else if c.tag[j].dataInt64 != nil {
+			row.tag[c.tag[j].tagX] = c.tag[j].dataInt64[i]
 		}
 	}
 	for j := range c.stag {
@@ -2824,7 +2830,7 @@ func (c *seriesQuery) rowAtPoint(i int) pSelectRow {
 	var row pSelectRow
 	c.valuesAt(i, &row.tsValues)
 	for j := range c.tag {
-		row.tag[c.tag[j].tagX] = c.tag[j].data[i]
+		row.tag[c.tag[j].tagX] = c.tag[j].dataInt64[i]
 	}
 	if len(c.minHostV2) != 0 {
 		row.minHost = c.minHostV2[i]
