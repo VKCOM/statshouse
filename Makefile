@@ -58,7 +58,7 @@ build-grafana-ui:
 build-deb:
 	./build/makedeb.sh
 
-.PHONY: gen
+.PHONY: gen gen-sqlite gen-easyjson-format gen-easyjson-handler
 gen:
 	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
