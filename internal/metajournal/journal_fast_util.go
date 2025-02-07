@@ -71,10 +71,14 @@ func getJournalFileLoader(fName string) (MetricsStorageLoader, []tlmetadata.Even
 			return nil, nil, fmt.Errorf("events not sorted at %d", i)
 		}
 		events = append(events, event)
-		//if compactJournalEvent(&event) {
+		//if ok, _ := compactJournalEvent(&event); ok {
 		//	values[7] = event.Data
 		//	newData.WriteString(strings.Join(values, "|"))
 		//	newData.WriteString("\n")
+		//	if event.Data != `{"visible":true}` && event.Data != `{}` && event.Data != `{"visible":true,"kind":"value_p"}` {
+		//		newData.WriteString(event.Data)
+		//		newData.WriteString("\n")
+		//}
 		//}
 	}
 	//_ = os.WriteFile(fName+".short", newData.Bytes(), 0666)

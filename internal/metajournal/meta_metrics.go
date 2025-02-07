@@ -239,18 +239,11 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	for _, e := range newEntries {
 		switch e.EventType {
 		case format.MetricEvent:
-			value := &format.MetricMetaValue{}
-			err := easyjson.Unmarshal([]byte(e.Data), value)
+			value, err := MetricMetaFromEvent(e)
 			if err != nil {
-				log.Printf("Cannot marshal metric %s: %v", value.Name, err)
+				log.Printf("Cannot marshal metric: %v", err)
 				continue
 			}
-			value.NamespaceID = int32(e.NamespaceId)
-			value.Version = e.Version
-			value.Name = e.Name
-			value.MetricID = int32(e.Id) // TODO - beware!
-			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo()
 			ms.metricUpdMu.Lock()
 			ms.mu.Lock()
 			valueOld, idExists := ms.metricsByID[value.MetricID]

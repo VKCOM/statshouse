@@ -9,15 +9,16 @@ package metajournal
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/btree"
+	"github.com/mailru/easyjson"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -50,6 +51,8 @@ type JournalFast struct {
 	stateHash           xxh3.Uint128
 	stateHashStr        string
 	currentVersion      int64
+	lastKnownVersion    int64
+	loaderVersion       int64
 	journalRequestDelay time.Duration // to avoid overusing of CPU by handling journal updates
 
 	journal map[journalEventID]journalEvent
@@ -76,6 +79,24 @@ type JournalFast struct {
 	// custom FS
 	writeAt  func(offset int64, data []byte) error
 	truncate func(offset int64) error
+}
+
+func MetricMetaFromEvent(e tlmetadata.Event) (*format.MetricMetaValue, error) {
+	value := &format.MetricMetaValue{}
+	err := easyjson.Unmarshal([]byte(e.Data), value) // TODO - use unsafe?
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal metric %d %s: %v", e.Id, e.Name, err)
+	}
+	value.NamespaceID = int32(e.NamespaceId)
+	value.Version = e.Version
+	value.Name = e.Name
+	if e.Id < math.MinInt32 || e.Id > math.MaxInt32 {
+		return nil, fmt.Errorf("metric ID %d assigned by metaengine does not fit into int32 for metric %q", e.Id, e.Name)
+	}
+	value.MetricID = int32(e.Id)
+	value.UpdateTime = e.UpdateTime
+	_ = value.RestoreCachedInfo() // TODO: for now, we have lots of errors
+	return value, nil
 }
 
 func journalOrderLess(a, b journalOrder) bool {
@@ -108,9 +129,10 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 }
 
 func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
-	var explicitNewVersion int64
-	src, err := ms.loadImpl(fileSize, readAt, &explicitNewVersion) // in case of error, returns events to apply
-	ms.finishUpdateLocked(explicitNewVersion)
+	var loaderVersion int64
+	src, err := ms.loadImpl(fileSize, readAt, &loaderVersion) // in case of error, returns events to apply
+	ms.finishUpdateLocked(loaderVersion)
+	ms.lastKnownVersion = ms.currentVersion
 	for _, f := range ms.applyEvent {
 		f(src)
 	}
@@ -167,7 +189,7 @@ func (ms *JournalFast) Save() error {
 	}
 
 	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
-	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we need explicit version for compact journal
+	chunk = basictl.LongWrite(chunk, ms.loaderVersion) // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
 	// we do not FinishItem after version because version is small
 	// we must write in order, because we must deliver them in order during load
 	var iteratorError error
@@ -193,10 +215,16 @@ func (ms *JournalFast) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader Metrics
 	go ms.goUpdateMetrics(aggLog)
 }
 
-func (ms *JournalFast) VersionHash() (int64, string) {
+func (ms *JournalFast) VersionHash() (currentVersion int64, stateHashStr string) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.currentVersion, ms.stateHashStr
+}
+
+func (ms *JournalFast) LastKnownVersion() int64 {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.lastKnownVersion
 }
 
 func (ms *JournalFast) versionLocked() int64 {
@@ -248,10 +276,8 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 	return scratch
 }
 
-func (ms *JournalFast) finishUpdateLocked(explicitNewVersion int64) {
-	if explicitNewVersion > ms.currentVersion {
-		ms.currentVersion = explicitNewVersion // we could panic instead, but decided to simplify
-	}
+func (ms *JournalFast) finishUpdateLocked(loaderVersion int64) {
+	ms.loaderVersion = max(loaderVersion, ms.currentVersion) // we could panic instead, but decided to simplify
 	hb := ms.stateHash.Bytes()
 	stateHashStr := hex.EncodeToString(hb[:])
 	ms.stateHashStr = stateHashStr
@@ -271,7 +297,7 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 	oldVersion := ms.currentVersion
 	ms.mu.RUnlock()
 
-	src, _, err := ms.metaLoader(context.Background(), oldVersion, isDead)
+	src, lastKnownVersion, err := ms.metaLoader(context.Background(), oldVersion, isDead)
 	if err != nil {
 		if !isDead {
 			func() {
@@ -290,78 +316,51 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		}
 		return false, err
 	}
-	ms.applyUpdate(src, aggLog)
+	ms.applyUpdate(src, lastKnownVersion, aggLog)
 	return len(src) == 0, nil
 }
 
-func compactJournalEvent(event *tlmetadata.Event) bool {
-	if event.EventType == format.MetricsGroupEvent || event.EventType == format.NamespaceEvent {
-		return true // keep as is, they are tiny
-	}
-	if event.EventType != format.MetricEvent {
-		return false // discard
-	}
-	value := &format.MetricMetaValue{}
-	err := json.Unmarshal([]byte(event.Data), value)
-	if err != nil {
-		return false // broken, discard
-	}
-	value.NamespaceID = int32(event.NamespaceId)
-	value.Version = event.Version
-	value.Name = event.Name
-	value.MetricID = int32(event.Id) // TODO - beware!
-	value.UpdateTime = event.UpdateTime
-	_ = value.RestoreCachedInfo()
-
-	value.Name = "" // restored from event anyway
-	value.Version = 0
-	value.MetricID = 0
-	value.NamespaceID = 0
-	switch event.Name {
-	case format.StatshouseAgentRemoteConfigMetric, format.StatshouseAggregatorRemoteConfigMetric, format.StatshouseAPIRemoteConfig:
-		// keep description)
+func compactJournalEvent(event *tlmetadata.Event) (bool, error) {
+	switch event.EventType {
+	case format.DashboardEvent, format.PromConfigEvent:
+		return false, nil // discard
+	case format.MetricsGroupEvent, format.NamespaceEvent:
+		return true, nil // keep
+	case format.MetricEvent:
+		break
 	default:
-		value.Description = ""
+		return true, nil // keep future event types, they must be small at first
 	}
-	value.Resolution = 0
-	value.Weight = 0
-	value.StringTopDescription = ""
-	cutTags := 0
-	for ti := range value.Tags {
-		tag := &value.Tags[ti]
-		tag.Description = ""
-		tag.ValueComments = nil
-		if tag.Raw || tag.RawKind != "" || tag.Name != "" {
-			cutTags = ti + 1 // keep this tag
-		}
+	value, err := MetricMetaFromEvent(*event)
+	if err != nil {
+		return true, err // broken, keep original
 	}
-	value.Tags = value.Tags[:cutTags]
-	for k, v := range value.TagsDraft {
-		v.Name = ""
-		value.TagsDraft[k] = v
+	valueDeepCopyOriginal, err := MetricMetaFromEvent(*event)
+	if err != nil {
+		return true, err // broken, keep original
 	}
-	if !value.HasPercentiles {
-		value.Kind = ""
-	}
-	value.MetricType = ""
-	value.PreKeyTagID = ""
-	value.PreKeyFrom = 0
-	value.SkipMinHost = false
-	value.SkipMaxHost = false
-	value.SkipSumSquare = false
-	value.PreKeyOnly = false
+	format.MakeCompactMetric(value)
 	shortData, err := value.MarshalBinary()
 	if err != nil {
-		return false // discard
+		return true, err // broken, keep original
 	}
-	event.ClearMetadata()
-	event.Unused = 0
-	event.Data = string(shortData)
-	event.UpdateTime = 0 // we do not care
-	return true
+	event2 := *event
+	event2.ClearMetadata()
+	event2.Unused = 0
+	event2.Data = string(shortData)
+	event2.UpdateTime = 0 // we do not care
+	value, err = MetricMetaFromEvent(event2)
+	if err != nil {
+		return true, err // broken, keep original
+	}
+	if !format.SameCompactMetric(value, valueDeepCopyOriginal) {
+		return true, err // broken, keep original
+	}
+	*event = event2
+	return true, nil
 }
 
-func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog) {
+func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, lastKnownVersion int64, aggLog AggLog) {
 	if len(src) == 0 {
 		return
 	}
@@ -372,11 +371,15 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog) {
 	if ms.compact {
 		pos := 0
 		for _, entry := range src {
-			if !compactJournalEvent(&entry) {
+			ok, err := compactJournalEvent(&entry)
+			if err == nil && !ok { // discard
 				continue
 			}
+			if err != nil { // keep, write metrics
+
+			}
 			key := journalEventID{typ: entry.EventType, id: entry.Id}
-			old, ok := ms.journal[key] // hash is 0 if not there
+			old, ok := ms.journal[key]
 			if ok && equalWithoutVersionJournalEvent(old.Event, entry) {
 				continue
 			}
@@ -401,6 +404,7 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, aggLog AggLog) {
 			scratch = ms.addEventLocked(scratch, entry)
 		}
 		ms.finishUpdateLocked(explicitNewVersion)
+		ms.lastKnownVersion = lastKnownVersion
 		stateHashStr = ms.stateHashStr
 	}()
 
