@@ -39,6 +39,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const location = useLocation();
   const isHistoryRoute = location.pathname.endsWith('/history');
   const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
+  const historyPath = useMemo(() => `${mainPath}/history`, [mainPath]);
 
   const [searchParams] = useSearchParams();
   const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
@@ -102,20 +103,20 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
               title={`ID: ${initMetric?.id || '?'}`}
             >
               {metricName}
-              <span
-                className={`me-4 ${isHistoryRoute ? 'text-primary fw-normal small cursor-pointer' : 'text-secondary'}`}
-                style={{ cursor: isHistoryRoute ? 'pointer' : 'default' }}
-                onClick={handleShowEdit}
+              <Link
+                to={mainPath}
+                className={`me-4 ${isHistoryRoute ? 'text-primary fw-normal small' : 'text-secondary'}`}
+                style={{ textDecoration: 'none', cursor: isHistoryRoute ? 'default' : 'pointer' }}
               >
                 : edit
-              </span>
-              <span
-                className={`me-4 ${isHistoryRoute ? 'text-secondary' : 'text-primary fw-normal small cursor-pointer'}`}
-                style={{ cursor: isHistoryRoute ? 'default' : 'pointer' }}
-                onClick={handleShowHistory}
+              </Link>
+              <Link
+                to={historyPath}
+                className={`me-4 ${isHistoryRoute ? 'text-secondary' : 'text-primary fw-normal small'}`}
+                style={{ textDecoration: 'none', cursor: isHistoryRoute ? 'default' : 'pointer' }}
               >
                 history
-              </span>
+              </Link>
               <Link className="text-decoration-none fw-normal small" to={`../../view?s=${metricName}`}>
                 view
               </Link>
