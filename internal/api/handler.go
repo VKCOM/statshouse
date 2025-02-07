@@ -714,8 +714,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	return h, nil
 }
 
-func (h *Handler) savePanic(requestURI string, err any, stack []byte) {
-	v := error500{time: time.Now(), requestURI: requestURI, what: err, stack: stack}
+func (h *requestHandler) savePanic(requestURI string, err any, stack []byte) {
+	v := error500{time: time.Now(), requestURI: requestURI, what: err, stack: stack, trace: h.trace}
 	h.errorsMu.Lock()
 	h.errors[h.errorX] = v
 	h.errorX = (h.errorX + 1) % len(h.errors)

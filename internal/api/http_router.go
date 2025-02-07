@@ -55,6 +55,7 @@ type error500 struct {
 	requestURI string
 	what       any
 	stack      []byte
+	trace      []string
 }
 
 func NewHTTPRouter(h *Handler) httpRouter {
@@ -173,7 +174,12 @@ func DumpInternalServerErrors(r *httpRequestHandler) {
 		w.Write([]byte("# " + r.errors[i].requestURI + " \n"))
 		w.Write([]byte(fmt.Sprintf("# %s \n", r.errors[i].what)))
 		w.Write([]byte("# " + r.errors[i].time.Format(time.RFC3339) + " \n"))
-		w.Write([]byte("# \n"))
+		w.Write([]byte("# debug trace\n"))
+		for _, v := range r.errors[i].trace {
+			w.Write([]byte(v))
+			w.Write([]byte("\n"))
+		}
+		w.Write([]byte("# stack trace\n"))
 		w.Write(r.errors[i].stack)
 		w.Write([]byte("\n"))
 	}
