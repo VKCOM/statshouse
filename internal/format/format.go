@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -302,17 +303,6 @@ func (m *MetricMetaValue) UnmarshalBinary(data []byte) error {
 	}
 	_ = m.RestoreCachedInfo() // name collisions must not prevent journal sync
 	return nil
-}
-
-func MetricJSON(value *MetricMetaValue) ([]byte, error) {
-	if err := value.RestoreCachedInfo(); err != nil {
-		return nil, err
-	}
-	metricBytes, err := json.Marshal(value)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize metric: %w", err)
-	}
-	return metricBytes, nil
 }
 
 func (m DashboardMeta) MarshalBinary() ([]byte, error) { return json.Marshal(m) }
@@ -1233,4 +1223,108 @@ func RemoteConfigMetric(name string) bool {
 	default:
 		return false
 	}
+}
+
+func SameCompactTag(ta, tb *MetricMetaTag) bool {
+	return ta.Index == tb.Index && ta.Name == tb.Name &&
+		ta.RawKind == tb.RawKind && ta.Raw == tb.Raw && ta.Raw64 == tb.Raw64
+}
+
+func SameCompactMetric(a, b *MetricMetaValue) bool {
+	if a.MetricID != b.MetricID ||
+		a.Name != b.Name ||
+		a.NamespaceID != b.NamespaceID ||
+		a.GroupID != b.GroupID ||
+		a.Visible != b.Visible ||
+		a.EffectiveWeight != b.EffectiveWeight ||
+		a.EffectiveResolution != b.EffectiveResolution ||
+		!slices.Equal(a.FairKey, b.FairKey) ||
+		a.ShardStrategy != b.ShardStrategy ||
+		a.ShardNum != b.ShardNum ||
+		a.PipelineVersion != b.PipelineVersion ||
+		a.HasPercentiles != b.HasPercentiles ||
+		a.WhalesOff != b.WhalesOff ||
+		a.RoundSampleFactors != b.RoundSampleFactors {
+		return false
+	}
+	for i := 0; i < NewMaxTags; i++ {
+		ta := a.Name2Tag(TagID(i))
+		tb := b.Name2Tag(TagID(i))
+		if !SameCompactTag(ta, tb) {
+			return false
+		}
+	}
+	for name, ta := range a.name2Tag {
+		tb := b.Name2Tag(name)
+		if !SameCompactTag(ta, tb) {
+			return false
+		}
+	}
+	for name, tb := range b.name2Tag {
+		ta := a.Name2Tag(name)
+		if !SameCompactTag(ta, tb) {
+			return false
+		}
+	}
+	for name, ta := range a.TagsDraft {
+		tb := b.TagsDraft[name]
+		if !SameCompactTag(&ta, &tb) {
+			return false
+		}
+	}
+	for name, tb := range b.TagsDraft {
+		ta := a.TagsDraft[name]
+		if !SameCompactTag(&ta, &tb) {
+			return false
+		}
+	}
+	return true
+}
+
+func keepCompactMetricDescription(value *MetricMetaValue) bool {
+	return RemoteConfigMetric(value.Name) ||
+		value.RoundSampleFactors || value.WhalesOff || // legacy marks without ToggleDescriptionMark
+		strings.Contains(value.Description, ToggleDescriptionMark)
+}
+
+// beware, modifies value so should be called with value you own
+func MakeCompactMetric(value *MetricMetaValue) {
+	if !keepCompactMetricDescription(value) {
+		value.Description = ""
+	}
+	value.MetricID = 0    // restored from event anyway
+	value.NamespaceID = 0 // restored from event anyway
+	value.Name = ""       // restored from event anyway
+	value.Version = 0     // restored from event anyway
+	cutTags := 0
+	for ti := range value.Tags {
+		tag := &value.Tags[ti]
+		tag.Description = ""
+		tag.ValueComments = nil
+		if tag.RawKind != "" || tag.Name != "" {
+			cutTags = ti + 1 // keep this tag
+		}
+	}
+	value.Tags = value.Tags[:cutTags]
+	for k, v := range value.TagsDraft {
+		v.Name = ""
+		value.TagsDraft[k] = v
+	}
+	if !value.HasPercentiles {
+		value.Kind = ""
+	}
+	if value.Weight == 1 {
+		value.Weight = 0
+	}
+	if value.EffectiveResolution == 1 {
+		value.Resolution = 0
+	}
+	value.StringTopDescription = ""
+	value.PreKeyTagID = ""
+	value.PreKeyFrom = 0
+	value.SkipMinHost = false
+	value.SkipMaxHost = false
+	value.SkipSumSquare = false
+	value.PreKeyOnly = false
+	value.MetricType = ""
 }

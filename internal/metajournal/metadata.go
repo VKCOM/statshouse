@@ -257,9 +257,13 @@ func (l *MetricMetaLoader) GetShortHistory(ctx context.Context, id int64) (ret t
 func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMetaValue, metadata string) (m format.MetricMetaValue, _ error) {
 	create := value.MetricID == 0
 
-	metricBytes, err := format.MetricJSON(&value)
-	if err != nil {
+	// TODO - too late
+	if err := value.RestoreCachedInfo(); err != nil {
 		return m, err
+	}
+	metricBytes, err := json.Marshal(value)
+	if err != nil {
+		return m, fmt.Errorf("failed to serialize metric: %w", err)
 	}
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
@@ -280,17 +284,11 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	if err != nil {
 		return m, wrapSaveEntityError(err)
 	}
-	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
-		return m, fmt.Errorf("metric ID %d assigned by metaengine does not fit into int32 for metric %q", event.Id, event.Name)
-	}
-	err = json.Unmarshal([]byte(event.Data), &m)
+	mm, err := MetricMetaFromEvent(event)
 	if err != nil {
 		return m, fmt.Errorf("failed to deserialize json metric: %w", err)
 	}
-	m.Version = event.Version
-	m.Name = event.Name
-	m.UpdateTime = event.UpdateTime
-	m.MetricID = int32(event.Id)
+	m = *mm
 	return m, nil
 }
 

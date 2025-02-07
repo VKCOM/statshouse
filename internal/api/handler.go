@@ -1715,9 +1715,15 @@ func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
 		if old.Tags[i].Raw != new.Tags[i].Raw {
 			return true // edit
 		}
+		if old.Tags[i].Raw64 != new.Tags[i].Raw64 {
+			return true // edit
+		}
 	}
 	for i := len(new.Tags); i < len(old.Tags); i++ {
 		if old.Tags[i].Raw {
+			return true // removal
+		}
+		if old.Tags[i].Raw64 {
 			return true // removal
 		}
 	}
