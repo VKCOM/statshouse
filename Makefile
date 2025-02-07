@@ -58,8 +58,10 @@ build-grafana-ui:
 build-deb:
 	./build/makedeb.sh
 
-.PHONY: gen gen-sqlite gen-easyjson-format gen-easyjson-handler
-gen:
+.PHONY: gen
+gen: gen-tl gen-sqlite gen-easyjson
+
+gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
 	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/vkcom/statshouse/internal/data_model/gen2/tl \
@@ -76,7 +78,7 @@ gen:
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
 
-gen-sqlite:
+gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
 	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
@@ -89,12 +91,9 @@ gen-sqlite:
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
-gen-easyjson-format:
-	go generate ./internal/format/format.go
-
-gen-easyjson-handler:
+gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/api/httputil.go
 	go generate ./internal/api/handler.go
-	@echo "!!!You need to manually updater handler_easyjson.go to convert NaN to null!!!"
+	go generate ./internal/format/format.go
 
 .PHONY: lint test check
 lint:
