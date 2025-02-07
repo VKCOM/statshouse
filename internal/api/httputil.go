@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -129,13 +128,13 @@ func exportCSV(r *httpRequestHandler, resp *SeriesResponse, metric string) {
 
 		label := MetaToLabel(resp.Series.SeriesMeta[li], len(uniqueWhat), 0)
 		for di, p := range *data {
-			if math.IsNaN(p) {
+			if !p.IsDefined() {
 				continue
 			}
 
 			err := writer.Write([]string{
 				time.Unix(resp.Series.Time[di], 0).Format("2006-01-02 15:04:05"),
-				strconv.FormatFloat(p, 'f', -1, 64),
+				strconv.FormatFloat(float64(p), 'f', -1, 64),
 				label,
 			})
 			if err != nil {

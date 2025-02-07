@@ -116,13 +116,13 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 					rowsIdx[key] = ix
 					queryRows = append(queryRows, queryTableRow{
 						Time:    rows[i].time,
-						Data:    make([]float64, 0, len(req.what)),
+						Data:    make([]Float64, 0, len(req.what)),
 						Tags:    kvs,
 						row:     rows[i],
 						rowRepr: rowRepr,
 					})
 					for j := 0; j < qIndex; j++ {
-						queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
+						queryRows[ix].Data = append(queryRows[ix].Data, NaN())
 					}
 					shouldSort = shouldSort || qIndex > 0
 				}
@@ -133,7 +133,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				if _, ok := used[ix]; ok {
 					delete(used, ix)
 				} else {
-					queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
+					queryRows[ix].Data = append(queryRows[ix].Data, NaN())
 				}
 			}
 			if hasMoreValues {

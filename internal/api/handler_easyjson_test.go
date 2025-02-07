@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"github.com/mailru/easyjson/jwriter"
@@ -12,7 +11,7 @@ import (
 func Test_NAN_Is_Null(t *testing.T) {
 	t.Run("queryTableRow", func(t *testing.T) {
 		r := queryTableRow{}
-		r.Data = []float64{math.NaN(), 0}
+		r.Data = []Float64{NaN(), 0}
 		var jw jwriter.Writer
 		r.MarshalEasyJSON(&jw)
 		b, _ := jw.BuildBytes(nil)
@@ -20,7 +19,7 @@ func Test_NAN_Is_Null(t *testing.T) {
 	})
 	t.Run("SeriesResponse", func(t *testing.T) {
 		r := SeriesResponse{}
-		data := []float64{math.NaN(), 0}
+		data := []Float64{NaN(), 0}
 		r.Series.SeriesData = append(r.Series.SeriesData, &data)
 		var jw jwriter.Writer
 		r.MarshalEasyJSON(&jw)
@@ -30,7 +29,7 @@ func Test_NAN_Is_Null(t *testing.T) {
 
 	t.Run("GetPointResp", func(t *testing.T) {
 		r := GetPointResp{}
-		r.PointData = []float64{math.NaN(), 0}
+		r.PointData = []Float64{NaN(), 0}
 		var jw jwriter.Writer
 		r.MarshalEasyJSON(&jw)
 		b, _ := jw.BuildBytes(nil)
