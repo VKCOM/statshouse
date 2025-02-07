@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
@@ -124,7 +123,7 @@ func (ai *accessInfo) CanViewMetricName(name string) bool {
 	if ai.insecureMode {
 		return true
 	}
-	if data_model.RemoteConfigMetric(name) && !ai.bitAdmin {
+	if format.RemoteConfigMetric(name) && !ai.bitAdmin {
 		return false // remote config can only be viewed by administrators
 	}
 	return ai.bitViewMetric[name] ||
@@ -144,7 +143,7 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 	oldName := old.Name
 	newName := new_.Name
 
-	if data_model.RemoteConfigMetric(oldName) || data_model.RemoteConfigMetric(newName) {
+	if format.RemoteConfigMetric(oldName) || format.RemoteConfigMetric(newName) {
 		return false // remote config can only be set by administrators
 	}
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||

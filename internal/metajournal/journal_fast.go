@@ -318,7 +318,7 @@ func compactJournalEvent(event *tlmetadata.Event) bool {
 	value.MetricID = 0
 	value.NamespaceID = 0
 	switch event.Name {
-	case data_model.StatshouseAgentRemoteConfigMetric, data_model.StatshouseAggregatorRemoteConfigMetric, data_model.StatshouseAPIRemoteConfig:
+	case format.StatshouseAgentRemoteConfigMetric, format.StatshouseAggregatorRemoteConfigMetric, format.StatshouseAPIRemoteConfig:
 		// keep description)
 	default:
 		value.Description = ""

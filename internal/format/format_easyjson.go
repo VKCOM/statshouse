@@ -279,6 +279,8 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 			}
 		case "visible":
 			out.Visible = bool(in.Bool())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		case "kind":
 			out.Kind = string(in.String())
 		case "weight":
@@ -444,6 +446,16 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 			out.RawString(prefix)
 		}
 		out.Bool(bool(in.Visible))
+	}
+	if in.Disable {
+		const prefix string = ",\"disable\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Bool(bool(in.Disable))
 	}
 	if in.Kind != "" {
 		const prefix string = ",\"kind\":"

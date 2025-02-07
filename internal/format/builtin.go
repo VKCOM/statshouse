@@ -259,7 +259,7 @@ func init() {
 		} else {
 			m.Tags = append([]MetricMetaTag{{Description: "-"}}, m.Tags...)
 		}
-		for len(m.Tags) < MaxTags {
+		for len(m.Tags) < MaxTags { // prevent overflows in code below
 			m.Tags = append(m.Tags, MetricMetaTag{Description: "-"})
 		}
 		if m.WithAggregatorID {

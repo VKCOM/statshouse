@@ -577,7 +577,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal settings to JSON: %w", err)
 	}
-	cl := config.NewConfigListener(data_model.StatshouseAPIRemoteConfig, cfg)
+	cl := config.NewConfigListener(format.StatshouseAPIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	journal := metajournal.MakeJournal(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
@@ -1660,7 +1660,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		return format.MetricMetaValue{},
 			httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
 	}
-	if metric.Name == data_model.StatshouseAPIRemoteConfig {
+	if metric.Name == format.StatshouseAPIRemoteConfig {
 		if err := h.configListener.ValidateConfig(metric.Description); err != nil {
 			return format.MetricMetaValue{},
 				httpErr(http.StatusBadRequest, fmt.Errorf("invalid builtin metric: %w", err))
