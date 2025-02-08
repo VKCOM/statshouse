@@ -2160,11 +2160,55 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 
 // DEPRECATED:
 // const BuiltinMetricIDAggAgentSharding = -98
-// const BuiltinMetricIDAPICacheBytesAlloc = -99
 // const BuiltinMetricIDAPICacheBytesFree = -100
-// const BuiltinMetricIDAPICacheBytesTotal = -101
 // const BuiltinMetricIDAPICacheAgeEvict = -102
-// const BuiltinMetricIDAPICacheAgeTotal = -103
+
+const BuiltinMetricIDAPICacheChunkCount = -99
+
+var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
+	Name:                    "__api_cache_chunk_count",
+	Kind:                    MetricKindCounter,
+	Description:             "API cache chunk count.",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
+
+const BuiltinMetricIDAPICacheSize = -101
+
+var BuiltinMetricMetaAPICacheSize = &MetricMetaValue{
+	Name:                    "__api_cache_size",
+	Kind:                    MetricKindValue,
+	Description:             "API cache size in bytes.",
+	MetricType:              MetricByte,
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
+
+const BuiltinMetricIDAPICacheAge = -103
+
+var BuiltinMetricMetaAPICacheAge = &MetricMetaValue{
+	Name:                    "__api_cache_age",
+	Kind:                    MetricKindValue,
+	Description:             "API cache age.",
+	MetricType:              MetricSecond,
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
 
 const BuiltinMetricIDAPIBufferBytesAlloc = -104
 

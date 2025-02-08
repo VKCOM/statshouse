@@ -21,6 +21,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -171,9 +172,13 @@ type (
 	}
 
 	Handler struct {
-		Version3Start     atomic.Int64
-		Version3Prob      atomic.Float64
-		Version3StrcmpOff atomic.Bool
+		Version3Start          atomic.Int64
+		Version3Prob           atomic.Float64
+		Version3StrcmpOff      atomic.Bool
+		CacheVersion2          atomic.Bool
+		CacheStaleAcceptPeriod atomic.Int64
+		optionsMu              sync.RWMutex
+		BotUserNames           []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -185,6 +190,7 @@ type (
 		tagValueCache         *pcache.Cache
 		tagValueIDCache       *pcache.Cache
 		cache                 *tsCacheGroup
+		cache2                *cache2
 		pointsCache           *pointsCache
 		pointFloatsPool       sync.Pool
 		pointFloatsPoolSize   atomic.Int64
@@ -642,14 +648,30 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
+	h.cache2 = newCache2(h.location, h.utcOffset)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
+		h.cache2.setLimits(cache2Limits{
+			maxSizeInBytes: cfg.MaxCacheSize,
+			maxAge:         time.Duration(cfg.MaxCacheAge) * time.Second,
+		})
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
+		if v := h.CacheVersion2.Swap(cfg.CacheVersion2); v != cfg.CacheVersion2 {
+			if cfg.CacheVersion2 {
+				h.cache.clear()
+			} else {
+				h.cache2.clear()
+			}
+		}
+		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
 		chV2.SetLimits(cfg.UserLimits)
+		h.optionsMu.Lock()
+		h.BotUserNames = cfg.BotUserNames
+		h.optionsMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -707,6 +729,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		writeActiveQuieries(chV2, "2")
 		if n := h.pointFloatsPoolSize.Load(); n != 0 {
 			h.bufferPoolBytesTotal.Value(float64(n))
+		}
+		if h.CacheVersion2.Load() {
+			h.cache2.sendMetrics(client)
 		}
 	})
 	h.promEngine = promql.NewEngine(h.location, h.utcOffset)
@@ -818,7 +843,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 					continue
 				}
 				for lodLevel := range data_model.LODTables[Version3] {
-					t := roundTime(r.At, lodLevel, h.utcOffset)
+					t := r.At
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
 						todo[lodLevel] = append(w, t)
@@ -834,7 +859,8 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	}
 	req.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
 	for lodLevel, times := range todo {
-		h.cache.Invalidate(lodLevel, times)
+		slices.Sort(times)
+		cacheInvalidate(h, times, lodLevel)
 		if lodLevel == _1s {
 			h.pointsCache.invalidate(times)
 		}
@@ -2394,7 +2420,7 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		rawValue:          req.screenWidth == 0 || req.step == _1M,
 		desiredStepMul:    desiredStepMul,
 		location:          h.location,
-	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
+	}, cacheGet, h.maybeAddQuerySeriesTagValue)
 	if err != nil {
 		return nil, false, err
 	}
@@ -3370,6 +3396,12 @@ func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDurati
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
+}
+
+func (h *requestHandler) playRequest() bool {
+	h.optionsMu.RLock()
+	defer h.optionsMu.RUnlock()
+	return !slices.Contains(h.BotUserNames, h.accessInfo.user)
 }
 
 func HandleTagDraftList(r *httpRequestHandler) {
