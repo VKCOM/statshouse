@@ -12,12 +12,17 @@ import (
 )
 
 type Config struct {
-	ApproxCacheMaxSize int
-	Version3Start      int64
-	Version3Prob       float64
-	Version3StrcmpOff  bool
-	UserLimitsStr      string
-	UserLimits         []chutil.ConnLimits
+	ApproxCacheMaxSize     int
+	Version3Start          int64
+	Version3Prob           float64
+	Version3StrcmpOff      bool
+	UserLimitsStr          string
+	UserLimits             []chutil.ConnLimits
+	CacheVersion2          bool
+	MaxCacheSize           int   // bytes
+	MaxCacheAge            int   // seconds
+	CacheStaleAcceptPeriod int64 // seconds
+	BotUserNames           []string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -46,6 +51,11 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
 	f.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
 	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
+	f.BoolVar(&argv.CacheVersion2, "cache-version2", false, "use cache version2")
+	f.IntVar(&argv.MaxCacheSize, "max-cache-size", 0, "maximum cache size in bytes")
+	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 0, "maximum cache age in seconds")
+	f.Int64Var(&argv.CacheStaleAcceptPeriod, "cache-stale-accept-period", 120, "cache stale accept period in seconds")
+	config.StringSliceVar(f, &argv.BotUserNames, "bot-user-names", "", "known bot user list")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
 
