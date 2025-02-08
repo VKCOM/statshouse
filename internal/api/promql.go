@@ -543,7 +543,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				}
 				tx++
 			case data_model.RangeQuery, data_model.InstantQuery:
-				data, err := h.cache.Get(ctx, h, &pq, lod, qry.Options.AvoidCache)
+				data, err := cacheGet(ctx, h, &pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
 				}
@@ -600,7 +600,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				}
 				tx += len(data)
 			case data_model.TagsQuery:
-				data, err := h.cache.Get(ctx, h, &pq, lod, qry.Options.AvoidCache)
+				data, err := cacheGet(ctx, h, &pq, lod, qry.Options.AvoidCache)
 				if err != nil {
 					return promql.Series{}, nil, err
 				}

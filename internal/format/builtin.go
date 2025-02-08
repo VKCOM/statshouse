@@ -117,6 +117,8 @@ var (
 		BuiltinMetricIDAgentDiskCacheSize:         BuiltinMetricMetaAgentDiskCacheSize,
 		BuiltinMetricIDAggContributors:            BuiltinMetricMetaAggContributors,
 		BuiltinMetricIDAPIBufferBytesAlloc:        BuiltinMetricMetaAPIBufferBytesAlloc,
+		BuiltinMetricIDAPICacheChunkCount:         BuiltinMetricMetaAPICacheChunkCount,
+		BuiltinMetricIDAPICacheBytesTotal:         BuiltinMetricMetaAPICacheBytesTotal,
 		BuiltinMetricIDAPIBufferBytesFree:         BuiltinMetricMetaAPIBufferBytesFree,
 		BuiltinMetricIDAPIBufferBytesTotal:        BuiltinMetricMetaAPIBufferBytesTotal,
 		BuiltinMetricIDAutoCreateMetric:           BuiltinMetricMetaAutoCreateMetric,

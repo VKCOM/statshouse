@@ -2160,11 +2160,40 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 
 // DEPRECATED:
 // const BuiltinMetricIDAggAgentSharding = -98
-// const BuiltinMetricIDAPICacheBytesAlloc = -99
 // const BuiltinMetricIDAPICacheBytesFree = -100
-// const BuiltinMetricIDAPICacheBytesTotal = -101
 // const BuiltinMetricIDAPICacheAgeEvict = -102
 // const BuiltinMetricIDAPICacheAgeTotal = -103
+
+const BuiltinMetricIDAPICacheChunkCount = -99
+
+var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
+	Name:                    "__api_cache_chunk_count",
+	Kind:                    MetricKindCounter,
+	Description:             "API cache chunk count.",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
+
+const BuiltinMetricIDAPICacheBytesTotal = -101
+
+var BuiltinMetricMetaAPICacheBytesTotal = &MetricMetaValue{
+	Name:                    "__api_cache_bytes_total",
+	Kind:                    MetricKindValue,
+	Description:             "API cache size in bytes.",
+	MetricType:              MetricByte,
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
 
 const BuiltinMetricIDAPIBufferBytesAlloc = -104
 
