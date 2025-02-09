@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -37,73 +36,73 @@ func ShutdownInfoReport(sh2 *Agent, componentTag int32, cacheDir string, startDi
 	finishShutdownTime := time.Unix(0, si.FinishShutdownTime)
 	if dur := globalStartTime.Sub(finishShutdownTime); si.FinishShutdownTime > 0 && dur > 0 && dur < time.Hour {
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseInactive}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseInactive},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopRecentSenders); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRecentSenders}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRecentSenders},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopReceivers); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopReceivers}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopReceivers},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopFlusher); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlusher}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlusher},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopFlushing); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlushing}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopFlushing},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopPreprocessor); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopPreprocessor}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopPreprocessor},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopInserters); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopInserters}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopInserters},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.StopRPCServer); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRPCServer}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStopRPCServer},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.SaveMappings); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseSaveMappings}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseSaveMappings},
+			dur.Seconds(), 1)
 	}
 	if dur := time.Duration(si.SaveJournal); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseSaveJournal}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseSaveJournal},
+			dur.Seconds(), 1)
 	}
 	finishLoadingTime := time.Now()
 	if dur := startDiscCache.Sub(globalStartTime); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartDiskCache}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartDiskCache},
+			dur.Seconds(), 1)
 	}
 	if dur := finishLoadingTime.Sub(startDiscCache); dur > 0 {
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartService}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseStartService},
+			dur.Seconds(), 1)
 	}
 
 	startShutdownTime := time.Unix(0, si.StartShutdownTime)
 	if dur := finishLoadingTime.Sub(startShutdownTime); si.StartShutdownTime > 0 && dur > 0 && dur < time.Hour {
 		// arbitrary check that if start took more than 1 hour, this was not restart, and we do not want such case in our averages
-		sh2.AddValueCounter(&data_model.Key{Metric: format.BuiltinMetricIDRestartTimings,
-			Tags: [16]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseTotal}},
-			dur.Seconds(), 1, format.BuiltinMetricMetaRestartTimings)
+		sh2.AddValueCounter(0, format.BuiltinMetricMetaRestartTimings,
+			[]int32{0, componentTag, format.TagValueIDRestartTimingsPhaseTotal},
+			dur.Seconds(), 1)
 		log.Printf("restart finished in %v (since shutdown start time recorded by previous instance)", dur)
 	} else {
 		log.Printf("start finished in %v (since this main() launched)", time.Since(globalStartTime))

@@ -157,9 +157,9 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 		// Explicit metric for this situation allows resetting limit from UI, like any other metric
 	}
 	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
-	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMappingCreated, [16]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, 0, keyValue})
-	key.WithAgentEnvRouteArch(extra.AgentEnv, extra.Route, extra.BuildArch)
-	ms.sh2.AddValueCounterHost(key, float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, format.BuiltinMetricMetaAggMappingCreated)
+	tags := data_model.WithAgentEnvRouteArch([]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, 0, keyValue}, extra.AgentEnv, extra.Route, extra.BuildArch)
+	ms.sh2.AddValueCounterHost(0, format.BuiltinMetricMetaAggMappingCreated,
+		tags[:], float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host})
 	return keyValue
 }
 

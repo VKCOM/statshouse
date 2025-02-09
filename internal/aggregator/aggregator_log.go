@@ -68,17 +68,20 @@ func (a *Aggregator) goInternalLog() {
 	}
 }
 
-func (a *Aggregator) reportInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int, v3Format bool) *data_model.Key {
+func (a *Aggregator) reportInsertMetric(t uint32, metricInfo *format.MetricMetaValue, historic bool, err error, status int, exception int, v3Format bool, value float64) {
 	var v3FormatTag int32
 	if v3Format {
 		v3FormatTag = 1
 	}
-	key := a.aggKey(bucketTime, metric, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception), v3FormatTag})
-	if err != nil {
-		key.Tags[5] = format.TagValueIDInsertTimeError
-	}
+	historicTag := int32(format.TagValueIDConveyorRecent)
 	if historic {
-		key.Tags[4] = format.TagValueIDConveyorHistoric
+		historicTag = format.TagValueIDConveyorHistoric
 	}
-	return key
+	statusTag := int32(format.TagValueIDInsertTimeOK)
+	if err != nil {
+		statusTag = format.TagValueIDInsertTimeError
+	}
+	a.sh2.AddValueCounter(t, metricInfo,
+		[]int32{0, 0, 0, 0, historicTag, statusTag, int32(status), int32(exception), v3FormatTag},
+		value, 1)
 }

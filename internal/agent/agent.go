@@ -699,21 +699,25 @@ func (s *Agent) AddCounterHostStringBytes(t uint32, metricInfo *format.MetricMet
 }
 
 // value should be not NaN.
-func (s *Agent) AddValueCounter(key *data_model.Key, value float64, counter float64, metricInfo *format.MetricMetaValue) {
-	s.AddValueCounterHost(key, value, counter, data_model.TagUnionBytes{}, metricInfo)
+func (s *Agent) AddValueCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
+	s.AddValueCounterHost(t, metricInfo, tags, value, counter, data_model.TagUnionBytes{})
 }
 
-func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes) {
 	if counter <= 0 {
 		return
 	}
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo)
 }
 
 func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
@@ -724,10 +728,6 @@ func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, 
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.MergeItemValue(key, resolutionHash, item, metricInfo)
-}
-
-func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) *data_model.Key {
-	return data_model.AggKey(time, metricID, keys, s.AggregatorHost, s.AggregatorShardKey, s.AggregatorReplicaKey)
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {

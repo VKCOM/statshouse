@@ -38,16 +38,18 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
 	protocol := int32(hctx.ProtocolVersion())
 	requestLen := len(hctx.Request) // impl will release hctx
-	key := a.aggKey(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol})
 	err := a.h.Handle(ctx, hctx)
+	status := int32(format.TagValueIDRPCRequestsStatusOK)
 	if err == rpc.ErrNoHandler {
-		key.Tags[3] = format.TagValueIDRPCRequestsStatusNoHandler
+		status = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if rpc.IsHijackedResponse(err) {
-		key.Tags[3] = format.TagValueIDRPCRequestsStatusHijack
+		status = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
-		key.Tags[3] = format.TagValueIDRPCRequestsStatusErrLocal
+		status = format.TagValueIDRPCRequestsStatusErrLocal
 	}
-	a.sh2.AddValueCounter(key, float64(requestLen), 1, format.BuiltinMetricMetaRPCRequests)
+	a.sh2.AddValueCounter(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
+		[]int32{0, format.TagValueIDComponentAggregator, int32(tag), status, 0, 0, keyIDTag, 0, protocol},
+		float64(requestLen), 1)
 	return err
 }
 
@@ -307,19 +309,13 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
 	}
-	addValueCounterHost := func(metricInfo *format.MetricMetaValue, tags [16]int32, value float64, counter float64) {
-		//if metricInfo.WithAgentEnvRouteArch {
-		//	tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-		//	a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
-		//	return
-		//}
-		//a.sh2.AddValueCounterHost(t, metricInfo, tags[:], counter, hostTag)
-
-		key := a.aggKey(args.Time, metricInfo.MetricID, tags)
+	addValueCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
 		if metricInfo.WithAgentEnvRouteArch {
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			return
 		}
-		a.sh2.AddValueCounterHost(key, value, counter, hostTag, metricInfo)
+		a.sh2.AddValueCounterHost(t, metricInfo, tags[:], value, counter, hostTag)
 	}
 
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
@@ -362,17 +358,17 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if args.IsSetHistoric() {
 		if roundedToOurTime > newestTime {
 			a.mu.Unlock()
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric})
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTag, format.BuiltinMetricMetaTimingErrors)
+			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingFutureBucketHistoric},
+				float64(args.Time)-float64(newestTime), 1)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "historic bucket time is too far in the future", nil, true
 		}
 		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
 			a.mu.Unlock()
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTag, format.BuiltinMetricMetaTimingErrors)
+			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingLongWindowThrownAggregator},
+				float64(newestTime)-float64(args.Time), 1)
 			return "Successfully discarded historic bucket beyond historic window", nil, true
 		}
 		if roundedToOurTime < oldestTime {
@@ -395,17 +391,17 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	} else {
 		if roundedToOurTime > newestTime { // AgentShard too far in a future
 			a.mu.Unlock()
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent})
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, hostTag, format.BuiltinMetricMetaTimingErrors)
+			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingFutureBucketRecent},
+				float64(args.Time)-float64(newestTime), 1)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "bucket time is too far in the future", nil, true
 		}
 		if roundedToOurTime < oldestTime {
 			a.mu.Unlock()
-			key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, hostTag, format.BuiltinMetricMetaTimingErrors)
+			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingLateRecent},
+				float64(newestTime)-float64(args.Time), 1)
 			// agent should resend via historic conveyor
 			if version3 {
 				return "bucket time is too far in the past for recent conveyor", nil, false
@@ -661,19 +657,19 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	now2 := time.Now()
 
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}, float64(measurementStringKeys), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingHits}, float64(mappingHits), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}, float64(measurementStringKeys), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingHits}, float64(mappingHits), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1)
 
 	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
 	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
@@ -686,32 +682,32 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, []int32{}, avgRemovedHits)
 	}
 
-	addValueCounterHost(format.BuiltinMetricMetaAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(len(hctx.Request)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeCompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(len(hctx.Request)), 1)
 
-	addValueCounterHost(format.BuiltinMetricMetaAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(args.OriginalSize), 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}, receiveDelay, 1)
-	addValueCounterHost(format.BuiltinMetricMetaAggBucketAggregateTimeSec, [16]int32{0, 0, 0, 0, conveyor, spare}, now2.Sub(now).Seconds(), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeUncompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(args.OriginalSize), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketReceiveDelaySec, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}, receiveDelay, 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketAggregateTimeSec, []int32{0, 0, 0, 0, conveyor, spare}, now2.Sub(now).Seconds(), 1)
 	if bucket.MissedSeconds != 0 { // TODO - remove after all agents upgraded to write this metric with tag format.TagValueIDTimingMissedSecondsAgent
-		addValueCounterHost(format.BuiltinMetricMetaTimingErrors, [16]int32{0, format.TagValueIDTimingMissedSeconds}, float64(bucket.MissedSeconds), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaTimingErrors, []int32{0, format.TagValueIDTimingMissedSeconds}, float64(bucket.MissedSeconds), 1)
 	}
 	// TODO - remove all 6 queue metrics below after all agents upgraded to write this metric directly to bucket
 	if args.QueueSizeMemory > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemory), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemory), 1)
 	}
 	if args.QueueSizeMemorySum > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemorySum), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemorySum), 1)
 	}
 	if args.QueueSizeDiskUnsent > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskUnsent), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskUnsent), 1)
 	}
 	if queueSizeDiskSent := float64(args.QueueSizeDisk) - float64(args.QueueSizeDiskUnsent); queueSizeDiskSent > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSent), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSent), 1)
 	}
 	if args.QueueSizeDiskSumUnsent > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskSumUnsent), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskSumUnsent), 1)
 	}
 	if queueSizeDiskSumSent := float64(args.QueueSizeDiskSum) - float64(args.QueueSizeDiskSumUnsent); queueSizeDiskSumSent > 0 {
-		addValueCounterHost(format.BuiltinMetricMetaAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSumSent), 1)
+		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSumSent), 1)
 	}
 
 	componentTag := args.Header.ComponentTag

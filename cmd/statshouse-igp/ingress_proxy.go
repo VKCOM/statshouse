@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -159,29 +158,26 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 					vmSize = float64(st.Size)
 					vmRSS = float64(st.Res)
 				}
-				key := data_model.Key{
-					Timestamp: nowUnix,
-					Metric:    format.BuiltinMetricIDProxyVmSize,
-					Tags:      [format.MaxTags]int32{1: p.hostnameID.Load()},
-				}
-				s.AddValueCounter(&key, 1, vmSize, format.BuiltinMetricMetaProxyVmSize)
+				tags := []int32{1: p.hostnameID.Load()}
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyVmSize,
+					tags, 1, vmSize)
 				// __igp_vm_rss
-				key.Metric = format.BuiltinMetricIDProxyVmRSS
-				s.AddValueCounter(&key, 1, vmRSS, format.BuiltinMetricMetaProxyVmRSS)
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyVmRSS,
+					tags, 1, vmRSS)
 				// __igp_heap_alloc
 				var memStats runtime.MemStats
 				runtime.ReadMemStats(&memStats)
-				key.Metric = format.BuiltinMetricIDProxyHeapAlloc
-				s.AddValueCounter(&key, 1, float64(memStats.HeapAlloc), format.BuiltinMetricMetaProxyHeapAlloc)
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyHeapAlloc,
+					tags, 1, float64(memStats.HeapAlloc))
 				// __igp_heap_sys
-				key.Metric = format.BuiltinMetricIDProxyHeapSys
-				s.AddValueCounter(&key, 1, float64(memStats.HeapSys), format.BuiltinMetricMetaProxyHeapSys)
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyHeapSys,
+					tags, 1, float64(memStats.HeapSys))
 				// __igp_heap_idle
-				key.Metric = format.BuiltinMetricIDProxyHeapIdle
-				s.AddValueCounter(&key, 1, float64(memStats.HeapIdle), format.BuiltinMetricMetaProxyHeapIdle)
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyHeapIdle,
+					tags, 1, float64(memStats.HeapIdle))
 				// __igp_heap_inuse
-				key.Metric = format.BuiltinMetricIDProxyHeapInuse
-				s.AddValueCounter(&key, 1, float64(memStats.HeapInuse), format.BuiltinMetricMetaProxyHeapInuse)
+				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyHeapInuse,
+					tags, 1, float64(memStats.HeapInuse))
 			},
 			nil, nil)
 		if err != nil {
@@ -561,17 +557,13 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 	if p.agent.Shards == nil {
 		return
 	}
-	key := data_model.Key{
-		Timestamp: uint32(time.Now().Unix()),
-		Metric:    format.BuiltinMetricIDRPCRequests,
-		Tags: [format.MaxTags]int32{
+	p.agent.AddValueCounter(uint32(time.Now().Unix()), format.BuiltinMetricMetaRPCRequests,
+		[]int32{
 			1: format.TagValueIDComponentIngressProxy,
 			2: int32(req.tag()),
 			6: p.clientCryptoKeyID,
 			8: p.clientProtocolVersion,
-		},
-	}
-	p.agent.AddValueCounter(&key, float64(req.size), 1, format.BuiltinMetricMetaRPCRequests)
+		}, float64(req.size), 1)
 }
 
 func (p *proxyConn) logFirstClientConn() {
