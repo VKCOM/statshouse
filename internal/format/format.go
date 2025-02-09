@@ -131,7 +131,7 @@ var (
 
 	errInvalidCodeTagValue = fmt.Errorf("invalid code tag value") // must be fast
 	errBadEncoding         = fmt.Errorf("bad utf-8 encoding")     // must be fast
-	reservedMetricPrefix   = []string{"host_", "__"}
+	reservedMetricPrefix   = []string{"host_"}
 )
 
 // Legacy, left for API backward compatibility
@@ -437,7 +437,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.MetricType = ""
 	}
 	if !ValidMetricPrefix(m.Name) {
-		err = multierr.Append(err, fmt.Errorf("invalid metric name (reserved prefix: %s)", strings.Join(reservedMetricPrefix, ", ")))
+		err = multierr.Append(err, fmt.Errorf("invalid metric name (one of reserved prefixes: %s)", strings.Join(reservedMetricPrefix, ", ")))
 	}
 
 	if m.Kind == legacyMetricKindStringTop {
@@ -494,12 +494,8 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		// tag.Raw has priority for now.
 		// we want to set RawKind based on Raw, so that Raw == (RawKind != "")
 		// after that we can remove Raw from serialization
-		if !tag.Raw && tag.RawKind != "" {
-			tag.RawKind = ""
-		}
-		if tag.Raw && tag.RawKind == "" {
-			// we have a lot of metrics with attributes like this.
-			tag.RawKind = "int"
+		if (!tag.Raw && tag.RawKind != "") || (tag.Raw && tag.RawKind == "") {
+			err = multierr.Append(err, fmt.Errorf("mismatch of raw kind %q and Raw %v of tag %d", tag.RawKind, tag.Raw, i))
 		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
@@ -1227,7 +1223,8 @@ func RemoteConfigMetric(name string) bool {
 
 func SameCompactTag(ta, tb *MetricMetaTag) bool {
 	return ta.Index == tb.Index && ta.Name == tb.Name &&
-		ta.RawKind == tb.RawKind && ta.Raw == tb.Raw && ta.Raw64 == tb.Raw64
+		ta.RawKind == tb.RawKind &&
+		ta.Raw == tb.Raw && ta.Raw64 == tb.Raw64
 }
 
 func SameCompactMetric(a, b *MetricMetaValue) bool {
@@ -1235,7 +1232,8 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.Name != b.Name ||
 		a.NamespaceID != b.NamespaceID ||
 		a.GroupID != b.GroupID ||
-		a.Disable != !b.Visible || // b is always original, we turn Visible into Disable for now
+		a.Visible != b.Visible || // we have legacy agents checking Visible flag, so must not change
+		//a.Disable != !b.Visible || // b is always original, we turn Visible into Disable for now
 		a.EffectiveWeight != b.EffectiveWeight ||
 		a.EffectiveResolution != b.EffectiveResolution ||
 		!slices.Equal(a.FairKey, b.FairKey) ||

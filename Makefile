@@ -26,6 +26,8 @@ build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-igp bui
 build-ui: build-sh-ui build-grafana-ui
 build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp build-agg
 
+# to build tools for running on adm512, disable cgo
+# CGO_ENABLED=0 go build ...
 build-sh:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 

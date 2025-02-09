@@ -82,7 +82,8 @@ var argv struct {
 	metadataActorID int64
 
 	// publish_tag_drafts mode
-	dryRun bool
+	maxUpdates int
+	dryRun     bool
 
 	// for old mode
 	historicStorageDir string
@@ -712,6 +713,15 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
 		build.FlagParseShowVersionHelp()
 		return mainPublishTagDrafts, nil
+	case "mass_update_metadata":
+		flag.BoolVar(&argv.dryRun, "dry-run", true, "do not publish changes")
+		flag.IntVar(&argv.maxUpdates, "max-updates", 0, "make no more than this # of modifications")
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		build.FlagParseShowVersionHelp()
+		return massUpdateMetadata, nil
 	case "simple_fsync":
 		return mainSimpleFSyncTest, nil
 	case "benchmark":
