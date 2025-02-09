@@ -565,10 +565,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	}
 	shardId, newStrategy, resolutionHash := s.shard(&h.Key, h.MetricMeta)
 	if shardId >= uint32(len(s.Shards)) {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
+			1)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -587,10 +586,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		s.TimingsApplyMetric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}()
 	// now set ok status
-	s.AddCounter(&data_model.Key{
-		Metric: format.BuiltinMetricIDIngestionStatus,
-		Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
-	}, 1, format.BuiltinMetricMetaIngestionStatus)
+	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+		[]int32{h.Key.Tags[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
+		1)
 	// now set all warnings
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
@@ -609,10 +607,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.FoundDraftTagName, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.TagSetTwiceKey != 0 {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
+			1)
 	}
 	if h.InvalidRawTagKey != 0 {
 		s.AddCounterStringBytes(&data_model.Key{
@@ -621,10 +618,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		}, h.InvalidRawValue, 1, format.BuiltinMetricMetaIngestionStatus)
 	}
 	if h.LegacyCanonicalTagKey != 0 {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
+			1)
 	}
 
 	// We do not check fields mask in code below, only fields values, because
@@ -662,21 +658,25 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 }
 
 // count should be > 0 and not NaN
-func (s *Agent) AddCounter(key *data_model.Key, count float64, metricInfo *format.MetricMetaValue) {
-	s.AddCounterHost(key, count, data_model.TagUnionBytes{}, metricInfo)
+func (s *Agent) AddCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64) {
+	s.AddCounterHost(t, metricInfo, tags, count, data_model.TagUnionBytes{})
 }
 
-func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes) {
 	if count <= 0 {
 		return
 	}
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(&key, resolutionHash, count, hostTag, metricInfo)
 }
 
 func (s *Agent) AddCounterStringBytes(key *data_model.Key, str []byte, count float64, metricInfo *format.MetricMetaValue) {

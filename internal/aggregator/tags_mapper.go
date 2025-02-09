@@ -136,13 +136,15 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 }
 
 // safe only to access fields mask in args, other fields point to reused memory
-func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, key *data_model.Key) (err error) {
+func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, agentEnv int32, route int32, buildArch int32, status int32) (err error) {
+	tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, status}, agentEnv, route, buildArch)
+
 	if r.Err != nil {
-		key.Tags[5] = format.TagValueIDAggMappingStatusErrUncached
-		ms.sh2.AddCounter(key, 1, format.BuiltinMetricMetaAggMapping)
+		tags[5] = format.TagValueIDAggMappingStatusErrUncached
+		ms.sh2.AddCounter(0, format.BuiltinMetricMetaAggMapping, tags[:], 1)
 		return r.Err
 	}
-	ms.sh2.AddCounter(key, 1, format.BuiltinMetricMetaAggMapping)
+	ms.sh2.AddCounter(0, format.BuiltinMetricMetaAggMapping, tags[:], 1)
 	result := tlstatshouse.GetTagMappingResult{Value: pcache.ValueToInt32(r.Value), TtlNanosec: int64(r.TTL)}
 	hctx.Response, err = args.WriteResult(hctx.Response, result)
 	return err
@@ -162,9 +164,6 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
-	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAggMappingStatusOKCached})
-	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-
 	r := ms.tagValue.GetCached(now, args.Key)
 	if !r.Found() {
 		extra := format.CreateMappingExtra{
@@ -188,8 +187,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			ms.mu.Lock()
 			defer ms.mu.Unlock()
 			if *bb {
-				key.Tags[5] = format.TagValueIDAggMappingStatusOKUncached
-				err := ms.sendCreateTagMappingResult(hctx, args, v, key)
+				err := ms.sendCreateTagMappingResult(hctx, args, v, agentEnv, route, buildArch, format.TagValueIDAggMappingStatusOKUncached)
 				hctx.SendHijackedResponse(err)
 			}
 		})
@@ -200,5 +198,5 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 			return hctx.HijackResponse(ms)
 		}
 	}
-	return ms.sendCreateTagMappingResult(hctx, args, r, key)
+	return ms.sendCreateTagMappingResult(hctx, args, r, agentEnv, route, buildArch, format.TagValueIDAggMappingStatusOKCached)
 }

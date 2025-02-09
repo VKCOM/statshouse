@@ -155,6 +155,17 @@ func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte)
 	return
 }
 
+func WithAgentEnvRouteArch(tags []int32, agentEnvTag int32, routeTag int32, buildArchTag int32) (result [16]int32) {
+	// returns minimal tags to fill values
+	copy(result[:], tags)
+	if result[format.AgentEnvTag] == 0 {
+		result[format.AgentEnvTag] = agentEnvTag
+		result[format.RouteTag] = routeTag
+		result[format.BuildArchTag] = buildArchTag
+	}
+	return result
+}
+
 func (k *Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
 	// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
