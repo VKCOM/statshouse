@@ -148,9 +148,8 @@ func (s *scrapeDiscovery) applyTargets(targets map[string][]*targetgroup.Group) 
 						continue
 					}
 					if addr, ok := ls[model.AddressLabel]; ok {
-						s.sh2.AddCounterStringBytes(
-							s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDiscovery, [format.MaxTags]int32{}),
-							[]byte(addr), 1, format.BuiltinMetricMetaAggScrapeTargetDiscovery)
+						s.sh2.AddCounterStringBytes(0, format.BuiltinMetricMetaAggScrapeTargetDiscovery,
+							[]int32{}, []byte(addr), 1)
 					}
 				}
 			}

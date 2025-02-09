@@ -722,9 +722,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	{
 		// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
-		key := a.aggKey((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHostStringBytes(key, bcStr, 1, hostTag, format.BuiltinMetricMetaVersions)
+		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag}, agentEnv, route, buildArch)
+		a.sh2.AddCounterHostStringBytes((args.Time/60)*60, format.BuiltinMetricMetaVersions, tags[:], bcStr, 1, hostTag)
 	}
 
 	// Ingestion statuses, sample factors and badges are written into the same shard as metric itself.
