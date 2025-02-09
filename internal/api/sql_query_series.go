@@ -438,14 +438,18 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 				sb.WriteString("NOT ")
 			}
 			sb.WriteString("(")
-			and := b.newListItemSeparator(" AND ")
-			if !raw {
-				and.maybeWrite(sb)
+			if lod.Version == "3" {
+				sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+				sb.WriteString("=0")
+				if !raw {
+					sb.WriteString(" AND ")
+					sb.WriteString(b.colStr(tagX, lod))
+					sb.WriteString("=''")
+				}
+			} else if tagX == format.StringTopTagIndexV3 {
 				sb.WriteString(b.colStr(tagX, lod))
 				sb.WriteString("=''")
-			}
-			if lod.Version == "3" {
-				and.maybeWrite(sb)
+			} else {
 				sb.WriteString(b.whereIntExpr(tagX, lod, mod))
 				sb.WriteString("=0")
 			}

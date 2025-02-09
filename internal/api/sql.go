@@ -167,10 +167,6 @@ func (b *queryBuilder) newListComma() listItemSeparator {
 	return listItemSeparator{value: ","}
 }
 
-func (b *queryBuilder) newListItemSeparator(v string) listItemSeparator {
-	return listItemSeparator{value: v}
-}
-
 func (b *listItemSeparator) maybeWrite(sb *strings.Builder) {
 	if b.listStarted {
 		sb.WriteString(b.value)
