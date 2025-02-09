@@ -259,22 +259,37 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 
 func (s *Agent) initBuiltInMetrics() {
 	// TODO - remove those, simply write metrics to bucket as usual
-	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorWrite}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskRead = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorRead}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskErase = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorDelete}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskReadNotConfigured = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskCompressFailed = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statLongWindowOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	s.statDiskOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	s.statMemoryOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingThrownDueToMemory}}, format.BuiltinMetricMetaTimingErrors)
+	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorWrite})
+	s.statErrorsDiskRead = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorRead})
+	s.statErrorsDiskErase = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorDelete})
+	s.statErrorsDiskReadNotConfigured = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured})
+	s.statErrorsDiskCompressFailed = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorCompressFailed})
+	s.statLongWindowOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingLongWindowThrownAgent})
+	s.statDiskOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingLongWindowThrownAgent})
+	s.statMemoryOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingThrownDueToMemory})
 
-	s.TimingsMapping = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsMappingSlow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsApplyMetric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsFlush = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsPreprocess = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendRecent = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendHistoric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsMapping = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsMappingSlow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsApplyMetric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsFlush = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsPreprocess = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsSendRecent = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsSendHistoric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 
 }
 
@@ -520,13 +535,14 @@ func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
-func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.MetricMetaValue) *BuiltInItemValue {
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags []int32) *BuiltInItemValue {
+	key := data_model.Key{
+		Metric: metricInfo.MetricID, // panics if metricInfo nil
 	}
-	shardId, _, _ := s.shard(key, metricInfo)
+	copy(key.Tags[:], tags)
+	shardId, _, _ := s.shard(&key, metricInfo)
 	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(key)
+	return shard.CreateBuiltInItemValue(&key)
 }
 
 func (s *Agent) UseNewConveyor() bool {
