@@ -80,6 +80,7 @@ const (
 	LeastAllowedAgentCommitTs uint32 = 0
 
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
+	StatshouseJournalDump                  = "statshouse_journal_dump" // journals will be dumped to disk for analysis at each point before this event
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
 	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
 )
@@ -1220,7 +1221,7 @@ func EventTypeToName(typ int32) string {
 
 func RemoteConfigMetric(name string) bool {
 	switch name {
-	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric, StatshouseAPIRemoteConfig:
+	case StatshouseAgentRemoteConfigMetric, StatshouseJournalDump, StatshouseAggregatorRemoteConfigMetric, StatshouseAPIRemoteConfig:
 		return true
 	default:
 		return false

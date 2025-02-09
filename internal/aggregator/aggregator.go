@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -301,8 +302,10 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 	// we ignore errors because cache can be damaged
 	a.journalFast, _ = metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionTimeout, false,
 		nil)
+	a.journalFast.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-%s", config.Cluster)))
 	a.journalCompact, _ = metajournal.LoadJournalFastFile(fjCompact, data_model.JournalDDOSProtectionTimeout, true,
 		nil)
+	a.journalCompact.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-compact-%s", config.Cluster)))
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics

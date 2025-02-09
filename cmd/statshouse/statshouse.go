@@ -199,7 +199,7 @@ func run() int {
 	if argv.cacheDir != "" {
 		// we do not want to confuse journal from different clusters, this would be a disaster
 		var err error
-		fj, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		fj, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-compact-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			logErr.Printf("failed to open journal cache: %v", err)
 			return 1
@@ -208,8 +208,11 @@ func run() int {
 	}
 
 	// we ignore error because cache can be damaged
-	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, false,
+	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, true,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
+	if argv.cacheDir != "" {
+		journalFast.SetDumpPathPrefix(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-compact-%s", argv.Cluster)))
+	}
 	// This code is used to investigate journal loading efficiency.
 	//if err := http.ListenAndServe(":9999", nil); err != nil {
 	//	panic(err)
@@ -225,7 +228,7 @@ func run() int {
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage, mappingsCache,
-		nil, journalFast.VersionHash, nil,
+		nil, nil, journalFast.VersionHash,
 		log.Printf,
 		main.beforeFlushBucket,
 		nil,
