@@ -720,14 +720,21 @@ func (s *Agent) AddValueCounterHost(t uint32, metricInfo *format.MetricMetaValue
 	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo)
 }
 
-func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(key, resolutionHash, item, metricInfo)
+	shard.MergeItemValue(&key, resolutionHash, item, metricInfo)
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {

@@ -105,13 +105,22 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
 
+	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
+		if metricInfo.WithAgentEnvRouteArch {
+			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			return
+		}
+		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	}
+
 	if args.Cluster != a.config.Cluster {
-		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1)
 		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
-	tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+	addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1)
 	return a.getConfigResult(), nil
 }
 
@@ -137,21 +146,29 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
+	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
+		if metricInfo.WithAgentEnvRouteArch {
+			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			return
+		}
+		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	}
 
 	if args.Cluster != a.config.Cluster {
-		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	cc := a.getConfigResult3()
 	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
-		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive}, agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive}, 1)
 		// longpoll forever until aggregator restarts
 		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
 	}
-	tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+	addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1)
 	hctx.Response, err = args.WriteResult(hctx.Response, cc)
 	return err
 }
@@ -312,7 +329,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addValueCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
 		if metricInfo.WithAgentEnvRouteArch {
 			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			a.sh2.AddValueCounterHost(t, metricInfo, tags2[:], value, counter, hostTag)
 			return
 		}
 		a.sh2.AddValueCounterHost(t, metricInfo, tags[:], value, counter, hostTag)
@@ -647,6 +664,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	} else {
 		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
 	}
+	compressedSize := len(hctx.Request)
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 
 	aggBucket.mu.Unlock()
@@ -682,7 +700,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, []int32{}, avgRemovedHits)
 	}
 
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeCompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(len(hctx.Request)), 1)
+	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeCompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(compressedSize), 1)
 
 	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeUncompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(args.OriginalSize), 1)
 	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketReceiveDelaySec, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}, receiveDelay, 1)
@@ -798,12 +816,21 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
+	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
+		if metricInfo.WithAgentEnvRouteArch {
+			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			return
+		}
+		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	}
 
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
-		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal},
+			1)
 		return err
 	}
 	oldestTime := a.recentBuckets[0].time // Most ready for insert
