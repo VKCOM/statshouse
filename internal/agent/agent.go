@@ -542,7 +542,7 @@ func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags 
 	copy(key.Tags[:], tags)
 	shardId, _, _ := s.shard(&key, metricInfo)
 	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(&key)
+	return shard.CreateBuiltInItemValue(metricInfo, &key)
 }
 
 func (s *Agent) UseNewConveyor() bool {
@@ -744,4 +744,16 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 		unsent += u
 	}
 	return total, unsent
+}
+
+func (s *Agent) getMultiItem(resolutionShard *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, tags []int32) *data_model.MultiItem {
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	item, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, metricInfo, nil)
+	return item
 }

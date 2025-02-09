@@ -270,7 +270,6 @@ func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
 	key := data_model.Key{
 		Timestamp: ts,
 		Metric:    metricOffset + rng.Int31n(100_000),
-		Tags:      [format.MaxTags]int32{},
 	}
 	tagsN := rng.Int31n(16)
 	for t := 0; t < int(tagsN); t++ {
