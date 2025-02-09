@@ -27,7 +27,6 @@ const (
 )
 
 type queryBuilder struct {
-	strings.Builder
 	cacheKey    string
 	version     string
 	user        string
@@ -165,23 +164,23 @@ func (b *queryBuilder) raw64Expr(tagX int, lod *data_model.LOD) string {
 }
 
 func (b *queryBuilder) newListComma() listItemSeparator {
-	return listItemSeparator{Builder: &b.Builder, value: ","}
+	return listItemSeparator{value: ","}
 }
 
 func (b *queryBuilder) newListItemSeparator(v string) listItemSeparator {
-	return listItemSeparator{Builder: &b.Builder, value: v}
+	return listItemSeparator{value: v}
 }
 
-func (b *listItemSeparator) maybeWrite() {
+func (b *listItemSeparator) maybeWrite(sb *strings.Builder) {
 	if b.listStarted {
-		b.WriteString(b.value)
+		sb.WriteString(b.value)
 	} else {
 		b.listStarted = true
 	}
 }
 
-func (b *listItemSeparator) write() {
-	b.WriteString(b.value)
+func (b *listItemSeparator) write(sb *strings.Builder) {
+	sb.WriteString(b.value)
 	b.listStarted = true
 }
 
