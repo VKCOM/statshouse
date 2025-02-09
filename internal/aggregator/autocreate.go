@@ -192,7 +192,6 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			Name:        string(validName),
 			Description: string(args.Description),
 			Tags:        make([]format.MetricMetaTag, format.MaxTags),
-			Visible:     true,
 			Kind:        string(args.Kind),
 		}
 		if i := strings.Index(value.Name, ":"); i != -1 {
@@ -204,6 +203,10 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			value.Resolution = int(args.Resolution)
 		} else {
 			value.Resolution = 1
+		}
+		err = value.BeforeSavingCheck()
+		if err != nil {
+			return fmt.Errorf("BeforeSavingCheck failed: %w", err)
 		}
 		err = value.RestoreCachedInfo()
 		if err != nil {

@@ -569,8 +569,8 @@ func (q *queryBuilder) writeByTagsV2(lod *data_model.LOD) {
 
 func (b *queryBuilder) raw64(tagX int) bool {
 	return b.metric != nil &&
-		int(tagX) < len(b.metric.Tags) &&
-		b.metric.Tags[tagX].Raw64
+		tagX < len(b.metric.Tags) &&
+		b.metric.Tags[tagX].Raw64()
 }
 
 func metricColumn(lod *data_model.LOD) string {

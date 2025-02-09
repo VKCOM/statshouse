@@ -39,7 +39,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		var tagValue data_model.TagUnionBytes
 		switch {
 		case len(v.Value) == 0: // this case is also valid for raw values
-		case tagMeta.Raw64:
+		case tagMeta.Raw64():
 			lo, hi, ok := format.ContainsRawTagValue64(mem.B(v.Value)) // TODO - remove allocation in case of error
 			if !ok {
 				h.InvalidRawValue = v.Value

@@ -1133,7 +1133,7 @@ func HandleGetMetricsList(h *httpRequestHandler) {
 		Metrics: []metricShortInfo{},
 	}
 	for _, m := range format.BuiltinMetrics {
-		if !h.showInvisible && !m.Visible { // we have invisible builtin metrics
+		if !h.showInvisible && m.Disable { // we have invisible builtin metrics
 			continue
 		}
 		resp.Metrics = append(resp.Metrics, metricShortInfo{Name: m.Name})
@@ -1655,6 +1655,10 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	create := metric.MetricID == 0
 	var resp format.MetricMetaValue
 	var err error
+	if err := metric.BeforeSavingCheck(); err != nil {
+		return format.MetricMetaValue{},
+			httpErr(http.StatusBadRequest, err)
+	}
 	if err := metric.RestoreCachedInfo(); err != nil {
 		return format.MetricMetaValue{},
 			httpErr(http.StatusBadRequest, err)
@@ -1714,7 +1718,7 @@ func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
 		if old.Tags[i].Raw != new.Tags[i].Raw {
 			return true // edit
 		}
-		if old.Tags[i].Raw64 != new.Tags[i].Raw64 {
+		if old.Tags[i].Raw64() != new.Tags[i].Raw64() {
 			return true // edit
 		}
 	}
@@ -1722,7 +1726,7 @@ func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
 		if old.Tags[i].Raw {
 			return true // removal
 		}
-		if old.Tags[i].Raw64 {
+		if old.Tags[i].Raw64() {
 			return true // removal
 		}
 	}

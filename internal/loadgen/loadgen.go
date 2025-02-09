@@ -102,10 +102,8 @@ func ensureMetricWithDescription(ctx context.Context, client *api.Client, name, 
 		log.Printf("Failed to get metric: %v", err)
 		m = &api.MetricInfo{
 			Metric: format.MetricMetaValue{
-				Name:       name,
-				Kind:       format.MetricKindMixed,
-				Resolution: 1,
-				Visible:    true,
+				Name: name,
+				Kind: format.MetricKindMixed,
 			},
 		}
 	}
