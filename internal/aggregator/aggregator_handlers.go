@@ -104,14 +104,12 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	}
 
 	if args.Cluster != a.config.Cluster {
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
-	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
-	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+	tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, agentEnv, route, buildArch)
+	a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 	return a.getConfigResult(), nil
 }
 
@@ -139,22 +137,19 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	}
 
 	if args.Cluster != a.config.Cluster {
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	cc := a.getConfigResult3()
 	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive}, agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 		// longpoll forever until aggregator restarts
 		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
 	}
-	key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK})
-	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+	tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, agentEnv, route, buildArch)
+	a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 	hctx.Response, err = args.WriteResult(hctx.Response, cc)
 	return err
 }
@@ -304,19 +299,39 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
+	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
+		if metricInfo.WithAgentEnvRouteArch {
+			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+			return
+		}
+		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	}
+	addValueCounterHost := func(metricInfo *format.MetricMetaValue, tags [16]int32, value float64, counter float64) {
+		//if metricInfo.WithAgentEnvRouteArch {
+		//	tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
+		//	a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
+		//	return
+		//}
+		//a.sh2.AddValueCounterHost(t, metricInfo, tags[:], counter, hostTag)
+
+		key := a.aggKey(args.Time, metricInfo.MetricID, tags)
+		if metricInfo.WithAgentEnvRouteArch {
+			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+		}
+		a.sh2.AddValueCounterHost(key, value, counter, hostTag, metricInfo)
+	}
+
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAggOutdatedAgents, [16]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAggOutdatedAgents)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents, []int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)}, 1)
 		return "agent is too old please update", nil, true
 	}
 
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, 1)
 		return "", err, false
 	}
 
@@ -645,20 +660,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	a.estimator.UpdateWithKeys(args.Time, newKeys)
 
 	now2 := time.Now()
-	addValueCounterHost := func(metricInfo *format.MetricMetaValue, keys [16]int32, value float64, counter float64) {
-		key := a.aggKey(args.Time, metricInfo.MetricID, keys)
-		if metricInfo.WithAgentEnvRouteArch {
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		}
-		a.sh2.AddValueCounterHost(key, value, counter, hostTag, metricInfo)
-	}
-	addCounterHost := func(metricInfo *format.MetricMetaValue, keys [16]int32, counter float64) {
-		key := a.aggKey(args.Time, metricInfo.MetricID, keys)
-		if metricInfo.WithAgentEnvRouteArch {
-			key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		}
-		a.sh2.AddCounterHost(key, counter, hostTag, metricInfo)
-	}
 
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1)
@@ -674,15 +675,15 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1)
 	addValueCounterHost(format.BuiltinMetricMetaAggBucketInfo, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1)
 
-	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
-	addCounterHost(format.BuiltinMetricMetaMappingCacheEvent, [16]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
 
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
-	addCounterHost(format.BuiltinMetricMetaMappingQueueEvent, [16]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
+	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
 	if avgRemovedHits != 0 {
-		addCounterHost(format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, [16]int32{}, avgRemovedHits)
+		addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, []int32{}, avgRemovedHits)
 	}
 
 	addValueCounterHost(format.BuiltinMetricMetaAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}, float64(len(hctx.Request)), 1)
@@ -806,9 +807,8 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
-		key := a.aggKey(nowUnix, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal})
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		a.sh2.AddCounterHost(key, 1, hostTag, format.BuiltinMetricMetaAutoConfig)
+		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, agentEnv, route, buildArch)
+		a.sh2.AddCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig, tags[:], 1, hostTag)
 		return err
 	}
 	oldestTime := a.recentBuckets[0].time // Most ready for insert
