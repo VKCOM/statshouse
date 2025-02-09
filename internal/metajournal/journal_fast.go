@@ -65,7 +65,8 @@ type JournalFast struct {
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
 
-	compact bool
+	compact        bool
+	dumpPathPrefix string
 
 	BuiltinLongPollImmediateOK    data_model.ItemValue
 	BuiltinLongPollImmediateError data_model.ItemValue
@@ -126,6 +127,12 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 	c.truncate = t
 	err := c.load(fs, r)
 	return c, err
+}
+
+func (ms *JournalFast) SetDumpPathPrefix(dumpPathPrefix string) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	ms.dumpPathPrefix = dumpPathPrefix
 }
 
 func (ms *JournalFast) applyEvents(src []tlmetadata.Event) {
@@ -200,7 +207,10 @@ func (ms *JournalFast) Save() error {
 		WriteAt:  ms.writeAt,
 		Truncate: ms.truncate,
 	}
+	return ms.save(&saver)
+}
 
+func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver) error {
 	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
 	chunk = basictl.LongWrite(chunk, ms.loaderVersion)  // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
 	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we must not use loaderVersion if file tail with some events was corrupted/cut, so we remember it
@@ -220,6 +230,32 @@ func (ms *JournalFast) Save() error {
 		return iteratorError
 	}
 	return saver.FinishWrite(chunk)
+}
+
+func (ms *JournalFast) dump() error {
+	// We exclude writers so that they do not block on Lock() while code below runs in RLock().
+	// If we allow this, all new readers (GetValue) block on RLock(), effectively waiting for Save to finish.
+	ms.modifyMu.Lock()
+	defer ms.modifyMu.Unlock()
+
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	if ms.dumpPathPrefix == "" {
+		return nil
+	}
+	fp, err := os.OpenFile(fmt.Sprintf("%s-%d-%s.dump", ms.dumpPathPrefix, ms.currentVersion, ms.stateHashStr), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+	w, t, _, _ := data_model.ChunkedStorageFile(fp)
+
+	saver := data_model.ChunkedStorageSaver{
+		WriteAt:  w,
+		Truncate: t,
+	}
+	return ms.save(&saver)
 }
 
 func (ms *JournalFast) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
@@ -329,8 +365,20 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		}
 		return false, err
 	}
+	loaderFinished := len(src) == 0
+	dump := false
+	for i, e := range src {
+		if e.EventType == format.MetricEvent && e.Name == format.StatshouseJournalDump {
+			dump = true
+			src = src[:i+1] // cut after dump event (if before, will loop forever). We drop the rest events for simplicity here
+			break
+		}
+	}
 	ms.applyUpdate(src, lastKnownVersion, aggLog)
-	return len(src) == 0, nil
+	if dump {
+		_ = ms.dump()
+	}
+	return loaderFinished, nil
 }
 
 func compactJournalEvent(event *tlmetadata.Event) (bool, error) {
@@ -377,7 +425,7 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, lastKnownVersion int6
 	if len(src) == 0 {
 		return
 	}
-	explicitNewVersion := src[len(src)-1].Version // compact journal can throw last item out
+	newLoaderVersion := src[len(src)-1].Version // compact journal can throw last item out
 
 	var scratch []byte
 
@@ -417,7 +465,7 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, lastKnownVersion int6
 			scratch = ms.addEventLocked(scratch, entry)
 		}
 		ms.finishUpdateLocked()
-		ms.loaderVersion = explicitNewVersion
+		ms.loaderVersion = newLoaderVersion
 		ms.lastKnownVersion = lastKnownVersion
 		stateHashStr = ms.stateHashStr
 	}()
