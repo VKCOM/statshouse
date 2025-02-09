@@ -8,13 +8,16 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -607,4 +610,103 @@ func mainPublishTagDrafts() int {
 			log.Fatal(err)
 		}
 	}
+}
+
+func massUpdateMetadata() int {
+	client := tlmetadata.Client{
+		Client: rpc.NewClient(
+			rpc.ClientWithCryptoKey(readAESPwd()),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		Network: argv.metadataNet,
+		Address: argv.metadataAddr,
+		ActorID: argv.metadataActorID,
+	}
+	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
+	storage := metajournal.MakeMetricsStorage(nil)
+	journal := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, false,
+		[]metajournal.ApplyEvent{storage.ApplyEvent})
+	journal.Start(nil, nil, loader.LoadJournal)
+	fmt.Println("Press <Enter> to start updating metadata")
+	if argv.dryRun {
+		fmt.Println("DRY RUN!")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for {
+			v, h := journal.VersionHash()
+			fmt.Printf("journal version %d/%d hash %s\n", v, journal.LastKnownVersion(), h)
+			select {
+			case <-time.After(time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	fmt.Println()
+	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+	cancel()
+	list := storage.GetMetaMetricList(true)
+	slices.SortFunc(list, func(a, b *format.MetricMetaValue) int {
+		return cmp.Compare(a.MetricID, b.MetricID)
+	})
+	_, _ = fmt.Fprintf(os.Stderr, "Starting list of %d metrics\n", len(list))
+	found := 0
+	fixMeta := func(meta *format.MetricMetaValue) (shouldUpdate bool) {
+		if meta.Disable != !meta.Visible {
+			meta.Disable = !meta.Visible
+			shouldUpdate = true
+		}
+		for i := range meta.Tags {
+			tag := &meta.Tags[i]
+			if !tag.Raw && tag.RawKind != "" {
+				shouldUpdate = true
+				tag.RawKind = ""
+			}
+			if tag.Raw && tag.RawKind == "" {
+				shouldUpdate = true
+				tag.RawKind = "int"
+			}
+		}
+		return
+	}
+	for i, meta := range list {
+		// deep enough copy here
+		meta2 := *meta
+		meta2.Tags = append([]format.MetricMetaTag{}, meta2.Tags...)
+		if !fixMeta(&meta2) {
+			continue
+		}
+		if found >= argv.maxUpdates {
+			break
+		}
+		found++
+		_, _ = fmt.Fprintf(os.Stderr, "%d/%d %d %d %s %d\n", i, len(list), meta.NamespaceID, meta.MetricID, meta.Name, meta.Version)
+		if err := meta2.RestoreCachedInfo(); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		metricBytes, _ := json.Marshal(meta)
+		metricBytes2, _ := json.Marshal(meta2)
+		_, _ = fmt.Fprintf(os.Stderr, "\t%s\n", metricBytes)
+		_, _ = fmt.Fprintf(os.Stderr, "\t%s\n", metricBytes2)
+		if !format.SameCompactMetric(&meta2, meta) {
+			_, _ = fmt.Fprintf(os.Stderr, "STOP!!! SameCompactMetric returned false\n")
+		}
+		if argv.dryRun {
+			continue
+		}
+		//_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
+		var err error
+		meta2, err = loader.SaveMetric(context.Background(), meta2, "")
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		err = storage.WaitVersion(context.Background(), meta.Version)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "Finished list of %d metrics, %d found of %d --max-updates\n", len(list), found, argv.maxUpdates)
+	return 0
 }
