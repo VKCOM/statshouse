@@ -128,18 +128,30 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 	return c, err
 }
 
-func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
-	var loaderVersion int64
-	src, err := ms.loadImpl(fileSize, readAt, &loaderVersion) // in case of error, returns events to apply
-	ms.finishUpdateLocked(loaderVersion)
-	ms.lastKnownVersion = ms.currentVersion
+func (ms *JournalFast) applyEvents(src []tlmetadata.Event) {
+	if len(src) == 0 {
+		return
+	}
 	for _, f := range ms.applyEvent {
 		f(src)
 	}
+}
+
+func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
+	var loaderVersion, lastEventVersion int64
+	src, err := ms.loadImpl(fileSize, readAt, &loaderVersion, &lastEventVersion)     // in case of error, returns events to apply
+	if lastEventVersion == ms.currentVersion && loaderVersion >= ms.currentVersion { // fully read journal, so can believe loader version
+		ms.loaderVersion = loaderVersion
+	} else {
+		ms.loaderVersion = ms.currentVersion // load again from the last event we read
+	}
+	ms.finishUpdateLocked()
+	ms.lastKnownVersion = ms.currentVersion
+	ms.applyEvents(src)
 	return err
 }
 
-func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error, explicitNewVersion *int64) ([]tlmetadata.Event, error) {
+func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error, loaderVersion *int64, lastEventVersion *int64) ([]tlmetadata.Event, error) {
 	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
 	loader.StartRead(fileSize, data_model.ChunkedMagicJournal)
 	var scratch []byte
@@ -153,8 +165,11 @@ func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int
 			break
 		}
 		if first {
-			if chunk, err = basictl.LongRead(chunk, explicitNewVersion); err != nil {
-				return src, fmt.Errorf("error parsing journal version: %v", err)
+			if chunk, err = basictl.LongRead(chunk, loaderVersion); err != nil {
+				return src, fmt.Errorf("error parsing journal loader version: %v", err)
+			}
+			if chunk, err = basictl.LongRead(chunk, lastEventVersion); err != nil {
+				return src, fmt.Errorf("error parsing journal last event version: %v", err)
 			}
 		}
 		var entry tlmetadata.Event
@@ -165,10 +180,8 @@ func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int
 			src = append(src, entry)
 			scratch = ms.addEventLocked(scratch, entry)
 		}
-		ms.finishUpdateLocked(ms.currentVersion)
-		for _, f := range ms.applyEvent {
-			f(src)
-		}
+		ms.finishUpdateLocked()
+		ms.applyEvents(src)
 		src = src[:0]
 	}
 	return src, nil
@@ -189,7 +202,8 @@ func (ms *JournalFast) Save() error {
 	}
 
 	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
-	chunk = basictl.LongWrite(chunk, ms.loaderVersion) // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
+	chunk = basictl.LongWrite(chunk, ms.loaderVersion)  // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
+	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we must not use loaderVersion if file tail with some events was corrupted/cut, so we remember it
 	// we do not FinishItem after version because version is small
 	// we must write in order, because we must deliver them in order during load
 	var iteratorError error
@@ -276,8 +290,7 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 	return scratch
 }
 
-func (ms *JournalFast) finishUpdateLocked(loaderVersion int64) {
-	ms.loaderVersion = max(loaderVersion, ms.currentVersion) // we could panic instead, but decided to simplify
+func (ms *JournalFast) finishUpdateLocked() {
 	hb := ms.stateHash.Bytes()
 	stateHashStr := hex.EncodeToString(hb[:])
 	ms.stateHashStr = stateHashStr
@@ -403,29 +416,28 @@ func (ms *JournalFast) applyUpdate(src []tlmetadata.Event, lastKnownVersion int6
 		for _, entry := range src {
 			scratch = ms.addEventLocked(scratch, entry)
 		}
-		ms.finishUpdateLocked(explicitNewVersion)
+		ms.finishUpdateLocked()
+		ms.loaderVersion = explicitNewVersion
 		ms.lastKnownVersion = lastKnownVersion
 		stateHashStr = ms.stateHashStr
 	}()
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
-	for _, f := range ms.applyEvent {
-		f(src)
+	ms.applyEvents(src)
+	if len(src) == 0 {
+		return
 	}
-
-	if len(src) > 0 {
-		lastEntry := src[len(src)-1]
-		// TODO - remove this printf in tests
-		//log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'",
-		//	oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
-		if aggLog != nil {
-			aggLog("journal_update", "", "ok",
-				strconv.FormatInt(oldVersion, 10),
-				strconv.FormatInt(lastEntry.Version, 10),
-				lastEntry.Name,
-				stateHashStr,
-				"")
-		}
+	lastEntry := src[len(src)-1]
+	// TODO - remove this printf in tests
+	//log.Printf("Version updated from '%d' to '%d', last entity updated is %s, journal hash is '%s'",
+	//	oldVersion, lastEntry.Version, lastEntry.Name, stateHash)
+	if aggLog != nil {
+		aggLog("journal_update", "", "ok",
+			strconv.FormatInt(oldVersion, 10),
+			strconv.FormatInt(lastEntry.Version, 10),
+			lastEntry.Name,
+			stateHashStr,
+			"")
 	}
 	ms.broadcastJournal()
 }
