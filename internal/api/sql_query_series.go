@@ -23,43 +23,43 @@ func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD) *seriesQuery {
 		queryBuilder: b,
 		version:      lod.Version,
 	}
-	q.writeSelect(&lod)
-	q.writeFrom(&lod)
-	b.writeWhere(&lod, buildSeriesQuery)
-	q.writeGroupBy(&lod)
+	var sb strings.Builder
+	q.writeSelect(&sb, &lod)
+	q.writeFrom(&sb, &lod)
+	b.writeWhere(&sb, &lod, buildSeriesQuery)
+	q.writeGroupBy(&sb, &lod)
 	limit := maxSeriesRows
 	if b.sort != sortNone {
 		limit = maxTableRows
-		q.writeOrderBy(&lod)
+		q.writeOrderBy(&sb, &lod)
 	}
-	q.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
-	q.body = q.String()
-	q.Reset()
+	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
+	q.body = sb.String()
 	return q
 }
 
-func (q *seriesQuery) writeSelect(lod *data_model.LOD) {
-	q.WriteString("SELECT ")
+func (q *seriesQuery) writeSelect(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString("SELECT ")
 	comma := q.newListComma()
-	q.writeSelectTime(lod, &comma)
-	q.writeSelectValues(lod, &comma)
-	q.writeSelectTags(lod, &comma)
+	q.writeSelectTime(sb, lod, &comma)
+	q.writeSelectValues(sb, lod, &comma)
+	q.writeSelectTags(sb, lod, &comma)
 }
 
-func (q *seriesQuery) writeSelectTime(lod *data_model.LOD, comma *listItemSeparator) {
-	comma.maybeWrite()
+func (q *seriesQuery) writeSelectTime(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
+	comma.maybeWrite(sb)
 	if lod.StepSec == _1M {
-		q.WriteString(fmt.Sprintf("toInt64(toDateTime(toStartOfInterval(time,INTERVAL 1 MONTH,'%s'),'%s'))", lod.Location.String(), lod.Location.String()))
+		sb.WriteString(fmt.Sprintf("toInt64(toDateTime(toStartOfInterval(time,INTERVAL 1 MONTH,'%s'),'%s'))", lod.Location.String(), lod.Location.String()))
 	} else {
-		q.WriteString(fmt.Sprintf("toInt64(toStartOfInterval(time+%d,INTERVAL %d second))-%d", q.utcOffset, lod.StepSec, q.utcOffset))
+		sb.WriteString(fmt.Sprintf("toInt64(toStartOfInterval(time+%d,INTERVAL %d second))-%d", q.utcOffset, lod.StepSec, q.utcOffset))
 	}
-	q.WriteString(" AS _time")
+	sb.WriteString(" AS _time")
 	q.res = append(q.res, proto.ResultColumn{Name: "_time", Data: &q.time})
 }
 
-func (q *seriesQuery) writeSelectValues(lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
 	if q.version == Version1 && q.isStringTop() {
-		q.WriteString("toFloat64(sumMerge(count)) AS _val0")
+		sb.WriteString("toFloat64(sumMerge(count)) AS _val0")
 		q.res = append(q.res, proto.ResultColumn{Name: "_val0", Data: &q.count})
 		return // count is the only column available
 	}
@@ -72,81 +72,81 @@ func (q *seriesQuery) writeSelectValues(lod *data_model.LOD, comma *listItemSepa
 		switch q.what[i].What {
 		case data_model.DigestAvg:
 			if !has[data_model.DigestSum] {
-				q.writeSelectSum(j, lod, comma)
+				q.writeSelectSum(sb, j, lod, comma)
 				has[data_model.DigestSum] = true
 				j++
 			}
 			if !has[data_model.DigestCount] {
-				q.writeSelectCount(j, lod, comma)
+				q.writeSelectCount(sb, j, lod, comma)
 				has[data_model.DigestCount] = true
 				j++
 			}
 		case data_model.DigestCount:
-			q.writeSelectCount(j, lod, comma)
+			q.writeSelectCount(sb, j, lod, comma)
 			j++
 		case data_model.DigestMax:
 			colName := fmt.Sprintf("_val%d", j)
 			q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.max})
-			comma.maybeWrite()
-			q.WriteString(fmt.Sprintf("toFloat64(%s(max))", sqlAggFn("max", lod)))
-			q.WriteString(" AS ")
-			q.WriteString(colName)
+			comma.maybeWrite(sb)
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(max))", sqlAggFn("max", lod)))
+			sb.WriteString(" AS ")
+			sb.WriteString(colName)
 			j++
 		case data_model.DigestMin:
 			colName := fmt.Sprintf("_val%d", j)
 			q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.min})
-			comma.maybeWrite()
-			q.WriteString(fmt.Sprintf("toFloat64(%s(min))", sqlAggFn("min", lod)))
-			q.WriteString(" AS ")
-			q.WriteString(colName)
+			comma.maybeWrite(sb)
+			sb.WriteString(fmt.Sprintf("toFloat64(%s(min))", sqlAggFn("min", lod)))
+			sb.WriteString(" AS ")
+			sb.WriteString(colName)
 			j++
 		case data_model.DigestSum:
-			q.writeSelectSum(j, lod, comma)
+			q.writeSelectSum(sb, j, lod, comma)
 			j++
 		case data_model.DigestStdDev:
 			if !has[data_model.DigestSum] {
-				q.writeSelectSum(j, lod, comma)
+				q.writeSelectSum(sb, j, lod, comma)
 				has[data_model.DigestSum] = true
 				j++
 			}
 			if !has[data_model.DigestCount] {
-				q.writeSelectCount(j, lod, comma)
+				q.writeSelectCount(sb, j, lod, comma)
 				has[data_model.DigestCount] = true
 				j++
 			}
 			if !hasSumSquare {
 				colName := fmt.Sprintf("_val%d", j)
 				q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.sumsquare})
-				comma.maybeWrite()
-				q.WriteString(fmt.Sprintf("toFloat64(%s(sumsquare))", sqlAggFn("sum", lod)))
-				q.WriteString(" AS ")
-				q.WriteString(colName)
+				comma.maybeWrite(sb)
+				sb.WriteString(fmt.Sprintf("toFloat64(%s(sumsquare))", sqlAggFn("sum", lod)))
+				sb.WriteString(" AS ")
+				sb.WriteString(colName)
 				hasSumSquare = true
 				j++
 			}
 		case data_model.DigestPercentile:
 			columnName := fmt.Sprintf("_val%d", j)
 			q.res = append(q.res, proto.ResultColumn{Name: columnName, Data: &q.percentile})
-			comma.maybeWrite()
-			q.WriteString("quantilesTDigestMergeState(0.5)(percentiles)")
-			q.WriteString(" AS ")
-			q.WriteString(columnName)
+			comma.maybeWrite(sb)
+			sb.WriteString("quantilesTDigestMergeState(0.5)(percentiles)")
+			sb.WriteString(" AS ")
+			sb.WriteString(columnName)
 			j++
 		case data_model.DigestCardinality:
 			colName := fmt.Sprintf("_val%d", j)
 			q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.cardinality})
-			comma.maybeWrite()
-			q.WriteString("toFloat64(sum(1))")
-			q.WriteString(" AS ")
-			q.WriteString(colName)
+			comma.maybeWrite(sb)
+			sb.WriteString("toFloat64(sum(1))")
+			sb.WriteString(" AS ")
+			sb.WriteString(colName)
 			j++
 		case data_model.DigestUnique:
 			columnName := fmt.Sprintf("_val%d", j)
 			q.res = append(q.res, proto.ResultColumn{Name: columnName, Data: &q.unique})
-			comma.maybeWrite()
-			q.WriteString("uniqMergeState(uniq_state)")
-			q.WriteString(" AS ")
-			q.WriteString(columnName)
+			comma.maybeWrite(sb)
+			sb.WriteString("uniqMergeState(uniq_state)")
+			sb.WriteString(" AS ")
+			sb.WriteString(columnName)
 			j++
 		default:
 			panic(fmt.Errorf("unsupported operation kind: %q", q.what[i].What))
@@ -154,9 +154,9 @@ func (q *seriesQuery) writeSelectValues(lod *data_model.LOD, comma *listItemSepa
 		has[q.what[i].What] = true
 	}
 	if q.minMaxHost[0] {
-		comma.maybeWrite()
-		q.WriteString(sqlMinHost(lod))
-		q.WriteString(" AS _minHost")
+		comma.maybeWrite(sb)
+		sb.WriteString(sqlMinHost(lod))
+		sb.WriteString(" AS _minHost")
 		switch q.version {
 		case Version1:
 			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV1})
@@ -167,9 +167,9 @@ func (q *seriesQuery) writeSelectValues(lod *data_model.LOD, comma *listItemSepa
 		}
 	}
 	if q.minMaxHost[1] {
-		comma.maybeWrite()
-		q.WriteString(sqlMaxHost(lod))
-		q.WriteString(" AS _maxHost")
+		comma.maybeWrite(sb)
+		sb.WriteString(sqlMaxHost(lod))
+		sb.WriteString(" AS _maxHost")
 		switch q.version {
 		case Version1:
 			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV1})
@@ -181,23 +181,23 @@ func (q *seriesQuery) writeSelectValues(lod *data_model.LOD, comma *listItemSepa
 	}
 }
 
-func (q *seriesQuery) writeSelectSum(i int, lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectSum(sb *strings.Builder, i int, lod *data_model.LOD, comma *listItemSeparator) {
 	colName := fmt.Sprintf("_val%d", i)
 	q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.sum})
-	comma.maybeWrite()
-	q.WriteString(fmt.Sprintf("toFloat64(%s(sum))", sqlAggFn("sum", lod)))
-	q.WriteString(" AS ")
-	q.WriteString(colName)
+	comma.maybeWrite(sb)
+	sb.WriteString(fmt.Sprintf("toFloat64(%s(sum))", sqlAggFn("sum", lod)))
+	sb.WriteString(" AS ")
+	sb.WriteString(colName)
 
 }
 
-func (q *seriesQuery) writeSelectCount(i int, lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectCount(sb *strings.Builder, i int, lod *data_model.LOD, comma *listItemSeparator) {
 	colName := fmt.Sprintf("_val%d", i)
 	q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &q.count})
-	comma.maybeWrite()
-	q.WriteString(fmt.Sprintf("toFloat64(%s(count))", sqlAggFn("sum", lod)))
-	q.WriteString(" AS ")
-	q.WriteString(colName)
+	comma.maybeWrite(sb)
+	sb.WriteString(fmt.Sprintf("toFloat64(%s(count))", sqlAggFn("sum", lod)))
+	sb.WriteString(" AS ")
+	sb.WriteString(colName)
 }
 
 func sqlMinHost(lod *data_model.LOD) string {
@@ -214,124 +214,124 @@ func sqlMaxHost(lod *data_model.LOD) string {
 	return "argMaxMergeState(max_host)"
 }
 
-func (q *seriesQuery) writeSelectTags(lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
 	switch lod.Version {
 	case Version3:
-		q.writeSelectTagsV3(lod, comma)
+		q.writeSelectTagsV3(sb, lod, comma)
 	case Version2:
-		q.writeSelectTagsV2(lod, comma)
+		q.writeSelectTagsV2(sb, lod, comma)
 	case Version1:
-		q.writeSelectTagsV1(lod, comma)
+		q.writeSelectTagsV1(sb, lod, comma)
 	default:
 		panic(fmt.Errorf("bad schema version %s", lod.Version))
 	}
 }
 
-func (q *seriesQuery) writeSelectTagsV3(lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectTagsV3(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
 	for _, x := range q.by {
-		comma.maybeWrite()
+		comma.maybeWrite(sb)
 		switch x {
 		case format.ShardTagIndex:
-			q.writeSelectShardNum()
+			q.writeSelectShardNum(sb)
 		default:
-			q.writeSelectInt(x, lod)
-			comma.write()
-			q.writeSelectStr(x, lod)
+			q.writeSelectInt(sb, x, lod)
+			comma.write(sb)
+			q.writeSelectStr(sb, x, lod)
 		}
 	}
 }
 
-func (q *seriesQuery) writeSelectTagsV2(lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectTagsV2(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
 	for _, x := range q.by {
-		comma.maybeWrite()
+		comma.maybeWrite(sb)
 		switch x {
 		case format.ShardTagIndex:
-			q.writeSelectShardNum()
+			q.writeSelectShardNum(sb)
 		case format.StringTopTagIndexV3:
-			q.writeSelectStr(x, lod)
+			q.writeSelectStr(sb, x, lod)
 		default:
-			q.writeSelectInt(x, lod)
+			q.writeSelectInt(sb, x, lod)
 		}
 	}
 }
 
-func (q *seriesQuery) writeSelectTagsV1(lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectTagsV1(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
 	for _, x := range q.by {
 		switch x {
 		case 0, format.StringTopTagIndexV3, format.ShardTagIndex:
 			// pass
 		default:
-			comma.maybeWrite()
-			q.writeSelectInt(x, lod)
+			comma.maybeWrite(sb)
+			q.writeSelectInt(sb, x, lod)
 		}
 	}
 }
 
-func (q *queryBuilder) writeFrom(lod *data_model.LOD) {
-	q.WriteString(" FROM ")
-	q.WriteString(q.preKeyTableName(lod))
+func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.preKeyTableName(lod))
 }
 
-func (b *queryBuilder) writeWhere(lod *data_model.LOD, mode queryBuilderMode) {
-	b.WriteString(" WHERE time>=")
-	b.WriteString(fmt.Sprint(lod.FromSec))
-	b.WriteString(" AND time<")
-	b.WriteString(fmt.Sprint(lod.ToSec))
+func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
+	sb.WriteString(" WHERE time>=")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(" AND time<")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
 	switch lod.Version {
 	case Version1:
-		b.writeDateFilterV1(lod)
+		b.writeDateFilterV1(sb, lod)
 	case Version3:
 		if mode == buildSeriesQuery {
-			b.WriteString(" AND index_type=0")
+			sb.WriteString(" AND index_type=0")
 		}
 	}
-	b.writeMetricFilter(b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
-	b.writeTagFilter(lod, b.filterIn, filterOperatorIn, mode)
-	b.writeTagFilter(lod, b.filterNotIn, filterOperatorNotIn, mode)
+	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
+	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
+	b.writeTagFilter(sb, lod, b.filterNotIn, filterOperatorNotIn, mode)
 }
 
-func (b *queryBuilder) writeDateFilterV1(lod *data_model.LOD) {
-	b.WriteString(" AND date>=toDate(")
-	b.WriteString(fmt.Sprint(lod.FromSec))
-	b.WriteString(") AND date<=toDate(")
-	b.WriteString(fmt.Sprint(lod.ToSec))
-	b.WriteString(")")
+func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString(" AND date>=toDate(")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(") AND date<=toDate(")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
+	sb.WriteString(")")
 }
 
-func (b *queryBuilder) writeMetricFilter(metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, lod *data_model.LOD) {
+func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, lod *data_model.LOD) {
 	emptyFilter := len(filterIn) == 0 && len(filterNotIn) == 0
 	if metricID != 0 || emptyFilter {
-		b.WriteString(" AND ")
-		b.WriteString(metricColumn(lod))
-		b.WriteString("=")
-		b.WriteString(fmt.Sprint(metricID))
+		sb.WriteString(" AND ")
+		sb.WriteString(metricColumn(lod))
+		sb.WriteString("=")
+		sb.WriteString(fmt.Sprint(metricID))
 		return
 	}
 	if len(filterIn) != 0 {
-		b.WriteString(" AND ")
-		b.WriteString(metricColumn(lod))
-		b.WriteString(" IN (")
-		b.WriteString(fmt.Sprint(filterIn[0].MetricID))
+		sb.WriteString(" AND ")
+		sb.WriteString(metricColumn(lod))
+		sb.WriteString(" IN (")
+		sb.WriteString(fmt.Sprint(filterIn[0].MetricID))
 		for i := 1; i < len(filterIn); i++ {
-			b.WriteByte(',')
-			b.WriteString(fmt.Sprint(filterIn[i].MetricID))
+			sb.WriteByte(',')
+			sb.WriteString(fmt.Sprint(filterIn[i].MetricID))
 		}
-		b.WriteByte(')')
+		sb.WriteByte(')')
 	}
 	if len(filterNotIn) != 0 {
-		b.WriteString(" AND ")
-		b.WriteString(metricColumn(lod))
-		b.WriteString(" NOT IN (")
-		b.WriteString(fmt.Sprint(filterNotIn[0].MetricID))
+		sb.WriteString(" AND ")
+		sb.WriteString(metricColumn(lod))
+		sb.WriteString(" NOT IN (")
+		sb.WriteString(fmt.Sprint(filterNotIn[0].MetricID))
 		for i := 1; i < len(filterNotIn); i++ {
-			b.WriteByte(',')
-			b.WriteString(fmt.Sprint(filterNotIn[i].MetricID))
+			sb.WriteByte(',')
+			sb.WriteString(fmt.Sprint(filterNotIn[i].MetricID))
 		}
-		b.WriteByte(')')
+		sb.WriteByte(')')
 	}
 }
 
-func (b *queryBuilder) writeTagFilter(lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) {
+func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) {
 	predicate, sep := op[0], op[1]
 	in := predicate == operatorIn
 	version3StrcmpOn := b.version3StrcmpOn(lod)
@@ -339,7 +339,7 @@ func (b *queryBuilder) writeTagFilter(lod *data_model.LOD, f data_model.TagFilte
 		if filter.Empty() {
 			continue
 		}
-		b.WriteString(" AND (")
+		sb.WriteString(" AND (")
 		// mapped
 		legacyStringTOP := tagX == format.StringTopTagIndexV3 && lod.Version != "3"
 		var hasMapped bool
@@ -361,29 +361,29 @@ func (b *queryBuilder) writeTagFilter(lod *data_model.LOD, f data_model.TagFilte
 			if v.IsMapped() && !legacyStringTOP {
 				if !hasMapped {
 					if started {
-						b.WriteString(sep)
+						sb.WriteString(sep)
 					} else {
 						started = true
 					}
-					b.WriteString(b.whereIntExpr(tagX, lod, mod))
-					b.WriteString(predicate)
-					b.WriteString("(")
+					sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+					sb.WriteString(predicate)
+					sb.WriteString("(")
 					hasMapped = true
 				} else {
-					b.WriteString(",")
+					sb.WriteString(",")
 				}
-				b.WriteString(fmt.Sprint(v.Mapped))
+				sb.WriteString(fmt.Sprint(v.Mapped))
 			}
 		}
 		if hasMapped {
-			b.WriteString(")")
+			sb.WriteString(")")
 		} else if !legacyStringTOP {
 			if in {
 				// empty positive filter means there are no items satisfaing search criteria
-				b.WriteString("0!=0")
+				sb.WriteString("0!=0")
 			} else {
 				// empty negative filter is "nop"
-				b.WriteString("0=0")
+				sb.WriteString("0=0")
 			}
 			started = true
 		}
@@ -391,18 +391,18 @@ func (b *queryBuilder) writeTagFilter(lod *data_model.LOD, f data_model.TagFilte
 		if !raw && (version3StrcmpOn || legacyStringTOP) {
 			if filter.Re2 != "" {
 				if started {
-					b.WriteString(sep)
+					sb.WriteString(sep)
 				} else {
 					started = true
 				}
 				if !in {
-					b.WriteString("NOT ")
+					sb.WriteString("NOT ")
 				}
-				b.WriteString("match(")
-				b.WriteString(b.colStr(tagX, lod))
-				b.WriteString(",'")
-				b.WriteString(escapeReplacer.Replace(filter.Re2))
-				b.WriteString("')")
+				sb.WriteString("match(")
+				sb.WriteString(b.colStr(tagX, lod))
+				sb.WriteString(",'")
+				sb.WriteString(escapeReplacer.Replace(filter.Re2))
+				sb.WriteString("')")
 			} else if hasValue {
 				hasValue = false
 				for _, v := range filter.Values {
@@ -412,86 +412,86 @@ func (b *queryBuilder) writeTagFilter(lod *data_model.LOD, f data_model.TagFilte
 					if v.HasValue() {
 						if !hasValue {
 							if started {
-								b.WriteString(sep)
+								sb.WriteString(sep)
 							} else {
 								started = true
 							}
-							b.WriteString(b.colStr(tagX, lod))
-							b.WriteString(predicate)
-							b.WriteString("('")
+							sb.WriteString(b.colStr(tagX, lod))
+							sb.WriteString(predicate)
+							sb.WriteString("('")
 							hasValue = true
 						} else {
-							b.WriteString("','")
+							sb.WriteString("','")
 						}
-						b.WriteString(escapeReplacer.Replace(v.Value))
+						sb.WriteString(escapeReplacer.Replace(v.Value))
 					}
 				}
-				b.WriteString("')")
+				sb.WriteString("')")
 			}
 		}
 		// empty
 		if hasEmpty {
 			if started {
-				b.WriteString(sep)
+				sb.WriteString(sep)
 			}
 			if !in {
-				b.WriteString("NOT ")
+				sb.WriteString("NOT ")
 			}
-			b.WriteString("(")
+			sb.WriteString("(")
 			and := b.newListItemSeparator(" AND ")
 			if !raw {
-				and.maybeWrite()
-				b.WriteString(b.colStr(tagX, lod))
-				b.WriteString("=''")
+				and.maybeWrite(sb)
+				sb.WriteString(b.colStr(tagX, lod))
+				sb.WriteString("=''")
 			}
 			if lod.Version == "3" {
-				and.maybeWrite()
-				b.WriteString(b.whereIntExpr(tagX, lod, mod))
-				b.WriteString("=0")
+				and.maybeWrite(sb)
+				sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+				sb.WriteString("=0")
 			}
-			b.WriteString(")")
+			sb.WriteString(")")
 		}
-		b.WriteString(")")
+		sb.WriteString(")")
 	}
 }
 
-func (q *queryBuilder) writeGroupBy(lod *data_model.LOD) {
-	q.WriteString(" GROUP BY _time")
-	q.writeByTags(lod)
+func (q *queryBuilder) writeGroupBy(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString(" GROUP BY _time")
+	q.writeByTags(sb, lod)
 }
 
-func (q *seriesQuery) writeOrderBy(lod *data_model.LOD) {
-	q.WriteString(" ORDER BY _time")
-	q.writeByTags(lod)
+func (q *seriesQuery) writeOrderBy(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString(" ORDER BY _time")
+	q.writeByTags(sb, lod)
 	if q.sort == sortDescending {
-		q.WriteString(" DESC")
+		sb.WriteString(" DESC")
 	}
 }
 
-func (q *seriesQuery) writeSelectShardNum() {
-	q.WriteString("_shard_num")
+func (q *seriesQuery) writeSelectShardNum(sb *strings.Builder) {
+	sb.WriteString("_shard_num")
 	q.res = append(q.res, proto.ResultColumn{Name: "_shard_num", Data: &q.shardNum})
 }
 
-func (q *seriesQuery) writeSelectStr(tagX int, lod *data_model.LOD) {
+func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int, lod *data_model.LOD) {
 	colName := q.colStr(tagX, lod)
-	q.WriteString(colName)
+	sb.WriteString(colName)
 	col := &stagCol{tagX: int(tagX)}
 	q.stag = append(q.stag, col)
 	q.res = append(q.res, proto.ResultColumn{Name: colName, Data: &col.data})
 }
 
-func (q *seriesQuery) writeSelectInt(tagX int, lod *data_model.LOD) {
+func (q *seriesQuery) writeSelectInt(sb *strings.Builder, tagX int, lod *data_model.LOD) {
 	expr, colName := q.selectIntExpr(tagX, lod)
-	q.WriteString(expr)
+	sb.WriteString(expr)
 	col := &tagCol{tagX: int(tagX)}
 	q.tag = append(q.tag, col)
 	if colName {
 		q.res = append(q.res, proto.ResultColumn{Name: expr, Data: &col.dataInt32})
 	} else {
-		q.WriteString(" AS ")
+		sb.WriteString(" AS ")
 		alias := q.selAlias(tagX, lod)
-		q.WriteString(alias)
+		sb.WriteString(alias)
 		q.res = append(q.res, proto.ResultColumn{Name: alias, Data: &col.dataInt64})
 	}
 }
@@ -530,39 +530,39 @@ func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuil
 	return b.colInt(tagX, lod)
 }
 
-func (q *queryBuilder) writeByTags(lod *data_model.LOD) {
+func (q *queryBuilder) writeByTags(sb *strings.Builder, lod *data_model.LOD) {
 	switch lod.Version {
 	case Version3:
-		q.writeByTagsV3(lod)
+		q.writeByTagsV3(sb, lod)
 	default:
-		q.writeByTagsV2(lod)
+		q.writeByTagsV2(sb, lod)
 	}
 }
 
-func (q *queryBuilder) writeByTagsV3(lod *data_model.LOD) {
+func (q *queryBuilder) writeByTagsV3(sb *strings.Builder, lod *data_model.LOD) {
 	for _, x := range q.by {
-		q.WriteString(",")
+		sb.WriteString(",")
 		switch x {
 		case format.ShardTagIndex:
-			q.WriteString("_shard_num")
+			sb.WriteString("_shard_num")
 		default:
-			q.WriteString(q.selAlias(x, lod))
-			q.WriteString(",")
-			q.WriteString(q.colStr(x, lod))
+			sb.WriteString(q.selAlias(x, lod))
+			sb.WriteString(",")
+			sb.WriteString(q.colStr(x, lod))
 		}
 	}
 }
 
-func (q *queryBuilder) writeByTagsV2(lod *data_model.LOD) {
+func (q *queryBuilder) writeByTagsV2(sb *strings.Builder, lod *data_model.LOD) {
 	for _, x := range q.by {
-		q.WriteString(",")
+		sb.WriteString(",")
 		switch x {
 		case format.ShardTagIndex:
-			q.WriteString("_shard_num")
+			sb.WriteString("_shard_num")
 		case format.StringTopTagIndex, format.StringTopTagIndexV3:
-			q.WriteString("skey")
+			sb.WriteString("skey")
 		default:
-			q.WriteString(q.colIntV2(x, lod))
+			sb.WriteString(q.colIntV2(x, lod))
 		}
 	}
 }
