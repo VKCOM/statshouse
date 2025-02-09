@@ -95,7 +95,7 @@ func MetricMetaFromEvent(e tlmetadata.Event) (*format.MetricMetaValue, error) {
 	}
 	value.MetricID = int32(e.Id)
 	value.UpdateTime = e.UpdateTime
-	_ = value.RestoreCachedInfo() // TODO: for now, we have lots of errors
+	_ = value.RestoreCachedInfo() // TODO: older agents can get errors here, so we decided to ignore
 	return value, nil
 }
 

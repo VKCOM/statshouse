@@ -159,8 +159,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		result := &format.MetricMetaValue{
 			MetricID: 1,
 			Name:     "metric1",
-			Tags:     []format.MetricMetaTag{{Name: "env"}, {Name: "k1"}, {Name: "k2"}, {Name: "k3"}, {Name: "k4", Raw: true}, {Name: "k5"}},
-			Visible:  true,
+			Tags:     []format.MetricMetaTag{{Name: "env"}, {Name: "k1"}, {Name: "k2"}, {Name: "k3"}, {Name: "k4", RawKind: "int"}, {Name: "k5"}},
 		}
 		_ = result.RestoreCachedInfo()
 		data, err := result.MarshalBinary()
@@ -594,6 +593,10 @@ func mainPublishTagDrafts() int {
 		if argv.dryRun {
 			continue
 		}
+		if err := meta.BeforeSavingCheck(); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
 		if err := meta.RestoreCachedInfo(); err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue
@@ -652,21 +655,21 @@ func massUpdateMetadata() int {
 	_, _ = fmt.Fprintf(os.Stderr, "Starting list of %d metrics\n", len(list))
 	found := 0
 	fixMeta := func(meta *format.MetricMetaValue) (shouldUpdate bool) {
-		if meta.Disable != !meta.Visible {
-			meta.Disable = !meta.Visible
-			shouldUpdate = true
-		}
-		for i := range meta.Tags {
-			tag := &meta.Tags[i]
-			if !tag.Raw && tag.RawKind != "" {
-				shouldUpdate = true
-				tag.RawKind = ""
-			}
-			if tag.Raw && tag.RawKind == "" {
-				shouldUpdate = true
-				tag.RawKind = "int"
-			}
-		}
+		//if meta.Disable != !meta.Visible {
+		//	meta.Disable = !meta.Visible
+		//	shouldUpdate = true
+		//}
+		//for i := range meta.Tags {
+		//	tag := &meta.Tags[i]
+		//	if !tag.Raw && tag.RawKind != "" {
+		//		shouldUpdate = true
+		//		tag.RawKind = ""
+		//	}
+		//	if tag.Raw && tag.RawKind == "" {
+		//		shouldUpdate = true
+		//		tag.RawKind = "int"
+		//	}
+		//}
 		return
 	}
 	for i, meta := range list {
@@ -681,6 +684,10 @@ func massUpdateMetadata() int {
 		}
 		found++
 		_, _ = fmt.Fprintf(os.Stderr, "%d/%d %d %d %s %d\n", i, len(list), meta.NamespaceID, meta.MetricID, meta.Name, meta.Version)
+		if err := meta2.BeforeSavingCheck(); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
 		if err := meta2.RestoreCachedInfo(); err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue

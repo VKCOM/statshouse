@@ -248,10 +248,8 @@ func init() {
 		if m.GroupID == 0 {
 			m.GroupID = BuiltinGroupIDBuiltin
 		}
-		m.Visible = !builtinMetricsDisabled[id]
-		m.Disable = !m.Visible
+		m.Disable = builtinMetricsDisabled[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
-		m.Weight = 1
 
 		BuiltinMetricByName[m.Name] = m
 
@@ -298,33 +296,20 @@ func init() {
 			if t.Raw {
 				panic("for built-in metric definitions please set only raw_kind, not raw flag")
 			}
-			if t.Description == "tag_id" {
-				t.ValueComments = convertToValueComments(tagIDTag2TagID)
-				t.Raw = true
-				if t.RawKind == "" {
-					t.RawKind = "int"
-				}
-				continue
-			}
 			if i == 0 { // env is not raw
 				continue
 			}
+			if t.Description == "tag_id" { // cannot set at init() because # of tags is dynamic
+				t.ValueComments = convertToValueComments(tagIDTag2TagID)
+			}
 			if t.RawKind != "" {
-				t.Raw = true
 				continue
 			}
 			if t.Description == "-" && t.Name == "" {
-				t.Raw = true
-				if t.RawKind == "" {
-					t.RawKind = "int"
-				}
-				continue
+				t.RawKind = "int"
 			}
 			if t.BuiltinKind != 0 || t.ValueComments != nil {
-				t.Raw = true
-				if t.RawKind == "" {
-					t.RawKind = "int"
-				}
+				t.RawKind = "int"
 			}
 		}
 

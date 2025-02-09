@@ -1026,6 +1026,7 @@ func genEvent() *rapid.Generator[tlmetadata.Event] {
 		switch eventType {
 		case format.MetricEvent:
 			metric := genMetricMetaValue().Draw(t, "metric")
+			_ = metric.RestoreCachedInfo()
 			jsonData, err := json.Marshal(metric)
 			require.Nil(t, err, "metric marshal failed")
 			data = string(jsonData)
@@ -1069,13 +1070,11 @@ func genEvent() *rapid.Generator[tlmetadata.Event] {
 
 func genMetricMetaValue() *rapid.Generator[format.MetricMetaValue] {
 	return rapid.Custom(func(t *rapid.T) format.MetricMetaValue {
-		visible := rapid.Bool().Draw(t, "visible")
 		return format.MetricMetaValue{
 			Description:          rapid.String().Draw(t, "description"),
 			Tags:                 rapid.SliceOfN(genMetricMetaTag(), 0, 48).Draw(t, "tags"),
 			TagsDraft:            rapid.MapOf(rapid.String(), genMetricMetaTag()).Draw(t, "tagsDraft"),
-			Visible:              visible,
-			Disable:              !visible,
+			Disable:              rapid.Bool().Draw(t, "disable"),
 			Kind:                 rapid.StringMatching("^counter$|^value$|^value_p$|^unique$|^mixed$|^mixed_p$").Draw(t, "kind"),
 			Weight:               rapid.Float64().Draw(t, "weight"),
 			Resolution:           rapid.IntRange(0, math.MaxInt32).Draw(t, "resolution"),

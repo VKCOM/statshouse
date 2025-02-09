@@ -97,7 +97,7 @@ func (w *worker) fillMetricMeta(args data_model.HandlerArgs, h *data_model.Mappe
 	if metricMeta != nil {
 		h.MetricMeta = metricMeta
 		h.Key.Metric = metricMeta.MetricID
-		if !metricMeta.Visible {
+		if metricMeta.Disable {
 			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricDisabled
 			return false
 		}

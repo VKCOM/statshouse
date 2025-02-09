@@ -85,7 +85,7 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 			h.IsSKeySet = true
 		case len(v.Value) == 0: // this case is also valid for raw values
 			h.SetTag(tagMeta.Index, 0, tagIDKey) // we interpret "1" => "vasya", "1" => "petya" as second one overriding the first, but generating a warning
-		case tagMeta.Raw64:
+		case tagMeta.Raw64():
 			lo, hi, ok := format.ContainsRawTagValue64(mem.B(v.Value)) // TODO - remove allocation in case of error
 			if !ok {
 				h.InvalidRawValue = v.Value

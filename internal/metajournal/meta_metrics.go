@@ -128,7 +128,7 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.Met
 	defer ms.mu.RUnlock()
 	li := make([]*format.MetricMetaValue, 0, len(ms.metricsByName))
 	for _, v := range ms.metricsByName {
-		if !includeInvisible && !v.Visible {
+		if !includeInvisible && v.Disable {
 			continue
 		}
 		li = append(li, v)

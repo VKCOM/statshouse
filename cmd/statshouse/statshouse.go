@@ -126,6 +126,10 @@ func reopenLog() {
 }
 
 func main() {
+	// helpfull when refactoring flags in meta metrics
+	// data, _ := json.Marshal(format.BuiltinMetrics)
+	// _ = os.WriteFile("builtin2.json", data, 0644)
+
 	pidStr := strconv.Itoa(os.Getpid())
 	logOk = log.New(os.Stdout, "LOG "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 	logErr = log.New(os.Stderr, "ERR "+pidStr+" ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)

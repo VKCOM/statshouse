@@ -168,11 +168,10 @@ func (m *stringTopMetric) Ensure(ctx context.Context, c *api.Client) {
 }
 
 func setCommonMetricValues(mv *format.MetricMetaValue) {
-	mv.Visible = true
+	mv.Disable = false
 	mv.Tags = []format.MetricMetaTag{
 		{
 			Description: "environment",
-			Raw:         false,
 		},
 		{
 			Name: constTag,
@@ -187,8 +186,8 @@ func setCommonMetricValues(mv *format.MetricMetaValue) {
 			Name: tenMinTag,
 		},
 		{
-			Name: rawTag,
-			Raw:  true,
+			Name:    rawTag,
+			RawKind: "int",
 		},
 	}
 }
