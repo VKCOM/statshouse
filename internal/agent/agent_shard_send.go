@@ -42,13 +42,9 @@ func (s *Shard) flushBuckets(now time.Time) {
 			// we record too big gap to the SendTime slot, because if sending is stuck,
 			// item will be simply updated in the same slot, without growing state size
 			resolutionShard := s.SuperQueue[s.SendTime%superQueueLen]
-			key := data_model.Key{
-				Timestamp: s.SendTime,
-				Metric:    format.BuiltinMetricIDTimingErrors,
-				Tags:      [format.MaxTags]int32{0, format.TagValueIDTimingMissedSecondsAgent},
-			}
-			mi, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, nil, nil)
-			mi.Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
+			s.agent.getMultiItem(resolutionShard, s.SendTime, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingMissedSecondsAgent}).
+				Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
 		}
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
