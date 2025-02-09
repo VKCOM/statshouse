@@ -92,6 +92,7 @@ func (s *Shard) StopPreprocessor() {
 	close(s.BucketsToPreprocess)
 }
 
+// TODO - remove generic parameter
 func addSizeByTypeMetric[B *tlstatshouse.SourceBucket2 | *tlstatshouse.SourceBucket3](sb B, partKey int32, size int) {
 	// This metric is added by source, because aggregator has no spare time for that
 	k := data_model.Key{Metric: format.BuiltinMetricIDTLByteSizePerInflightType, Tags: [format.MaxTags]int32{0, partKey}}

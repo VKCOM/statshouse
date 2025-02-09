@@ -512,19 +512,19 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	}
 	a.mu.Unlock()
 
-	writeWaiting := func(metricID int32, meta *format.MetricMetaValue, item *[2][2]data_model.ItemValue) {
+	writeWaiting := func(metricInfo *format.MetricMetaValue, item *[2][2]data_model.ItemValue) {
 		tagsRole := [2]int32{format.TagValueIDAggregatorOriginal, format.TagValueIDAggregatorSpare}
 		tagsRoute := [2]int32{format.TagValueIDRouteDirect, format.TagValueIDRouteIngressProxy}
 		for i, cc := range *item {
 			for j, bb := range cc {
-				key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, tagsRole[i], tagsRoute[j]})
-				a.sh2.MergeItemValue(key, &bb, meta)
+				a.sh2.MergeItemValue(nowUnix, metricInfo,
+					[]int32{0, 0, 0, 0, tagsRole[i], tagsRoute[j]}, &bb)
 			}
 		}
 	}
-	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.BuiltinMetricMetaAggHistoricBucketsWaiting, &bucketsWaiting)
-	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.BuiltinMetricMetaAggHistoricSecondsWaiting, &secondsWaiting)
-	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricBucketsWaiting, &bucketsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricSecondsWaiting, &secondsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
 
 	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggActiveSenders,
 		[]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent},
