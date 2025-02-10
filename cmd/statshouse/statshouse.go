@@ -501,18 +501,16 @@ func (main *mainAgent) hijackConnection(conn *rpc.HijackConnection) {
 }
 
 func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
-	k := data_model.Key{
-		Timestamp: unixNow,
-		Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
-	}
 	for _, r := range main.receiversUDP {
 		v := float64(r.ReceiveBufferSize())
-		a.AddValueCounter(&k, v, 1, format.BuiltinMetricMetaAgentUDPReceiveBufferSize)
+		a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentUDPReceiveBufferSize,
+			[]int32{}, v, 1)
 	}
 	if main.diskCache != nil {
 		s, err := main.diskCache.DiskSizeBytes()
 		if err == nil {
-			a.AddValueCounter(&data_model.Key{Timestamp: unixNow, Metric: format.BuiltinMetricIDAgentDiskCacheSize, Tags: [16]int32{0, 0, 0}}, float64(s), 1, format.BuiltinMetricMetaAgentDiskCacheSize)
+			a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
+				[]int32{}, float64(s), 1)
 		}
 	}
 }

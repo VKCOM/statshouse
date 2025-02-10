@@ -261,11 +261,9 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			Data:      string(data),
 		},
 	}
-	var tags [16]int32
-	if metricExists {
-		tags[1] = 2 // edit
-	} else {
-		tags[1] = 1 // create
+	tagEditCreate := int32(2) // edit
+	if !metricExists {
+		tagEditCreate = 1 // create
 		edit.SetCreate(true)
 	}
 	// issue RPC call
@@ -274,13 +272,13 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	defer cancel()
 	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)
 	if err != nil {
-		tags[2] = 2 // failure
-		ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1, format.BuiltinMetricMetaAutoCreateMetric)
+		ac.agg.sh2.AddCounter(uint32(time.Now().Unix()), format.BuiltinMetricMetaAutoCreateMetric,
+			[]int32{0, tagEditCreate, 2}, 1) // 2 - failure
 		return fmt.Errorf("failed to create or update metric: %w", err)
 	}
 	// succeeded, wait a bit until changes applied locally
-	tags[2] = 1 // success
-	ac.agg.sh2.AddCounter(ac.agg.aggKey(uint32(time.Now().Unix()), format.BuiltinMetricIDAutoCreateMetric, tags), 1, format.BuiltinMetricMetaAutoCreateMetric)
+	ac.agg.sh2.AddCounter(uint32(time.Now().Unix()), format.BuiltinMetricMetaAutoCreateMetric,
+		[]int32{0, tagEditCreate, 1}, 1) // 1 - success
 	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
 	_ = ac.storage.WaitVersion(ctx, ret.Version)

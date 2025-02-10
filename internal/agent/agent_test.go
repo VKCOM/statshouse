@@ -168,16 +168,16 @@ func Test_AgentQueue(t *testing.T) {
 	testEnsureNoFlush(t, shard)
 	agent.goFlushIteration(startTime.Add(time.Second))
 	testEnsureFlush(t, shard, nowUnix-2)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix, Metric: 1}, 1, metric1sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix, Metric: 5}, 1, metric5sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, metric1sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, metric5sec)
+	agent.AddCounter(nowUnix, metric1sec, []int32{}, 1)
+	agent.AddCounter(nowUnix, metric5sec, []int32{}, 1)
+	agent.AddCounter(nowUnix+1, metric1sec, []int32{}, 1)
+	agent.AddCounter(nowUnix+1, metric5sec, []int32{}, 1)
 	agent.goFlushIteration(startTime.Add(data_model.AgentWindow))
 	testEnsureFlush(t, shard, nowUnix-1)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 1, Metric: 1}, 1, metric1sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 1, Metric: 5}, 1, metric5sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 2, Metric: 1}, 1, metric1sec)
-	agent.AddCounter(&data_model.Key{Timestamp: nowUnix + 2, Metric: 5}, 1, metric5sec)
+	agent.AddCounter(nowUnix+1, metric1sec, []int32{}, 1)
+	agent.AddCounter(nowUnix+1, metric5sec, []int32{}, 1)
+	agent.AddCounter(nowUnix+2, metric1sec, []int32{}, 1)
+	agent.AddCounter(nowUnix+2, metric5sec, []int32{}, 1)
 	agent.goFlushIteration(startTime.Add(2 * time.Second))
 	testEnsureNoFlush(t, shard)
 	for i := 1; i < 12; i++ { // wait until 5-seconds metrics flushed
@@ -270,7 +270,6 @@ func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {
 	key := data_model.Key{
 		Timestamp: ts,
 		Metric:    metricOffset + rng.Int31n(100_000),
-		Tags:      [format.MaxTags]int32{},
 	}
 	tagsN := rng.Int31n(16)
 	for t := 0; t < int(tagsN); t++ {

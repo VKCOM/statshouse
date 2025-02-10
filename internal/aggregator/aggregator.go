@@ -512,27 +512,30 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	}
 	a.mu.Unlock()
 
-	writeWaiting := func(metricID int32, meta *format.MetricMetaValue, item *[2][2]data_model.ItemValue) {
+	writeWaiting := func(metricInfo *format.MetricMetaValue, item *[2][2]data_model.ItemValue) {
 		tagsRole := [2]int32{format.TagValueIDAggregatorOriginal, format.TagValueIDAggregatorSpare}
 		tagsRoute := [2]int32{format.TagValueIDRouteDirect, format.TagValueIDRouteIngressProxy}
 		for i, cc := range *item {
 			for j, bb := range cc {
-				key := a.aggKey(nowUnix, metricID, [16]int32{0, 0, 0, 0, tagsRole[i], tagsRoute[j]})
-				a.sh2.MergeItemValue(key, &bb, meta)
+				a.sh2.MergeItemValue(nowUnix, metricInfo,
+					[]int32{0, 0, 0, 0, tagsRole[i], tagsRoute[j]}, &bb)
 			}
 		}
 	}
-	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.BuiltinMetricMetaAggHistoricBucketsWaiting, &bucketsWaiting)
-	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.BuiltinMetricMetaAggHistoricSecondsWaiting, &secondsWaiting)
-	writeWaiting(format.BuiltinMetricIDAggHistoricHostsWaiting, format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricBucketsWaiting, &bucketsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricSecondsWaiting, &secondsWaiting)
+	writeWaiting(format.BuiltinMetricMetaAggHistoricHostsWaiting, &hostsWaiting)
 
-	key := a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
-	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHostTag, format.BuiltinMetricMetaAggActiveSenders)
-	key = a.aggKey(nowUnix, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
-	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHostTag, format.BuiltinMetricMetaAggActiveSenders)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggActiveSenders,
+		[]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent},
+		float64(recentSenders), 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggActiveSenders,
+		[]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric},
+		float64(historicSends), 1, a.aggregatorHostTag)
 
-	key = a.aggKey(nowUnix, format.BuiltinMetricIDMappingQueueSize, [16]int32{})
-	a.sh2.AddValueCounterHost(key, float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHostTag, format.BuiltinMetricMetaMappingQueueSize)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
+		[]int32{},
+		float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHostTag)
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()
@@ -732,8 +735,9 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				a.mu.Lock()
 				a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 				a.mu.Unlock()
-				key := a.aggKey(nowUnix, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
-				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHostTag, format.BuiltinMetricMetaTimingErrors) // This bucket is combination of many hosts
+				a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+					[]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater},
+					float64(newestTime-b.time), 1, a.aggregatorHostTag) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
 				break
@@ -814,11 +818,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.sh2.AddValueCounter(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception, false), dur, 1, format.BuiltinMetricMetaAggInsertTime)
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, false, dur)
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), float64(len(bodyStorage)), 1, format.BuiltinMetricMetaAggInsertSizeReal)
-		a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First), dur, 1, format.BuiltinMetricMetaAggInsertTimeReal)
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, float64(len(bodyStorage)))
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, dur)
 
 		if mirrorChWrite {
 			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], !writeToV3First)
@@ -833,8 +837,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					Description: sendErr.Error(),
 				}
 			}
-			a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), float64(len(bodyStorage)), 1, format.BuiltinMetricMetaAggInsertSizeReal)
-			a.sh2.AddValueCounter(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First), dur, 1, format.BuiltinMetricMetaAggInsertTimeReal)
+			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, float64(len(bodyStorage)))
+			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, dur)
 		}
 
 		sendErr = fmt.Errorf("simulated error")

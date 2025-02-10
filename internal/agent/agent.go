@@ -259,22 +259,37 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 
 func (s *Agent) initBuiltInMetrics() {
 	// TODO - remove those, simply write metrics to bucket as usual
-	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorWrite}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskRead = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorRead}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskErase = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorDelete}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskReadNotConfigured = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statErrorsDiskCompressFailed = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}}, format.BuiltinMetricMetaAgentDiskCacheErrors)
-	s.statLongWindowOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	s.statDiskOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingLongWindowThrownAgent}}, format.BuiltinMetricMetaTimingErrors)
-	s.statMemoryOverflow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Tags: [format.MaxTags]int32{0, format.TagValueIDTimingThrownDueToMemory}}, format.BuiltinMetricMetaTimingErrors)
+	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorWrite})
+	s.statErrorsDiskRead = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorRead})
+	s.statErrorsDiskErase = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorDelete})
+	s.statErrorsDiskReadNotConfigured = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured})
+	s.statErrorsDiskCompressFailed = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,
+		[]int32{0, format.TagValueIDDiskCacheErrorCompressFailed})
+	s.statLongWindowOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingLongWindowThrownAgent})
+	s.statDiskOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingLongWindowThrownAgent})
+	s.statMemoryOverflow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaTimingErrors,
+		[]int32{0, format.TagValueIDTimingThrownDueToMemory})
 
-	s.TimingsMapping = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsMappingSlow = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsApplyMetric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsFlush = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsPreprocess = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendRecent = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
-	s.TimingsSendHistoric = s.CreateBuiltInItemValue(&data_model.Key{Metric: format.BuiltinMetricIDAgentTimings, Tags: [format.MaxTags]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())}}, format.BuiltinMetricMetaAgentTimings)
+	s.TimingsMapping = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMapping, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsMappingSlow = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingMappingSlow, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsApplyMetric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingApplyMetric, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsFlush = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsPreprocess = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsSendRecent = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsSendHistoric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 
 }
 
@@ -520,13 +535,14 @@ func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
-func (s *Agent) CreateBuiltInItemValue(key *data_model.Key, metricInfo *format.MetricMetaValue) *BuiltInItemValue {
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags []int32) *BuiltInItemValue {
+	key := data_model.Key{
+		Metric: metricInfo.MetricID, // panics if metricInfo nil
 	}
-	shardId, _, _ := s.shard(key, metricInfo)
+	copy(key.Tags[:], tags)
+	shardId, _, _ := s.shard(&key, metricInfo)
 	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(key)
+	return shard.CreateBuiltInItemValue(metricInfo, &key)
 }
 
 func (s *Agent) UseNewConveyor() bool {
@@ -541,18 +557,16 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	if h.IngestionStatus != 0 {
 		// h.InvalidString was validated before mapping attempt.
 		// In case of utf decoding error, it contains hex representation of original string
-		s.AddCounterStringBytes(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
-		}, h.InvalidString, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
+			h.InvalidString, 1)
 		return
 	}
 	shardId, newStrategy, resolutionHash := s.shard(&h.Key, h.MetricMeta)
 	if shardId >= uint32(len(s.Shards)) {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
+			1)
 		return
 	}
 	shard := s.Shards[shardId]
@@ -571,44 +585,38 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		s.TimingsApplyMetric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}()
 	// now set ok status
-	s.AddCounter(&data_model.Key{
-		Metric: format.BuiltinMetricIDIngestionStatus,
-		Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
-	}, 1, format.BuiltinMetricMetaIngestionStatus)
+	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+		[]int32{h.Key.Tags[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
+		1)
 	// now set all warnings
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterStringBytes(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
-		}, h.NotFoundTagName, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
+			h.NotFoundTagName, 1)
 	}
 	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
 		// FoundDraftTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterStringBytes(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
-		}, h.FoundDraftTagName, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
+			h.FoundDraftTagName, 1)
 	}
 	if h.TagSetTwiceKey != 0 {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
+			1)
 	}
 	if h.InvalidRawTagKey != 0 {
-		s.AddCounterStringBytes(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
-		}, h.InvalidRawValue, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
+			h.InvalidRawValue, 1)
 	}
 	if h.LegacyCanonicalTagKey != 0 {
-		s.AddCounter(&data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Tags:   [format.MaxTags]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
-		}, 1, format.BuiltinMetricMetaIngestionStatus)
+		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
+			1)
 	}
 
 	// We do not check fields mask in code below, only fields values, because
@@ -646,72 +654,110 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 }
 
 // count should be > 0 and not NaN
-func (s *Agent) AddCounter(key *data_model.Key, count float64, metricInfo *format.MetricMetaValue) {
-	s.AddCounterHost(key, count, data_model.TagUnionBytes{}, metricInfo)
+func (s *Agent) AddCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64) {
+	s.AddCounterHostAERA(t, metricInfo, tags, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddCounterHost(key *data_model.Key, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes) {
+	s.AddCounterHostAERA(t, metricInfo, tags, count, hostTag, format.AgentEnvRouteArch{})
+}
+
+func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
 	if count <= 0 {
 		return
 	}
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(key, resolutionHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(&key, resolutionHash, count, hostTag, metricInfo)
 }
 
-func (s *Agent) AddCounterStringBytes(key *data_model.Key, str []byte, count float64, metricInfo *format.MetricMetaValue) {
-	s.AddCounterHostStringBytes(key, str, count, data_model.TagUnionBytes{}, metricInfo)
+func (s *Agent) AddCounterStringBytes(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
+	s.AddCounterHostStringBytesAERA(t, metricInfo, tags, str, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
 }
 
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
 // count should be > 0 and not NaN
-func (s *Agent) AddCounterHostStringBytes(key *data_model.Key, str []byte, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
 	if count <= 0 {
 		return
 	}
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(&key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
 }
 
 // value should be not NaN.
-func (s *Agent) AddValueCounter(key *data_model.Key, value float64, counter float64, metricInfo *format.MetricMetaValue) {
-	s.AddValueCounterHost(key, value, counter, data_model.TagUnionBytes{}, metricInfo)
+func (s *Agent) AddValueCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
+	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddValueCounterHost(key *data_model.Key, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Agent) AddValueCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes) {
+	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, hostTag, format.AgentEnvRouteArch{})
+}
+
+func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
 	if counter <= 0 {
 		return
 	}
-	if metricInfo.MetricID != key.Metric { // also panics if metricInfo nil
-		panic("incorrectly set key Metric")
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(key, resolutionHash, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo)
 }
 
-func (s *Agent) MergeItemValue(key *data_model.Key, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
 	if item.Count() <= 0 {
 		return
 	}
-	shardId, _, resolutionHash := s.shard(key, metricInfo)
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	shardId, _, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(key, resolutionHash, item, metricInfo)
-}
-
-func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) *data_model.Key {
-	return data_model.AggKey(time, metricID, keys, s.AggregatorHost, s.AggregatorShardKey, s.AggregatorReplicaKey)
+	shard.MergeItemValue(&key, resolutionHash, item, metricInfo)
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
@@ -728,4 +774,34 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 		unsent += u
 	}
 	return total, unsent
+}
+
+func (s *Agent) getMultiItem(resolutionShard *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, tags []int32) *data_model.MultiItem {
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	item, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, metricInfo, nil)
+	return item
+}
+
+// public for aggregator
+func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, tags []int32, aera format.AgentEnvRouteArch) *data_model.MultiItem {
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	item, _ := resolutionShard.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, metricInfo, nil)
+	return item
 }

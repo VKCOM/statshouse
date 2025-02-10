@@ -1687,6 +1687,12 @@ var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 			TagNoConnection: "no-connection",
 			TagTimeoutError: "timeout",
 		}),
+	}, {
+		Description: "agent_shard",
+		RawKind:     "int",
+	}, {
+		Description: "agent_replica",
+		RawKind:     "int",
 	}},
 }
 
@@ -1705,6 +1711,14 @@ var BuiltinMetricMetaAgentAggregatorTimeDiff = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "-",
+	}, {
+		Description: "agent_shard",
+		RawKind:     "int",
+	}, {
+		Description: "agent_replica",
+		RawKind:     "int",
 	}},
 }
 
