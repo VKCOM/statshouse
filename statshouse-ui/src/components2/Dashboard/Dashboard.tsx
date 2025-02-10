@@ -22,6 +22,8 @@ import { ErrorMessages } from '@/components/ErrorMessages';
 import { produce } from '~immer/dist/immer';
 import { HistoryList } from '../HistoryList';
 
+const PATH_VERSION_PARAM = '&dv';
+
 export type DashboardProps = {
   className?: string;
 };
@@ -153,7 +155,7 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
           id={dashboardId}
           onVersionClick={onVersionClick}
           mainPath={mainPath}
-          pathVersionParam={'&dv'}
+          pathVersionParam={PATH_VERSION_PARAM}
           currentVersion={dashboardVersion}
         />
       )}

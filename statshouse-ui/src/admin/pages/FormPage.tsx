@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
@@ -31,6 +31,7 @@ import { HistoryList } from '@/components2/HistoryList';
 import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
+const PATH_VERSION_PARAM = '?mv';
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
@@ -39,7 +40,6 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const isHistoryRoute = location.pathname.endsWith('/history');
   const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
   const historyPath = useMemo(() => `${mainPath}/history`, [mainPath]);
-
   const [searchParams] = useSearchParams();
   const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
 
@@ -90,23 +90,24 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
               title={`ID: ${initMetric?.id || '?'}`}
             >
               {metricName}
-              <Link
+              <NavLink
                 to={mainPath}
-                className={`me-4 ${isHistoryRoute ? 'text-primary fw-normal small' : 'text-secondary'}`}
-                style={{ textDecoration: 'none', cursor: isHistoryRoute ? 'default' : 'pointer' }}
+                end
+                className={({ isActive }) => `me-4 ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`}
+                style={({ isActive }) => ({ textDecoration: 'none', cursor: isActive ? 'default' : 'pointer' })}
               >
                 : edit
-              </Link>
-              <Link
+              </NavLink>
+              <NavLink
                 to={historyPath}
-                className={`me-4 ${isHistoryRoute ? 'text-secondary' : 'text-primary fw-normal small'}`}
-                style={{ textDecoration: 'none', cursor: isHistoryRoute ? 'default' : 'pointer' }}
+                className={({ isActive }) => `me-4 ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`}
+                style={({ isActive }) => ({ textDecoration: 'none', cursor: isActive ? 'default' : 'pointer' })}
               >
                 history
-              </Link>
-              <Link className="text-decoration-none fw-normal small" to={`../../view?s=${metricName}`}>
+              </NavLink>
+              <NavLink className="text-decoration-none fw-normal small" to={`/view?s=${metricName}`}>
                 view
-              </Link>
+              </NavLink>
             </h6>
           </div>
 
@@ -117,7 +118,9 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
         <Routes>
           <Route
             path="history"
-            element={<HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={'?mv'} />}
+            element={
+              <HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={PATH_VERSION_PARAM} />
+            }
           />
         </Routes>
       ) : (
