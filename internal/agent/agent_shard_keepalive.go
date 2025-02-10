@@ -82,7 +82,7 @@ func (s *ShardReplica) goLiveChecker() {
 	// very long time, and it is convenient if it blocks there
 	now := time.Now()
 	backoffTimeout := time.Duration(0)
-	for { // TODO - quit
+	for {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 		if s.alive.Load() {

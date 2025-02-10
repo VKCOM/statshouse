@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/compress"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -70,14 +71,13 @@ func (s *ShardReplica) FillStats(stats map[string]string) {
 
 func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd compressedBucketData, sendMoreBytes int, historic bool, spare bool, ret *string) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	originalSize := binary.LittleEndian.Uint32(cbd.data)
-	data := cbd.data[4:]
+	originalSize, compressedData, _ := compress.DeFrame(cbd.data)
 	args := tlstatshouse.SendSourceBucket2{
 		Time:           cbd.time,
 		BuildCommit:    build.Commit(),
 		BuildCommitTs:  build.CommitTimestamp(),
 		OriginalSize:   originalSize,
-		CompressedData: string(data), // unsafe.String(unsafe.SliceData(data), len(data)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
+		CompressedData: string(compressedData), // unsafe.String(unsafe.SliceData(compressedData), len(compressedData)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
 	}
 	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetHistoric(historic)
@@ -126,14 +126,13 @@ func (s *ShardReplica) sendSourceBucket2Compressed(ctx context.Context, cbd comp
 
 func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd compressedBucketData, sendMoreBytes int, historic bool, spare bool, response *tlstatshouse.SendSourceBucket3Response) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	originalSize := binary.LittleEndian.Uint32(cbd.data)
-	data := cbd.data[4:]
+	originalSize, compressedData, _ := compress.DeFrame(cbd.data)
 	args := tlstatshouse.SendSourceBucket3{
 		Time:           cbd.time,
 		BuildCommit:    build.Commit(),
 		BuildCommitTs:  build.CommitTimestamp(),
 		OriginalSize:   originalSize,
-		CompressedData: string(data), // unsafe.String(unsafe.SliceData(data), len(data)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
+		CompressedData: string(compressedData), // unsafe.String(unsafe.SliceData(compressedData), len(compressedData)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
 	}
 	if sendMoreBytes > 0 {
 		if sendMoreBytes > data_model.MaxSendMoreData {

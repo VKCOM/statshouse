@@ -126,6 +126,8 @@ func reopenLog() {
 }
 
 func main() {
+	// runtime.MemProfileRate = 1024 // sometimes useful for local pprof
+
 	// helpfull when refactoring flags in meta metrics
 	// data, _ := json.Marshal(format.BuiltinMetrics)
 	// _ = os.WriteFile("builtin2.json", data, 0644)

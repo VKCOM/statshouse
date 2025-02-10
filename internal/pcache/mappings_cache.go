@@ -307,6 +307,10 @@ func (c *MappingsCache) AddValues(nowUnix uint32, pairs []MappingPair) {
 		nextPos++
 	}
 	pairs = pairs[:nextPos]
+	if len(pairs) == 0 { // common case, do not take write lock
+		c.mu.RUnlock()
+		return
+	}
 	// d0 := time.Since(a)
 
 	if c.sumSize+newItemsSizeMem <= maxSize {
