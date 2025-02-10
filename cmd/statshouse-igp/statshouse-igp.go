@@ -52,11 +52,6 @@ func mainIngressProxy() int {
 		log.Println(err)
 		return 1
 	}
-	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
-		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
-		return 1
-	}
-
 	// Read AES password
 	var aesPwd string
 	if argv.aesPwdFile == "" {
@@ -78,15 +73,19 @@ func mainIngressProxy() int {
 			return 1
 		}
 	}
+	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
+		log.Printf("Could not set new rlimit: %v", err)
+	}
+	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
+		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
+		return 1
+	}
 	if argv.pprofListenAddr != "" {
 		go func() {
 			if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
 				log.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
 			}
 		}()
-	}
-	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
-		log.Printf("Could not set new rlimit: %v", err)
 	}
 	// we support working without touching disk (on readonly filesystems, in stateless containers, etc)
 	var fpmc *os.File
