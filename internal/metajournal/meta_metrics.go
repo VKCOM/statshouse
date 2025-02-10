@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"maps"
 	"strings"
 	"sync"
 
@@ -351,15 +350,13 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 		// we need separate lock in order to upgrade mu from read to write
 		ms.metricUpdMu.Lock()
 		ms.mu.RLock()
-		metricsByID := maps.Clone(ms.metricsByID)
-		metricsByName := maps.Clone(ms.metricsByName)
-		ms.mu.RUnlock()
-
+		metricsByID := make(map[int32]*format.MetricMetaValue, len(ms.metricsByID))
+		metricsByName := make(map[string]*format.MetricMetaValue, len(ms.metricsByName))
 		// O(metrics * changed_groups)
 		// doesn't slow down read requests
 		// can be optimized by storing metricsByName in trie or by adding metricsByGroupID
 		metricsChanged := false
-		for id, m := range metricsByID {
+		for id, m := range ms.metricsByID {
 			um := m // updated metric
 			for _, g := range changedGroups {
 				if g.old != nil && g.old.MetricIn(um) && g.old.Name != g.new.Name {
@@ -374,11 +371,13 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				}
 			}
 			if um != m {
-				metricsByID[id] = um
-				metricsByName[um.Name] = um
 				metricsChanged = true
 			}
+			metricsByID[id] = um
+			metricsByName[um.Name] = um
 		}
+		ms.mu.RUnlock()
+
 		if metricsChanged {
 			ms.mu.Lock()
 			ms.metricsByID = metricsByID

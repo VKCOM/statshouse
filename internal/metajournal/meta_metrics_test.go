@@ -1018,7 +1018,7 @@ func genEvent() *rapid.Generator[tlmetadata.Event] {
 			rapid.Just(format.NamespaceEvent),
 		).Draw(t, "eventType")
 
-		id := rapid.Int64().Draw(t, "id")
+		id := int64(rapid.Int32().Draw(t, "id"))
 		name := rapid.StringN(1, 120, 120).Draw(t, "name")
 		version := rapid.Int64().Draw(t, "version")
 		namespaceID := int64(rapid.Int32().Draw(t, "namespaceID"))
