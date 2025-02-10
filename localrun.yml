@@ -2,10 +2,6 @@ version: "3.9"
 
 services:
   metadata:
-    profiles:
-      - sh
-      - api-off
-      - scrape
     build:
       context: .
       dockerfile: build/statshouse-metadata.Dockerfile
@@ -19,11 +15,6 @@ services:
     ports:
       - "2442:2442"
   kh:
-    profiles:
-      - sh
-      - kh
-      - api-off
-      - scrape
     build:
       context: .
       dockerfile: build/clickhouse.Dockerfile
@@ -47,10 +38,6 @@ services:
       timeout: 1s
       retries: 1500
   aggregator:
-    profiles:
-      - sh
-      - api-off
-      - scrape
     build:
       context: .
       dockerfile: build/statshouse-agg.Dockerfile
@@ -69,10 +56,6 @@ services:
       kh:
         condition: service_healthy
   agent:
-    profiles:
-      - sh
-      - api-off
-      - scrape
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
@@ -92,8 +75,6 @@ services:
     depends_on:
       - aggregator
   api:
-    profiles:
-      - sh
     build:
       context: .
       dockerfile: build/statshouse-api.Dockerfile
@@ -111,114 +92,6 @@ services:
     depends_on:
       kh:
         condition: service_healthy
-  all-in-one:
-    profiles:
-      - all-in-one
-    build:
-      context: .
-      dockerfile: build/all-in-one.Dockerfile
-    container_name: sh-all
-    user: "root:root"
-    ports:
-      - "2442:2442"
-      - "8123:8123"
-      - "9000:9000"
-      - "9363:9363"
-      - "10888:10888"
-      - "13336:13336"
-      - "13337:13337/udp"
-      - "13337:13337/tcp"
-      - "13380:13380"
-    volumes:
-      - metadata:/var/lib/statshouse/metadata
-      - kh:/var/lib/clickhouse
-      - type: bind
-        source: ./build/clickhouse-config.xml
-        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
-  all-but-aggregator:
-    profiles:
-      - aggregator-off
-    build:
-      context: .
-      dockerfile: build/all-in-one.Dockerfile
-    container_name: sh-all-but-aggregator
-    user: "root:root"
-    environment:
-      - AGGREGATOR_OFF=1
-    expose:
-      - 2442
-      - 8123
-      - 9000
-      - 9363
-      - 10888
-      - 13337/udp
-      - 13337/tcp
-    network_mode: host
-    volumes:
-      - metadata:/var/lib/statshouse/metadata
-      - kh:/var/lib/clickhouse
-      - type: bind
-        source: ./build/clickhouse-config.xml
-        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
-  all-but-agent:
-    profiles:
-      - agent-off
-    build:
-      context: .
-      dockerfile: build/all-in-one.Dockerfile
-    container_name: sh-all-but-agent
-    user: "root:root"
-    environment:
-      - AGENT_OFF=1
-    expose:
-      - 2442
-      - 8123
-      - 9000
-      - 9363
-      - 10888
-      - 13336
-    network_mode: host
-    volumes:
-      - metadata:/var/lib/statshouse/metadata
-      - kh:/var/lib/clickhouse
-      - type: bind
-        source: ./build/clickhouse-config.xml
-        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
-  all-but-metadata:
-    # run statshouse-metadata first, then
-    # ./localrun meta-off
-    profiles:
-      - meta-off
-    build:
-      context: .
-      dockerfile: build/all-in-one.Dockerfile
-    container_name: sh-all-but-metadata
-    user: "root:root"
-    environment:
-      - META_OFF=1
-    expose:
-      - 8123
-      - 9000
-      - 9363
-      - 10888
-      - 13336
-    network_mode: host
-    volumes:
-      - kh:/var/lib/clickhouse
-  prometheus:
-    profiles:
-      - scrape
-    image: "prom/prometheus"
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - prometheus:/prometheus
-      - type: bind
-        source: ./build/scrape.yml
-        target: /etc/prometheus/prometheus.yml
-    depends_on:
-      - agent
 
 volumes:
   kh:

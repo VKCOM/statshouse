@@ -12,20 +12,12 @@ EOF
 )
 }
 
-PROFILE=sh
-case $1 in
-  api-off|agent-off|aggregator-off|meta-off|all-in-one|scrape)
-    PROFILE=$1
-    shift
-    ;;
-esac
-
 export BUILD_COMMIT="$(git log --format="%H" -n 1)"
 export BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)"
 export BUILD_MACHINE="$(uname -n -m -r -s)"
 export BUILD_TIME="$(date +%FT%T%z)"
-docker compose -f localrun.yml --profile $PROFILE up -d --remove-orphans $@ # --build --force-recreate
-trap "{ docker compose -f localrun.yml --profile $PROFILE down; exit; }" exit
+docker compose -f localrun.yml up -d --remove-orphans $@ # --build --force-recreate
+trap "{ docker compose -f localrun.yml down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
   if [ "$(docker container inspect -f '{{.State.Status}}' $c 2>/dev/null)" = "running" ]; then
