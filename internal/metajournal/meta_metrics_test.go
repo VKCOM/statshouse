@@ -13,9 +13,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mailru/easyjson"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"pgregory.net/rapid"
+
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -590,7 +592,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		t.Run("group created (check metric added to group)", func(t *testing.T) {
 			group1.Version = incVersion()
-			bytesGroup2, err := json.Marshal(group1)
+			bytesGroup2, err := easyjson.Marshal(group1)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -617,7 +619,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("metric renamed (check old metric removed from group and new metric added)", func(t *testing.T) {
 			metric.Version = incVersion()
 			metric.Name = group1.Name + "_metric"
-			bytes, err := json.Marshal(metric)
+			bytes, err := easyjson.Marshal(metric)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -646,7 +648,7 @@ func TestMetricsStorage(t *testing.T) {
 			metricCopy.Version = incVersion()
 			metricCopy.MetricID = id
 			metricCopy.Name = group1.Name + "_metric5"
-			bytes, err := json.Marshal(metricCopy)
+			bytes, err := easyjson.Marshal(metricCopy)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -672,7 +674,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("group renamed (check old metric removed from group and metric added)", func(t *testing.T) {
 			group1.Version = incVersion()
 			group1.Name = "group3"
-			bytes, err := json.Marshal(group1)
+			bytes, err := easyjson.Marshal(group1)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -814,11 +816,11 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("metric created (check new metric not in group)", func(t *testing.T) {
 			group2Metric6.Version = incVersion()
 			group2Metric6.NamespaceID = 0
-			metric6Bytes, err := json.Marshal(group2Metric6)
+			metric6Bytes, err := easyjson.Marshal(group2Metric6)
 			require.NoError(t, err)
 			testMetric7.Version = incVersion()
 			testMetric7.NamespaceID = namespace1ID
-			metric7Bytes, err := json.Marshal(testMetric7)
+			metric7Bytes, err := easyjson.Marshal(testMetric7)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -851,7 +853,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("metric change namespace (check metric in group)", func(t *testing.T) {
 			group2Metric6.Version = incVersion()
 			group2Metric6.NamespaceID = namespace.ID
-			bytes, err := json.Marshal(group2Metric6)
+			bytes, err := easyjson.Marshal(group2Metric6)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -1027,19 +1029,19 @@ func genEvent() *rapid.Generator[tlmetadata.Event] {
 		case format.MetricEvent:
 			metric := genMetricMetaValue().Draw(t, "metric")
 			_ = metric.RestoreCachedInfo()
-			jsonData, err := json.Marshal(metric)
+			jsonData, err := easyjson.Marshal(metric)
 			require.Nil(t, err, "metric marshal failed")
 			data = string(jsonData)
 
 		case format.MetricsGroupEvent:
 			group := genMetricsGroup().Draw(t, "group")
-			jsonData, err := json.Marshal(group)
+			jsonData, err := easyjson.Marshal(group)
 			require.Nil(t, err, "group marshal failed")
 			data = string(jsonData)
 
 		case format.NamespaceEvent:
 			ns := genNamespaceMeta(id).Draw(t, "namespace")
-			jsonData, err := json.Marshal(ns)
+			jsonData, err := easyjson.Marshal(ns)
 			require.Nil(t, err, "namespace marshal failed")
 			data = string(jsonData)
 
