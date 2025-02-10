@@ -8,7 +8,6 @@ package aggregator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -248,7 +247,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		return nil // nothing to do
 	}
 	// build edit request
-	data, err := json.Marshal(value)
+	data, err := value.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to serialize metric: %w", err)
 	}

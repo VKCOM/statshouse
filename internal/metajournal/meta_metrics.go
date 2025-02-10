@@ -326,7 +326,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.mu.Unlock()
 		case format.NamespaceEvent:
 			value := &format.NamespaceMeta{}
-			err := json.Unmarshal([]byte(e.Data), value)
+			err := easyjson.Unmarshal([]byte(e.Data), value)
 			if err != nil {
 				log.Printf("Cannot marshal metric group %s: %v", value.Name, err)
 				continue

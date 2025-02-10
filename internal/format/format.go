@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/mailru/easyjson"
 	"go.uber.org/multierr"
 	"go4.org/mem"
 )
@@ -301,9 +302,9 @@ type CreateMappingExtra struct {
 	Host      int32
 }
 
-func (m MetricMetaValue) MarshalBinary() ([]byte, error) { return json.Marshal(m) }
+func (m MetricMetaValue) MarshalBinary() ([]byte, error) { return easyjson.Marshal(m) }
 func (m *MetricMetaValue) UnmarshalBinary(data []byte) error {
-	if err := json.Unmarshal(data, m); err != nil {
+	if err := easyjson.Unmarshal(data, m); err != nil {
 		return err
 	}
 	_ = m.RestoreCachedInfo() // name collisions must not prevent journal sync

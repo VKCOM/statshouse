@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -25,6 +24,8 @@ import (
 
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
+
+	"github.com/mailru/easyjson"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
@@ -692,8 +693,8 @@ func massUpdateMetadata() int {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		metricBytes, _ := json.Marshal(meta)
-		metricBytes2, _ := json.Marshal(meta2)
+		metricBytes, _ := easyjson.Marshal(meta)
+		metricBytes2, _ := easyjson.Marshal(meta2)
 		_, _ = fmt.Fprintf(os.Stderr, "\t%s\n", metricBytes)
 		_, _ = fmt.Fprintf(os.Stderr, "\t%s\n", metricBytes2)
 		if !format.SameCompactMetric(&meta2, meta) {

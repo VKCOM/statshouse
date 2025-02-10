@@ -99,7 +99,7 @@ func (c *Client) PostMetric(ctx context.Context, metric *MetricInfo) error {
 	query := url.Values{}
 	query.Set("s", metric.Metric.Name)
 
-	body, err := json.Marshal(metric)
+	body, err := easyjson.Marshal(metric)
 	if err != nil {
 		return err
 	}

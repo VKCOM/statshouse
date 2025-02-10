@@ -7,7 +7,6 @@
 package format
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"go4.org/mem"
 	"pgregory.net/rapid"
 
+	"github.com/mailru/easyjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -322,7 +322,7 @@ func TestValidDashboardName(t *testing.T) {
 func TestMetricMetaJson(t *testing.T) {
 	mm := MetricMetaValue{}
 
-	jsonB, err := json.Marshal(mm)
+	jsonB, err := easyjson.Marshal(mm)
 	require.NoError(t, err)
 	require.Equal(t, "{}", string(jsonB))
 }
