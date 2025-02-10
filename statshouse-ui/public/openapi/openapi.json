@@ -773,7 +773,8 @@
             "type": "string"
           },
           "raw": {
-            "type": "boolean"
+            "type": "boolean",
+            "deprecated": true
           },
           "raw_kind": {
             "$ref": "#/components/schemas/MetricMetaTagRawKind"
@@ -815,7 +816,8 @@
             }
           },
           "visible": {
-            "type": "boolean"
+            "type": "boolean",
+            "deprecated": true
           },
           "disable": {
             "type": "boolean"

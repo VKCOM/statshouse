@@ -44,6 +44,9 @@ export interface IMetric extends IShortMetric {
   readonly stringTopDescription: string;
   readonly weight: number;
   readonly resolution: number;
+  /**
+   * @deprecated
+   */
   readonly visible: boolean;
   readonly disable: boolean;
   readonly pre_key_tag_id?: string;
@@ -69,6 +72,9 @@ export interface IBackendMetric {
   readonly string_top_description?: string;
   readonly weight?: number;
   readonly resolution?: number;
+  /**
+   * @deprecated
+   */
   readonly visible?: boolean;
   readonly disable?: boolean;
   readonly pre_key_tag_id?: string;
