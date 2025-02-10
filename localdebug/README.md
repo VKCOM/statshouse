@@ -1,24 +1,6 @@
-# run statshouse for debug
+# Run StatsHouse locally for debug
 
-## Что бы тестировать v3 ходило
-
-
-создать метрику statshouse_agent_remote_config, в нее написать
-```
---new-conveyor
-```
-
-создать метрику statshouse_aggregator_remote_config, в нее написать
-```
-```
-
-создать метрику statshouse_api_remote_config, в нее написать
-```
---version3-start=1
---version3-prob=1
-```
-
-## run clickhouse locally in docker
+## Run clickhouse locally in docker
 
 We run cluster containing 1 clickhouse server plus 1 zookeeper instance.
 
@@ -37,7 +19,7 @@ Clear all tables from clickhouse mini cluster
 clickhouse-cluster/cleanup.sh
 ```
 
-## run daemons locally without containers
+## Run daemons locally without containers
 
 Quickly rebuild you daemons if you are working on them (but not UI)
 ```
@@ -61,7 +43,7 @@ Then run API
 ./run-api.sh
 ```
 
-Then go to `localhost:10888` from your browser, this is minimal working system.
+Then go to http://localhost:10888 from your browser, this is minimal working system.
 
 Then you can run agent
 ```
@@ -86,7 +68,7 @@ and another agent connected through second ingress.
 Scripts with the names `run-aggregator1.sh`, `run-aggregator2.sh`, `run-aggregator3.sh` are old scripts for testing
 more complicated cluster with 3 aggregators, if you need to test such cluster, please first ask @hrissan to update them.
 
-# clean up
+# Clean up
 
 Daemons keep various metadata in their caches, so if you clean up meta, you must also clean caches.
 
@@ -98,4 +80,16 @@ You must stop all daemons before cleaning up.
 If you only need to clean caches of daemons, but not medata use
 ```
 rm -rf cache
+```
+
+
+## For testing v3 pipeline
+
+Create remote_config metrics with correct flags
+```
+go run ./cmd/loadgen new-pipeline
+```
+Run load generator
+```
+go run ./cmd/loadgen client
 ```
