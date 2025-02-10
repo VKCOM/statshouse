@@ -35,7 +35,6 @@ const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
   const { metricName } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
   const isHistoryRoute = location.pathname.endsWith('/history');
   const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
@@ -80,18 +79,6 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   useEffect(() => {
     document.title = `${metricName + ': edit'} — StatsHouse`;
   }, [metricName]);
-
-  const handleShowHistory = () => {
-    if (!isHistoryRoute) {
-      navigate('history');
-    }
-  };
-
-  const handleShowEdit = () => {
-    if (isHistoryRoute) {
-      navigate(mainPath);
-    }
-  };
 
   return (
     <div className="container-xl pt-3 pb-3" style={{ paddingLeft: `${yAxisSize}px` }}>

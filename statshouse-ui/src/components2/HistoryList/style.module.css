@@ -3,10 +3,15 @@
 }
 
 .historyItem:hover {
-  background-color: var(--bs-primary-bg-subtle);
+  background-color: rgba(var(--bs-link-color-rgb), 0.4);
   border-radius: var(--bs-border-radius-lg);
 }
 
 .arrowIcon {
   transform: scale(1.2);
+}
+
+.currentVersion {
+  border: 1px solid var(--bs-primary) !important;
+  border-radius: var(--bs-border-radius-lg) !important;
 }
