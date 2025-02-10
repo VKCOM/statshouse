@@ -65,7 +65,7 @@ type JournalFast struct {
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
 
-	compact        bool
+	compact        bool // never changed, not protected by mu
 	dumpPathPrefix string
 
 	BuiltinLongPollImmediateOK    data_model.ItemValue
