@@ -69,15 +69,14 @@ func mainAggregator() int {
 		return 1
 	}
 	logRotate()
-	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
-		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
-		return 1
-	}
+
 	// Read AES password
 	var aesPwd string
 	if argv.aesPwdFile == "" {
 		// ignore error if file path wasn't explicitly specified
-		if v, err := os.ReadFile(defaultPathToPwd); err == nil {
+		if v, err := os.ReadFile(defaultPathToPwd); err != nil {
+			log.Printf("Could not read AES password file %s: %s (ignored because no file was specified)", defaultPathToPwd, err)
+		} else {
 			aesPwd = string(v)
 		}
 	} else if v, err := os.ReadFile(argv.aesPwdFile); err != nil {
@@ -87,10 +86,15 @@ func mainAggregator() int {
 	} else {
 		aesPwd = string(v)
 	}
-
 	if _, err := srvfunc.SetHardRLimitNoFile(argv.maxOpenFiles); err != nil {
 		log.Printf("Could not set new rlimit: %v", err)
 	}
+	// we need elevated rights to SetHardRLimitNoFile and read AES password
+	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
+		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
+		return 1
+	}
+
 	if argv.cacheDir == "" {
 		log.Printf("aggregator cannot run without -cache-dir for now")
 		return 1
