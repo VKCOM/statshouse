@@ -52,10 +52,10 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
 
   const loadMetric = useCallback(async () => {
     try {
-      if (initMetric?.version && initMetric?.id && historicalMetricVersion) {
+      if (historicalMetricVersion) {
         const currentMetric = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
         const historicalMetricData = await fetchAndProcessMetric(
-          `/api/metric?id=${initMetric.id}&ver=${historicalMetricVersion}`
+          `/api/metric?id=${currentMetric.id}&ver=${historicalMetricVersion}`
         );
 
         setInitMetric({
@@ -67,7 +67,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
         setInitMetric(metricData);
       }
     } catch (_) {}
-  }, [historicalMetricVersion, initMetric?.id, initMetric?.version, metricName]);
+  }, [metricName, historicalMetricVersion]);
 
   useEffect(() => {
     if (metricName) {
@@ -93,15 +93,19 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
               <NavLink
                 to={mainPath}
                 end
-                className={({ isActive }) => `me-4 ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`}
-                style={({ isActive }) => ({ textDecoration: 'none', cursor: isActive ? 'default' : 'pointer' })}
+                className={({ isActive }) =>
+                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
+                }
+                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
               >
                 : edit
               </NavLink>
               <NavLink
                 to={historyPath}
-                className={({ isActive }) => `me-4 ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`}
-                style={({ isActive }) => ({ textDecoration: 'none', cursor: isActive ? 'default' : 'pointer' })}
+                className={({ isActive }) =>
+                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
+                }
+                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
               >
                 history
               </NavLink>

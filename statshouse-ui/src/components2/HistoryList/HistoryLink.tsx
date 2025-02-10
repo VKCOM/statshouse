@@ -23,8 +23,8 @@ export const HistoryLink = memo(function HistoryLink({
 
   return (
     <Link to={path} className="text-decoration-none text-reset">
-      <div className="d-flex justify-content-between align-items-center py-2" onClick={onVersionClick}>
-        <div className="me-3">
+      <div className="d-flex justify-content-between align-items-center py-2 gap-3" onClick={onVersionClick}>
+        <div>
           {event?.metadata?.user_email && <div className="text-truncate">{event.metadata.user_email}</div>}
           {event?.version && <span className="text-muted small">version {event.version}</span>}
           {isLatestVersion && <span className="text-primary small ms-2">latest</span>}
