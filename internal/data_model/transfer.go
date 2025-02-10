@@ -144,10 +144,10 @@ func (s *MultiValue) TLSizeEstimate() int {
 	return sz
 }
 
-func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, marshalBuf *[]byte) {
+func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, scratch []byte) []byte {
 	cou := s.Value.Count() * sampleFactor
 	if cou <= 0 {
-		return
+		return scratch
 	}
 	// host tags are passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
 	if s.Value.MaxHostTag.I != 0 {
@@ -170,8 +170,8 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		}
 	}
 	if s.HLL.ItemsCount() != 0 {
-		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
-		item.SetUniques(string(*marshalBuf), fieldsMask)
+		scratch = s.HLL.MarshallAppend(scratch[:0])
+		item.SetUniques(string(scratch), fieldsMask) // allocates here
 	}
 	if s.ValueTDigest != nil {
 		var cc []tlstatshouse.CentroidFloat
@@ -188,7 +188,7 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		item.SetCounter(cou, fieldsMask)
 	}
 	if !s.Value.ValueSet {
-		return
+		return scratch
 	}
 	item.SetValueSet(true, fieldsMask)
 	if s.Value.ValueMin != 0 {
@@ -199,6 +199,7 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		item.SetValueSum(s.Value.ValueSum*sampleFactor, fieldsMask)
 		item.SetValueSumSquare(s.Value.ValueSumSquare*sampleFactor, fieldsMask)
 	}
+	return scratch
 }
 
 func CounterFromStatshouseMultiValue(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) (float64, bool) {

@@ -7,16 +7,17 @@
 package agent
 
 import (
+	"cmp"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
-	"github.com/pierrec/lz4"
+	"github.com/vkcom/statshouse/internal/compress"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 
@@ -108,14 +109,7 @@ func addSizeByTypeMetric[B *tlstatshouse.SourceBucket2 | *tlstatshouse.SourceBuc
 		sb.Metrics = append(sb.Metrics, item)
 	}
 }
-
-func lessByMetric(a *tlstatshouse.MultiItem, b *tlstatshouse.MultiItem) bool {
-	return a.Metric < b.Metric
-}
-
-func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket2) {
-	var marshalBuf []byte
-	var sizeBuf []byte
+func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket2, _ []byte) {
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
 
 	for _, v := range bucket.MultiItems {
@@ -131,34 +125,34 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
-		v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, &marshalBuf)
-		sizeBuf = item.Write(sizeBuf[:0])
+		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
+		scratch = item.Write(scratch[:0])
+		switch { // This is only an approximation
+		case item.Tail.IsSetUniques(item.FieldsMask):
+			sizeUnique += len(scratch)
+		case item.Tail.IsSetCentroids(item.FieldsMask):
+			sizePercentiles += len(scratch)
+		case item.Tail.IsSetValueMax(item.FieldsMask):
+			sizeValue += len(scratch)
+		case item.Tail.IsSetValueMin(item.FieldsMask):
+			sizeSingleValue += len(scratch)
+		default:
+			sizeCounter += len(scratch)
+		}
 
 		var top []tlstatshouse.TopElement
 		for key, value := range v.Top {
 			el := tlstatshouse.TopElement{Stag: key.S} // TODO - send I
-			value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, &marshalBuf)
+			scratch = value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
-			sizeBuf = el.Write(sizeBuf[:0])
-			sizeStringTop += len(sizeBuf)
+			scratch = el.Write(scratch[:0])
+			sizeStringTop += len(scratch)
 		}
 		if len(top) != 0 {
 			item.SetTop(top)
 		}
 
 		sb.Metrics = append(sb.Metrics, item)
-		switch { // This is only an approximation
-		case item.Tail.IsSetUniques(item.FieldsMask):
-			sizeUnique += len(sizeBuf)
-		case item.Tail.IsSetCentroids(item.FieldsMask):
-			sizePercentiles += len(sizeBuf)
-		case item.Tail.IsSetValueMax(item.FieldsMask):
-			sizeValue += len(sizeBuf)
-		case item.Tail.IsSetValueMin(item.FieldsMask):
-			sizeSingleValue += len(sizeBuf)
-		default:
-			sizeCounter += len(sizeBuf)
-		}
 	}
 
 	// Add size metrics
@@ -173,27 +167,24 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 
 	// Calculate size metrics for sample factors and ingestion status - bucket 2
 	sbSizeCalc := tlstatshouse.SourceBucket2{SampleFactors: sb.SampleFactors}
-	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(sizeBuf))
+	scratch = sbSizeCalc.Write(scratch[:0])
+	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(scratch))
 
 	sbSizeCalc = tlstatshouse.SourceBucket2{
 		IngestionStatusOk:  sb.IngestionStatusOk,
 		IngestionStatusOk2: sb.IngestionStatusOk2,
 	}
-	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(sizeBuf))
+	scratch = sbSizeCalc.Write(scratch[:0])
+	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(scratch))
 
-	// Sort metrics in both buckets
-	sort.Slice(sb.Metrics, func(i, j int) bool {
-		return lessByMetric(&sb.Metrics[i], &sb.Metrics[j])
+	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
+		return cmp.Compare(a.Metric, b.Metric)
 	})
 
-	return sb
+	return sb, scratch
 }
 
-func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) (sb tlstatshouse.SourceBucket3) {
-	var marshalBuf []byte
-	var sizeBuf []byte
+func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket3, _ []byte) {
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
 
 	for _, v := range bucket.MultiItems {
@@ -209,8 +200,21 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
-		v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, &marshalBuf)
-		sizeBuf = item.Write(sizeBuf[:0])
+		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
+		scratch = item.Write(scratch[:0])
+
+		switch { // This is only an approximation
+		case item.Tail.IsSetUniques(item.FieldsMask):
+			sizeUnique += len(scratch)
+		case item.Tail.IsSetCentroids(item.FieldsMask):
+			sizePercentiles += len(scratch)
+		case item.Tail.IsSetValueMax(item.FieldsMask):
+			sizeValue += len(scratch)
+		case item.Tail.IsSetValueMin(item.FieldsMask):
+			sizeSingleValue += len(scratch)
+		default:
+			sizeCounter += len(scratch)
+		}
 
 		var top []tlstatshouse.TopElement
 		for key, value := range v.Top {
@@ -218,28 +222,16 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 			if key.I != 0 {
 				el.SetTag(key.I)
 			}
-			value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, &marshalBuf)
+			scratch = value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
-			sizeBuf = el.Write(sizeBuf[:0])
-			sizeStringTop += len(sizeBuf)
+			scratch = el.Write(scratch[:0])
+			sizeStringTop += len(scratch)
 		}
 		if len(top) != 0 {
 			item.SetTop(top)
 		}
 
 		sb.Metrics = append(sb.Metrics, item)
-		switch { // This is only an approximation
-		case item.Tail.IsSetUniques(item.FieldsMask):
-			sizeUnique += len(sizeBuf)
-		case item.Tail.IsSetCentroids(item.FieldsMask):
-			sizePercentiles += len(sizeBuf)
-		case item.Tail.IsSetValueMax(item.FieldsMask):
-			sizeValue += len(sizeBuf)
-		case item.Tail.IsSetValueMin(item.FieldsMask):
-			sizeSingleValue += len(sizeBuf)
-		default:
-			sizeCounter += len(sizeBuf)
-		}
 	}
 	// Add size metrics
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeUnique, sizeUnique)
@@ -253,18 +245,18 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
-	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(sizeBuf))
+	scratch = sbSizeCalc.Write(scratch[:0])
+	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(scratch))
 
 	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
-	sizeBuf = sbSizeCalc.Write(sizeBuf[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(sizeBuf))
+	scratch = sbSizeCalc.Write(scratch[:0])
+	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(scratch))
 
-	sort.Slice(sb.Metrics, func(i, j int) bool {
-		return lessByMetric(&sb.Metrics[i], &sb.Metrics[j])
+	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
+		return cmp.Compare(a.Metric, b.Metric)
 	})
 
-	return sb
+	return sb, scratch
 }
 
 func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
@@ -384,25 +376,16 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []
 
 func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, version uint8, scratch []byte) (data []byte, _ []byte, err error) {
 	if version == 3 {
-		sb := bucketToSourceBucket3TL(bucket, sampleFactors)
+		var sb tlstatshouse.SourceBucket3
+		sb, scratch = bucketToSourceBucket3TL(bucket, sampleFactors, scratch)
 		scratch = sb.WriteBoxed(scratch[:0])
 	} else {
-		sb := bucketToSourceBucket2TL(bucket, sampleFactors)
+		var sb tlstatshouse.SourceBucket2
+		sb, scratch = bucketToSourceBucket2TL(bucket, sampleFactors, scratch)
 		scratch = sb.WriteBoxed(scratch[:0])
 	}
-
-	compressed := make([]byte, 4+lz4.CompressBlockBound(len(scratch))) // Framing - first 4 bytes is original size
-	compressedSize, err := lz4.CompressBlockHC(scratch, compressed[4:], 0)
-	if err != nil {
-		return nil, scratch, fmt.Errorf("CompressBlockHC failed for sbV2: %w", err)
-	}
-	binary.LittleEndian.PutUint32(compressed, uint32(len(scratch)))
-	if compressedSize >= len(scratch) { // does not compress (rare for large buckets, so copy is not a problem)
-		compressed = append(compressed[:4], scratch...)
-	} else {
-		compressed = compressed[:4+compressedSize]
-	}
-	return compressed, scratch, nil
+	compressed, err := compress.CompressAndFrame(scratch)
+	return compressed, scratch, err
 }
 
 func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, sendMoreBytes int) bool {
@@ -518,8 +501,25 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				return
 			}
-			if len(cbd.data) < 4 { // we store original size of compressed data in first 4 bytes
-				s.agent.logF("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d bucket %d",
+			originalSize, compressedData, err := compress.DeFrame(cbd.data)
+			// TODO - remove most of this code after we remove version field
+			if err == nil && cbd.version == 0 { // from disk
+				var originalData []byte
+				originalData, err = compress.Decompress(originalSize, compressedData)
+				if err == nil {
+					tag, _ := basictl.NatPeekTag(originalData)
+					switch tag {
+					case (tlstatshouse.SourceBucket3{}).TLTag():
+						cbd.version = 3
+					case (tlstatshouse.SourceBucket2{}).TLTag():
+						cbd.version = 2
+					default:
+						err = fmt.Errorf("unknown source bucket tag 0x%08x", tag)
+					}
+				}
+			}
+			if err != nil {
+				s.agent.logF("Disk Error: diskCache.GetBucket returned compressed bucket data with too small size %d for shard %d bucket %d",
 					len(cbd.data), s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				s.diskCacheEraseWithLog(cbd.id, "after reading tiny")

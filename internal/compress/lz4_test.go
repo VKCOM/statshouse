@@ -1,11 +1,36 @@
-package agent
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package compress
 
 import (
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/pierrec/lz4"
+	"github.com/stretchr/testify/require"
+	"pgregory.net/rand"
 )
+
+func Test_Compress(t *testing.T) {
+	roundtrip := func(input []byte) {
+		inputc, err := CompressAndFrame(input)
+		require.NoError(t, err)
+		originalSize, cdata, err := DeFrame(inputc)
+		require.NoError(t, err)
+		input2, err := Decompress(originalSize, cdata)
+		require.NoError(t, err)
+		require.Equal(t, string(input), string(input2))
+	}
+	bad := make([]byte, 1024)
+	_, _ = rand.Read(bad)
+	roundtrip(bad)
+	roundtrip([]byte(strings.Repeat("AAAA", 256)))
+}
 
 func Benchmark_LZ4(b *testing.B) {
 	cs := lz4.CompressBlockBound(len(lz4TestData))

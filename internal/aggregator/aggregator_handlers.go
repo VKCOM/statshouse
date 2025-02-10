@@ -14,7 +14,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/pierrec/lz4"
+	"github.com/vkcom/statshouse/internal/compress"
 	"go4.org/mem"
 	"pgregory.net/rand"
 
@@ -178,30 +178,12 @@ func (a *Aggregator) handleGetMetrics3(_ context.Context, hctx *rpc.HandlerConte
 	return a.journal.HandleGetMetrics3(args, hctx)
 }
 
-func decompressOriginal(originalSize uint32, compressedData []byte) ([]byte, error) {
-	if int(originalSize) == len(compressedData) {
-		return compressedData, nil
-	}
-	if originalSize > data_model.MaxUncompressedBucketSize {
-		return nil, fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket - uncompressed size %d too big", originalSize)
-	}
-	bucketBytes := make([]byte, int(originalSize))
-	s, err := lz4.UncompressBlock(compressedData, bucketBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket: %w", err)
-	}
-	if s != int(originalSize) {
-		return nil, fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket request: expected size %d actual %d", originalSize, s)
-	}
-	return bucketBytes, nil
-}
-
 func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.SendSourceBucket2Bytes
 	if _, err := args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket2 request: %w", err)
 	}
-	bucketBytes, err := decompressOriginal(args.OriginalSize, args.CompressedData)
+	bucketBytes, err := compress.Decompress(args.OriginalSize, args.CompressedData)
 	if err != nil {
 		return err
 	}
@@ -224,17 +206,30 @@ func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.Handle
 }
 
 func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.HandlerContext) error {
+	// we must not return errors to agent, we must instead always return
+	// optional text to print and order to either discard or keep data
 	var args tlstatshouse.SendSourceBucket3Bytes
-	if _, err := args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket3 request: %w", err)
+
+	writeResponse := func(warning string, discard bool) {
+		resp := tlstatshouse.SendSourceBucket3ResponseBytes{
+			Warning: []byte(warning),
+		}
+		resp.SetDiscard(discard)
+		hctx.Response, _ = args.WriteResult(hctx.Response, resp)
 	}
-	bucketBytes, err := decompressOriginal(args.OriginalSize, args.CompressedData)
+	if _, err := args.Read(hctx.Request); err != nil {
+		writeResponse(fmt.Sprintf("failed to deserialize statshouse.sendSourceBucket3 request: %v", err), true)
+		return nil
+	}
+	bucketBytes, err := compress.Decompress(args.OriginalSize, args.CompressedData)
 	if err != nil {
-		return err
+		writeResponse(err.Error(), true)
+		return nil
 	}
 	var bucket tlstatshouse.SourceBucket3Bytes
 	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.sourceBucket3: %w", err)
+		writeResponse(fmt.Sprintf("failed to deserialize statshouse.sourceBucket3: %v", err), true)
+		return nil
 	}
 	// we should clear all legacy fields mask which can be independently used by SourceBucket3
 	// we leave only common proxy header maskas, spare and historic which are set to the same bits
@@ -256,14 +251,8 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
-	if err != nil {
-		return err
-	}
-	resp := tlstatshouse.SendSourceBucket3ResponseBytes{
-		Warning: []byte(str),
-	}
-	resp.SetDiscard(discard)
-	hctx.Response, _ = args.WriteResult(hctx.Response, resp)
+	// handleSendSourceBucketAny should not return any errors other than hijack for version3
+	writeResponse(str, discard)
 	return nil
 }
 
@@ -323,6 +312,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal},
 			1, hostTag, aera)
+		if version3 {
+			return err.Error(), nil, true
+		}
 		return "", err, false
 	}
 
