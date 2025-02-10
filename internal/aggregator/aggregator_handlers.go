@@ -98,29 +98,22 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetCo
 	nowUnix := uint32(now.Unix())
 	hostId := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
-	buildArch := format.FilterBuildArch(args.Header.BuildArch)
-	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
-		route = int32(format.TagValueIDRouteIngressProxy)
+	aera := format.AgentEnvRouteArch{
+		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
+		Route:     format.TagValueIDRouteDirect,
+		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
 	}
-
-	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
-		if metricInfo.WithAgentEnvRouteArch {
-			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
-			return
-		}
-		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
+	if isRouteProxy {
+		aera.Route = format.TagValueIDRouteIngressProxy
 	}
-
 	if args.Cluster != a.config.Cluster {
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1, hostTag, aera)
 		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
-	addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1)
+	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1, hostTag, aera)
 	return a.getConfigResult(), nil
 }
 
@@ -140,35 +133,32 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	nowUnix := uint32(now.Unix())
 	hostId := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
-	buildArch := format.FilterBuildArch(args.Header.BuildArch)
-	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
-		route = int32(format.TagValueIDRouteIngressProxy)
+	aera := format.AgentEnvRouteArch{
+		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
+		Route:     format.TagValueIDRouteDirect,
+		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
 	}
-	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
-		if metricInfo.WithAgentEnvRouteArch {
-			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
-			return
-		}
-		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
+	if isRouteProxy {
+		aera.Route = format.TagValueIDRouteIngressProxy
 	}
-
 	if args.Cluster != a.config.Cluster {
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster},
+			1, hostTag, aera)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	cc := a.getConfigResult3()
 	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive}, 1)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive},
+			1, hostTag, aera)
 		// longpoll forever until aggregator restarts
 		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
 	}
-	addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1)
+	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
+		1, hostTag, aera)
 	hctx.Response, err = args.WriteResult(hctx.Response, cc)
 	return err
 }
@@ -294,12 +284,14 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if ownerTagId == 0 {
 		ownerTagId = a.tagsMapper.mapOrFlood(now, args.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
 	}
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
-	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	aera := format.AgentEnvRouteArch{
+		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
+		Route:     format.TagValueIDRouteDirect,
+		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
+	}
 	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
-	route := int32(format.TagValueIDRouteDirect)
 	if isRouteProxy {
-		route = int32(format.TagValueIDRouteIngressProxy)
+		aera.Route = format.TagValueIDRouteIngressProxy
 	}
 	var bcStr []byte
 	bcTag := int32(0)
@@ -318,33 +310,19 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
 
-	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
-		if metricInfo.WithAgentEnvRouteArch {
-			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
-			return
-		}
-		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
-	}
-	addValueCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
-		if metricInfo.WithAgentEnvRouteArch {
-			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(t, metricInfo, tags2[:], value, counter, hostTag)
-			return
-		}
-		a.sh2.AddValueCounterHost(t, metricInfo, tags[:], value, counter, hostTag)
-	}
-
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents, []int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)}, 1)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents,
+			[]int32{0, 0, 0, 0, ownerTagId, 0, int32(addrIPV4)},
+			1, hostTag, aera)
 		return "agent is too old please update", nil, true
 	}
 
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal}, 1)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal},
+			1, hostTag, aera)
 		return "", err, false
 	}
 
@@ -375,17 +353,17 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if args.IsSetHistoric() {
 		if roundedToOurTime > newestTime {
 			a.mu.Unlock()
-			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+			a.sh2.AddValueCounterHostAERA(nowUnix, format.BuiltinMetricMetaTimingErrors,
 				[]int32{0, format.TagValueIDTimingFutureBucketHistoric},
-				float64(args.Time)-float64(newestTime), 1)
+				float64(args.Time)-float64(newestTime), 1, hostTag, aera)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "historic bucket time is too far in the future", nil, true
 		}
 		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
 			a.mu.Unlock()
-			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+			a.sh2.AddValueCounterHostAERA(nowUnix, format.BuiltinMetricMetaTimingErrors,
 				[]int32{0, format.TagValueIDTimingLongWindowThrownAggregator},
-				float64(newestTime)-float64(args.Time), 1)
+				float64(newestTime)-float64(args.Time), 1, hostTag, aera)
 			return "Successfully discarded historic bucket beyond historic window", nil, true
 		}
 		if roundedToOurTime < oldestTime {
@@ -408,17 +386,17 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	} else {
 		if roundedToOurTime > newestTime { // AgentShard too far in a future
 			a.mu.Unlock()
-			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+			a.sh2.AddValueCounterHostAERA(nowUnix, format.BuiltinMetricMetaTimingErrors,
 				[]int32{0, format.TagValueIDTimingFutureBucketRecent},
-				float64(args.Time)-float64(newestTime), 1)
+				float64(args.Time)-float64(newestTime), 1, hostTag, aera)
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "bucket time is too far in the future", nil, true
 		}
 		if roundedToOurTime < oldestTime {
 			a.mu.Unlock()
-			addValueCounterHost(nowUnix, format.BuiltinMetricMetaTimingErrors,
+			a.sh2.AddValueCounterHostAERA(nowUnix, format.BuiltinMetricMetaTimingErrors,
 				[]int32{0, format.TagValueIDTimingLateRecent},
-				float64(newestTime)-float64(args.Time), 1)
+				float64(newestTime)-float64(args.Time), 1, hostTag, aera)
 			// agent should resend via historic conveyor
 			if version3 {
 				return "bucket time is too far in the past for recent conveyor", nil, false
@@ -507,7 +485,13 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
-			k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
+			// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
+			// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
+			if k.Tags[format.AgentEnvTag] == 0 {
+				k.Tags[format.AgentEnvTag] = aera.AgentEnv
+				k.Tags[format.RouteTag] = aera.Route
+				k.Tags[format.BuildArchTag] = aera.BuildArch
+			}
 			switch k.Metric {
 			case format.BuiltinMetricIDAgentHeartbeatVersion:
 				// Remap legacy metric to a new one
@@ -559,9 +543,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 						MetricID:  k.Metric,
 						TagIDKey:  tagId,
 						ClientEnv: k.Tags[0],
-						AgentEnv:  agentEnv,
-						Route:     route,
-						BuildArch: buildArch,
+						Aera:      aera,
 						HostName:  hostName,
 						Host:      hostId,
 					}
@@ -675,57 +657,106 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	now2 := time.Now()
 
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}, float64(measurementStringKeys), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingHits}, float64(mappingHits), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketInfo, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringKeys}, float64(measurementStringKeys), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingHits}, float64(mappingHits), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoCentroids}, float64(measurementCentroids), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoUniqueBytes}, float64(measurementUniqueBytes), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoStringTops}, float64(measurementStringTops), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntTops}, float64(measurementIntTops), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoNewKeys}, float64(len(newKeys)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMetrics}, float64(len(usedMetrics)), 1, hostTag, aera)
 
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit}, float64(mappingHits))
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingCacheEvent, []int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss}, float64(mappingMisses))
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingCacheEvent,
+		[]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventHit},
+		float64(mappingHits), hostTag, aera)
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingCacheEvent,
+		[]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss},
+		float64(mappingMisses), hostTag, aera)
 
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove}, float64(unknownMapRemove))
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd}, float64(unknownMapAdd))
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd}, float64(unknownListAdd))
-	addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueEvent, []int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd}, float64(createMapAdd))
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
+		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove},
+		float64(unknownMapRemove), hostTag, aera)
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
+		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd},
+		float64(unknownMapAdd), hostTag, aera)
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
+		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd},
+		float64(unknownListAdd), hostTag, aera)
+	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
+		[]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd},
+		float64(createMapAdd), hostTag, aera)
 	if avgRemovedHits != 0 {
-		addCounterHost(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg, []int32{}, avgRemovedHits)
+		a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
+			[]int32{},
+			avgRemovedHits, hostTag, aera)
 	}
 
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeCompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(compressedSize), 1)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggSizeCompressed,
+		[]int32{0, 0, 0, 0, conveyor, spare},
+		float64(compressedSize), 1, hostTag, aera)
 
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggSizeUncompressed, []int32{0, 0, 0, 0, conveyor, spare}, float64(args.OriginalSize), 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketReceiveDelaySec, []int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}, receiveDelay, 1)
-	addValueCounterHost(args.Time, format.BuiltinMetricMetaAggBucketAggregateTimeSec, []int32{0, 0, 0, 0, conveyor, spare}, now2.Sub(now).Seconds(), 1)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggSizeUncompressed,
+		[]int32{0, 0, 0, 0, conveyor, spare},
+		float64(args.OriginalSize), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketReceiveDelaySec,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal},
+		receiveDelay, 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketAggregateTimeSec,
+		[]int32{0, 0, 0, 0, conveyor, spare},
+		now2.Sub(now).Seconds(), 1, hostTag, aera)
 	if bucket.MissedSeconds != 0 { // TODO - remove after all agents upgraded to write this metric with tag format.TagValueIDTimingMissedSecondsAgent
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaTimingErrors, []int32{0, format.TagValueIDTimingMissedSeconds}, float64(bucket.MissedSeconds), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaTimingErrors,
+			[]int32{0, format.TagValueIDTimingMissedSeconds},
+			float64(bucket.MissedSeconds), 1, hostTag, aera)
 	}
 	// TODO - remove all 6 queue metrics below after all agents upgraded to write this metric directly to bucket
 	if args.QueueSizeMemory > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemory), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
+			[]int32{0, format.TagValueIDHistoricQueueMemory},
+			float64(args.QueueSizeMemory), 1, hostTag, aera)
 	}
 	if args.QueueSizeMemorySum > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueMemory}, float64(args.QueueSizeMemorySum), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
+			[]int32{0, format.TagValueIDHistoricQueueMemory},
+			float64(args.QueueSizeMemorySum), 1, hostTag, aera)
 	}
 	if args.QueueSizeDiskUnsent > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskUnsent), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
+			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent},
+			float64(args.QueueSizeDiskUnsent), 1, hostTag, aera)
 	}
 	if queueSizeDiskSent := float64(args.QueueSizeDisk) - float64(args.QueueSizeDiskUnsent); queueSizeDiskSent > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize, []int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSent), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
+			[]int32{0, format.TagValueIDHistoricQueueDiskSent},
+			float64(queueSizeDiskSent), 1, hostTag, aera)
 	}
 	if args.QueueSizeDiskSumUnsent > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueDiskUnsent}, float64(args.QueueSizeDiskSumUnsent), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
+			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent},
+			float64(args.QueueSizeDiskSumUnsent), 1, hostTag, aera)
 	}
 	if queueSizeDiskSumSent := float64(args.QueueSizeDiskSum) - float64(args.QueueSizeDiskSumUnsent); queueSizeDiskSumSent > 0 {
-		addValueCounterHost(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum, []int32{0, format.TagValueIDHistoricQueueDiskSent}, float64(queueSizeDiskSumSent), 1)
+		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
+			[]int32{0, format.TagValueIDHistoricQueueDiskSent},
+			float64(queueSizeDiskSumSent), 1, hostTag, aera)
 	}
 
 	componentTag := args.Header.ComponentTag
@@ -736,30 +767,26 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	}
 	{
 		// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
-		tags := data_model.WithAgentEnvRouteArch([]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag}, agentEnv, route, buildArch)
-		a.sh2.AddCounterHostStringBytes((args.Time/60)*60, format.BuiltinMetricMetaVersions, tags[:], bcStr, 1, hostTag)
+		a.sh2.AddCounterHostStringBytesAERA((args.Time/60)*60, format.BuiltinMetricMetaVersions,
+			[]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag},
+			bcStr, 1, hostTag, aera)
 	}
 
 	// Ingestion statuses, sample factors and badges are written into the same shard as metric itself.
 	// They all simply go to merge shard 0 independent of their keys.
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
-	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
-		key := a.aggKey(t, m, keys)
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil, nil)
-		return mi
-	}
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
+		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaAgentSamplingFactor,
+			[]int32{0, v.Metric}, aera).
+			Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
 	}
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
-		key := data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Tags: [16]int32{env, metricID, status}}
-		key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		mi, _ := s.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, nil, nil)
-		mi.Tail.AddCounterHost(rng, float64(value), hostTag)
+		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{env, metricID, status}, aera).
+			Tail.AddCounterHost(rng, float64(value), hostTag)
 	}
 	for _, v := range bucket.IngestionStatusOk {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
@@ -810,27 +837,22 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	hostId := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
-	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask))
-	buildArch := format.FilterBuildArch(args.Header.BuildArch)
-	route := int32(format.TagValueIDRouteDirect)
-	if args.Header.IsSetIngressProxy(args.FieldsMask) {
-		route = int32(format.TagValueIDRouteIngressProxy)
+	aera := format.AgentEnvRouteArch{
+		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
+		Route:     format.TagValueIDRouteDirect,
+		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
 	}
-	addCounterHost := func(t uint32, metricInfo *format.MetricMetaValue, tags []int32, counter float64) {
-		if metricInfo.WithAgentEnvRouteArch {
-			tags2 := data_model.WithAgentEnvRouteArch(tags, agentEnv, route, buildArch)
-			a.sh2.AddCounterHost(t, metricInfo, tags2[:], counter, hostTag)
-			return
-		}
-		a.sh2.AddCounterHost(t, metricInfo, tags[:], counter, hostTag)
+	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
+	if isRouteProxy {
+		aera.Route = format.TagValueIDRouteIngressProxy
 	}
 
 	a.mu.Lock()
 	if err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
 		a.mu.Unlock()
-		addCounterHost(nowUnix, format.BuiltinMetricMetaAutoConfig,
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal},
-			1)
+			1, hostTag, aera)
 		return err
 	}
 	oldestTime := a.recentBuckets[0].time // Most ready for insert
@@ -858,10 +880,9 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	measurementLocks := 0
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	key := a.aggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{})
-	key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-	mi, _ := s.GetOrCreateMultiItem(key, data_model.AggregatorStringTopCapacity, nil, nil)
-	mi.Tail.AddCounterHost(rng, 1, hostTag)
+	a.sh2.GetMultiItemAERA(&s.MultiItemMap, aggBucket.time, format.BuiltinMetricMetaAggKeepAlive,
+		[]int32{}, aera).Tail.
+		AddCounterHost(rng, 1, hostTag)
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 
 	return errHijack
