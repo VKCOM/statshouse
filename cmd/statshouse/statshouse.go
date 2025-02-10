@@ -208,7 +208,8 @@ func run() int {
 	}
 
 	// we ignore error because cache can be damaged
-	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, true,
+	// we do not pass 'compact' to agent journal because journal is compacted on aggregator
+	journalFast, _ := metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionAgentTimeout, false,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	if argv.cacheDir != "" {
 		journalFast.SetDumpPathPrefix(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-compact-%s", argv.Cluster)))

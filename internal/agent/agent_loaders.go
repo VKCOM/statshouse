@@ -77,6 +77,7 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 	}
 	s0.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetReturnIfEmpty(returnIfEmpty)
+	args.SetCompactJournal(true)
 
 	var ret tlmetadata.GetJournalResponsenew
 
