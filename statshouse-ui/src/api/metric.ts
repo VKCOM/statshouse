@@ -42,6 +42,9 @@ export type MetricMetaValue = {
   update_time: number;
   description?: string;
   tags?: MetricMetaTag[];
+  /**
+   * @deprecated
+   */
   visible?: boolean;
   disable?: boolean;
   kind: MetricMetaKind;
