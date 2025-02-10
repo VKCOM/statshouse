@@ -109,17 +109,6 @@ func (k *Key) GetSTag(i int) string {
 	return k.STags[i]
 }
 
-func (k *Key) STagSlice() []string {
-	result := append([]string{}, k.STags[:]...)
-	i := format.MaxTags
-	for ; i != 0; i-- {
-		if len(result[i-1]) != 0 {
-			break
-		}
-	}
-	return result[:i]
-}
-
 func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte) {
 	// compile time assert to ensure that 1 byte is enough for tags count
 	const _ = uint(255 - len(k.Tags))

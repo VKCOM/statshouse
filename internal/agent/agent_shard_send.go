@@ -271,13 +271,14 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	defer wg.Done()
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
+	var scratch []byte
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
 		// If bucket is empty, we must still do processing and sending
 		// for each contributor every second.
 
 		sampleFactor := s.sampleBucket(bucket, rng)
-		s.sendToSenders(bucket, sampleFactor)
+		scratch = s.sendToSenders(bucket, sampleFactor, scratch)
 		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}
 	log.Printf("Preprocessor quit")
@@ -353,22 +354,22 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (
 	return sampler.SampleFactors
 }
 
-func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor) {
+func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) []byte {
 	version := uint8(3)
-	data, err := s.compressBucket(bucket, sampleFactors, version)
+	data, scratch, err := s.compressBucket(bucket, sampleFactors, version, scratch)
 	cbd := compressedBucketData{time: bucket.Time, data: data, version: version} // No id as not saved to disk yet
 	if err != nil {
 		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
 		s.agent.logF("Internal Error: Failed to compress bucket %v for shard %d bucket %d",
 			err, s.ShardKey, bucket.Time)
-		return
+		return scratch
 	}
 	s.mu.Lock() // must send under lock, otherwise s.BucketsToSend might be closed
 	if s.BucketsToSend != nil {
 		select {
 		case s.BucketsToSend <- cbd:
 			s.mu.Unlock() // now goSendRecent is responsible for saving/sending/etc.
-			return
+			return scratch
 		default:
 			break
 		}
@@ -378,31 +379,30 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []
 	// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
 	cbd = s.diskCachePutWithLog(cbd) // assigns id
 	s.appendHistoricBucketsToSend(cbd)
+	return scratch
 }
 
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, version uint8) (data []byte, err error) {
-	// Process sb
-	var sbdata []byte
+func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, version uint8, scratch []byte) (data []byte, _ []byte, err error) {
 	if version == 3 {
 		sb := bucketToSourceBucket3TL(bucket, sampleFactors)
-		sbdata = sb.WriteBoxed(nil)
+		scratch = sb.WriteBoxed(scratch[:0])
 	} else {
 		sb := bucketToSourceBucket2TL(bucket, sampleFactors)
-		sbdata = sb.WriteBoxed(nil)
+		scratch = sb.WriteBoxed(scratch[:0])
 	}
 
-	compressed := make([]byte, 4+lz4.CompressBlockBound(len(sbdata))) // Framing - first 4 bytes is original size
-	compressedSize, err := lz4.CompressBlockHC(sbdata, compressed[4:], 0)
+	compressed := make([]byte, 4+lz4.CompressBlockBound(len(scratch))) // Framing - first 4 bytes is original size
+	compressedSize, err := lz4.CompressBlockHC(scratch, compressed[4:], 0)
 	if err != nil {
-		return nil, fmt.Errorf("CompressBlockHC failed for sbV2: %w", err)
+		return nil, scratch, fmt.Errorf("CompressBlockHC failed for sbV2: %w", err)
 	}
-	binary.LittleEndian.PutUint32(compressed, uint32(len(sbdata)))
-	if compressedSize >= len(sbdata) { // does not compress (rare for large buckets, so copy is not a problem)
-		compressed = append(compressed[:4], sbdata...)
+	binary.LittleEndian.PutUint32(compressed, uint32(len(scratch)))
+	if compressedSize >= len(scratch) { // does not compress (rare for large buckets, so copy is not a problem)
+		compressed = append(compressed[:4], scratch...)
 	} else {
 		compressed = compressed[:4+compressedSize]
 	}
-	return compressed, nil
+	return compressed, scratch, nil
 }
 
 func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, sendMoreBytes int) bool {
@@ -690,8 +690,10 @@ func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucke
 		return compressedBucketData{}, false
 	}
 
-	s.HistoricBucketsToSend[oldestPos] = s.HistoricBucketsToSend[len(s.HistoricBucketsToSend)-1]
-	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:len(s.HistoricBucketsToSend)-1]
+	lastPos := len(s.HistoricBucketsToSend) - 1
+	s.HistoricBucketsToSend[oldestPos] = s.HistoricBucketsToSend[lastPos]
+	s.HistoricBucketsToSend[lastPos] = compressedBucketData{} // free memory here
+	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:lastPos]
 
 	s.HistoricBucketsDataSize -= len(cbd.data)
 	s.agent.historicBucketsDataSize.Sub(int64(len(cbd.data)))

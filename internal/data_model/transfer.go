@@ -18,14 +18,23 @@ import (
 )
 
 func (k *Key) TagSlice() []int32 {
-	result := append([]int32{}, k.Tags[:]...)
 	i := format.MaxTags
 	for ; i != 0; i-- {
-		if result[i-1] != 0 {
+		if k.Tags[i-1] != 0 {
 			break
 		}
 	}
-	return result[:i]
+	return k.Tags[:i]
+}
+
+func (k *Key) STagSlice() []string {
+	i := format.MaxTags
+	for ; i != 0; i-- {
+		if len(k.STags[i-1]) != 0 {
+			break
+		}
+	}
+	return k.STags[:i]
 }
 
 // does not copy strings, we need max efficiency so want to look up in local map before converting []byte to string
