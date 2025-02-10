@@ -140,6 +140,12 @@ var (
 	apiCompatTagID = map[string]string{} // initialized in builtin.go due to dependency
 )
 
+type AgentEnvRouteArch struct {
+	AgentEnv  int32
+	Route     int32
+	BuildArch int32
+}
+
 type MetricKind int
 
 type MetaStorageInterface interface { // agent uses this to avoid circular dependencies
@@ -290,9 +296,7 @@ type CreateMappingExtra struct {
 	MetricID  int32  // set by new conveyor
 	TagIDKey  int32
 	ClientEnv int32
-	AgentEnv  int32
-	Route     int32
-	BuildArch int32
+	Aera      AgentEnvRouteArch
 	HostName  string
 	Host      int32
 }
