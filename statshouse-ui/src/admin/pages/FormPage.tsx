@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
@@ -31,15 +31,15 @@ import { HistoryList } from '@/components2/HistoryList';
 import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
+const PATH_VERSION_PARAM = '?mv';
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
   const { metricName } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
   const isHistoryRoute = location.pathname.endsWith('/history');
   const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
-
+  const historyPath = useMemo(() => `${mainPath}/history`, [mainPath]);
   const [searchParams] = useSearchParams();
   const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
 
@@ -52,10 +52,10 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
 
   const loadMetric = useCallback(async () => {
     try {
-      if (initMetric?.version && initMetric?.id && historicalMetricVersion) {
+      if (historicalMetricVersion) {
         const currentMetric = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
         const historicalMetricData = await fetchAndProcessMetric(
-          `/api/metric?id=${initMetric.id}&ver=${historicalMetricVersion}`
+          `/api/metric?id=${currentMetric.id}&ver=${historicalMetricVersion}`
         );
 
         setInitMetric({
@@ -67,7 +67,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
         setInitMetric(metricData);
       }
     } catch (_) {}
-  }, [historicalMetricVersion, initMetric?.id, initMetric?.version, metricName]);
+  }, [metricName, historicalMetricVersion]);
 
   useEffect(() => {
     if (metricName) {
@@ -80,18 +80,6 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
     document.title = `${metricName + ': edit'} — StatsHouse`;
   }, [metricName]);
 
-  const handleShowHistory = () => {
-    if (!isHistoryRoute) {
-      navigate('history');
-    }
-  };
-
-  const handleShowEdit = () => {
-    if (isHistoryRoute) {
-      navigate(mainPath);
-    }
-  };
-
   return (
     <div className="container-xl pt-3 pb-3" style={{ paddingLeft: `${yAxisSize}px` }}>
       <StickyTop className="mb-3">
@@ -102,23 +90,28 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
               title={`ID: ${initMetric?.id || '?'}`}
             >
               {metricName}
-              <span
-                className={`me-4 ${isHistoryRoute ? 'text-primary fw-normal small cursor-pointer' : 'text-secondary'}`}
-                style={{ cursor: isHistoryRoute ? 'pointer' : 'default' }}
-                onClick={handleShowEdit}
+              <NavLink
+                to={mainPath}
+                end
+                className={({ isActive }) =>
+                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
+                }
+                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
               >
                 : edit
-              </span>
-              <span
-                className={`me-4 ${isHistoryRoute ? 'text-secondary' : 'text-primary fw-normal small cursor-pointer'}`}
-                style={{ cursor: isHistoryRoute ? 'default' : 'pointer' }}
-                onClick={handleShowHistory}
+              </NavLink>
+              <NavLink
+                to={historyPath}
+                className={({ isActive }) =>
+                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
+                }
+                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
               >
                 history
-              </span>
-              <Link className="text-decoration-none fw-normal small" to={`../../view?s=${metricName}`}>
+              </NavLink>
+              <NavLink className="text-decoration-none fw-normal small" to={`/view?s=${metricName}`}>
                 view
-              </Link>
+              </NavLink>
             </h6>
           </div>
 
@@ -129,7 +122,9 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
         <Routes>
           <Route
             path="history"
-            element={<HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={'?mv'} />}
+            element={
+              <HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={PATH_VERSION_PARAM} />
+            }
           />
         </Routes>
       ) : (

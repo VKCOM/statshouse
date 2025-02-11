@@ -22,6 +22,8 @@ import { ErrorMessages } from '@/components/ErrorMessages';
 import { produce } from '~immer/dist/immer';
 import { HistoryList } from '../HistoryList';
 
+const PATH_VERSION_PARAM = '&dv';
+
 export type DashboardProps = {
   className?: string;
 };
@@ -41,10 +43,11 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
     saveDashboard,
     dashboardId,
     setParams,
+    dashboardVersion,
   } = useStatsHouseShallow(
     useCallback(
       ({
-        params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId },
+        params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId, dashboardVersion },
         isEmbed,
         dashboardLayoutEdit,
         setDashboardLayoutEdit,
@@ -62,6 +65,7 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
         saveDashboard,
         dashboardId,
         setParams,
+        dashboardVersion,
       }),
       []
     )
@@ -147,7 +151,13 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
       <DashboardLayout className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
       {tabNum === '-2' && <DashboardSettings />}
       {tabNum === '-3' && dashboardId && (
-        <HistoryList id={dashboardId} onVersionClick={onVersionClick} mainPath={mainPath} pathVersionParam={'&dv'} />
+        <HistoryList
+          id={dashboardId}
+          onVersionClick={onVersionClick}
+          mainPath={mainPath}
+          pathVersionParam={PATH_VERSION_PARAM}
+          currentVersion={dashboardVersion}
+        />
       )}
     </div>
   );

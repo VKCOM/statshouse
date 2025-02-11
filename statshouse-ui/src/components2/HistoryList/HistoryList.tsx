@@ -5,20 +5,28 @@ import { HistoryLink } from './HistoryLink';
 import { HistoryShortInfo, useHistoryList } from '@/api/history';
 import { fmtInputDateTime } from '@/view/utils2';
 import styles from './style.module.css';
+import cn from 'classnames';
 
 export type IHistoryList = {
   id: string;
-  onVersionClick?: () => void;
   mainPath: string;
   pathVersionParam: string;
+  onVersionClick?: () => void;
+  currentVersion?: number | null;
 };
 
-export const HistoryList = memo(function HistoryList({ id, onVersionClick, mainPath, pathVersionParam }: IHistoryList) {
+export const HistoryList = memo(function HistoryList({
+  id,
+  mainPath,
+  pathVersionParam,
+  onVersionClick,
+  currentVersion,
+}: IHistoryList) {
   const { data, isLoading, isError } = useHistoryList(id);
 
   if (isLoading) return <HistorySpinner />;
   if (isError) return <div className="text-center">Error loading history data</div>;
-  const currentVersion = data?.[0]?.version;
+  const latestVersion = data?.[0]?.version;
 
   return (
     <div className="d-flex justify-content-center">
@@ -26,15 +34,19 @@ export const HistoryList = memo(function HistoryList({ id, onVersionClick, mainP
         {data?.length ? (
           data.map((event: HistoryShortInfo, index: number) => {
             const timeChange = event?.update_time && fmtInputDateTime(new Date(event.update_time * 1000));
+            const isCurrentVersion = event?.version === currentVersion;
 
             return (
-              <li key={index} className={`list-group-item ${styles.historyItem}`}>
+              <li
+                key={index}
+                className={cn('list-group-item', styles.historyItem, isCurrentVersion && styles.currentVersion)}
+              >
                 <HistoryLink
                   event={event}
                   timeChange={timeChange}
                   onVersionClick={onVersionClick}
                   mainPath={mainPath}
-                  isActualVersion={event.version === currentVersion}
+                  isLatestVersion={event.version === latestVersion}
                   pathVersionParam={pathVersionParam}
                 />
               </li>
