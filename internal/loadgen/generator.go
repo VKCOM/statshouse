@@ -85,7 +85,6 @@ func (m *valueMetric) Ensure(ctx context.Context, c *api.Client) {
 	metric.Metric.Resolution = m.resolution
 	if m.isPercentile {
 		metric.Metric.Kind = format.MetricKindValuePercentiles
-		metric.Metric.HasPercentiles = true
 	} else {
 		metric.Metric.Kind = format.MetricKindValue
 	}
@@ -187,6 +186,7 @@ func setCommonMetricValues(mv *format.MetricMetaValue) {
 		},
 		{
 			Name:    rawTag,
+			Raw:     true,
 			RawKind: "int",
 		},
 	}
