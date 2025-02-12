@@ -47,6 +47,11 @@ func (s *Shard) flushBuckets(now time.Time) {
 				[]int32{0, format.TagValueIDTimingMissedSecondsAgent}).
 				Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
 		}
+
+		// popOldestHistoricSecondLocked condition now depends on CurrentTime
+		// we wake up one consumer to see if condition change and there is
+		// former future bucket not in the future any more
+		s.cond.Signal()
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
@@ -783,7 +788,7 @@ func (s *Shard) goEraseHistoric(wg *sync.WaitGroup, cancelCtx context.Context) {
 		select {
 		case <-cancelCtx.Done():
 			return
-		case <-time.After(60 * time.Second): // rare, because only  fail-safe against all goSendHistoric blocking in infinite sends
+		case <-time.After(60 * time.Second): // rare, because only fail-safe against all goSendHistoric blocking in infinite sends
 		}
 		s.mu.Lock()
 	}
