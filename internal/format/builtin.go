@@ -88,7 +88,6 @@ var (
 		BuiltinMetricIDAPISelectBytes:             BuiltinMetricMetaAPISelectBytes,
 		BuiltinMetricIDAPISelectRows:              BuiltinMetricMetaAPISelectRows,
 		BuiltinMetricIDAPISelectDuration:          BuiltinMetricMetaAPISelectDuration,
-		BuiltinMetricIDAgentHistoricQueueSizeSum:  BuiltinMetricMetaAgentHistoricQueueSizeSum,
 		BuiltinMetricIDAPISourceSelectRows:        BuiltinMetricMetaAPISourceSelectRows,
 		BuiltinMetricIDSystemMetricScrapeDuration: BuiltinMetricMetaSystemMetricScrapeDuration,
 		BuiltinMetricIDMetaServiceTime:            BuiltinMetricMetaMetaServiceTime,

@@ -618,7 +618,7 @@ var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "storage",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -634,6 +634,12 @@ var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 		Description: "-",
 	}, {
 		Description: "-",
+	}, {
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, AggShardTag: { // we reuse index of aggregator_shard here
+		Description: "agent_shard",
+		RawKind:     "int",
 	}},
 }
 
@@ -1403,35 +1409,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	},
 }
 
-const BuiltinMetricIDAgentHistoricQueueSizeSum = -69
-
-var BuiltinMetricMetaAgentHistoricQueueSizeSum = &MetricMetaValue{
-	Name:                    "__src_historic_queue_size_sum_bytes",
-	Kind:                    MetricKindValue,
-	Description:             "Historic queue size in memory and on disk, sum for shards sent to every shard.\nCan be compared with __src_historic_queue_size_bytes to find if subset of aggregators is inaccessible.",
-	MetricType:              MetricByte,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "storage",
-		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDHistoricQueueMemory:     "memory",
-			TagValueIDHistoricQueueDiskUnsent: "disk_unsent",
-			TagValueIDHistoricQueueDiskSent:   "disk_sent",
-		}),
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}},
-}
-
+const BuiltinMetricIDAgentHistoricQueueSizeSum = -69 // Removed, not needed after queue size metric is written by agents
 const BuiltinMetricIDAPISourceSelectRows = -70
 
 var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
@@ -1674,7 +1652,7 @@ var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
@@ -1683,14 +1661,17 @@ var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 		ValueComments: convertToValueComments(map[int32]string{
 			TagOKConnection: "ok",
 			TagOtherError:   "other",
-			TagRPCError:     "rpc-error",
-			TagNoConnection: "no-connection",
+			TagRPCError:     "rpc_error",
+			TagNoConnection: "no_connection",
 			TagTimeoutError: "timeout",
 		}),
 	}, {
+		Description: "rpc_code",
+		RawKind:     "int",
+	}, AggShardTag: { // we reuse index of aggregator_shard here
 		Description: "agent_shard",
 		RawKind:     "int",
-	}, {
+	}, AggReplicaTag: { // we reuse index of aggregator_replica here
 		Description: "agent_replica",
 		RawKind:     "int",
 	}},
@@ -1707,16 +1688,16 @@ var BuiltinMetricMetaAgentAggregatorTimeDiff = &MetricMetaValue{
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Description: "-",
-	}, {
+	}, AggShardTag: { // we reuse index of aggregator_shard here
 		Description: "agent_shard",
 		RawKind:     "int",
-	}, {
+	}, AggReplicaTag: { // we reuse index of aggregator_replica here
 		Description: "agent_replica",
 		RawKind:     "int",
 	}},

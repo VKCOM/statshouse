@@ -719,36 +719,22 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			[]int32{0, format.TagValueIDTimingMissedSeconds},
 			float64(bucket.MissedSeconds), 1, hostTag, aera)
 	}
-	// TODO - remove all 6 queue metrics below after all agents upgraded to write this metric directly to bucket
+	// TODO - remove all queue metrics below after all agents upgraded to write this metric directly to bucket
+	// we set AggShard/Replica/Host manually for legacy agents for reason, do not change this.
 	if args.QueueSizeMemory > 0 {
 		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueMemory},
+			[]int32{0, format.TagValueIDHistoricQueueMemory, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
 			float64(args.QueueSizeMemory), 1, hostTag, aera)
-	}
-	if args.QueueSizeMemorySum > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueMemory},
-			float64(args.QueueSizeMemorySum), 1, hostTag, aera)
 	}
 	if args.QueueSizeDiskUnsent > 0 {
 		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent},
+			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
 			float64(args.QueueSizeDiskUnsent), 1, hostTag, aera)
 	}
 	if queueSizeDiskSent := float64(args.QueueSizeDisk) - float64(args.QueueSizeDiskUnsent); queueSizeDiskSent > 0 {
 		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent},
+			[]int32{0, format.TagValueIDHistoricQueueDiskSent, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
 			float64(queueSizeDiskSent), 1, hostTag, aera)
-	}
-	if args.QueueSizeDiskSumUnsent > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent},
-			float64(args.QueueSizeDiskSumUnsent), 1, hostTag, aera)
-	}
-	if queueSizeDiskSumSent := float64(args.QueueSizeDiskSum) - float64(args.QueueSizeDiskSumUnsent); queueSizeDiskSumSent > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent},
-			float64(queueSizeDiskSumSent), 1, hostTag, aera)
 	}
 
 	componentTag := args.Header.ComponentTag
