@@ -637,7 +637,7 @@ var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 	}, {
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
-	}, AggShardTag: { // we reuse index of aggregator_shard here
+	}, AggShardTag - 1: { // we reuse index of aggregator_shard here. -1 because we do not include env tag
 		Description: "agent_shard",
 		RawKind:     "int",
 	}},
@@ -1668,10 +1668,10 @@ var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 	}, {
 		Description: "rpc_code",
 		RawKind:     "int",
-	}, AggShardTag: { // we reuse index of aggregator_shard here
+	}, AggShardTag - 1: { //  // we reuse index of aggregator_shard here. -1 because we do not include env tag
 		Description: "agent_shard",
 		RawKind:     "int",
-	}, AggReplicaTag: { // we reuse index of aggregator_replica here
+	}, AggReplicaTag - 1: { //  // we reuse index of aggregator_replica here. -1 because we do not include env tag
 		Description: "agent_replica",
 		RawKind:     "int",
 	}},
@@ -1694,10 +1694,10 @@ var BuiltinMetricMetaAgentAggregatorTimeDiff = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
 		Description: "-",
-	}, AggShardTag: { // we reuse index of aggregator_shard here
+	}, AggShardTag - 1: { //  // we reuse index of aggregator_shard here. -1 because we do not include env tag
 		Description: "agent_shard",
 		RawKind:     "int",
-	}, AggReplicaTag: { // we reuse index of aggregator_replica here
+	}, AggReplicaTag - 1: { //  // we reuse index of aggregator_replica here. -1 because we do not include env tag
 		Description: "agent_replica",
 		RawKind:     "int",
 	}},

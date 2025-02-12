@@ -292,6 +292,9 @@ func init() {
 
 		for i := range m.Tags {
 			t := &m.Tags[i]
+			if t.Description == "" && t.Name == "" {
+				t.Description = "-" // remove unused tags from UI
+			}
 			if t.Raw {
 				panic("for built-in metric definitions please set only raw_kind, not raw flag")
 			}
