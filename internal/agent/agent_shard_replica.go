@@ -49,13 +49,6 @@ type ShardReplica struct {
 	//      if spare is also dead, data is sent to original
 	lastSendSuccessful []bool
 
-	successTestConnectionDurationBucket      *BuiltInItemValue
-	aggTimeDiffBucket                        *BuiltInItemValue
-	noConnectionTestConnectionDurationBucket *BuiltInItemValue
-	failedTestConnectionDurationBucket       *BuiltInItemValue
-	rpcErrorTestConnectionDurationBucket     *BuiltInItemValue
-	timeoutTestConnectionDurationBucket      *BuiltInItemValue
-
 	stats *shardStat
 }
 
@@ -223,42 +216,31 @@ func (s *ShardReplica) goTestConnectionLoop() {
 		aggTimeDiff, duration, err := s.doTestConnection(ctx)
 		cancel()
 		seconds := duration.Seconds()
-		if err == nil {
-			s.successTestConnectionDurationBucket.AddValueCounter(seconds, 1)
-			if aggTimeDiff != 0 {
-				s.aggTimeDiffBucket.AddValueCounter(aggTimeDiff.Seconds(), 1)
-				if aggTimeDiff.Abs() > 2*time.Second {
-					s.agent.logF("WARNING: time difference with aggregator is %v, more then 2 seconds, agent will be working poorly", aggTimeDiff)
-				}
-			}
-		} else {
-			var rpcError rpc.Error
+		statusTag := int32(format.TagOKConnection)
+		rpcCodeTag := int32(0)
+		if err != nil {
+			var rpcError *rpc.Error
 			if errors.Is(err, rpc.ErrClientConnClosedNoSideEffect) || errors.Is(err, rpc.ErrClientConnClosedSideEffect) || errors.Is(err, rpc.ErrClientClosed) {
-				s.noConnectionTestConnectionDurationBucket.AddValueCounter(seconds, 1)
-			} else if errors.Is(err, &rpcError) {
-				s.rpcErrorTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+				statusTag = format.TagNoConnection
+			} else if errors.As(err, &rpcError) {
+				statusTag = format.TagRPCError
+				rpcCodeTag = rpcError.Code
 			} else if errors.Is(err, context.DeadlineExceeded) {
-				s.timeoutTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+				statusTag = format.TagTimeoutError
 			} else {
-				s.failedTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+				statusTag = format.TagOtherError
+			}
+		}
+		s.agent.AddValueCounter(0, format.BuiltinMetricMetaSrcTestConnection,
+			[]int32{0, s.agent.componentTag, statusTag, rpcCodeTag, format.AggShardTag: s.ShardKey, format.AggReplicaTag: s.ReplicaKey},
+			seconds, 1)
+		if aggTimeDiff != 0 { // never in case of err != nil
+			s.agent.AddValueCounter(0, format.BuiltinMetricMetaAgentAggregatorTimeDiff,
+				[]int32{0, s.agent.componentTag, format.AggShardTag: s.ShardKey, format.AggReplicaTag: s.ReplicaKey},
+				aggTimeDiff.Seconds(), 1)
+			if aggTimeDiff.Abs() > 2*time.Second {
+				s.agent.logF("WARNING: time difference with aggregator is %v, more then 2 seconds, agent will be working poorly", aggTimeDiff)
 			}
 		}
 	}
-}
-
-func (s *ShardReplica) InitBuiltInMetric() {
-	// Unfortunately we do not know aggregator host tag.
-	s.successTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaSrcTestConnection,
-		[]int32{0, s.agent.componentTag, format.TagOKConnection, s.ShardKey, s.ReplicaKey})
-	s.noConnectionTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaSrcTestConnection,
-		[]int32{0, s.agent.componentTag, format.TagNoConnection, s.ShardKey, s.ReplicaKey})
-	s.failedTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaSrcTestConnection,
-		[]int32{0, s.agent.componentTag, format.TagOtherError, s.ShardKey, s.ReplicaKey})
-	s.rpcErrorTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaSrcTestConnection,
-		[]int32{0, s.agent.componentTag, format.TagRPCError, s.ShardKey, s.ReplicaKey})
-	s.timeoutTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaSrcTestConnection,
-		[]int32{0, s.agent.componentTag, format.TagTimeoutError, s.ShardKey, s.ReplicaKey})
-
-	s.aggTimeDiffBucket = s.agent.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentAggregatorTimeDiff,
-		[]int32{1: s.agent.componentTag, 0, s.ShardKey, s.ReplicaKey})
 }

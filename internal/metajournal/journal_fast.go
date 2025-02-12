@@ -9,6 +9,7 @@ package metajournal
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -258,6 +259,40 @@ func (ms *JournalFast) dump() error {
 	return ms.save(&saver)
 }
 
+func (ms *JournalFast) Compare(ms2 *JournalFast) {
+	var list1 []journalOrder
+	var list2 []journalOrder
+	ms.order.Ascend(func(order journalOrder) bool {
+		list1 = append(list1, order)
+		return true
+	})
+	ms2.order.Ascend(func(order journalOrder) bool {
+		list2 = append(list2, order)
+		return true
+	})
+	if len(list1) != len(list2) {
+		fmt.Printf("list1 and list2 length mismatch %d %d\n", len(list1), len(list2))
+		return
+	}
+	found := 0
+	for i, l1 := range list1 {
+		if found > 10 {
+			break
+		}
+		l2 := list2[i]
+		if l1 != l2 {
+			fmt.Printf("order %d diff %v %v\n", i, l1, l2)
+			found++
+		}
+		el1 := ms.journal[l1.key]
+		el2 := ms2.journal[l2.key]
+		if el1 != el2 {
+			fmt.Printf("element %d diff %v %v\n", i, el1, el2)
+			found++
+		}
+	}
+}
+
 func (ms *JournalFast) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
 	ms.metaLoader = metaLoader
 	ms.sh2 = sh2
@@ -401,7 +436,8 @@ func compactJournalEvent(event *tlmetadata.Event) (bool, error) {
 		return true, err // broken, keep original
 	}
 	format.MakeCompactMetric(value)
-	shortData, err := value.MarshalBinary()
+	// shortData, err := value.MarshalBinary() - easyjson does not sort TagDrafts, so compact journal becomes indeterministic
+	shortData, err := json.Marshal(value)
 	if err != nil {
 		return true, err // broken, keep original
 	}

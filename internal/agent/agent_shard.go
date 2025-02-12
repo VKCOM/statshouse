@@ -306,36 +306,19 @@ func (s *Shard) addBuiltInsLocked() {
 
 	sizeMem := s.HistoricBucketsDataSize
 	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
-	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
 	if sizeMem > 0 {
 		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueMemory}).
+			[]int32{0, format.TagValueIDHistoricQueueMemory, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sizeMem), 1)
 	}
 	if sizeDiskUnsent > 0 {
 		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).
+			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sizeDiskUnsent), 1)
 	}
 	if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
 		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent}).
-			Tail.AddValueCounter(s.rng, float64(sent), 1)
-	}
-	if sizeMemSum > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueMemory}).
-			Tail.AddValueCounter(s.rng, float64(sizeMemSum), 1)
-	}
-	if sizeDiskSumUnsent > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).
-			Tail.AddValueCounter(s.rng, float64(sizeDiskSumUnsent), 1)
-	}
-	if sent := sizeDiskSumTotal - sizeDiskSumUnsent; sent > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSizeSum,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent}).
+			[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sent), 1)
 	}
 

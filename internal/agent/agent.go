@@ -308,8 +308,6 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	s.AggregatorShardKey = aggShardKey
 	s.AggregatorReplicaKey = aggReplicaKey
 	for _, shardReplica := range s.ShardReplicas {
-		shardReplica.InitBuiltInMetric()
-
 		if shardReplica.client().Address != "" {
 			go shardReplica.goLiveChecker()
 		}
