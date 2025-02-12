@@ -321,6 +321,11 @@ func (s *Shard) addBuiltInsLocked() {
 			[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sent), 1)
 	}
+	if sizeMem <= 0 && sizeDiskUnsent <= 0 { // no data waiting to be sent
+		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
+			[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
+			Tail.AddValueCounter(s.rng, 0, 1)
+	}
 
 	if s.ShardNum != 0 { // heartbeats are in the first shard
 		return
