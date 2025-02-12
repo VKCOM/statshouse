@@ -611,9 +611,11 @@ var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 const BuiltinMetricIDAgentHistoricQueueSize = -25
 
 var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
-	Name:                    "__src_historic_queue_size_bytes",
-	Kind:                    MetricKindValue,
-	Description:             "Historic queue size in memory and on disk.\nDisk size increases when second is written, decreases when file is deleted.",
+	Name: "__src_historic_queue_size_bytes",
+	Kind: MetricKindValue,
+	Description: `Historic queue size in memory and on disk.
+Disk size increases when second is written, decreases when file is deleted.
+Storage 'empty' event is recorded with 0 value when there is no unsent data, so we can filter out agents with/without empty queue.`,
 	MetricType:              MetricByte,
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -625,6 +627,7 @@ var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 			TagValueIDHistoricQueueMemory:     "memory",
 			TagValueIDHistoricQueueDiskUnsent: "disk_unsent",
 			TagValueIDHistoricQueueDiskSent:   "disk_sent",
+			TagValueIDHistoricQueueEmpty:      "empty",
 		}),
 	}, {
 		Description: "-",

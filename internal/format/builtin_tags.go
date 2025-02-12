@@ -93,6 +93,7 @@ const (
 	TagValueIDHistoricQueueMemory     = 1
 	TagValueIDHistoricQueueDiskUnsent = 2
 	TagValueIDHistoricQueueDiskSent   = 3
+	TagValueIDHistoricQueueEmpty      = 4
 
 	TagValueIDDiskCacheErrorWrite             = 1
 	TagValueIDDiskCacheErrorRead              = 2
