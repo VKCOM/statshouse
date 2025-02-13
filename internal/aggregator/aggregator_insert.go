@@ -405,11 +405,11 @@ type insertSize struct {
 	builtin     int
 }
 
-func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, rnd *rand.Rand, res []byte, v3Format bool) []byte {
+func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte, v3Format bool) ([]byte, data_model.SamplerBuffers) {
 	startTime := time.Now()
 	// sanity check, nothing to marshal if there is no buckets
 	if len(buckets) < 1 {
-		return res
+		return res, buffers
 	}
 
 	var configR ConfigAggregatorRemote
@@ -473,14 +473,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		}
 		addSizes(bucketTs, is)
 	}
-	var itemsCount int
-	for _, b := range buckets {
-		for si := 0; si < len(b.shards); si++ {
-			itemsCount += len(b.shards[si].MultiItems)
-		}
-	}
 	recentTime := buckets[0].time // by convention first bucket is recent all other are historic
-	sampler := data_model.NewSampler(itemsCount, data_model.SamplerConfig{
+	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		Meta:             a.metricStorage,
 		SampleNamespaces: configR.SampleNamespaces,
 		SampleGroups:     configR.SampleGroups,
@@ -491,7 +485,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps, v3Format)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 		},
-		KeepF: func(item *data_model.MultiItem, bt uint32) { insertItem(item, item.SF, bt) },
+		KeepF:          func(item *data_model.MultiItem, bt uint32) { insertItem(item, item.SF, bt) },
+		SamplerBuffers: buffers,
 	})
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
@@ -637,7 +632,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 			float64(historicBuiltinSize), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 	}
 
-	return res
+	return res, sampler.SamplerBuffers
 }
 
 func makeHTTPClient() *http.Client {

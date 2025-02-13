@@ -269,24 +269,24 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	var scratch []byte
+	var buffers data_model.SamplerBuffers
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
 		// If bucket is empty, we must still do processing and sending
 		// for each contributor every second.
-
-		sampleFactor := s.sampleBucket(bucket, rng)
-		scratch = s.sendToSenders(bucket, sampleFactor, scratch)
+		buffers = s.sampleBucket(bucket, buffers, rng)
+		scratch = s.sendToSenders(bucket, buffers.SampleFactors, scratch)
 		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (sf []tlstatshouse.SampleFactor) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand) data_model.SamplerBuffers {
 	s.mu.Lock()
 	config := s.config
 	s.mu.Unlock()
 
-	sampler := data_model.NewSampler(len(bucket.MultiItems), data_model.SamplerConfig{
+	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:        !config.DisableNoSampleAgent,
 		SampleNamespaces: config.SampleNamespaces,
 		SampleGroups:     config.SampleGroups,
@@ -296,6 +296,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (
 		DiscardF: func(item *data_model.MultiItem, _ uint32) {
 			bucket.DeleteMultiItem(&item.Key)
 		}, // remove from map
+		SamplerBuffers: buffers,
 	})
 	for _, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
@@ -348,7 +349,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) (
 	key := data_model.Key{Timestamp: bucket.Time, Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Tags: [format.MaxTags]int32{0, s.agent.componentTag}}
 	item, _ := bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, nil, nil)
 	item.Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, data_model.TagUnionBytes{})
-	return sampler.SampleFactors
+	return sampler.SamplerBuffers
 }
 
 func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) []byte {
