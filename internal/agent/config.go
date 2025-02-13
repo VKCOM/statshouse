@@ -40,7 +40,8 @@ type Config struct {
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	NewSharding            bool
-	NewConveyor            bool
+	newConveyor            string
+	NewConveyorList        []int
 
 	MappingCacheSize int64
 	MappingCacheTTL  int
@@ -74,7 +75,7 @@ func DefaultConfig() Config {
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
 		NewSharding:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		NewConveyor:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
+		newConveyor:                      "",    // should be enabled after full deploy and then removed
 
 		MappingCacheSize: 100 << 20,
 		MappingCacheTTL:  86400,
@@ -120,7 +121,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 	f.BoolVar(&c.NewSharding, "new-sharding", d.NewSharding, "Shard by metric_id % 16, by default")
-	f.BoolVar(&c.NewConveyor, "new-conveyor", d.NewConveyor, "All metrics go through new mapping conveyor")
+	f.StringVar(&c.newConveyor, "new-conveyor", d.newConveyor, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
@@ -141,6 +142,18 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 		}
 	}
 	err := f.Parse(s)
+	c.NewConveyorList = c.NewConveyorList[:0]
+	for _, env := range strings.Split(c.newConveyor, ",") {
+		if env == "" {
+			continue
+		}
+		if l := stagingLevel(strings.Trim(env, " ")); l >= 0 {
+			c.NewConveyorList = append(c.NewConveyorList, l)
+		} else {
+			err = fmt.Errorf("unknown stats house environment: %s", env)
+			break
+		}
+	}
 	if err != nil {
 		return err
 	}
