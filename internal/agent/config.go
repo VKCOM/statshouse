@@ -40,6 +40,7 @@ type Config struct {
 	Cluster                string
 	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	NewSharding            bool
+	NewShardingByName      string // metrics with name <= NewShardingByName will be sharded new way
 	newConveyor            string
 	NewConveyorList        []int
 
@@ -75,7 +76,8 @@ func DefaultConfig() Config {
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
 		NewSharding:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		newConveyor:                      "",    // should be enabled after full deploy and then removed
+		NewShardingByName:                "",
+		newConveyor:                      "", // should be enabled after full deploy and then removed
 
 		MappingCacheSize: 100 << 20,
 		MappingCacheTTL:  86400,
@@ -121,6 +123,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 	f.BoolVar(&c.NewSharding, "new-sharding", d.NewSharding, "Shard by metric_id % 16, by default")
+	f.StringVar(&c.NewShardingByName, "new-sharding-by-name", d.NewShardingByName, "Shard by metric_id % 16 for metrics with name less then given")
 	f.StringVar(&c.newConveyor, "new-conveyor", d.newConveyor, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")

@@ -15,10 +15,12 @@ func TestShard(t *testing.T) {
 	metricBuiltin := data_model.Key{Timestamp: 1000, Metric: -1000}
 
 	type args struct {
-		key         data_model.Key
-		meta        *format.MetricMetaValue
-		numShards   int
-		newSharding bool // renamed from builtinNewSharding to match new parameter name
+		key               data_model.Key
+		meta              *format.MetricMetaValue
+		numShards         int
+		newSharding       bool
+		newShardingByName string
+		newStrategy       bool
 	}
 	tests := []struct {
 		name          string
@@ -31,18 +33,21 @@ func TestShard(t *testing.T) {
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: false, // meta has priority
 		}, 8},
 		{"ok-by-tags-hash-2", args{
 			key:         metric2,
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: false, // meta has priority
 		}, 15},
 		{"ok-by-tags-builtin", args{
 			key:         metricBuiltin,
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByTagsHash},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: false, // meta has priority
 		}, 5},
 
 		{"ok-fixed-shard", args{
@@ -50,12 +55,14 @@ func TestShard(t *testing.T) {
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardFixed, ShardNum: 3},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: true,
 		}, 3},
 		{"ok-fixed-builtin", args{
 			key:         metricBuiltin,
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardFixed, ShardNum: 0},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: true,
 		}, 0},
 
 		{"ok-by-metric-id", args{
@@ -63,6 +70,7 @@ func TestShard(t *testing.T) {
 			meta:        &format.MetricMetaValue{ShardStrategy: format.ShardByMetric},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: true,
 		}, 1},
 
 		// Verify newSharding flag behavior
@@ -71,6 +79,7 @@ func TestShard(t *testing.T) {
 			meta:        &format.MetricMetaValue{},
 			numShards:   16,
 			newSharding: false,
+			newStrategy: false,
 		}, 8},
 
 		{"new-sharding-true-user-metric", args{
@@ -78,22 +87,43 @@ func TestShard(t *testing.T) {
 			meta:        &format.MetricMetaValue{},
 			numShards:   16,
 			newSharding: true,
+			newStrategy: true,
 		}, 1},
+
+		{"builtin-sharding-by-name-enabled", args{
+			key:               metric1,
+			meta:              &format.MetricMetaValue{Name: "__a"},
+			numShards:         16,
+			newShardingByName: "a",
+			newStrategy:       true,
+		}, 1},
+		{"user-sharding-by-name-enabled", args{
+			key:               metric1,
+			meta:              &format.MetricMetaValue{Name: "a"},
+			numShards:         16,
+			newShardingByName: "a",
+			newStrategy:       true,
+		}, 1},
+		{"user-sharding-by-name-disabled", args{
+			key:               metric1,
+			meta:              &format.MetricMetaValue{Name: "b"},
+			numShards:         16,
+			newShardingByName: "a",
+			newStrategy:       false,
+		}, 8},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotShard, newStrategy, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, uint32(tt.args.numShards), tt.args.newSharding)
+			gotShard, newStrategy, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, uint32(tt.args.numShards), tt.args.newSharding, tt.args.newShardingByName)
 			if gotShard != tt.expectedShard {
 				t.Errorf("Sharding() = %v, want %v", gotShard, tt.expectedShard)
 			}
-			// hash calculated only for ShardByTagsHash
-			if tt.args.meta.ShardStrategy == format.ShardByTagsHash || tt.args.meta.ShardStrategy == "" && !tt.args.newSharding {
-				assert.False(t, newStrategy)
-				assert.NotZero(t, gotHash) // this fails with 2^-64 probability
-			} else {
-				assert.True(t, newStrategy)
+			assert.Equal(t, tt.args.newStrategy, newStrategy)
+			if newStrategy {
 				assert.Zero(t, gotHash)
+			} else {
+				assert.NotZero(t, gotHash)
 			}
 		})
 	}
