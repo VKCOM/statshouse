@@ -671,7 +671,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 	rnd := rand.New()
 	httpClient := makeHTTPClient()
-
+	var buffers data_model.SamplerBuffers
 	var aggBuckets []*aggregatorBucket
 	var bodyStorage []byte
 
@@ -766,7 +766,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			return "insert_error"
 		}
 
-		bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], writeToV3First)
+		bodyStorage, buffers = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -825,7 +825,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, dur)
 
 		if mirrorChWrite {
-			bodyStorage = a.RowDataMarshalAppendPositions(aggBuckets, rnd, bodyStorage[:0], !writeToV3First)
+			bodyStorage, buffers = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
 			status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage)
 			cancelSendToCh()
 			if sendErr != nil {

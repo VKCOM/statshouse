@@ -32,7 +32,7 @@ func TestSampling(t *testing.T) {
 		var keepN, discardN int
 		var keepSumSize int64
 		m := make(map[int32]*metricInfo)
-		s := NewSampler(len(b.MultiItems), SamplerConfig{
+		s := NewSampler(SamplerConfig{
 			KeepF: func(item *MultiItem, _ uint32) {
 				keepN++
 				keepSumSize += int64(samplingTestSizeOf(item))
@@ -120,7 +120,7 @@ func TestSamplingWithNilKeepF(t *testing.T) {
 			minMetricSize:  rapid.IntRange(28, 256).Draw(t, "min metric size"),
 			maxMetricSize:  rapid.IntRange(512, 1024).Draw(t, "max metric size"),
 		})
-		s := NewSampler(len(b.MultiItems), SamplerConfig{
+		s := NewSampler(SamplerConfig{
 			KeepF: nil, // agent doesn't set it
 			DiscardF: func(item *MultiItem, _ uint32) {
 				b.DeleteMultiItem(&item.Key)
@@ -164,7 +164,7 @@ func TestNoSamplingWhenFitBudget(t *testing.T) {
 		b := newSamplingTestBucket()
 		b.generateSeriesCount(t, samplingTestSpec{maxSeriesCount: 256, maxMetricCount: 256})
 		var (
-			s = NewSampler(len(b.MultiItems), SamplerConfig{
+			s = NewSampler(SamplerConfig{
 				KeepF: func(item *MultiItem, _ uint32) {
 					b.DeleteMultiItem(&item.Key)
 				},
@@ -197,7 +197,7 @@ func TestNormalDistributionPreserved(t *testing.T) {
 		b.generateSeriesCount(t, samplingTestSpec{maxMetricCount: 10, maxSeriesCount: 10})
 		for i := 0; i < 1024; i++ {
 			b.generateNormValues(r)
-			s := NewSampler(len(b.MultiItems), SamplerConfig{KeepF: keepF, Rand: r})
+			s := NewSampler(SamplerConfig{KeepF: keepF, Rand: r})
 			b.run(&s, b.sumSize/2) // budget is half size
 		}
 		for _, v := range statM {
@@ -227,7 +227,7 @@ func TestFairKeySampling(t *testing.T) {
 		}
 		// run sampling with budget enouph to store single value for each fair key
 		keepCount := make(map[Key]int)
-		sampler := NewSampler(len(b.MultiItems), SamplerConfig{
+		sampler := NewSampler(SamplerConfig{
 			SampleKeys: true,
 			Meta: metaStorageMock{
 				getMetaMetric: func(metricID int32) *format.MetricMetaValue {
@@ -543,7 +543,7 @@ func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx)
 }
 
 func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) []tlstatshouse.SampleFactor {
-	sampler := NewSampler(len(bucket.MultiItems), config.SamplerConfig)
+	sampler := NewSampler(config.SamplerConfig)
 	for _, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(rand.New(), config.stringTopCountSend) // all excess items are baked into Tail
 		accountMetric := item.Key.Metric

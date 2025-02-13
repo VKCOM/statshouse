@@ -67,14 +67,14 @@ type (
 		// Unit tests support
 		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
 		SelectF func([]SamplingMultiItemPair, float64, *rand.Rand) int
+
+		SamplerBuffers
 	}
 
 	partitionFunc func(*sampler, samplerGroup) ([]samplerGroup, int64)
 
 	sampler struct {
 		SamplerConfig
-		items                []SamplingMultiItemPair
-		partF                []partitionFunc
 		sumSizeKeepBuiltin   ItemValue
 		sumSizeDiscard       ItemValue
 		currentGroup         samplerGroup
@@ -82,8 +82,6 @@ type (
 		currentMetricSFSum   float64
 		currentMetricSFCount float64
 		MetricCount          int
-		MetricGroups         []samplerGroup
-		SampleFactors        []tlstatshouse.SampleFactor
 
 		timeStart      time.Time
 		timePartition  time.Time
@@ -92,6 +90,13 @@ type (
 		timeSampling   time.Duration
 		timeEnd        time.Time
 	}
+
+	SamplerBuffers struct {
+		items         []SamplingMultiItemPair
+		partF         []partitionFunc
+		MetricGroups  []samplerGroup
+		SampleFactors []tlstatshouse.SampleFactor
+	}
 )
 
 var missingMetricMeta = format.MetricMetaValue{
@@ -99,28 +104,31 @@ var missingMetricMeta = format.MetricMetaValue{
 	NamespaceID: format.BuiltinNamespaceIDMissing,
 }
 
-func NewSampler(capacity int, config SamplerConfig) sampler {
-	timeStart := time.Now()
-	if config.RoundF == nil {
-		config.RoundF = roundSampleFactor
+func NewSampler(c SamplerConfig) sampler {
+	// buffer reuse
+	c.items = c.items[:0]
+	c.partF = c.partF[:0]
+	c.MetricGroups = c.MetricGroups[:0]
+	c.SampleFactors = c.SampleFactors[:0]
+	// partition functions
+	if c.SampleNamespaces {
+		c.partF = append(c.partF, partitionByNamespace)
 	}
-	if config.SelectF == nil {
-		config.SelectF = selectRandom
+	if c.SampleGroups {
+		c.partF = append(c.partF, partitionByGroup)
 	}
-	h := sampler{
-		timeStart:     timeStart,
-		SamplerConfig: config,
-		items:         make([]SamplingMultiItemPair, 0, capacity),
-		partF:         make([]partitionFunc, 0, 3),
+	c.partF = append(c.partF, partitionByMetric)
+	// unit test support
+	if c.RoundF == nil {
+		c.RoundF = roundSampleFactor
 	}
-	if config.SampleNamespaces {
-		h.partF = append(h.partF, partitionByNamespace)
+	if c.SelectF == nil {
+		c.SelectF = selectRandom
 	}
-	if config.SampleGroups {
-		h.partF = append(h.partF, partitionByGroup)
+	return sampler{
+		timeStart:     time.Now(),
+		SamplerConfig: c,
 	}
-	h.partF = append(h.partF, partitionByMetric)
-	return h
 }
 
 func (h *sampler) Add(p SamplingMultiItemPair) {
