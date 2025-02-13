@@ -83,7 +83,7 @@ func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
 	case 2:
 		return format.TagValueIDStaging2
 	case 3:
-		return format.TagValueIDStaging3
+		return format.TagValueIDDevelopment
 	}
 	return format.TagValueIDProduction
 }
