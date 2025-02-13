@@ -589,7 +589,13 @@ func (s *scraper) scrape(opt scrapeOptions, scratch *[]byte) error {
 			metric.series[hashSum] = curr
 		}
 	}
-	s.metric = b
+	s.metric = tlstatshouse.MetricBytes{
+		Name:      b.Name[:0],
+		Tags:      b.Tags[:0],
+		Value:     b.Value[:0],
+		Unique:    b.Unique[:0],
+		Histogram: b.Histogram[:0],
+	}
 	if s.stat != stat {
 		log.Printf("scrape metrics %s: seen %d, dropped %d\n", s.request.URL.Path, stat.metricsSeen, stat.metricsDropped)
 		log.Printf("scrape series  %s: sent %d, dropped (unnamed %d, untyped %d, zero_count %d)\n", s.request.URL.Path, stat.seriesSent, stat.seriesDroppedUnnamed, stat.seriesDroppedUntyped, stat.seriesDroppedZeroCount)
@@ -613,7 +619,7 @@ func (s *scraper) getScrapeData(timeout time.Duration) ([]byte, string, error) {
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf(resp.Status)
+		return nil, "", fmt.Errorf("%v", resp.Status)
 	}
 	// read response
 	s.buffer.Reset()
