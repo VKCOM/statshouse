@@ -70,8 +70,9 @@ type Agent struct {
 	statshouseRemoteConfigString string       // optimization
 	skipShards                   atomic.Int32 // copy from config.
 	newSharding                  atomic.Bool  // copy from config.
-	shardByMetricCount           uint32       // never changes, access without lock
-	newConveyor                  atomic.Bool  // copy from config.
+	newShardingByName            atomic.String
+	shardByMetricCount           uint32      // never changes, access without lock
+	newConveyor                  atomic.Bool // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -466,6 +467,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		s.skipShards.Store(0)
 	}
 	s.newSharding.Store(config.NewSharding)
+	s.newShardingByName.Store(config.NewShardingByName)
 	newConveyor := slices.Contains(config.NewConveyorList, s.stagingLevel)
 	if newConveyor {
 		log.Printf("New conveyor is enabled")
@@ -545,7 +547,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, legacyKeyHash uint64) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load())
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load(), s.newShardingByName.Load())
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
