@@ -278,10 +278,10 @@ func init() {
 			m.Tags[AgentEnvTag] = MetricMetaTag{
 				Description: "statshouse_env",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDProduction: "statshouse.production",
-					TagValueIDStaging1:   "statshouse.staging1",
-					TagValueIDStaging2:   "statshouse.staging2",
-					TagValueIDStaging3:   "statshouse.staging3",
+					TagValueIDProduction:  "statshouse.production",
+					TagValueIDStaging1:    "statshouse.staging1",
+					TagValueIDStaging2:    "statshouse.staging2",
+					TagValueIDDevelopment: "statshouse.development",
 				}),
 			}
 			m.Tags[BuildArchTag] = MetricMetaTag{

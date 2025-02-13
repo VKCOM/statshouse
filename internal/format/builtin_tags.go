@@ -21,10 +21,10 @@ const (
 	TagValueIDRPCRequestsStatusNoHandler   = 5
 	TagValueIDRPCRequestsStatusErrCancel   = 6 // on proxy, agent request was cancelled before response from aggregator arrived
 
-	TagValueIDProduction = 1
-	TagValueIDStaging1   = 2
-	TagValueIDStaging2   = 3
-	TagValueIDStaging3   = 4
+	TagValueIDProduction  = 1
+	TagValueIDStaging1    = 2
+	TagValueIDStaging2    = 3
+	TagValueIDDevelopment = 4
 
 	TagValueIDAPILaneFastLight    = 1
 	TagValueIDAPILaneFastHeavy    = 2

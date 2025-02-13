@@ -171,12 +171,12 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		result.stagingLevel = 1
 	case "staging2":
 		result.stagingLevel = 2
-	case "staging3":
+	case "development", "staging3": // TODO: staging3 is an alias for development, remove if after all commands lines are updated
 		result.stagingLevel = 3
 	default:
 		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
 		// Also we protect built-in metrics from sampling, so must ensure their cardinality is limited
-		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be 'production', 'staging1', 'staging2' or 'staging3'", config.StatsHouseEnv)
+		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be 'production', 'staging1', 'staging2' or 'development'", config.StatsHouseEnv)
 	}
 	logF("Configuration: detected build arch key as %d for string %q", result.buildArchTag, runtime.GOARCH)
 	if getConfigResult != nil {
