@@ -183,8 +183,8 @@ func (res *ArgMinMaxStringFloat32) unmarshal(r *proto.Reader, tmp []byte) ([]byt
 	if err := r.ReadFull(tmp[:4]); err != nil {
 		return tmp, err
 	}
-	if n := int(binary.LittleEndian.Uint32(tmp)); n > 0 {
-		if cap(tmp) < n {
+	if n := int32(binary.LittleEndian.Uint32(tmp)); n > 0 {
+		if cap(tmp) < int(n) {
 			tmp = make([]byte, n)
 		} else {
 			tmp = tmp[:n]
