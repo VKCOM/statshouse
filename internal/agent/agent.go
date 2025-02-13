@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -116,6 +117,23 @@ type Agent struct {
 	loadPromTargetsShardReplica *ShardReplica
 }
 
+func stagingLevel(statsHouseEnv string) int {
+	switch statsHouseEnv {
+	case "production":
+		return 0
+	case "staging", "staging1":
+		return 1
+	case "staging2":
+		return 2
+	case "development", "staging3": // TODO: staging3 is an alias for development, remove if after all commands lines are updated
+		return 3
+	default:
+		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
+		// Also we protect built-in metrics from sampling, so must ensure their cardinality is limited
+		return -1
+	}
+}
+
 // All shard aggregators must be on the same network
 func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
 	mappingsCache *pcache.MappingsCache,
@@ -164,16 +182,9 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
-	switch config.StatsHouseEnv {
-	case "production":
-		result.stagingLevel = 0
-	case "staging", "staging1":
-		result.stagingLevel = 1
-	case "staging2":
-		result.stagingLevel = 2
-	case "development", "staging3": // TODO: staging3 is an alias for development, remove if after all commands lines are updated
-		result.stagingLevel = 3
-	default:
+	if l := stagingLevel(config.StatsHouseEnv); l >= 0 {
+		result.stagingLevel = l
+	} else {
 		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
 		// Also we protect built-in metrics from sampling, so must ensure their cardinality is limited
 		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be 'production', 'staging1', 'staging2' or 'development'", config.StatsHouseEnv)
@@ -455,7 +466,13 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		s.skipShards.Store(0)
 	}
 	s.newSharding.Store(config.NewSharding)
-	s.newConveyor.Store(config.NewConveyor)
+	newConveyor := slices.Contains(config.NewConveyorList, s.stagingLevel)
+	if newConveyor {
+		log.Printf("New conveyor is enabled")
+	} else {
+		log.Printf("New conveyor is disabled")
+	}
+	s.newConveyor.Store(newConveyor)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
