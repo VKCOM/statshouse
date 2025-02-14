@@ -21,6 +21,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -174,6 +175,9 @@ type (
 		Version3Start     atomic.Int64
 		Version3Prob      atomic.Float64
 		Version3StrcmpOff atomic.Bool
+		CacheVersion2     atomic.Bool
+		PickyUsers        []string
+		optionsMu         sync.RWMutex
 
 		HandlerOptions
 		showInvisible         bool
@@ -185,6 +189,7 @@ type (
 		tagValueCache         *pcache.Cache
 		tagValueIDCache       *pcache.Cache
 		cache                 *tsCacheGroup
+		cache2                *cache2
 		pointsCache           *pointsCache
 		pointFloatsPool       sync.Pool
 		pointFloatsPoolSize   atomic.Int64
@@ -642,14 +647,20 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
+	h.cache2 = newCache2(h.location, int(h.utcOffset))
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
+		h.cache2.setMaxSize(cfg.MaxCacheSize)
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
+		h.CacheVersion2.Store(cfg.CacheVersion2)
 		chV2.SetLimits(cfg.UserLimits)
+		h.optionsMu.Lock()
+		h.PickyUsers = cfg.PickyUsers
+		h.optionsMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -708,6 +719,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		if n := h.pointFloatsPoolSize.Load(); n != 0 {
 			h.bufferPoolBytesTotal.Value(float64(n))
 		}
+		client.Value(format.BuiltinMetricMetaAPICacheBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(h.cache2.size()))
+		client.Count(format.BuiltinMetricMetaAPICacheChunkCount.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(h.cache2.chunkCount.Load()))
 	})
 	h.promEngine = promql.NewEngine(h.location, h.utcOffset)
 	return h, nil
@@ -818,7 +831,8 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 					continue
 				}
 				for lodLevel := range data_model.LODTables[Version3] {
-					t := roundTime(r.At, lodLevel, h.utcOffset)
+					t := r.At
+					// t := roundTime(r.At, lodLevel, h.utcOffset)
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
 						todo[lodLevel] = append(w, t)
@@ -834,7 +848,9 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	}
 	req.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
 	for lodLevel, times := range todo {
+		slices.Sort(times)
 		h.cache.Invalidate(lodLevel, times)
+		h.cache2.invalidate(lodLevel, times)
 		if lodLevel == _1s {
 			h.pointsCache.invalidate(times)
 		}
@@ -2394,7 +2410,7 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		rawValue:          req.screenWidth == 0 || req.step == _1M,
 		desiredStepMul:    desiredStepMul,
 		location:          h.location,
-	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
+	}, cacheGet, h.maybeAddQuerySeriesTagValue)
 	if err != nil {
 		return nil, false, err
 	}
@@ -3370,6 +3386,12 @@ func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDurati
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
+}
+
+func (h *requestHandler) pickyUser() bool {
+	h.optionsMu.RLock()
+	defer h.optionsMu.RUnlock()
+	return slices.Contains(h.PickyUsers, h.accessInfo.user)
 }
 
 func HandleTagDraftList(r *httpRequestHandler) {

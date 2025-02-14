@@ -18,6 +18,9 @@ type Config struct {
 	Version3StrcmpOff  bool
 	UserLimitsStr      string
 	UserLimits         []chutil.ConnLimits
+	CacheVersion2      bool
+	MaxCacheSize       int64
+	PickyUsers         []string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -46,7 +49,10 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
 	f.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
 	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
+	f.BoolVar(&argv.CacheVersion2, "cache-version2", false, "use cache version2")
+	f.Int64Var(&argv.MaxCacheSize, "max-cache-size", default_.MaxCacheSize, "maximum cache size in bytes")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
+	config.StringSliceVar(f, &argv.PickyUsers, "picky-users", "", "a list of users who require latest data")
 }
 
 func DefaultConfig() *Config {

@@ -10,11 +10,7 @@ type stringSlice struct {
 	wasSet bool
 }
 
-func StringSliceVar(p *[]string, name string, value string, usage string) {
-	stringSliceVar(flag.CommandLine, p, name, value, usage)
-}
-
-func stringSliceVar(f *flag.FlagSet, p *[]string, name string, value string, usage string) {
+func StringSliceVar(f *flag.FlagSet, p *[]string, name string, value string, usage string) {
 	*p = parseCSV(value)
 	f.Var(&stringSlice{p: p}, name, usage)
 }
