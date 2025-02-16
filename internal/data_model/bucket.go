@@ -70,6 +70,7 @@ type (
 		Capacity         int     // algorithm supports changing on the fly, <2 means DefaultStringTopCapacity
 		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
+		WeightMultiplier int // Temporary weight boost if all metric rows is written to single shard. Can be 1 or NumShards.
 	}
 
 	MetricsBucket struct {
@@ -261,7 +262,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
+func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, weightMul int, keyBytes []byte) (item *MultiItem, created bool) {
 	//if key.Timestamp == 0 { // TODO - remove check before merge to master
 	//	fmt.Printf("key: %v\n", *key)
 	//	panic("timestamp must be always set at this point of conveyor")
@@ -289,7 +290,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, met
 		b.keysBuffer = b.keysBuffer[:wasLen]
 		return
 	}
-	item = &MultiItem{Key: *key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
+	item = &MultiItem{Key: *key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo, WeightMultiplier: weightMul}
 	b.MultiItems[keyString] = item
 	return
 }

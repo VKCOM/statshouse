@@ -74,6 +74,7 @@ type (
 		key        data_model.Key
 		value      data_model.ItemValue
 		metricInfo *format.MetricMetaValue
+		weightMul  int
 	}
 
 	compressedBucketData struct {
@@ -153,15 +154,15 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHas
 	return s.SuperQueue[slot%superQueueLen]
 }
 
-func (s *Shard) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, key *data_model.Key) *BuiltInItemValue {
+func (s *Shard) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, weightMul int, key *data_model.Key) *BuiltInItemValue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result := &BuiltInItemValue{key: *key, metricInfo: metricInfo}
+	result := &BuiltInItemValue{key: *key, metricInfo: metricInfo, weightMul: weightMul}
 	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
 	return result
 }
 
-func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	if count == 0 {
 		count = float64(len(hashes))
 	}
@@ -174,12 +175,12 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	mv := item.MapStringTopBytes(s.rng, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
 		totalCount += kv[1] // all counts are validated to be >= 0
@@ -196,12 +197,12 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	mv := item.MapStringTopBytes(s.rng, topValue, count)
 	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
-func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	if count <= 0 {
 		return
 	}
@@ -211,40 +212,40 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValu
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	item.Tail.AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, counter float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		item.Tail.AddValueCounterHostPercentile(s.rng, value, counter, hostTag, data_model.AgentPercentileCompression)
 	} else {
@@ -252,15 +253,31 @@ func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, 
 	}
 }
 
-func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue, weightMul int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	item.Tail.Value.Merge(s.rng, itemValue)
+}
+
+func (s *Shard) getMultiItem(bucket *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, weightMul int, tags []int32) *data_model.MultiItem {
+	return s.getMultiItemConfig(bucket, t, metricInfo, weightMul, &s.config, tags)
+}
+
+func (s *Shard) getMultiItemConfig(bucket *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, weightMul int, config *Config, tags []int32) *data_model.MultiItem {
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.agent.AggregatorHost
+		key.Tags[format.AggShardTag] = s.agent.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.agent.AggregatorReplicaKey
+	}
+	item, _ := bucket.GetOrCreateMultiItem(&key, config.StringTopCapacity, metricInfo, weightMul, nil)
+	return item
 }
 
 func (s *Shard) addBuiltInsLocked() {
@@ -273,7 +290,7 @@ func (s *Shard) addBuiltInsLocked() {
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
 		if v.value.Count() > 0 {
-			s.agent.getMultiItem(resolutionShard, s.CurrentTime, v.metricInfo, v.key.Tags[:]).
+			s.getMultiItem(resolutionShard, s.CurrentTime, v.metricInfo, v.weightMul, v.key.Tags[:]).
 				Tail.Value.Merge(s.rng, &v.value)
 		}
 		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
@@ -281,25 +298,25 @@ func (s *Shard) addBuiltInsLocked() {
 	}
 	elements, sumSize, averageTS, adds, evicts, timestampUpdates, timestampUpdateSkips := s.agent.mappingsCache.Stats()
 	if elements > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheElements,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheElements, 1,
 			[]int32{0, s.agent.componentTag}).
 			Tail.AddValueCounter(s.rng, float64(elements), 1)
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheSize,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheSize, 1,
 			[]int32{0, s.agent.componentTag}).
 			Tail.AddValueCounter(s.rng, float64(sumSize), 1)
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheAverageTTL,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheAverageTTL, 1,
 			[]int32{0, s.agent.componentTag}).
 			Tail.AddValueCounter(s.rng, float64(s.CurrentTime)-float64(averageTS), 1)
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent, 1,
 			[]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventAdd}).
 			Tail.AddCounter(s.rng, float64(adds))
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent, 1,
 			[]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventEvict}).
 			Tail.AddCounter(s.rng, float64(evicts))
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent, 1,
 			[]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventTimestampUpdate}).
 			Tail.AddCounter(s.rng, float64(timestampUpdates))
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaMappingCacheEvent, 1,
 			[]int32{0, s.agent.componentTag, format.TagValueIDMappingCacheEventTimestampUpdateSkip}).
 			Tail.AddCounter(s.rng, float64(timestampUpdateSkips))
 	}
@@ -307,22 +324,22 @@ func (s *Shard) addBuiltInsLocked() {
 	sizeMem := s.HistoricBucketsDataSize
 	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
 	if sizeMem > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize, 1,
 			[]int32{0, format.TagValueIDHistoricQueueMemory, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sizeMem), 1)
 	}
 	if sizeDiskUnsent > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize, 1,
 			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sizeDiskUnsent), 1)
 	}
 	if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize, 1,
 			[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, float64(sent), 1)
 	}
 	if sizeMem <= 0 && sizeDiskUnsent <= 0 { // no data waiting to be sent
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaAgentHistoricQueueSize, 1,
 			[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey}).
 			Tail.AddValueCounter(s.rng, 0, 1)
 	}
@@ -341,7 +358,7 @@ func (s *Shard) addBuiltInsLocked() {
 		if len(hashRaw) >= 4 {
 			hashTag = int32(binary.BigEndian.Uint32(hashRaw))
 		}
-		s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaJournalVersions,
+		s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaJournalVersions, 1,
 			[]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag, journalTag}).
 			MapStringTop(s.rng, data_model.TagUnion{S: hashStr, I: 0}, 1).
 			AddCounterHost(s.rng, 1, data_model.TagUnionBytes{})
@@ -366,11 +383,11 @@ func (s *Shard) addBuiltInsLocked() {
 	userTime := float64(s.agent.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 	sysTime := float64(s.agent.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-	s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageCPU,
+	s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageCPU, 1,
 		[]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageUser}).
 		Tail.AddValueCounter(s.rng, userTime, 1)
 
-	s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageCPU,
+	s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageCPU, 1,
 		[]int32{0, s.agent.componentTag, format.TagValueIDCPUUsageSys}).
 		Tail.AddValueCounter(s.rng, sysTime, 1)
 
@@ -386,7 +403,7 @@ func (s *Shard) addBuiltInsLocked() {
 		rss = float64(st.Res)
 	}
 
-	s.agent.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageMemory,
+	s.getMultiItem(resolutionShard, s.CurrentTime, format.BuiltinMetricMetaUsageMemory, 1,
 		[]int32{0, s.agent.componentTag}).
 		Tail.AddValueCounter(s.rng, rss, 60)
 
@@ -396,12 +413,12 @@ func (s *Shard) addBuiltInsLocked() {
 func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.agent.startTimestamp)
 
-	s.agent.getMultiItem(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatVersion,
+	s.getMultiItemConfig(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatVersion, 1, &s.config,
 		[]int32{0, s.agent.componentTag, s.agent.heartBeatEventType}).
 		MapStringTop(s.rng, data_model.TagUnion{S: build.Commit(), I: 0}, count).
 		AddValueCounter(s.rng, uptimeSec, count)
 
-	s.agent.getMultiItem(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatArgs,
+	s.getMultiItemConfig(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatArgs, 1, &s.config,
 		[]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen}).
 		MapStringTop(s.rng, data_model.TagUnion{S: s.agent.args, I: 0}, count).
 		AddValueCounter(s.rng, uptimeSec, count)
