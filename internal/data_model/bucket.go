@@ -79,7 +79,7 @@ type (
 	}
 
 	MultiItemMap struct {
-		MultiItems map[string]*MultiItem
+		MultiItems map[string]*MultiItem // string is unsafe and points to part of the keysBuffer
 		keysBuffer []byte
 	}
 )
