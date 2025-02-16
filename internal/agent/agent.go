@@ -546,7 +546,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
-func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, legacyKeyHash uint64) {
+func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
 	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load(), s.newShardingByName.Load())
 }
 
@@ -557,9 +557,9 @@ func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags 
 		Metric: metricInfo.MetricID, // panics if metricInfo nil
 	}
 	copy(key.Tags[:], tags)
-	shardId, _, _ := s.shard(&key, metricInfo)
+	shardId, _, weightMul, _ := s.shard(&key, metricInfo)
 	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(metricInfo, &key)
+	return shard.CreateBuiltInItemValue(metricInfo, weightMul, &key)
 }
 
 func (s *Agent) UseNewConveyor() bool {
@@ -579,7 +579,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			h.InvalidString, 1)
 		return
 	}
-	shardId, newStrategy, resolutionHash := s.shard(&h.Key, h.MetricMeta)
+	shardId, newStrategy, weightMul, resolutionHash := s.shard(&h.Key, h.MetricMeta)
 	if shardId >= uint32(len(s.Shards)) {
 		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
@@ -660,14 +660,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	if len(m.Unique) != 0 {
-		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta, weightMul)
 		return
 	}
 	if len(m.Histogram) != 0 || len(m.Value) != 0 {
-		shard.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta, weightMul)
 		return
 	}
-	shard.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag, h.MetricMeta)
+	shard.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag, h.MetricMeta, weightMul)
 }
 
 // count should be > 0 and not NaN
@@ -695,10 +695,10 @@ func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue,
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, resolutionHash := s.shard(&key, metricInfo)
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(&key, resolutionHash, count, hostTag, metricInfo)
+	shard.AddCounterHost(&key, resolutionHash, count, hostTag, metricInfo, weightMul)
 }
 
 func (s *Agent) AddCounterStringBytes(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
@@ -723,10 +723,10 @@ func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.Metri
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, resolutionHash := s.shard(&key, metricInfo)
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(&key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(&key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo, weightMul)
 }
 
 // value should be not NaN.
@@ -754,10 +754,10 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, resolutionHash := s.shard(&key, metricInfo)
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo, weightMul)
 }
 
 func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
@@ -771,10 +771,10 @@ func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tag
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey
 		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, resolutionHash := s.shard(&key, metricInfo)
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(&key, resolutionHash, item, metricInfo)
+	shard.MergeItemValue(&key, resolutionHash, item, metricInfo, weightMul)
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
@@ -793,20 +793,8 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 	return total, unsent
 }
 
-func (s *Agent) getMultiItem(resolutionShard *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, tags []int32) *data_model.MultiItem {
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
-	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, metricInfo, nil)
-	return item
-}
-
 // public for aggregator
-func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, tags []int32, aera format.AgentEnvRouteArch) *data_model.MultiItem {
+func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, weightMul int, tags []int32, aera format.AgentEnvRouteArch) *data_model.MultiItem {
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
 	copy(key.Tags[:], tags)
 	if metricInfo.WithAggregatorID {
@@ -819,6 +807,6 @@ func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uin
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, metricInfo, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, metricInfo, weightMul, nil)
 	return item
 }
