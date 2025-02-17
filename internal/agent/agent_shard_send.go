@@ -272,7 +272,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 		// for each contributor every second.
 		buffers = s.sampleBucket(bucket, buffers, rng)
 		scratch = s.sendToSenders(bucket, buffers.SampleFactors, scratch)
-		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
@@ -475,7 +475,7 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
 			s.appendHistoricBucketsToSend(cbd)
 		}
-		s.agent.TimingsSendRecent.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsSendRecent.AddValueCounter(time.Since(start).Seconds(), 1)
 		// log.Printf("goSendRecent.sendRecent %d finish", num)
 	}
 	log.Printf("goSendRecent.sendRecent %d quit", num)
@@ -734,7 +734,7 @@ func (s *Shard) goSendHistoric(wg *sync.WaitGroup, cancelSendsCtx context.Contex
 		s.mu.Unlock()
 		s.sendHistoric(cancelSendsCtx, cbd, &scratchPad)
 		s.mu.Lock()
-		s.agent.TimingsSendHistoric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsSendHistoric.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 }
 

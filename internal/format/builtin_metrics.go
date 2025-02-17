@@ -2619,14 +2619,14 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 	},
 }
 
-const BuiltinMetricIDAgentTimings = -127
+const BuiltinMetricIDAgentTimingsLegacy = -127 // TODO - remove after all agents updated to v3
 
-var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
-	Name:                    "__src_timings",
+var BuiltinMetricMetaAgentTimingsLegacy = &MetricMetaValue{
+	Name:                    "__src_timings_legacy",
 	Kind:                    MetricKindValue,
 	Description:             "Timings of agent operations",
-	MetricType:              MetricNanosecond,
-	NoSampleAgent:           false,
+	MetricType:              MetricSecond,
+	NoSampleAgent:           true,
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -2843,5 +2843,44 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description: "-", // reserve for component
+	}},
+}
+
+const BuiltinMetricIDAgentTimings = -137
+
+var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
+	Name:                    "__src_timings",
+	Kind:                    MetricKindValue,
+	Description:             "Timings of agent operations",
+	MetricType:              MetricSecond,
+	NoSampleAgent:           true,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "group",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAgentTimingGroupPipeline: "pipeline",
+			TagValueIDAgentTimingGroupSend:     "send",
+		}),
+	}, {
+		Description: "measure",
+		ValueComments: convertToValueComments(map[int32]string{
+			// pipeline
+			TagValueIDAgentTimingMapping:     "mapping",
+			TagValueIDAgentTimingMappingSlow: "mapping_slow",
+			TagValueIDAgentTimingApplyMetric: "apply_metric",
+			TagValueIDAgentTimingFlush:       "flush",
+			TagValueIDAgentTimingPreprocess:  "preprocess",
+			// send
+			TagValueIDAgentTimingSendRecent:   "send_recent",
+			TagValueIDAgentTimingSendHistoric: "send_historic",
+		}),
+	}, {
+		Description: "commit_timestamp",
+		RawKind:     "timestamp",
+	}, {
+		Description: "commit_hash",
+		RawKind:     "hex",
 	}},
 }
