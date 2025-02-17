@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -34,17 +35,18 @@ import (
 const defaultPathToPwd = `/etc/engine/pass`
 
 var argv struct {
-	logFile        string
-	logLevel       string
-	userLogin      string // логин для setuid
-	userGroup      string // логин для setguid
-	maxOpenFiles   uint64
-	aesPwdFile     string
-	cacheDir       string // different default
-	customHostName string // useful for testing and in some environments
-	aggAddr        string
-	configAgent    agent.Config
-	listenAddr     string
+	logFile         string
+	logLevel        string
+	userLogin       string // логин для setuid
+	userGroup       string // логин для setguid
+	maxOpenFiles    uint64
+	aesPwdFile      string
+	cacheDir        string // different default
+	customHostName  string // useful for testing and in some environments
+	aggAddr         string
+	configAgent     agent.Config
+	listenAddr      string
+	pprofListenAddr string
 
 	aggregator.ConfigAggregator
 }
@@ -93,6 +95,10 @@ func mainAggregator() int {
 	if err := platform.ChangeUserGroup(argv.userLogin, argv.userGroup); err != nil {
 		log.Printf("Could not change user/group to %q/%q: %v", argv.userLogin, argv.userGroup, err)
 		return 1
+	}
+
+	if argv.pprofListenAddr != "" {
+		go runPprof()
 	}
 
 	if argv.cacheDir == "" {
@@ -229,6 +235,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
 	flag.StringVar(&argv.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 	flag.StringVar(&argv.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
+	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
 	build.FlagParseShowVersionHelp()
 
 	if len(argv.aggAddr) == 0 {
@@ -243,4 +250,10 @@ func parseCommandLine() error {
 	}
 
 	return aggregator.ValidateConfigAggregator(argv.ConfigAggregator)
+}
+
+func runPprof() {
+	if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
+		log.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
+	}
 }

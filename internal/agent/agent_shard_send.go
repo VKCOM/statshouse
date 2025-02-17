@@ -31,26 +31,20 @@ import (
 
 // If clients want less jitter (most want), they should send data quickly after end of calendar second.
 // Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
-func (s *Shard) flushBuckets(now time.Time) {
+func (s *Shard) flushBuckets(now time.Time) (gap int64, sendTime uint32) {
 	// called several times/sec only, but must still be fast, so we do not lock shard for too long
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.CurrentTime {
-		s.addBuiltInsLocked()
 		s.CurrentTime = nowUnix
-		if gap := s.gapInReceivingQueueLocked(); gap > 0 {
-			// we record too big gap to the SendTime slot, because if sending is stuck,
-			// item will be simply updated in the same slot, without growing state size
-			resolutionShard := s.SuperQueue[s.SendTime%superQueueLen]
-			s.getMultiItemConfig(resolutionShard, s.SendTime, format.BuiltinMetricMetaTimingErrors, 1, &s.config,
-				[]int32{0, format.TagValueIDTimingMissedSecondsAgent}).
-				Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
+		if gap = s.gapInReceivingQueueLocked(); gap > 0 {
+			sendTime = s.SendTime
 		}
 
 		// popOldestHistoricSecondLocked condition now depends on CurrentTime
 		// we wake up one consumer to see if condition change and there is
-		// former future bucket not in the future any more
+		// former future bucket not in the future anymore
 		s.cond.Signal()
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
@@ -130,6 +124,7 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
+		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
 		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 		switch { // This is only an approximation
@@ -205,6 +200,7 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
+		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
 		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 
@@ -276,7 +272,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 		// for each contributor every second.
 		buffers = s.sampleBucket(bucket, buffers, rng)
 		scratch = s.sendToSenders(bucket, buffers.SampleFactors, scratch)
-		s.agent.TimingsPreprocess.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
@@ -328,26 +324,26 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 	}
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes, 1, &config,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}).
-			Tail.Value.Merge(rnd, &v.SumSizeKeep)
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeKeep)
 		// discard bytes
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes, 1, &config,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}).
-			Tail.Value.Merge(rnd, &v.SumSizeDiscard)
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeDiscard)
 		// budget
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget, 1, &config,
-			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}).
-			Tail.Value.AddValue(v.Budget())
+		s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+			v.Budget(), 1)
 	}
 	// report budget used
-	s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget, 1, &config,
-		[]int32{0, s.agent.componentTag}).
-		Tail.Value.AddValue(float64(remainingBudget))
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag},
+		float64(remainingBudget), 1)
 	// metric count
-	s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount, 1, &config,
-		[]int32{0, s.agent.componentTag}).
-		Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, data_model.TagUnionBytes{})
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
+		[]int32{0, s.agent.componentTag},
+		float64(sampler.MetricCount), 1)
 	return sampler.SamplerBuffers
 }
 
@@ -479,7 +475,7 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 			cbd = s.diskCachePutWithLog(cbd) // NOP if saved above
 			s.appendHistoricBucketsToSend(cbd)
 		}
-		s.agent.TimingsSendRecent.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsSendRecent.AddValueCounter(time.Since(start).Seconds(), 1)
 		// log.Printf("goSendRecent.sendRecent %d finish", num)
 	}
 	log.Printf("goSendRecent.sendRecent %d quit", num)
@@ -642,7 +638,7 @@ func (s *Shard) diskCacheEraseWithLog(id int64, place string) {
 func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
+	if s.historicBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
 		cbd.data = nil
 		if cbd.id == 0 {
 			// bucket is lost due to inability to save to disk and memory limit
@@ -652,10 +648,10 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 			return
 		}
 	} else {
-		s.HistoricBucketsDataSize += len(cbd.data)
+		s.historicBucketsDataSize += len(cbd.data)
 		s.agent.historicBucketsDataSize.Add(int64(len(cbd.data)))
 	}
-	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, cbd)
+	s.historicBucketsToSend = append(s.historicBucketsToSend, cbd)
 	s.cond.Signal()
 }
 
@@ -664,25 +660,25 @@ func (s *Shard) readHistoricSecondLocked() {
 		return
 	}
 	sec, id := s.agent.diskBucketCache.ReadNextTailBucket(s.ShardNum)
-	if id == 0 { // disk queue finished, all second are in s.HistoricBucketsToSend
+	if id == 0 { // disk queue finished, all second are in s.historicBucketsToSend
 		return
 	}
-	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{id: id, time: sec}) // HistoricBucketsDataSize does not change
+	s.historicBucketsToSend = append(s.historicBucketsToSend, compressedBucketData{id: id, time: sec}) // historicBucketsDataSize does not change
 }
 
 func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucketData, ok bool) {
-	if len(s.HistoricBucketsToSend) == 0 {
+	if len(s.historicBucketsToSend) == 0 {
 		return compressedBucketData{}, false
 	}
 	// Sending the oldest known historic buckets is very important for "herding" strategy
 	// Even tiny imperfectness in sorting explodes number of inserts aggregator makes
 	oldestPos := 0
-	for i, e := range s.HistoricBucketsToSend {
-		if e.time < s.HistoricBucketsToSend[oldestPos].time {
+	for i, e := range s.historicBucketsToSend {
+		if e.time < s.historicBucketsToSend[oldestPos].time {
 			oldestPos = i
 		}
 	}
-	cbd := s.HistoricBucketsToSend[oldestPos]
+	cbd := s.historicBucketsToSend[oldestPos]
 	if cbd.time >= nowUnix && cbd.time <= nowUnix+data_model.MaxFutureSecondsOnDisk {
 		// When agent shuts down, it will save future queue with up to 2 minutes in the future.
 		// Later when agent starts again, those will go to historic conveyor and historic senders will wait
@@ -695,15 +691,15 @@ func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucke
 		return compressedBucketData{}, false
 	}
 
-	lastPos := len(s.HistoricBucketsToSend) - 1
-	s.HistoricBucketsToSend[oldestPos] = s.HistoricBucketsToSend[lastPos]
-	s.HistoricBucketsToSend[lastPos] = compressedBucketData{} // free memory here
-	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:lastPos]
+	lastPos := len(s.historicBucketsToSend) - 1
+	s.historicBucketsToSend[oldestPos] = s.historicBucketsToSend[lastPos]
+	s.historicBucketsToSend[lastPos] = compressedBucketData{} // free memory here
+	s.historicBucketsToSend = s.historicBucketsToSend[:lastPos]
 
-	s.HistoricBucketsDataSize -= len(cbd.data)
+	s.historicBucketsDataSize -= len(cbd.data)
 	s.agent.historicBucketsDataSize.Sub(int64(len(cbd.data)))
-	if s.HistoricBucketsDataSize < 0 {
-		panic("HistoricBucketsDataSize < 0")
+	if s.historicBucketsDataSize < 0 {
+		panic("historicBucketsDataSize < 0")
 	}
 	s.readHistoricSecondLocked() // we've just removed item, add item if exist on disk
 	return cbd, true
@@ -738,7 +734,7 @@ func (s *Shard) goSendHistoric(wg *sync.WaitGroup, cancelSendsCtx context.Contex
 		s.mu.Unlock()
 		s.sendHistoric(cancelSendsCtx, cbd, &scratchPad)
 		s.mu.Lock()
-		s.agent.TimingsSendHistoric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.agent.TimingsSendHistoric.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 }
 

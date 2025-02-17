@@ -139,7 +139,7 @@ var (
 		BuiltinMetricIDApiHeapIdle:                BuiltinMetricMetaApiHeapIdle,
 		BuiltinMetricIDApiHeapInuse:               BuiltinMetricMetaApiHeapInuse,
 		BuiltinMetricIDClientWriteError:           BuiltinMetricMetaClientWriteError,
-		BuiltinMetricIDAgentTimings:               BuiltinMetricMetaAgentTimings,
+		BuiltinMetricIDAgentTimingsLegacy:         BuiltinMetricMetaAgentTimingsLegacy,
 		BuiltinMetricIDAggBucketInfo:              BuiltinMetricMetaAggBucketInfo,
 		BuiltinMetricIDBudgetOwner:                BuiltinMetricMetaBudgetOwner,
 		BuiltinMetricIDMappingCacheElements:       BuiltinMetricMetaMappingCacheElements,
@@ -149,6 +149,7 @@ var (
 		BuiltinMetricIDMappingQueueSize:           BuiltinMetricMetaMappingQueueSize,
 		BuiltinMetricIDMappingQueueEvent:          BuiltinMetricMetaMappingQueueEvent,
 		BuiltinMetricIDMappingQueueRemovedHitsAvg: BuiltinMetricMetaMappingQueueRemovedHitsAvg,
+		BuiltinMetricIDAgentTimings:               BuiltinMetricMetaAgentTimings,
 	}
 
 	// this set is very small, and we do not want to set Visible property for hunderds of metrics

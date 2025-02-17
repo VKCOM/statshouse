@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/sharding"
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -67,16 +69,15 @@ type Agent struct {
 	logF            rpc.LoggerFunc
 	envLoader       *env.Loader
 
-	statshouseRemoteConfigString string       // optimization
-	skipShards                   atomic.Int32 // copy from config.
-	newSharding                  atomic.Bool  // copy from config.
-	newShardingByName            atomic.String
-	shardByMetricCount           uint32      // never changes, access without lock
-	newConveyor                  atomic.Bool // copy from config.
+	statshouseRemoteConfigString string        // optimization
+	skipShards                   atomic.Int32  // copy from config.
+	newShardingByName            atomic.String // copy from config.
+	shardByMetricCount           uint32        // never changes, access without lock
+	conveyorV3                   atomic.Bool   // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
-	heartBeatSecondBucket int            // random [0..59] bucket for per minute heartbeat to spread load on aggregator
+	heartBeatSecondBucket uint32         // random [0..59] bucket for per minute heartbeat to spread load on aggregator
 	startTimestamp        uint32
 
 	mappingsCache *pcache.MappingsCache
@@ -96,6 +97,7 @@ type Agent struct {
 
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32) // used by aggregator to add built-in metrics
 	beforeFlushTime       uint32                         // changed exclusively by goFlusher
+	BuiltInItemValues     []*BuiltInItemValue            // Collected/reset periodically
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -116,6 +118,14 @@ type Agent struct {
 
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
+
+	// copy of builtin metric, but with resolution set to 1
+	// allows agent to manually spread this metric around minute freely
+	// while aggregator correctly merges into more coarse resolution
+	builtinMetricMetaUsageCPU         format.MetricMetaValue
+	builtinMetricMetaUsageMemory      format.MetricMetaValue
+	builtinMetricMetaHeartbeatVersion format.MetricMetaValue
+	builtinMetricMetaHeartbeatArgs    format.MetricMetaValue
 }
 
 func stagingLevel(statsHouseEnv string) int {
@@ -156,31 +166,43 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	cancelFlushCtx, cancelFlushFunc := context.WithCancel(context.Background())
 
 	result := &Agent{
-		cancelSendsCtx:        cancelSendsCtx,
-		cancelSendsFunc:       cancelSendsFunc,
-		cancelFlushCtx:        cancelFlushCtx,
-		cancelFlushFunc:       cancelFlushFunc,
-		hostName:              format.ForceValidStringValue(hostName), // worse alternative is do not run at all
-		componentTag:          componentTag,
-		heartBeatEventType:    format.TagValueIDHeartbeatEventStart,
-		heartBeatSecondBucket: rnd.Intn(60),
-		config:                config,
-		cacheDir:              cacheDir,
-		rpcClientConfig:       newClient(),
-		network:               network,
-		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
-		argsLen:               int32(len(allArgs)),
-		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
-		logF:                  logF,
-		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
-		mappingsCache:         mappingsCache,
-		journalHV:             journalHV,
-		journalFastHV:         journalFastHV,
-		journalCompactHV:      journalCompactHV,
-		metricStorage:         metricStorage,
-		beforeFlushBucketFunc: beforeFlushBucketFunc,
-		envLoader:             envLoader,
+		cancelSendsCtx:                    cancelSendsCtx,
+		cancelSendsFunc:                   cancelSendsFunc,
+		cancelFlushCtx:                    cancelFlushCtx,
+		cancelFlushFunc:                   cancelFlushFunc,
+		hostName:                          format.ForceValidStringValue(hostName), // worse alternative is do not run at all
+		componentTag:                      componentTag,
+		heartBeatEventType:                format.TagValueIDHeartbeatEventStart,
+		heartBeatSecondBucket:             uint32(rnd.Intn(60)),
+		config:                            config,
+		cacheDir:                          cacheDir,
+		rpcClientConfig:                   newClient(),
+		network:                           network,
+		argsHash:                          int32(binary.BigEndian.Uint32(argsHash[:])),
+		argsLen:                           int32(len(allArgs)),
+		args:                              string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
+		logF:                              logF,
+		buildArchTag:                      format.GetBuildArchKey(runtime.GOARCH),
+		mappingsCache:                     mappingsCache,
+		journalHV:                         journalHV,
+		journalFastHV:                     journalFastHV,
+		journalCompactHV:                  journalCompactHV,
+		metricStorage:                     metricStorage,
+		beforeFlushBucketFunc:             beforeFlushBucketFunc,
+		envLoader:                         envLoader,
+		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
+		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
+		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
+		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
+	result.builtinMetricMetaUsageCPU.Resolution = 1
+	result.builtinMetricMetaUsageCPU.EffectiveResolution = 1
+	result.builtinMetricMetaUsageMemory.Resolution = 1
+	result.builtinMetricMetaUsageMemory.EffectiveResolution = 1
+	result.builtinMetricMetaHeartbeatVersion.Resolution = 1
+	result.builtinMetricMetaHeartbeatVersion.EffectiveResolution = 1
+	result.builtinMetricMetaHeartbeatArgs.Resolution = 1
+	result.builtinMetricMetaHeartbeatArgs.EffectiveResolution = 1
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
 	if l := stagingLevel(config.StatsHouseEnv); l >= 0 {
@@ -206,7 +228,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 
 	result.startTimestamp = nowUnix
 	if cacheDir != "" {
-		dbc, err := MakeDiskBucketStorage(cacheDir, len(result.GetConfigResult.Addresses), logF) // TODO - /3?
+		dbc, err := MakeDiskBucketStorage(cacheDir, len(result.GetConfigResult.Addresses)/3, logF)
 		if err != nil {
 			return nil, err
 		}
@@ -466,15 +488,14 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
-	s.newSharding.Store(config.NewSharding)
 	s.newShardingByName.Store(config.NewShardingByName)
-	newConveyor := slices.Contains(config.NewConveyorList, s.stagingLevel)
-	if newConveyor {
+	conveyorV3 := slices.Contains(config.ConveyorV3StagingList, s.stagingLevel)
+	if conveyorV3 {
 		log.Printf("New conveyor is enabled")
 	} else {
 		log.Printf("New conveyor is disabled")
 	}
-	s.newConveyor.Store(newConveyor)
+	s.conveyorV3.Store(conveyorV3)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -518,18 +539,157 @@ func (s *Agent) goFlusher(cancelFlushCtx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+func (s *Agent) addBuiltins(nowUnix uint32) {
+	for _, shard := range s.Shards {
+		sizeMem := shard.HistoricBucketsDataSizeMemory()
+		sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
+		if sizeMem > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueMemory, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sizeMem), 1)
+		}
+		if sizeDiskUnsent > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sizeDiskUnsent), 1)
+		}
+		if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sent), 1)
+		}
+		if sizeMem <= 0 && sizeDiskUnsent <= 0 { // no data waiting to be sent
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				0, 1)
+		}
+	}
+
+	elements, sumSize, averageTS, adds, evicts, timestampUpdates, timestampUpdateSkips := s.mappingsCache.Stats()
+	if elements > 0 {
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheElements,
+			[]int32{0, s.componentTag},
+			float64(elements), 1)
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheSize,
+			[]int32{0, s.componentTag},
+			float64(sumSize), 1)
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheAverageTTL,
+			[]int32{0, s.componentTag},
+			float64(nowUnix)-float64(averageTS), 1)
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventAdd},
+			float64(adds))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventEvict},
+			float64(evicts))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventTimestampUpdate},
+			float64(timestampUpdates))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventTimestampUpdateSkip},
+			float64(timestampUpdateSkips))
+	}
+
+	writeJournalVersion := func(version int64, hashStr string, journalTag int32) {
+		hashTag := int32(0)
+		hashRaw, _ := hex.DecodeString(hashStr)
+		if len(hashRaw) >= 4 {
+			hashTag = int32(binary.BigEndian.Uint32(hashRaw))
+		}
+		s.AddCounterStringBytes(nowUnix, format.BuiltinMetricMetaJournalVersions,
+			[]int32{0, s.componentTag, 0, 0, 0, int32(version), hashTag, journalTag},
+			[]byte(hashStr), 1)
+	}
+
+	if s.journalHV != nil {
+		version, hashStr, hashStrXXH3 := s.journalHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindLegacySHA1)
+		writeJournalVersion(version, hashStrXXH3, format.TagValueIDMetaJournalVersionsKindLegacyXXH3)
+	}
+	if s.journalFastHV != nil {
+		version, hashStr := s.journalFastHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindNormalXXH3)
+	}
+	if s.journalCompactHV != nil {
+		version, hashStr := s.journalCompactHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindCompactXXH3)
+	}
+
+	prevRUsage := s.rUsage
+	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &s.rUsage)
+	userTime := float64(s.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
+	sysTime := float64(s.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
+
+	s.AddValueCounter(nowUnix, &s.builtinMetricMetaUsageCPU,
+		[]int32{0, s.componentTag, format.TagValueIDCPUUsageUser},
+		userTime, 1)
+	s.AddValueCounter(nowUnix, &s.builtinMetricMetaUsageCPU,
+		[]int32{0, s.componentTag, format.TagValueIDCPUUsageSys},
+		sysTime, 1)
+
+	if s.heartBeatEventType != format.TagValueIDHeartbeatEventHeartbeat { // first run
+		s.addBuiltInsHeartbeatsLocked(nowUnix, 1)
+		s.heartBeatEventType = format.TagValueIDHeartbeatEventHeartbeat
+	}
+
+	if nowUnix%30 == 0 { // do not want to do it too often, because function stops the world
+		var rss float64
+		if st, _ := srvfunc.GetMemStat(0); st != nil {
+			rss = float64(st.Res)
+		}
+		s.AddValueCounter(nowUnix, &s.builtinMetricMetaUsageMemory,
+			[]int32{0, s.componentTag},
+			rss, 30)
+	}
+
+	if nowUnix%60 == s.heartBeatSecondBucket {
+		// we must manually spread this metric around time resolution for now, because otherwise
+		// they all will arrive to aggregator in the same second inside minute, with huge spike
+		// in sampling factors/insert size
+		s.addBuiltInsHeartbeatsLocked(nowUnix, 60)
+	}
+
+	s.mu.Lock() // we have very little things blocking on this lock, so simply take it
+	defer s.mu.Unlock()
+	for _, v := range s.BuiltInItemValues {
+		v.mu.Lock()
+		if v.value.Count() > 0 {
+			s.MergeItemValue(nowUnix, v.metricInfo, v.key.Tags[:], &v.value)
+		}
+		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
+		v.mu.Unlock()
+	}
+}
+
+func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
+	uptimeSec := float64(nowUnix - s.startTimestamp)
+
+	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
+		[]int32{0, s.componentTag, s.heartBeatEventType},
+		build.Commit(), uptimeSec, count)
+	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
+		[]int32{0, s.componentTag, s.heartBeatEventType, s.argsHash, 0, 0, 0, 0, 0, s.argsLen},
+		s.args, uptimeSec, count)
+}
+
 func (s *Agent) goFlushIteration(now time.Time) {
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.beforeFlushTime {
-		s.beforeFlushTime = nowUnix
+		s.addBuiltins(s.beforeFlushTime)
 		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, nowUnix) // account to the current second. This is debatable.
+			s.beforeFlushBucketFunc(s, s.beforeFlushTime)
 		}
+		s.beforeFlushTime = nowUnix
 	}
 	for _, shard := range s.Shards {
-		shard.flushBuckets(now)
+		gap, sendTime := shard.flushBuckets(now)
+		if gap > 0 { // never if conveyor is not stuck
+			s.AddValueCounter(sendTime, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingMissedSecondsAgent},
+				float64(gap), 1) // values record jumps for more than 1 second
+		}
 	}
-	s.TimingsFlush.AddValueCounter(float64(time.Since(now).Nanoseconds()), 1)
+	s.TimingsFlush.AddValueCounter(time.Since(now).Seconds(), 1)
 }
 
 // For counters, use AddValueCounter(0, 1)
@@ -547,23 +707,25 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load(), s.newShardingByName.Load())
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newShardingByName.Load())
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags []int32) *BuiltInItemValue {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	key := data_model.Key{
 		Metric: metricInfo.MetricID, // panics if metricInfo nil
 	}
 	copy(key.Tags[:], tags)
-	shardId, _, weightMul, _ := s.shard(&key, metricInfo)
-	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(metricInfo, weightMul, &key)
+	result := &BuiltInItemValue{key: key, metricInfo: metricInfo}
+	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
+	return result
 }
 
-func (s *Agent) UseNewConveyor() bool {
-	return s.newConveyor.Load()
+func (s *Agent) UseConveyorV3() bool {
+	return s.conveyorV3.Load()
 }
 
 func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32, scratch *[]byte) {
@@ -599,7 +761,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	}
 	// after this point we are sure that metric will be applied
 	defer func() {
-		s.TimingsApplyMetric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.TimingsApplyMetric.AddValueCounter(time.Since(start).Seconds(), 1)
 	}()
 	// now set ok status
 	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
@@ -758,6 +920,33 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
 	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo, weightMul)
+}
+
+// value should be not NaN.
+func (s *Agent) AddValueCounterString(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str string, value float64, counter float64) {
+	s.AddValueCounterStringHostAERA(t, metricInfo, tags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+}
+
+func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+	if counter <= 0 {
+		return
+	}
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	shard := s.Shards[shardId]
+	shard.AddValueCounterStringHost(&key, resolutionHash, topValue, value, counter, hostTag, metricInfo, weightMul)
 }
 
 func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
