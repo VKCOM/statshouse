@@ -98,6 +98,7 @@ type Agent struct {
 
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32) // used by aggregator to add built-in metrics
 	beforeFlushTime       uint32                         // changed exclusively by goFlusher
+	BuiltInItemValues     []*BuiltInItemValue            // Collected/reset periodically
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -620,6 +621,18 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 		// in sampling factors/insert size
 		s.addBuiltInsHeartbeatsLocked(nowUnix, 60)
 	}
+
+	s.mu.Lock() // we have very little things blocking on this lock, so simply take it
+	defer s.mu.Unlock()
+	for _, v := range s.BuiltInItemValues {
+		v.mu.Lock()
+		if v.value.Count() > 0 {
+			s.MergeItemValue(nowUnix, v.metricInfo, v.key.Tags[:], &v.value)
+		}
+		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
+		v.mu.Unlock()
+	}
+
 }
 
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
@@ -677,13 +690,15 @@ func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags []int32) *BuiltInItemValue {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	key := data_model.Key{
 		Metric: metricInfo.MetricID, // panics if metricInfo nil
 	}
 	copy(key.Tags[:], tags)
-	shardId, _, weightMul, _ := s.shard(&key, metricInfo)
-	shard := s.Shards[shardId]
-	return shard.CreateBuiltInItemValue(metricInfo, weightMul, &key)
+	result := &BuiltInItemValue{key: key, metricInfo: metricInfo}
+	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
+	return result
 }
 
 func (s *Agent) UseNewConveyor() bool {
