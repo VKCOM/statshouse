@@ -156,9 +156,10 @@ type StatshouseMultiItem struct {
 	Metric     int32
 	Keys       []int32
 	Skeys      []string // Conditional: item.FieldsMask.12
-	T          uint32   // Conditional: item.FieldsMask.10
-	Tail       StatshouseMultiValue
-	Top        []StatshouseTopElement // Conditional: item.FieldsMask.11
+	// WeightMultiplier (TrueType) // Conditional: item.FieldsMask.17
+	T    uint32 // Conditional: item.FieldsMask.10
+	Tail StatshouseMultiValue
+	Top  []StatshouseTopElement // Conditional: item.FieldsMask.11
 }
 
 func (StatshouseMultiItem) TLName() string { return "statshouse.multi_item" }
@@ -173,6 +174,15 @@ func (item *StatshouseMultiItem) ClearSkeys() {
 	item.FieldsMask &^= 1 << 12
 }
 func (item StatshouseMultiItem) IsSetSkeys() bool { return item.FieldsMask&(1<<12) != 0 }
+
+func (item *StatshouseMultiItem) SetWeightMultiplier(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 17
+	} else {
+		item.FieldsMask &^= 1 << 17
+	}
+}
+func (item StatshouseMultiItem) IsSetWeightMultiplier() bool { return item.FieldsMask&(1<<17) != 0 }
 
 func (item *StatshouseMultiItem) SetT(v uint32) {
 	item.T = v
@@ -289,6 +299,8 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	var propMetricPresented bool
 	var propKeysPresented bool
 	var propSkeysPresented bool
+	var trueTypeWeightMultiplierPresented bool
+	var trueTypeWeightMultiplierValue bool
 	var propTPresented bool
 	var rawTail []byte
 	var propTopPresented bool
@@ -334,6 +346,14 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 					return err
 				}
 				propSkeysPresented = true
+			case "weightMultiplier":
+				if trueTypeWeightMultiplierPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "weightMultiplier")
+				}
+				if err := Json2ReadBool(in, &trueTypeWeightMultiplierValue); err != nil {
+					return err
+				}
+				trueTypeWeightMultiplierPresented = true
 			case "t":
 				if propTPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
@@ -389,6 +409,11 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	if propSkeysPresented {
 		item.FieldsMask |= 1 << 12
 	}
+	if trueTypeWeightMultiplierPresented {
+		if trueTypeWeightMultiplierValue {
+			item.FieldsMask |= 1 << 17
+		}
+	}
 	if propTPresented {
 		item.FieldsMask |= 1 << 10
 	}
@@ -404,6 +429,10 @@ func (item *StatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.Json
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeWeightMultiplierPresented && !trueTypeWeightMultiplierValue && (item.FieldsMask&(1<<17) != 0) {
+		return ErrorInvalidJSON("statshouse.multi_item", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -443,6 +472,10 @@ func (item *StatshouseMultiItem) WriteJSONOpt(newTypeNames bool, short bool, w [
 		w = append(w, `"skeys":`...)
 		w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Skeys)
 	}
+	if item.FieldsMask&(1<<17) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"weightMultiplier":true`...)
+	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"t":`...)
@@ -475,9 +508,10 @@ type StatshouseMultiItemBytes struct {
 	Metric     int32
 	Keys       []int32
 	Skeys      [][]byte // Conditional: item.FieldsMask.12
-	T          uint32   // Conditional: item.FieldsMask.10
-	Tail       StatshouseMultiValueBytes
-	Top        []StatshouseTopElementBytes // Conditional: item.FieldsMask.11
+	// WeightMultiplier (TrueType) // Conditional: item.FieldsMask.17
+	T    uint32 // Conditional: item.FieldsMask.10
+	Tail StatshouseMultiValueBytes
+	Top  []StatshouseTopElementBytes // Conditional: item.FieldsMask.11
 }
 
 func (StatshouseMultiItemBytes) TLName() string { return "statshouse.multi_item" }
@@ -492,6 +526,17 @@ func (item *StatshouseMultiItemBytes) ClearSkeys() {
 	item.FieldsMask &^= 1 << 12
 }
 func (item StatshouseMultiItemBytes) IsSetSkeys() bool { return item.FieldsMask&(1<<12) != 0 }
+
+func (item *StatshouseMultiItemBytes) SetWeightMultiplier(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 17
+	} else {
+		item.FieldsMask &^= 1 << 17
+	}
+}
+func (item StatshouseMultiItemBytes) IsSetWeightMultiplier() bool {
+	return item.FieldsMask&(1<<17) != 0
+}
 
 func (item *StatshouseMultiItemBytes) SetT(v uint32) {
 	item.T = v
@@ -608,6 +653,8 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	var propMetricPresented bool
 	var propKeysPresented bool
 	var propSkeysPresented bool
+	var trueTypeWeightMultiplierPresented bool
+	var trueTypeWeightMultiplierValue bool
 	var propTPresented bool
 	var rawTail []byte
 	var propTopPresented bool
@@ -653,6 +700,14 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 					return err
 				}
 				propSkeysPresented = true
+			case "weightMultiplier":
+				if trueTypeWeightMultiplierPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "weightMultiplier")
+				}
+				if err := Json2ReadBool(in, &trueTypeWeightMultiplierValue); err != nil {
+					return err
+				}
+				trueTypeWeightMultiplierPresented = true
 			case "t":
 				if propTPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
@@ -708,6 +763,11 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 	if propSkeysPresented {
 		item.FieldsMask |= 1 << 12
 	}
+	if trueTypeWeightMultiplierPresented {
+		if trueTypeWeightMultiplierValue {
+			item.FieldsMask |= 1 << 17
+		}
+	}
 	if propTPresented {
 		item.FieldsMask |= 1 << 10
 	}
@@ -723,6 +783,10 @@ func (item *StatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeWeightMultiplierPresented && !trueTypeWeightMultiplierValue && (item.FieldsMask&(1<<17) != 0) {
+		return ErrorInvalidJSON("statshouse.multi_item", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -761,6 +825,10 @@ func (item *StatshouseMultiItemBytes) WriteJSONOpt(newTypeNames bool, short bool
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"skeys":`...)
 		w = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Skeys)
+	}
+	if item.FieldsMask&(1<<17) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"weightMultiplier":true`...)
 	}
 	if item.FieldsMask&(1<<10) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -48,6 +48,7 @@ statshouse.multi_item#0c803e07
     metric: int
     keys: (vector int)
     skeys: fields_mask.12?(vector string)
+    weightMultiplier: fields_mask.17?true // agents increased metric weight by num shards, expect the same from aggregators
 
     t: fields_mask.10?# // timestamp, should be rare
 
