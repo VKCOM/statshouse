@@ -130,6 +130,7 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
+		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
 		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 		switch { // This is only an approximation
@@ -205,6 +206,7 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		}
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
+		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
 		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 
