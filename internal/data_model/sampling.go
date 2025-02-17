@@ -584,7 +584,7 @@ func (h *sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 }
 
 func (p *SamplingMultiItemPair) getMetricWeight() int64 {
-	res := p.metric.EffectiveWeight
+	res := p.metric.EffectiveWeight * int64(p.Item.WeightMultiplier)
 	if res < 1 {
 		res = 1
 	}
