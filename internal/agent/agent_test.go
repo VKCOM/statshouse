@@ -140,9 +140,13 @@ func Test_SuperQueueLength(t *testing.T) {
 func Test_AgentQueue(t *testing.T) {
 	config := Config{}
 	agent := &Agent{
-		config:        config,
-		logF:          func(f string, a ...any) { fmt.Printf(f, a...) },
-		mappingsCache: pcache.NewMappingsCache(1024*1024, 86400),
+		config:                            config,
+		logF:                              func(f string, a ...any) { fmt.Printf(f, a...) },
+		mappingsCache:                     pcache.NewMappingsCache(1024*1024, 86400),
+		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
+		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
+		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
+		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -161,8 +165,8 @@ func Test_AgentQueue(t *testing.T) {
 	agent.Shards = append(agent.Shards, shard)
 	agent.initBuiltInMetrics()
 
-	metric1sec := &format.MetricMetaValue{MetricID: 1, EffectiveResolution: 1}
-	metric5sec := &format.MetricMetaValue{MetricID: 5, EffectiveResolution: 5}
+	metric1sec := &format.MetricMetaValue{MetricID: 1, Name: "m1", EffectiveResolution: 1}
+	metric5sec := &format.MetricMetaValue{MetricID: 5, Name: "m5", EffectiveResolution: 5}
 	// TODO - here we metrics at the perfect moments, odd metrics at wrong moments
 	agent.goFlushIteration(startTime)
 	testEnsureNoFlush(t, shard)
