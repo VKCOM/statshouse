@@ -228,7 +228,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 
 	result.startTimestamp = nowUnix
 	if cacheDir != "" {
-		dbc, err := MakeDiskBucketStorage(cacheDir, len(result.GetConfigResult.Addresses), logF) // TODO - /3?
+		dbc, err := MakeDiskBucketStorage(cacheDir, len(result.GetConfigResult.Addresses)/3, logF)
 		if err != nil {
 			return nil, err
 		}
@@ -540,6 +540,31 @@ func (s *Agent) goFlusher(cancelFlushCtx context.Context, wg *sync.WaitGroup) {
 }
 
 func (s *Agent) addBuiltins(nowUnix uint32) {
+	for _, shard := range s.Shards {
+		sizeMem := shard.HistoricBucketsDataSizeMemory()
+		sizeDiskTotal, sizeDiskUnsent := shard.HistoricBucketsDataSizeDisk()
+		if sizeMem > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueMemory, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sizeMem), 1)
+		}
+		if sizeDiskUnsent > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sizeDiskUnsent), 1)
+		}
+		if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				float64(sent), 1)
+		}
+		if sizeMem <= 0 && sizeDiskUnsent <= 0 { // no data waiting to be sent
+			s.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
+				[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.componentTag, format.AggShardTag: shard.ShardKey},
+				0, 1)
+		}
+	}
+
 	elements, sumSize, averageTS, adds, evicts, timestampUpdates, timestampUpdateSkips := s.mappingsCache.Stats()
 	if elements > 0 {
 		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheElements,
@@ -634,7 +659,6 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
 		v.mu.Unlock()
 	}
-
 }
 
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
@@ -652,9 +676,6 @@ func (s *Agent) goFlushIteration(now time.Time) {
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.beforeFlushTime {
 		s.addBuiltins(s.beforeFlushTime)
-		for _, shard := range s.Shards {
-			shard.addBuiltIns(s.beforeFlushTime)
-		}
 		if s.beforeFlushBucketFunc != nil {
 			s.beforeFlushBucketFunc(s, s.beforeFlushTime)
 		}
