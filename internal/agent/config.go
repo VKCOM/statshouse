@@ -38,11 +38,10 @@ type Config struct {
 	SendMoreBytes          int
 	StatsHouseEnv          string
 	Cluster                string
-	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
-	NewSharding            bool
+	SkipShards             int    // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	NewShardingByName      string // metrics with name <= NewShardingByName will be sharded new way
-	newConveyor            string
-	NewConveyorList        []int
+	ConveyorV3Staging      string
+	ConveyorV3StagingList  []int
 
 	MappingCacheSize int64
 	MappingCacheTTL  int
@@ -75,9 +74,8 @@ func DefaultConfig() Config {
 		SaveSecondsImmediately:           false,
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
-		NewSharding:                      false, // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		NewShardingByName:                "",
-		newConveyor:                      "", // should be enabled after full deploy and then removed
+		NewShardingByName:                "", // false by default because agent deploy is slow, should be enabled after full deploy and then removed
+		ConveyorV3Staging:                "", // should be enabled after full deploy and then removed
 
 		MappingCacheSize: 100 << 20,
 		MappingCacheTTL:  86400,
@@ -122,9 +120,8 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
-	f.BoolVar(&c.NewSharding, "new-sharding", d.NewSharding, "Shard by metric_id % 16, by default")
 	f.StringVar(&c.NewShardingByName, "new-sharding-by-name", d.NewShardingByName, "Shard by metric_id % 16 for metrics with name less then given")
-	f.StringVar(&c.newConveyor, "new-conveyor", d.newConveyor, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
+	f.StringVar(&c.ConveyorV3Staging, "conveyor-v3-staging", d.ConveyorV3Staging, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
@@ -144,21 +141,19 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 			i++
 		}
 	}
-	err := f.Parse(s)
-	c.NewConveyorList = c.NewConveyorList[:0]
-	for _, env := range strings.Split(c.newConveyor, ",") {
+	if err := f.Parse(s); err != nil {
+		return err
+	}
+	c.ConveyorV3StagingList = c.ConveyorV3StagingList[:0]
+	for _, env := range strings.Split(c.ConveyorV3Staging, ",") {
 		if env == "" {
 			continue
 		}
 		if l := stagingLevel(strings.Trim(env, " ")); l >= 0 {
-			c.NewConveyorList = append(c.NewConveyorList, l)
+			c.ConveyorV3StagingList = append(c.ConveyorV3StagingList, l)
 		} else {
-			err = fmt.Errorf("unknown stats house environment: %s", env)
-			break
+			return fmt.Errorf("unknown statshouse environment: %s", env)
 		}
-	}
-	if err != nil {
-		return err
 	}
 	return c.ValidateConfigSource()
 }

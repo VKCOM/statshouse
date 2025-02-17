@@ -69,12 +69,11 @@ type Agent struct {
 	logF            rpc.LoggerFunc
 	envLoader       *env.Loader
 
-	statshouseRemoteConfigString string       // optimization
-	skipShards                   atomic.Int32 // copy from config.
-	newSharding                  atomic.Bool  // copy from config.
-	newShardingByName            atomic.String
-	shardByMetricCount           uint32      // never changes, access without lock
-	newConveyor                  atomic.Bool // copy from config.
+	statshouseRemoteConfigString string        // optimization
+	skipShards                   atomic.Int32  // copy from config.
+	newShardingByName            atomic.String // copy from config.
+	shardByMetricCount           uint32        // never changes, access without lock
+	conveyorV3                   atomic.Bool   // copy from config.
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -123,6 +122,7 @@ type Agent struct {
 	// copy of builtin metric, but with resolution set to 1
 	// allows agent to manually spread this metric around minute freely
 	// while aggregator correctly merges into more coarse resolution
+	builtinMetricMetaUsageCPU         format.MetricMetaValue
 	builtinMetricMetaUsageMemory      format.MetricMetaValue
 	builtinMetricMetaHeartbeatVersion format.MetricMetaValue
 	builtinMetricMetaHeartbeatArgs    format.MetricMetaValue
@@ -190,10 +190,13 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		metricStorage:                     metricStorage,
 		beforeFlushBucketFunc:             beforeFlushBucketFunc,
 		envLoader:                         envLoader,
-		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageCPU,
+		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
+		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
 		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
+	result.builtinMetricMetaUsageCPU.Resolution = 1
+	result.builtinMetricMetaUsageCPU.EffectiveResolution = 1
 	result.builtinMetricMetaUsageMemory.Resolution = 1
 	result.builtinMetricMetaUsageMemory.EffectiveResolution = 1
 	result.builtinMetricMetaHeartbeatVersion.Resolution = 1
@@ -485,15 +488,14 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
-	s.newSharding.Store(config.NewSharding)
 	s.newShardingByName.Store(config.NewShardingByName)
-	newConveyor := slices.Contains(config.NewConveyorList, s.stagingLevel)
-	if newConveyor {
+	conveyorV3 := slices.Contains(config.ConveyorV3StagingList, s.stagingLevel)
+	if conveyorV3 {
 		log.Printf("New conveyor is enabled")
 	} else {
 		log.Printf("New conveyor is disabled")
 	}
-	s.newConveyor.Store(newConveyor)
+	s.conveyorV3.Store(conveyorV3)
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -593,10 +595,10 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 	userTime := float64(s.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 	sysTime := float64(s.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-	s.AddValueCounter(nowUnix, format.BuiltinMetricMetaUsageCPU,
+	s.AddValueCounter(nowUnix, &s.builtinMetricMetaUsageCPU,
 		[]int32{0, s.componentTag, format.TagValueIDCPUUsageUser},
 		userTime, 1)
-	s.AddValueCounter(nowUnix, format.BuiltinMetricMetaUsageCPU,
+	s.AddValueCounter(nowUnix, &s.builtinMetricMetaUsageCPU,
 		[]int32{0, s.componentTag, format.TagValueIDCPUUsageSys},
 		sysTime, 1)
 
@@ -649,14 +651,14 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 func (s *Agent) goFlushIteration(now time.Time) {
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.beforeFlushTime {
-		s.addBuiltins(nowUnix) // account to the current second. This is debatable.
+		s.addBuiltins(s.beforeFlushTime)
 		for _, shard := range s.Shards {
-			shard.addBuiltIns(nowUnix) // account to the current second. This is debatable.
+			shard.addBuiltIns(s.beforeFlushTime)
+		}
+		if s.beforeFlushBucketFunc != nil {
+			s.beforeFlushBucketFunc(s, s.beforeFlushTime)
 		}
 		s.beforeFlushTime = nowUnix
-		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(s, nowUnix) // account to the current second. This is debatable.
-		}
 	}
 	for _, shard := range s.Shards {
 		gap, sendTime := shard.flushBuckets(now)
@@ -666,7 +668,7 @@ func (s *Agent) goFlushIteration(now time.Time) {
 				float64(gap), 1) // values record jumps for more than 1 second
 		}
 	}
-	s.TimingsFlush.AddValueCounter(float64(time.Since(now).Nanoseconds()), 1)
+	s.TimingsFlush.AddValueCounter(time.Since(now).Seconds(), 1)
 }
 
 // For counters, use AddValueCounter(0, 1)
@@ -684,7 +686,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newSharding.Load(), s.newShardingByName.Load())
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newShardingByName.Load())
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
@@ -701,8 +703,8 @@ func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags 
 	return result
 }
 
-func (s *Agent) UseNewConveyor() bool {
-	return s.newConveyor.Load()
+func (s *Agent) UseConveyorV3() bool {
+	return s.conveyorV3.Load()
 }
 
 func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32, scratch *[]byte) {
@@ -738,7 +740,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	}
 	// after this point we are sure that metric will be applied
 	defer func() {
-		s.TimingsApplyMetric.AddValueCounter(float64(time.Since(start).Nanoseconds()), 1)
+		s.TimingsApplyMetric.AddValueCounter(time.Since(start).Seconds(), 1)
 	}()
 	// now set ok status
 	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
