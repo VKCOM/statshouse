@@ -12,8 +12,6 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
 )
@@ -209,7 +207,8 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValu
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
-	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
+	mv := item.MapStringTopBytes(s.rng, topValue, count)
+	mv.AddCounterHost(s.rng, count, hostTag)
 }
 
 func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
@@ -231,7 +230,8 @@ func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash ui
 	}
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
-	item.MapStringTopBytes(s.rng, topValue, count).AddCounterHost(s.rng, count, hostTag)
+	mv := item.MapStringTopBytes(s.rng, topValue, count)
+	mv.AddCounterHost(s.rng, count, hostTag)
 }
 
 func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
@@ -246,6 +246,22 @@ func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, 
 		item.Tail.AddValueCounterHostPercentile(s.rng, value, count, hostTag, data_model.AgentPercentileCompression)
 	} else {
 		item.Tail.Value.AddValueCounterHost(s.rng, value, count, hostTag)
+	}
+}
+
+func (s *Shard) AddValueCounterStringHost(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnion, value float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.shouldDiscardIncomingData() {
+		return
+	}
+	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
+	mv := item.MapStringTop(s.rng, topValue, count)
+	if metricInfo != nil && metricInfo.HasPercentiles {
+		mv.AddValueCounterHostPercentile(s.rng, value, count, hostTag, data_model.AgentPercentileCompression)
+	} else {
+		mv.AddValueCounterHost(s.rng, value, count, hostTag)
 	}
 }
 
@@ -313,35 +329,4 @@ func (s *Shard) addBuiltInsLocked() {
 		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
 		v.mu.Unlock()
 	}
-
-	if s.ShardNum != 0 { // heartbeats are in the first shard
-		return
-	}
-	if s.agent.heartBeatEventType != format.TagValueIDHeartbeatEventHeartbeat { // first run
-		s.addBuiltInsHeartbeatsLocked(resolutionShard, s.CurrentTime, 1) // send start event immediately
-		s.agent.heartBeatEventType = format.TagValueIDHeartbeatEventHeartbeat
-	}
-	if s.CurrentTime%60 != 0 {
-		// IF we sample once per minute, we do it right before sending to reduce latency
-		return
-	}
-	// we must manually spread this metric around time resolution for now, because otherwise
-	// they all will arrive to aggregator in the same second inside minute, with hug spike in sampling factors/insert size
-	// TODO - use host string value to calculate resolution hash, so this metric is spread around automatically
-	resolutionShard = s.SuperQueue[(s.CurrentTime+uint32(s.agent.heartBeatSecondBucket))%superQueueLen]
-	s.addBuiltInsHeartbeatsLocked(resolutionShard, s.CurrentTime, 60) // heartbeat once per minute
-}
-
-func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
-	uptimeSec := float64(nowUnix - s.agent.startTimestamp)
-
-	s.getMultiItem(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatVersion, 1,
-		[]int32{0, s.agent.componentTag, s.agent.heartBeatEventType}).
-		MapStringTop(s.rng, data_model.TagUnion{S: build.Commit(), I: 0}, count).
-		AddValueCounter(s.rng, uptimeSec, count)
-
-	s.getMultiItem(resolutionShard, nowUnix, format.BuiltinMetricMetaHeartbeatArgs, 1,
-		[]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen}).
-		MapStringTop(s.rng, data_model.TagUnion{S: s.agent.args, I: 0}, count).
-		AddValueCounter(s.rng, uptimeSec, count)
 }
