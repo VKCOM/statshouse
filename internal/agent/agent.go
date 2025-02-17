@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/sharding"
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -518,16 +520,102 @@ func (s *Agent) goFlusher(cancelFlushCtx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+func (s *Agent) addBuiltins(nowUnix uint32) {
+	elements, sumSize, averageTS, adds, evicts, timestampUpdates, timestampUpdateSkips := s.mappingsCache.Stats()
+	if elements > 0 {
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheElements,
+			[]int32{0, s.componentTag},
+			float64(elements), 1)
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheSize,
+			[]int32{0, s.componentTag},
+			float64(sumSize), 1)
+		s.AddValueCounter(nowUnix, format.BuiltinMetricMetaMappingCacheAverageTTL,
+			[]int32{0, s.componentTag},
+			float64(nowUnix)-float64(averageTS), 1)
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventAdd},
+			float64(adds))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventEvict},
+			float64(evicts))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventTimestampUpdate},
+			float64(timestampUpdates))
+		s.AddCounter(nowUnix, format.BuiltinMetricMetaMappingCacheEvent,
+			[]int32{0, s.componentTag, format.TagValueIDMappingCacheEventTimestampUpdateSkip},
+			float64(timestampUpdateSkips))
+	}
+
+	writeJournalVersion := func(version int64, hashStr string, journalTag int32) {
+		hashTag := int32(0)
+		hashRaw, _ := hex.DecodeString(hashStr)
+		if len(hashRaw) >= 4 {
+			hashTag = int32(binary.BigEndian.Uint32(hashRaw))
+		}
+		s.AddCounterStringBytes(nowUnix, format.BuiltinMetricMetaJournalVersions,
+			[]int32{0, s.componentTag, 0, 0, 0, int32(version), hashTag, journalTag},
+			[]byte(hashStr), 1)
+	}
+
+	if s.journalHV != nil {
+		version, hashStr, hashStrXXH3 := s.journalHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindLegacySHA1)
+		writeJournalVersion(version, hashStrXXH3, format.TagValueIDMetaJournalVersionsKindLegacyXXH3)
+	}
+	if s.journalFastHV != nil {
+		version, hashStr := s.journalFastHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindNormalXXH3)
+	}
+	if s.journalCompactHV != nil {
+		version, hashStr := s.journalCompactHV()
+		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindCompactXXH3)
+	}
+
+	prevRUsage := s.rUsage
+	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &s.rUsage)
+	userTime := float64(s.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
+	sysTime := float64(s.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
+
+	s.AddValueCounter(nowUnix, format.BuiltinMetricMetaUsageCPU,
+		[]int32{0, s.componentTag, format.TagValueIDCPUUsageUser},
+		userTime, 1)
+	s.AddValueCounter(nowUnix, format.BuiltinMetricMetaUsageCPU,
+		[]int32{0, s.componentTag, format.TagValueIDCPUUsageSys},
+		sysTime, 1)
+	if nowUnix%60 != 0 {
+		// IF we sample once per minute, we do it right before sending to reduce latency
+		return
+	}
+
+	var rss float64
+	if st, _ := srvfunc.GetMemStat(0); st != nil {
+		rss = float64(st.Res)
+	}
+
+	s.AddValueCounter(nowUnix, format.BuiltinMetricMetaUsageMemory,
+		[]int32{0, s.componentTag},
+		rss, 60)
+}
+
 func (s *Agent) goFlushIteration(now time.Time) {
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.beforeFlushTime {
+		s.addBuiltins(nowUnix) // account to the current second. This is debatable.
+		for _, shard := range s.Shards {
+			shard.addBuiltIns(nowUnix) // account to the current second. This is debatable.
+		}
 		s.beforeFlushTime = nowUnix
 		if s.beforeFlushBucketFunc != nil {
 			s.beforeFlushBucketFunc(s, nowUnix) // account to the current second. This is debatable.
 		}
 	}
 	for _, shard := range s.Shards {
-		shard.flushBuckets(now)
+		gap, sendTime := shard.flushBuckets(now)
+		if gap > 0 { // never if conveyor is not stuck
+			s.AddValueCounter(sendTime, format.BuiltinMetricMetaTimingErrors,
+				[]int32{0, format.TagValueIDTimingMissedSecondsAgent},
+				float64(gap), 1) // values record jumps for more than 1 second
+		}
 	}
 	s.TimingsFlush.AddValueCounter(float64(time.Since(now).Nanoseconds()), 1)
 }

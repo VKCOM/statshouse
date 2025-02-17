@@ -31,7 +31,7 @@ import (
 
 // If clients want less jitter (most want), they should send data quickly after end of calendar second.
 // Agent has small window (for example, half a second) when it accepts data for previous second with zero sampling penalty.
-func (s *Shard) flushBuckets(now time.Time) {
+func (s *Shard) flushBuckets(now time.Time) (gap int64, sendTime uint32) {
 	// called several times/sec only, but must still be fast, so we do not lock shard for too long
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -39,18 +39,13 @@ func (s *Shard) flushBuckets(now time.Time) {
 	if nowUnix > s.CurrentTime {
 		s.addBuiltInsLocked()
 		s.CurrentTime = nowUnix
-		if gap := s.gapInReceivingQueueLocked(); gap > 0 {
-			// we record too big gap to the SendTime slot, because if sending is stuck,
-			// item will be simply updated in the same slot, without growing state size
-			resolutionShard := s.SuperQueue[s.SendTime%superQueueLen]
-			s.getMultiItemConfig(resolutionShard, s.SendTime, format.BuiltinMetricMetaTimingErrors, 1, &s.config,
-				[]int32{0, format.TagValueIDTimingMissedSecondsAgent}).
-				Tail.AddValueCounter(s.rng, float64(gap), 1) // values record jumps f more than 1 second
+		if gap = s.gapInReceivingQueueLocked(); gap > 0 {
+			sendTime = s.SendTime
 		}
 
 		// popOldestHistoricSecondLocked condition now depends on CurrentTime
 		// we wake up one consumer to see if condition change and there is
-		// former future bucket not in the future any more
+		// former future bucket not in the future anymore
 		s.cond.Signal()
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
@@ -330,26 +325,26 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 	}
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes, 1, &config,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID}).
-			Tail.Value.Merge(rnd, &v.SumSizeKeep)
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeKeep)
 		// discard bytes
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes, 1, &config,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID}).
-			Tail.Value.Merge(rnd, &v.SumSizeDiscard)
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeDiscard)
 		// budget
-		s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget, 1, &config,
-			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID}).
-			Tail.Value.AddValue(v.Budget())
+		s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+			v.Budget(), 1)
 	}
 	// report budget used
-	s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget, 1, &config,
-		[]int32{0, s.agent.componentTag}).
-		Tail.Value.AddValue(float64(remainingBudget))
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag},
+		float64(remainingBudget), 1)
 	// metric count
-	s.getMultiItemConfig(bucket, bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount, 1, &config,
-		[]int32{0, s.agent.componentTag}).
-		Tail.Value.AddValueCounterHost(rnd, float64(sampler.MetricCount), 1, data_model.TagUnionBytes{})
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
+		[]int32{0, s.agent.componentTag},
+		float64(sampler.MetricCount), 1)
 	return sampler.SamplerBuffers
 }
 
