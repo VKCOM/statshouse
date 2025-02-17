@@ -51,8 +51,7 @@ type (
 		// We set this bool as a circuit breaker, so new data will not be added to CurrentBuckets/NextBuckets
 		// And shutdown code can flush them to disk without any non-deterministic behavior
 
-		BucketsToSend     chan compressedBucketData
-		BuiltInItemValues []*BuiltInItemValue // Collected/reset before flush
+		BucketsToSend chan compressedBucketData
 
 		BucketsToPreprocess chan *data_model.MetricsBucket
 
@@ -68,7 +67,6 @@ type (
 		key        data_model.Key
 		value      data_model.ItemValue
 		metricInfo *format.MetricMetaValue
-		weightMul  int
 	}
 
 	compressedBucketData struct {
@@ -146,14 +144,6 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHas
 	}
 	// if slot >= currentTime+? - we do no special processing for slots in the future
 	return s.SuperQueue[slot%superQueueLen]
-}
-
-func (s *Shard) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, weightMul int, key *data_model.Key) *BuiltInItemValue {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	result := &BuiltInItemValue{key: *key, metricInfo: metricInfo, weightMul: weightMul}
-	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
-	return result
 }
 
 func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
@@ -276,18 +266,6 @@ func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemV
 	item.Tail.Value.Merge(s.rng, itemValue)
 }
 
-func (s *Shard) getMultiItem(bucket *data_model.MetricsBucket, t uint32, metricInfo *format.MetricMetaValue, weightMul int, tags []int32) *data_model.MultiItem {
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.agent.AggregatorHost
-		key.Tags[format.AggShardTag] = s.agent.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.agent.AggregatorReplicaKey
-	}
-	item, _ := bucket.GetOrCreateMultiItem(&key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
-	return item
-}
-
 func (s *Shard) addBuiltIns(nowUnix uint32) {
 	sizeMem := s.HistoricBucketsDataSize
 	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
@@ -310,23 +288,5 @@ func (s *Shard) addBuiltIns(nowUnix uint32) {
 		s.agent.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
 			[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey},
 			0, 1)
-	}
-}
-
-func (s *Shard) addBuiltInsLocked() {
-	// TODO - complicated code below must be checked again, because of super queue
-	if s.shouldDiscardIncomingData() {
-		return
-	}
-	resolutionShard := s.SuperQueue[s.CurrentTime%superQueueLen] // we aggregate built-ins locally into first second of one second resolution
-
-	for _, v := range s.BuiltInItemValues {
-		v.mu.Lock()
-		if v.value.Count() > 0 {
-			s.getMultiItem(resolutionShard, s.CurrentTime, v.metricInfo, v.weightMul, v.key.Tags[:]).
-				Tail.Value.Merge(s.rng, &v.value)
-		}
-		v.value = data_model.ItemValue{} // simply reset Counter, even if somehow <0
-		v.mu.Unlock()
 	}
 }

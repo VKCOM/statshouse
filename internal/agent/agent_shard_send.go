@@ -37,7 +37,6 @@ func (s *Shard) flushBuckets(now time.Time) (gap int64, sendTime uint32) {
 	defer s.mu.Unlock()
 	nowUnix := uint32(now.Unix())
 	if nowUnix > s.CurrentTime {
-		s.addBuiltInsLocked()
 		s.CurrentTime = nowUnix
 		if gap = s.gapInReceivingQueueLocked(); gap > 0 {
 			sendTime = s.SendTime
