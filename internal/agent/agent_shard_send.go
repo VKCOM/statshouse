@@ -638,7 +638,7 @@ func (s *Shard) diskCacheEraseWithLog(id int64, place string) {
 func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
+	if s.historicBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
 		cbd.data = nil
 		if cbd.id == 0 {
 			// bucket is lost due to inability to save to disk and memory limit
@@ -648,10 +648,10 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 			return
 		}
 	} else {
-		s.HistoricBucketsDataSize += len(cbd.data)
+		s.historicBucketsDataSize += len(cbd.data)
 		s.agent.historicBucketsDataSize.Add(int64(len(cbd.data)))
 	}
-	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, cbd)
+	s.historicBucketsToSend = append(s.historicBucketsToSend, cbd)
 	s.cond.Signal()
 }
 
@@ -660,25 +660,25 @@ func (s *Shard) readHistoricSecondLocked() {
 		return
 	}
 	sec, id := s.agent.diskBucketCache.ReadNextTailBucket(s.ShardNum)
-	if id == 0 { // disk queue finished, all second are in s.HistoricBucketsToSend
+	if id == 0 { // disk queue finished, all second are in s.historicBucketsToSend
 		return
 	}
-	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{id: id, time: sec}) // HistoricBucketsDataSize does not change
+	s.historicBucketsToSend = append(s.historicBucketsToSend, compressedBucketData{id: id, time: sec}) // historicBucketsDataSize does not change
 }
 
 func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucketData, ok bool) {
-	if len(s.HistoricBucketsToSend) == 0 {
+	if len(s.historicBucketsToSend) == 0 {
 		return compressedBucketData{}, false
 	}
 	// Sending the oldest known historic buckets is very important for "herding" strategy
 	// Even tiny imperfectness in sorting explodes number of inserts aggregator makes
 	oldestPos := 0
-	for i, e := range s.HistoricBucketsToSend {
-		if e.time < s.HistoricBucketsToSend[oldestPos].time {
+	for i, e := range s.historicBucketsToSend {
+		if e.time < s.historicBucketsToSend[oldestPos].time {
 			oldestPos = i
 		}
 	}
-	cbd := s.HistoricBucketsToSend[oldestPos]
+	cbd := s.historicBucketsToSend[oldestPos]
 	if cbd.time >= nowUnix && cbd.time <= nowUnix+data_model.MaxFutureSecondsOnDisk {
 		// When agent shuts down, it will save future queue with up to 2 minutes in the future.
 		// Later when agent starts again, those will go to historic conveyor and historic senders will wait
@@ -691,15 +691,15 @@ func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucke
 		return compressedBucketData{}, false
 	}
 
-	lastPos := len(s.HistoricBucketsToSend) - 1
-	s.HistoricBucketsToSend[oldestPos] = s.HistoricBucketsToSend[lastPos]
-	s.HistoricBucketsToSend[lastPos] = compressedBucketData{} // free memory here
-	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:lastPos]
+	lastPos := len(s.historicBucketsToSend) - 1
+	s.historicBucketsToSend[oldestPos] = s.historicBucketsToSend[lastPos]
+	s.historicBucketsToSend[lastPos] = compressedBucketData{} // free memory here
+	s.historicBucketsToSend = s.historicBucketsToSend[:lastPos]
 
-	s.HistoricBucketsDataSize -= len(cbd.data)
+	s.historicBucketsDataSize -= len(cbd.data)
 	s.agent.historicBucketsDataSize.Sub(int64(len(cbd.data)))
-	if s.HistoricBucketsDataSize < 0 {
-		panic("HistoricBucketsDataSize < 0")
+	if s.historicBucketsDataSize < 0 {
+		panic("historicBucketsDataSize < 0")
 	}
 	s.readHistoricSecondLocked() // we've just removed item, add item if exist on disk
 	return cbd, true

@@ -55,8 +55,8 @@ type (
 
 		BucketsToPreprocess chan *data_model.MetricsBucket
 
-		HistoricBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
-		HistoricBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
+		historicBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
+		historicBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
 		cond                    *sync.Cond
 
 		HistoricOutOfWindowDropped atomic.Int64
@@ -80,7 +80,7 @@ type (
 func (s *Shard) HistoricBucketsDataSizeMemory() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.HistoricBucketsDataSize
+	return s.historicBucketsDataSize
 }
 
 func (s *Shard) gapInReceivingQueueLocked() int64 {
@@ -264,29 +264,4 @@ func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemV
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, s.config.StringTopCapacity, metricInfo, weightMul, nil)
 	item.Tail.Value.Merge(s.rng, itemValue)
-}
-
-func (s *Shard) addBuiltIns(nowUnix uint32) {
-	sizeMem := s.HistoricBucketsDataSize
-	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
-	if sizeMem > 0 {
-		s.agent.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueMemory, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey},
-			float64(sizeMem), 1)
-	}
-	if sizeDiskUnsent > 0 {
-		s.agent.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey},
-			float64(sizeDiskUnsent), 1)
-	}
-	if sent := sizeDiskTotal - sizeDiskUnsent; sent > 0 {
-		s.agent.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey},
-			float64(sent), 1)
-	}
-	if sizeMem <= 0 && sizeDiskUnsent <= 0 { // no data waiting to be sent
-		s.agent.AddValueCounter(nowUnix, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueEmpty, 0, 0, 0, 0, s.agent.componentTag, format.AggShardTag: s.ShardKey},
-			0, 1)
-	}
 }
