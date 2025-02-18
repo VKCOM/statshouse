@@ -660,13 +660,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		if v := h.CacheVersion2.Swap(cfg.CacheVersion2); v != cfg.CacheVersion2 {
-			if cfg.CacheVersion2 {
-				h.cache.clear()
-			} else {
-				h.cache2.clear()
-			}
-		}
+		h.CacheVersion2.Store(cfg.CacheVersion2)
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
 		chV2.SetLimits(cfg.UserLimits)
 		h.optionsMu.Lock()
