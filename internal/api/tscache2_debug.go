@@ -91,7 +91,7 @@ func (c *cache2) debugPrintRuntimeInfo(s string) {
 }
 
 func (c *cache2) debugPrintRuntimeInfoUnlocked(s string) {
-	c.debugPrintf("%s size=%d (max=%d) age %s (max %s)", s, c.sizeInBytes, c.maxSizeInBytes, c.age(), c.maxAge)
+	c.debugPrintf("%s size=%d (max=%d) age %s (max %s)", s, c.info.sizeInBytes, c.limits.maxSizeInBytes, c.info.age(), c.limits.maxAge)
 }
 
 func (c *cache2) debugLog() [100]string {
