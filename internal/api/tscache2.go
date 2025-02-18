@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 	"unsafe"
@@ -15,9 +16,6 @@ import (
 
 const timeWeek = 7 * 24 * time.Hour
 const timeMonth = 31 * 24 * time.Hour
-
-const cache2DefaultMaxAge = time.Hour
-const cache2DefaultMaxSizeInBytes = 4 * 1024 * 1024 * 1024 // 4 GiB
 
 var sizeofCache2Time = int(unsafe.Sizeof(int(0)))
 var sizeofCache2Chunk = int(unsafe.Sizeof(cache2Chunk{}))
@@ -38,19 +36,19 @@ type cache2 struct {
 }
 
 type cache2RuntimeInfo struct {
-	size               int // in bytes
+	sizeInBytes        int
 	chunkCount         int
 	minChunkAccessTime int64
 }
 
 type cache2UpdateInfo struct {
-	sizeDelta              int // in bytes
+	sizeInBytesDelta       int
 	chunkCountDelta        int
 	minChunkAccessTimeSeen int64
 }
 
 type cache2Limits struct {
-	maxSizeInBytes int // in bytes
+	maxSizeInBytes int
 	maxAge         time.Duration
 }
 
@@ -128,10 +126,6 @@ func newCache2(loc *time.Location, utcOffset int64) *cache2 {
 		cache2RuntimeInfo: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
-		cache2Limits: cache2Limits{
-			maxSizeInBytes: cache2DefaultMaxSizeInBytes,
-			maxAge:         cache2DefaultMaxAge,
-		},
 	}
 	res.trimCond = *sync.NewCond(&res.mu)
 	for version, v := range data_model.LODTables {
@@ -161,12 +155,6 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, b *queryBuilder, lo
 }
 
 func (c *cache2) setLimits(v cache2Limits) {
-	if v.maxAge <= 0 {
-		v.maxAge = cache2DefaultMaxAge
-	}
-	if v.maxSizeInBytes <= 0 {
-		v.maxSizeInBytes = cache2DefaultMaxSizeInBytes
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.cache2Limits != v {
@@ -180,11 +168,11 @@ func (c *cache2) updateRuntimeInfo(v cache2UpdateInfo) {
 	defer c.mu.Unlock()
 	// chunk info
 	c.chunkCount += v.chunkCountDelta
-	if v.minChunkAccessTimeSeen != 0 {
+	if c.minChunkAccessTime < v.minChunkAccessTimeSeen {
 		c.minChunkAccessTime = v.minChunkAccessTimeSeen
 	}
 	// memory usage
-	c.size += v.sizeDelta
+	c.sizeInBytes += v.sizeInBytesDelta
 	if !c.memoryUsageWithinLimitUnlocked() {
 		c.trimCond.Signal()
 	}
@@ -203,7 +191,7 @@ func (c *cache2) memoryUsageWithinLimit() bool {
 }
 
 func (c *cache2) memoryUsageWithinLimitUnlocked() bool {
-	return c.maxSizeInBytes == 0 || c.size <= c.maxSizeInBytes
+	return c.maxSizeInBytes <= 0 || c.sizeInBytes <= c.maxSizeInBytes
 }
 
 func (r cache2RuntimeInfo) age() time.Duration {
@@ -215,17 +203,17 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse()}
 	// TODO: replace with builtins
 	client.Count("statshouse_api_cache_chunk_count", tags, float64(v.chunkCount))
-	client.Value("statshouse_api_cache_size", tags, float64(v.size))
+	client.Value("statshouse_api_cache_size", tags, float64(v.sizeInBytes))
 	client.Value("statshouse_api_cache_age", tags, v.age().Seconds())
 }
 
-func (c *cache2) clear() {
+func (c *cache2) reset() {
 	res := cache2UpdateInfo{
 		minChunkAccessTimeSeen: time.Now().UnixNano(),
 	}
 	for _, m := range c.items {
 		for _, m := range m {
-			m.clear(&res)
+			m.reset(&res)
 		}
 	}
 	c.updateRuntimeInfo(res)
@@ -239,13 +227,13 @@ func (c *cache2) trim() {
 		defer c.mu.Unlock()
 		var maxAge time.Duration
 		for {
-			if c.maxSizeInBytes != 0 && c.size > c.maxSizeInBytes {
-				maxSize := c.maxSizeInBytes
+			if c.maxSizeInBytes > 0 && c.sizeInBytes > c.maxSizeInBytes {
+				maxSizeInBytes := c.maxSizeInBytes
 				c.mu.Unlock()
-				trimSize <- maxSize
+				trimSize <- maxSizeInBytes
 				c.mu.Lock()
 			}
-			if maxAge != c.maxAge {
+			if c.maxAge > 0 && maxAge != c.maxAge {
 				maxAge = c.maxAge
 				c.mu.Unlock()
 				trimAged <- maxAge
@@ -262,7 +250,9 @@ func (c *cache2) trim() {
 	for {
 		select {
 		case <-trimSize:
-			c.reduceMemoryUsage()
+			if !c.memoryUsageWithinLimit() {
+				c.reduceMemoryUsage()
+			}
 		case maxAge = <-trimAged:
 			t := c.getRuntimeInfo().minChunkAccessTime
 			d := maxAge - time.Duration(time.Now().UnixNano()-t)
@@ -364,7 +354,7 @@ func (c *cache2Map) getOrCreateValue(b *queryBuilder, info *cache2UpdateInfo) *c
 			cache: c.cache,
 		}
 		c.items[k] = res
-		info.sizeDelta += sizeofCache2Map + len(k) // good enough key length estimate
+		info.sizeInBytesDelta += sizeofCache2Map + len(k) // good enough key length estimate
 	} else {
 		if res == c.lruNext {
 			c.lruNext = c.lru.next(res)
@@ -375,7 +365,7 @@ func (c *cache2Map) getOrCreateValue(b *queryBuilder, info *cache2UpdateInfo) *c
 	return res
 }
 
-func (c *cache2Map) clear(res *cache2UpdateInfo) {
+func (c *cache2Map) reset(res *cache2UpdateInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, v := range c.items {
@@ -394,7 +384,7 @@ func (c *cache2Map) removeUnlocked(v *cache2Series, res *cache2UpdateInfo) {
 	delete(c.items, v.key)
 	c.lru.remove(v)
 	res.chunkCountDelta -= len(v.chunks)
-	res.sizeDelta -= sizeofCache2Chunks(v.chunks)
+	res.sizeInBytesDelta -= sizeofCache2Chunks(v.chunks)
 }
 
 func (c *cache2Map) invalidate(ts []int64, now int64) {
@@ -527,7 +517,7 @@ func (res *cache2SeriesLoader) loadSeries(c *cache2Series, lod *data_model.LOD, 
 			c.time = append(append(c.time[:i], ts...), c.time[i:]...)
 			c.chunks = append(append(c.chunks[:i], chunks...), c.chunks[i:]...)
 			info.chunkCountDelta += len(chunks)
-			info.sizeDelta += sizeofCache2Chunks(chunks)
+			info.sizeInBytesDelta += sizeofCache2Chunks(chunks)
 			i += len(ts)
 		}
 	}
@@ -558,7 +548,7 @@ func (c *cache2Series) removeUnusedAfter(t int64, res *cache2UpdateInfo) {
 			v.mu.Unlock()
 		}
 		res.chunkCountDelta -= len(chunks)
-		res.sizeDelta -= sizeofCache2Chunks(chunks)
+		res.sizeInBytesDelta -= sizeofCache2Chunks(chunks)
 		k := i
 		for m := j; m < len(c.chunks); m++ {
 			c.time[k] = c.time[m]
@@ -710,7 +700,7 @@ func (l cache2SeriesLoader) loadChunk(s []*cache2Chunk, h *requestHandler, b *qu
 		}
 		if c.cache != nil && sizeInBytesDelta != 0 {
 			c.cache.updateRuntimeInfo(cache2UpdateInfo{
-				sizeDelta: sizeInBytesDelta,
+				sizeInBytesDelta: sizeInBytesDelta,
 			})
 		}
 		start = end
@@ -873,17 +863,38 @@ func cacheInvalidate(h *Handler, ts []int64, stepSec int64) {
 	}
 }
 
-func (g *tsCacheGroup) clear() {
+func (g *tsCacheGroup) reset() {
 	for _, v := range g.pointCaches {
 		for _, c := range v {
-			c.clear()
+			c.reset()
 		}
 	}
 }
 
-func (c *tsCache) clear() {
+func (c *tsCache) reset() {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	c.cache = map[string]*tsEntry{}
 	c.invalidatedAtNano = map[int64]int64{}
+}
+
+func ResetCache(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	switch r.FormValue("v") {
+	case "1":
+		r.cache.reset()
+		w.Write([]byte("Version 1 cache is now empty!"))
+	case "2":
+		r.cache2.reset()
+		w.Write([]byte("Version 2 cache is now empty!"))
+	default:
+		r.cache.reset()
+		r.cache2.reset()
+		w.Write([]byte("All cache versions are now empty!"))
+	}
 }
