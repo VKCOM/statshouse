@@ -19,19 +19,20 @@ const timeMonth = 31 * 24 * time.Hour
 var sizeofCache2Time = int(unsafe.Sizeof(int(0)))
 var sizeofCache2Chunk = int(unsafe.Sizeof(cache2Chunk{}))
 var sizeofCache2Map = int(unsafe.Sizeof(cache2Map{}))
+var sizeofCache2Series = int(unsafe.Sizeof(cache2Series{}))
 var sizeofCache2DataCol = int(unsafe.Sizeof([]tsSelectRow(nil)))
 var sizeofCache2DataRow = int(unsafe.Sizeof(tsSelectRow{}))
 
 type cache2 struct {
 	mu       sync.Mutex
 	trimCond sync.Cond
-	cache2RuntimeInfo
-	cache2Limits
+	info     cache2RuntimeInfo
+	limits   cache2Limits
 
 	// readonly after init
 	items     map[string]map[time.Duration]*cache2Map // by version, step
-	h         *Handler
-	loc       *time.Location
+	handler   *Handler
+	location  *time.Location
 	utcOffset int64
 
 	// debug log
@@ -58,10 +59,11 @@ type cache2Limits struct {
 }
 
 type cache2Map struct {
-	mu      sync.Mutex
-	items   map[string]*cache2Series
-	lru     cache2SeriesList // "items" linked in a list, sorted by last access time
-	lruNext *cache2Series    // lru's iterator next element
+	mu             sync.Mutex
+	seriesM        map[string]*cache2Series
+	seriesL        cache2SeriesList // "seriesM" values in a list
+	trimIter       *cache2Series
+	invalidateIter *cache2Series
 
 	// readonly after init
 	cache *cache2
@@ -126,10 +128,10 @@ type cache2Data = [][]tsSelectRow
 func newCache2(h *Handler) *cache2 {
 	res := &cache2{
 		items:     make(map[string]map[time.Duration]*cache2Map),
-		h:         h,
-		loc:       h.location,
+		handler:   h,
+		location:  h.location,
 		utcOffset: h.utcOffset * int64(time.Second),
-		cache2RuntimeInfo: cache2RuntimeInfo{
+		info: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
 	}
@@ -138,9 +140,11 @@ func newCache2(h *Handler) *cache2 {
 		res.items[version] = make(map[time.Duration]*cache2Map, len(v))
 		for stepSec := range v {
 			res.items[version][time.Duration(stepSec)*time.Second] = &cache2Map{
-				lru:   newCache2SeriesList(),
-				cache: res,
+				seriesM: make(map[string]*cache2Series),
+				seriesL: newCache2SeriesList(),
+				cache:   res,
 			}
+			res.info.sizeInBytes += sizeofCache2Map
 		}
 	}
 	go res.trim()
@@ -163,8 +167,8 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, b *queryBuilder, lo
 func (c *cache2) setLimits(v cache2Limits) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.cache2Limits != v {
-		c.cache2Limits = v
+	if c.limits != v {
+		c.limits = v
 		c.debugPrintRuntimeInfoUnlocked("set limits")
 		c.trimCond.Signal()
 	}
@@ -174,21 +178,21 @@ func (c *cache2) updateRuntimeInfo(v cache2UpdateInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// chunk info
-	c.chunkCount += v.chunkCountDelta
-	if c.minChunkAccessTime < v.minChunkAccessTimeSeen {
-		c.minChunkAccessTime = v.minChunkAccessTimeSeen
+	c.info.chunkCount += v.chunkCountDelta
+	if c.info.minChunkAccessTime < v.minChunkAccessTimeSeen {
+		c.info.minChunkAccessTime = v.minChunkAccessTimeSeen
 	}
 	// memory usage
-	c.sizeInBytes += v.sizeInBytesDelta
+	c.info.sizeInBytes += v.sizeInBytesDelta
 	if !c.memoryUsageWithinLimitUnlocked() {
 		c.trimCond.Signal()
 	}
 }
 
-func (c *cache2) getRuntimeInfo() cache2RuntimeInfo {
+func (c *cache2) runtimeInfo() cache2RuntimeInfo {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.cache2RuntimeInfo
+	return c.info
 }
 
 func (c *cache2) memoryUsageWithinLimit() bool {
@@ -198,7 +202,7 @@ func (c *cache2) memoryUsageWithinLimit() bool {
 }
 
 func (c *cache2) memoryUsageWithinLimitUnlocked() bool {
-	return c.maxSizeInBytes <= 0 || c.sizeInBytes <= c.maxSizeInBytes
+	return c.limits.maxSizeInBytes <= 0 || c.info.sizeInBytes <= c.limits.maxSizeInBytes
 }
 
 func (r cache2RuntimeInfo) age() time.Duration {
@@ -206,7 +210,7 @@ func (r cache2RuntimeInfo) age() time.Duration {
 }
 
 func (c *cache2) sendMetrics(client *statshouse.Client) {
-	v := c.getRuntimeInfo()
+	v := c.runtimeInfo()
 	tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse()}
 	// TODO: replace with builtins
 	client.Count("statshouse_api_cache_chunk_count", tags, float64(v.chunkCount))
@@ -232,25 +236,25 @@ func (c *cache2) trim() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for {
-		if c.maxAge > 0 && c.age() > c.maxAge {
-			maxAge := c.maxAge
+		if c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge {
+			maxAge := c.limits.maxAge
 			c.mu.Unlock()
 			c.debugPrint("trim aged")
 			c.removeOlderThan(maxAge)
 			c.mu.Lock()
 		}
-		if c.maxSizeInBytes > 0 && c.sizeInBytes > c.maxSizeInBytes {
+		if c.limits.maxSizeInBytes > 0 && c.info.sizeInBytes > c.limits.maxSizeInBytes {
 			c.mu.Unlock()
 			c.debugPrint("trim size")
 			c.reduceMemoryUsage()
-			if v := c.h.CacheTrimBackoffPeriod.Load(); v > 0 {
+			if v := c.handler.CacheTrimBackoffPeriod.Load(); v > 0 {
 				d := time.Duration(v) * time.Second
 				c.debugPrintf("trim backoff for %s", d)
 				time.Sleep(d)
 			}
 			c.mu.Lock()
 		}
-		t := time.AfterFunc(c.maxAge-c.age(), c.trimCond.Signal)
+		t := time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
 		c.trimCond.Wait()
 		t.Stop()
 	}
@@ -269,7 +273,7 @@ func (c *cache2) reduceMemoryUsage() {
 		time.Second,
 	}
 	i := 0
-	for v := c.getRuntimeInfo().age(); i < len(s) && v <= s[i]; i++ {
+	for v := c.runtimeInfo().age(); i < len(s) && v <= s[i]; i++ {
 		// pass
 	}
 	for ; i < len(s); i++ {
@@ -298,14 +302,14 @@ func (c *cache2) removeOlderThan(age time.Duration) int64 {
 	t := now.Add(-age).UnixNano()
 	for _, m := range c.items {
 		for _, m := range m {
-			v, n := m.lruIteratorStart()
-			for i := 0; i < n && v != nil; i++ {
+			v := m.trimIteratorStart()
+			for v != nil {
 				if v.unusedAfter(t) {
 					m.remove(v, &res)
 				} else {
 					v.removeUnusedAfter(t, &res)
 				}
-				v = m.lruIteratorNext()
+				v = m.trimIteratorNext()
 			}
 		}
 	}
@@ -337,31 +341,23 @@ func (c *cache2Map) getOrCreateValue(b *queryBuilder, info *cache2UpdateInfo) *c
 	k := b.getOrBuildCacheKey()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.items == nil {
-		c.items = make(map[string]*cache2Series)
+	if v := c.seriesM[k]; v != nil {
+		return v
 	}
-	var res *cache2Series
-	if res = c.items[k]; res == nil {
-		res = &cache2Series{
-			key:   k,
-			cache: c.cache,
-		}
-		c.items[k] = res
-		info.sizeInBytesDelta += sizeofCache2Map + len(k) // good enough key length estimate
-	} else {
-		if res == c.lruNext {
-			c.lruNext = c.lru.next(res)
-		}
-		c.lru.remove(res)
+	v := &cache2Series{
+		key:   k,
+		cache: c.cache,
 	}
-	c.lru.add(res)
-	return res
+	c.seriesM[k] = v
+	c.seriesL.add(v)
+	info.sizeInBytesDelta += v.sizeInBytes()
+	return v
 }
 
 func (c *cache2Map) reset(res *cache2UpdateInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, v := range c.items {
+	for _, v := range c.seriesM {
 		c.removeUnlocked(v, res)
 	}
 }
@@ -373,38 +369,68 @@ func (c *cache2Map) remove(v *cache2Series, res *cache2UpdateInfo) {
 }
 
 func (c *cache2Map) removeUnlocked(v *cache2Series, res *cache2UpdateInfo) {
-	c.items[v.key] = nil
-	delete(c.items, v.key)
-	c.lru.remove(v)
+	c.seriesM[v.key] = nil
+	delete(c.seriesM, v.key)
+	if c.trimIter == v {
+		c.trimIter = c.seriesL.next(v)
+	}
+	if c.invalidateIter == v {
+		c.invalidateIter = c.seriesL.next(v)
+	}
+	c.seriesL.remove(v)
 	res.chunkCountDelta -= len(v.chunks)
-	res.sizeInBytesDelta -= sizeofCache2Chunks(v.chunks)
+	res.sizeInBytesDelta -= v.sizeInBytes()
+}
+
+func (c *cache2Series) sizeInBytes() int {
+	return sizeofCache2Series +
+		2*len(c.key) + // count both map key and value key
+		sizeofCache2Chunks(c.chunks)
 }
 
 func (c *cache2Map) invalidate(ts []int64, now int64) {
-	for _, v := range c.items {
+	v := c.invalidateIteratorStart()
+	for v != nil {
 		v.invalidate(ts, now)
+		v = c.invalidateIteratorNext()
 	}
 }
 
-func (c *cache2Map) lruIteratorStart() (*cache2Series, int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	res := c.lru.next(c.lru.head)
-	if res == nil {
-		return nil, 0
-	}
-	c.lruNext = c.lru.next(res)
-	return res, len(c.items)
+func (c *cache2Map) trimIteratorStart() *cache2Series {
+	return c.iteratorStart(&c.trimIter)
 }
 
-func (c *cache2Map) lruIteratorNext() *cache2Series {
+func (c *cache2Map) trimIteratorNext() *cache2Series {
+	return c.iteratorNext(&c.trimIter)
+}
+
+func (c *cache2Map) invalidateIteratorStart() *cache2Series {
+	return c.iteratorStart(&c.invalidateIter)
+}
+
+func (c *cache2Map) invalidateIteratorNext() *cache2Series {
+	return c.iteratorNext(&c.invalidateIter)
+}
+
+func (c *cache2Map) iteratorStart(iter **cache2Series) *cache2Series {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	res := c.lruNext
+	res := c.seriesL.next(c.seriesL.head)
 	if res == nil {
 		return nil
 	}
-	c.lruNext = c.lru.next(res)
+	*iter = c.seriesL.next(res)
+	return res
+}
+
+func (c *cache2Map) iteratorNext(iter **cache2Series) *cache2Series {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	res := *iter
+	if res == nil {
+		return nil
+	}
+	*iter = c.seriesL.next(res)
 	return res
 }
 
@@ -454,9 +480,6 @@ func (c *cache2Series) get(ctx context.Context, h *requestHandler, b *queryBuild
 }
 
 func (c *cache2Series) invalidate(ts []int64, now int64) {
-	if len(ts) == 0 {
-		return
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if len(c.time) == 0 {
@@ -761,8 +784,8 @@ func (c *cache2) chunkStart(t int64, d time.Duration) int64 {
 	case timeWeek:
 		return ((t+c.utcOffset)/d64)*d64 - c.utcOffset
 	case timeMonth:
-		t := time.Unix(0, t).In(c.loc)
-		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, c.loc).UTC().UnixNano()
+		t := time.Unix(0, t).In(c.location)
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, c.location).UTC().UnixNano()
 	default:
 		return (t / d64) * d64
 	}
@@ -771,7 +794,7 @@ func (c *cache2) chunkStart(t int64, d time.Duration) int64 {
 func (c *cache2) chunkEnd(t int64, d time.Duration) int64 {
 	switch d {
 	case timeMonth:
-		return time.Unix(0, t).In(c.loc).AddDate(0, 1, 0).UTC().UnixNano()
+		return time.Unix(0, t).In(c.location).AddDate(0, 1, 0).UTC().UnixNano()
 	default:
 		return t + int64(d)
 	}
