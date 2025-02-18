@@ -177,6 +177,7 @@ type (
 		Version3StrcmpOff      atomic.Bool
 		CacheVersion2          atomic.Bool
 		CacheStaleAcceptPeriod atomic.Int64
+		CacheTrimBackoffPeriod atomic.Int64
 		optionsMu              sync.RWMutex
 		BotUserNames           []string
 
@@ -648,7 +649,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
-	h.cache2 = newCache2(h.location, h.utcOffset)
+	h.cache2 = newCache2(h)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
@@ -660,8 +661,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		h.CacheVersion2.Store(cfg.CacheVersion2)
+		h.setCacheVersion(cfg.CacheVersion2)
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
+		h.CacheTrimBackoffPeriod.Store(cfg.CacheTrimBackoffPeriod)
 		chV2.SetLimits(cfg.UserLimits)
 		h.optionsMu.Lock()
 		h.BotUserNames = cfg.BotUserNames

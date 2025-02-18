@@ -22,6 +22,7 @@ type Config struct {
 	MaxCacheSize           int   // bytes
 	MaxCacheAge            int   // seconds
 	CacheStaleAcceptPeriod int64 // seconds
+	CacheTrimBackoffPeriod int64 // seconds
 	BotUserNames           []string
 }
 
@@ -54,7 +55,8 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.BoolVar(&argv.CacheVersion2, "cache-version2", false, "use cache version2")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", 4*1024*1024*1024, "maximum cache size in bytes")
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 3600, "maximum cache age in seconds")
-	f.Int64Var(&argv.CacheStaleAcceptPeriod, "cache-stale-accept-period", 120, "cache stale accept period in seconds")
+	f.Int64Var(&argv.CacheStaleAcceptPeriod, "cache-stale-accept-period", 5, "cache stale accept period in seconds")
+	f.Int64Var(&argv.CacheTrimBackoffPeriod, "cache-trim-backoff-period", 60, "cache trim backoff period in seconds")
 	config.StringSliceVar(f, &argv.BotUserNames, "bot-user-names", "", "known bot user list")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
