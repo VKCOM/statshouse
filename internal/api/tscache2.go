@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"net/http"
 	"sync"
 	"time"
 	"unsafe"
@@ -31,8 +30,14 @@ type cache2 struct {
 
 	// readonly after init
 	items     map[string]map[time.Duration]*cache2Map // by version, step
+	h         *Handler
 	loc       *time.Location
 	utcOffset int64
+
+	// debug log
+	debugLogMu sync.Mutex
+	debugLogS  [100]string
+	debugLogX  int
 }
 
 type cache2RuntimeInfo struct {
@@ -118,11 +123,12 @@ type cache2SeriesLoader struct {
 
 type cache2Data = [][]tsSelectRow
 
-func newCache2(loc *time.Location, utcOffset int64) *cache2 {
+func newCache2(h *Handler) *cache2 {
 	res := &cache2{
 		items:     make(map[string]map[time.Duration]*cache2Map),
-		loc:       loc,
-		utcOffset: utcOffset * int64(time.Second),
+		h:         h,
+		loc:       h.location,
+		utcOffset: h.utcOffset * int64(time.Second),
 		cache2RuntimeInfo: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
@@ -159,6 +165,7 @@ func (c *cache2) setLimits(v cache2Limits) {
 	defer c.mu.Unlock()
 	if c.cache2Limits != v {
 		c.cache2Limits = v
+		c.debugPrintRuntimeInfoUnlocked("set limits")
 		c.trimCond.Signal()
 	}
 }
@@ -208,6 +215,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 }
 
 func (c *cache2) reset() {
+	c.debugPrintRuntimeInfo("reset start")
 	res := cache2UpdateInfo{
 		minChunkAccessTimeSeen: time.Now().UnixNano(),
 	}
@@ -217,51 +225,34 @@ func (c *cache2) reset() {
 		}
 	}
 	c.updateRuntimeInfo(res)
+	c.debugPrintRuntimeInfo("reset end")
 }
 
 func (c *cache2) trim() {
-	trimSize := make(chan int)
-	trimAged := make(chan time.Duration)
-	go func() {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		var maxAge time.Duration
-		for {
-			if c.maxSizeInBytes > 0 && c.sizeInBytes > c.maxSizeInBytes {
-				maxSizeInBytes := c.maxSizeInBytes
-				c.mu.Unlock()
-				trimSize <- maxSizeInBytes
-				c.mu.Lock()
-			}
-			if c.maxAge > 0 && maxAge != c.maxAge {
-				maxAge = c.maxAge
-				c.mu.Unlock()
-				trimAged <- maxAge
-				c.mu.Lock()
-			}
-			c.trimCond.Wait()
-		}
-	}()
-	timer := time.NewTimer(time.Hour)
-	if !timer.Stop() {
-		<-timer.C
-	}
-	var maxAge time.Duration
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for {
-		select {
-		case <-trimSize:
-			if !c.memoryUsageWithinLimit() {
-				c.reduceMemoryUsage()
-			}
-		case maxAge = <-trimAged:
-			t := c.getRuntimeInfo().minChunkAccessTime
-			d := maxAge - time.Duration(time.Now().UnixNano()-t)
-			timer.Reset(d)
-		case now := <-timer.C:
-			t := c.removeOlderThan(maxAge, now.UnixNano())
-			d := maxAge - time.Duration(time.Now().UnixNano()-t)
-			timer.Reset(d)
+		if c.maxAge > 0 && c.age() > c.maxAge {
+			maxAge := c.maxAge
+			c.mu.Unlock()
+			c.debugPrint("trim aged")
+			c.removeOlderThan(maxAge)
+			c.mu.Lock()
 		}
+		if c.maxSizeInBytes > 0 && c.sizeInBytes > c.maxSizeInBytes {
+			c.mu.Unlock()
+			c.debugPrint("trim size")
+			c.reduceMemoryUsage()
+			if v := c.h.CacheTrimBackoffPeriod.Load(); v > 0 {
+				d := time.Duration(v) * time.Second
+				c.debugPrintf("trim backoff for %s", d)
+				time.Sleep(d)
+			}
+			c.mu.Lock()
+		}
+		t := time.AfterFunc(c.maxAge-c.age(), c.trimCond.Signal)
+		c.trimCond.Wait()
+		t.Stop()
 	}
 }
 
@@ -282,7 +273,7 @@ func (c *cache2) reduceMemoryUsage() {
 		// pass
 	}
 	for ; i < len(s); i++ {
-		c.removeOlderThan(s[i], time.Now().UnixNano())
+		c.removeOlderThan(s[i])
 		if c.memoryUsageWithinLimit() {
 			return
 		}
@@ -291,18 +282,20 @@ func (c *cache2) reduceMemoryUsage() {
 		// could not free up enough memory, backoff
 		time.Sleep(time.Second)
 		// and remove chunks not used while we were sleeping
-		c.removeOlderThan(time.Second, time.Now().UnixNano())
+		c.removeOlderThan(time.Second)
 		if c.memoryUsageWithinLimit() {
 			return
 		}
 	}
 }
 
-func (c *cache2) removeOlderThan(maxAge time.Duration, now int64) int64 {
+func (c *cache2) removeOlderThan(age time.Duration) int64 {
+	c.debugPrintRuntimeInfof("remove older than %s", age)
+	now := time.Now()
 	res := cache2UpdateInfo{
-		minChunkAccessTimeSeen: now,
+		minChunkAccessTimeSeen: now.UnixNano(),
 	}
-	t := time.Now().Add(-maxAge).UnixNano()
+	t := now.Add(-age).UnixNano()
 	for _, m := range c.items {
 		for _, m := range m {
 			v, n := m.lruIteratorStart()
@@ -845,56 +838,4 @@ func cache2DataCopy(dst, src cache2Data) int {
 		copy(dst[i], src[i])
 	}
 	return i
-}
-
-func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
-	if h.CacheVersion2.Load() {
-		return h.cache2.Get(ctx, h, pq, lod, avoidCache)
-	} else {
-		return h.cache.Get(ctx, h, pq, lod, avoidCache)
-	}
-}
-
-func cacheInvalidate(h *Handler, ts []int64, stepSec int64) {
-	if h.CacheVersion2.Load() {
-		h.cache2.invalidate(ts, stepSec)
-	} else {
-		h.cache.Invalidate(stepSec, ts)
-	}
-}
-
-func (g *tsCacheGroup) reset() {
-	for _, v := range g.pointCaches {
-		for _, c := range v {
-			c.reset()
-		}
-	}
-}
-
-func (c *tsCache) reset() {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	c.cache = map[string]*tsEntry{}
-	c.invalidatedAtNano = map[int64]int64{}
-}
-
-func ResetCache(r *httpRequestHandler) {
-	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	switch r.FormValue("v") {
-	case "1":
-		r.cache.reset()
-		w.Write([]byte("Version 1 cache is now empty!"))
-	case "2":
-		r.cache2.reset()
-		w.Write([]byte("Version 2 cache is now empty!"))
-	default:
-		r.cache.reset()
-		r.cache2.reset()
-		w.Write([]byte("All cache versions are now empty!"))
-	}
 }
