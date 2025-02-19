@@ -13,6 +13,7 @@ import MinAvailableAggregation from '../img/min-available-aggregation.png'
 import TldrSfCorner from '../img/t-sf-corner.png'
 import TldrSamplingBadges from '../img/t-sampling-badges.png'
 import TldrSfWhat from '../img/t-sf-what.png'
+import TagLevelSampling from '../img/tag-level-sampling.png'
 
 # Concepts
 
@@ -24,19 +25,22 @@ To understand StatsHouse deeply, learn the basic metric-related concepts:
 
 <!-- TOC -->
 * [Aggregation](#aggregation)
-    * [Aggregate](#aggregate)
-    * [Minimal available aggregation interval](#minimal-available-aggregation-interval)
-    * [Resolution](#resolution)
+  * [Aggregate](#aggregate)
+  * [Minimal available aggregation interval](#minimal-available-aggregation-interval)
+  * [Resolution](#resolution)
 * [Cardinality](#cardinality)
 * [Sampling](#sampling)
-    * [Sampling coefficient](#sampling-coefficient)
-        * [How to know the sampling coefficient for a metric in advance](#how-to-know-the-sampling-coefficient-for-a-metric-in-advance)
-        * [Where to find the sampling coefficient](#where-to-find-the-sampling-coefficient)
-        * [How to understand the sampling coefficient](#how-to-understand-the-sampling-coefficient)
-        * [Non-integer sampling coefficients](#non-integer-sampling-coefficients)
-    * [Fair resource sharing](#fair-resource-sharing)
-    * [Sampling "mainstays"](#sampling-mainstays)
-    * [User-guided sampling](#user-guided-sampling)
+  * [Sampling coefficient](#sampling-coefficient)
+    * [How to know the sampling coefficient for a metric in advance](#how-to-know-the-sampling-coefficient-for-a-metric-in-advance)
+    * [Where to find the sampling coefficient](#where-to-find-the-sampling-coefficient)
+    * [How to understand the sampling coefficient](#how-to-understand-the-sampling-coefficient)
+    * [Non-integer sampling coefficients](#non-integer-sampling-coefficients)
+  * [Fair resource sharing](#fair-resource-sharing)
+  * [Sampling "mainstays"](#sampling-mainstays)
+  * [User-guided sampling](#user-guided-sampling)
+  * [Tag-level budgeting ("Fair key tags")](#tag-level-budgeting-fair-key-tags)
+    * [Tag-level budgeting: disabled](#tag-level-budgeting-disabled)
+    * [Tag-level budgeting: enabled](#tag-level-budgeting-enabled)
 <!-- TOC -->
 
 ## Aggregation
@@ -407,3 +411,44 @@ In this case, you can explicitly specify `counter` for the `value` metric:
 ```
 This means that the number of events is 6, and the values are sampled—as if the original `value`
 was `[1, 1, 2, 2, 3, 3]`
+
+### Tag-level budgeting ("Fair key tags")
+
+Tag-level budgeting ("Fair key tags") is for communal metrics that receive data from many services.
+The ["Fair key tags" feature](../guides/edit-metrics.md#fair-key-tags) allows you to allocate metric resources 
+fairly — accordingly to the tag values, e.g., services.
+
+#### Tag-level budgeting: disabled
+
+Imagine you have a metric that receives data from two services: Service A and Service B.
+
+The services' identifiers appear in the tag `service_id`, so you can distinguish between the data rows from the
+Service A and the ones from the Service B.
+
+* The Service A generates 99 events per second.
+* The Service B generates one event per second.
+
+If there are 100 rows in the database from the metric:
+* 99 of them are from the Service A,
+* and only one row is from the Service B.
+
+<img src={TagLevelSampling} width="800"/>
+
+Both services are sampled equally (within the metric), so the data rows from the Service B appear rarer in
+the database than the rows of the Service A.
+
+Let's have a sampling factor (SF) = 10. It means that only one row out of 10 remains.
+* For the Service A: nine rows will be added to the database at a 100% chance, and one more row (the tenth one) — at 
+  a 90% chance.
+* For the Service B: only one row will be added to the database (at a 10% chance).
+
+#### Tag-level budgeting: enabled
+
+:::tip
+You can assign the `service_id` tag to be a "fair key" — to fairly share the metric budget between two services.
+:::
+
+See how to [enable the "Fair key tags" feature](../guides/edit-metrics.md#fair-key-tags) for a tag. The metric budget 
+will be fairly shared between the services:
+* the rare events from the Service B improve their chances to appear on a StatsHouse graph;
+* the intensively-generating Service A gets the reduced budget.

@@ -20,12 +20,14 @@ import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
 import DraftTags from '../img/draft-tags.png'
+import FairKey from '../img/fair-key.png'
 
 # Как отредактировать метрику
 
 Узнайте, [какие параметры метрики можно редактировать](#какие-параметры-метрики-можно-редактировать):
 
 <!-- TOC -->
+* [Какие параметры метрики можно редактировать](#какие-параметры-метрики-можно-редактировать)
 * [Описание (description)](#описание-description)
 * [Тип метрики (aggregation)](#тип-метрики-aggregation)
   * [Перцентили (percentiles)](#перцентили-percentiles)
@@ -41,6 +43,7 @@ import DraftTags from '../img/draft-tags.png'
   * [Драфт-теги](#драфт-теги)
 * [Отключение метрики](#отключение-метрики)
 * [Настройки для администраторов](#настройки-для-администраторов)
+  * [Fair key tags](#fair-key-tags)
 <!-- TOC -->
 
 ## Какие параметры метрики можно редактировать
@@ -261,4 +264,9 @@ StatsHouse извлекает "неизвестные" названия тего
 * _Enable min host_
 * _Enable sum square_
 
+### Fair key tags
 
+Чтобы [включить бюджетирование на уровне тега](../overview/concepts.md#бюджетирование-на-уровне-тегов-fair-key-tags),
+выберите нужный тег из списка:
+
+<img src={FairKey} width="600"/>
