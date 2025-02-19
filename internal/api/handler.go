@@ -175,7 +175,7 @@ type (
 		Version3Start          atomic.Int64
 		Version3Prob           atomic.Float64
 		Version3StrcmpOff      atomic.Bool
-		CacheVersion2          atomic.Bool
+		CacheVersion           atomic.Int32
 		CacheStaleAcceptPeriod atomic.Int64
 		CacheTrimBackoffPeriod atomic.Int64
 		optionsMu              sync.RWMutex
@@ -661,7 +661,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		h.setCacheVersion(cfg.CacheVersion2)
+		h.setCacheVersion(int32(cfg.CacheVersion))
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
 		h.CacheTrimBackoffPeriod.Store(cfg.CacheTrimBackoffPeriod)
 		chV2.SetLimits(cfg.UserLimits)
@@ -726,7 +726,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		if n := h.pointFloatsPoolSize.Load(); n != 0 {
 			h.bufferPoolBytesTotal.Value(float64(n))
 		}
-		if h.CacheVersion2.Load() {
+		if h.CacheVersion.Load() == 2 {
 			h.cache2.sendMetrics(client)
 		}
 	})
