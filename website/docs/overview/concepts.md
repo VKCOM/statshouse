@@ -438,8 +438,9 @@ Both services are sampled equally (within the metric), so the data rows from the
 the database than the rows of the Service A.
 
 Let's have a sampling factor (SF) = 10. It means that only one row out of 10 remains.
-* For the Service A: 9 of 10 data rows will not be sampled.
-* For the Service B: only one row will not be sampled (at a 10% chance).
+* For the Service A: nine rows will be added to the database at a 100% chance, and one more row (the tenth one) — at 
+  a 90% chance.
+* For the Service B: only one row will be added to the database (at a 10% chance).
 
 #### Tag-level budgeting: enabled
 
