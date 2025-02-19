@@ -146,6 +146,9 @@ func FuzzCompactJournal(f *testing.F) {
 		if len(metricStorageAgent.metricsByID) != len(metrics) {
 			t.Errorf("list length mismatch")
 		}
+		if journalAgent.stateHashStr != journalCompact.stateHashStr {
+			t.Errorf("journal hash mismatch")
+		}
 		for _, m1 := range metrics {
 			m2 := metricStorageCompact.GetMetaMetric(m1.MetricID)
 			m3 := metricStorageAgent.GetMetaMetric(m1.MetricID)
