@@ -9,8 +9,8 @@ import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import { Dashboard, TvModePanel } from '@/components2';
 import { useEmbedMessage } from '@/hooks/useEmbedMessage';
 import { ErrorMessages } from '@/components/ErrorMessages';
-import { PlotLayout } from '@/components2/Plot/PlotLayout';
 import { useTvModeStore } from '@/store2/tvModeStore';
+import { PlotLayout } from '@/components2/Plot/PlotLayout';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
@@ -45,7 +45,8 @@ export function ViewPage() {
         {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
         <div className="position-relative">
           <Dashboard />
-          {isPlot && <PlotLayout className="py-3" />}
+          {/*{isPlot && <PlotWidgetFull plotKey={tabNum} className="py-3" isEmbed={isEmbed} />}*/}
+          {isPlot && <PlotLayout className="py-3" plotKey={tabNum} isEmbed={isEmbed} />}
         </div>
       </div>
     </div>

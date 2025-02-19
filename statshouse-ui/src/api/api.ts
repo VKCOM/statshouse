@@ -156,6 +156,6 @@ export class ExtendedError extends Error {
     this.status = status;
   }
   toString() {
-    return `${this.status}: ${this.message.substring(0, 255)}`;
+    return `${this.status}: ${this.message ? this.message.substring(0, 255) : 'unknown error'}`;
   }
 }

@@ -10,13 +10,11 @@ import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
 import cn from 'classnames';
 import css from './style.module.css';
 import { Button } from '@/components/UI';
-import { PlotKey } from '@/url2';
 
 export type PlotEventsButtonColumnsProps = {
-  plotKey: PlotKey;
   loader?: boolean;
 };
-export function PlotEventsButtonColumns({ plotKey, loader }: PlotEventsButtonColumnsProps) {
+export function PlotEventsButtonColumns({ loader }: PlotEventsButtonColumnsProps) {
   const [eventColumnShow, setEventColumnShow] = useState(false);
   const toggleEventColumnShow = useCallback((event?: React.MouseEvent) => {
     setEventColumnShow((s) => !s);
@@ -38,7 +36,6 @@ export function PlotEventsButtonColumns({ plotKey, loader }: PlotEventsButtonCol
       </Button>
       {eventColumnShow && (
         <PlotEventsSelectColumns
-          plotKey={plotKey}
           className="position-absolute card p-2 start-100 top-0"
           onClose={toggleEventColumnShow}
         />

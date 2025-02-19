@@ -4,31 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { PlotWidgetRouterProps } from '../PlotWidgetRouter';
+import { useWidgetParamsContext, useWidgetPlotContext } from '@/contexts';
+import { useStatsHouse } from '@/store2';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PlotViewProps } from './PlotView';
-import { black, grey, greyDark } from '@/view/palette';
 import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from '@/hooks';
-import cn from 'classnames';
-import { useStatsHouse, useStatsHouseShallow } from '@/store2';
-import { yAxisSize } from '@/common/settings';
-import { PlotHealsStatus } from './PlotHealsStatus';
-import { PlotHeader } from './PlotHeader';
-import { PlotSubMenu } from './PlotSubMenu';
-import { PlotLegend } from '../PlotLegend';
-import { dateRangeFormat } from './dateRangeFormat';
-import { dataIdxNearest } from '@/common/dataIdxNearest';
-import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
-import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
-import { xRangeStatic } from './xRangeStatic';
-import { calcYRange } from '@/common/calcYRange';
-import css from './style.module.css';
-import { PlotEventOverlay } from './PlotEventOverlay';
-import type { PlotValues } from '@/store2/plotDataStore';
 import { useThemeStore } from '@/store2/themeStore';
-import { metricTypeIncrs } from './constants';
-import { setLiveMode } from '@/store2/liveModeStore';
-import { setPlotVisibility } from '@/store2/plotVisibilityStore';
-import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { black, grey, greyDark } from '@/view/palette';
+import type uPlot from 'uplot';
 import {
   LegendItem,
   UPlotPluginPortal,
@@ -36,78 +19,71 @@ import {
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from '@/components/UPlotWrapper';
+import type { PlotData, PlotValues } from '@/store2/plotDataStore';
+import { setLiveMode } from '@/store2/liveModeStore';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
+import { dataIdxNearest } from '@/common/dataIdxNearest';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
 import { bwd, fwd, log2Filter, log2Splits } from '@/common/helpers';
-import type uPlot from 'uplot';
+import { yAxisSize } from '@/common/settings';
+import { metricTypeIncrs } from '@/components2/Plot/PlotView/constants';
+import { xRangeStatic } from '@/components2/Plot/PlotView/xRangeStatic';
+import { calcYRange } from '@/common/calcYRange';
+import { dateRangeFormat } from '@/components2/Plot/PlotView/dateRangeFormat';
+import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { setPlotVisibility } from '@/store2/plotVisibilityStore';
+import cn from 'classnames';
+import { PlotHealsStatus } from '@/components2/Plot/PlotView/PlotHealsStatus';
+import { PlotHeader } from '@/components2/Plot/PlotView/PlotHeader';
+import { PlotSubMenu } from '@/components2/Plot/PlotView/PlotSubMenu';
+import css from '@/components2/Plot/PlotView/style.module.css';
+import { PlotEventOverlay } from '@/components2/Plot/PlotView/PlotEventOverlay';
+import { PlotLegend } from '@/components2';
+import { rightPad, syncGroup, unFocusAlfa, yLockDefault } from '@/components2/PlotWidgets/MetricWidget/constant';
+import { useMetricName } from '@/hooks/useMetricName';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricData } from '@/hooks/useMetricData';
+import { produce } from 'immer';
 
-const rightPad = 16;
+const { setPlotYLock, setTimeRange, resetZoom } = useStatsHouse.getState();
 
-// const xAxisSize = 16;
-const unFocusAlfa = 1;
-const yLockDefault = { min: 0, max: 0 };
-const syncGroup = '1';
-
-const { setPlotYLock, setTimeRange, setPlotShow, resetZoom } = useStatsHouse.getState();
-
-export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProps) {
+export function MetricWidget({ className, isDashboard, isEmbed }: PlotWidgetRouterProps) {
   const {
-    yLock,
-    numSeries,
-    error403,
-    isEmbed,
-    metricUnit,
-    metricUnitData,
-    topInfo,
-    dataView,
-    series,
-    timeRangeTo,
-    timeRangeFrom,
-    seriesShow,
-    plotWhat,
-    plotDataWhat,
-    legendNameWidth,
-    legendValueWidth,
-    legendMaxHostWidth,
-    legendMaxDotSpaceWidth,
-    isActive,
-    isLogScale,
-  } = useStatsHouseShallow(
-    useCallback(
-      ({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
-        const plot = plots[plotKey];
-        const plotData = plotsData[plotKey];
+    plot: { id, what: plotWhat, yLock, numSeries, metricUnit, logScale },
+  } = useWidgetPlotContext();
+  const {
+    params: {
+      timeRange: { to: timeRangeTo, from: timeRangeFrom },
+    },
+  } = useWidgetParamsContext();
 
-        return {
-          plotWhat: plot?.what,
-          plotDataWhat: plotData?.whats,
-          topInfo: plotData?.topInfo,
-          yLock: plot?.yLock,
-          timeRangeTo: timeRange.to,
-          timeRangeFrom: timeRange.from,
-          numSeries: plot?.numSeries ?? 0,
-          error403: plotData?.error403 ?? '',
-          metricUnit: plot?.metricUnit,
-          metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-          dataView: plotData?.dataView,
-          series: plotData?.series,
-          seriesShow: plotData?.seriesShow,
-          legendNameWidth: plotData?.legendNameWidth,
-          legendValueWidth: plotData?.legendValueWidth,
-          legendMaxHostWidth: plotData?.legendMaxHostWidth,
-          legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-          isEmbed,
-          baseRange,
-          isActive: tabNum === plotKey,
-          isLogScale: plot?.logScale,
-        };
-      },
-      [plotKey]
-    )
-  );
+  const metricMeta = useMetricName(true);
+  const meta = useMetricMeta(metricMeta);
 
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
   const visibleBool = visible > 0;
+
+  const [
+    {
+      error403,
+      topInfo,
+      dataView,
+      series,
+      seriesShow,
+      metricUnit: plotDataMetricUnit,
+      whats: plotDataWhat,
+      legendNameWidth,
+      legendValueWidth,
+      legendMaxHostWidth,
+      legendMaxDotSpaceWidth,
+    },
+    setData,
+  ] = useMetricData(visibleBool);
+
+  const metricUnitData = plotDataMetricUnit ?? meta?.metric_type;
+
   const themeDark = useThemeStore((s) => s.dark);
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
@@ -134,14 +110,14 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         const yMax = u.posToVal(u.select.top, 'y');
         const xOnly = u.select.top === 0;
         if (!xOnly) {
-          setPlotYLock(plotKey, true, { min: yMin, max: yMax });
+          setPlotYLock(id, true, { min: yMin, max: yMax });
         } else {
           setLiveMode(false);
           setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
         }
       }
     },
-    [plotKey]
+    [id]
   );
 
   const metricType = useMemo(() => {
@@ -203,11 +179,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           grid: grid,
           ticks: grid,
           values: (_, splits) => splits.map(formatByMetricType(metricType)),
-          filter: isLogScale ? log2Filter : undefined,
+          filter: logScale ? log2Filter : undefined,
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          splits: !isLogScale
+          splits: !logScale
             ? undefined
             : (
                 self: uPlot,
@@ -223,7 +199,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          distr: isLogScale ? 100 : 1,
+          distr: logScale ? 100 : 1,
           bwd,
           fwd,
           auto: () => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
@@ -263,7 +239,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     themeDark,
     topPad,
     xAxisSize,
-    isLogScale,
+    logScale,
     yLockRef,
   ]);
 
@@ -277,20 +253,20 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
-        resetZoomRef.current(plotKey);
+        resetZoomRef.current(id);
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
-    [plotKey, resetZoomRef]
+    [id, resetZoomRef]
   );
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
       if (isDashboard && !isEmbed) {
-        createPlotPreview(plotKey, u);
+        createPlotPreview(id, u);
       }
     },
-    [isDashboard, isEmbed, plotKey]
+    [isDashboard, isEmbed, id]
   );
 
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
@@ -322,9 +298,19 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
 
   const onLegendShow = useCallback(
     (index: number, show: boolean, single: boolean) => {
-      setPlotShow(plotKey, index - 1, show, single);
+      const idx = index - 1;
+      setData(
+        produce<PlotData>((d) => {
+          if (single) {
+            const otherShow = d.seriesShow.some((_show, indexSeries) => (indexSeries === idx ? false : _show));
+            d.seriesShow = d.seriesShow.map((_, indexSeries) => (indexSeries === idx ? true : !otherShow));
+          } else {
+            d.seriesShow[idx] = show ?? !d.seriesShow[idx];
+          }
+        })
+      );
     },
-    [plotKey]
+    [setData]
   );
 
   useEffect(() => {
@@ -334,12 +320,9 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       }
     });
   }, [seriesShow]);
-
   useEffect(() => {
-    if (isDashboard || isActive) {
-      setPlotVisibility(plotKey, visibleBool);
-    }
-  }, [isActive, isDashboard, plotKey, visibleBool]);
+    setPlotVisibility(id, visibleBool);
+  }, [id, visibleBool]);
 
   const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem<PlotValues>[]>>>(
     (legend) => {
@@ -376,7 +359,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
     >
-      <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
+      <div data-plot-key={id} ref={setVisibleRef} className="plot-view-inner">
         <div
           className="d-flex align-items-center position-relative"
           style={{
@@ -388,12 +371,12 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            <PlotHealsStatus plotKey={plotKey} />
+            <PlotHealsStatus />
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            <PlotHeader plotKey={plotKey} isDashboard={isDashboard} />
-            {!compact && <PlotSubMenu plotKey={plotKey} />}
+            <PlotHeader isDashboard={isDashboard} isEmbed={isEmbed} />
+            {!compact && <PlotSubMenu />}
           </div>
         </div>
         <div
@@ -422,12 +405,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
               onUpdateLegend={onUpdateLegend}
             >
               <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
-                <PlotEventOverlay
-                  plotKey={plotKey}
-                  hooks={pluginEventOverlayHooks}
-                  flagHeight={Math.min(topPad, 10)}
-                  compact={compact}
-                />
+                <PlotEventOverlay hooks={pluginEventOverlayHooks} flagHeight={Math.min(topPad, 10)} compact={compact} />
               </UPlotPluginPortal>
             </UPlotWrapper>
           )}
@@ -435,7 +413,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         {!error403 && (
           <div className="plot-legend">
             <PlotLegend
-              plotKey={plotKey}
+              plotKey={id}
               legend={legend}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}

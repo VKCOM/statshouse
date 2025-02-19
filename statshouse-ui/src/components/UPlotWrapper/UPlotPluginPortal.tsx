@@ -20,7 +20,7 @@ export type UPlotPluginPortalProps = {
 };
 
 export function UPlotPluginPortal({ zone = PORTAL_TARGET.ROOT, hooks, children }: UPlotPluginPortalProps) {
-  const parent = useRef<HTMLElement>();
+  const parent = useRef<HTMLElement>(undefined);
   useEffect(() => {
     if (hooks) {
       const offInit = hooks.current.on(

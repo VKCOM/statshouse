@@ -4,130 +4,88 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { PlotWidgetRouterProps } from '../PlotWidgetRouter';
+import { useWidgetParamsContext, useWidgetPlotContext } from '@/contexts';
+import { useStatsHouse } from '@/store2';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PlotViewProps } from './PlotView';
-import { useStatsHouse, useStatsHouseShallow } from '@/store2';
-import { useThemeStore } from '@/store2/themeStore';
 import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from '@/hooks';
+import { useThemeStore } from '@/store2/themeStore';
 import { black, grey, greyDark } from '@/view/palette';
+import uPlot from 'uplot';
+import { setLiveMode } from '@/store2/liveModeStore';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
 import {
   UPlotPluginPortal,
   UPlotWrapper,
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from '@/components/UPlotWrapper';
-import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
 import { dataIdxNearest } from '@/common/dataIdxNearest';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
 import { yAxisSize } from '@/common/settings';
-import { xRangeStatic } from './xRangeStatic';
+import { metricTypeIncrs } from '@/components2/Plot/PlotView/constants';
+import { xRangeStatic } from '@/components2/Plot/PlotView/xRangeStatic';
 import { calcYRange } from '@/common/calcYRange';
-import { dateRangeFormat } from './dateRangeFormat';
-import cn from 'classnames';
-import { PlotHealsStatus } from './PlotHealsStatus';
-import { PlotHeader } from './PlotHeader';
-import { PlotSubMenu } from './PlotSubMenu';
-import css from './style.module.css';
-import { metricTypeIncrs } from './constants';
-import { PlotEvents } from './PlotEvents';
-import uPlot from 'uplot';
-import { setLiveMode } from '@/store2/liveModeStore';
-import { setPlotVisibility } from '@/store2/plotVisibilityStore';
+import { dateRangeFormat } from '@/components2/Plot/PlotView/dateRangeFormat';
 import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { setPlotVisibility } from '@/store2/plotVisibilityStore';
+import cn from 'classnames';
+import { PlotHealsStatus } from '@/components2/Plot/PlotView/PlotHealsStatus';
+import { PlotHeader } from '@/components2/Plot/PlotView/PlotHeader';
+import { PlotSubMenu } from '@/components2/Plot/PlotView/PlotSubMenu';
+import css from '@/components2/Plot/PlotView/style.module.css';
+import { PlotEvents } from '@/components2/Plot/PlotView/PlotEvents';
+import { useMetricName } from '@/hooks/useMetricName';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricData } from '@/hooks/useMetricData';
 
 const rightPad = 16;
 
-// const themeDark = false;
-// const xAxisSize = 16;
 const unFocusAlfa = 1;
 const yLockDefault = { min: 0, max: 0 };
 const syncGroup = '1';
 
 const { setPlotYLock, setTimeRange, resetZoom } = useStatsHouse.getState();
 
-export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps) {
+export function EventWidget({ className, isDashboard, isEmbed }: PlotWidgetRouterProps) {
   const {
-    yLock,
+    plot: { id, what: plotWhat, yLock, metricUnit },
+  } = useWidgetPlotContext();
+  const {
+    params: {
+      timeRange: { to: timeRangeTo, from: timeRangeFrom },
+    },
+  } = useWidgetParamsContext();
 
-    error403,
-    isEmbed,
-    metricUnit,
-    metricUnitData,
+  const metricMeta = useMetricName(true);
+  const meta = useMetricMeta(metricMeta);
 
-    dataView,
-    bands,
-    series,
-    // scales,
-    timeRangeTo,
-    timeRangeFrom,
-    seriesShow,
-    plotWhat,
-    plotDataWhat,
-    legendNameWidth,
-    legendValueWidth,
-    legendMaxHostWidth,
-    legendMaxDotSpaceWidth,
-    plotEventsDataRange,
-    isActive,
-    // setPlotVisibility,
-    // setPlotYLock,
-    // setTimeRange,
-    // createPlotPreview,
-    // resetZoom,
-  } = useStatsHouseShallow(
-    useCallback(
-      ({
-        plotsData,
-        params: { tabNum, plots, timeRange },
-        plotsEventsData,
-        metricMeta,
-        isEmbed,
-        baseRange,
-        // setPlotVisibility,
-        // setPlotYLock,
-        // setTimeRange,
-        // createPlotPreview,
-        // resetZoom,
-      }) => {
-        const plot = plots[plotKey];
-        const plotData = plotsData[plotKey];
-        return {
-          plotWhat: plot?.what,
-          plotDataWhat: plotData?.whats,
-          yLock: plot?.yLock,
-          timeRangeTo: timeRange.to,
-          timeRangeFrom: timeRange.from,
-          error403: plotData?.error403 ?? '',
-          metricUnit: plot?.metricUnit,
-          metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-          dataView: plotData?.dataView,
-          bands: plotData?.bands,
-          series: plotData?.series,
-          // scales: plotData?.scales,
-          seriesShow: plotData?.seriesShow,
-          legendNameWidth: plotData?.legendNameWidth,
-          legendValueWidth: plotData?.legendValueWidth,
-          legendMaxHostWidth: plotData?.legendMaxHostWidth,
-          legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-          plotEventsDataRange: plotsEventsData[plotKey]?.range,
-          isEmbed,
-          baseRange,
-          isActive: tabNum === plotKey,
-          // setPlotVisibility,
-          // setPlotYLock,
-          // setTimeRange,
-          // createPlotPreview,
-          // resetZoom,
-        };
-      },
-      [plotKey]
-    )
-  );
   const divOut = useRef<HTMLDivElement>(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
   const visibleBool = visible > 0;
+
+  const [
+    {
+      error403,
+      dataView,
+      series,
+      seriesShow,
+      metricUnit: plotDataMetricUnit,
+      whats: plotDataWhat,
+      legendNameWidth,
+      legendValueWidth,
+      legendMaxHostWidth,
+      legendMaxDotSpaceWidth,
+      bands,
+    },
+  ] = useMetricData(visibleBool);
+
+  const metricUnitData = plotDataMetricUnit ?? meta?.metric_type;
+
   const themeDark = useThemeStore((s) => s.dark);
+  const [plotEventsDataRange, setPlotEventsDataRange] = useState<{ from: number; to: number } | undefined>(undefined);
+
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
@@ -152,14 +110,14 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         const yMax = u.posToVal(u.select.top, 'y');
         const xOnly = u.select.top === 0;
         if (!xOnly) {
-          setPlotYLock(plotKey, true, { min: yMin, max: yMax });
+          setPlotYLock(id, true, { min: yMin, max: yMax });
         } else {
           setLiveMode(false);
           setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
         }
       }
     },
-    [plotKey]
+    [id]
   );
 
   const metricType = useMemo(() => {
@@ -258,25 +216,24 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       if (uPlotRef.current !== u) {
         uPlotRef.current = u;
       }
-      // setUPlotWidth(indexPlot, u.bbox.width);
       u.over.onclick = () => {
         setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
-        resetZoomRef.current(plotKey);
+        resetZoomRef.current(id);
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
-    [plotKey, resetZoomRef]
+    [id, resetZoomRef]
   );
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
       if (isDashboard && !isEmbed) {
-        createPlotPreview(plotKey, u);
+        createPlotPreview(id, u);
       }
     },
-    [isDashboard, isEmbed, plotKey]
+    [id, isDashboard, isEmbed]
   );
 
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
@@ -300,7 +257,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
-    let rightWidth = 0;
+    const rightWidth = 0;
     if (uPlotRef.current && plotEventsDataRange) {
       leftWidth =
         (Math.max(
@@ -309,14 +266,6 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         ) /
           uPlotRef.current.over.clientWidth) *
         100;
-      rightWidth =
-        100 -
-        (Math.max(
-          0,
-          Math.round(uPlotRef.current.valToPos(Math.max(plotEventsDataRange.from, plotEventsDataRange.to), 'x'))
-        ) /
-          uPlotRef.current.over.clientWidth) *
-          100;
     }
     return {
       leftWidth: `${leftWidth}%`,
@@ -349,10 +298,8 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
   }, [seriesShow]);
 
   useEffect(() => {
-    if (isDashboard || isActive) {
-      setPlotVisibility(plotKey, visibleBool);
-    }
-  }, [isActive, isDashboard, plotKey, visibleBool]);
+    setPlotVisibility(id, visibleBool);
+  }, [id, visibleBool]);
 
   return (
     <div
@@ -376,7 +323,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
     >
-      <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
+      <div data-plot-key={id} ref={setVisibleRef} className="plot-view-inner">
         <div
           className="d-flex align-items-center position-relative"
           style={{
@@ -388,12 +335,12 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            <PlotHealsStatus plotKey={plotKey} />
+            <PlotHealsStatus />
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            <PlotHeader plotKey={plotKey} isDashboard={isDashboard} />
-            {!compact && <PlotSubMenu plotKey={plotKey} />}
+            <PlotHeader isDashboard={isDashboard} isEmbed={isEmbed} />
+            {!compact && <PlotSubMenu />}
           </div>
         </div>
         <div
@@ -401,7 +348,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           style={
             {
               // paddingTop: '15%',
-              paddingTop: '55%',
+              paddingTop: '61.8034%',
               '--plot-padding-top': `${topPad}px`,
             } as React.CSSProperties
           }
@@ -439,7 +386,13 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           )}
         </div>
         {!error403 && !compact && (
-          <PlotEvents className="plot-legend flex-grow-1" plotKey={plotKey} onCursor={onCursor} cursor={cursorTime} />
+          <PlotEvents
+            key={id}
+            className="plot-legend flex-grow-1"
+            onCursor={onCursor}
+            cursor={cursorTime}
+            setTimeRange={setPlotEventsDataRange}
+          />
         )}
       </div>
     </div>

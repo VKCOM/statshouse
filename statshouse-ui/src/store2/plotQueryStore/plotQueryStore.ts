@@ -6,6 +6,7 @@
 
 import { createStore } from '../createStore';
 import type { PlotKey } from '@/url2';
+import { useCallback } from 'react';
 
 export type PlotQueryStore = {
   globalQuery: number;
@@ -59,7 +60,7 @@ export function getGlobalLoader() {
 }
 
 export function usePlotLoader(plotKey: PlotKey) {
-  return usePlotQueryStore((s) => (s.plotQuery[plotKey] ?? 0) > 0);
+  return usePlotQueryStore(useCallback((s) => (s.plotQuery[plotKey] ?? 0) > 0, [plotKey]));
 }
 
 export function useGlobalLoader() {

@@ -22,6 +22,7 @@ export const initialValues: IMetric = {
   resolution: 1,
   withPercentiles: false,
   visible: true,
+  disable: false,
   tags: [getDefaultTag()],
   tags_draft: [],
   tagsSize: 1,

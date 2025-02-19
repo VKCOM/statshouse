@@ -4,15 +4,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { ApiTable } from '@/api/tableOld2';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { apiTableRowNormalize, QueryTableRow } from '@/api/tableOld2';
 
 import { Button } from '@/components/UI';
 import cn from 'classnames';
 import css from './style.module.css';
-import type { PlotParams, TimeRange } from '@/url2';
+import { freeKeyPrefix, PlotParams, TimeRange } from '@/url2';
 import { useEventTagColumns2 } from '@/hooks/useEventTagColumns2';
-import { apiTable } from '@/api/tableOld2';
+import { ApiTable, useApiTable } from '@/api/table';
+import { useWidgetParamsContext } from '@/contexts';
+import { toNumber } from '@/common/helpers';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
@@ -26,8 +28,8 @@ export const PlotEventOverlayTable = memo(function PlotEventOverlayTable({
   range,
   agg,
 }: PlotEventOverlayTableProps) {
-  const [chunk, setChunk] = useState<ApiTable>();
-  const [loader, setLoader] = useState(false);
+  const { params } = useWidgetParamsContext();
+
   const [error, setError] = useState<Error>();
 
   const errorText = useMemo(() => {
@@ -41,24 +43,45 @@ export const PlotEventOverlayTable = memo(function PlotEventOverlayTable({
   }, []);
 
   const columns = useEventTagColumns2(plot, true);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoader(true);
-    apiTable(plot, range, agg, undefined, undefined, undefined, controller)
-      .then(setChunk)
-      .catch(setError)
-      .finally(() => setLoader(false));
-    return () => {
-      if (!controller.signal.aborted) {
-        controller.abort();
+  const select = useCallback(
+    (response?: ApiTable) => {
+      if (response) {
+        return {
+          ...response.data,
+          rows:
+            response.data.rows?.map(
+              (value) =>
+                ({
+                  ...value,
+                  tags:
+                    value.tags &&
+                    Object.fromEntries(
+                      Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
+                    ),
+                }) as QueryTableRow
+            ) ?? null,
+          rowsNormalize: apiTableRowNormalize(plot, response.data),
+        };
       }
-    };
-  }, [plot, range, agg]);
+      return undefined;
+    },
+    [plot]
+  );
+
+  const queryTable = useApiTable(
+    { ...plot, customAgg: toNumber(agg, 1) },
+    { ...params, timeRange: range },
+    undefined,
+    undefined,
+    undefined,
+    select
+  );
+  const isLoading = queryTable.isLoading;
+  const chunk = queryTable.data;
 
   return (
     <div className={cn('position-relative flex-grow-1 d-flex flex-column', css.overlayCardTableItem)}>
-      {loader && (
+      {isLoading && (
         <div className=" position-absolute top-50 start-50 translate-middle">
           <div className="text-info spinner-border spinner-border-sm " role="status" aria-hidden="true" />
         </div>
@@ -81,7 +104,7 @@ export const PlotEventOverlayTable = memo(function PlotEventOverlayTable({
                   ))}
                 </tr>
               ))
-            : !loader && (
+            : !isLoading && (
                 <tr>
                   <td>
                     <div className="text-danger text-nowrap">no columns for show</div>

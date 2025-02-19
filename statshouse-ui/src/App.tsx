@@ -12,6 +12,8 @@ import { queryClient } from './common/queryClient';
 import { useStatsHouse } from '@/store2';
 import View2Page from './view2/ViewPage';
 import Core from './view2/Core';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { WidgetParamsContextProvider } from '@/contexts';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 const Admin = React.lazy(() => import('./admin/Admin'));
@@ -26,42 +28,45 @@ export function App() {
   const isAdmin = useStatsHouse((s) => s.user.admin);
   return (
     <QueryClientProvider client={queryClient}>
-      <Routes>
-        <Route path="/" element={<Core />}>
-          <Route path="" element={<Navigate to="view" replace={true} />} />
-          <Route path="view" element={<View2Page />} />
-          <Route path="embed" element={<View2Page />} />
-          <Route path="settings/*" element={<SettingsPage adminMode={isAdmin} />}>
-            <Route path="group" element={<GroupPage />} />
-            <Route path="namespace" element={<NamespacePage />} />
+      <WidgetParamsContextProvider>
+        {process.env.NODE_ENV !== 'production' && <ReactQueryDevtools client={queryClient} />}
+        <Routes>
+          <Route path="/" element={<Core />}>
+            <Route path="" element={<Navigate to="view" replace={true} />} />
+            <Route path="view" element={<View2Page />} />
+            <Route path="embed" element={<View2Page />} />
+            <Route path="settings/*" element={<SettingsPage adminMode={isAdmin} />}>
+              <Route path="group" element={<GroupPage />} />
+              <Route path="namespace" element={<NamespacePage />} />
+            </Route>
+            <Route
+              path="dash-list"
+              element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <DashboardListView />
+                </Suspense>
+              }
+            />
+            <Route
+              path="doc/faq"
+              element={
+                <Suspense fallback={<div>FAQ Loading...</div>}>
+                  <FAQ yAxisSize={yAxisSize} />
+                </Suspense>
+              }
+            />
+            <Route
+              path="admin/*"
+              element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <Admin yAxisSize={yAxisSize} adminMode={isAdmin} />
+                </Suspense>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
           </Route>
-          <Route
-            path="dash-list"
-            element={
-              <Suspense fallback={<div>Loading...</div>}>
-                <DashboardListView />
-              </Suspense>
-            }
-          />
-          <Route
-            path="doc/faq"
-            element={
-              <Suspense fallback={<div>FAQ Loading...</div>}>
-                <FAQ yAxisSize={yAxisSize} />
-              </Suspense>
-            }
-          />
-          <Route
-            path="admin/*"
-            element={
-              <Suspense fallback={<div>Loading...</div>}>
-                <Admin yAxisSize={yAxisSize} adminMode={isAdmin} />
-              </Suspense>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </WidgetParamsContextProvider>
     </QueryClientProvider>
   );
 }

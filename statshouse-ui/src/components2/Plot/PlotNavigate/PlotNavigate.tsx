@@ -26,6 +26,7 @@ import { isPromQL } from '@/store2/helpers';
 import { ButtonToggleLiveMode } from './ButtonToggleLiveMode';
 import cn from 'classnames';
 import { useLinkPlot } from '@/hooks/useLinkPlot';
+import { useWidgetParamsContext } from '@/contexts';
 
 export type PlotNavigateProps = {
   plotKey?: PlotKey;
@@ -35,8 +36,11 @@ export type PlotNavigateProps = {
 const { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut, setPlotType, resetZoom, setPlotYLock } =
   useStatsHouse.getState();
 
-export const PlotNavigate = memo(function PlotNavigate({ plotKey, className }: PlotNavigateProps) {
-  const plot = useStatsHouse(({ params: { plots } }) => plotKey && plots[plotKey]);
+export const PlotNavigate = memo(function PlotNavigate({ plotKey = '-1', className }: PlotNavigateProps) {
+  const {
+    params: { plots },
+  } = useWidgetParamsContext();
+  const plot = plots[plotKey];
 
   const singleLink = useLinkPlot(plotKey ?? '-1', true, true);
 

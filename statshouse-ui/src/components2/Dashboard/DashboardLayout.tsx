@@ -13,13 +13,13 @@ import { GroupKey, PlotKey } from '@/url2';
 import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
-import { PlotView } from '../Plot';
 import { toPlotKey } from '@/url/queryParams';
 import { DashboardGroup } from '@/components2';
 import { produce } from 'immer';
 import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import { prepareItemsGroup } from '@/common/prepareItemsGroup';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
+import { PlotWidget } from '@/components2/PlotWidgets/PlotWidget';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -282,11 +282,12 @@ export const DashboardLayout = memo(function DashboardLayout({ className }: Dash
                       data-index={plotKey}
                       onPointerDown={dashboardLayoutEdit ? onDown : undefined}
                     >
-                      <PlotView
+                      <PlotWidget
                         className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
                         key={plotKey}
                         plotKey={plotKey}
                         isDashboard
+                        isEmbed={isEmbed}
                       />
                     </DashboardPlotWrapper>
                   ))}
@@ -316,7 +317,7 @@ export const DashboardLayout = memo(function DashboardLayout({ className }: Dash
         <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>
           {select !== null && (
             <div style={stylePreview}>
-              <PlotView className={css.pointerEventsNone} key={select} plotKey={select} />
+              <PlotWidget className={css.pointerEventsNone} key={select} plotKey={select} />
             </div>
           )}
         </div>

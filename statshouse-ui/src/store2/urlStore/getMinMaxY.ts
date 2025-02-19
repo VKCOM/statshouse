@@ -5,17 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { calcYRange2 } from '@/common/calcYRange';
-import type { PlotKey } from '@/url2';
-import type { StatsHouseStore } from '../statsHouseStore';
+import { PlotData } from '@/store2/plotDataStore';
 
-export function getMinMaxY(
-  plotKey: PlotKey,
-  state: Pick<StatsHouseStore, 'plotsData'>
-): {
+export function getMinMaxY(plotData: PlotData): {
   min: number;
   max: number;
 } {
-  const plotData = state.plotsData[plotKey];
   if (plotData) {
     const [min, max] = calcYRange2(plotData.series, plotData.data, true);
     return { min, max };

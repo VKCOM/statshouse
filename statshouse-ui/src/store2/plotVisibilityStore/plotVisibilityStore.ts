@@ -6,15 +6,10 @@
 
 import { createStore, StoreSlice } from '../createStore';
 import { PlotKey } from '@/url2';
-import { getPlotLoader } from '../plotQueryStore';
-import { useStatsHouse } from '../statsHouseStore';
 
 export type PlotVisibilityStore = {
   plotVisibilityList: Partial<Record<PlotKey, boolean>>;
   plotPreviewList: Partial<Record<PlotKey, boolean>>;
-  // setPlotVisibility(plotKey: PlotKey, toggle: boolean): void;
-  // setPlotPreviewVisibility(plotKey: PlotKey, toggle: boolean): void;
-  // clearPlotVisibility(plotKey: PlotKey): void;
 };
 
 export const plotVisibilityStore: StoreSlice<PlotVisibilityStore, PlotVisibilityStore> = () => ({
@@ -27,25 +22,12 @@ export function setPlotVisibility(plotKey: PlotKey, toggle: boolean) {
   usePlotVisibilityStore.setState((state) => {
     state.plotVisibilityList[plotKey] = toggle;
   });
-  if (toggle) {
-    if (!getPlotLoader(plotKey)) {
-      // console.log('setPlotVisibility', { plotKey, toggle });
-      useStatsHouse.getState().loadPlotData(plotKey);
-    }
-  }
 }
 
 export function setPlotPreviewVisibility(plotKey: PlotKey, toggle: boolean) {
   usePlotVisibilityStore.setState((state) => {
     state.plotPreviewList[plotKey] = toggle;
-    // console.log('setPlotPreviewVisibility', { plotKey, toggle });
   });
-  if (toggle) {
-    if (!getPlotLoader(plotKey)) {
-      // console.log('setPlotPreviewVisibility', { plotKey, toggle });
-      useStatsHouse.getState().loadPlotData(plotKey);
-    }
-  }
 }
 
 export function clearPlotVisibility(plotKey: PlotKey) {

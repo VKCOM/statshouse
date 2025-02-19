@@ -10,15 +10,15 @@ import { GET_PARAMS, TAG_KEY, toTagKey } from '@/api/enum';
 import { produce } from 'immer';
 import { getNextVariableKey } from './updateParamsPlotStruct';
 import { getTagDescription, isTagEnabled, isValidVariableName } from '@/view/utils2';
+import { loadMetricMeta } from '@/api/metric';
 
 export async function getAutoSearchVariable(
   getState: () => StatsHouseStore
 ): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>> {
   const {
     params: { orderPlot, plots, variables, orderVariables },
-    loadMetricMeta,
   } = getState();
-  await Promise.all(
+  const metricsMeta = await Promise.all(
     orderPlot.map((plotKey) => {
       const metricName = plots[plotKey]?.metricName;
       if (metricName && metricName !== promQLMetric) {
@@ -27,14 +27,14 @@ export async function getAutoSearchVariable(
       return Promise.resolve();
     })
   );
-  const { metricMeta } = getState();
+  // const { metricMeta } = getState();
   const variablesLink: Record<string, VariableParamsLink[]> = {};
-  orderPlot.forEach((plotKey) => {
+  orderPlot.forEach((plotKey, indexPlot) => {
     const plot = plots[plotKey];
     if (!plot || plot.metricName === promQLMetric) {
       return;
     }
-    const meta = metricMeta[plot.metricName];
+    const meta = metricsMeta[indexPlot];
     if (!meta) {
       return;
     }

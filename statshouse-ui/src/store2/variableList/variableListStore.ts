@@ -16,13 +16,20 @@ import {
 import { globalSettings } from '@/common/settings';
 import { filterParamsArr } from '@/view/api';
 import { deepClone, isNotNil, toNumber } from '@/common/helpers';
-import type { MetricMetaTag } from '@/api/metric';
+import { getMetricMeta, loadMetricMeta, MetricMetaTag } from '@/api/metric';
 import { createStore } from '../createStore';
 
 import { produce } from 'immer';
 import { useErrorStore } from '@/store2/errors';
 import { replaceVariable } from './replaceVariable';
-import { getNewVariable, type PlotKey, promQLMetric, type VariableParams, type VariableParamsSource } from '@/url2';
+import {
+  getNewVariable,
+  type PlotKey,
+  promQLMetric,
+  QueryParams,
+  type VariableParams,
+  type VariableParamsSource,
+} from '@/url2';
 import { type StatsHouseStore, useStatsHouse } from '@/store2';
 import { ExtendedError } from '@/api/api';
 
@@ -64,33 +71,54 @@ useStatsHouse.subscribe((state, prevState) => {
     updateVariables(state);
     updateTags(state);
   }
-  if (prevState.metricMeta !== state.metricMeta) {
-    const variableItems = useVariableListStore.getState().variables;
-    const { orderVariables, variables, plots } = state.params;
-    orderVariables.forEach((variableKey) => {
-      const variable = variables[variableKey];
-      if (variable && !variableItems[variable.name]?.tagMeta) {
-        variable.link.forEach(([plotKey, tagKey]) => {
-          // const indexPlot = toNumber(plotKey);
-          // const indexTag = toIndexTag(tagKey);
-          // if (indexPlot != null && indexTag != null) {
-          const plot = plots[plotKey];
-          if (plot) {
-            const meta = state.metricMeta[plot.metricName];
-            useVariableListStore.setState(
-              produce((variableState) => {
-                if (variableState.variables[variable.name]) {
-                  variableState.variables[variable.name].tagMeta = meta?.tags?.[toNumber(tagKey, -1)];
-                }
-              })
-            );
-          }
-          // }
-        });
-      }
-    });
-  }
+  //todo: update variable meta info
+
+  // if (prevState.metricMeta !== state.metricMeta) {
+  //   const variableItems = useVariableListStore.getState().variables;
+  //   const { orderVariables, variables, plots } = state.params;
+  //   orderVariables.forEach((variableKey) => {
+  //     const variable = variables[variableKey];
+  //     if (variable && !variableItems[variable.name]?.tagMeta) {
+  //       variable.link.forEach(([plotKey, tagKey]) => {
+  //         const plot = plots[plotKey];
+  //         if (plot) {
+  //           const meta = state.metricMeta[plot.metricName];
+  //           useVariableListStore.setState(
+  //             produce((variableState) => {
+  //               if (variableState.variables[variable.name]) {
+  //                 variableState.variables[variable.name].tagMeta = meta?.tags?.[toNumber(tagKey, -1)];
+  //               }
+  //             })
+  //           );
+  //         }
+  //       });
+  //     }
+  //   });
+  // }
 });
+
+export function updateVariablesMetaInfo(params: QueryParams) {
+  const variableItems = useVariableListStore.getState().variables;
+  const { orderVariables, variables, plots } = params;
+  orderVariables.forEach((variableKey) => {
+    const variable = variables[variableKey];
+    if (variable && !variableItems[variable.name]?.tagMeta) {
+      variable.link.forEach(([plotKey, tagKey]) => {
+        const plot = plots[plotKey];
+        if (plot) {
+          const meta = getMetricMeta(plot.metricName);
+          useVariableListStore.setState(
+            produce((variableState) => {
+              if (variableState.variables[variable.name]) {
+                variableState.variables[variable.name].tagMeta = meta?.tags?.[toNumber(tagKey, -1)];
+              }
+            })
+          );
+        }
+      });
+    }
+  });
+}
 
 export function updateTags(state: StatsHouseStore) {
   const plotKey = state.params.tabNum;
@@ -320,7 +348,7 @@ export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 2500
   const otherFilterNotIn = { ...plot.filterNotIn };
   delete otherFilterNotIn[tagKey];
   const requestKey = `variable_${plotKey}-${plot.metricName}`;
-  const meta = await store.loadMetricMeta(plot.metricName);
+  const meta = await loadMetricMeta(plot.metricName);
   const tagMeta = meta?.tags?.[toNumber(tagKey, -1)];
   const params = {
     [GET_PARAMS.metricName]: plot.metricName,
@@ -400,7 +428,7 @@ export async function loadSourceList(variableParamSource: VariableParamsSource, 
   };
   const keyLastRequest = JSON.stringify(params);
   const lastTag = useVariableListStore.getState().source[variableParamSource.metric]?.[variableParamSource.tag];
-  const tagMeta = await store.loadMetricMeta(variableParamSource.metric);
+  const tagMeta = await loadMetricMeta(variableParamSource.metric);
   if (lastTag && lastTag.keyLastRequest === keyLastRequest) {
     return {
       metricName: variableParamSource.metric,

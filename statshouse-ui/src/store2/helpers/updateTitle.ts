@@ -4,25 +4,30 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { StatsHouseStore } from '@/store2';
 import { pageTitle } from '@/store2';
 import { getMetricFullName } from './lib';
+import type { PlotData } from '@/store2/plotDataStore';
+import { QueryParams } from '@/url2';
 
-export function updateTitle({ params: { tabNum, plots, dashboardName }, plotsData }: StatsHouseStore) {
+export function updateTitle({ tabNum, plots, dashboardName }: QueryParams, plotData?: PlotData) {
+  let nextTitle = '';
   switch (tabNum) {
     case '-1':
-      document.title = `${dashboardName || 'Dashboard'} — ${pageTitle}`;
+      nextTitle = `${dashboardName || 'Dashboard'} — ${pageTitle}`;
       break;
     case '-2':
-      document.title = `Dashboard setting — ${pageTitle}`;
+      nextTitle = `Dashboard setting — ${pageTitle}`;
       break;
     case '-3':
-      document.title = `Dashboard history — ${pageTitle}`;
+      nextTitle = `Dashboard history — ${pageTitle}`;
       break;
     default: {
-      const fullName = getMetricFullName(plots[tabNum], plotsData[tabNum]);
-      document.title = `${fullName} — ${pageTitle}`;
+      const fullName = getMetricFullName(plots[tabNum], plotData);
+      nextTitle = `${fullName} — ${pageTitle}`;
       break;
     }
+  }
+  if (document.title !== nextTitle) {
+    document.title = nextTitle;
   }
 }
