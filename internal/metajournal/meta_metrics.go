@@ -122,12 +122,12 @@ func (ms *MetricsStorage) GetMetaMetricByNameBytes(metric []byte) *format.Metric
 	return ms.metricsByName[string(metric)]
 }
 
-func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.MetricMetaValue {
+func (ms *MetricsStorage) GetMetaMetricList(includeDisabled bool) []*format.MetricMetaValue {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	li := make([]*format.MetricMetaValue, 0, len(ms.metricsByName))
 	for _, v := range ms.metricsByName {
-		if !includeInvisible && v.Disable {
+		if !includeDisabled && v.Disable {
 			continue
 		}
 		li = append(li, v)

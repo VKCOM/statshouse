@@ -130,6 +130,15 @@ func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact
 	return c, err
 }
 
+func LoadJournalFastSlice(fp *[]byte, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
+	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
+	w, t, r, fs := data_model.ChunkedStorageSlice(fp)
+	c.writeAt = w
+	c.truncate = t
+	err := c.load(fs, r)
+	return c, err
+}
+
 func (ms *JournalFast) SetDumpPathPrefix(dumpPathPrefix string) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()

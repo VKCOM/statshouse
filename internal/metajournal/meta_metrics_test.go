@@ -34,20 +34,20 @@ func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *JournalFas
 	return m, j
 }
 
-const metricID = 123456
-const namespace1ID = 332
-const group1Id = 233
-const id6 = 62488
-const id7 = 62418
+const testMetricID = 123456
+const testNamespace1ID = 332
+const testGroup1ID = 233
+const testID6 = 62488
+const testID7 = 62418
 
 var group1 = format.MetricsGroup{
-	ID:     group1Id,
+	ID:     testGroup1ID,
 	Name:   "group1",
 	Weight: 1,
 }
 
-var group2Metric6 = format.MetricMetaValue{MetricID: id6, Name: group1.Name + "_metric6"}
-var testMetric7 = format.MetricMetaValue{MetricID: id7, Name: "test_metric7"}
+var group2Metric6 = format.MetricMetaValue{MetricID: testID6, Name: group1.Name + "_metric6"}
+var testMetric7 = format.MetricMetaValue{MetricID: testID7, Name: "test_metric7"}
 
 type testCase struct {
 	name string
@@ -361,7 +361,7 @@ func TestMetricsStorage(t *testing.T) {
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
 		metric := *format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
-		metric.MetricID = metricID
+		metric.MetricID = testMetricID
 		metric.Name = "test_metric"
 		metric.GroupID = 0
 		metric.BuiltinAllowedToReceive = false // this field is not restored by RestoreCachedInfo
@@ -819,7 +819,7 @@ func TestMetricsStorage(t *testing.T) {
 			metric6Bytes, err := easyjson.Marshal(group2Metric6)
 			require.NoError(t, err)
 			testMetric7.Version = incVersion()
-			testMetric7.NamespaceID = namespace1ID
+			testMetric7.NamespaceID = testNamespace1ID
 			metric7Bytes, err := easyjson.Marshal(testMetric7)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
