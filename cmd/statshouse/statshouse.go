@@ -513,7 +513,7 @@ func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
 		s, err := main.diskCache.DiskSizeBytes()
 		if err == nil {
 			a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
-				[]int32{}, float64(s), 1)
+				[]int32{0, 0, 0, 0, a.ComponentTag()}, float64(s), 1)
 		}
 	}
 }

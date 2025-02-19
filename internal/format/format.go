@@ -476,7 +476,13 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		// for mast metrics in database, this name is set to "env". We do not want to continue using it.
 		// We want mapEnvironment() to work even when metric is not found, so we must not allow users to
 		// set their environment tag name. They must use canonical "0" name instead.
-		m.Tags[0] = defaultMetaTags[0]
+		m.Tags[0].Name = ""
+		m.Tags[0].Raw = false // TODO - remove after it removing v2 agents
+		m.Tags[0].RawKind = ""
+		m.Tags[0].ValueComments = nil
+		if m.Tags[0].Description != "-" { // most builtin metrics have no environment, we want to remove it from UI
+			m.Tags[0].Description = "environment"
+		}
 	}
 	m.PreKeyIndex = -1
 	tags := m.Tags

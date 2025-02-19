@@ -757,7 +757,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
 		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaAgentSamplingFactor, 1,
-			[]int32{0, v.Metric}, aera).
+			[]int32{0, v.Metric, format.AggShardTag: a.shardKey}, aera).
 			Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
 	}
 

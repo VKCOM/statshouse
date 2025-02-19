@@ -360,7 +360,7 @@ func TestMetricsStorage(t *testing.T) {
 	// actually 1 test, but grouped by small test case (need to run together)
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
-		metric := *format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
+		metric := *format.BuiltinMetricMetaAPIBRS
 		metric.MetricID = testMetricID
 		metric.Name = "test_metric"
 		metric.GroupID = 0
