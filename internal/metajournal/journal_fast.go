@@ -59,8 +59,7 @@ type JournalFast struct {
 	journal map[journalEventID]journalEvent
 	order   *btree.BTreeG[journalOrder]
 
-	getJournalResponse     tlmetadata.GetJournalResponsenew // this slice is heavily reused
-	clientsMu              sync.Mutex                       // Always taken after mu
+	clientsMu              sync.Mutex // Always taken after mu
 	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
 
 	sh2       *agent.Agent

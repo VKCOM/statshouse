@@ -55,7 +55,8 @@ func FuzzCompactJournal(f *testing.F) {
 			return metricStorage, journal
 		}
 		deliverEvents := func(to *JournalFast, from *JournalFast, arg int) (finished bool) {
-			resp := from.getJournalDiffLocked3(to.loaderVersion)
+			var resp tlmetadata.GetJournalResponsenew
+			from.getJournalDiffLocked3(to.loaderVersion, &resp)
 			finished = len(resp.Events) == 0
 			if arg < len(resp.Events) {
 				resp.Events = resp.Events[:arg]
