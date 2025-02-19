@@ -420,6 +420,8 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			t.compat = first(v) == "1"
 		case "op":
 			ord = strings.Split(first(v), ".")
+		case "live":
+			t.play, _ = strconv.Atoi(first(v))
 		}
 		if err != nil {
 			return nil, err

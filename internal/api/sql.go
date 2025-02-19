@@ -39,6 +39,7 @@ type queryBuilder struct {
 	strcmpOff   bool      // version 3 experimental
 	minMaxHost  [2]bool   // "min" at [0], "max" at [1]
 	point       bool      // point query
+	play        int
 	utcOffset   int64
 
 	// specific to queryKindTagValues, queryKindTagValueIDs

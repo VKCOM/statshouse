@@ -178,8 +178,6 @@ type (
 		CacheVersion           atomic.Int32
 		CacheStaleAcceptPeriod atomic.Int64
 		CacheTrimBackoffPeriod atomic.Int64
-		optionsMu              sync.RWMutex
-		BotUserNames           []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -395,6 +393,7 @@ type (
 	seriesRequest struct {
 		version          string
 		numResults       int
+		play             int
 		metricName       string
 		customMetricName string
 		from             time.Time
@@ -655,8 +654,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
 		h.cache2.setLimits(cache2Limits{
-			maxSizeInBytes: cfg.MaxCacheSize,
-			maxAge:         time.Duration(cfg.MaxCacheAge) * time.Second,
+			maxSize: cfg.MaxCacheSize,
+			maxAge:  time.Duration(cfg.MaxCacheAge) * time.Second,
 		})
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
@@ -665,9 +664,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
 		h.CacheTrimBackoffPeriod.Store(cfg.CacheTrimBackoffPeriod)
 		chV2.SetLimits(cfg.UserLimits)
-		h.optionsMu.Lock()
-		h.BotUserNames = cfg.BotUserNames
-		h.optionsMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -2529,6 +2525,7 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 			MaxHost:          req.maxHost,
 			Offsets:          offsets,
 			Limit:            limit,
+			Play:             req.play,
 			Rand:             opt.rand,
 			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
 				res.metric = metric
@@ -3392,12 +3389,6 @@ func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDurati
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
-}
-
-func (h *requestHandler) playRequest() bool {
-	h.optionsMu.RLock()
-	defer h.optionsMu.RUnlock()
-	return !slices.Contains(h.BotUserNames, h.accessInfo.user)
 }
 
 func HandleTagDraftList(r *httpRequestHandler) {
