@@ -177,6 +177,7 @@ type (
 		Version3StrcmpOff      atomic.Bool
 		CacheVersion           atomic.Int32
 		CacheStaleAcceptPeriod atomic.Int64
+		CacheTrimAge           atomic.Int64
 		CacheTrimBackoffPeriod atomic.Int64
 		optionsMu              sync.RWMutex
 		BotUserNames           []string
@@ -663,6 +664,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.setCacheVersion(int32(cfg.CacheVersion))
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
+		h.CacheTrimAge.Store(cfg.CacheTrimAge)
 		h.CacheTrimBackoffPeriod.Store(cfg.CacheTrimBackoffPeriod)
 		chV2.SetLimits(cfg.UserLimits)
 		h.optionsMu.Lock()

@@ -7,8 +7,8 @@ import (
 )
 
 func TestCache2SeriesList(t *testing.T) {
-	s := [100]cache2Series{}
-	l := newCache2SeriesList()
+	s := [100]cache2Bucket{}
+	l := newCache2BucketList()
 	require.Equal(t, 0, l.len())
 	for i := 0; i < len(s); i++ {
 		l.add(&s[i])
