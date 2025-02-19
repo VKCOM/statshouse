@@ -19,7 +19,7 @@ import (
 // it consists of byte chunks protected by magic and xxh3
 // files are saved at the exit (or sometimes periodically) and fsync is never called
 
-// each individual item must be < mappingsChunkSize/2
+// each individual item must be < chunkSize/2
 
 // File format is chunk-based so that reading and writing requires not so much memory.
 // Also, we can start saving changes incrementally later.
@@ -31,9 +31,9 @@ const ChunkedMagicMappings = 0x83a28d18
 const ChunkedMagicJournal = 0x83a28d1e
 const ChunkedMagicConfig = 0x83a28d1a
 
-const mappingsChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
-const mappingsChunkHeaderSize = 4 + 4 // magic + body size
-const mappingsChunkHashSize = 16
+const chunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
+const chunkHeaderSize = 4 + 4 // magic + body size
+const chunkHashSize = 16
 
 type ChunkedStorageSaver struct {
 	magic        uint32
@@ -93,11 +93,11 @@ func ChunkedStorageSlice(fp *[]byte) (writeAt func(offset int64, data []byte) er
 
 // pass maxChunkSize 0 for default
 func (c *ChunkedStorageSaver) StartWrite(magic uint32, maxChunkSize int) []byte {
-	if maxChunkSize <= 0 || maxChunkSize > mappingsChunkSize {
-		maxChunkSize = mappingsChunkSize
+	if maxChunkSize <= 0 || maxChunkSize > chunkSize {
+		maxChunkSize = chunkSize
 	}
-	if cap(c.scratch) < mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize {
-		c.scratch = make([]byte, 0, mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize)
+	if cap(c.scratch) < chunkHeaderSize+chunkSize+chunkHashSize {
+		c.scratch = make([]byte, 0, chunkHeaderSize+chunkSize+chunkHashSize)
 	}
 	c.magic = magic
 	c.offset = 0
@@ -112,10 +112,10 @@ func (c *ChunkedStorageSaver) startChunk(chunk []byte) []byte {
 }
 
 func (c *ChunkedStorageSaver) finishChunk(chunk []byte) ([]byte, error) {
-	if len(chunk) == mappingsChunkHeaderSize {
+	if len(chunk) == chunkHeaderSize {
 		return chunk, nil
 	}
-	binary.LittleEndian.PutUint32(chunk[4:8], uint32(len(chunk)-mappingsChunkHeaderSize))
+	binary.LittleEndian.PutUint32(chunk[4:8], uint32(len(chunk)-chunkHeaderSize))
 	h := xxh3.Hash128(chunk)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Hi)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Lo)
@@ -127,13 +127,13 @@ func (c *ChunkedStorageSaver) finishChunk(chunk []byte) ([]byte, error) {
 }
 
 func (c *ChunkedStorageSaver) FinishItem(chunk []byte) ([]byte, error) {
-	if len(chunk) < mappingsChunkHeaderSize {
+	if len(chunk) < chunkHeaderSize {
 		panic("saver invariant violated, caller must only append to chunk")
 	}
-	if len(chunk) < mappingsChunkHeaderSize+c.maxChunkSize/2 { // write after half space used
+	if len(chunk) < chunkHeaderSize+chunkSize/2 { // write after half space used
 		return chunk, nil
 	}
-	if len(chunk) > mappingsChunkHeaderSize+mappingsChunkSize {
+	if len(chunk) > chunkHeaderSize+chunkSize {
 		return chunk, fmt.Errorf("too big item(s) - %d bytes", len(chunk))
 	}
 	return c.finishChunk(chunk)
@@ -150,8 +150,8 @@ func (c *ChunkedStorageSaver) FinishWrite(chunk []byte) error {
 }
 
 func (c *ChunkedStorageLoader) StartRead(fileSize int64, magic uint32) {
-	if len(c.scratch) < mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize {
-		c.scratch = make([]byte, mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize)
+	if len(c.scratch) < chunkHeaderSize+chunkSize+chunkHashSize {
+		c.scratch = make([]byte, chunkHeaderSize+chunkSize+chunkHashSize)
 	}
 	c.magic = magic
 	c.offset = 0
@@ -163,31 +163,31 @@ func (c *ChunkedStorageLoader) ReadNext() (chunk []byte, first bool, err error) 
 	if c.offset == c.fileSize {
 		return nil, first, nil
 	}
-	if c.offset+mappingsChunkHeaderSize+mappingsChunkHashSize > c.fileSize {
+	if c.offset+chunkHeaderSize+chunkHashSize > c.fileSize {
 		return nil, first, fmt.Errorf("chunk at %d header overflows file size %d", c.offset, c.fileSize)
 	}
-	if err := c.ReadAt(c.scratch[:mappingsChunkHeaderSize], c.offset); err != nil {
+	if err := c.ReadAt(c.scratch[:chunkHeaderSize], c.offset); err != nil {
 		return nil, first, err
 	}
 	if m := binary.LittleEndian.Uint32(c.scratch[:]); m != c.magic {
 		return nil, first, fmt.Errorf("chunk at %d invalid magic 0x%x", c.offset, m)
 	}
 	s := int64(binary.LittleEndian.Uint32(c.scratch[4:]))
-	if s > mappingsChunkSize {
-		return nil, first, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, mappingsChunkSize)
+	if s > chunkSize {
+		return nil, first, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, chunkSize)
 	}
-	nextChunkOffset := c.offset + mappingsChunkHeaderSize + s + mappingsChunkHashSize
+	nextChunkOffset := c.offset + chunkHeaderSize + s + chunkHashSize
 	if nextChunkOffset > c.fileSize {
 		return nil, first, fmt.Errorf("chunk at %d body size %d overflows file size %d", c.offset, s, c.fileSize)
 	}
-	if err := c.ReadAt(c.scratch[:mappingsChunkHeaderSize+s+mappingsChunkHashSize], c.offset); err != nil { // read header again for simplicity
+	if err := c.ReadAt(c.scratch[:chunkHeaderSize+s+chunkHashSize], c.offset); err != nil { // read header again for simplicity
 		return nil, first, err
 	}
-	h := xxh3.Hash128(c.scratch[:mappingsChunkHeaderSize+s])
-	if h.Hi != binary.BigEndian.Uint64(c.scratch[mappingsChunkHeaderSize+s:]) ||
-		h.Lo != binary.BigEndian.Uint64(c.scratch[mappingsChunkHeaderSize+s+8:]) {
+	h := xxh3.Hash128(c.scratch[:chunkHeaderSize+s])
+	if h.Hi != binary.BigEndian.Uint64(c.scratch[chunkHeaderSize+s:]) ||
+		h.Lo != binary.BigEndian.Uint64(c.scratch[chunkHeaderSize+s+8:]) {
 		return nil, first, fmt.Errorf("chunk at %d has wrong xxhash", c.offset)
 	}
 	c.offset = nextChunkOffset
-	return c.scratch[mappingsChunkHeaderSize : mappingsChunkHeaderSize+s], first, nil
+	return c.scratch[chunkHeaderSize : chunkHeaderSize+s], first, nil
 }
