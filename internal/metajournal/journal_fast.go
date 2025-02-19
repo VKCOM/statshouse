@@ -216,11 +216,11 @@ func (ms *JournalFast) Save() error {
 		WriteAt:  ms.writeAt,
 		Truncate: ms.truncate,
 	}
-	return ms.save(&saver)
+	return ms.save(&saver, 0)
 }
 
-func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver) error {
-	chunk := saver.StartWrite(data_model.ChunkedMagicJournal)
+func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver, maxChunkSize int) error {
+	chunk := saver.StartWrite(data_model.ChunkedMagicJournal, maxChunkSize)
 	chunk = basictl.LongWrite(chunk, ms.loaderVersion)  // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
 	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we must not use loaderVersion if file tail with some events was corrupted/cut, so we remember it
 	// we do not FinishItem after version because version is small
@@ -264,7 +264,7 @@ func (ms *JournalFast) dump() error {
 		WriteAt:  w,
 		Truncate: t,
 	}
-	return ms.save(&saver)
+	return ms.save(&saver, 0)
 }
 
 func (ms *JournalFast) Compare(ms2 *JournalFast) {
@@ -339,7 +339,8 @@ func equalWithoutVersionJournalEvent(a, b tlmetadata.Event) bool {
 	return a == b
 }
 
-func hashJournalEvent(scratch []byte, entry tlmetadata.Event) ([]byte, xxh3.Uint128) {
+func hashWithoutVersionJournalEvent(scratch []byte, entry tlmetadata.Event) ([]byte, xxh3.Uint128) {
+	entry.Version = 0 // in accordance with code above
 	scratch = entry.Write(scratch[:0])
 	return scratch, xxh3.Hash128(scratch)
 }
@@ -349,7 +350,7 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 		panic("journal order invariant violated - adding old element")
 	}
 	var hash xxh3.Uint128
-	scratch, hash = hashJournalEvent(scratch, entry)
+	scratch, hash = hashWithoutVersionJournalEvent(scratch, entry)
 	key := journalEventID{typ: entry.EventType, id: entry.Id}
 	old, ok := ms.journal[key] // hash is 0 if not there
 	if ok {

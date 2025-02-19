@@ -437,7 +437,7 @@ func (c *MappingsCache) Save() error {
 		Truncate: c.truncate,
 	}
 
-	chunk := saver.StartWrite(data_model.ChunkedMagicMappings)
+	chunk := saver.StartWrite(data_model.ChunkedMagicMappings, 0)
 
 	appendItem := func(k string, v int32, accessTS uint32) error {
 		chunk = basictl.StringWrite(chunk, k)

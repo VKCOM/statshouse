@@ -40,14 +40,19 @@ func FuzzCompactJournal(f *testing.F) {
 			[]ApplyEvent{metricStorageAgent.ApplyEvent})
 
 		saveReload := func(journal *JournalFast, fj *[]byte, arg byte) (*MetricsStorage, *JournalFast) {
-			if err := journal.Save(); err != nil {
+			if len(journal.journal) > 3 {
+				fmt.Printf("aja")
+			}
+			saver := data_model.ChunkedStorageSaver{
+				WriteAt:  journal.writeAt,
+				Truncate: journal.truncate,
+			}
+			if err := journal.save(&saver, 1); err != nil { // maxChunkSize 1 so each event is in its own chunk
 				t.Error(err)
 			}
-			switch arg {
-			case 0:
-				*fj = (*fj)[:0]
-			case 1:
-				*fj = (*fj)[:len(*fj)/2]
+			truncateLen := int(arg) * 40 // approximate event size
+			if len(*fj) > truncateLen {
+				*fj = (*fj)[:truncateLen]
 			}
 			metricStorage := MakeMetricsStorage(nil)
 			journal, _ = LoadJournalFastSlice(fj, data_model.JournalDDOSProtectionTimeout, journal.compact,
@@ -147,9 +152,6 @@ func FuzzCompactJournal(f *testing.F) {
 		if len(metricStorageAgent.metricsByID) != len(metrics) {
 			t.Errorf("list length mismatch")
 		}
-		if journalAgent.stateHashStr != journalCompact.stateHashStr {
-			t.Errorf("journal hash mismatch")
-		}
 		for _, m1 := range metrics {
 			m2 := metricStorageCompact.GetMetaMetric(m1.MetricID)
 			m3 := metricStorageAgent.GetMetaMetric(m1.MetricID)
@@ -159,6 +161,35 @@ func FuzzCompactJournal(f *testing.F) {
 			if !format.SameCompactMetric(m1, m3) {
 				t.Errorf("metric %v does not match m2 %v", m1, m2)
 			}
+		}
+		// if aggregator restarts and forgets journal, we can end up with different journal order
+		//var journalCompactAll tlmetadata.GetJournalResponsenew
+		//journalCompact.getJournalDiffLocked3Limits(0, &journalCompactAll, math.MaxInt, math.MaxInt)
+		//var journalAgentAll tlmetadata.GetJournalResponsenew
+		//journalAgent.getJournalDiffLocked3Limits(0, &journalAgentAll, math.MaxInt, math.MaxInt)
+		//if len(journalCompactAll.Events) != len(journalAgentAll.Events) {
+		//	t.Errorf("journal length mismatch")
+		//}
+		//for i, e1 := range journalCompactAll.Events {
+		//	e2 := journalAgentAll.Events[i]
+		//	if e1 != e2 {
+		//		t.Errorf("journal entry mismatch")
+		//	}
+		//}
+		//if journalCompactAll.CurrentVersion != journalAgentAll.CurrentVersion {
+		//	t.Errorf("journal versions mismatch")
+		//}
+		if len(journalCompact.journal) != len(journalAgent.journal) {
+			t.Errorf("journal length mismatch")
+		}
+		for id, e1 := range journalCompact.journal {
+			e2 := journalAgent.journal[id]
+			if !equalWithoutVersionJournalEvent(e1.Event, e2.Event) {
+				t.Errorf("journal entry mismatch: %v %v", e1, e2)
+			}
+		}
+		if journalAgent.stateHashStr != journalCompact.stateHashStr {
+			t.Errorf("journal hash mismatch")
 		}
 	})
 }

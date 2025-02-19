@@ -160,7 +160,7 @@ func clientSaveConfigToCache(cluster string, cacheDir string, dst tlstatshouse.G
 	defer fp.Close()
 	w, t, _, _ := data_model.ChunkedStorageFile(fp)
 	saver := data_model.ChunkedStorageSaver{WriteAt: w, Truncate: t}
-	chunk := saver.StartWrite(data_model.ChunkedMagicConfig)
+	chunk := saver.StartWrite(data_model.ChunkedMagicConfig, 0)
 	chunk = dst.WriteBoxed(chunk)
 	return saver.FinishWrite(chunk)
 }

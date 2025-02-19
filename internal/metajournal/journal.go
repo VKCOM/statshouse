@@ -159,7 +159,7 @@ func calculateVersionStateHashLocked(events []tlmetadata.Event) (int64, string, 
 	var scratch []byte
 	for _, entry := range events {
 		var hash xxh3.Uint128
-		scratch, hash = hashJournalEvent(scratch, entry)
+		scratch, hash = hashWithoutVersionJournalEvent(scratch, entry)
 		stateHash.Hi ^= hash.Hi
 		stateHash.Lo ^= hash.Lo
 	}

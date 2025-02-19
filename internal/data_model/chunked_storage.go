@@ -28,7 +28,7 @@ import (
 // body:  [element]...
 
 const ChunkedMagicMappings = 0x83a28d18
-const ChunkedMagicJournal = 0x83a28d1d
+const ChunkedMagicJournal = 0x83a28d1e
 const ChunkedMagicConfig = 0x83a28d1a
 
 const mappingsChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
@@ -36,11 +36,12 @@ const mappingsChunkHeaderSize = 4 + 4 // magic + body size
 const mappingsChunkHashSize = 16
 
 type ChunkedStorageSaver struct {
-	magic    uint32
-	scratch  []byte
-	offset   int64
-	WriteAt  func(offset int64, data []byte) error
-	Truncate func(offset int64) error
+	magic        uint32
+	scratch      []byte
+	offset       int64
+	maxChunkSize int // limit for tests
+	WriteAt      func(offset int64, data []byte) error
+	Truncate     func(offset int64) error
 }
 
 type ChunkedStorageLoader struct {
@@ -90,12 +91,17 @@ func ChunkedStorageSlice(fp *[]byte) (writeAt func(offset int64, data []byte) er
 	return
 }
 
-func (c *ChunkedStorageSaver) StartWrite(magic uint32) []byte {
+// pass maxChunkSize 0 for default
+func (c *ChunkedStorageSaver) StartWrite(magic uint32, maxChunkSize int) []byte {
+	if maxChunkSize <= 0 || maxChunkSize > mappingsChunkSize {
+		maxChunkSize = mappingsChunkSize
+	}
 	if cap(c.scratch) < mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize {
 		c.scratch = make([]byte, 0, mappingsChunkHeaderSize+mappingsChunkSize+mappingsChunkHashSize)
 	}
 	c.magic = magic
 	c.offset = 0
+	c.maxChunkSize = maxChunkSize
 	return c.startChunk(c.scratch)
 }
 
@@ -124,7 +130,7 @@ func (c *ChunkedStorageSaver) FinishItem(chunk []byte) ([]byte, error) {
 	if len(chunk) < mappingsChunkHeaderSize {
 		panic("saver invariant violated, caller must only append to chunk")
 	}
-	if len(chunk) < mappingsChunkHeaderSize+mappingsChunkSize/2 { // write after half space used
+	if len(chunk) < mappingsChunkHeaderSize+c.maxChunkSize/2 { // write after half space used
 		return chunk, nil
 	}
 	if len(chunk) > mappingsChunkHeaderSize+mappingsChunkSize {
