@@ -5,51 +5,28 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo } from 'react';
-import { PlotControl } from './PlotControl';
 import cn from 'classnames';
-import { useStatsHouseShallow } from '@/store2';
-import css from './style.module.css';
-import { PlotView } from './PlotView';
-import { isPromQL } from '@/store2/helpers';
+import { PlotWidget } from '@/components2/PlotWidgets/PlotWidget';
+import { PlotWidgetFull } from '@/components2/PlotWidgets/PlotWidgetFull';
+import type { PlotKey } from '@/url2';
 
 export type PlotLayoutProps = {
   className?: string;
+  plotKey: PlotKey;
+  isEmbed?: boolean;
 };
 
-export const PlotLayout = memo(function PlotLayout({ className }: PlotLayoutProps) {
-  const { tabNum, plotDataPromqlExpand, isEmbed } = useStatsHouseShallow(
-    ({ params: { tabNum, plots }, plotsData, isEmbed }) => ({
-      tabNum,
-      plotDataPromqlExpand: (isPromQL(plots[tabNum]) && plotsData[tabNum]?.promqlExpand) ?? false,
-      isEmbed,
-    })
-  );
-
+export const PlotLayout = memo(function PlotLayout({ className, plotKey, isEmbed }: PlotLayoutProps) {
   if (isEmbed) {
     return (
       <div className={className}>
-        <PlotView plotKey={tabNum} />
+        <PlotWidget plotKey={plotKey} isEmbed fixRatio />
       </div>
     );
   }
   return (
     <div className={cn('container-xl', className)}>
-      <div className="row">
-        <div
-          className={cn(
-            css.plotColumn,
-            'position-relative col col-12',
-            plotDataPromqlExpand ? 'col-lg-5 col-xl-4' : 'col-lg-7 col-xl-8'
-          )}
-        >
-          {/*<div className="position-relative flex-grow-1 d-flex flex-column">*/}
-          <PlotView plotKey={tabNum} />
-          {/*</div>*/}
-        </div>
-        <div className={cn('col col-12', plotDataPromqlExpand ? 'col-lg-7 col-xl-8' : 'col-lg-5 col-xl-4')}>
-          <PlotControl plotKey={tabNum} />
-        </div>
-      </div>
+      <PlotWidgetFull plotKey={plotKey} className="row" fixRatio />
     </div>
   );
 });

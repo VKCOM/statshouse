@@ -8,6 +8,10 @@ import { GET_PARAMS, type MetricMetaKind, type MetricMetaTagRawKind } from './en
 import { apiFetch, type ApiFetchResponse, ExtendedError } from './api';
 import { type UndefinedInitialDataOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { queryClient } from '@/common/queryClient';
+import { promQLMetric } from '@/url2';
+import { debug } from '@/common/debug';
+import { MetricMeta, tagsArrToObject } from '@/store2/metricsMetaStore';
+import { useMemo } from 'react';
 
 export const ApiMetricEndpoint = '/api/metric';
 /**
@@ -115,14 +119,43 @@ export async function apiMetric<T = ApiMetric>(metricName: string): Promise<ApiF
   }
   return result;
 }
+export async function loadMetricMeta(metricName: string) {
+  if (!metricName || metricName === promQLMetric) {
+    return null;
+  }
+
+  const { response, error } = await apiMetric(metricName);
+
+  if (response && !error) {
+    debug.log('loading meta for', response.data.metric.name);
+    const metricMeta: MetricMeta = {
+      ...response.data.metric,
+      ...tagsArrToObject(response.data.metric.tags),
+    };
+    return metricMeta;
+  }
+  return null;
+}
 
 export function useApiMetric<T = ApiMetric>(
   metricName: string,
   select?: (response?: ApiMetric) => T,
   enabled: boolean = true
 ): UseQueryResult<T, ExtendedError> {
+  const options = useMemo(() => getMetricOptions(metricName, enabled), [enabled, metricName]);
   return useQuery({
-    ...getMetricOptions(metricName, enabled),
+    ...options,
     select,
   });
+}
+
+export function getMetricMeta(metricName: string): MetricMeta | null {
+  const meta = queryClient.getQueryData<ApiMetric>([ApiMetricEndpoint, metricName])?.data.metric;
+  if (meta) {
+    return {
+      ...meta,
+      ...tagsArrToObject(meta.tags),
+    };
+  }
+  return null;
 }

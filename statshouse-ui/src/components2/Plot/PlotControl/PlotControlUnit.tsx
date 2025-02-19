@@ -4,12 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, type MetricType, toMetricType } from '@/api/enum';
 import cn from 'classnames';
-import { getMetricType } from '@/common/formatByMetricType';
-import type { PlotKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricUnit } from '@/hooks/useMetricUnit';
 
 const METRIC_TYPE_KEYS: MetricType[] = ['null', ...Object.values(METRIC_TYPE)] as MetricType[];
 const METRIC_TYPE_DESCRIPTION_SELECTOR = {
@@ -19,39 +18,21 @@ const METRIC_TYPE_DESCRIPTION_SELECTOR = {
 
 export type PlotControlUnitProps = {
   className?: string;
-  plotKey: PlotKey;
 };
 
-export const PlotControlUnit = memo(function PlotControlUnit({ className, plotKey }: PlotControlUnitProps) {
-  const { metricUnitParam, what, metaMetricType, setPlot } = useStatsHouseShallow(
-    useCallback(
-      (s) => ({
-        metricUnitParam: s.params.plots[plotKey]?.metricUnit,
-        what: s.plotsData[plotKey]?.whats ?? s.params.plots[plotKey]?.what,
-        metaMetricType:
-          s.plotsData[plotKey]?.metricUnit ??
-          s.metricMeta[s.plotsData[plotKey]?.metricName ?? s.params.plots[plotKey]?.metricName ?? '']?.metric_type,
-        setPlot: s.setPlot,
-      }),
-      [plotKey]
-    )
-  );
+export const PlotControlUnit = memo(function PlotControlUnit({ className }: PlotControlUnitProps) {
+  const { setPlot } = useWidgetPlotContext();
 
-  const metricUnit = useMemo(() => {
-    if (metricUnitParam != null) {
-      return metricUnitParam;
-    }
-    return getMetricType(what, metaMetricType);
-  }, [metaMetricType, metricUnitParam, what]);
+  const metricUnit = useMetricUnit();
 
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const unit = toMetricType(e.currentTarget.value);
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.metricUnit = unit ?? undefined;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
   return (
     <select className={cn('form-select', className)} value={metricUnit} onChange={onChange}>

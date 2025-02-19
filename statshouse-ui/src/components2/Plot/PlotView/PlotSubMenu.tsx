@@ -4,40 +4,34 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, useCallback } from 'react';
-import { PlotKey } from '@/url2';
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import { useStatsHouseShallow } from '@/store2';
 import { formatSI } from '@/common/formatByMetricType';
 import { useLinkCSV2 } from '@/hooks/useLinkCSV2';
 import { useMetricBadges } from '@/hooks/useMetricBadges';
-import { isPromQL } from '@/store2/helpers';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricName } from '@/hooks/useMetricName';
+import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
 
 export type PlotSubMenuProps = {
   className?: string;
-  plotKey: PlotKey;
 };
 
-export const PlotSubMenu = memo(function PlotSubMenu({ className, plotKey }: PlotSubMenuProps) {
-  const { metricName, params, plot, timeRange } = useStatsHouseShallow(
-    useCallback(
-      ({ plotsData, params }) => ({
-        metricName:
-          plotsData[plotKey]?.metricName ??
-          (isPromQL(params.plots[plotKey]) ? '' : params.plots[plotKey]?.metricName) ??
-          '',
-        params,
-        plot: params.plots[plotKey],
-        timeRange: params.timeRange,
-      }),
-      [plotKey]
-    )
-  );
-  const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
-    useMetricBadges(plot, params);
+const selectorStore = ({ params: { timeRange, timeShifts, variables } }: StatsHouseStore) => ({
+  timeRange,
+  timeShifts,
+  variables,
+});
 
-  const linkCSV = useLinkCSV2(plotKey);
+export const PlotSubMenu = memo(function PlotSubMenu({ className }: PlotSubMenuProps) {
+  const { plot } = useWidgetPlotContext();
+  const { timeRange, timeShifts, variables } = useStatsHouseShallow(selectorStore);
+  const metricName = useMetricName(true);
+  const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
+    useMetricBadges(plot, timeRange, timeShifts, variables);
+
+  const linkCSV = useLinkCSV2(plot.id);
   return (
     <ul className={cn('nav', className)}>
       <li className="nav-item">

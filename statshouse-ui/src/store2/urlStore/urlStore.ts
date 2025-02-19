@@ -86,7 +86,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     return getUrlState(prevLocation).then((res) => {
       setState((s) => {
         s.isEmbed = isEmbedPath(prevLocation);
-
         s.params = mergeParams(s.params, {
           ...res.params,
           timeRange:
@@ -112,7 +111,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
           true
         );
       }
-      getState().updatePlotsData();
     });
   }
 
@@ -162,26 +160,21 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     dashboardLayoutEdit: false,
     setParams(next: ProduceUpdate<QueryParams>, replace) {
       setUrlStore(updateParams(next), replace);
-      getState().updatePlotsData();
     },
     setTimeRange({ from, to }, replace) {
       setUrlStore(updateTimeRange(from, to), replace);
-      getState().updatePlotsData();
     },
     setPlot(plotKey, next, replace) {
       setUrlStore(updatePlot(plotKey, next), replace);
-      getState().loadPlotData(plotKey);
     },
     setPlotType(plotKey, nextType, replace) {
       setUrlStore(updatePlotType(plotKey, nextType), replace);
-      getState().loadPlotData(plotKey);
     },
-    setPlotYLock(plotKey, status, yLock?: { min: number; max: number }) {
+    setPlotYLock(plotKey, status, yLock: { min: number; max: number }) {
       setUrlStore(updatePlotYLock(plotKey, status, yLock));
     },
     resetZoom(plotKey: PlotKey) {
       setUrlStore(updateResetZoom(plotKey));
-      getState().updatePlotsData();
     },
     removePlot(plotKey: PlotKey) {
       setUrlStore(
@@ -203,24 +196,20 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     timeRangePanLeft() {
       setLiveMode(false);
       setUrlStore(timeRangePanLeft());
-      getState().updatePlotsData();
     },
     timeRangePanRight() {
       if (getState().params.timeRange.absolute) {
         setLiveMode(false);
       }
       setUrlStore(timeRangePanRight());
-      getState().updatePlotsData();
     },
     timeRangeZoomIn() {
       setLiveMode(false);
       setUrlStore(timeRangeZoomIn());
-      getState().updatePlotsData();
     },
     timeRangeZoomOut() {
       setLiveMode(false);
       setUrlStore(timeRangeZoomOut());
-      getState().updatePlotsData();
     },
     toggleGroupShow(groupKey) {
       setUrlStore(toggleGroupShow(groupKey));

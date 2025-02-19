@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { PlotParams } from '../../queryParams';
-import { METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE, QUERY_WHAT } from '../../../api/enum';
+import type { PlotParams } from '@/url2';
+import { METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE, QUERY_WHAT } from '@/api/enum';
 
 export function getNewMetric(): PlotParams {
   return {
@@ -38,3 +38,5 @@ export function getNewMetric(): PlotParams {
     prometheusCompat: false,
   };
 }
+
+export const defaultMetric = Object.freeze(getNewMetric());

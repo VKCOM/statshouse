@@ -6,20 +6,26 @@
 
 import { GET_BOOLEAN, GET_PARAMS, MetricMetaTagRawKind, MetricValueBackendVersion, QueryWhat, TagKey } from './enum';
 import { ApiMetric, ApiMetricEndpoint, MetricMetaValue } from './metric';
-import { ApiAbortController, apiFetch, ApiFetchResponse, ExtendedError } from './api';
+import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
 import { queryClient } from '../common/queryClient';
-import { PlotParams, QueryParams } from '../url2';
+import type { PlotParams, QueryParams, TimeRange, VariableKey, VariableParams } from '../url2';
 import {
   CancelledError,
   QueryClient,
   UndefinedInitialDataOptions,
+  useQueries,
   useQuery,
   useQueryClient,
   UseQueryResult,
 } from '@tanstack/react-query';
 import { useLiveModeStore } from '../store2/liveModeStore';
 import { useMemo } from 'react';
-import { getLoadPlotUrlParams } from '../store2/plotDataStore/loadPlotData';
+import { PlotVisibilityStore, usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
+import { isNotNil } from '@/common/helpers';
+import { useStatsHouse } from '@/store2';
+import { ApiBadgesEndpoint } from '@/api/badges';
+import { usePlotHeal } from '@/hooks/usePlotHeal';
+import { getLoadPlotUrlParamsLight } from '@/store2/plotDataStore/loadPlotData2';
 
 export const ApiQueryEndpoint = '/api/query';
 
@@ -108,19 +114,18 @@ export async function apiQueryFetch(params: ApiQueryGet, keyRequest?: unknown) {
 export function getQueryOptions<T = ApiQuery>(
   queryClient: QueryClient,
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>,
   interval?: number,
   priority?: number
 ): UndefinedInitialDataOptions<ApiQuery, ExtendedError, T, [string, ApiQueryGet | null]> {
-  const keyParams = getLoadPlotUrlParams(plot?.id, params);
-  const fetchParams = getLoadPlotUrlParams(plot?.id, params, interval, false, priority);
+  const keyParams = getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval);
+  const fetchParams = getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval, false, priority);
 
   const gcTime = interval ? interval * 2000 : queryClient.getDefaultOptions().queries?.gcTime;
 
-  const controller = new ApiAbortController(`${ApiQueryEndpoint}_${plot.id}`);
-  controller.signal.addEventListener('abort', () => {
-    queryClient.cancelQueries({ queryKey: [ApiQueryEndpoint, keyParams], exact: true });
-  });
+  const { setPlotHeal } = useStatsHouse.getState();
 
   return {
     queryKey: [ApiQueryEndpoint, keyParams],
@@ -129,12 +134,17 @@ export function getQueryOptions<T = ApiQuery>(
         throw new ExtendedError('no request params');
       }
       const { response, error } = await apiQueryFetch(fetchParams, signal);
+
       if (error) {
+        if (error.status !== ExtendedError.ERROR_STATUS_ABORT) {
+          setPlotHeal(plot.id, false);
+        }
         throw error;
       }
       if (!response) {
         throw new ExtendedError('empty response');
       }
+      setPlotHeal(plot.id, true);
       if (response.data.metric) {
         //save metric meta cache
         queryClient.setQueryData<ApiMetric>([ApiMetricEndpoint, response?.data.metric.name], {
@@ -145,6 +155,7 @@ export function getQueryOptions<T = ApiQuery>(
     },
     placeholderData: (previousData, previousQuery) => {
       if (
+        !previousQuery ||
         previousQuery?.queryKey[1]?.[GET_PARAMS.metricName] !== fetchParams?.[GET_PARAMS.metricName] ||
         previousQuery?.queryKey[1]?.[GET_PARAMS.metricPromQL] !== fetchParams?.[GET_PARAMS.metricPromQL] ||
         !!previousQuery?.state.error
@@ -168,7 +179,15 @@ export async function apiQuery(
   const result: ApiFetchResponse<ApiQuery> = { ok: false, status: 0 };
   try {
     result.response = await queryClient.fetchQuery(
-      getQueryOptions<ApiQuery>(queryClient, plot, params, interval, priority)
+      getQueryOptions<ApiQuery>(
+        queryClient,
+        plot,
+        params.timeRange,
+        params.timeShifts,
+        params.variables,
+        interval,
+        priority
+      )
     );
     result.ok = true;
   } catch (error) {
@@ -188,25 +207,89 @@ export async function apiQuery(
 
 export function useApiQuery<T = ApiQuery>(
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>,
   select?: (response?: ApiQuery) => T,
-  enabled: boolean = true
+  enabled: boolean = true,
+  priority: number = 2
 ): UseQueryResult<T, ExtendedError> {
   const queryClient = useQueryClient();
 
-  const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
+  const interval = useLiveModeStore(({ interval, status }) =>
+    status ? interval * (!enabled || priority === 3 ? 10 : 1) : undefined
+  );
 
-  const priority = useMemo(() => {
-    if (plot?.id === params.tabNum) {
-      return 1;
-    }
-    return enabled ? 2 : 3;
-  }, [enabled, params.tabNum, plot?.id]);
-  const options = getQueryOptions<ApiQuery>(queryClient, plot, params, interval, priority);
+  const plotHeals = usePlotHeal(plot.id);
 
+  const options = useMemo(
+    () => getQueryOptions<ApiQuery>(queryClient, plot, timeRange, timeShifts, variables, interval, priority),
+    [interval, timeRange, timeShifts, variables, plot, priority, queryClient]
+  );
   return useQuery({
     ...options,
     select,
-    enabled,
+    enabled: (): boolean => {
+      if (enabled) {
+        return plotHeals === true || plotHeals > Date.now();
+      }
+      return false;
+    },
+    refetchInterval: interval ? interval * 1000 : undefined,
   });
+}
+
+const plotVisibilitySelector = ({ plotPreviewList }: PlotVisibilityStore) => plotPreviewList;
+
+export function useApiQueries<T = ApiQuery>(
+  plots: PlotParams[],
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>,
+  select?: (response?: ApiQuery) => T,
+  enabled: boolean = true
+) {
+  const queryClient = useQueryClient();
+
+  const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
+  const iconsVisible = usePlotVisibilityStore(plotVisibilitySelector);
+
+  const queries = useMemo(
+    () =>
+      plots
+        .map((plot) => {
+          if (plot) {
+            return {
+              ...getQueryOptions<ApiQuery>(queryClient, plot, timeRange, timeShifts, variables, interval, 2),
+              select,
+              enabled: enabled || iconsVisible[plot.id],
+            };
+          }
+          return null;
+        })
+        .filter(isNotNil),
+    [enabled, iconsVisible, interval, plots, queryClient, select, timeRange, timeShifts, variables]
+  );
+
+  return useQueries({
+    queries,
+    combine: (result) => ({
+      data: Object.fromEntries(result.map((r, index) => [plots[index].id, r.data])),
+      isLoading: result.some((r) => r.isLoading),
+    }),
+  });
+}
+
+export function refetchQuery(
+  plot: PlotParams,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>
+) {
+  const interval = useLiveModeStore.getState().status ? useLiveModeStore.getState().interval : undefined;
+  const keyParams = getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval);
+  //invalidate data
+  queryClient.invalidateQueries({ queryKey: [ApiQueryEndpoint, keyParams], type: 'all', exact: true });
+  //invalidate badges
+  queryClient.invalidateQueries({ queryKey: [ApiBadgesEndpoint, keyParams], type: 'all', exact: true });
 }

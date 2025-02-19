@@ -4,4 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-export * from './plotEventsDataStore';
+import { useContext } from 'react';
+import { WidgetPlotDataContext } from '@/contexts/WidgetPlotDataContext';
+
+export function useWidgetPlotDataContext() {
+  return useContext(WidgetPlotDataContext);
+}

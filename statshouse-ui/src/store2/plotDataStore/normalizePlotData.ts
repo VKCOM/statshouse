@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import type { SeriesResponse } from '@/api/query';
-import { type PlotParams, promQLMetric, type QueryParams } from '@/url2';
+import { type PlotParams, promQLMetric, type TimeRange } from '@/url2';
 import type { ProduceUpdate } from '../helpers';
 import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetricType } from '@/api/enum';
 import uPlot from 'uplot';
@@ -26,10 +26,10 @@ import { useThemeStore } from '../themeStore';
 export function normalizePlotData(
   response: SeriesResponse,
   plot: PlotParams,
-  params: QueryParams
+  timeRange: TimeRange,
+  timeShifts: number[]
 ): ProduceUpdate<PlotData> {
   const width = 2000;
-  const { timeRange, timeShifts } = params;
   return (plotData = getEmptyPlotData()) => {
     const {
       lastPlotParams: currentPrevLastPlotParams,
@@ -173,9 +173,7 @@ export function normalizePlotData(
       // client select color line
       const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
       baseColors[colorKey] = baseColor;
-      // if (baseColor !== currentPrevSeries[indexMeta]?.stroke) {
-      //   changeColor = true;
-      // }
+
       if (meta.max_hosts) {
         const max_hosts_l = meta.max_hosts
           .map((host) => host.length * pxPerChar * 1.25 + 65)
@@ -317,12 +315,6 @@ export function normalizePlotData(
       };
     }
 
-    // plotData.scales.x = { min: timeRange.from + timeRange.to, max: timeRange.to };
-    // if (plot.yLock.min !== 0 || plot.yLock.max !== 0) {
-    //   plotData.scales.y = { ...plot.yLock };
-    // } else {
-    //   plotData.scales.y = { min: 0, max: 0 };
-    // }
     plotData.promQL = response.promql;
     plotData.lastPlotParams = deepClone(plot);
     plotData.lastTimeRange = deepClone(timeRange);
@@ -362,58 +354,5 @@ export function normalizePlotData(
     plotData.samplingFactorSrc = response.sampling_factor_src;
     plotData.samplingFactorAgg = response.sampling_factor_agg;
     plotData.mappingFloodEvents = response.mapping_errors;
-
-    // setState((state) => {
-    //   delete state.plotsDataAbortController[index];
-    //   const noUpdateData = dequal(stacked?.response || response, state.plotsData[index]?.stacked || state.plotsData[index]?.response);
-    //   if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
-    //     state.metricsMeta[resp.metric.name] = resp.metric;
-    //   }
-    //   const whats = uniqueName.size === 1 ? [...uniqueWhat.keys()] : [];
-    //   state.plotsData[index] = {
-    //     nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
-    //     whats: dequal(whats, state.plotsData[index]?.whats) ? state.plotsData[index]?.whats : whats,
-    //     metricType,
-    //     error: usePlotHealsStore.getState().status[index]?.status ? '' : state.plotsData[index]?.error,
-    //     errorSkipCount: 0,
-    //     response: noUpdateData ? state.plotsData[index]?.response : response,
-    //     stacked: noUpdateData ? state.plotsData[index]?.stacked : stacked?.response,
-    //     bands: dequal(state.plotsData[index]?.bands, stacked?.bands) ? state.plotsData[index]?.bands : stacked?.bands,
-    //     series:
-    //       dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
-    //       !changeColor &&
-    //       !changeType &&
-    //       !changeView
-    //         ? state.plotsData[index]?.series
-    //         : series,
-    //     seriesTimeShift: dequal(seriesTimeShift, state.plotsData[index].seriesTimeShift)
-    //       ? state.plotsData[index].seriesTimeShift
-    //       : seriesTimeShift,
-    //     seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
-    //       ? state.plotsData[index]?.seriesShow
-    //       : seriesShow,
-    //     scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
-    //     receiveErrors: resp.receive_errors,
-    //     receiveWarnings: resp.receive_warnings,
-    //     samplingFactorSrc: resp.sampling_factor_src,
-    //     samplingFactorAgg: resp.sampling_factor_agg,
-    //     mappingFloodEvents: resp.mapping_errors,
-    //     legendValueWidth,
-    //     legendMaxDotSpaceWidth,
-    //     legendNameWidth,
-    //     legendPercentWidth,
-    //     legendMaxHostWidth,
-    //     legendMaxHostPercentWidth,
-    //     lastPlotParams,
-    //     lastQuerySeriesMeta: [...resp.series.series_meta],
-    //     lastTimeRange: getState().timeRange,
-    //     lastTimeShifts: getState().params.timeShifts,
-    //     topInfo,
-    //     maxHostLists,
-    //     promqltestfailed,
-    //     promQL: resp.promql ?? '',
-    //   };
-    // });
-    // addStatus(index.toString(), true);
   };
 }

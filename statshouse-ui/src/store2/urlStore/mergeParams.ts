@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { QueryParams } from '@/url2';
+import type { PlotParams, QueryParams } from '@/url2';
 import { dequal } from 'dequal/lite';
 
 export function mergeParams(target: QueryParams, value: QueryParams): QueryParams {
@@ -14,12 +14,10 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
   let changePlots = false;
   const nextPlots = value.orderPlot.reduce(
     (res, pK) => {
-      if (dequal(target.plots[pK], value.plots[pK])) {
-        res[pK] = target.plots[pK];
-      } else {
+      res[pK] = mergePlot(target.plots[pK], value.plots[pK]!);
+      if (res[pK] !== target.plots[pK]) {
         changePlots = true;
       }
-      res[pK] = dequal(target.plots[pK], value.plots[pK]) ? target.plots[pK] : value.plots[pK];
       return res;
     },
     { ...value.plots }
@@ -49,13 +47,36 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     { ...value.variables }
   );
 
+  const nextTimeShifts = value.timeShifts.slice().sort();
+
   return {
     ...value,
+    timeShifts: dequal(target.timeShifts, nextTimeShifts) ? target.timeShifts : nextTimeShifts,
     orderPlot: dequal(target.orderPlot, value.orderPlot) ? target.orderPlot : value.orderPlot,
     plots: changePlots ? nextPlots : target.plots,
     orderGroup: dequal(target.orderGroup, value.orderGroup) ? target.orderGroup : value.orderGroup,
     groups: changeGroups ? nextGroups : target.groups,
     orderVariables: dequal(target.orderVariables, value.orderVariables) ? target.orderVariables : value.orderVariables,
     variables: changeVariables ? nextVariables : target.variables,
+  };
+}
+
+function mergePlot(target: PlotParams | undefined = undefined, value: PlotParams): PlotParams {
+  if (!target) {
+    return value;
+  }
+  if (dequal(target, value)) {
+    return target;
+  }
+  return {
+    ...value,
+    groupBy: dequal(target.groupBy, value.groupBy) ? target.groupBy : value.groupBy.slice().sort(),
+    filterIn: dequal(target.filterIn, value.filterIn) ? target.filterIn : value.filterIn,
+    filterNotIn: dequal(target.filterNotIn, value.filterNotIn) ? target.filterNotIn : value.filterNotIn,
+    what: dequal(target.what, value.what) ? target.what : value.what.slice().sort(),
+    events: dequal(target.events, value.events) ? target.events : value.events.slice().sort(),
+    eventsHide: dequal(target.eventsHide, value.eventsHide) ? target.eventsHide : value.eventsHide.slice().sort(),
+    eventsBy: dequal(target.eventsBy, value.eventsBy) ? target.eventsBy : value.eventsBy.slice().sort(),
+    yLock: dequal(target.yLock, value.yLock) ? target.yLock : value.yLock,
   };
 }

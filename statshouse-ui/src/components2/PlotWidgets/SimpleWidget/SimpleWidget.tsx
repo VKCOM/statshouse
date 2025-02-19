@@ -4,4 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-export * from './TopMenuWidget';
+import { PlotWidgetRouterProps } from '../PlotWidgetRouter';
+
+export function SimpleWidget({ className }: PlotWidgetRouterProps) {
+  return <div className={className}>SimpleWidget</div>;
+}

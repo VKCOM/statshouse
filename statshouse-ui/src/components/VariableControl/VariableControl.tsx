@@ -61,8 +61,6 @@ export function VariableControl<T>({
 }: VariableControlProps<T>) {
   const [sortByName, setSortByName] = useState(false);
 
-  const allValues = useMemo(() => [...values, ...notValues], [notValues, values]);
-
   const listSort = useMemo<SelectOptionProps[]>(
     () =>
       normalizeTagValues(list, !sortByName).map((v) => {
@@ -114,19 +112,20 @@ export function VariableControl<T>({
   const onRemoveFilter = useCallback<React.MouseEventHandler<HTMLButtonElement>>(
     (event) => {
       const value = event.currentTarget.getAttribute('data-value');
+      const oldValues = negative ? notValues : values;
       onChange?.(
         target,
-        allValues.filter((v) => v !== value)
+        oldValues.filter((v) => v !== value)
       );
     },
-    [target, onChange, allValues]
+    [negative, notValues, values, onChange, target]
   );
   return (
     <div className={className}>
       <div className="d-flex align-items-center">
         <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm' : 'input-group')}>
           <TagSelect
-            values={allValues}
+            values={negative ? notValues : values}
             placeholder={placeholder}
             loading={loaded}
             onChange={onChangeFilter}

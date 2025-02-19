@@ -95,6 +95,7 @@ function useSubmitCreate(name: string) {
       resolution: 1,
       withPercentiles: false,
       visible: true,
+      disable: false,
       tags: [
         { name: '', alias: 'environment', customMapping: [] }, // env
         ...new Array(maxTagsSize - 1).fill({}).map(() => getDefaultTag()),

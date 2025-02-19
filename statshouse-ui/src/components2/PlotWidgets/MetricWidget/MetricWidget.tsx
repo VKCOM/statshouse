@@ -4,31 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { PlotWidgetRouterProps } from '../PlotWidgetRouter';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { type StatsHouseStore, useStatsHouseShallow } from '@/store2';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PlotViewProps } from './PlotView';
-import { black, grey, greyDark } from '@/view/palette';
 import { useIntersectionObserver, useStateToRef, useUPlotPluginHooks } from '@/hooks';
-import cn from 'classnames';
-import { useStatsHouse, useStatsHouseShallow } from '@/store2';
-import { yAxisSize } from '@/common/settings';
-import { PlotHealsStatus } from './PlotHealsStatus';
-import { PlotHeader } from './PlotHeader';
-import { PlotSubMenu } from './PlotSubMenu';
-import { PlotLegend } from '../PlotLegend';
-import { dateRangeFormat } from './dateRangeFormat';
-import { dataIdxNearest } from '@/common/dataIdxNearest';
-import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
-import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
-import { xRangeStatic } from './xRangeStatic';
-import { calcYRange } from '@/common/calcYRange';
-import css from './style.module.css';
-import { PlotEventOverlay } from './PlotEventOverlay';
-import type { PlotValues } from '@/store2/plotDataStore';
 import { useThemeStore } from '@/store2/themeStore';
-import { metricTypeIncrs } from './constants';
-import { setLiveMode } from '@/store2/liveModeStore';
-import { setPlotVisibility } from '@/store2/plotVisibilityStore';
-import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { black, grey, greyDark } from '@/view/palette';
+import type uPlot from 'uplot';
 import {
   LegendItem,
   UPlotPluginPortal,
@@ -36,78 +19,78 @@ import {
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from '@/components/UPlotWrapper';
+import type { PlotData, PlotValues } from '@/store2/plotDataStore';
+import { setLiveMode } from '@/store2/liveModeStore';
+import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
+import { dataIdxNearest } from '@/common/dataIdxNearest';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
 import { bwd, fwd, log2Filter, log2Splits } from '@/common/helpers';
-import type uPlot from 'uplot';
+import { yAxisSize } from '@/common/settings';
+import { metricTypeIncrs } from '@/components2/Plot/PlotView/constants';
+import { xRangeStatic } from '@/components2/Plot/PlotView/xRangeStatic';
+import { calcYRange } from '@/common/calcYRange';
+import { dateRangeFormat } from '@/components2/Plot/PlotView/dateRangeFormat';
+import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { setPlotVisibility, usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
+import cn from 'classnames';
+import { PlotHealsStatus } from '@/components2/Plot/PlotView/PlotHealsStatus';
+import { PlotHeader } from '@/components2/Plot/PlotView/PlotHeader';
+import { PlotSubMenu } from '@/components2/Plot/PlotView/PlotSubMenu';
+import css from '@/components2/Plot/PlotView/style.module.css';
+import { PlotEventOverlay } from '@/components2/Plot/PlotView/PlotEventOverlay';
+import { PlotLegend } from '@/components2';
+import { rightPad, syncGroup, unFocusAlfa, yLockDefault } from '@/components2/PlotWidgets/MetricWidget/constant';
+import { useMetricName } from '@/hooks/useMetricName';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricData } from '@/hooks/useMetricData';
+import { produce } from 'immer';
+import { resetZoom, setPlotYLock, setTimeRange } from '@/store2/methods';
+import { PlotBox } from '@/components2/Plot/PlotView/PlotBox';
 
-const rightPad = 16;
+const selectorStore = ({
+  params: {
+    timeRange: { to, from },
+  },
+}: StatsHouseStore) => ({ timeRangeTo: to, timeRangeFrom: from });
 
-// const xAxisSize = 16;
-const unFocusAlfa = 1;
-const yLockDefault = { min: 0, max: 0 };
-const syncGroup = '1';
-
-const { setPlotYLock, setTimeRange, setPlotShow, resetZoom } = useStatsHouse.getState();
-
-export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProps) {
+export function MetricWidget({ className, isDashboard, isEmbed, fixRatio }: PlotWidgetRouterProps) {
   const {
-    yLock,
-    numSeries,
-    error403,
-    isEmbed,
-    metricUnit,
-    metricUnitData,
-    topInfo,
-    dataView,
-    series,
-    timeRangeTo,
-    timeRangeFrom,
-    seriesShow,
-    plotWhat,
-    plotDataWhat,
-    legendNameWidth,
-    legendValueWidth,
-    legendMaxHostWidth,
-    legendMaxDotSpaceWidth,
-    isActive,
-    isLogScale,
-  } = useStatsHouseShallow(
-    useCallback(
-      ({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
-        const plot = plots[plotKey];
-        const plotData = plotsData[plotKey];
+    plot: { id, what: plotWhat, yLock, numSeries, metricUnit, logScale, events },
+  } = useWidgetPlotContext();
 
-        return {
-          plotWhat: plot?.what,
-          plotDataWhat: plotData?.whats,
-          topInfo: plotData?.topInfo,
-          yLock: plot?.yLock,
-          timeRangeTo: timeRange.to,
-          timeRangeFrom: timeRange.from,
-          numSeries: plot?.numSeries ?? 0,
-          error403: plotData?.error403 ?? '',
-          metricUnit: plot?.metricUnit,
-          metricUnitData: plotData?.metricUnit ?? metricMeta[plot?.metricName ?? '']?.metric_type,
-          dataView: plotData?.dataView,
-          series: plotData?.series,
-          seriesShow: plotData?.seriesShow,
-          legendNameWidth: plotData?.legendNameWidth,
-          legendValueWidth: plotData?.legendValueWidth,
-          legendMaxHostWidth: plotData?.legendMaxHostWidth,
-          legendMaxDotSpaceWidth: plotData?.legendMaxDotSpaceWidth,
-          isEmbed,
-          baseRange,
-          isActive: tabNum === plotKey,
-          isLogScale: plot?.logScale,
-        };
-      },
-      [plotKey]
-    )
-  );
+  const { timeRangeTo, timeRangeFrom } = useStatsHouseShallow(selectorStore);
 
+  const metricMeta = useMetricName(true);
   const divOut = useRef<HTMLDivElement>(null);
+  const divInner = useRef<HTMLDivElement>(null);
+
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
   const visibleBool = visible > 0;
+
+  const meta = useMetricMeta(metricMeta, !isDashboard && visibleBool);
+
+  const iconVisible = usePlotVisibilityStore(useCallback(({ plotPreviewList }) => !!plotPreviewList[id], [id]));
+
+  const [
+    {
+      error403,
+      topInfo,
+      dataView,
+      series,
+      seriesShow,
+      metricUnit: plotDataMetricUnit,
+      whats: plotDataWhat,
+      legendNameWidth,
+      legendValueWidth,
+      legendMaxHostWidth,
+      legendMaxDotSpaceWidth,
+    },
+    setData,
+  ] = useMetricData(visibleBool || iconVisible, visibleBool ? (isDashboard ? 2 : 1) : 3);
+
+  const metricUnitData = plotDataMetricUnit ?? meta?.metric_type;
+
   const themeDark = useThemeStore((s) => s.dark);
   const compact = isDashboard || isEmbed;
   const yLockRef = useStateToRef(yLock ?? yLockDefault);
@@ -134,14 +117,14 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         const yMax = u.posToVal(u.select.top, 'y');
         const xOnly = u.select.top === 0;
         if (!xOnly) {
-          setPlotYLock(plotKey, true, { min: yMin, max: yMax });
+          setPlotYLock(id, true, { min: yMin, max: yMax });
         } else {
           setLiveMode(false);
           setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
         }
       }
     },
-    [plotKey]
+    [id]
   );
 
   const metricType = useMemo(() => {
@@ -203,11 +186,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           grid: grid,
           ticks: grid,
           values: (_, splits) => splits.map(formatByMetricType(metricType)),
-          filter: isLogScale ? log2Filter : undefined,
+          filter: logScale ? log2Filter : undefined,
           size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
-          splits: !isLogScale
+          splits: !logScale
             ? undefined
             : (
                 self: uPlot,
@@ -223,7 +206,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          distr: isLogScale ? 100 : 1,
+          distr: logScale ? 100 : 1,
           bwd,
           fwd,
           auto: () => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
@@ -263,7 +246,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     themeDark,
     topPad,
     xAxisSize,
-    isLogScale,
+    logScale,
     yLockRef,
   ]);
 
@@ -277,20 +260,20 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
         setCursorLock((u.cursor as { _lock: boolean })._lock);
       };
       u.over.ondblclick = () => {
-        resetZoomRef.current(plotKey);
+        resetZoomRef.current(id);
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
-    [plotKey, resetZoomRef]
+    [id, resetZoomRef]
   );
 
   const onUpdatePreview = useCallback(
     (u: uPlot) => {
       if (isDashboard && !isEmbed) {
-        createPlotPreview(plotKey, u);
+        createPlotPreview(id, u);
       }
     },
-    [isDashboard, isEmbed, plotKey]
+    [isDashboard, isEmbed, id]
   );
 
   const scales = useMemo<UPlotWrapperPropsScales>(() => {
@@ -303,15 +286,21 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   }, [timeRangeFrom, timeRangeTo, yLock]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
+  const [fixInnerWidth, setFixInnerWidth] = useState<number>(0);
+  const [fixInnerHeight, setFixInnerHeight] = useState<number>(0);
 
   const onMouseOver = useCallback(() => {
-    if (divOut.current && !isEmbed) {
+    if (divOut.current && divInner.current && !isEmbed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
+      setFixInnerWidth(divInner.current.getBoundingClientRect().width);
+      setFixInnerHeight(divInner.current.getBoundingClientRect().height);
     }
-  }, [isEmbed]);
+  }, [isEmbed, setFixHeight]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
-  }, []);
+    setFixInnerWidth(0);
+    setFixInnerHeight(0);
+  }, [setFixHeight]);
 
   const onLegendFocus = useCallback((index: number, focus: boolean) => {
     if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
@@ -322,9 +311,19 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
 
   const onLegendShow = useCallback(
     (index: number, show: boolean, single: boolean) => {
-      setPlotShow(plotKey, index - 1, show, single);
+      const idx = index - 1;
+      setData(
+        produce<PlotData>((d) => {
+          if (single) {
+            const otherShow = d.seriesShow.some((_show, indexSeries) => (indexSeries === idx ? false : _show));
+            d.seriesShow = d.seriesShow.map((_, indexSeries) => (indexSeries === idx ? true : !otherShow));
+          } else {
+            d.seriesShow[idx] = show ?? !d.seriesShow[idx];
+          }
+        })
+      );
     },
-    [plotKey]
+    [setData]
   );
 
   useEffect(() => {
@@ -334,12 +333,9 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       }
     });
   }, [seriesShow]);
-
   useEffect(() => {
-    if (isDashboard || isActive) {
-      setPlotVisibility(plotKey, visibleBool);
-    }
-  }, [isActive, isDashboard, plotKey, visibleBool]);
+    setPlotVisibility(id, visibleBool);
+  }, [id, visibleBool]);
 
   const onUpdateLegend = useCallback<React.Dispatch<React.SetStateAction<LegendItem<PlotValues>[]>>>(
     (legend) => {
@@ -357,7 +353,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
   return (
     <div
       className={cn(
-        'plot-view',
+        'plot-view ',
         compact ? 'plot-compact' : 'plot-full',
         isDashboard && 'plot-dash',
         fixHeight > 0 && isDashboard && 'plot-hover',
@@ -376,66 +372,68 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
     >
-      <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
+      <div data-plot-key={id} ref={setVisibleRef} className={cn('plot-view-inner', !fixRatio && 'd-flex flex-column')}>
         <div
-          className="d-flex align-items-center position-relative"
+          ref={divInner}
+          className={cn('d-flex flex-column', !fixRatio && 'flex-grow-1 h-0')}
           style={{
-            marginRight: `${rightPad}px`,
+            height: fixInnerHeight > 0 && isDashboard ? `${fixInnerHeight}px` : undefined,
+            width: fixInnerWidth > 0 && isDashboard ? `${fixInnerWidth}px` : undefined,
           }}
         >
-          {/*loader*/}
           <div
-            style={{ width: `${yAxisSize}px` }}
-            className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
+            className="d-flex align-items-center position-relative"
+            style={{
+              marginRight: `${rightPad}px`,
+            }}
           >
-            <PlotHealsStatus plotKey={plotKey} />
-          </div>
-          {/*header*/}
-          <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            <PlotHeader plotKey={plotKey} isDashboard={isDashboard} />
-            {!compact && <PlotSubMenu plotKey={plotKey} />}
-          </div>
-        </div>
-        <div
-          className="position-relative w-100 z-1"
-          style={
-            {
-              paddingTop: '61.8034%',
-              '--plot-padding-top': `${topPad}px`,
-            } as React.CSSProperties
-          }
-        >
-          {error403 ? (
-            <div className="text-bg-light w-100 h-100 position-absolute top-0 start-0 d-flex align-items-center justify-content-center">
-              Access denied
-            </div>
-          ) : (
-            <UPlotWrapper
-              opts={opts}
-              data={dataView}
-              series={series}
-              scales={scales}
-              onReady={onReady}
-              onSetSelect={onSetSelect}
-              onUpdatePreview={onUpdatePreview}
-              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
-              onUpdateLegend={onUpdateLegend}
+            {/*loader*/}
+            <div
+              style={{ width: `${yAxisSize}px` }}
+              className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
             >
-              <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
-                <PlotEventOverlay
-                  plotKey={plotKey}
-                  hooks={pluginEventOverlayHooks}
-                  flagHeight={Math.min(topPad, 10)}
-                  compact={compact}
-                />
-              </UPlotPluginPortal>
-            </UPlotWrapper>
-          )}
+              <PlotHealsStatus />
+            </div>
+            {/*header*/}
+            <div className="d-flex flex-column flex-grow-1 w-0 overflow-force-wrap">
+              <PlotHeader isDashboard={isDashboard} isEmbed={isEmbed} />
+              {!compact && <PlotSubMenu />}
+            </div>
+          </div>
+          <PlotBox className="z-1" fixRatio={fixRatio}>
+            {error403 ? (
+              <div className="text-bg-light w-100 h-100 position-absolute top-0 start-0 d-flex align-items-center justify-content-center">
+                Access denied
+              </div>
+            ) : (
+              <UPlotWrapper
+                opts={opts}
+                data={dataView}
+                series={series}
+                scales={scales}
+                onReady={onReady}
+                onSetSelect={onSetSelect}
+                onUpdatePreview={onUpdatePreview}
+                className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
+                onUpdateLegend={onUpdateLegend}
+              >
+                {events.length > 0 && (
+                  <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
+                    <PlotEventOverlay
+                      hooks={pluginEventOverlayHooks}
+                      flagHeight={Math.min(topPad, 10)}
+                      compact={compact}
+                    />
+                  </UPlotPluginPortal>
+                )}
+              </UPlotWrapper>
+            )}
+          </PlotBox>
         </div>
         {!error403 && (
           <div className="plot-legend">
             <PlotLegend
-              plotKey={plotKey}
+              plotKey={id}
               legend={legend}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}

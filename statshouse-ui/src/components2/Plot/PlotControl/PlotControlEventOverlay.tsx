@@ -15,7 +15,10 @@ import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.s
 import { globalSettings } from '@/common/settings';
 import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from '@/url2';
 import { addPlot, getMetricFullName } from '@/store2/helpers';
-import { useStatsHouseShallow } from '@/store2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
+import { StatsHouseStore, useStatsHouse } from '@/store2';
+import { setParams } from '@/store2/methods';
 
 const eventPreset: (SelectOptionProps & { plot: PlotParams })[] = globalSettings.event_preset
   .map((url) => {
@@ -31,29 +34,21 @@ const eventPreset: (SelectOptionProps & { plot: PlotParams })[] = globalSettings
   .filter(isNotNil);
 
 export type PlotControlEventOverlayProps = {
-  plotKey: PlotKey;
   className?: string;
 };
 
+const selectorStore = ({ params: { plots } }: StatsHouseStore) => plots;
+
 export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
   className,
-  plotKey,
 }: PlotControlEventOverlayProps) {
-  const { events, plots, plotData, setParams } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, plotsData, setParams }) => ({
-        events: plots[plotKey]?.events,
-        plotData: plotsData[plotKey],
-        plots,
-        setParams,
-      }),
-      [plotKey]
-    )
-  );
-  // const { events, plots } = useUrlStore(
-  //   useShallow((s) => ({ events: s.params.plots[plotKey]?.events, plots: s.params.plots }))
-  // );
-  // const plotData = usePlotsDataStore((s) => s.plotsData[plotKey]);
+  const plots = useStatsHouse(selectorStore);
+
+  const {
+    plot: { id, events },
+  } = useWidgetPlotContext();
+  const { plotData } = useWidgetPlotDataContext();
+
   const onChange = useCallback(
     (value: string | string[] = []) => {
       const valuesEvent: PlotKey[] = [];
@@ -77,7 +72,7 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
           valuesEvent.push(param.tabNum);
         });
         param = produce(param, (p) => {
-          const pl = p.plots[plotKey];
+          const pl = p.plots[id];
           if (pl) {
             pl.events = [...valuesEvent];
           }
@@ -86,7 +81,7 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
         return param;
       });
     },
-    [plotKey, setParams]
+    [id]
   );
 
   const list = useMemo<SelectOptionProps[]>(() => {

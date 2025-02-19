@@ -4,16 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, TextArea } from '@/components/UI';
 import { useStateToRef } from '@/hooks';
 import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
-import { getNewMetric, type PlotKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
 import { PrometheusSwitch } from './PrometheusSwitch';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { setPlotData, usePlotsDataStore } from '@/store2/plotDataStore';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
   <div className="input-group">
@@ -29,27 +29,18 @@ const PromQLEditor = lazy(() =>
 
 export type PlotControlPromQLEditorProps = {
   className?: string;
-  plotKey: PlotKey;
 };
-
-const { prometheusCompat: defaultPrometheusCompat } = getNewMetric();
 
 export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
   className,
-  plotKey,
 }: PlotControlPromQLEditorProps) {
-  const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
-        promQLParam: plots[plotKey]?.promQL ?? '',
-        promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
-        prometheusCompat: plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
-        togglePromqlExpand,
-        setPlot,
-      }),
-      [plotKey]
-    )
-  );
+  const {
+    plot: { id, promQL: promQLParam, prometheusCompat },
+    setPlot,
+  } = useWidgetPlotContext();
+  const promqlExpand = usePlotsDataStore(useCallback(({ plotsData }) => !!plotsData[id]?.promqlExpand, [id]));
+
+  const setData = useMemo(() => setPlotData.bind(undefined, id), [id]);
 
   const [promQL, setPromQL] = useState(promQLParam);
   const promQlRef = useStateToRef(promQL);
@@ -59,14 +50,16 @@ export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
   }, [promQLParam]);
 
   const onTogglePromqlExpand = useCallback(() => {
-    togglePromqlExpand(plotKey);
-  }, [plotKey, togglePromqlExpand]);
+    setData((d) => {
+      d.promqlExpand = !d.promqlExpand;
+    });
+  }, [setData]);
 
   const sendPromQL = useCallback(() => {
-    setPlot(plotKey, (p) => {
+    setPlot((p) => {
       p.promQL = promQlRef.current;
     });
-  }, [plotKey, promQlRef, setPlot]);
+  }, [promQlRef, setPlot]);
 
   useEffect(() => {
     setPromQL(promQLParam);
@@ -74,11 +67,11 @@ export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
 
   const setPrometheusCompat = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.prometheusCompat = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
 
   return (

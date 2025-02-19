@@ -11,41 +11,34 @@ import { Button } from '@/components/UI';
 import cn from 'classnames';
 import { metricKindToWhat } from '@/view/api';
 import type { QueryWhat } from '@/api/enum';
-import { type StatsHouseStore, useStatsHouseShallow } from '@/store2';
 import { isPromQL } from '@/store2/helpers';
-import { getHomePlot, type PlotKey, promQLMetric } from '@/url2';
-import { emptyArray } from '@/common/helpers';
+import { getHomePlot, promQLMetric } from '@/url2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricName } from '@/hooks/useMetricName';
+import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
 
 export type PlotControlPromQLSwitchProps = {
-  plotKey: PlotKey;
   className?: string;
 };
 
 export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
-  plotKey,
   className,
 }: PlotControlPromQLSwitchProps) {
-  const { isPlotPromQL, meta, setPlot, metricNameData, promQLData, whatsData } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, metricMeta, setPlot, plotsData }: StatsHouseStore) => ({
-        isPlotPromQL: isPromQL(plots[plotKey]),
-        metricName: plots[plotKey]?.metricName ?? '',
-        meta: metricMeta[plots[plotKey]?.metricName ?? ''],
-        metricNameData: plotsData[plotKey]?.metricName,
-        promQLData: plotsData[plotKey]?.promQL ?? '',
-        whatsData: plotsData[plotKey]?.whats ?? emptyArray,
-        setPlot,
-      }),
-      [plotKey]
-    )
-  );
+  const { plot, setPlot } = useWidgetPlotContext();
+  const {
+    plotData: { metricName, promQL, whats },
+  } = useWidgetPlotDataContext();
+  const isPlotPromQL = isPromQL(plot);
+  const meta = useMetricMeta(useMetricName(true));
+
   const onChange = useCallback(() => {
-    setPlot(plotKey, (p) => {
+    setPlot((p) => {
       if (isPromQL(p)) {
         const homePlot = getHomePlot();
-        if (metricNameData) {
-          p.metricName = metricNameData;
-          p.what = whatsData?.length ? whatsData.slice() : homePlot.what;
+        if (metricName) {
+          p.metricName = metricName;
+          p.what = whats?.length ? whats.slice() : homePlot.what;
           p.groupBy = [];
           p.filterIn = {};
           p.filterNotIn = {};
@@ -63,10 +56,10 @@ export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
         p.groupBy = [];
         p.filterIn = {};
         p.filterNotIn = {};
-        p.promQL = promQLData;
+        p.promQL = promQL;
       }
     });
-  }, [meta?.kind, metricNameData, plotKey, promQLData, setPlot, whatsData]);
+  }, [meta?.kind, metricName, promQL, setPlot, whats]);
 
   return (
     <Button

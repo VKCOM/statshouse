@@ -5,17 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { metricFilterEncode, type PlotKey, promQLMetric, type QueryParams, urlEncodeVariables } from '@/url2';
-import { apiQuery, type ApiQueryGet } from '@/api/query';
+import type { ApiQueryGet } from '@/api/query';
 import { GET_PARAMS } from '@/api/enum';
-import { normalizePlotData } from './normalizePlotData';
-import type { ProduceUpdate } from '../helpers';
-import type { StatsHouseStore } from '@/store2';
 import { autoAgg, autoLowAgg } from '@/store2';
-import { produce } from 'immer';
-import { getEmptyPlotData } from './getEmptyPlotData';
 import { replaceVariable } from '../helpers/replaceVariable';
-import { MetricMeta, tagsArrToObject } from '../metricsMetaStore';
-import { ExtendedError } from '@/api/api';
 
 export function getLoadPlotUrlParams(
   plotKey: PlotKey,
@@ -32,7 +25,7 @@ export function getLoadPlotUrlParams(
   const width = plot.customAgg === -1 ? autoLowAgg : plot.customAgg === 0 ? autoAgg : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
     [GET_PARAMS.metricWhat]: plot.what.slice(),
-    [GET_PARAMS.toTime]: params.timeRange.to.toString(),
+    [GET_PARAMS.toTime]: interval ? '0' : params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
     [GET_PARAMS.width]: width.toString(),
     [GET_PARAMS.version]: plot.backendVersion,
@@ -71,72 +64,4 @@ export function getLoadPlotUrlParams(
   }
 
   return urlParams;
-}
-
-export async function loadPlotData(
-  plotKey: PlotKey,
-  params: QueryParams,
-  interval?: number,
-  fetchBadges: boolean = false,
-  priority?: number
-): Promise<ProduceUpdate<StatsHouseStore> | null> {
-  const plot = params.plots[plotKey];
-  if (!plot) {
-    return null;
-  }
-
-  const { response, error, status } = await apiQuery(plot, params, interval, priority);
-
-  if (error) {
-    if (status === 403) {
-      return (state) => {
-        state.plotsData[plotKey] = {
-          ...getEmptyPlotData(),
-          error403: error.toString(),
-          lastHeals: false,
-        };
-      };
-    } else if (error.name !== 'AbortError' && error.status !== ExtendedError.ERROR_STATUS_ABORT) {
-      return (state) => {
-        if (state.plotsData[plotKey]) {
-          state.plotsData[plotKey]!.error = error.toString();
-          state.plotsData[plotKey]!.lastHeals = false;
-          state.setPlotHeal(plotKey, false);
-        }
-        //if (resetCache) {
-        //                   state.plotsData[index] = {
-        //                     ...getEmptyPlotData(),
-        //                     error: error.toString(),
-        //                   };
-        //                 } else {
-        //                   state.plotsData[index].error = error.toString();
-        //                 }
-        //
-        //                 addStatus(index.toString(), false);
-      };
-    }
-  }
-  if (response) {
-    const data = normalizePlotData(response.data, plot, params);
-    let metricMeta: MetricMeta;
-    if (response.data.metric) {
-      metricMeta = {
-        ...response.data.metric,
-        ...tagsArrToObject(response.data.metric.tags),
-      };
-    }
-    return (state) => {
-      state.plotsData[plotKey] = produce(state.plotsData[plotKey] ?? getEmptyPlotData(), data);
-      state.plotsData[plotKey]!.lastHeals = true;
-      state.plotsData[plotKey]!.loadBadges = fetchBadges;
-      if (metricMeta?.name) {
-        state.metricMeta[metricMeta.name] = metricMeta;
-      }
-      if (state.plotHeals[plotKey]?.status) {
-        state.plotsData[plotKey]!.error = '';
-      }
-      // state.setPlotHeal(plotKey, true);
-    };
-  }
-  return null;
 }

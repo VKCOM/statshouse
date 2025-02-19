@@ -26,7 +26,10 @@ export const usePlotPreviewStore = createStore<PlotPreviewStore>(plotPreviewStor
 
 export async function createPlotPreview(plotKey: PlotKey, u: uPlot, width: number = 300) {
   await skipTimeout();
-  if (!usePlotVisibilityStore.getState().plotPreviewList[plotKey]) {
+  if (
+    !usePlotVisibilityStore.getState().plotPreviewList[plotKey] &&
+    !usePlotVisibilityStore.getState().plotVisibilityList[plotKey]
+  ) {
     return;
   }
   const controller = new AbortController();

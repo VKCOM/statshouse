@@ -7,12 +7,11 @@
 import type { PlotKey } from '../../url2';
 import type { ProduceUpdate } from '../helpers';
 import type { StatsHouseStore } from '../statsHouseStore';
-import { getMinMaxY } from './getMinMaxY';
 
 export function updatePlotYLock(
   plotKey: PlotKey,
   status: boolean,
-  yLock?: { min: number; max: number }
+  yLock: { min: number; max: number }
 ): ProduceUpdate<StatsHouseStore> {
   return (state) => {
     const plot = state.params.plots[plotKey];
@@ -21,11 +20,7 @@ export function updatePlotYLock(
       const prevStatus = prevYLock.max !== 0 || prevYLock.min !== 0;
       if (prevStatus !== status || prevYLock.max !== (yLock?.max ?? 0) || prevYLock.min !== (yLock?.min ?? 0)) {
         if (status) {
-          if (yLock != null) {
-            plot.yLock = yLock;
-          } else {
-            plot.yLock = getMinMaxY(plotKey, state);
-          }
+          plot.yLock = yLock;
         } else {
           plot.yLock = { min: 0, max: 0 };
         }

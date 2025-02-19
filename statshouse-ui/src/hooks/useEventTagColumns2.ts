@@ -10,8 +10,8 @@ import { PlotParams } from '@/url2';
 import { MetricMetaValue } from '@/api/metric';
 import { toTagKey } from '@/url/queryParams';
 import { TAG_KEY } from '@/api/enum';
-import { useStatsHouse } from '@/store2';
 import { getTagDescription } from '@/view/utils2';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
 
 export function getEventTagColumns(plot?: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
   if (plot == null) {
@@ -63,6 +63,6 @@ export type UseEventTagColumnReturn2 = {
 };
 
 export function useEventTagColumns2(plot?: PlotParams, selectedOnly: boolean = false): UseEventTagColumnReturn2[] {
-  const meta = useStatsHouse((s) => s.metricMeta[plot?.metricName ?? '']);
+  const meta = useMetricMeta(plot?.metricName ?? '');
   return useMemo(() => getEventTagColumns(plot, meta, selectedOnly), [meta, plot, selectedOnly]);
 }
