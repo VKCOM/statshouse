@@ -889,7 +889,8 @@ func TestMetricsStorage(t *testing.T) {
 	t.Run("test getJournalDiffLocked3", func(t *testing.T) {
 		test := func(clientVersion int64, expected []tlmetadata.Event) func(t *testing.T) {
 			return func(t *testing.T) {
-				res := journal.getJournalDiffLocked3(clientVersion)
+				var res tlmetadata.GetJournalResponsenew
+				journal.getJournalDiffLocked3(clientVersion, &res)
 				if len(expected) == 0 {
 					require.Len(t, res.Events, 0)
 				} else {
