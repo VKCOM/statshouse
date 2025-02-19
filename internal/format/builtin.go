@@ -118,6 +118,7 @@ var (
 		BuiltinMetricIDAggContributors:          BuiltinMetricMetaAggContributors,
 		-99:                                     BuiltinMetricMetaAPICacheChunkCount,
 		-101:                                    BuiltinMetricMetaAPICacheSize,
+		-102:                                    BuiltinMetricMetaAPICacheTrim,
 		-103:                                    BuiltinMetricMetaAPICacheAge,
 		-104:                                    BuiltinMetricMetaAPIBufferBytesAlloc,
 		-105:                                    BuiltinMetricMetaAPIBufferBytesFree,

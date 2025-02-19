@@ -1897,6 +1897,32 @@ var BuiltinMetricMetaAPICacheSize = &MetricMetaValue{
 	}},
 }
 
+var BuiltinMetricMetaAPICacheTrim = &MetricMetaValue{
+	Name:                    "__api_cache_trim",
+	Kind:                    MetricKindValue,
+	Description:             "API cache trim events.",
+	MetricType:              MetricByte,
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}, {
+		Description: "event",
+		ValueComments: map[string]string{
+			" 1": "start",
+			" 2": "end",
+		},
+	}, {
+		Description: "reason",
+		ValueComments: map[string]string{
+			" 1": "age",
+			" 2": "size",
+		},
+	}},
+}
+
 var BuiltinMetricMetaAPICacheAge = &MetricMetaValue{
 	Name:                    "__api_cache_age",
 	Kind:                    MetricKindValue,
