@@ -405,19 +405,16 @@ type insertSize struct {
 	builtin     int
 }
 
-func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte, v3Format bool) ([]byte, data_model.SamplerBuffers) {
+func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
+	v3Format bool) ([]byte, data_model.SamplerBuffers, map[uint32]insertSize, time.Duration) {
 	startTime := time.Now()
-	// sanity check, nothing to marshal if there is no buckets
-	if len(buckets) < 1 {
-		return res, buffers
-	}
+	insertSizes := make(map[uint32]insertSize, len(buckets))
 
 	var configR ConfigAggregatorRemote
 	a.configMu.RLock()
 	configR = a.configR
 	a.configMu.RUnlock()
 
-	insertSizes := make(map[uint32]insertSize, len(buckets))
 	addSizes := func(bucketTs uint32, is insertSize) {
 		sizes := insertSizes[bucketTs]
 		sizes.counters += is.counters
@@ -543,7 +540,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	for _, b := range buckets {
 		numContributors += int(b.contributorsCount())
 	}
-	resPos := len(res)
 	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(configR.InsertBudget*numContributors)
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
@@ -589,23 +585,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, historicTag}),
 		float64(sampler.MetricCount), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 
-	appendInsertSizeStats := func(time uint32, is insertSize, historicTag int32) int {
-		res = appendSimpleValueStat(rnd, res, a.aggKey(time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeCounter}),
-			float64(is.counters), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-		res = appendSimpleValueStat(rnd, res, a.aggKey(time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeValue}),
-			float64(is.values), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-		res = appendSimpleValueStat(rnd, res, a.aggKey(time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizePercentiles}),
-			float64(is.percentiles), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-		res = appendSimpleValueStat(rnd, res, a.aggKey(time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeUnique}),
-			float64(is.uniques), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-		sizeBefore := len(res)
-		res = appendSimpleValueStat(rnd, res, a.aggKey(time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeStringTop}),
-			float64(is.stringTops), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-		return len(res) - sizeBefore
-	}
-	// we assume that builtin size metric takes as much bytes as string top size
-	estimatedSize := appendInsertSizeStats(recentTime, insertSizes[buckets[0].time], format.TagValueIDConveyorRecent)
-
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggContributors, [16]int32{}),
 		float64(numContributors), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
 
@@ -616,23 +595,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [16]int32{0, int32(insertTimeUnix)}}
 		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, nil, v3Format)
 	}
-	dur := time.Since(startTime)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingTime, [16]int32{0, 0, 0, 0, historicTag}),
-		float64(dur.Seconds()), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-
-	var recentBuiltinSize int = insertSizes[buckets[0].time].builtin + len(res) - resPos + estimatedSize
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDSizeBuiltIn}),
-		float64(recentBuiltinSize), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-
-	for _, b := range buckets[1:] {
-		resPos = len(res)
-		appendInsertSizeStats(b.time, insertSizes[b.time], format.TagValueIDConveyorHistoric)
-		historicBuiltinSize := insertSizes[b.time].builtin + len(res) - resPos + estimatedSize
-		res = appendSimpleValueStat(rnd, res, a.aggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric, format.TagValueIDSizeBuiltIn}),
-			float64(historicBuiltinSize), 1, a.aggregatorHost, metricCache, usedTimestamps, v3Format)
-	}
-
-	return res, sampler.SamplerBuffers
+	return res, sampler.SamplerBuffers, insertSizes, time.Since(startTime)
 }
 
 func makeHTTPClient() *http.Client {
@@ -643,7 +606,7 @@ func makeHTTPClient() *http.Client {
 	}
 }
 
-func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte) (status int, exception int, elapsed float64, err error) {
+func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte) (status int, exception int, elapsed time.Duration, err error) {
 	queryPrefix := url.PathEscape(fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", table))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
 	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(body))
@@ -659,12 +622,12 @@ func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr strin
 	dur := time.Since(start)
 	dur = dur / time.Millisecond * time.Millisecond
 	if err != nil {
-		return 0, 0, dur.Seconds(), err
+		return 0, 0, dur, err
 	}
 	if resp.StatusCode == http.StatusOK {
 		_, _ = io.Copy(io.Discard, resp.Body) // keepalive
 		_ = resp.Body.Close()
-		return http.StatusOK, 0, dur.Seconds(), nil
+		return http.StatusOK, 0, dur, nil
 	}
 	partialBody := body
 	if len(partialBody) > 128 {
@@ -679,7 +642,7 @@ func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr strin
 	clickhouseExceptionText := resp.Header.Get("X-ClickHouse-Exception-Code") // recent clickhouses always send this header in case of error
 	ce, _ := strconv.Atoi(clickhouseExceptionText)
 	err = fmt.Errorf("could not post to clickhouse (HTTP code %d, X-ClickHouse-Exception-Code: %s): %s, inserting %x", resp.StatusCode, clickhouseExceptionText, partialMessage[:partialMessageLen], partialBody)
-	return resp.StatusCode, ce, dur.Seconds(), err
+	return resp.StatusCode, ce, dur, err
 }
 
 func zeroIfTrue(value float64, cond bool) float64 {

@@ -766,7 +766,9 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			return "insert_error"
 		}
 
-		bodyStorage, buffers = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
+		var marshalDur time.Duration
+		var insertSizes map[uint32]insertSize
+		bodyStorage, buffers, insertSizes, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -817,16 +819,22 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.mu.Lock()
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
-			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, false, dur)
+			is := insertSizes[b.time]
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeValue, float64(is.values))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeUnique, float64(is.uniques))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeStringTop, float64(is.stringTops))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, writeToV3First, 0, dur.Seconds())
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, float64(len(bodyStorage)))
-		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, dur)
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, float64(len(bodyStorage)))
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, dur.Seconds())
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, marshalDur.Seconds())
 
 		if mirrorChWrite {
-			bodyStorage, buffers = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
-			status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage)
+			bodyStorage, buffers, insertSizes, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
+			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage)
 			cancelSendToCh()
 			if sendErr != nil {
 				comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
@@ -837,8 +845,19 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					Description: sendErr.Error(),
 				}
 			}
-			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, float64(len(bodyStorage)))
-			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, dur)
+
+			for i, b := range aggBuckets {
+				is := insertSizes[b.time]
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeValue, float64(is.values))
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeUnique, float64(is.uniques))
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeStringTop, float64(is.stringTops))
+				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, !writeToV3First, 0, dur.Seconds())
+			}
+			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, float64(len(bodyStorage)))
+			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, dur.Seconds())
+			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, marshalDur.Seconds())
 		}
 
 		sendErr = fmt.Errorf("simulated error")

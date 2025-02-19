@@ -291,6 +291,8 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	return result, nil
 }
 
+func (s *Agent) ComponentTag() int32 { return s.componentTag }
+
 func (s *Agent) initBuiltInMetrics() {
 	// TODO - remove those, simply write metrics to bucket as usual
 	s.statErrorsDiskWrite = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentDiskCacheErrors,

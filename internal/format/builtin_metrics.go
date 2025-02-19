@@ -7,7 +7,8 @@
 package format
 
 // metric metas for builtin metrics are accessible directly without search in map
-// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
+// some tags are added empty, they were used in incompatible way in the past.
+// We should not reuse such tags, because there would be garbage in historic data.
 
 const BuiltinMetricIDAgentSamplingFactor = -1
 
@@ -18,24 +19,22 @@ var BuiltinMetricMetaAgentSamplingFactor = &MetricMetaValue{
 Calculated by agent from scratch every second to fit all collected data into network budget.
 Count of this metric is proportional to # of clients who set it in particular second.
 Set only if greater than 1.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
+	WithAgentEnvRouteArch:   false, // because expensive
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
+	}, {}, {}, {}, AggShardTag - 1: { // we reuse index of aggregator_shard here. -1 because we do not include env tag
+		Description: "agent_shard",
+		RawKind:     "int",
 	}},
 	PreKeyTagID: "1",
 }
 
 const BuiltinMetricIDAggBucketReceiveDelaySec = -2 // Also approximates insert delay, interesting for historic buckets
+
 var BuiltinMetricMetaAggBucketReceiveDelaySec = &MetricMetaValue{
 	Name: "__agg_bucket_receive_delay_sec",
 	Kind: MetricKindValue,
@@ -43,17 +42,11 @@ var BuiltinMetricMetaAggBucketReceiveDelaySec = &MetricMetaValue{
 Count of this metric is # of agents who sent this second (per replica*shard), and they do it every second to keep this metric stable.
 Set by aggregator.`,
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
@@ -65,133 +58,98 @@ Set by aggregator.`,
 			TagValueIDSecondReal:    "real",
 			TagValueIDSecondPhantom: "phantom",
 		}),
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
 
-const BuiltinMetricIDAggInsertSize = -3 // If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
-var BuiltinMetricMetaAggInsertSize = &MetricMetaValue{
-	Name:                    "__agg_insert_size",
+// If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
+var BuiltinMetricMetaAggInsertSizeLegacy = &MetricMetaValue{
+	Name:                    "__agg_insert_size_legacy",
 	Kind:                    MetricKindValue,
 	Description:             "Size of aggregated bucket inserted into clickhouse. Written when second is inserted, which can be much later.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
 		Description:   "type",
 		ValueComments: convertToValueComments(insertKindToValue),
-	}, {
-		Description: "-",
+	}, {}, {}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDTLByteSizePerInflightType = -4
 
 var BuiltinMetricMetaTLByteSizePerInflightType = &MetricMetaValue{
 	Name:                    "__src_tl_byte_size_per_inflight_type",
 	Kind:                    MetricKindValue,
 	Description:             "Approximate uncompressed byte size of various parts of TL representation of time bucket.\nSet by agent.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on agents, fixed cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description:   "inflight_type",
 		ValueComments: convertToValueComments(insertKindToValue),
+	}, {
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, AggShardTag - 1: { // we reuse index of aggregator_shard here. -1 because we do not include env tag
+		Description: "agent_shard",
+		RawKind:     "int",
 	}},
 }
 
-const BuiltinMetricIDAggKeepAlive = -5 // How many keep-alive were among contributors
 var BuiltinMetricMetaAggKeepAlive = &MetricMetaValue{
 	Name:                    "__agg_keep_alive",
 	Kind:                    MetricKindCounter,
 	Description:             "Number of keep-alive empty inserts (which follow normal insert conveyor) in aggregated bucket.\nSet by aggregator.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}},
+	Tags:                    []MetricMetaTag{{}, {}, {}, {}},
 }
-
-const BuiltinMetricIDAggSizeCompressed = -6
 
 var BuiltinMetricMetaAggSizeCompressed = &MetricMetaValue{
 	Name:                    "__agg_size_compressed",
 	Kind:                    MetricKindValue,
 	Description:             "Compressed size of bucket received from agent (size of raw TL request).\nSet by aggregator.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
-
-const BuiltinMetricIDAggSizeUncompressed = -7
 
 var BuiltinMetricMetaAggSizeUncompressed = &MetricMetaValue{
 	Name:                    "__agg_size_uncompressed",
 	Kind:                    MetricKindValue,
 	Description:             "Uncompressed size of bucket received from agent.\nSet by aggregator.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
-
-// const BuiltinMetricIDAggAdditionsToEstimator = -8 // How many new tags were inserted into bucket
-// We merged this metric into BuiltinMetricIDAggBucketInfo
 
 const BuiltinMetricIDAggHourCardinality = -9
 
@@ -208,13 +166,7 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
@@ -229,17 +181,11 @@ var BuiltinMetricMetaAggSamplingFactor = &MetricMetaValue{
 	Description: `Sample factor selected by aggregator.
 Calculated by aggregator from scratch every second to fit all collected data into clickhouse insert budget.
 Set only if greater than 1.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}, {
@@ -262,7 +208,7 @@ Some, like 'err_map_per_metric_queue_overload', 'err_map_tag_value', 'err_map_ta
 This metric uses sampling budgets of metric it refers to, so flooding by errors cannot affect other metrics.
 'err_*_utf8'' statuses store original string value in hex.`,
 	StringTopDescription:    "string_value",
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -311,24 +257,16 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 	PreKeyTagID: "1",
 }
 
-const BuiltinMetricIDAggInsertTime = -12
-
 var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
 	Name:                    "__agg_insert_time",
 	Kind:                    MetricKindValue,
 	Description:             "Time inserting this second into clickhouse took. Written when second is inserted, which can be much later.",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
@@ -337,10 +275,17 @@ var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
 			TagValueIDInsertTimeOK:    "ok",
 			TagValueIDInsertTimeError: "error",
 		}),
+	}, {
+		Description: "http_status",
+		RawKind:     "int",
+	}, {
+		Description: "clickhouse_exception",
+		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDAggHistoricBucketsWaiting = -13
 
 var BuiltinMetricMetaAggHistoricBucketsWaiting = &MetricMetaValue{
 	Name: "__agg_historic_buckets_waiting",
@@ -348,17 +293,11 @@ var BuiltinMetricMetaAggHistoricBucketsWaiting = &MetricMetaValue{
 	Description: `Time difference of historic seconds (several per contributor) waiting to be inserted via historic conveyor.
 Count is number of such seconds waiting.`,
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
 	}, {
@@ -367,58 +306,38 @@ Count is number of such seconds waiting.`,
 	}},
 }
 
-const BuiltinMetricIDAggBucketAggregateTimeSec = -14
-
 var BuiltinMetricMetaAggBucketAggregateTimeSec = &MetricMetaValue{
 	Name: "__agg_bucket_aggregate_time_sec",
 	Kind: MetricKindValue,
 	Description: `Time between agent bucket is received and fully aggregated into aggregator bucket.
 Set by aggregator. Max(value)@host shows agent responsible for longest aggregation.`,
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
-
-const BuiltinMetricIDAggActiveSenders = -15
 
 var BuiltinMetricMetaAggActiveSenders = &MetricMetaValue{
 	Name:                    "__agg_active_senders",
 	Kind:                    MetricKindValue,
 	Description:             "Number of insert lines between aggregator and clickhouse busy with insertion.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}},
 }
-
-const BuiltinMetricIDAggOutdatedAgents = -16
 
 var BuiltinMetricMetaAggOutdatedAgents = &MetricMetaValue{
 	Name:                    "__agg_outdated_agents",
@@ -429,13 +348,7 @@ var BuiltinMetricMetaAggOutdatedAgents = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "owner",
 	}, {
 		Description: "host",
@@ -445,13 +358,11 @@ var BuiltinMetricMetaAggOutdatedAgents = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAgentDiskCacheErrors = -18
-
 var BuiltinMetricMetaAgentDiskCacheErrors = &MetricMetaValue{
 	Name:                    "__src_disc_cache_errors",
 	Kind:                    MetricKindCounter,
 	Description:             "Disk cache errors. Written by agent.",
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -466,8 +377,6 @@ var BuiltinMetricMetaAgentDiskCacheErrors = &MetricMetaValue{
 		}),
 	}},
 }
-
-const BuiltinMetricIDTimingErrors = -20
 
 var BuiltinMetricMetaTimingErrors = &MetricMetaValue{
 	Name: "__timing_errors",
@@ -492,16 +401,8 @@ Set by either agent or aggregator, depending on status.`,
 			TagValueIDTimingMissedSecondsAgent:              "missed_seconds_agent",
 			TagValueIDTimingThrownDueToMemory:               "out_of_memory_space_agent",
 		}),
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}},
+	}, {}, {}, {}},
 }
-
-const BuiltinMetricIDAgentReceivedBatchSize = -21
 
 var BuiltinMetricMetaAgentReceivedBatchSize = &MetricMetaValue{
 	Name:                    "__src_ingested_metric_batch_size",
@@ -527,8 +428,6 @@ var BuiltinMetricMetaAgentReceivedBatchSize = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggMapping = -23
-
 var BuiltinMetricMetaAggMapping = &MetricMetaValue{
 	Name:                    "__agg_mapping_status",
 	Kind:                    MetricKindCounter,
@@ -537,13 +436,7 @@ var BuiltinMetricMetaAggMapping = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "mapper",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAggMappingDolphinLegacy: "dolphin_legacy",
@@ -567,24 +460,16 @@ var BuiltinMetricMetaAggMapping = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggInsertTimeReal = -24
-
 var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 	Name:                    "__agg_insert_time_real",
 	Kind:                    MetricKindValue,
 	Description:             "Time of aggregated bucket inserting into clickhouse took in this second.\nactual seconds inserted can be from the past.",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
@@ -600,15 +485,10 @@ var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 		Description: "clickhouse_exception",
 		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
 	}, {
-		Description: "experiment",
-		ValueComments: convertToValueComments(map[int32]string{
-			0: "main",
-			1: "experiment",
-		}),
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDAgentHistoricQueueSize = -25
 
 var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 	Name: "__src_historic_queue_size_bytes",
@@ -617,7 +497,7 @@ var BuiltinMetricMetaAgentHistoricQueueSize = &MetricMetaValue{
 Disk size increases when second is written, decreases when file is deleted.
 Storage 'empty' event is recorded with 0 value when there is no unsent data, so we can filter out agents with/without empty queue.`,
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -629,15 +509,7 @@ Storage 'empty' event is recorded with 0 value when there is no unsent data, so 
 			TagValueIDHistoricQueueDiskSent:   "disk_sent",
 			TagValueIDHistoricQueueEmpty:      "empty",
 		}),
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	}, {}, {}, {}, {}, {
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
 	}, AggShardTag - 1: { // we reuse index of aggregator_shard here. -1 because we do not include env tag
@@ -646,23 +518,15 @@ Storage 'empty' event is recorded with 0 value when there is no unsent data, so 
 	}},
 }
 
-const BuiltinMetricIDAggHistoricSecondsWaiting = -26
-
 var BuiltinMetricMetaAggHistoricSecondsWaiting = &MetricMetaValue{
 	Name:                    "__agg_historic_seconds_waiting",
 	Kind:                    MetricKindValue,
 	Description:             "Time difference of aggregated historic seconds waiting to be inserted via historic conveyor. Count is number of unique seconds waiting.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
 	}, {
@@ -671,24 +535,16 @@ var BuiltinMetricMetaAggHistoricSecondsWaiting = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggInsertSizeReal = -27
-
 var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 	Name:                    "__agg_insert_size_real",
 	Kind:                    MetricKindValue,
 	Description:             "Size of aggregated bucket inserted into clickhouse in this second (actual seconds inserted can be from the past).",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
@@ -704,22 +560,17 @@ var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 		Description: "clickhouse_exception",
 		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
 	}, {
-		Description: "experiment",
-		ValueComments: convertToValueComments(map[int32]string{
-			0: "main",
-			1: "experiment",
-		}),
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDAgentMapping = -30
 
 var BuiltinMetricMetaAgentMapping = &MetricMetaValue{
 	Name:                    "__src_mapping_time",
 	Kind:                    MetricKindValue,
 	Description:             "Time and status of mapping request.\nWritten by agent.",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -742,14 +593,12 @@ var BuiltinMetricMetaAgentMapping = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAgentReceivedPacketSize = -31
-
 var BuiltinMetricMetaAgentReceivedPacketSize = &MetricMetaValue{
 	Name:                    "__src_ingested_packet_size",
 	Kind:                    MetricKindValue,
 	Description:             "Size in bytes of packets received by agent. Also count is # of received packets.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -785,13 +634,7 @@ Set by aggregator.`,
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}, {
@@ -813,15 +656,11 @@ Set by aggregator.`,
 			TagValueIDAggMappingCreatedConveyorOld: "old",
 			TagValueIDAggMappingCreatedConveyorNew: "new",
 		}),
-	}, {
-		Description: "-",
-	}, {
+	}, {}, {
 		Description: "tag_value",
 	}},
 	PreKeyTagID: "4",
 }
-
-const BuiltinMetricIDVersions = -34
 
 var BuiltinMetricMetaVersions = &MetricMetaValue{
 	Name:                    "__build_version",
@@ -829,13 +668,11 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 	Description:             "Build Version (commit) of statshouse components.",
 	StringTopDescription:    "Build Commit",
 	Resolution:              60,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
 	}, {
@@ -847,9 +684,7 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 	}, {
 		Description: "commit_hash",
 		RawKind:     "hex",
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
 
 const BuiltinMetricIDBadges = -35 // copy of some other metrics for efficient show of errors and warnings
@@ -858,7 +693,7 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	Description:             "System metric used to display UI badges above plot. Stores stripped copy of some other builtin metrics.",
 	Resolution:              5,
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false, // this metric must be extremely lightweight
 	WithAggregatorID:        false, // this metric must be extremely lightweight
@@ -879,25 +714,17 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 	PreKeyTagID: "2",
 }
 
-const BuiltinMetricIDAutoConfig = -36
-
 var BuiltinMetricMetaAutoConfig = &MetricMetaValue{
 	Name: "__autoconfig",
 	Kind: MetricKindCounter,
 	Description: `Status of agent getConfig RPC message, used to configure sharding on agents.
 Set by aggregator, max host shows actual host of agent who connected.
 Ingress proxies first proxy request (to record host and IP of agent), then replace response with their own addresses.'`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAutoConfigOK:             "ok_config",
@@ -914,27 +741,20 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 	}},
 }
 
-const BuiltinMetricIDJournalVersions = -37 // has smart custom sending logic
 var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 	Name:                    "__metric_journal_version",
 	Kind:                    MetricKindCounter,
 	Description:             "Metadata journal version plus stable hash of journal state.",
 	StringTopDescription:    "Journal Hash",
 	Resolution:              60,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // has limited cardinality, but only on each agent
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	}, {}, {}, {}, {
 		Description: "version",
 		RawKind:     "int",
 	}, {
@@ -951,8 +771,6 @@ var BuiltinMetricMetaJournalVersions = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDPromScrapeTime = -38
-
 var BuiltinMetricMetaPromScrapeTime = &MetricMetaValue{
 	Name:                    "__prom_scrape_time",
 	Kind:                    MetricKindValue,
@@ -963,9 +781,7 @@ var BuiltinMetricMetaPromScrapeTime = &MetricMetaValue{
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{
-		{
-			Description: "-",
-		}, {
+		{}, {
 			Description: "job",
 		}, {
 			Description: "host", // Legacy, see comment in pushScrapeTimeMetric
@@ -983,7 +799,6 @@ var BuiltinMetricMetaPromScrapeTime = &MetricMetaValue{
 
 const BuiltinMetricIDAgentHeartbeatVersion = -41 // TODO - remove
 const BuiltinMetricIDAgentHeartbeatArgs = -42    // TODO - remove, this metric was writing larger than allowed strings to DB in the past
-const BuiltinMetricIDUsageMemory = -43
 
 var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
 	Name:                    "__usage_mem",
@@ -991,7 +806,7 @@ var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
 	Description:             "Memory usage of statshouse components.",
 	MetricType:              MetricByte,
 	Resolution:              60,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -1001,15 +816,13 @@ var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDUsageCPU = -44
-
 var BuiltinMetricMetaUsageCPU = &MetricMetaValue{
 	Name:                    "__usage_cpu",
 	Kind:                    MetricKindValue,
 	Description:             "CPU usage of statshouse components, CPU seconds per second.",
 	MetricType:              MetricSecond,
 	Resolution:              60,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -1033,7 +846,7 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 	MetricType:              MetricSecond,
 	StringTopDescription:    "Build Commit",
 	Resolution:              60,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -1045,13 +858,10 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDHeartbeatEventStart:     "start",
 			TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
-	}, {
-		Description: "-",
-	}, {
+	}, {}, {
 		Description: "commit_hash",
 		RawKind:     "hex",
-	}, {
-		Description: "-", // former commit_date, obsolete by nice UI formatting of the next tag
+	}, { // former commit_date, obsolete by nice UI formatting of the next tag
 	}, {
 		Description: "commit_timestamp",
 		RawKind:     "timestamp",
@@ -1073,7 +883,7 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 	MetricType:              MetricSecond,
 	StringTopDescription:    "Arguments",
 	Resolution:              60,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -1108,9 +918,6 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 	}},
 }
 
-// BuiltinMetricIDAPIRPCServiceTime       = -49 // deprecated, replaced by "__api_service_time"
-const BuiltinMetricIDAPIBRS = -50
-
 var BuiltinMetricMetaAPIBRS = &MetricMetaValue{ // TODO - harmonize
 	Name:                    "__api_big_response_storage_size",
 	Kind:                    MetricKindValue,
@@ -1124,12 +931,10 @@ var BuiltinMetricMetaAPIBRS = &MetricMetaValue{ // TODO - harmonize
 	}},
 }
 
-// BuiltinMetricIDAPIEndpointResponseTime = -51 // deprecated, replaced by "__api_response_time"
-// BuiltinMetricIDAPIEndpointServiceTime  = -52 // deprecated, replaced by "__api_service_time"
-const BuiltinMetricIDBudgetHost = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
 var BuiltinMetricMetaBudgetHost = &MetricMetaValue{
 	Name:                    "__budget_host",
 	Kind:                    MetricKindCounter,
+	Disable:                 true, // disabled, but host mapping is flood-protected
 	Description:             "Invisible metric used only for accounting budget to create host mappings",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -1138,10 +943,11 @@ var BuiltinMetricMetaBudgetHost = &MetricMetaValue{
 	Tags:                    []MetricMetaTag{},
 }
 
-const BuiltinMetricIDBudgetAggregatorHost = -54 // we want to see limits properly credited in flood meta metric tags
+// we want to see limits properly credited in flood meta metric tags
 var BuiltinMetricMetaBudgetAggregatorHost = &MetricMetaValue{
 	Name:                    "__budget_aggregator_host",
 	Kind:                    MetricKindCounter,
+	Disable:                 true, // disabled, but aggregator host mapping is flood-protected
 	Description:             "Invisible metric used only for accounting budget to create host mappings of aggregators themselves",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -1149,8 +955,6 @@ var BuiltinMetricMetaBudgetAggregatorHost = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags:                    []MetricMetaTag{},
 }
-
-const BuiltinMetricIDAPIActiveQueries = -55
 
 var BuiltinMetricMetaAPIActiveQueries = &MetricMetaValue{
 	Name:                    "__api_active_queries",
@@ -1160,8 +964,7 @@ var BuiltinMetricMetaAPIActiveQueries = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "-", // if we need another component
+	Tags: []MetricMetaTag{{ // if we need another component
 	}, {
 		Description: "version",
 	}, {
@@ -1186,7 +989,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	Description:             "Size of RPC request bodies.\nFor ingress proxy, key_id can be used to identify senders.",
 	MetricType:              MetricByte,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1218,10 +1021,8 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 			TagValueIDRPCRequestsStatusErrUpstream: "err_upstream",
 			TagValueIDRPCRequestsStatusHijack:      "hijacked",
 			TagValueIDRPCRequestsStatusNoHandler:   "err_no_handler"}),
-	}, {
-		Description: "-", // in the future - error code
-	}, {
-		Description: "-", // in the future - something
+	}, { // in the future - error code
+	}, { // in the future - something
 	}, {
 		Description: "key_id", // this is unrelated to metric keys, this is ingress key ID
 		RawKind:     "hex",
@@ -1238,6 +1039,7 @@ const BuiltinMetricIDBudgetUnknownMetric = -57
 var BuiltinMetricMetaBudgetUnknownMetric = &MetricMetaValue{
 	Name:                    "__budget_unknown_metric",
 	Kind:                    MetricKindCounter,
+	Disable:                 true, // disabled, but mapping for unknown metrics is flood-protected
 	Description:             "Invisible metric used only for accounting budget to create mappings with metric not found",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -1246,9 +1048,6 @@ var BuiltinMetricMetaBudgetUnknownMetric = &MetricMetaValue{
 	Tags:                    []MetricMetaTag{},
 }
 
-// BuiltinMetricIDHeartbeatArgs2             = -58 // not recorded any more
-// BuiltinMetricIDHeartbeatArgs3             = -59 // not recorded any more
-// BuiltinMetricIDHeartbeatArgs4             = -60 // not recorded any more
 const BuiltinMetricIDContributorsLog = -61
 
 var BuiltinMetricMetaContributorsLog = &MetricMetaValue{
@@ -1258,7 +1057,7 @@ var BuiltinMetricMetaContributorsLog = &MetricMetaValue{
 Timestamps of all inserted seconds per second are recorded here in key1.
 Value is delta between second value and time it was inserted.
 To see which seconds change when, use __contributors_log_rev`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1276,7 +1075,7 @@ var BuiltinMetricMetaContributorsLogRev = &MetricMetaValue{
 	Description: `Reverse index of __contributors_log, used to invalidate API caches.
 key1 is UNIX timestamp of second when this second was changed.
 Value is delta between second value and time it was inserted.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1285,8 +1084,6 @@ Value is delta between second value and time it was inserted.`,
 		RawKind:     "timestamp",
 	}},
 }
-
-const BuiltinMetricIDGroupSizeBeforeSampling = -64
 
 var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{
 	Name:                    "__group_size_before_sampling",
@@ -1310,8 +1107,6 @@ var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{
 		}),
 	}},
 }
-
-const BuiltinMetricIDGroupSizeAfterSampling = -65
 
 var BuiltinMetricMetaGroupSizeAfterSampling = &MetricMetaValue{
 	Name:                    "__group_size_after_sampling",
@@ -1337,8 +1132,6 @@ var BuiltinMetricMetaGroupSizeAfterSampling = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPISelectBytes = -66
-
 var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 	Name: "__api_ch_select_bytes",
 	Kind: MetricKindValue,
@@ -1353,8 +1146,6 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "query type",
 	}},
 }
-
-const BuiltinMetricIDAPISelectRows = -67
 
 var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	Name: "__api_ch_select_rows",
@@ -1371,8 +1162,6 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPISelectDuration = -68
-
 var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	Name:                    "__api_ch_select_duration",
 	Kind:                    MetricKindValue,
@@ -1382,39 +1171,28 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{
-		{
-			Description: "query type",
-		},
-		{
-			Description: "metric",
-			BuiltinKind: BuiltinKindMetric,
-		},
-		{
-			Description: "table",
-		},
-		{
-			Description: "kind",
-		},
-		{
-			Description: "status",
-		},
-		{
-			Description: "token-short",
-		},
-		{
-			Description: "token-long",
-		},
-		{
-			Description: "shard", // metric % 16 for now, experimental
-			RawKind:     "int",
-		},
-	},
+	Tags: []MetricMetaTag{{
+		Description: "query type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}, {
+		Description: "status",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
+	}, {
+		Description: "shard", // metric % 16 for now, experimental
+		RawKind:     "int",
+	}},
 }
 
-const BuiltinMetricIDAgentHistoricQueueSizeSum = -69 // Removed, not needed after queue size metric is written by agents
-const BuiltinMetricIDAPISourceSelectRows = -70
-
+// const BuiltinMetricIDAgentHistoricQueueSizeSum = -69 // Removed, not needed after queue size metric is written by agents
 var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
 	Name:                    "__api_ch_source_select_rows",
 	Kind:                    MetricKindValue,
@@ -1423,24 +1201,17 @@ var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{
-		{
-			Description: "source type",
-		},
-		{
-			Description: "metric",
-			BuiltinKind: BuiltinKindMetric,
-		},
-		{
-			Description: "table",
-		},
-		{
-			Description: "kind",
-		},
-	},
+	Tags: []MetricMetaTag{{
+		Description: "source type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}},
 }
-
-const BuiltinMetricIDSystemMetricScrapeDuration = -71
 
 var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
 	Name:                    "__system_metrics_duration",
@@ -1469,8 +1240,6 @@ var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMetaServiceTime = -72
-
 var BuiltinMetricMetaMetaServiceTime = &MetricMetaValue{ // TODO - harmonize
 	Name:                    "__meta_rpc_service_time",
 	Kind:                    MetricKindValue,
@@ -1491,8 +1260,6 @@ var BuiltinMetricMetaMetaServiceTime = &MetricMetaValue{ // TODO - harmonize
 	}},
 }
 
-const BuiltinMetricIDMetaClientWaits = -73
-
 var BuiltinMetricMetaMetaClientWaits = &MetricMetaValue{ // TODO - harmonize
 	Name:                    "__meta_load_journal_client_waits",
 	Kind:                    MetricKindValue,
@@ -1506,8 +1273,6 @@ var BuiltinMetricMetaMetaClientWaits = &MetricMetaValue{ // TODO - harmonize
 	}},
 }
 
-const BuiltinMetricIDAgentUDPReceiveBufferSize = -74
-
 var BuiltinMetricMetaAgentUDPReceiveBufferSize = &MetricMetaValue{
 	Name:                    "__src_udp_receive_buffer_size",
 	Kind:                    MetricKindValue,
@@ -1520,8 +1285,6 @@ var BuiltinMetricMetaAgentUDPReceiveBufferSize = &MetricMetaValue{
 	WithAggregatorID:        false,
 }
 
-const BuiltinMetricIDAPIMetricUsage = -75
-
 var BuiltinMetricMetaAPIMetricUsage = &MetricMetaValue{
 	Name:                    "__api_metric_usage",
 	Resolution:              60,
@@ -1531,25 +1294,19 @@ var BuiltinMetricMetaAPIMetricUsage = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{
-		{
-			Description: "type",
-			ValueComments: convertToValueComments(map[int32]string{
-				TagValueIDRPC:  "RPC",
-				TagValueIDHTTP: "http",
-			}),
-		},
-		{
-			Description: "user",
-		},
-		{
-			Description: "metric",
-			BuiltinKind: BuiltinKindMetric,
-		},
-	},
+	Tags: []MetricMetaTag{{
+		Description: "type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDRPC:  "RPC",
+			TagValueIDHTTP: "http",
+		}),
+	}, {
+		Description: "user",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}},
 }
-
-const BuiltinMetricIDAPIServiceTime = -76
 
 var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 	Name:                    "__api_service_time",
@@ -1598,8 +1355,6 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPIResponseTime = -77
-
 var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 	Name:                    "__api_response_time",
 	Kind:                    MetricKindValue,
@@ -1644,15 +1399,13 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDSrcTestConnection = -78
-
 var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 	Name:                    "__src_test_connection",
 	Kind:                    MetricKindValue,
 	Resolution:              60,
 	Description:             "Duration of call test connection rpc method",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // written only 1 per minute from each agent
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -1680,24 +1433,20 @@ var BuiltinMetricMetaSrcTestConnection = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAgentAggregatorTimeDiff = -79
-
 var BuiltinMetricMetaAgentAggregatorTimeDiff = &MetricMetaValue{
 	Name:                    "__src_agg_time_diff",
 	Kind:                    MetricKindValue,
 	Resolution:              60,
 	Description:             "Aggregator time - agent time when start testConnection",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // written only 1 per minute from each agent
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
-	}, {
-		Description: "-",
-	}, AggShardTag - 1: { //  // we reuse index of aggregator_shard here. -1 because we do not include env tag
+	}, {}, AggShardTag - 1: { //  // we reuse index of aggregator_shard here. -1 because we do not include env tag
 		Description: "agent_shard",
 		RawKind:     "int",
 	}, AggReplicaTag - 1: { //  // we reuse index of aggregator_replica here. -1 because we do not include env tag
@@ -1706,13 +1455,11 @@ var BuiltinMetricMetaAgentAggregatorTimeDiff = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDSrcSamplingMetricCount = -80
-
 var BuiltinMetricMetaSrcSamplingMetricCount = &MetricMetaValue{
 	Name:                    "__src_sampling_metric_count",
 	Kind:                    MetricKindValue,
 	Description:             `Metric count processed by sampler on agent.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -1728,7 +1475,7 @@ var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 	Name:                    "__agg_sampling_metric_count",
 	Kind:                    MetricKindValue,
 	Description:             `Metric count processed by sampler on aggregator.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1737,8 +1484,6 @@ var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 		ValueComments: convertToValueComments(conveyorToValue),
 	}},
 }
-
-const BuiltinMetricIDSrcSamplingSizeBytes = -82
 
 var BuiltinMetricMetaSrcSamplingSizeBytes = &MetricMetaValue{
 	Name:                    "__src_sampling_size_bytes",
@@ -1784,7 +1529,7 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	MetricType:              MetricByte,
 	Description:             `Size in bytes processed by sampler on aggregator.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1816,8 +1561,6 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDUIErrors = -84
-
 var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	Name:                    "__ui_errors",
 	Kind:                    MetricKindValue,
@@ -1830,8 +1573,6 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	Tags:                    []MetricMetaTag{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
 
-const BuiltinMetricIDStatsHouseErrors = -85
-
 var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 	Name:                    "__statshouse_errors",
 	Kind:                    MetricKindCounter,
@@ -1841,24 +1582,21 @@ var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{
-		{
-			Description: "error_type",
-			ValueComments: convertToValueComments(map[int32]string{
-				TagValueIDDMESGParseError: "dmesg_parse",
-				TagValueIDAPIPanicError:   "api_panic",
-			}),
-		}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+	Tags: []MetricMetaTag{{
+		Description: "error_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDDMESGParseError: "dmesg_parse",
+			TagValueIDAPIPanicError:   "api_panic",
+		}),
+	}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
-
-const BuiltinMetricIDSrcSamplingBudget = -86
 
 var BuiltinMetricMetaSrcSamplingBudget = &MetricMetaValue{
 	Name:                    "__src_sampling_budget",
 	Kind:                    MetricKindValue,
 	MetricType:              MetricByte,
 	Description:             `Budget allocated on agent.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -1875,7 +1613,7 @@ var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	MetricType:              MetricByte,
 	Description:             `Budget allocated on aggregator.`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -1884,8 +1622,6 @@ var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 		ValueComments: convertToValueComments(conveyorToValue),
 	}},
 }
-
-const BuiltinMetricIDSrcSamplingGroupBudget = -88
 
 var BuiltinMetricMetaSrcSamplingGroupBudget = &MetricMetaValue{
 	Name:                    "__src_sampling_group_budget",
@@ -1951,8 +1687,6 @@ var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDPromQLEngineTime = -90
-
 var BuiltinMetricMetaPromQLEngineTime = &MetricMetaValue{
 	Name:                    "__promql_engine_time",
 	Kind:                    MetricKindValue,
@@ -2014,8 +1748,6 @@ var BuiltinMetricMetaPromQLEngineTime = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPICacheHit = -91
-
 var BuiltinMetricMetaAPICacheHit = &MetricMetaValue{
 	Name:                    "__api_cache_hit_rate",
 	Kind:                    MetricKindValue,
@@ -2036,8 +1768,6 @@ var BuiltinMetricMetaAPICacheHit = &MetricMetaValue{
 	}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 }
 
-const BuiltinMetricIDAggScrapeTargetDispatch = -92
-
 var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 	Name:                    "__agg_scrape_target_dispatch",
 	Kind:                    MetricKindCounter,
@@ -2047,25 +1777,21 @@ var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{
-		{
-			Description: "status",
-			ValueComments: convertToValueComments(map[int32]string{
-				0: "success",
-				1: "failure",
-			}),
-		},
-		{
-			Description: "event_type",
-			ValueComments: convertToValueComments(map[int32]string{
-				1: "targets_ready",
-				2: "targets_sent",
-			}),
-		},
+	Tags: []MetricMetaTag{{
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			0: "success",
+			1: "failure",
+		}),
+	}, {
+		Description: "event_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			1: "targets_ready",
+			2: "targets_sent",
+		}),
+	},
 	},
 }
-
-const BuiltinMetricIDAggScrapeTargetDiscovery = -93
 
 var BuiltinMetricMetaAggScrapeTargetDiscovery = &MetricMetaValue{
 	Name:                    "__agg_scrape_target_discovery",
@@ -2078,8 +1804,6 @@ var BuiltinMetricMetaAggScrapeTargetDiscovery = &MetricMetaValue{
 	WithAggregatorID:        true,
 }
 
-const BuiltinMetricIDAggScrapeConfigHash = -94
-
 var BuiltinMetricMetaAggScrapeConfigHash = &MetricMetaValue{
 	Name:                    "__agg_scrape_config_hash",
 	Kind:                    MetricKindCounter,
@@ -2088,54 +1812,54 @@ var BuiltinMetricMetaAggScrapeConfigHash = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{
-		{
-			Description: "config_hash",
-			RawKind:     "hex",
-		},
-	},
+	Tags: []MetricMetaTag{{
+		Description: "config_hash",
+		RawKind:     "hex",
+	}},
 }
-
-const BuiltinMetricIDAggSamplingTime = -95
 
 var BuiltinMetricMetaAggSamplingTime = &MetricMetaValue{
 	Name:                    "__agg_sampling_time",
 	Kind:                    MetricKindValue,
 	MetricType:              MetricSecond,
 	Description:             "Time sampling this second took. Written when second is inserted, which can be much later.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDInsertTimeOK:    "ok",
+			TagValueIDInsertTimeError: "error",
+		}),
+	}, {
+		Description: "http_status",
+		RawKind:     "int",
+	}, {
+		Description: "clickhouse_exception",
+		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDAgentDiskCacheSize = -96
 
 var BuiltinMetricMetaAgentDiskCacheSize = &MetricMetaValue{
 	Name:                    "__src_disk_cache_size",
 	Kind:                    MetricKindValue,
 	MetricType:              MetricByte,
 	Description:             "Size of agent mapping cache",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
+	Tags: []MetricMetaTag{{}, {}, {}, {
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
 	}},
 }
 
@@ -2145,25 +1869,12 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	Name:                    "__agg_contributors",
 	Kind:                    MetricKindValue,
 	Description:             "Number of contributors used to calculate sampling budget.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}},
+	Tags:                    []MetricMetaTag{{}, {}, {}},
 }
-
-// DEPRECATED:
-// const BuiltinMetricIDAggAgentSharding = -98
-// const BuiltinMetricIDAPICacheBytesFree = -100
-// const BuiltinMetricIDAPICacheAgeEvict = -102
-
-const BuiltinMetricIDAPICacheChunkCount = -99
 
 var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
 	Name:                    "__api_cache_chunk_count",
@@ -2177,8 +1888,6 @@ var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDAPICacheSize = -101
 
 var BuiltinMetricMetaAPICacheSize = &MetricMetaValue{
 	Name:                    "__api_cache_size",
@@ -2194,8 +1903,6 @@ var BuiltinMetricMetaAPICacheSize = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPICacheAge = -103
-
 var BuiltinMetricMetaAPICacheAge = &MetricMetaValue{
 	Name:                    "__api_cache_age",
 	Kind:                    MetricKindValue,
@@ -2209,8 +1916,6 @@ var BuiltinMetricMetaAPICacheAge = &MetricMetaValue{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDAPIBufferBytesAlloc = -104
 
 var BuiltinMetricMetaAPIBufferBytesAlloc = &MetricMetaValue{
 	Name:                    "__api_buffer_bytes_alloc",
@@ -2229,8 +1934,6 @@ var BuiltinMetricMetaAPIBufferBytesAlloc = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPIBufferBytesFree = -105
-
 var BuiltinMetricMetaAPIBufferBytesFree = &MetricMetaValue{
 	Name:                    "__api_buffer_bytes_free",
 	Kind:                    MetricKindValue,
@@ -2248,8 +1951,6 @@ var BuiltinMetricMetaAPIBufferBytesFree = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAPIBufferBytesTotal = -106
-
 var BuiltinMetricMetaAPIBufferBytesTotal = &MetricMetaValue{
 	Name:                    "__api_buffer_bytes_total",
 	Kind:                    MetricKindValue,
@@ -2263,8 +1964,6 @@ var BuiltinMetricMetaAPIBufferBytesTotal = &MetricMetaValue{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDAutoCreateMetric = -107
 
 var BuiltinMetricMetaAutoCreateMetric = &MetricMetaValue{
 	Name:                    "__agg_autocreate_metric",
@@ -2289,8 +1988,6 @@ var BuiltinMetricMetaAutoCreateMetric = &MetricMetaValue{
 		},
 	}},
 }
-
-const BuiltinMetricIDRestartTimings = -108
 
 var BuiltinMetricMetaRestartTimings = &MetricMetaValue{
 	Name:                    "__src_restart_timings",
@@ -2322,14 +2019,8 @@ var BuiltinMetricMetaRestartTimings = &MetricMetaValue{
 			TagValueIDRestartTimingsPhaseSaveMappings:      "save_mappings",
 			TagValueIDRestartTimingsPhaseSaveJournal:       "save_journal",
 		}),
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}},
+	}, {}, {}},
 }
-
-const BuiltinMetricIDGCDuration = -109
 
 var BuiltinMetricMetaGCDuration = &MetricMetaValue{
 	Name:                    "__gc_duration",
@@ -2340,32 +2031,22 @@ var BuiltinMetricMetaGCDuration = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "-", // reserved for host
-	},
-		{
-			Description:   "component",
-			ValueComments: convertToValueComments(componentToValue),
-		}},
+	Tags: []MetricMetaTag{{ // reserved for host
+	}, {
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}},
 }
-
-const BuiltinMetricIDAggHistoricHostsWaiting = -110
 
 var BuiltinMetricMetaAggHistoricHostsWaiting = &MetricMetaValue{
 	Name:                    "__agg_historic_hosts_waiting",
 	Kind:                    MetricKindValue,
 	Description:             "Approximate number of different hosts waiting with historic data.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "aggregator_role",
 		ValueComments: convertToValueComments(aggregatorRoleToValue),
 	}, {
@@ -2381,7 +2062,7 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	MetricType:              MetricSecond,
 	Description:             "Time spent in sampling engine",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
@@ -2394,11 +2075,7 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 			" 4": "sampling",
 			" 5": "meta",
 		},
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}},
@@ -2410,23 +2087,15 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	Name:                    "__agg_sampling_engine_keys",
 	Kind:                    MetricKindCounter,
 	Description:             "Number of series went through sampling engine",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}},
 }
-
-const BuiltinMetricIDProxyAcceptHandshakeError = -113
 
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	Name:                    "__igp_accept_handshake_error",
@@ -2446,103 +2115,89 @@ var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDProxyVmSize = -114
-
 var BuiltinMetricMetaProxyVmSize = &MetricMetaValue{
 	Name:                    "__igp_vm_size",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy virtual memory size.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDProxyVmRSS = -115
 
 var BuiltinMetricMetaProxyVmRSS = &MetricMetaValue{
 	Name:                    "__igp_vm_rss",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy resident set size.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDProxyHeapAlloc = -116
 
 var BuiltinMetricMetaProxyHeapAlloc = &MetricMetaValue{
 	Name:                    "__igp_heap_alloc",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy bytes of allocated heap objects.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDProxyHeapSys = -117
 
 var BuiltinMetricMetaProxyHeapSys = &MetricMetaValue{
 	Name:                    "__igp_heap_sys",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy bytes of heap memory obtained from the OS.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDProxyHeapIdle = -118
 
 var BuiltinMetricMetaProxyHeapIdle = &MetricMetaValue{
 	Name:                    "__igp_heap_idle",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy bytes in idle (unused) spans.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDProxyHeapInuse = -119
 
 var BuiltinMetricMetaProxyHeapInuse = &MetricMetaValue{
 	Name:                    "__igp_heap_inuse",
 	Kind:                    MetricKindValue,
 	Description:             "StatsHouse proxy bytes in in-use spans.",
 	Resolution:              60,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
+	NoSampleAgent:           true, // low cardinality
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDApiVmSize = -120
 
 var BuiltinMetricMetaApiVmSize = &MetricMetaValue{
 	Name:                    "__api_vm_size",
@@ -2558,8 +2213,6 @@ var BuiltinMetricMetaApiVmSize = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDApiVmRSS = -121
-
 var BuiltinMetricMetaApiVmRSS = &MetricMetaValue{
 	Name:                    "__api_vm_rss",
 	Kind:                    MetricKindValue,
@@ -2573,8 +2226,6 @@ var BuiltinMetricMetaApiVmRSS = &MetricMetaValue{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDApiHeapAlloc = -122
 
 var BuiltinMetricMetaApiHeapAlloc = &MetricMetaValue{
 	Name:                    "__api_heap_alloc",
@@ -2590,8 +2241,6 @@ var BuiltinMetricMetaApiHeapAlloc = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDApiHeapSys = -123
-
 var BuiltinMetricMetaApiHeapSys = &MetricMetaValue{
 	Name:                    "__api_heap_sys",
 	Kind:                    MetricKindValue,
@@ -2605,8 +2254,6 @@ var BuiltinMetricMetaApiHeapSys = &MetricMetaValue{
 		Description: "host",
 	}},
 }
-
-const BuiltinMetricIDApiHeapIdle = -124
 
 var BuiltinMetricMetaApiHeapIdle = &MetricMetaValue{
 	Name:                    "__api_heap_idle",
@@ -2622,8 +2269,6 @@ var BuiltinMetricMetaApiHeapIdle = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDApiHeapInuse = -125
-
 var BuiltinMetricMetaApiHeapInuse = &MetricMetaValue{
 	Name:                    "__api_heap_inuse",
 	Kind:                    MetricKindValue,
@@ -2638,8 +2283,6 @@ var BuiltinMetricMetaApiHeapInuse = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDClientWriteError = -126
-
 var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 	Name:                    "__src_client_write_err",
 	Kind:                    MetricKindValue,
@@ -2653,18 +2296,18 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 		Description: "lang",
 		ValueComments: convertToValueComments(map[int32]string{
 			1: "golang",
-		})}, {
+		}),
+	}, {
 		Description: "cause",
 		ValueComments: convertToValueComments(map[int32]string{
 			1: "would_block",
-		})}, {
+		}),
+	}, {
 		Description: "application",
-	},
-	},
+	}},
 }
 
-const BuiltinMetricIDAgentTimingsLegacy = -127 // TODO - remove after all agents updated to v3
-
+// TODO - remove after all agents updated to v3
 var BuiltinMetricMetaAgentTimingsLegacy = &MetricMetaValue{
 	Name:                    "__src_timings_legacy",
 	Kind:                    MetricKindValue,
@@ -2702,23 +2345,15 @@ var BuiltinMetricMetaAgentTimingsLegacy = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggBucketInfo = -128
-
 var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 	Name:                    "__agg_bucket_info",
 	Kind:                    MetricKindValue,
 	Description:             `Statistics on received bucket`,
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
-		Description: "-",
-	}, {
+	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
@@ -2741,16 +2376,13 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoNewKeys:            "new_keys",
 			TagValueIDAggBucketInfoMetrics:            "metrics",
 		}),
-	}, {
-		Description: "-",
-	}},
+	}, {}},
 }
-
-const BuiltinMetricIDBudgetOwner = -129 //invisible, but owner mapping is flood-protected
 
 var BuiltinMetricMetaBudgetOwner = &MetricMetaValue{
 	Name:                    "__budget_owner",
 	Kind:                    MetricKindCounter,
+	Disable:                 true, // disabled, but owner mapping is flood-protected
 	Description:             "Invisible metric used only for accounting budget to create owner mappings",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -2759,13 +2391,11 @@ var BuiltinMetricMetaBudgetOwner = &MetricMetaValue{
 	Tags:                    []MetricMetaTag{},
 }
 
-const BuiltinMetricIDMappingCacheElements = -130
-
 var BuiltinMetricMetaMappingCacheElements = &MetricMetaValue{
 	Name:                    "__mapping_cache_elements",
 	Kind:                    MetricKindValue,
-	Description:             "", // self-explanatory
-	NoSampleAgent:           true,
+	Description:             "",   // self-explanatory
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -2774,15 +2404,13 @@ var BuiltinMetricMetaMappingCacheElements = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}},
 }
-
-const BuiltinMetricIDMappingCacheSize = -131
 
 var BuiltinMetricMetaMappingCacheSize = &MetricMetaValue{
 	Name:                    "__mapping_cache_size",
 	Kind:                    MetricKindValue,
 	Description:             "", // self-explanatory
 	MetricType:              MetricByte,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -2791,15 +2419,13 @@ var BuiltinMetricMetaMappingCacheSize = &MetricMetaValue{
 		ValueComments: convertToValueComments(componentToValue),
 	}},
 }
-
-const BuiltinMetricIDMappingCacheAverageTTL = -132
 
 var BuiltinMetricMetaMappingCacheAverageTTL = &MetricMetaValue{
 	Name:                    "__mapping_cache_average_ttl",
 	Kind:                    MetricKindValue,
 	Description:             "Average cache element timestamp relative to now",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -2809,13 +2435,11 @@ var BuiltinMetricMetaMappingCacheAverageTTL = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMappingCacheEvent = -133
-
 var BuiltinMetricMetaMappingCacheEvent = &MetricMetaValue{
 	Name:                    "__mapping_cache_events",
 	Kind:                    MetricKindCounter,
-	Description:             "", // self-explanatory
-	NoSampleAgent:           true,
+	Description:             "",   // self-explanatory
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
@@ -2835,33 +2459,27 @@ var BuiltinMetricMetaMappingCacheEvent = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMappingQueueSize = -134
-
 var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	Name:                    "__mapping_queue_size",
 	Kind:                    MetricKindValue,
 	Description:             "Elements in aggregator new conveyor mapping queue",
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-", // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
-
-const BuiltinMetricIDMappingQueueEvent = -135
 
 var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 	Name:                    "__mapping_queue_events",
 	Kind:                    MetricKindCounter,
 	Description:             "Events in aggregator new conveyor mapping queue",
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-", // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}, {
 		Description: "event",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -2875,29 +2493,24 @@ var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMappingQueueRemovedHitsAvg = -136
-
 var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	Name:                    "__mapping_queue_removed_hits_avg",
 	Kind:                    MetricKindValue,
 	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average hit counter is reported here.",
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "-", // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
-
-const BuiltinMetricIDAgentTimings = -137
 
 var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
 	Name:                    "__src_timings",
 	Kind:                    MetricKindValue,
 	Description:             "Timings of agent operations",
 	MetricType:              MetricSecond,
-	NoSampleAgent:           true,
+	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
@@ -2926,5 +2539,39 @@ var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
 	}, {
 		Description: "commit_hash",
 		RawKind:     "hex",
+	}},
+}
+
+// If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
+var BuiltinMetricMetaAggInsertSize = &MetricMetaValue{
+	Name:                    "__agg_insert_size",
+	Kind:                    MetricKindValue,
+	Description:             "Size of aggregated bucket inserted into clickhouse. Written when second is inserted, which can be much later.",
+	MetricType:              MetricByte,
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{}, {}, {}, {
+		Description:   "conveyor",
+		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDInsertTimeOK:    "ok",
+			TagValueIDInsertTimeError: "error",
+		}),
+	}, {
+		Description: "http_status",
+		RawKind:     "int",
+	}, {
+		Description: "clickhouse_exception",
+		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
+	}, {
+		Description:   "type",
+		ValueComments: convertToValueComments(insertKindToValue),
 	}},
 }

@@ -92,23 +92,14 @@ func (s *Shard) StopPreprocessor() {
 	close(s.BucketsToPreprocess)
 }
 
-// TODO - remove generic parameter
-func addSizeByTypeMetric[B *tlstatshouse.SourceBucket2 | *tlstatshouse.SourceBucket3](sb B, partKey int32, size int) {
+func (s *Shard) addSizeByTypeMetric(t uint32, partKey int32, size int) {
 	// This metric is added by source, because aggregator has no spare time for that
-	k := data_model.Key{Metric: format.BuiltinMetricIDTLByteSizePerInflightType, Tags: [format.MaxTags]int32{0, partKey}}
-
-	item := k.TLMultiItemFromKey(0)
-	item.Tail.SetCounterEq1(true, &item.FieldsMask)
-	item.Tail.SetValueSet(true, &item.FieldsMask)
-	item.Tail.SetValueMin(float64(size), &item.FieldsMask)
-	switch sb := any(sb).(type) {
-	case *tlstatshouse.SourceBucket2:
-		sb.Metrics = append(sb.Metrics, item)
-	case *tlstatshouse.SourceBucket3:
-		sb.Metrics = append(sb.Metrics, item)
-	}
+	s.agent.AddValueCounter(t, format.BuiltinMetricMetaTLByteSizePerInflightType,
+		[]int32{0, partKey, s.agent.componentTag, format.AggShardTag: s.ShardKey},
+		float64(size), 1)
 }
-func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket2, _ []byte) {
+
+func (s *Shard) bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket2, _ []byte) {
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
 
 	for _, v := range bucket.MultiItems {
@@ -156,26 +147,26 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 	}
 
 	// Add size metrics
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeUnique, sizeUnique)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizePercentiles, sizePercentiles)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeValue, sizeValue)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSingleValue, sizeSingleValue)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeCounter, sizeCounter)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeStringTop, sizeStringTop)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeUnique, sizeUnique)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizePercentiles, sizePercentiles)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeValue, sizeValue)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSingleValue, sizeSingleValue)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, sizeCounter)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, sizeStringTop)
 
 	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status - bucket 2
 	sbSizeCalc := tlstatshouse.SourceBucket2{SampleFactors: sb.SampleFactors}
 	scratch = sbSizeCalc.Write(scratch[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(scratch))
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, len(scratch))
 
 	sbSizeCalc = tlstatshouse.SourceBucket2{
 		IngestionStatusOk:  sb.IngestionStatusOk,
 		IngestionStatusOk2: sb.IngestionStatusOk2,
 	}
 	scratch = sbSizeCalc.Write(scratch[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(scratch))
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, len(scratch))
 
 	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
 		return cmp.Compare(a.Metric, b.Metric)
@@ -184,7 +175,7 @@ func bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []t
 	return sb, scratch
 }
 
-func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket3, _ []byte) {
+func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket3, _ []byte) {
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
 
 	for _, v := range bucket.MultiItems {
@@ -235,23 +226,23 @@ func bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []t
 		sb.Metrics = append(sb.Metrics, item)
 	}
 	// Add size metrics
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeUnique, sizeUnique)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizePercentiles, sizePercentiles)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeValue, sizeValue)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSingleValue, sizeSingleValue)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeCounter, sizeCounter)
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeStringTop, sizeStringTop)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeUnique, sizeUnique)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizePercentiles, sizePercentiles)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeValue, sizeValue)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSingleValue, sizeSingleValue)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, sizeCounter)
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, sizeStringTop)
 
 	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
 	scratch = sbSizeCalc.Write(scratch[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeSampleFactors, len(scratch))
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, len(scratch))
 
 	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
 	scratch = sbSizeCalc.Write(scratch[:0])
-	addSizeByTypeMetric(&sb, format.TagValueIDSizeIngestionStatusOK, len(scratch))
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, len(scratch))
 
 	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
 		return cmp.Compare(a.Metric, b.Metric)
@@ -378,11 +369,11 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []
 func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, version uint8, scratch []byte) (data []byte, _ []byte, err error) {
 	if version == 3 {
 		var sb tlstatshouse.SourceBucket3
-		sb, scratch = bucketToSourceBucket3TL(bucket, sampleFactors, scratch)
+		sb, scratch = s.bucketToSourceBucket3TL(bucket, sampleFactors, scratch)
 		scratch = sb.WriteBoxed(scratch[:0])
 	} else {
 		var sb tlstatshouse.SourceBucket2
-		sb, scratch = bucketToSourceBucket2TL(bucket, sampleFactors, scratch)
+		sb, scratch = s.bucketToSourceBucket2TL(bucket, sampleFactors, scratch)
 		scratch = sb.WriteBoxed(scratch[:0])
 	}
 	compressed, err := compress.CompressAndFrame(scratch)

@@ -84,9 +84,6 @@ const (
 	TagValueIDSecondReal    = 1
 	TagValueIDSecondPhantom = 2 // We do not add phantom seconds anymore
 
-	TagValueIDSharingByMappedTags = 0
-	TagValueIDSharingByMetricId   = 1
-
 	TagValueIDInsertTimeOK    = 1
 	TagValueIDInsertTimeError = 2
 
@@ -188,9 +185,6 @@ const (
 	TagValueIDAggMappingStatusDelayedOK    = 8
 	TagValueIDAggMappingStatusDelayedErr   = 9
 
-	TagValueIDAgentFirstSampledMetricBudgetPerMetric = 1
-	TagValueIDAgentFirstSampledMetricBudgetUnused    = 2
-
 	TagValueIDGroupSizeSamplingFit     = 1
 	TagValueIDGroupSizeSamplingSampled = 2
 
@@ -224,6 +218,16 @@ const (
 	TagValueIDAgentTimingSendRecent   = 101
 	TagValueIDAgentTimingSendHistoric = 102
 
+	TagValueIDAggInsertV3 = 1
+	TagValueIDAggInsertV2 = 2
+)
+
+var tableFormatToValue = map[int32]string{
+	TagValueIDAggInsertV3: "v3",
+	TagValueIDAggInsertV2: "v2",
+}
+
+const (
 	TagValueIDComponentAgent        = 1
 	TagValueIDComponentAggregator   = 2
 	TagValueIDComponentIngressProxy = 3
