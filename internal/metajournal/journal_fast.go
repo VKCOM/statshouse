@@ -229,7 +229,7 @@ func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver, maxChunkSize 
 	ms.order.Ascend(func(order journalOrder) bool {
 		event, ok := ms.journal[order.key]
 		if !ok {
-			panic("journal order violation - entry not found")
+			panic(fmt.Sprintf("journal order violation - entry not found %s", order.key.key()))
 		}
 		chunk = event.WriteBoxed(chunk)
 		chunk, iteratorError = saver.FinishItem(chunk)
@@ -347,7 +347,7 @@ func hashWithoutVersionJournalEvent(scratch []byte, entry tlmetadata.Event) ([]b
 
 func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []byte {
 	if entry.Version <= ms.currentVersion {
-		panic("journal order invariant violated - adding old element")
+		panic(fmt.Sprintf("journal order invariant violated - adding old element: %d <= %d", entry.Version, ms.currentVersion))
 	}
 	var hash xxh3.Uint128
 	scratch, hash = hashWithoutVersionJournalEvent(scratch, entry)
@@ -355,7 +355,7 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 	old, ok := ms.journal[key] // hash is 0 if not there
 	if ok {
 		if _, ok = ms.order.Delete(journalOrder{version: old.Version}); !ok {
-			panic("journal order invariant violation - not found element being removed")
+			panic(fmt.Sprintf("journal order invariant violation - not found element being removed: %d", old.Version))
 		}
 	}
 	ms.stateHash.Hi ^= old.hash.Hi
@@ -364,7 +364,7 @@ func (ms *JournalFast) addEventLocked(scratch []byte, entry tlmetadata.Event) []
 	ms.stateHash.Lo ^= hash.Lo
 	ms.journal[key] = journalEvent{Event: entry, hash: hash}
 	if _, ok = ms.order.ReplaceOrInsert(journalOrder{key: key, version: entry.Version}); ok {
-		panic("journal order invariant violation - found element being inserted")
+		panic(fmt.Sprintf("journal order invariant violation - found element being inserted: %s %d", key.key(), entry.Version))
 	}
 	ms.currentVersion = entry.Version
 	return scratch
