@@ -108,7 +108,13 @@ Categorize hosts by a _datacenter_, a _cluster_, etc. — not by their names.
       increased sampling.
 3. _Reduce the metric resolution_. Learn [how to customize resolution](guides/edit-metrics.md#resolution).
 4. _Increase the budget_. Only administrators are allowed to [manage budgets](admin/manage-budgets.md) for
-   specific metrics (as well as groups and namespaces). Use this option sparingly.
+   specific metrics (as well as groups and namespaces). Use this option sparingly. 
+
+:::tip
+You can [enable the "Fair key tags" feature](./guides/edit-metrics.md#fair-key-tags) to share the budget fairly 
+between the services sending data to the same metric.
+Read more about [tag-level budgeting](./overview/concepts.md#tag-level-budgeting-fair-key-tags).
+:::
 
 ### Things that do not minimize sampling
 

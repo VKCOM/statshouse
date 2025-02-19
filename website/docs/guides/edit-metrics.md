@@ -20,11 +20,13 @@ import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
 import DraftTags from '../img/draft-tags.png'
+import FairKey from '../img/fair-key.png'
 
 # Edit a metric
 
 Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options are:
 <!-- TOC -->
+* [How to edit a metric](#how-to-edit-a-metric)
 * [Description](#description)
 * [Aggregation](#aggregation)
   * [Percentiles](#percentiles)
@@ -40,6 +42,7 @@ Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options
   * [Map the draft tag names to the tag IDs](#map-the-draft-tag-names-to-the-tag-ids)
 * [Disabling a metric](#disabling-a-metric)
 * [Admin settings](#admin-settings)
+  * [Fair key tags](#fair-key-tags)
 <!-- TOC -->
 
 ## How to edit a metric
@@ -258,4 +261,8 @@ These settings are for administrators only:
 * _Enable min host_
 * _Enable sum square_
 
+### Fair key tags
 
+Choose the tag to [enable the tag-level budgeting](../overview/concepts.md#tag-level-budgeting-fair-key-tags) for it:
+
+<img src={FairKey} width="600"/>
