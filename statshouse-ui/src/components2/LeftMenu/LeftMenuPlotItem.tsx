@@ -5,18 +5,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import type { PlotKey } from '@/url2';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
-import { useStatsHouseShallow } from '@/store2';
 
 import { useIntersectionObserver, useOnClickOutside, useStateBoolean, useStateToRef } from '@/hooks';
 import cn from 'classnames';
 import css from './style.module.css';
 import { Link } from 'react-router-dom';
 import { Button, Popper } from '@/components/UI';
-import { getMetricFullName } from '@/store2/helpers';
 import { PLOT_TYPE } from '@/api/enum';
 import { PlotName } from '../Plot/PlotView/PlotName';
 import { usePlotLoader } from '@/store2/plotQueryStore';
@@ -24,23 +21,30 @@ import { PlotLink } from '../Plot/PlotLink';
 import { setPlotPreviewVisibility } from '@/store2/plotVisibilityStore';
 import { usePlotPreviewStore } from '@/store2/plotPreviewStore';
 import { useLinkPlot } from '@/hooks/useLinkPlot';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricName } from '@/hooks/useMetricName';
+import { StatsHouseStore, useStatsHouse } from '@/store2';
+import { usePlotsDataStore } from '@/store2/plotDataStore';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
 export type LeftMenuPlotItemProps = {
-  plotKey: PlotKey;
   active?: boolean;
 };
 
-export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active }: LeftMenuPlotItemProps) {
+const selectorStore = ({ params: { orderPlot } }: StatsHouseStore) => orderPlot;
+
+export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ active }: LeftMenuPlotItemProps) {
   const itemRef = useRef(null);
   const [visibleRef, setVisibleRef] = useState<HTMLElement | null>(null);
   const sub = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useStateBoolean(false);
   const openRef = useStateToRef(open);
   useOnClickOutside(itemRef, setOpen.off);
+  const { plot, removePlot } = useWidgetPlotContext();
+  const plotKey = plot.id;
 
   const onClick = useCallback(
     (event: React.MouseEvent) => {
@@ -54,29 +58,26 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active
   );
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
   const visibleBool = visible > 0;
+  const plotPreviewUrl = usePlotPreviewStore(useCallback((s) => s.plotPreviewUrlList[plotKey], [plotKey]));
+
+  const plotType = plot?.type;
+
+  const orderPlot = useStatsHouse(selectorStore);
+  const canRemove = orderPlot.length > 1;
+  const metricName = useMetricName();
+
   const plotLoader = usePlotLoader(plotKey);
-  const plotPreviewUrl = usePlotPreviewStore((s) => s.plotPreviewUrlList[plotKey]);
-  const { metricFullName, error403, error, plotType, canRemove, removePlot } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots, orderPlot }, plotsData, removePlot }) => ({
-        metricFullName: getMetricFullName(plots[plotKey]!, plotsData[plotKey]),
-        error403: plotsData[plotKey]?.error403,
-        error: plotsData[plotKey]?.error,
-        plotType: plots[plotKey]?.type,
-        canRemove: orderPlot.length > 1,
-        removePlot,
-      }),
-      [plotKey]
-    )
-  );
+
+  const error = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plot.id]?.error, [plot.id]));
+  const error403 = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plot.id]?.error403, [plot.id]));
 
   const onRemove = useCallback(
     (e: React.MouseEvent) => {
-      removePlot(plotKey);
+      removePlot();
       e.stopPropagation();
       e.preventDefault();
     },
-    [plotKey, removePlot]
+    [removePlot]
   );
 
   const link = useLinkPlot(plotKey, visibleBool);
@@ -97,16 +98,14 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active
         ref={setVisibleRef}
         className={cn(
           css.link,
-          // 'nav-link',
           !error403 ? css.preview : css.preview403,
           plotType === PLOT_TYPE.Event && css.previewEvent
         )}
         to={link}
         onClick={onClick}
       >
-        {/*<SVGGraphUp className={css.icon} />*/}
         {!!error403 && <SVGXSquare className={css.icon} />}
-        {!!plotPreviewUrl && !error403 && <img alt={metricFullName} src={plotPreviewUrl} className="w-100 h-100" />}
+        {!!plotPreviewUrl && !error403 && <img alt={metricName} src={plotPreviewUrl} className="w-100 h-100" />}
         {plotLoader && !error403 && !error && (
           <div className="position-absolute top-50 start-50 translate-middle show-delay">
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
@@ -118,7 +117,7 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active
         <ul className={css.sub} ref={sub}>
           <li className={cn(css.subItem, 'font-monospace fw-bold text-center p-1')}>
             <PlotLink className={cn('d-flex overflow-hidden align-items-center p-0', css.link)} plotKey={plotKey}>
-              <PlotName className="flex-grow-1 d-flex overflow-hidden" plotKey={plotKey} />
+              <PlotName className="flex-grow-1 d-flex overflow-hidden" />
               {canRemove && (
                 <Button
                   className={cn('btn btn-sm ms-1 border-0')}
@@ -134,7 +133,7 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ plotKey, active
           </li>
           {!!plotPreviewUrl && !error403 && (
             <li className="nav-item p-1">
-              <img alt={metricFullName} src={plotPreviewUrl} className={css.bigPreview} />
+              <img alt={metricName} src={plotPreviewUrl} className={css.bigPreview} />
             </li>
           )}
         </ul>

@@ -19,7 +19,7 @@ import { useLinkPlot } from '@/hooks/useLinkPlot';
 import { useGlobalLoader } from '@/store2/plotQueryStore';
 import { useTvModeStore } from '@/store2/tvModeStore';
 import { ErrorMessages } from '@/components/ErrorMessages';
-import { produce } from '~immer/dist/immer';
+import { produce } from 'immer';
 import { HistoryList } from '../HistoryList';
 
 const PATH_VERSION_PARAM = '&dv';

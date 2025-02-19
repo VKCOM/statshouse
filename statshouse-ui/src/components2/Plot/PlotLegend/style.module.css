@@ -23,6 +23,14 @@
   padding-bottom: 1em;
 }
 
+.legend.compact{
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  width: 100%;
+  overflow: hidden;
+}
+
 .innerLegend {
   max-width: 100%;
   line-height: 1.5;
@@ -60,10 +68,6 @@
   flex-wrap: nowrap;
   align-items: center;
   cursor: pointer;
-}
-
-.compact .labelOuter {
-  width: auto;
 }
 
 .label {
@@ -132,13 +136,21 @@
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-grow: 1;
+  width: 0;
+  justify-content: flex-start;
   height: 1.5em;
   overflow: hidden;
 }
 
 .innerLegendCompact .labelOuter {
   margin-left: 4px;
+  /*flex-grow: 0;*/
+  /*width: 0;*/
+}
+
+.compact .labelOuter {
+  width: auto;
 }
 
 .timeShift {

@@ -6,11 +6,12 @@
 
 import { apiFetch, ExtendedError } from './api';
 import type { ApiQueryGet } from './query';
-import type { PlotParams, QueryParams } from '@/url2';
+import type { PlotParams, TimeRange, VariableKey, VariableParams } from '@/url2';
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { useMemo } from 'react';
-import { getLoadPlotUrlParams } from '@/store2/plotDataStore/loadPlotData';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useStatsHouse } from '@/store2';
+import { getLoadPlotUrlParamsLight } from '@/store2/plotDataStore/loadPlotData2';
 
 export const ApiBadgesEndpoint = '/api/badges';
 
@@ -35,35 +36,36 @@ export async function apiBadgesFetch(params: ApiQueryGet, keyRequest?: unknown) 
 
 export function useApiBadges<T = ApiBadges>(
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>,
   select?: (response?: ApiBadges) => T,
-  enabled: boolean = true
+  enabled: boolean = false,
+  priority: number = 2
 ): UseQueryResult<T, ExtendedError> {
-  const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
-
-  const priority = useMemo(() => {
-    if (plot?.id === params.tabNum) {
-      return 1;
-    }
-    return enabled ? 2 : 3;
-  }, [enabled, params.tabNum, plot?.id]);
+  const interval = useLiveModeStore(({ interval, status }) => (status ? interval * 2 : undefined));
 
   const keyParams = useMemo(() => {
     if (!plot?.id) {
       return null;
     }
-    return getLoadPlotUrlParams(plot?.id, params);
-  }, [params, plot?.id]);
+    return getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval);
+  }, [interval, plot, timeRange, timeShifts, variables]);
+
+  const plotHeals = useStatsHouse((s) => {
+    const status = s.plotHeals[plot.id];
+    return !(!!status && !status.status && status.lastTimestamp + status.timeout * 1000 > Date.now());
+  });
 
   const fetchParams = useMemo(() => {
     if (!plot?.id) {
       return null;
     }
-    return getLoadPlotUrlParams(plot?.id, params, interval, false, priority);
-  }, [interval, params, plot?.id, priority]);
+    return getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval, false, priority);
+  }, [interval, plot, priority, timeRange, timeShifts, variables]);
 
   return useQuery({
-    enabled,
+    enabled: plotHeals && enabled,
     select,
     queryKey: [ApiBadgesEndpoint, keyParams],
     queryFn: async ({ signal }) => {
@@ -78,5 +80,6 @@ export function useApiBadges<T = ApiBadges>(
       return response;
     },
     placeholderData: (previousData) => previousData,
+    refetchInterval: interval ? interval * 1000 : undefined, //live mode badge x2 interval
   });
 }

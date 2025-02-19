@@ -49,3 +49,5 @@ export function getEmptyPlotData(): PlotData {
     promqlExpand: false,
   };
 }
+
+export const emptyPlotData = Object.freeze(getEmptyPlotData());

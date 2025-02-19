@@ -6,22 +6,17 @@
 
 import { PlotControlFilter } from './PlotControlFilter';
 import { PlotControlPromQL } from './PlotControlPromQL';
-import { PlotKey } from '@/url2';
 import { isPromQL } from '@/store2/helpers';
-import { useStatsHouse } from '@/store2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
 export type PlotControlProps = {
   className?: string;
-  plotKey: PlotKey;
 };
 export function PlotControl(props: PlotControlProps) {
-  const isProm = useStatsHouse(({ params: { tabNum, plots } }) => isPromQL(plots[tabNum]));
-  const isPlot = useStatsHouse(({ params: { tabNum, plots } }) => !!plots[tabNum]);
-  if (!isPlot) {
-    return null;
-  }
+  const { plot } = useWidgetPlotContext();
+  const isProm = isPromQL(plot);
   if (isProm) {
-    return <PlotControlPromQL {...props}></PlotControlPromQL>;
+    return <PlotControlPromQL />;
   }
   return <PlotControlFilter {...props}></PlotControlFilter>;
 }

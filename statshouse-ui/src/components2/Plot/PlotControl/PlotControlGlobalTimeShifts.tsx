@@ -7,37 +7,42 @@
 import { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
 import { ToggleButton } from '@/components/UI';
-import { useStatsHouseShallow } from '@/store2';
 import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '@/view/utils2';
+import { setParams } from '@/store2/methods';
+import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
 
 export type PlotControlGlobalTimeShiftsProps = {
   className?: string;
 };
 
+const selectorStore = ({ params: { timeShifts, plots, orderPlot } }: StatsHouseStore) => ({
+  timeShifts,
+  plots,
+  orderPlot,
+});
+
 export const PlotControlGlobalTimeShifts = memo(function PlotControlGlobalTimeShifts({
   className,
 }: PlotControlGlobalTimeShiftsProps) {
-  const { timeShifts, maxCustomAgg, setParams } = useStatsHouseShallow((s) => ({
-    timeShifts: s.params.timeShifts,
-    maxCustomAgg: Math.max(0, ...s.params.orderPlot.map((pK) => s.params.plots[pK]?.customAgg ?? 0)),
-    setParams: s.setParams,
-  }));
+  const { timeShifts, plots, orderPlot } = useStatsHouseShallow(selectorStore);
 
-  const onChange = useCallback(
-    (status: boolean, value?: number) => {
-      if (value == null) {
-        return;
-      }
-      setParams((p) => {
-        if (status) {
-          p.timeShifts.push(value);
-        } else {
-          p.timeShifts = p.timeShifts.filter((t) => t !== value);
-        }
-      });
-    },
-    [setParams]
+  const maxCustomAgg = useMemo(
+    () => Math.max(0, ...orderPlot.map((pK) => plots[pK]?.customAgg ?? 0)),
+    [orderPlot, plots]
   );
+
+  const onChange = useCallback((status: boolean, value?: number) => {
+    if (value == null) {
+      return;
+    }
+    setParams((p) => {
+      if (status) {
+        p.timeShifts.push(value);
+      } else {
+        p.timeShifts = p.timeShifts.filter((t) => t !== value);
+      }
+    });
+  }, []);
 
   const list = useMemo(() => {
     const shifts = getTimeShifts(maxCustomAgg).map(timeShiftAbbrevExpand);

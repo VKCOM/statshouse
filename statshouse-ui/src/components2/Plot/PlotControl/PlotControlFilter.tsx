@@ -4,9 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { PlotControlProps } from './PlotControl';
-import { PLOT_TYPE, TAG_KEY, type TagKey } from '@/api/enum';
+import { PLOT_TYPE, TAG_KEY } from '@/api/enum';
 import { PlotControlFrom } from './PlotControlFrom';
 import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
@@ -20,39 +20,30 @@ import { PlotControlPromQLSwitch } from './PlotControlPromQLSwitch';
 import { PlotControlFilterTag } from './PlotControlFilterTag';
 import { PlotControlMetricName } from './PlotControlMetricName';
 import { PlotControlEventOverlay } from './PlotControlEventOverlay';
-import { useStatsHouseShallow } from '@/store2';
 import { filterHasTagID } from '@/store2/helpers';
 import { useGlobalLoader } from '@/store2/plotQueryStore';
 import { isTagEnabled } from '@/view/utils2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricName } from '@/hooks/useMetricName';
 
-const emptyFilter: Partial<Record<TagKey, string[]>> = {};
-const emptyGroup: TagKey[] = [];
+export function PlotControlFilter({ className }: PlotControlProps) {
+  const {
+    plot: { type, filterIn, filterNotIn, groupBy },
+  } = useWidgetPlotContext();
 
-export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
+  const metricName = useMetricName(true);
+  const meta = useMetricMeta(metricName);
   const globalLoader = useGlobalLoader();
-  const { meta, plotType, filterIn, filterNotIn, groupBy } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, metricMeta }) => ({
-        plot: plots[plotKey],
-        plotType: plots[plotKey]?.type ?? PLOT_TYPE.Metric,
-        filterIn: plots[plotKey]?.filterIn ?? emptyFilter,
-        filterNotIn: plots[plotKey]?.filterNotIn ?? emptyFilter,
-        groupBy: plots[plotKey]?.groupBy ?? emptyGroup,
-        meta: metricMeta[plots[plotKey]?.metricName ?? ''],
-      }),
-      [plotKey]
-    )
-  );
+
   const filterInfo = useMemo(() => ({ filterIn, filterNotIn, groupBy }), [filterIn, filterNotIn, groupBy]);
 
   return (
     <div className={className}>
       <div className="d-flex flex-column gap-2">
         <div className="d-flex flex-row gap-3">
-          {/*<div className="d-flex flex-row input-group">*/}
-          <PlotControlMetricName plotKey={plotKey} />
-          {/*</div>*/}
-          {plotType === PLOT_TYPE.Metric && <PlotControlPromQLSwitch plotKey={plotKey} />}
+          <PlotControlMetricName />
+          {type === PLOT_TYPE.Metric && <PlotControlPromQLSwitch />}
         </div>
         {globalLoader && (
           <div className="text-center">
@@ -62,37 +53,35 @@ export function PlotControlFilter({ className, plotKey }: PlotControlProps) {
         {!!meta && (
           <>
             <div className="d-flex flex-row mb-1 gap-4 w-100">
-              <PlotControlWhats plotKey={plotKey} />
-              {plotType === PLOT_TYPE.Metric && <PlotControlMaxHost plotKey={plotKey} />}
+              <PlotControlWhats />
+              {type === PLOT_TYPE.Metric && <PlotControlMaxHost />}
             </div>
 
             <div className="d-flex flex-column gap-2">
               <div className="d-flex flex-row gap-1 w-100">
                 <PlotControlFrom />
-                {plotType === PLOT_TYPE.Metric && <PlotControlView plotKey={plotKey} />}
+                {type === PLOT_TYPE.Metric && <PlotControlView />}
               </div>
               <PlotControlTo />
               <PlotControlGlobalTimeShifts className="w-100" />
-              {plotType === PLOT_TYPE.Metric && (
-                <PlotControlEventOverlay plotKey={plotKey} className="input-group-sm" />
-              )}
+              {type === PLOT_TYPE.Metric && <PlotControlEventOverlay className="input-group-sm" />}
             </div>
             <div className="d-flex flex-row gap-4 mb-1">
               <div className="d-flex flex-row gap-3 flex-grow-1">
-                <PlotControlAggregation plotKey={plotKey} />
-                <PlotControlNumSeries plotKey={plotKey} />
+                <PlotControlAggregation />
+                <PlotControlNumSeries />
               </div>
-              <PlotControlVersion plotKey={plotKey} />
+              <PlotControlVersion />
             </div>
 
             <div className={'d-flex flex-column gap-3'}>
               {(meta?.tagsOrder || []).map((tagKey) =>
                 !tagKey || (!isTagEnabled(meta, tagKey) && !filterHasTagID(filterInfo, tagKey)) ? null : (
-                  <PlotControlFilterTag key={tagKey} plotKey={plotKey} tagKey={tagKey} />
+                  <PlotControlFilterTag key={tagKey} tagKey={tagKey} />
                 )
               )}
               {!isTagEnabled(meta, TAG_KEY._s) && !filterHasTagID(filterInfo, TAG_KEY._s) ? null : (
-                <PlotControlFilterTag key={TAG_KEY._s} plotKey={plotKey} tagKey={TAG_KEY._s} />
+                <PlotControlFilterTag key={TAG_KEY._s} tagKey={TAG_KEY._s} />
               )}
             </div>
           </>

@@ -9,14 +9,7 @@ import { RenderCellProps, RenderHeaderCellProps } from 'react-data-grid';
 import { formatTagValue, querySeriesMetaTag } from '@/view/api';
 import { Tooltip } from '@/components/UI';
 import { formatLegendValue } from '@/view/utils2';
-
-export type EventDataRow = {
-  key: string;
-  idChunk: number;
-  timeString: string;
-  time: number;
-  data: number[];
-} & Partial<Record<string, querySeriesMetaTag>>;
+import { EventDataRow } from '@/common/getEventColumnsType';
 
 export function EventFormatterDefault({ row, column }: RenderCellProps<EventDataRow>): ReactNode {
   const tag = row?.[column.key] as querySeriesMetaTag | undefined | string | number;

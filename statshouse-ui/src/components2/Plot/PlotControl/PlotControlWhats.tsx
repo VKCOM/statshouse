@@ -9,27 +9,17 @@ import { Select, type SelectOptionProps } from '@/components/Select';
 import cn from 'classnames';
 import type { QueryWhat } from '@/api/enum';
 import { metricKindToWhat } from '@/view/api';
-import { getNewMetric, type PlotKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
 import { whatToWhatDesc } from '@/view/whatToWhatDesc';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricName } from '@/hooks/useMetricName';
 
-export type PlotControlWhatsProps = {
-  plotKey: PlotKey;
-};
-
-const defaultWhats = getNewMetric().what;
-
-export const PlotControlWhats = memo(function PlotControlWhats({ plotKey }: PlotControlWhatsProps) {
-  const { what, meta, setPlot } = useStatsHouseShallow(
-    useCallback(
-      (s) => ({
-        what: s.params.plots[plotKey]?.what ?? defaultWhats,
-        meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
-        setPlot: s.setPlot,
-      }),
-      [plotKey]
-    )
-  );
+export const PlotControlWhats = memo(function PlotControlWhats() {
+  const {
+    plot: { what },
+    setPlot,
+  } = useWidgetPlotContext();
+  const meta = useMetricMeta(useMetricName(true));
 
   const options = useMemo(() => {
     const whats: SelectOptionProps[] = metricKindToWhat(meta?.kind).map((w) => ({
@@ -47,21 +37,21 @@ export const PlotControlWhats = memo(function PlotControlWhats({ plotKey }: Plot
         const whats = metricKindToWhat(meta?.kind);
         whatValue.push(whats[0]);
       }
-      setPlot(plotKey, (s) => {
+      setPlot((s) => {
         s.what = whatValue as QueryWhat[];
       });
     },
-    [meta?.kind, plotKey, setPlot]
+    [meta?.kind, setPlot]
   );
 
   useEffect(() => {
     const whats = metricKindToWhat(meta?.kind);
     if (what.some((qw) => whats.indexOf(qw) === -1)) {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.what = [whats[0] as QueryWhat];
       });
     }
-  }, [meta?.kind, plotKey, setPlot, what]);
+  }, [meta?.kind, setPlot, what]);
   return (
     <Select
       value={what}

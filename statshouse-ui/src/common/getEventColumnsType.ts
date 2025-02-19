@@ -12,8 +12,8 @@ import {
   EventFormatterHeaderDefault,
   EventFormatterHeaderTime,
 } from '@/components2/Plot/PlotView/EventFormatters';
-import { whatToWhatDesc } from './whatToWhatDesc';
-import { querySeriesMetaTag } from './api';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
+import { querySeriesMetaTag } from '@/view/api';
 
 export type EventDataRow = {
   key: string;
@@ -28,7 +28,7 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
   maxWidth: 300,
   resizable: true,
   renderHeaderCell: EventFormatterHeaderDefault,
-  width: 'auto',
+  width: 120,
   renderCell: EventFormatterDefault,
   // sortable: true,
   // headerCellClass: 'no-Focus',

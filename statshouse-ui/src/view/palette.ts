@@ -136,3 +136,14 @@ export function rgba(c: string, alpha: number): string {
   const b = Number.parseInt(c.substring(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+export function selectColorGenerator() {
+  const usedBaseColors = {};
+  const baseColors: Record<string, string> = {};
+  return (colorKey: string, defaultColor?: string, alpha?: number) => {
+    const stroke = (baseColors[colorKey] =
+      defaultColor || baseColors[colorKey] || selectColor(colorKey, usedBaseColors));
+    const fill = alpha ? rgba(stroke, alpha) : undefined;
+    return { stroke, fill };
+  };
+}

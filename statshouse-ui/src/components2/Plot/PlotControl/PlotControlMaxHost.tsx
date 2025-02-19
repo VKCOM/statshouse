@@ -7,35 +7,24 @@
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { memo, useCallback } from 'react';
 import { SwitchBox } from '@/components/UI';
-import { useStatsHouseShallow } from '@/store2';
-import { getNewMetric, type PlotKey } from '@/url2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
-export type PlotControlMaxHostProps = {
-  plotKey: PlotKey;
-};
+export const PlotControlMaxHost = memo(function PlotControlMaxHost() {
+  const {
+    plot: { maxHost },
+    setPlot,
+  } = useWidgetPlotContext();
 
-const defaultMaxHost = getNewMetric().maxHost;
-
-export const PlotControlMaxHost = memo(function PlotControlMaxHost({ plotKey }: PlotControlMaxHostProps) {
-  const { value, setPlot } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, setPlot }) => ({
-        value: plots[plotKey]?.maxHost ?? defaultMaxHost,
-        setPlot,
-      }),
-      [plotKey]
-    )
-  );
   const onChange = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (s) => {
+      setPlot((s) => {
         s.maxHost = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
   return (
-    <SwitchBox title="Host" checked={value} onChange={onChange}>
+    <SwitchBox title="Host" checked={maxHost} onChange={onChange}>
       <SVGPcDisplay />
     </SwitchBox>
   );

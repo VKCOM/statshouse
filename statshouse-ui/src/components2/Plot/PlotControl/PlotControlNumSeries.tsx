@@ -5,40 +5,29 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { useStatsHouseShallow } from '@/store2';
-import { getNewMetric, type PlotKey } from '@/url2';
 import { isMetricNumSeries, METRIC_NUM_SERIES, METRIC_NUM_SERIES_DESCRIPTION } from '@/api/enum';
 import cn from 'classnames';
-
-export type PlotControlNumSeriesProps = {
-  plotKey: PlotKey;
-};
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
 const numSeriesList = Object.values(METRIC_NUM_SERIES).map((value) => ({
   value,
   description: METRIC_NUM_SERIES_DESCRIPTION[value],
 }));
 
-const defaultNumSeries = getNewMetric().numSeries;
+export const PlotControlNumSeries = memo(function PlotControlNumSeries() {
+  const {
+    plot: { numSeries },
+    setPlot,
+  } = useWidgetPlotContext();
 
-export const PlotControlNumSeries = memo(function PlotControlNumSeries({ plotKey }: PlotControlNumSeriesProps) {
-  const { numSeries, setPlot } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, setPlot }) => ({
-        numSeries: plots[plotKey]?.numSeries ?? defaultNumSeries,
-        setPlot,
-      }),
-      [plotKey]
-    )
-  );
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const num = parseInt(e.target.value);
-      setPlot(plotKey, (s) => {
+      setPlot((s) => {
         s.numSeries = num;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
   const otherNum = useMemo(() => !isMetricNumSeries(numSeries), [numSeries]);
 
