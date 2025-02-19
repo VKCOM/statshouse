@@ -8,18 +8,21 @@ import { GET_BOOLEAN, GET_PARAMS, MetricMetaTagRawKind, MetricValueBackendVersio
 import { ApiMetric, ApiMetricEndpoint, MetricMetaValue } from './metric';
 import { ApiAbortController, apiFetch, ApiFetchResponse, ExtendedError } from './api';
 import { queryClient } from '../common/queryClient';
-import { PlotParams, QueryParams } from '../url2';
+import { PlotKey, PlotParams, QueryParams } from '../url2';
 import {
   CancelledError,
   QueryClient,
   UndefinedInitialDataOptions,
+  useQueries,
   useQuery,
   useQueryClient,
   UseQueryResult,
 } from '@tanstack/react-query';
 import { useLiveModeStore } from '../store2/liveModeStore';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { getLoadPlotUrlParams } from '../store2/plotDataStore/loadPlotData';
+import { PlotVisibilityStore, usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
+import { isNotNil } from '@/common/helpers';
 
 export const ApiQueryEndpoint = '/api/query';
 
@@ -195,6 +198,7 @@ export function useApiQuery<T = ApiQuery>(
   const queryClient = useQueryClient();
 
   const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
+  const iconVisible = usePlotVisibilityStore(useCallback(({ plotPreviewList }) => plotPreviewList[plot.id], [plot.id]));
 
   const priority = useMemo(() => {
     if (plot?.id === params.tabNum) {
@@ -202,11 +206,55 @@ export function useApiQuery<T = ApiQuery>(
     }
     return enabled ? 2 : 3;
   }, [enabled, params.tabNum, plot?.id]);
-  const options = getQueryOptions<ApiQuery>(queryClient, plot, params, interval, priority);
+  const options = useMemo(
+    () => getQueryOptions<ApiQuery>(queryClient, plot, params, interval, priority),
+    [interval, params, plot, priority, queryClient]
+  );
 
   return useQuery({
     ...options,
     select,
-    enabled,
+    enabled: enabled || iconVisible,
+  });
+}
+
+const plotVisibilitySelector = ({ plotPreviewList }: PlotVisibilityStore) => plotPreviewList;
+
+export function useApiQueries<T = ApiQuery>(
+  plotsKey: PlotKey[],
+  params: QueryParams,
+  select?: (response?: ApiQuery) => T,
+  enabled: boolean = true
+) {
+  const queryClient = useQueryClient();
+
+  const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
+  const iconsVisible = usePlotVisibilityStore(plotVisibilitySelector);
+
+  const queries = useMemo(
+    () =>
+      plotsKey
+        .map((plotKey) => {
+          const priority = plotKey === params.tabNum ? 1 : 2;
+          const plot = params.plots[plotKey];
+          if (plot) {
+            return {
+              ...getQueryOptions<ApiQuery>(queryClient, plot, params, interval, priority),
+              select,
+              enabled: enabled || iconsVisible[plotKey],
+            };
+          }
+          return null;
+        })
+        .filter(isNotNil),
+    [enabled, iconsVisible, interval, params, plotsKey, queryClient, select]
+  );
+
+  return useQueries({
+    queries,
+    combine: (result) => ({
+      data: Object.fromEntries(result.map((r, index) => [plotsKey[index], r.data])),
+      isLoading: result.some((r) => r.isLoading),
+    }),
   });
 }

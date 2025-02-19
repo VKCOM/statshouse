@@ -9,8 +9,9 @@ import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import { Dashboard, TvModePanel } from '@/components2';
 import { useEmbedMessage } from '@/hooks/useEmbedMessage';
 import { ErrorMessages } from '@/components/ErrorMessages';
-import { PlotLayout } from '@/components2/Plot/PlotLayout';
 import { useTvModeStore } from '@/store2/tvModeStore';
+import { WidgetParamsContextProvider } from '@/contexts';
+import { PlotLayout } from '@/components2/Plot/PlotLayout';
 
 export function ViewPage() {
   // const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
@@ -40,15 +41,18 @@ export function ViewPage() {
     );
   }
   return (
-    <div ref={setRefPage} className="d-flex flex-column flex-md-row dashLayout w-100">
-      <div className="flex-grow-1">
-        {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
-        <div className="position-relative">
-          <Dashboard />
-          {isPlot && <PlotLayout className="py-3" />}
+    <WidgetParamsContextProvider>
+      <div ref={setRefPage} className="d-flex flex-column flex-md-row dashLayout w-100">
+        <div className="flex-grow-1">
+          {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
+          <div className="position-relative">
+            <Dashboard />
+            {/*{isPlot && <PlotWidgetFull plotKey={tabNum} className="py-3" isEmbed={isEmbed} />}*/}
+            {isPlot && <PlotLayout className="py-3" plotKey={tabNum} isEmbed={isEmbed} />}
+          </div>
         </div>
       </div>
-    </div>
+    </WidgetParamsContextProvider>
   );
 }
 

@@ -116,6 +116,7 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
       });
     },
     updatePlotsData() {
+      return;
       const {
         params: { tabNum, orderPlot },
 
@@ -184,7 +185,8 @@ export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setS
           priority = 2;
         }
       }
-
+      prepareEnd();
+      return;
       const plotHeal = getState().isPlotHeal(plotKey);
       if (!plotHeal) {
         // console.log('skip heal');

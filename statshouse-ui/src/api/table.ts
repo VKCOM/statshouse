@@ -18,6 +18,7 @@ import {
 import { getLoadTableUrlParams } from '@/store2/plotEventsDataStore';
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { queryClient } from '@/common/queryClient';
+import { useMemo } from 'react';
 
 const ApiTableEndpoint = '/api/table';
 
@@ -159,7 +160,10 @@ export function useApiTable<T = ApiTable>(
 
   const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
 
-  const options = getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit);
+  const options = useMemo(
+    () => getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit),
+    [fromEnd, interval, key, limit, params, plot, queryClient]
+  );
 
   return useQuery({
     ...options,
