@@ -12,47 +12,42 @@ import { sortEntity } from '@/common/helpers';
 import cn from 'classnames';
 
 import { setUpdatedTag, useVariableListStore } from '@/store2/variableList';
-import { type PlotKey, QueryParams } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
+import { QueryParams } from '@/url2';
 import { useVariableLink } from '@/hooks/useVariableLink';
 import { getTagDescription, getTagValue } from '@/view/utils2';
 import { VariableControl } from '@/components/VariableControl';
 import { SelectOptionProps } from '@/components/Select';
 import { formatTagValue } from '@/view/api';
+import { useWidgetParamsContext, useWidgetPlotContext } from '@/contexts';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricName } from '@/hooks/useMetricName';
 
 export type PlotControlFilterTagProps = {
-  plotKey: PlotKey;
   tagKey: TagKey;
   className?: string;
 };
 
 export const PlotControlFilterTag = memo(function PlotControlFilterTag({
-  plotKey,
   tagKey,
   className,
 }: PlotControlFilterTagProps) {
-  const { filterIn, filterNotIn, groupBy, variables, meta, setParams } = useStatsHouseShallow(
-    useCallback(
-      (s) => ({
-        // metricName: s.params.plots[plotKey]?.metricName ?? '',
-        filterIn: s.params.plots[plotKey]?.filterIn[tagKey],
-        filterNotIn: s.params.plots[plotKey]?.filterNotIn[tagKey],
-        groupBy: s.params.plots[plotKey]?.groupBy.includes(tagKey),
-        variables: s.params.variables,
-        // variableInfo: s.plotVariablesLink[plotKey]?.[tagKey],
-        meta: s.metricMeta[s.params.plots[plotKey]?.metricName ?? ''],
-        setParams: s.setParams,
-      }),
-      [plotKey, tagKey]
-    )
-  );
+  const {
+    params: { variables },
+    setParams,
+  } = useWidgetParamsContext();
+  const {
+    plot: { id, filterIn, filterNotIn, groupBy },
+  } = useWidgetPlotContext();
+  const meta = useMetricMeta(useMetricName(true));
+  const filterInTag = filterIn[tagKey];
+  const filterNotInTag = filterNotIn[tagKey];
+  const groupByTag = groupBy.includes(tagKey);
 
-  const variableInfo = useVariableLink(plotKey, tagKey);
+  const variableInfo = useVariableLink(id, tagKey);
   const variable = (variableInfo?.variableKey && variables[variableInfo.variableKey]) || undefined;
-  // const meta = useMetricsStore((s) => s.meta[metricName]);
-  const tagList = useVariableListStore((s) => s.tags[plotKey]?.[tagKey]);
+  const tagList = useVariableListStore((s) => s.tags[id]?.[tagKey]);
 
-  const [negativeTag, setNegativeTag] = useState<boolean>((filterNotIn?.length ?? 0) > 0);
+  const [negativeTag, setNegativeTag] = useState<boolean>((filterNotInTag?.length ?? 0) > 0);
   const onSetNegativeTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
       if (tagKey == null) {
@@ -71,7 +66,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         setNegativeTag(value);
         setParams(
           produce((p) => {
-            const pl = p.plots[plotKey];
+            const pl = p.plots[id];
             if (pl) {
               if (value) {
                 const tags = pl.filterIn[tagKey];
@@ -87,7 +82,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         );
       }
     },
-    [plotKey, setParams, variableInfo]
+    [id, setParams, variableInfo]
   );
 
   const onSetGroupBy = useCallback(
@@ -107,7 +102,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
       } else {
         setParams(
           produce<QueryParams>((p) => {
-            const pl = p.plots[plotKey];
+            const pl = p.plots[id];
             if (pl) {
               if (value) {
                 pl.groupBy = sortEntity([...pl.groupBy, tagKey]);
@@ -119,7 +114,7 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         );
       }
     },
-    [plotKey, setParams, variableInfo]
+    [id, setParams, variableInfo]
   );
 
   const onFilterChange = useCallback(
@@ -136,10 +131,10 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
             }
           })
         );
-      } else if (plotKey) {
+      } else if (id) {
         setParams(
           produce((p) => {
-            const pl = p.plots[plotKey];
+            const pl = p.plots[id];
             if (pl) {
               if (negativeTag) {
                 pl.filterNotIn[tagKey] = values;
@@ -151,13 +146,13 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
         );
       }
     },
-    [negativeTag, plotKey, setParams, variableInfo]
+    [id, negativeTag, setParams, variableInfo]
   );
   const onSetUpdateTag = useCallback(
     (tagKey: TagKey | undefined, value: boolean) => {
-      setUpdatedTag(plotKey, tagKey, value);
+      setUpdatedTag(id, tagKey, value);
     },
-    [plotKey]
+    [id]
   );
 
   const customValue = useMemo(
@@ -179,10 +174,10 @@ export const PlotControlFilterTag = memo(function PlotControlFilterTag({
       placeholder={getTagDescription(meta, tagKey)}
       negative={variable?.negative ?? negativeTag ?? false}
       setNegative={onSetNegativeTag}
-      groupBy={variable?.groupBy ?? groupBy}
+      groupBy={variable?.groupBy ?? groupByTag}
       setGroupBy={onSetGroupBy}
-      values={(variable && !variable.negative ? variable.values : undefined) ?? filterIn}
-      notValues={(variable && variable.negative ? variable.values : undefined) ?? filterNotIn}
+      values={(variable && !variable.negative ? variable.values : undefined) ?? filterInTag}
+      notValues={(variable && variable.negative ? variable.values : undefined) ?? filterNotInTag}
       onChange={onFilterChange}
       tagMeta={tagList?.tagMeta ?? meta?.tagsObject[tagKey]}
       setOpen={onSetUpdateTag}

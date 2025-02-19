@@ -380,8 +380,13 @@ export function timeShiftToDash(ts: number, usedDashes: Record<string, number[]>
   return (usedDashes[ts.toString()] = dashes[nextKey]);
 }
 
-export function formatLegendValue(value: number | null): string {
-  if (value === null) {
+export function timeShiftToDashGenerator() {
+  const usedDashes = {};
+  return (time_shift: number) => (time_shift ? timeShiftToDash(time_shift, usedDashes) : undefined);
+}
+
+export function formatLegendValue(value?: number | null): string {
+  if (value == null) {
     return '';
   }
   const abs = Math.abs(value);

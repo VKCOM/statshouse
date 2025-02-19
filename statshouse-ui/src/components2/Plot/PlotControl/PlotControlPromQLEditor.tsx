@@ -11,9 +11,9 @@ import cn from 'classnames';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
-import { getNewMetric, type PlotKey } from '@/url2';
 import { useStatsHouseShallow } from '@/store2';
 import { PrometheusSwitch } from './PrometheusSwitch';
+import { useWidgetPlotContext } from '@/contexts';
 
 const FallbackEditor = (props: { className?: string; value?: string; onChange?: (value: string) => void }) => (
   <div className="input-group">
@@ -29,25 +29,34 @@ const PromQLEditor = lazy(() =>
 
 export type PlotControlPromQLEditorProps = {
   className?: string;
-  plotKey: PlotKey;
 };
 
-const { prometheusCompat: defaultPrometheusCompat } = getNewMetric();
+// const { prometheusCompat: defaultPrometheusCompat } = getNewMetric();
 
 export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
   className,
-  plotKey,
 }: PlotControlPromQLEditorProps) {
-  const { promQLParam, promqlExpand, togglePromqlExpand, setPlot, prometheusCompat } = useStatsHouseShallow(
+  const {
+    plot: { id, promQL: promQLParam, prometheusCompat },
+    setPlot,
+  } = useWidgetPlotContext();
+
+  const {
+    // promQLParam,
+    promqlExpand,
+    togglePromqlExpand,
+    // setPlot,
+    // prometheusCompat
+  } = useStatsHouseShallow(
     useCallback(
-      ({ params: { plots }, plotsData, togglePromqlExpand, setPlot }) => ({
-        promQLParam: plots[plotKey]?.promQL ?? '',
-        promqlExpand: plotsData[plotKey]?.promqlExpand ?? false,
-        prometheusCompat: plots[plotKey]?.prometheusCompat ?? defaultPrometheusCompat,
+      ({ plotsData, togglePromqlExpand }) => ({
+        // promQLParam: plots[id]?.promQL ?? '',
+        promqlExpand: plotsData[id]?.promqlExpand ?? false,
+        // prometheusCompat: plots[id]?.prometheusCompat ?? defaultPrometheusCompat,
         togglePromqlExpand,
-        setPlot,
+        // setPlot,
       }),
-      [plotKey]
+      [id]
     )
   );
 
@@ -59,14 +68,14 @@ export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
   }, [promQLParam]);
 
   const onTogglePromqlExpand = useCallback(() => {
-    togglePromqlExpand(plotKey);
-  }, [plotKey, togglePromqlExpand]);
+    togglePromqlExpand(id);
+  }, [id, togglePromqlExpand]);
 
   const sendPromQL = useCallback(() => {
-    setPlot(plotKey, (p) => {
+    setPlot((p) => {
       p.promQL = promQlRef.current;
     });
-  }, [plotKey, promQlRef, setPlot]);
+  }, [promQlRef, setPlot]);
 
   useEffect(() => {
     setPromQL(promQLParam);
@@ -74,11 +83,11 @@ export const PlotControlPromQLEditor = memo(function PlotControlPromQLEditor({
 
   const setPrometheusCompat = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.prometheusCompat = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
 
   return (

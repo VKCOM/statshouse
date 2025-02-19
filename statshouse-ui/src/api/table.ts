@@ -5,8 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { GET_PARAMS, type MetricValueBackendVersion, type QueryWhat } from './enum';
-import { ApiQueryEndpoint, type SeriesMetaTag } from './query';
-import { ApiAbortController, apiFetch, ApiFetchResponse, ExtendedError } from './api';
+import type { SeriesMetaTag } from './query';
+import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
 import type { PlotParams, QueryParams } from '@/url2';
 import {
   CancelledError,
@@ -18,6 +18,7 @@ import {
 import { getLoadTableUrlParams } from '@/store2/plotEventsDataStore';
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { queryClient } from '@/common/queryClient';
+import { useMemo } from 'react';
 
 const ApiTableEndpoint = '/api/table';
 
@@ -83,10 +84,10 @@ export function getTableOptions<T = ApiTable>(
 
   const gcTime = interval ? interval * 2000 : queryClient.getDefaultOptions().queries?.gcTime;
 
-  const controller = new ApiAbortController(`${ApiTableEndpoint}_${fromEnd ? '1' : '0'}_${plot.id}`);
-  controller.signal.addEventListener('abort', () => {
-    queryClient.cancelQueries({ queryKey: [ApiQueryEndpoint, keyParams], exact: true });
-  });
+  // const controller = new ApiAbortController(`${ApiTableEndpoint}_${fromEnd ? '1' : '0'}_${plot.id}`);
+  // controller.signal.addEventListener('abort', () => {
+  //   queryClient.cancelQueries({ queryKey: [ApiQueryEndpoint, keyParams], exact: true });
+  // });
 
   return {
     queryKey: [ApiTableEndpoint, keyParams],
@@ -159,7 +160,10 @@ export function useApiTable<T = ApiTable>(
 
   const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
 
-  const options = getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit);
+  const options = useMemo(
+    () => getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit),
+    [fromEnd, interval, key, limit, params, plot, queryClient]
+  );
 
   return useQuery({
     ...options,

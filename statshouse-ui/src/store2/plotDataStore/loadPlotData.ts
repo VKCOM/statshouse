@@ -32,7 +32,7 @@ export function getLoadPlotUrlParams(
   const width = plot.customAgg === -1 ? autoLowAgg : plot.customAgg === 0 ? autoAgg : `${plot.customAgg}s`;
   const urlParams: ApiQueryGet = {
     [GET_PARAMS.metricWhat]: plot.what.slice(),
-    [GET_PARAMS.toTime]: params.timeRange.to.toString(),
+    [GET_PARAMS.toTime]: interval ? '0' : params.timeRange.to.toString(),
     [GET_PARAMS.fromTime]: params.timeRange.from.toString(),
     [GET_PARAMS.width]: width.toString(),
     [GET_PARAMS.version]: plot.backendVersion,
