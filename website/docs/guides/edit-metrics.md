@@ -26,7 +26,6 @@ import FairKey from '../img/fair-key.png'
 
 Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options are:
 <!-- TOC -->
-* [How to edit a metric](#how-to-edit-a-metric)
 * [Description](#description)
 * [Aggregation](#aggregation)
   * [Percentiles](#percentiles)
