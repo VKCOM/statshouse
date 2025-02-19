@@ -9,16 +9,37 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 )
 
+type cache2DebugLogMessage struct {
+	t time.Time
+	s string
+}
+
 func DebugCacheLog(r *httpRequestHandler) {
 	w := r.Response()
 	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	s := r.cache2.debugLog()
-	for i := 0; i < len(s) && s[i] != ""; i++ {
-		w.Write([]byte(fmt.Sprint(s[i], "\n")))
+	n := 0
+	for ; n < len(s) && !s[n].t.IsZero(); n++ {
+		// pass
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if n == 0 {
+		w.Write([]byte("<empty>"))
+		return
+	}
+	i, j := 0, n-1
+	for k := 0; k < n && s[i].t.Compare(s[j].t) >= 0; k++ {
+		i = (i + 1) % n
+		j = (j + 1) % n
+	}
+	for k := 0; k < n; k++ {
+		w.Write([]byte(s[i].t.Format("15:04:05.000 ")))
+		w.Write([]byte(s[i].s))
+		w.Write([]byte("\n"))
+		i = (i + 1) % len(s)
 	}
 }
 
@@ -44,7 +65,7 @@ func DebugCacheReset(r *httpRequestHandler) {
 }
 
 func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
-	if h.CacheVersion2.Load() {
+	if h.CacheVersion.Load() == 2 {
 		return h.cache2.Get(ctx, h, pq, lod, avoidCache)
 	} else {
 		return h.cache.Get(ctx, h, pq, lod, avoidCache)
@@ -52,16 +73,16 @@ func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data
 }
 
 func cacheInvalidate(h *Handler, ts []int64, stepSec int64) {
-	if h.CacheVersion2.Load() {
+	if h.CacheVersion.Load() == 2 {
 		h.cache2.invalidate(ts, stepSec)
 	} else {
 		h.cache.Invalidate(stepSec, ts)
 	}
 }
 
-func (h *Handler) setCacheVersion(useV2 bool) {
-	if prev := h.CacheVersion2.Swap(useV2); prev != useV2 {
-		if useV2 {
+func (h *Handler) setCacheVersion(cacheVersion int32) {
+	if prev := h.CacheVersion.Swap(cacheVersion); prev != cacheVersion {
+		if cacheVersion == 2 {
 			h.cache.reset()
 		} else {
 			h.cache2.reset()
@@ -72,12 +93,12 @@ func (h *Handler) setCacheVersion(useV2 bool) {
 func (c *cache2) debugPrint(s string) {
 	c.debugLogMu.Lock()
 	defer c.debugLogMu.Unlock()
-	c.debugLogS[c.debugLogX] = fmt.Sprint(time.Now().Format(time.RFC3339), " ", s)
+	c.debugLogS[c.debugLogX] = cache2DebugLogMessage{t: time.Now(), s: s}
 	c.debugLogX = (c.debugLogX + 1) % len(c.debugLogS)
 }
 
-func (c *cache2) debugPrintf(f string, a ...any) {
-	c.debugPrint(fmt.Sprintf(f, a...))
+func (c *cache2) debugPrintf(format string, a ...any) {
+	c.debugPrint(fmt.Sprintf(format, a...))
 }
 
 func (c *cache2) debugPrintRuntimeInfof(f string, a ...any) {
@@ -91,10 +112,10 @@ func (c *cache2) debugPrintRuntimeInfo(s string) {
 }
 
 func (c *cache2) debugPrintRuntimeInfoUnlocked(s string) {
-	c.debugPrintf("%s size=%d (max=%d) age %s (max %s)", s, c.info.sizeInBytes, c.limits.maxSizeInBytes, c.info.age(), c.limits.maxAge)
+	c.debugPrint(fmt.Sprintf("%s, size=%d (max=%d), age %s (max %s)", s, c.info.sizeInBytes, c.limits.maxSizeInBytes, c.info.age(), c.limits.maxAge))
 }
 
-func (c *cache2) debugLog() [100]string {
+func (c *cache2) debugLog() [100]cache2DebugLogMessage {
 	c.debugLogMu.Lock()
 	defer c.debugLogMu.Unlock()
 	return c.debugLogS

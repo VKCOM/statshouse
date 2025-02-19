@@ -37,7 +37,7 @@ type cache2 struct {
 
 	// debug log
 	debugLogMu sync.Mutex
-	debugLogS  [100]string
+	debugLogS  [100]cache2DebugLogMessage
 	debugLogX  int
 }
 
@@ -236,27 +236,37 @@ func (c *cache2) trim() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for {
-		if c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge {
+		trimAged := c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge
+		if trimAged {
 			maxAge := c.limits.maxAge
 			c.mu.Unlock()
 			c.debugPrint("trim aged")
 			c.removeOlderThan(maxAge)
 			c.mu.Lock()
 		}
-		if c.limits.maxSizeInBytes > 0 && c.info.sizeInBytes > c.limits.maxSizeInBytes {
+		trimSize := c.limits.maxSizeInBytes > 0 && c.info.sizeInBytes > c.limits.maxSizeInBytes
+		if trimSize {
 			c.mu.Unlock()
 			c.debugPrint("trim size")
 			c.reduceMemoryUsage()
-			if v := c.handler.CacheTrimBackoffPeriod.Load(); v > 0 {
-				d := time.Duration(v) * time.Second
-				c.debugPrintf("trim backoff for %s", d)
-				time.Sleep(d)
-			}
 			c.mu.Lock()
 		}
-		t := time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
-		c.trimCond.Wait()
-		t.Stop()
+		wait := true
+		if trimAged || trimSize {
+			if p := c.handler.CacheTrimBackoffPeriod.Load(); p > 0 {
+				d := time.Duration(p) * time.Second
+				c.debugPrintf("trim backoff for %s", d)
+				c.mu.Unlock()
+				time.Sleep(d)
+				wait = false
+				c.mu.Lock()
+			}
+		}
+		if wait {
+			t := time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
+			c.trimCond.Wait()
+			t.Stop()
+		}
 	}
 }
 
@@ -278,15 +288,6 @@ func (c *cache2) reduceMemoryUsage() {
 	}
 	for ; i < len(s); i++ {
 		c.removeOlderThan(s[i])
-		if c.memoryUsageWithinLimit() {
-			return
-		}
-	}
-	for {
-		// could not free up enough memory, backoff
-		time.Sleep(time.Second)
-		// and remove chunks not used while we were sleeping
-		c.removeOlderThan(time.Second)
 		if c.memoryUsageWithinLimit() {
 			return
 		}
