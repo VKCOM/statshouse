@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { ApiBadges, useApiBadges } from '../api/badges';
-import { getNewMetric, PlotParams, QueryParams } from '../url2';
+import { getNewMetric, PlotParams, type TimeRange, type VariableKey, type VariableParams } from '../url2';
 import { useMemo } from 'react';
 
 const badgesSelector = (r?: ApiBadges) => ({
@@ -17,8 +17,13 @@ const badgesSelector = (r?: ApiBadges) => ({
 });
 const defaultPlot = getNewMetric();
 
-export function useMetricBadges(plot: PlotParams = defaultPlot, params: QueryParams) {
-  const queryData = useApiBadges(plot, params, badgesSelector);
+export function useMetricBadges(
+  plot: PlotParams = defaultPlot,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  variables: Partial<Record<VariableKey, VariableParams>>
+) {
+  const queryData = useApiBadges(plot, timeRange, timeShifts, variables, badgesSelector);
   return useMemo(
     () => ({
       isLoading: queryData.isLoading,

@@ -5,9 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PlotKey } from '@/url2';
 import { Button, InputText, TextArea, Tooltip } from '@/components/UI';
-import { useStatsHouseShallow } from '@/store2';
+import { StatsHouseStore, useStatsHouse } from '@/store2';
 import { PlotNavigate } from '@/components2';
 import cn from 'classnames';
 import css from './style.module.css';
@@ -23,48 +22,33 @@ import { useOnClickOutside } from '@/hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 import { PlotName } from './PlotName';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
-import { getMetricMeta, getMetricName, getMetricWhat } from '@/store2/helpers';
 import { PlotLink } from '../PlotLink';
 import { PlotHeaderBadgeResolution } from './PlotHeaderBadgeResolution';
 import { MarkdownRender } from './MarkdownRender';
 import { TooltipMarkdown } from './TooltipMarkdown';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricName } from '@/hooks/useMetricName';
+import { useMetricWhats } from '@/hooks/useMetricWhats';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
 
-export type PlotHeaderProps = { plotKey: PlotKey; isDashboard?: boolean };
+export type PlotHeaderProps = { isDashboard?: boolean; isEmbed?: boolean };
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
 
-export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: PlotHeaderProps) {
-  const { plot, metricName, what, meta, isEmbed, dashboardLayoutEdit, canRemove, setPlot, removePlot } =
-    useStatsHouseShallow(
-      useCallback(
-        ({
-          plotsData,
-          params: { plots, orderPlot },
-          metricMeta,
-          isEmbed,
-          dashboardLayoutEdit,
-          setPlot,
-          removePlot,
-        }) => {
-          const plot = plots[plotKey];
-          const plotData = plotsData[plotKey];
-          return {
-            plot,
-            metricName: getMetricName(plot, plotData),
-            what: getMetricWhat(plot, plotData),
-            meta: getMetricMeta(metricMeta, plot, plotData),
-            isEmbed,
-            dashboardLayoutEdit,
-            canRemove: orderPlot.length > 1,
-            setPlot,
-            removePlot,
-          };
-        },
-        [plotKey]
-      )
-    );
+const selectorStore = ({ params: { orderPlot } }: StatsHouseStore) => orderPlot;
+
+export const PlotHeader = memo(function PlotHeader({ isDashboard, isEmbed }: PlotHeaderProps) {
+  const { plot, setPlot, removePlot } = useWidgetPlotContext();
+
+  const orderPlot = useStatsHouse(selectorStore);
+
+  const canRemove = orderPlot.length > 1;
+  const metricName = useMetricName(false);
+  const meta = useMetricMeta(useMetricName(true));
+  const what = useMetricWhats();
+  const dashboardLayoutEdit = useStatsHouse(({ dashboardLayoutEdit }) => dashboardLayoutEdit);
 
   const description = plot?.customDescription || meta?.description;
   const compact = isDashboard || isEmbed;
@@ -92,12 +76,12 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
       setLocalCustomName(customName);
       clearTimeout(autoSaveTimer.current);
       autoSaveTimer.current = setTimeout(() => {
-        setPlot(plotKey, (s) => {
+        setPlot((s) => {
           s.customName = customName === metricFullName ? '' : customName;
         });
       }, 400);
     },
-    [metricFullName, plotKey, setPlot]
+    [metricFullName, setPlot]
   );
 
   useEffect(() => {
@@ -105,8 +89,8 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
   }, [metricFullName, plot?.customName]);
 
   const onRemove = useCallback(() => {
-    removePlot(plotKey);
-  }, [plotKey, removePlot]);
+    removePlot();
+  }, [removePlot]);
 
   const onEdit = useCallback(
     (e: React.MouseEvent) => {
@@ -126,14 +110,14 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
 
   const onSave = useCallback(
     (e: React.FormEvent) => {
-      setPlot(plotKey, (s) => {
+      setPlot((s) => {
         s.customName = localCustomName === metricFullName ? '' : localCustomName;
         s.customDescription = localCustomDescription === meta?.description ? '' : localCustomDescription;
       });
       setEditTitle(false);
       e.preventDefault();
     },
-    [localCustomDescription, localCustomName, meta?.description, metricFullName, plotKey, setPlot]
+    [localCustomDescription, localCustomName, meta?.description, metricFullName, setPlot]
   );
 
   const onClose = useCallback(() => {
@@ -146,13 +130,13 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
 
   const plotTooltip = useMemo(() => {
     const desc = description || '';
-    return <PlotHeaderTooltipContent name={<PlotName plotKey={plotKey} />} description={desc} />;
-  }, [description, plotKey]);
+    return <PlotHeaderTooltipContent name={<PlotName />} description={desc} />;
+  }, [description]);
 
   if (isDashboard) {
     return (
       <div className={`font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
-        {!compact && <PlotNavigate className="btn-group-sm float-end ms-4 mb-2" plotKey={plotKey} />}
+        {!compact && <PlotNavigate className="btn-group-sm float-end ms-4 mb-2" plotKey={plot.id} />}
         <div
           className={cn(
             'd-flex position-relative w-100',
@@ -189,12 +173,12 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
                   className="text-decoration-none overflow-hidden text-nowrap"
                   title={plotTooltip}
                 >
-                  <PlotLink plotKey={plotKey} className="text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
-                    <PlotName plotKey={plotKey} />
+                  <PlotLink plotKey={plot.id} className="text-decoration-none" target={isEmbed ? '_blank' : '_self'}>
+                    <PlotName />
                   </PlotLink>
                 </Tooltip>
                 {!isEmbed && (
-                  <PlotLink plotKey={plotKey} className="ms-2" single target="_blank">
+                  <PlotLink plotKey={plot.id} className="ms-2" single target="_blank">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </PlotLink>
                 )}
@@ -214,7 +198,6 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
                 )}
               >
                 <PlotHeaderBadges
-                  plotKey={plotKey}
                   compact={compact}
                   dashboard={isDashboard}
                   className={cn(showTags ? 'text-wrap' : 'text-nowrap')}
@@ -250,14 +233,14 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
         >
           <Tooltip hover title={plotTooltip}>
             <PlotLink
-              plotKey={plotKey}
+              plotKey={plot.id}
               className="text-secondary text-decoration-none"
               target={isEmbed ? '_blank' : '_self'}
             >
-              <PlotName plotKey={plotKey} />
+              <PlotName />
             </PlotLink>
           </Tooltip>
-          <PlotHeaderBadges plotKey={plotKey} compact={compact} dashboard={isDashboard} />
+          <PlotHeaderBadges compact={compact} dashboard={isDashboard} />
         </h6>
       </div>
     );
@@ -291,9 +274,9 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
                   <span className="text-secondary text-decoration-none">
-                    <PlotName plotKey={plotKey} />
+                    <PlotName />
                   </span>
-                  <PlotLink plotKey={plotKey} single target="_blank" className="ms-2">
+                  <PlotLink plotKey={plot.id} single target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </PlotLink>
                 </div>
@@ -309,9 +292,9 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
               </div>
             )}
           </div>
-          <PlotHeaderBadges plotKey={plotKey} compact={compact} dashboard={isDashboard} />
+          <PlotHeaderBadges compact={compact} dashboard={isDashboard} />
         </h6>
-        {!compact && <PlotNavigate className="btn-group-sm mb-1" plotKey={plotKey} />}
+        {!compact && <PlotNavigate className="btn-group-sm mb-1" plotKey={plot.id} />}
       </div>
       {!compact &&
         /*description*/

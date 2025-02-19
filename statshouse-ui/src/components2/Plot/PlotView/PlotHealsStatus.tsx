@@ -5,32 +5,44 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo, useCallback, useMemo } from 'react';
-import type { PlotKey } from '@/url2';
 import { Button, Tooltip } from '@/components/UI';
 import { ReactComponent as SVGExclamationTriangleFill } from 'bootstrap-icons/icons/exclamation-triangle-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { useStatsHouseShallow } from '@/store2';
+import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
 import cn from 'classnames';
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { usePlotLoader } from '@/store2/plotQueryStore';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { refetchQuery } from '@/api/query';
+import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
+import { removePlotHeals } from '@/store2/methods';
 
 export type PlotHealsStatusProps = {
   className?: string;
-  plotKey: PlotKey;
 };
 
-export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKey }: PlotHealsStatusProps) {
+const selectorStore = ({ params: { timeRange, timeShifts, variables } }: StatsHouseStore) => ({
+  timeRange,
+  timeShifts,
+  variables,
+});
+
+export const PlotHealsStatus = memo(function PlotHealsStatus({ className }: PlotHealsStatusProps) {
+  const { plot } = useWidgetPlotContext();
+  const {
+    plotData: { error },
+    setPlotData,
+  } = useWidgetPlotDataContext();
+  const { timeRange, timeShifts, variables } = useStatsHouseShallow(selectorStore);
+  const id = plot.id;
   const interval = useLiveModeStore(({ interval }) => interval);
-  const loader = usePlotLoader(plotKey);
-  const { lastError, plotHealsTimeout, clearPlotError, loadPlotData } = useStatsHouseShallow(
+  const loader = usePlotLoader(id);
+  const { plotHealsTimeout } = useStatsHouseShallow(
     useCallback(
-      ({ plotsData, plotHeals, clearPlotError, loadPlotData }) => ({
-        lastError: plotsData[plotKey]?.error,
-        plotHealsTimeout: plotHeals[plotKey]?.timeout,
-        clearPlotError,
-        loadPlotData,
+      ({ plotHeals }) => ({
+        plotHealsTimeout: plotHeals[id]?.timeout,
       }),
-      [plotKey]
+      [id]
     )
   );
   const healsInfo = useMemo(() => {
@@ -40,12 +52,16 @@ export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKe
     return undefined;
   }, [interval, plotHealsTimeout]);
   const clearLastError = useCallback(() => {
-    clearPlotError(plotKey);
-  }, [clearPlotError, plotKey]);
+    setPlotData((d) => {
+      d.error = '';
+    });
+    removePlotHeals(id);
+  }, [id, setPlotData]);
   const reload = useCallback(() => {
-    clearPlotError(plotKey);
-    loadPlotData(plotKey);
-  }, [clearPlotError, loadPlotData, plotKey]);
+    refetchQuery(plot, timeRange, timeShifts, variables);
+    clearLastError();
+    removePlotHeals(id);
+  }, [clearLastError, id, plot, timeRange, timeShifts, variables]);
   return (
     <Tooltip
       titleClassName={cn('alert alert-danger p-0', className)}
@@ -53,15 +69,15 @@ export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKe
       vertical="out-bottom"
       hover
       style={{ width: 24, height: 24 }}
-      open={lastError ? undefined : false}
+      open={error ? undefined : false}
       title={
-        !!lastError && (
+        !!error && (
           <div className="d-flex flex-nowrap align-items-center justify-content-between" role="alert">
             <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
               <SVGArrowCounterclockwise />
             </Button>
             <div>
-              <pre className="my-0 mx-1 overflow-force-wrap font-monospace">{lastError}</pre>
+              <pre className="my-0 mx-1 overflow-force-wrap font-monospace">{error}</pre>
               {!!healsInfo && (
                 <pre className="my-0 mx-1 overflow-force-wrap font-monospace text-secondary">{healsInfo}</pre>
               )}
@@ -73,7 +89,7 @@ export const PlotHealsStatus = memo(function PlotHealsStatus({ className, plotKe
     >
       {loader ? (
         <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-      ) : lastError ? (
+      ) : error ? (
         <div>
           <SVGExclamationTriangleFill className="text-danger" />
         </div>

@@ -10,27 +10,17 @@ import { useOnClickOutside } from '@/hooks';
 import { useEventTagColumns2 } from '@/hooks/useEventTagColumns2';
 import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
 import { ReactComponent as SVGEyeSlash } from 'bootstrap-icons/icons/eye-slash.svg';
-import { getNewMetric, type PlotKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
 import { TagKey, toTagKey } from '@/api/enum';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
 export type PlotEventsSelectColumnsProps = {
-  plotKey: PlotKey;
   className?: string;
   onClose?: () => void;
 };
-const emptyPlot = getNewMetric();
 
-export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEventsSelectColumnsProps) {
-  const { plot, setPlot } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { plots }, setPlot }) => ({
-        plot: plots[plotKey] ?? emptyPlot,
-        setPlot,
-      }),
-      [plotKey]
-    )
-  );
+export function PlotEventsSelectColumns({ className, onClose }: PlotEventsSelectColumnsProps) {
+  const { plot, setPlot } = useWidgetPlotContext();
+
   const columns = useEventTagColumns2(plot, false);
 
   const onChange = useCallback(
@@ -40,7 +30,7 @@ export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEve
       const tagKey = toTagKey(e.currentTarget.value);
       const tagKeyChecked = e.currentTarget.checked;
       if (tagKey != null) {
-        setPlot(plotKey, (p) => {
+        setPlot((p) => {
           if (ctrl) {
             p.eventsHide = [];
             if (p.eventsBy.length === 1 && p.eventsBy[0] === tagKey) {
@@ -60,7 +50,7 @@ export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEve
         });
       }
     },
-    [columns, plotKey, setPlot]
+    [columns, setPlot]
   );
   const onChangeHide = useCallback(
     (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
@@ -70,7 +60,7 @@ export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEve
       if (!tagKey) {
         return;
       }
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         if (ctrl) {
           if (p.eventsBy.indexOf(tagKey) < 0 && tagStatusHide) {
             p.eventsBy = [...p.eventsBy, tagKey];
@@ -94,7 +84,7 @@ export function PlotEventsSelectColumns({ plotKey, className, onClose }: PlotEve
       });
       e.stopPropagation();
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
   const refOut = useRef<HTMLDivElement>(null);
   useOnClickOutside(refOut, onClose);

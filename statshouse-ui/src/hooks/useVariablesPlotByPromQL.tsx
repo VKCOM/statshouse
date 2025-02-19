@@ -4,23 +4,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { PlotKey, VariableParams } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
-import { useCallback, useMemo } from 'react';
+import type { VariableParams } from '@/url2';
+import { useMemo } from 'react';
 import { filterVariableByPromQl } from '@/store2/helpers/filterVariableByPromQl';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
 
-export function useVariablesPlotByPromQL(plotKey: PlotKey) {
-  const { variables, orderVariables, plotPromQL } = useStatsHouseShallow(
-    useCallback(
-      ({ params: { variables, orderVariables, plots } }) => ({
-        variables,
-        orderVariables,
-        plotPromQL: plots[plotKey]?.promQL,
-      }),
-      [plotKey]
-    )
-  );
-  const filter = useMemo(() => filterVariableByPromQl(plotPromQL), [plotPromQL]);
+const selectorStore = ({ params: { variables, orderVariables } }: StatsHouseStore) => ({
+  variables,
+  orderVariables,
+});
+
+export function useVariablesPlotByPromQL() {
+  const { variables, orderVariables } = useStatsHouseShallow(selectorStore);
+  const {
+    plot: { promQL },
+  } = useWidgetPlotContext();
+
+  const filter = useMemo(() => filterVariableByPromQl(promQL), [promQL]);
   return useMemo(
     () =>
       orderVariables.reduce((res, vK) => {

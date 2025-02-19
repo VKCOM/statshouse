@@ -9,28 +9,17 @@ import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from '@/compon
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import { useOnClickOutside } from '@/hooks';
 import cn from 'classnames';
-import { useStatsHouseShallow } from '@/store2';
-import { getNewMetric, PlotKey } from '@/url2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
 export type PlotControlViewProps = {
-  plotKey: PlotKey;
   className?: string;
 };
 
-const { filledGraph: defaultFilledGraph, totalLine: defaultTotalLine, logScale: defaultLogScale } = getNewMetric();
-
-export const PlotControlView = memo(function PlotControlView({ plotKey, className }: PlotControlViewProps) {
-  const { filledGraph, totalLine, logScale, setPlot } = useStatsHouseShallow(
-    useCallback(
-      (s) => ({
-        filledGraph: s.params.plots[plotKey]?.filledGraph ?? defaultFilledGraph,
-        totalLine: s.params.plots[plotKey]?.totalLine ?? defaultTotalLine,
-        logScale: s.params.plots[plotKey]?.logScale ?? defaultLogScale,
-        setPlot: s.setPlot,
-      }),
-      [plotKey]
-    )
-  );
+export const PlotControlView = memo(function PlotControlView({ className }: PlotControlViewProps) {
+  const {
+    plot: { filledGraph, totalLine, logScale },
+    setPlot,
+  } = useWidgetPlotContext();
 
   const [dropdown, setDropdown] = useState(false);
   const refDropButton = useRef<HTMLButtonElement>(null);
@@ -44,29 +33,29 @@ export const PlotControlView = memo(function PlotControlView({ plotKey, classNam
 
   const setFilledGraph = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.filledGraph = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
 
   const setTotalLine = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.totalLine = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
 
   const setLogScale = useCallback(
     (status: boolean) => {
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.logScale = status;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
 
   return (

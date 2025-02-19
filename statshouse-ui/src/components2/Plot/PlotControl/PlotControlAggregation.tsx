@@ -7,11 +7,9 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
 import { isMetricAggregation, METRIC_AGGREGATION, METRIC_AGGREGATION_DESCRIPTION } from '@/api/enum';
-import { getNewMetric, type PlotKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 
 export type PlotControlAggregationProps = {
-  plotKey: PlotKey;
   className?: string;
 };
 
@@ -20,34 +18,30 @@ const aggregationList = Object.values(METRIC_AGGREGATION).map((value) => ({
   description: METRIC_AGGREGATION_DESCRIPTION[value],
 }));
 
-const defaultCustomAgg = getNewMetric().customAgg;
-
-export const PlotControlAggregation = memo(function PlotControlAggregation({
-  className,
-  plotKey,
-}: PlotControlAggregationProps) {
-  const { value, setPlot } = useStatsHouseShallow(({ params: { plots }, setPlot }) => ({
-    value: plots[plotKey]?.customAgg ?? defaultCustomAgg,
+export const PlotControlAggregation = memo(function PlotControlAggregation({ className }: PlotControlAggregationProps) {
+  const {
+    plot: { customAgg },
     setPlot,
-  }));
+  } = useWidgetPlotContext();
+
   const onChangeAgg = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const customAgg = parseInt(e.currentTarget.value);
-      setPlot(plotKey, (p) => {
+      setPlot((p) => {
         p.customAgg = customAgg;
       });
     },
-    [plotKey, setPlot]
+    [setPlot]
   );
-  const otherAgg = useMemo(() => !isMetricAggregation(value), [value]);
+  const otherAgg = useMemo(() => !isMetricAggregation(customAgg), [customAgg]);
   return (
     <select
-      className={cn('form-select', value > 0 && 'border-warning', otherAgg && 'border-danger', className)}
-      value={value}
+      className={cn('form-select', customAgg > 0 && 'border-warning', otherAgg && 'border-danger', className)}
+      value={customAgg}
       onChange={onChangeAgg}
     >
       {otherAgg && (
-        <option value={value} disabled>
+        <option value={customAgg} disabled>
           Other
         </option>
       )}

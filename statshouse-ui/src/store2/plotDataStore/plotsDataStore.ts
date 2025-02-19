@@ -5,24 +5,16 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import uPlot from 'uplot';
-import { type MetricType, PLOT_TYPE, type QueryWhat } from '@/api/enum';
+import type { MetricType, QueryWhat } from '@/api/enum';
 import type { PlotKey, PlotParams, TimeRange } from '@/url2';
 import type { QuerySeriesMeta } from '@/api/query';
-import type { StoreSlice } from '../createStore';
-import type { StatsHouseStore } from '../statsHouseStore';
-import { loadPlotData } from './loadPlotData';
-import { getClearPlotsData } from './getClearPlotsData';
-import { updateClearPlotError } from './updateClearPlotError';
-import { getEmptyPlotData } from './getEmptyPlotData';
-import { dequal } from 'dequal/lite';
-import { changePlotParamForData } from './changePlotParamForData';
-import { useLiveModeStore } from '../liveModeStore';
-import { getPlotLoader, queryStart } from '../plotQueryStore';
-import { skipTimeout } from '@/common/helpers';
-import { usePlotVisibilityStore } from '../plotVisibilityStore';
-import { useVariableChangeStatusStore } from '../variableChangeStatusStore';
-import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import type { SelectOptionProps } from '@/components/Select';
+import { createStore } from '@/store2/createStore';
+import { ProduceUpdate } from '@/store2/helpers';
+import { produce } from 'immer';
+import { getEmptyPlotData } from '@/store2/plotDataStore/getEmptyPlotData';
+import { updateTitle } from '@/store2/helpers/updateTitle';
+import { useStatsHouse } from '@/store2';
 
 export type PlotValues = {
   rawValue: number | null;
@@ -51,7 +43,6 @@ export type PlotData = {
   bands?: uPlot.Band[];
   series: uPlot.Series[];
   seriesShow: boolean[];
-  // scales: UPlotWrapperPropsScales;
   promQL: string;
   metricName: string;
   metricWhat: string;
@@ -88,195 +79,29 @@ export type PlotData = {
 
 export type PlotsDataStore = {
   plotsData: Partial<Record<PlotKey, PlotData>>;
-  togglePromqlExpand(plotKey: PlotKey, status?: boolean): void;
-  updatePlotsData(): void;
-  loadPlotData(plotKey: PlotKey, force?: boolean): Promise<void>;
-  clearPlotError(plotKey: PlotKey): void;
-  setPlotShow(plotKey: PlotKey, idx: number, show?: boolean, single?: boolean): void;
 };
-export const plotsDataStore: StoreSlice<StatsHouseStore, PlotsDataStore> = (setState, getState, store) => {
-  store.subscribe((state, prevState) => {
-    if (state.params !== prevState.params) {
-      setState((s) => {
-        getClearPlotsData(state, prevState).forEach((plotKey) => {
-          delete s.plotsData[plotKey];
-        });
-      });
-    }
+
+export const usePlotsDataStore = createStore<PlotsDataStore>(() => ({
+  plotsData: {},
+}));
+
+export function setPlotData(plotKey: PlotKey, next: ProduceUpdate<PlotData>) {
+  usePlotsDataStore.setState((s) => {
+    s.plotsData[plotKey] = produce(s.plotsData[plotKey] ?? getEmptyPlotData(), next);
   });
-  return {
-    plotsData: {},
-    // globalNumQueries: 0,
-    togglePromqlExpand(plotKey, status) {
-      setState((state) => {
-        const pd = state.plotsData[plotKey];
-        if (pd) {
-          pd.promqlExpand = status ?? !pd.promqlExpand;
-        }
-      });
-    },
-    updatePlotsData() {
-      const {
-        params: { tabNum, orderPlot },
+}
 
-        loadPlotData,
-      } = getState();
-      const { plotVisibilityList, plotPreviewList } = usePlotVisibilityStore.getState();
-      const first: PlotKey[] = [];
-      const second: PlotKey[] = [];
-      const third: PlotKey[] = [];
+export function clearPlotData(plotKey: PlotKey) {
+  usePlotsDataStore.setState((s) => {
+    delete s.plotsData[plotKey];
+  });
+}
 
-      orderPlot.forEach((plotKey) => {
-        if (tabNum === plotKey) {
-          first.push(plotKey);
-        } else if (plotVisibilityList[plotKey]) {
-          second.push(plotKey);
-        } else if (plotPreviewList[plotKey]) {
-          third.push(plotKey);
-        }
-      });
-
-      first.forEach((p) => loadPlotData(p, true));
-      second.forEach((p) => loadPlotData(p));
-      third.forEach((p) => loadPlotData(p));
-    },
-    /**
-     *
-     * @param plotKey
-     * @param force - ignore visible
-     */
-    async loadPlotData(plotKey, force = false) {
-      if (useLiveModeStore.getState().status && getPlotLoader(plotKey)) {
-        return;
-      }
-      const prepareEnd = queryStart(plotKey);
-      await skipTimeout();
-      const timeRange = getState().params.timeRange;
-      const plot = getState().params.plots[plotKey];
-      const prevPlotData = getState().plotsData[plotKey];
-      const prevPlot = getState().plotsData[plotKey]?.lastPlotParams;
-      const orderVariables = getState().params.orderVariables;
-      const variables = getState().params.variables;
-      let priority = 3;
-      const changeVariablesKey = useVariableChangeStatusStore.getState().changeVariable;
-      const changeVariable = orderVariables.some(
-        (vK) => changeVariablesKey[vK] && filterVariableByPlot(plot)(variables[vK])
-      );
-      if (!force) {
-        const visible = usePlotVisibilityStore.getState().plotVisibilityList[plotKey];
-        const preview = usePlotVisibilityStore.getState().plotPreviewList[plotKey];
-        const deltaTime = Math.floor(-timeRange.from / 5);
-        if (!visible && preview) {
-          if (
-            prevPlotData?.lastTimeRange?.from === timeRange.from &&
-            Math.abs(prevPlotData?.lastTimeRange?.to - timeRange.to) < deltaTime &&
-            !changeVariable
-          ) {
-            prepareEnd();
-            return;
-          }
-        }
-        if (!visible && !preview) {
-          prepareEnd();
-          return;
-        }
-        if (visible) {
-          priority = 2;
-        }
-      }
-
-      const plotHeal = getState().isPlotHeal(plotKey);
-      if (!plotHeal) {
-        // console.log('skip heal');
-        prepareEnd();
-        return;
-      }
-      const changeMetricName = plot?.metricName !== prevPlot?.metricName;
-      if (!changeMetricName && prevPlotData?.error403) {
-        prepareEnd();
-        return;
-      }
-
-      if (getState().params.tabNum === plotKey) {
-        priority = 1;
-        getState().loadMetricMetaByPlotKey(plotKey).then();
-      }
-      const changePlotParam = changePlotParamForData(
-        getState().params.plots[plotKey],
-        getState().plotsData[plotKey]?.lastPlotParams
-      );
-      const changeTime =
-        getState().params.timeRange.urlTo !== getState().plotsData[plotKey]?.lastTimeRange?.urlTo ||
-        getState().params.timeRange.from !== getState().plotsData[plotKey]?.lastTimeRange?.from;
-      const changeNowTime = getState().params.timeRange.to !== getState().plotsData[plotKey]?.lastTimeRange?.to;
-      const changeTimeShifts = !dequal(getState().params.timeShifts, getState().plotsData[plotKey]?.lastTimeShifts);
-
-      const update = changePlotParam || changeTime || changeNowTime || changeTimeShifts || changeVariable;
-      prepareEnd();
-
-      if (update) {
-        const queryEnd = queryStart(plotKey);
-
-        const { status, interval } = useLiveModeStore.getState();
-        const intervalParam = status ? interval : undefined;
-
-        loadPlotData(plotKey, getState().params, intervalParam, false, priority)
-          .then((updatePlotData) => {
-            if (updatePlotData) {
-              setState(updatePlotData);
-              getState().setPlotHeal(plotKey, !!getState().plotsData[plotKey]?.lastHeals);
-              if (!getState().plotsData[plotKey]?.lastHeals && changePlotParam) {
-                setState((state) => {
-                  state.plotsData[plotKey] = {
-                    ...getEmptyPlotData(),
-                    error: state.plotsData[plotKey]?.error || '',
-                    error403: state.plotsData[plotKey]?.error403,
-                    lastHeals: false,
-                  };
-                });
-              }
-            }
-          })
-          .finally(() => {
-            queryEnd();
-          });
-      }
-
-      plot?.events.forEach((iPlot) => {
-        if (!getPlotLoader(iPlot)) {
-          getState().loadPlotData(iPlot, true);
-        }
-      });
-
-      if (plot?.type === PLOT_TYPE.Event && plotKey === getState().params.tabNum && (update || force)) {
-        const { params } = getState();
-        const from =
-          params.timeRange.from + params.timeRange.to < params.eventFrom && params.timeRange.to > params.eventFrom
-            ? params.eventFrom
-            : undefined;
-        getState()
-          .loadPlotEvents(plotKey, undefined, undefined, from)
-          .catch(() => undefined);
-      }
-    },
-
-    clearPlotError(plotKey) {
-      setState(updateClearPlotError(plotKey));
-    },
-    setPlotShow(plotKey, idx, show, single) {
-      setState((state) => {
-        const plotData = state.plotsData[plotKey];
-        if (plotData) {
-          if (single) {
-            const otherShow = plotData.seriesShow.some((_show, indexSeries) => (indexSeries === idx ? false : _show));
-            plotData.seriesShow = plotData.seriesShow.map((_, indexSeries) =>
-              indexSeries === idx ? true : !otherShow
-            );
-          } else {
-            plotData.seriesShow[idx] = show ?? !plotData.seriesShow[idx];
-          }
-        }
-      });
-    },
-  };
-};
+usePlotsDataStore.subscribe((state, prevState) => {
+  const {
+    params: { tabNum, dashboardName, plots },
+  } = useStatsHouse.getState();
+  if (state.plotsData[tabNum] !== prevState.plotsData[tabNum]) {
+    updateTitle(tabNum, dashboardName, plots[tabNum]);
+  }
+});

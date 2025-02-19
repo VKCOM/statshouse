@@ -9,37 +9,46 @@ import { ChangeEvent, memo, useCallback, useMemo } from 'react';
 import cn from 'classnames';
 import { Button } from '@/components/UI';
 import { TIME_RANGE_ABBREV, TIME_RANGE_ABBREV_DESCRIPTION, TIME_RANGE_KEYS_TO, toTimeRangeAbbrev } from '@/api/enum';
-import { defaultBaseRange, useStatsHouseShallow } from '@/store2';
-import { getEndDay, getEndWeek, getNow } from '@/url2';
+import { defaultBaseRange, type StatsHouseStore, useStatsHouse } from '@/store2';
+import { getEndDay, getEndWeek, getNow, readTimeRange } from '@/url2';
 import { getAbbrev, timeRangeAbbrevExpand } from '@/store2/helpers';
 import { secondsRangeToString } from '@/view/utils2';
+import { setParams } from '@/store2/methods';
 
 export type PlotControlFromProps = {
   className?: string;
   classNameSelect?: string;
 };
 
+const selectorStore = ({ params: { timeRange } }: StatsHouseStore) => timeRange;
+
 export const PlotControlFrom = memo(function PlotControlFrom({ className, classNameSelect }: PlotControlFromProps) {
-  const { timeRange, setBaseRange, setTimeRange } = useStatsHouseShallow(
-    ({ params: { timeRange }, setBaseRange, setTimeRange }) => ({ timeRange, setBaseRange, setTimeRange })
-  );
+  const timeRange = useStatsHouse(selectorStore);
+  const setBaseRange = useStatsHouse(({ setBaseRange }) => setBaseRange);
 
   const onTimeRangeChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
       const abbr = toTimeRangeAbbrev(e.target.value, defaultBaseRange);
       setBaseRange(abbr);
-      setTimeRange({ from: timeRangeAbbrevExpand(abbr), to: timeRange.absolute ? getNow() : TIME_RANGE_KEYS_TO.Now });
+      setParams((p) => {
+        p.timeRange = readTimeRange(
+          timeRangeAbbrevExpand(abbr),
+          timeRange.absolute ? getNow() : TIME_RANGE_KEYS_TO.Now
+        );
+      });
     },
-    [setBaseRange, setTimeRange, timeRange.absolute]
+    [setBaseRange, timeRange.absolute]
   );
 
   const onTodayClick = useCallback(() => {
     setBaseRange(TIME_RANGE_ABBREV.last1d);
-    setTimeRange({
-      from: timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last1d),
-      to: timeRange.absolute ? getEndDay() : TIME_RANGE_KEYS_TO.EndDay,
+    setParams((p) => {
+      p.timeRange = readTimeRange(
+        timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last1d),
+        timeRange.absolute ? getEndDay() : TIME_RANGE_KEYS_TO.EndDay
+      );
     });
-  }, [setBaseRange, setTimeRange, timeRange.absolute]);
+  }, [setBaseRange, timeRange.absolute]);
 
   const disableTodayClick = useMemo(
     () => timeRange.from === -86400 && Math.abs(timeRange.to - getEndDay()) < 60,
@@ -48,11 +57,13 @@ export const PlotControlFrom = memo(function PlotControlFrom({ className, classN
 
   const onWeekClick = useCallback(() => {
     setBaseRange(TIME_RANGE_ABBREV.last7d);
-    setTimeRange({
-      from: timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last7d),
-      to: timeRange.absolute ? getEndWeek() : TIME_RANGE_KEYS_TO.EndWeek,
+    setParams((p) => {
+      p.timeRange = readTimeRange(
+        timeRangeAbbrevExpand(TIME_RANGE_ABBREV.last7d),
+        timeRange.absolute ? getEndWeek() : TIME_RANGE_KEYS_TO.EndWeek
+      );
     });
-  }, [setBaseRange, setTimeRange, timeRange.absolute]);
+  }, [setBaseRange, timeRange.absolute]);
 
   const disableWeekClick = useMemo(
     () => timeRange.from === -604800 && Math.abs(timeRange.to - getEndWeek()) < 60,

@@ -6,8 +6,7 @@
 
 import { useWindowSize } from '@/hooks/useWindowSize';
 import cn from 'classnames';
-import { memo } from 'react';
-import { HTMLAttributes, ReactNode } from '~@types/react';
+import { type HTMLAttributes, memo, type ReactNode } from 'react';
 
 interface StickyTopProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;

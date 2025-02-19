@@ -4,17 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventObserver } from '@/common/EventObserver';
 import { UPlotWrapperPropsHooks } from '@/components/UPlotWrapper';
 import uPlot from 'uplot';
 import css from './style.module.css';
 import { PlotEventFlag } from './PlotEventFlag';
 import { type PlotKey, PlotParams, readTimeRange, type TimeRange } from '@/url2';
-import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import type { PlotData } from '@/store2/plotDataStore';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
-import { emptyArray } from '@/common/helpers';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { useMetricOverlayData } from '@/hooks/useMetricOverlayData';
+import { StatsHouseStore, useStatsHouse } from '@/store2';
 
 type Flag = {
   x: number;
@@ -89,14 +90,14 @@ function getEventLines(
 }
 
 export type PlotEventOverlayProps = {
-  plotKey: PlotKey;
   hooks?: MutableRefObject<EventObserver<keyof UPlotWrapperPropsHooks>>;
   flagHeight?: number;
   compact?: boolean;
 };
 
+const selectorStore = ({ params: { plots } }: StatsHouseStore) => plots;
+
 export const PlotEventOverlay = memo(function PlotEventOverlay({
-  plotKey,
   hooks,
   flagHeight = 8,
   compact,
@@ -104,39 +105,36 @@ export const PlotEventOverlay = memo(function PlotEventOverlay({
   const uPlotRef = useRef<uPlot>(undefined);
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
-  const plotEvents = useStatsHouse(({ params: { plots } }) => plots[plotKey]?.events ?? emptyArray);
-  const plots = useStatsHouseShallow(({ params: { plots } }) =>
-    plotEvents.reduce(
-      (res, pK) => {
-        res[pK] = plots[pK];
-        return res;
-      },
-      {} as Partial<Record<PlotKey, PlotParams>>
-    )
+  const allPlots = useStatsHouse(selectorStore);
+  const {
+    plot: { events: plotEvents },
+  } = useWidgetPlotContext();
+
+  const plots = useMemo(
+    () =>
+      plotEvents.reduce(
+        (res, pK) => {
+          res[pK] = allPlots[pK];
+          return res;
+        },
+        {} as Partial<Record<PlotKey, PlotParams>>
+      ),
+    [allPlots, plotEvents]
   );
-  const plotsData = useStatsHouseShallow(({ plotsData }) =>
-    plotEvents.reduce(
-      (res, pK) => {
-        if (plotsData[pK]) {
-          res[pK] = plotsData[pK];
-        }
-        return res;
-      },
-      {} as Partial<Record<PlotKey, PlotData>>
-    )
-  );
+  const plotsData = useMetricOverlayData();
+
   const [plotWidth, setPlotWidth] = useState(width);
   const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
 
   const update = useCallback(() => {
     if (uPlotRef.current && plotEvents) {
-      setLines(getEventLines(plotEvents, plotsData, uPlotRef.current, flagWidth));
+      setLines(getEventLines(plotEvents, plotsData.data, uPlotRef.current, flagWidth));
       setPlotWidth(uPlotRef.current?.bbox.width || 0);
     } else {
       setLines([]);
     }
-  }, [flagWidth, plotEvents, plotsData]);
+  }, [flagWidth, plotEvents, plotsData.data]);
 
   useEffect(() => {
     if (hooks) {

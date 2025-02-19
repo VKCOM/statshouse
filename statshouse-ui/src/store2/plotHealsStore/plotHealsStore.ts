@@ -38,7 +38,7 @@ export const plotHealsStore: StoreSlice<StatsHouseStore, PlotHealsStore> = (setS
     setState((state) => {
       const heal = (state.plotHeals[plotKey] ??= getDefaultPlotHealsStatus());
       heal.response.push(status ? 1 : -1);
-      heal.response = heal.response.slice(-limitHistory);
+      heal.response = new Array(...heal.response.slice(-limitHistory));
       heal.lastTimestamp = Date.now();
       const sum = sumArray(heal.response);
 

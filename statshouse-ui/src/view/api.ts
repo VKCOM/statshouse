@@ -152,7 +152,6 @@ export function metaToLabel(meta: querySeriesMeta, uniqueWhatLength: number): st
 }
 
 export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
-  //todo: change on constant enum QUERY_WHAT
   switch (kind) {
     case 'counter':
       return [

@@ -5,19 +5,24 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { GET_PARAMS, type MetricValueBackendVersion, type QueryWhat } from './enum';
-import { ApiQueryEndpoint, type SeriesMetaTag } from './query';
-import { ApiAbortController, apiFetch, ApiFetchResponse, ExtendedError } from './api';
-import type { PlotParams, QueryParams } from '@/url2';
+import type { SeriesMetaTag } from './query';
+import { apiFetch, ApiFetchResponse, ExtendedError } from './api';
+import { PlotParams, TimeRange, VariableKey, VariableParams } from '@/url2';
 import {
   CancelledError,
   type QueryClient,
+  UndefinedInitialDataInfiniteOptions,
   type UndefinedInitialDataOptions,
+  useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { getLoadTableUrlParams } from '@/store2/plotEventsDataStore';
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { queryClient } from '@/common/queryClient';
+import { useMemo } from 'react';
+import { emptyFunction } from '@/common/helpers';
+import type { InfiniteData } from '@tanstack/query-core';
+import { getLoadTableUrlParams } from '@/common/getLoadTableUrlParams';
 
 const ApiTableEndpoint = '/api/table';
 
@@ -72,21 +77,17 @@ export async function apiTableFetch(params: ApiTableGet, keyRequest?: unknown) {
 export function getTableOptions<T = ApiTable>(
   queryClient: QueryClient,
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  variables: Partial<Record<VariableKey, VariableParams>>,
   interval?: number,
   key?: string,
   fromEnd: boolean = false,
   limit: number = 1000
 ): UndefinedInitialDataOptions<ApiTable, ExtendedError, T, [string, ApiTableGet | null]> {
-  const keyParams = getLoadTableUrlParams(plot.id, params, undefined, key, fromEnd, limit);
-  const fetchParams = getLoadTableUrlParams(plot.id, params, interval, key, fromEnd, limit);
+  const keyParams = getLoadTableUrlParams(plot, timeRange, variables, undefined, key, fromEnd, limit);
+  const fetchParams = getLoadTableUrlParams(plot, timeRange, variables, interval, key, fromEnd, limit);
 
   const gcTime = interval ? interval * 2000 : queryClient.getDefaultOptions().queries?.gcTime;
-
-  const controller = new ApiAbortController(`${ApiTableEndpoint}_${fromEnd ? '1' : '0'}_${plot.id}`);
-  controller.signal.addEventListener('abort', () => {
-    queryClient.cancelQueries({ queryKey: [ApiQueryEndpoint, keyParams], exact: true });
-  });
 
   return {
     queryKey: [ApiTableEndpoint, keyParams],
@@ -119,7 +120,8 @@ export function getTableOptions<T = ApiTable>(
 
 export async function apiTable(
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  variables: Partial<Record<VariableKey, VariableParams>>,
   interval?: number,
   key?: string,
   fromEnd: boolean = false,
@@ -128,7 +130,7 @@ export async function apiTable(
   const result: ApiFetchResponse<ApiTable> = { ok: false, status: 0 };
   try {
     result.response = await queryClient.fetchQuery(
-      getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit)
+      getTableOptions<ApiTable>(queryClient, plot, timeRange, variables, interval, key, fromEnd, limit)
     );
     result.ok = true;
   } catch (error) {
@@ -148,7 +150,8 @@ export async function apiTable(
 
 export function useApiTable<T = ApiTable>(
   plot: PlotParams,
-  params: QueryParams,
+  timeRange: TimeRange,
+  variables: Partial<Record<VariableKey, VariableParams>>,
   key?: string,
   fromEnd: boolean = false,
   limit: number = 1000,
@@ -159,11 +162,85 @@ export function useApiTable<T = ApiTable>(
 
   const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
 
-  const options = getTableOptions<ApiTable>(queryClient, plot, params, interval, key, fromEnd, limit);
+  const options = useMemo(
+    () => getTableOptions<ApiTable>(queryClient, plot, timeRange, variables, interval, key, fromEnd, limit),
+    [queryClient, plot, timeRange, variables, interval, key, fromEnd, limit]
+  );
 
   return useQuery({
     ...options,
     select,
+    enabled,
+  });
+}
+
+type QueryFnTableInfinitePageParam = {
+  fromEnd: boolean;
+  key: string;
+};
+
+const getNextPageParamTableInfinite = (lastPage: ApiTable): QueryFnTableInfinitePageParam | undefined =>
+  lastPage.data.more ? { fromEnd: true, key: lastPage.data.to_row } : undefined;
+
+export function useApiTableInfinite(
+  plot: PlotParams,
+  timeRange: TimeRange,
+  variables: Partial<Record<VariableKey, VariableParams>>,
+  enabled: boolean = true
+) {
+  const interval = useLiveModeStore(({ interval, status }) => (status ? interval : undefined));
+  const options = useMemo<
+    UndefinedInitialDataInfiniteOptions<
+      ApiTable,
+      ExtendedError,
+      InfiniteData<ApiTable>,
+      [string, ApiTableGet | null],
+      QueryFnTableInfinitePageParam | undefined
+    >
+  >(() => {
+    const keyParams = getLoadTableUrlParams(plot, timeRange, variables, interval, undefined, true, 1000, true);
+
+    return {
+      queryKey: [ApiTableEndpoint, keyParams],
+      queryFn: async ({ pageParam, signal }) => {
+        const fetchParams = getLoadTableUrlParams(
+          plot,
+          timeRange,
+          variables,
+          interval,
+          pageParam?.key,
+          pageParam?.fromEnd ?? true,
+          1000,
+          true
+        );
+        if (!fetchParams) {
+          throw new ExtendedError('no request params');
+        }
+        const { response, error } = await apiTableFetch(fetchParams, signal);
+        if (error) {
+          throw error;
+        }
+        if (!response) {
+          throw new ExtendedError('empty response');
+        }
+        return response;
+      },
+      initialPageParam: undefined,
+      getNextPageParam: interval ? getNextPageParamTableInfinite : emptyFunction,
+      getPreviousPageParam: emptyFunction,
+      placeholderData: (previousData, previousQuery) => {
+        if (previousQuery?.queryKey[1]?.[GET_PARAMS.metricName] !== plot.metricName || !!previousQuery?.state.error) {
+          return undefined;
+        }
+        return previousData;
+      },
+    };
+  }, [interval, plot, timeRange, variables]);
+
+  return useInfiniteQuery({
+    ...options,
+    refetchInterval: interval ? interval * 1000 : undefined,
+    maxPages: interval ? 1 : 0,
     enabled,
   });
 }

@@ -15,12 +15,13 @@ import { TagBadges } from './TagBadges';
 import { dequal } from 'dequal/lite';
 import { mergeLeft } from '@/common/helpers';
 import { FilterTag, VariableParamsSource, VariableSourceKey } from '@/url2';
-import { useStatsHouseShallow } from '@/store2';
 import { setUpdatedSource, useVariableListStore, VariableItem } from '@/store2/variableList';
 import { getTagDescription, isTagEnabled } from '@/view/utils2';
 import { Button, ToggleButton } from '@/components/UI';
 import { SelectMetric } from '@/components/SelectMertic';
 import { VariableControl } from '@/components/VariableControl';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMetricName } from '@/hooks/useMetricName';
 
 export type VariableSourceProps = {
   value?: VariableParamsSource;
@@ -37,19 +38,9 @@ export function VariableSource({ value, valueKey = '0', onChange }: VariableSour
   const listTags = useVariableListStore<Partial<Record<TagKey, VariableItem>>>(
     ({ source }) => (localMetric && source[localMetric]) ?? {}
   );
-  // const listTags = useVariableListStore<Partial<Record<TagKey, VariableItem>>>(
-  //   (s) => (localMetric && s.source[localMetric]) ?? {}
-  // );
-  const { meta, loadMetricMeta } = useStatsHouseShallow(
-    useCallback(
-      ({ metricMeta, loadMetricMeta }) => ({
-        meta: metricMeta[localMetric ?? ''],
-        loadMetricMeta,
-      }),
-      [localMetric]
-    )
-  );
-  // const meta = useStore((s) => s.metricsMeta[localMetric ?? '']);
+
+  const meta = useMetricMeta(useMetricName(true));
+
   const prevValue = useRef(value);
 
   const negativeTags = useMemo(() => {
@@ -167,10 +158,9 @@ export function VariableSource({ value, valueKey = '0', onChange }: VariableSour
     if (!localMetric) {
       setLocalTag(undefined);
     } else {
-      loadMetricMeta(localMetric);
       setLocalTag((t) => (t != null ? t : TAG_KEY._0));
     }
-  }, [loadMetricMeta, localMetric]);
+  }, [localMetric]);
 
   useEffect(() => {
     if (dequal(prevValue.current, value)) {

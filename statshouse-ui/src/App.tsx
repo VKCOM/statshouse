@@ -12,6 +12,7 @@ import { queryClient } from './common/queryClient';
 import { useStatsHouse } from '@/store2';
 import View2Page from './view2/ViewPage';
 import Core from './view2/Core';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 const Admin = React.lazy(() => import('./admin/Admin'));
@@ -26,6 +27,7 @@ export function App() {
   const isAdmin = useStatsHouse((s) => s.user.admin);
   return (
     <QueryClientProvider client={queryClient}>
+      {process.env.NODE_ENV !== 'production' && <ReactQueryDevtools client={queryClient} />}
       <Routes>
         <Route path="/" element={<Core />}>
           <Route path="" element={<Navigate to="view" replace={true} />} />
