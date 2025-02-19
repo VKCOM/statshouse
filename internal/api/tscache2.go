@@ -13,7 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const timeWeek = 7 * 24 * time.Hour
+const timeDay = 24 * time.Hour
 const timeMonth = 31 * 24 * time.Hour
 
 var sizeofCache2Time = int(unsafe.Sizeof(int(0)))
@@ -780,14 +780,13 @@ func (c *cache2) chunkStartDuration(t int64, step time.Duration) (int64, time.Du
 
 func (c *cache2) chunkStart(t int64, d time.Duration) int64 {
 	d64 := int64(d)
-	switch d {
-	case timeWeek:
+	if d < timeDay {
+		return (t / d64) * d64
+	} else if d < timeMonth {
 		return ((t+c.utcOffset)/d64)*d64 - c.utcOffset
-	case timeMonth:
+	} else {
 		t := time.Unix(0, t).In(c.location)
 		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, c.location).UTC().UnixNano()
-	default:
-		return (t / d64) * d64
 	}
 }
 
@@ -819,14 +818,14 @@ func sizeofCache2Data(data cache2Data) int {
 func cache2ChunkSize(step time.Duration) int {
 	// NB! keep in sync with "tsCache2ChunkDuration"
 	if step < time.Minute {
-		// max 120 points (two minutes) from second table
-		return int(120 * time.Second / step)
+		// max 120 points (seconds, two minutes) from second table
+		return int(2 * time.Minute / step)
 	} else if step < time.Hour {
-		// max 120 points (two hours) from minute table
+		// max 120 points (minutes, two hours) from minute table
 		return int(2 * time.Hour / step)
-	} else if step == time.Hour {
+	} else if step <= timeDay {
 		// max 24 points (two days) from hour table
-		return 24
+		return int(2 * timeDay / step)
 	} else {
 		return 1 // for week or month
 	}
@@ -835,11 +834,11 @@ func cache2ChunkSize(step time.Duration) int {
 func cache2ChunkDuration(step time.Duration) time.Duration {
 	// NB! keep in sync with "tsCache2ChunkSize"
 	if step < time.Minute {
-		return 120 * time.Second
+		return 2 * time.Minute
 	} else if step < time.Hour {
 		return 2 * time.Hour
-	} else if step == time.Hour {
-		return 24 * time.Hour
+	} else if step <= timeDay {
+		return 2 * timeDay
 	} else {
 		return step
 	}
