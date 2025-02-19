@@ -14,6 +14,11 @@ import (
 )
 
 func (ms *JournalFast) getJournalDiffLocked3(verNumb int64, ret *tlmetadata.GetJournalResponsenew) {
+	ms.getJournalDiffLocked3Limits(verNumb, ret, data_model.MaxJournalItemsSent, data_model.MaxJournalBytesSent)
+}
+
+func (ms *JournalFast) getJournalDiffLocked3Limits(verNumb int64, ret *tlmetadata.GetJournalResponsenew,
+	maxItems int, maxBytes int) {
 	ret.CurrentVersion = ms.currentVersion
 	ret.Events = ret.Events[:0]
 	if verNumb >= ms.currentVersion { // wait until version changes
@@ -31,10 +36,10 @@ func (ms *JournalFast) getJournalDiffLocked3(verNumb int64, ret *tlmetadata.GetJ
 		bytesSize += len(event.Name)
 		bytesSize += len(event.Data)
 		bytesSize += 60
-		if len(ret.Events) >= data_model.MaxJournalItemsSent {
+		if len(ret.Events) >= maxItems {
 			return false
 		}
-		if bytesSize >= data_model.MaxJournalBytesSent { // overshoot by 1 item max
+		if bytesSize >= maxBytes { // overshoot by 1 item max
 			return false
 		}
 		return true
