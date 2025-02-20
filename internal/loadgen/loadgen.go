@@ -100,16 +100,21 @@ func RunEnableNewPipeline() {
 
 func ensureMetricWithDescription(ctx context.Context, client *api.Client, name, desc string) {
 	m, err := client.GetMetric(ctx, name)
+	tags := []format.MetricMetaTag{{
+		Description: "environment",
+	}}
 	if err != nil {
 		log.Printf("Failed to get metric: %v", err)
 		m = &api.MetricInfo{
 			Metric: format.MetricMetaValue{
 				Name: name,
 				Kind: format.MetricKindMixed,
+				Tags: tags,
 			},
 		}
 	}
 	m.Metric.Description = desc
+	m.Metric.Tags = tags
 	err = client.PostMetric(ctx, m)
 	if err != nil {
 		log.Fatalf("Failed to post metric: %v", err)
