@@ -113,8 +113,6 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
 		f.StringVar(&c.V2InsertSettings, "v2-insert-settings", d.V2InsertSettings, "Settings when inserting into v2 table")
 		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v2 table")
-		var shard int
-		f.IntVar(&shard, "shard", 0, "Deprecated!") // TODO: remove after deploy and remote config cleanup
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
