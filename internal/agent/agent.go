@@ -976,7 +976,7 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 	if s.diskBucketCache == nil {
 		return 0, 0
 	}
-	for i := range s.ShardReplicas {
+	for i := range s.Shards {
 		t, u := s.diskBucketCache.TotalFileSize(i)
 		total += t
 		unsent += u
