@@ -675,10 +675,7 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 	Tags: []MetricMetaTag{{}, {
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
-	}, {
-		Description: "commit_date",
-		RawKind:     "int",
-	}, {
+	}, {}, {
 		Description: "commit_timestamp",
 		RawKind:     "timestamp",
 	}, {
@@ -901,10 +898,7 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 	}, {
 		Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
 		RawKind:     "hex",
-	}, {
-		Description: "commit_date",
-		RawKind:     "int",
-	}, {
+	}, {}, {
 		Description: "commit_timestamp",
 		RawKind:     "timestamp",
 	}, {
