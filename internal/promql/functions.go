@@ -600,7 +600,7 @@ func init() {
 		"quantile_over_time": funcQuantileOverTime,
 		"stddev_over_time":   overTimeCall(funcStdDevOverTime, true, NilValue),
 		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, true, NilValue),
-		"last_over_time":     nopCall,
+		"last_over_time":     overTimeCall(funcLastOverTime, false, NilValue),
 		"present_over_time":  funcPresentOverTime,
 		"acos":               simpleCall(math.Acos),
 		"acosh":              simpleCall(math.Acosh),
@@ -1710,6 +1710,15 @@ func funcStdVarOverTime(s []float64) float64 {
 		}
 	}
 	return res
+}
+
+func funcLastOverTime(s []float64) float64 {
+	for i := len(s) - 1; i >= 0; i-- {
+		if !math.IsNaN(s[i]) {
+			return s[i]
+		}
+	}
+	return NilValue
 }
 
 func funcPi(ev *evaluator, _ parser.Expressions) ([]Series, error) {
