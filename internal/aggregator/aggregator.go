@@ -758,6 +758,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.configMu.RLock()
 		mirrorChWrite := a.configR.MirrorChWrite
 		writeToV3First := a.configR.WriteToV3First
+		v2InsertSettings := a.configR.V2InsertSettings
+		v3InsertSettings := a.configR.V3InsertSettings
 		a.configMu.RUnlock()
 		insertErrTable := func(v3Format bool) string {
 			if v3Format {
@@ -772,7 +774,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(writeToV3First), bodyStorage)
+		settings := v2InsertSettings
+		if writeToV3First {
+			settings = v3InsertSettings
+		}
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(writeToV3First), bodyStorage, settings)
 		// if we are mirriring that will happen after second ch write
 		if !mirrorChWrite {
 			cancelSendToCh()
@@ -834,7 +840,12 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		if mirrorChWrite {
 			bodyStorage, buffers, insertSizes, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
-			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage)
+			if writeToV3First {
+				settings = v2InsertSettings
+			} else {
+				settings = v3InsertSettings
+			}
+			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage, settings)
 			cancelSendToCh()
 			if sendErr != nil {
 				comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)

@@ -606,8 +606,8 @@ func makeHTTPClient() *http.Client {
 	}
 }
 
-func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte) (status int, exception int, elapsed time.Duration, err error) {
-	queryPrefix := url.PathEscape(fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", table))
+func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte, settings string) (status int, exception int, elapsed time.Duration, err error) {
+	queryPrefix := url.PathEscape(fmt.Sprintf("INSERT INTO %s %s FORMAT RowBinary", table, settings))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
 	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(body))
 	if err != nil {

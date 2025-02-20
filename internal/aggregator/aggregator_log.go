@@ -57,7 +57,7 @@ func (a *Aggregator) goInternalLog() {
 
 		if len(localLog) != 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), data_model.ClickHouseTimeoutInsert)
-			status, exception, _, err := sendToClickhouse(ctx, httpClient, a.config.KHAddr, "statshouse_internal_log_buffer(time,host,type,key0,key1,key2,key3,key4,key5,message)", localLog)
+			status, exception, _, err := sendToClickhouse(ctx, httpClient, a.config.KHAddr, "statshouse_internal_log_buffer(time,host,type,key0,key1,key2,key3,key4,key5,message)", localLog, "")
 			cancel()
 			if err != nil {
 				a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_internal_log_buffer", "", "", err.Error()) // Hopefully will insert next time
