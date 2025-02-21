@@ -144,7 +144,7 @@ func (s *MultiValue) TLSizeEstimate() int {
 	return sz
 }
 
-func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, scratch []byte) []byte {
+func (s *MultiValue) MultiValueToTL(metricInfo *format.MetricMetaValue, item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, scratch []byte) []byte {
 	cou := s.Value.Count() * sampleFactor
 	if cou <= 0 {
 		return scratch
@@ -173,15 +173,6 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 		scratch = s.HLL.MarshallAppend(scratch[:0])
 		item.SetUniques(string(scratch), fieldsMask) // allocates here
 	}
-	if s.ValueTDigest != nil {
-		var cc []tlstatshouse.CentroidFloat
-		for _, c := range s.ValueTDigest.Centroids() {
-			cc = append(cc, tlstatshouse.CentroidFloat{Value: float32(c.Mean), Count: float32(c.Weight * sampleFactor)})
-		}
-		if len(cc) != 0 { // empty centroids is ordinary value
-			item.SetCentroids(cc, fieldsMask) // TODO - do not set percentiles if v.ValueMin == v.ValueMax, restore on other side
-		}
-	}
 	if cou == 1 {
 		item.SetCounterEq1(true, fieldsMask)
 	} else {
@@ -189,6 +180,19 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	}
 	if !s.Value.ValueSet {
 		return scratch
+	}
+	if metricInfo.HasPercentiles { // we want to set implicit centroids so aggregators aggregate without knowing metricInfo
+		if s.ValueTDigest != nil {
+			var cc []tlstatshouse.CentroidFloat
+			for _, c := range s.ValueTDigest.Centroids() {
+				cc = append(cc, tlstatshouse.CentroidFloat{Value: float32(c.Mean), Count: float32(c.Weight * sampleFactor)})
+			}
+			if len(cc) != 0 { // empty centroids is ordinary value
+				item.SetCentroids(cc, fieldsMask)
+			}
+		} else {
+			item.SetImplicitCentroid(true, fieldsMask)
+		}
 	}
 	item.SetValueSet(true, fieldsMask)
 	if s.Value.ValueMin != 0 {

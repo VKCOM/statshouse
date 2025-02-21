@@ -57,7 +57,7 @@ type (
 
 	MultiValue struct {
 		Value        ItemValue
-		ValueTDigest *tdigest.TDigest // We do not create it until we have at least 1 value to add
+		ValueTDigest *tdigest.TDigest // We do not create it on agent until we have at least 2 different values
 		HLL          ChUnique
 	}
 
@@ -440,49 +440,32 @@ func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count fl
 }
 
 func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes, compression float64) {
+	wasValue, wasCount, wasSet := s.Value.ValueMax, s.Value.counter, s.Value.ValueSet
 	s.Value.AddValueCounterHost(rng, value, count, hostTag)
+	if s.Value.ValueMin == s.Value.ValueMax {
+		return // all values still identical, no TDigest needed
+	}
 	if s.ValueTDigest == nil {
 		s.ValueTDigest = tdigest.NewWithCompression(compression)
+		if wasSet { // must be always, unless float assignment breaks equality
+			s.ValueTDigest.Add(wasValue, wasCount)
+		}
 	}
 	s.ValueTDigest.Add(value, count)
-}
-
-func (s *MultiValue) AddValueArrayHostPercentile(rng *rand.Rand, values []float64, mult float64, hostTag TagUnionBytes, compression float64) {
-	s.Value.AddValueArrayHost(rng, values, mult, hostTag)
-	if s.ValueTDigest == nil && len(values) != 0 {
-		s.ValueTDigest = tdigest.NewWithCompression(compression)
-	}
-	for _, v := range values {
-		s.ValueTDigest.Add(v, mult)
-	}
 }
 
 func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnionBytes, compression float64, hasPercentiles bool) {
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
-	if s.ValueTDigest == nil && hasPercentiles {
-		s.ValueTDigest = tdigest.NewWithCompression(compression)
-	}
-	mult := 1.0
-	// mult is for TDigest only, we must make multiplication when we Add()
-	// mult can be 0.3333333333, so we divide our sums by totalCount, not multiply by mult
-	if count != totalCount {
-		mult = count / totalCount
-	}
 	tmp := SimpleItemCounter(count, hostTag)
+	// we aggregate into tmp first, then merge because we want single expensive rand() call, and less noise in by host distribution
 	for _, fv := range values {
-		if hasPercentiles {
-			s.ValueTDigest.Add(fv, mult)
-		}
 		tmp.addOnlyValue(fv, 1, hostTag)
 	}
 	for _, kv := range histogram {
 		fv := kv[0]
 		cc := kv[1]
-		if hasPercentiles {
-			s.ValueTDigest.Add(fv, mult*cc)
-		}
 		tmp.addOnlyValue(fv, cc, hostTag)
 	}
 	if count != totalCount {
@@ -493,7 +476,34 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 			tmp.ValueSumSquare /= totalCount
 		}
 	}
+	wasValue, wasCount, wasSet := s.Value.ValueMax, s.Value.counter, s.Value.ValueSet
 	s.Value.Merge(rng, &tmp)
+	if !hasPercentiles {
+		return
+	}
+	if s.Value.ValueMin == s.Value.ValueMax {
+		return // all values still identical, no TDigest needed
+	}
+	if s.ValueTDigest == nil {
+		s.ValueTDigest = tdigest.NewWithCompression(compression)
+		if wasSet { // must be always, unless float assignment breaks equality
+			s.ValueTDigest.Add(wasValue, wasCount)
+		}
+	}
+	mult := 1.0
+	// mult is for TDigest only, we must make multiplication when we Add()
+	// mult can be 0.3333333333, so we divide our sums above by totalCount, not multiply by mult
+	if count != totalCount {
+		mult = count / totalCount
+	}
+	for _, fv := range values {
+		s.ValueTDigest.Add(fv, mult)
+	}
+	for _, kv := range histogram {
+		fv := kv[0]
+		cc := kv[1]
+		s.ValueTDigest.Add(fv, mult*cc)
+	}
 }
 
 func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag TagUnionBytes) {
