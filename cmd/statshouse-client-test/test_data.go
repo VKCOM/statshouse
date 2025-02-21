@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
@@ -45,11 +46,12 @@ func newTestData(args argv) testData {
 		values[i] = r.Float64() * 100
 		uniques[i] = r.Int63()
 	}
+	now := uint32(time.Now().Unix())
 	res := make([]metric, args.m+1)
 	for i := 0; i < args.m; i++ {
 		m := &res[i]
 		if !args.zeroTime {
-			m.Timestamp = r.Uint32()
+			m.Timestamp = r.Uint32n(now)
 		}
 		m.Name = string(str[:rand.Intn(len(str)-1)+1])
 		m.Tags = make([][2]string, r.Intn(format.MaxTags))

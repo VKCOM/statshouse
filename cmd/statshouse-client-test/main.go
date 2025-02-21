@@ -13,6 +13,7 @@ type argv struct {
 	viewCode  bool
 	keepTemp  bool
 	zeroTime  bool
+	network   string
 }
 
 // Consider increasing UDP receive buffer size up to 16M:
@@ -25,13 +26,14 @@ func main() {
 	flag.BoolVar(&args.viewCode, "view-code", false, "open generated source files in Visual Studio Code")
 	flag.BoolVar(&args.keepTemp, "keep-temp", false, "do not remove generated temporary files")
 	flag.BoolVar(&args.zeroTime, "zero-time", false, "do not compare timestamps")
+	flag.StringVar(&args.network, "network", "udp", "either udp or tcp")
 	flag.Parse()
 	os.Exit(run(args))
 }
 
 func run(args argv) int {
 	actualC := make(chan series)
-	cancel, err := listenUDP(args, actualC)
+	cancel, err := listen(args, actualC)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +75,6 @@ func testClient(args argv, lib *library, data any, expected series, actualC chan
 			}
 		case <-time.After(100 * time.Millisecond):
 			failCount += fail("TIMEOUT")
-
 		}
 	}
 	return failCount
