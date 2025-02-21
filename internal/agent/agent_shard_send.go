@@ -256,8 +256,8 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	var scratch []byte
-	var buffers data_model.SamplerBuffers
 	for bucket := range s.BucketsToPreprocess {
+		var buffers data_model.SamplerBuffers
 		start := time.Now()
 		// If bucket is empty, we must still do processing and sending
 		// for each contributor every second.
