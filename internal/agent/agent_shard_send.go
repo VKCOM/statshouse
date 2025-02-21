@@ -116,7 +116,7 @@ func (s *Shard) bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sample
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
-		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
+		scratch = v.Tail.MultiValueToTL(v.MetricMeta, &item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 		switch { // This is only an approximation
 		case item.Tail.IsSetUniques(item.FieldsMask):
@@ -134,7 +134,7 @@ func (s *Shard) bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sample
 		var top []tlstatshouse.TopElement
 		for key, value := range v.Top {
 			el := tlstatshouse.TopElement{Stag: key.S} // TODO - send I
-			scratch = value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, scratch)
+			scratch = value.MultiValueToTL(v.MetricMeta, &el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
 			scratch = el.Write(scratch[:0])
 			sizeStringTop += len(scratch)
@@ -192,7 +192,7 @@ func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sample
 
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
-		scratch = v.Tail.MultiValueToTL(&item.Tail, v.SF, &item.FieldsMask, scratch)
+		scratch = v.Tail.MultiValueToTL(v.MetricMeta, &item.Tail, v.SF, &item.FieldsMask, scratch)
 		scratch = item.Write(scratch[:0])
 
 		switch { // This is only an approximation
@@ -214,7 +214,7 @@ func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sample
 			if key.I != 0 {
 				el.SetTag(key.I)
 			}
-			scratch = value.MultiValueToTL(&el.Value, v.SF, &el.FieldsMask, scratch)
+			scratch = value.MultiValueToTL(v.MetricMeta, &el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
 			scratch = el.Write(scratch[:0])
 			sizeStringTop += len(scratch)
