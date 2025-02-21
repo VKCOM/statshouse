@@ -67,7 +67,6 @@ type (
 		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
-		Capacity         int     // algorithm supports changing on the fly, <2 means DefaultStringTopCapacity
 		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
 		WeightMultiplier int // Temporary weight boost if all metric rows is written to single shard. Can be 1 or NumShards.
@@ -262,7 +261,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, weightMul int, keyBytes []byte) (item *MultiItem, created bool) {
+func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, weightMul int, keyBytes []byte) (item *MultiItem, created bool) {
 	//if key.Timestamp == 0 { // TODO - remove check before merge to master
 	//	fmt.Printf("key: %v\n", *key)
 	//	panic("timestamp must be always set at this point of conveyor")
@@ -290,7 +289,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, stringTopCapacity int, met
 		b.keysBuffer = b.keysBuffer[:wasLen]
 		return
 	}
-	item = &MultiItem{Key: *key, Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo, WeightMultiplier: weightMul}
+	item = &MultiItem{Key: *key, SF: 1, MetricMeta: metricInfo, WeightMultiplier: weightMul}
 	b.MultiItems[keyString] = item
 	return
 }
@@ -307,7 +306,7 @@ func (b *MultiItemMap) DeleteMultiItem(key *Key) {
 	// we do not clean keysBuffer, it has same lifetime as b and should be reused
 }
 
-func (s *MultiItem) MapStringTop(rng *rand.Rand, tag TagUnion, count float64) *MultiValue {
+func (s *MultiItem) MapStringTop(rng *rand.Rand, capacity int, tag TagUnion, count float64) *MultiValue {
 	if len(tag.S) == 0 && tag.I == 0 {
 		return &s.Tail
 	}
@@ -322,7 +321,6 @@ func (s *MultiItem) MapStringTop(rng *rand.Rand, tag TagUnion, count float64) *M
 	if s.sampleFactorLog2 != 0 && rng.Float64()*float64(sf) >= count { // first cond is optimization
 		return &s.Tail
 	}
-	capacity := s.Capacity
 	if capacity < 1 {
 		capacity = DefaultStringTopCapacity
 	}
@@ -334,7 +332,7 @@ func (s *MultiItem) MapStringTop(rng *rand.Rand, tag TagUnion, count float64) *M
 	return c
 }
 
-func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, tag TagUnionBytes, count float64) *MultiValue {
+func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, capacity int, tag TagUnionBytes, count float64) *MultiValue {
 	if len(tag.S) == 0 && tag.I == 0 {
 		return &s.Tail
 	}
@@ -349,7 +347,6 @@ func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, tag TagUnionBytes, count f
 	if s.sampleFactorLog2 != 0 && rng.Float64()*float64(sf) >= count { // first cond is optimization
 		return &s.Tail
 	}
-	capacity := s.Capacity
 	if capacity < 1 {
 		capacity = DefaultStringTopCapacity
 	}
@@ -405,14 +402,14 @@ func (s *MultiItem) FinishStringTop(rng *rand.Rand, capacity int) float64 {
 	return whaleWeight
 }
 
-func (s *MultiItem) Merge(rng *rand.Rand, s2 *MultiItem) {
-	// TODO - more efficient algorithm?
-	for k, v := range s2.Top {
-		mi := s.MapStringTop(rng, k, v.Value.Count())
-		mi.Merge(rng, v)
-	}
-	s.Tail.Merge(rng, &s2.Tail)
-}
+//func (s *MultiItem) Merge(rng *rand.Rand, s2 *MultiItem) {
+//	// TODO - more efficient algorithm?
+//	for k, v := range s2.Top {
+//		mi := s.MapStringTop(rng, k, v.Value.Count())
+//		mi.Merge(rng, v)
+//	}
+//	s.Tail.Merge(rng, &s2.Tail)
+//}
 
 func (s *MultiItem) RowBinarySizeEstimate() int {
 	size := s.Tail.RowBinarySizeEstimate()

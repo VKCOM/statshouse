@@ -998,6 +998,6 @@ func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uin
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(&key, data_model.AggregatorStringTopCapacity, metricInfo, weightMul, nil)
+	item, _ := resolutionShard.GetOrCreateMultiItem(&key, metricInfo, weightMul, nil)
 	return item
 }
