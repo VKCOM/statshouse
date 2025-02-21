@@ -29,6 +29,7 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
     uniques: fields_mask.5?string // serialized HLL
 
     centroids: fields_mask.6?(vector statshouse.centroidFloat)
+    implicit_centroid: fields_mask.18?true // centroid should be restored from the single simple value
 
     // we need hosts to pass through agent sending on behalf of aggregator. Or from clients using _h tag
     max_host_tag: fields_mask.7?int

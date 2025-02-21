@@ -17,18 +17,19 @@ type StatshouseMultiValue struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin           float64                   // Conditional: nat_fields_mask.3
-	ValueMax           float64                   // Conditional: nat_fields_mask.4
-	ValueSum           float64                   // Conditional: nat_fields_mask.4
-	ValueSumSquare     float64                   // Conditional: nat_fields_mask.4
-	Uniques            string                    // Conditional: nat_fields_mask.5
-	Centroids          []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
-	MaxHostTag         int32                     // Conditional: nat_fields_mask.7
-	MinHostTag         int32                     // Conditional: nat_fields_mask.8
-	MaxCounterHostTag  int32                     // Conditional: nat_fields_mask.9
-	MaxHostStag        string                    // Conditional: nat_fields_mask.14
-	MinHostStag        string                    // Conditional: nat_fields_mask.15
-	MaxCounterHostStag string                    // Conditional: nat_fields_mask.16
+	ValueMin       float64                   // Conditional: nat_fields_mask.3
+	ValueMax       float64                   // Conditional: nat_fields_mask.4
+	ValueSum       float64                   // Conditional: nat_fields_mask.4
+	ValueSumSquare float64                   // Conditional: nat_fields_mask.4
+	Uniques        string                    // Conditional: nat_fields_mask.5
+	Centroids      []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
+	// ImplicitCentroid (TrueType) // Conditional: nat_fields_mask.18
+	MaxHostTag         int32  // Conditional: nat_fields_mask.7
+	MinHostTag         int32  // Conditional: nat_fields_mask.8
+	MaxCounterHostTag  int32  // Conditional: nat_fields_mask.9
+	MaxHostStag        string // Conditional: nat_fields_mask.14
+	MinHostStag        string // Conditional: nat_fields_mask.15
+	MaxCounterHostStag string // Conditional: nat_fields_mask.16
 }
 
 func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
@@ -170,6 +171,19 @@ func (item *StatshouseMultiValue) ClearCentroids(nat_fields_mask *uint32) {
 }
 func (item StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
+}
+
+func (item *StatshouseMultiValue) SetImplicitCentroid(v bool, nat_fields_mask *uint32) {
+	if nat_fields_mask != nil {
+		if v {
+			*nat_fields_mask |= 1 << 18
+		} else {
+			*nat_fields_mask &^= 1 << 18
+		}
+	}
+}
+func (item StatshouseMultiValue) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<18) != 0
 }
 
 func (item *StatshouseMultiValue) SetMaxHostTag(v int32, nat_fields_mask *uint32) {
@@ -549,6 +563,8 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				propCentroidsPresented = true
+			case "implicit_centroid":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
 			case "max_host_tag":
 				if propMaxHostTagPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
@@ -749,18 +765,19 @@ type StatshouseMultiValueBytes struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin           float64                   // Conditional: nat_fields_mask.3
-	ValueMax           float64                   // Conditional: nat_fields_mask.4
-	ValueSum           float64                   // Conditional: nat_fields_mask.4
-	ValueSumSquare     float64                   // Conditional: nat_fields_mask.4
-	Uniques            []byte                    // Conditional: nat_fields_mask.5
-	Centroids          []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
-	MaxHostTag         int32                     // Conditional: nat_fields_mask.7
-	MinHostTag         int32                     // Conditional: nat_fields_mask.8
-	MaxCounterHostTag  int32                     // Conditional: nat_fields_mask.9
-	MaxHostStag        []byte                    // Conditional: nat_fields_mask.14
-	MinHostStag        []byte                    // Conditional: nat_fields_mask.15
-	MaxCounterHostStag []byte                    // Conditional: nat_fields_mask.16
+	ValueMin       float64                   // Conditional: nat_fields_mask.3
+	ValueMax       float64                   // Conditional: nat_fields_mask.4
+	ValueSum       float64                   // Conditional: nat_fields_mask.4
+	ValueSumSquare float64                   // Conditional: nat_fields_mask.4
+	Uniques        []byte                    // Conditional: nat_fields_mask.5
+	Centroids      []StatshouseCentroidFloat // Conditional: nat_fields_mask.6
+	// ImplicitCentroid (TrueType) // Conditional: nat_fields_mask.18
+	MaxHostTag         int32  // Conditional: nat_fields_mask.7
+	MinHostTag         int32  // Conditional: nat_fields_mask.8
+	MaxCounterHostTag  int32  // Conditional: nat_fields_mask.9
+	MaxHostStag        []byte // Conditional: nat_fields_mask.14
+	MinHostStag        []byte // Conditional: nat_fields_mask.15
+	MaxCounterHostStag []byte // Conditional: nat_fields_mask.16
 }
 
 func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
@@ -902,6 +919,19 @@ func (item *StatshouseMultiValueBytes) ClearCentroids(nat_fields_mask *uint32) {
 }
 func (item StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
+}
+
+func (item *StatshouseMultiValueBytes) SetImplicitCentroid(v bool, nat_fields_mask *uint32) {
+	if nat_fields_mask != nil {
+		if v {
+			*nat_fields_mask |= 1 << 18
+		} else {
+			*nat_fields_mask &^= 1 << 18
+		}
+	}
+}
+func (item StatshouseMultiValueBytes) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<18) != 0
 }
 
 func (item *StatshouseMultiValueBytes) SetMaxHostTag(v int32, nat_fields_mask *uint32) {
@@ -1281,6 +1311,8 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propCentroidsPresented = true
+			case "implicit_centroid":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
 			case "max_host_tag":
 				if propMaxHostTagPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
