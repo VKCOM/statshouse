@@ -776,10 +776,6 @@ func seriesCall(fn func(*evaluator, Series) Series) callFunc {
 	}
 }
 
-//func nopCall(ev *evaluator, args parser.Expressions) ([]Series, error) {
-//	return ev.eval(args[0])
-//}
-
 func overTimeCall(fn func(v []float64) float64, strict bool, nilValue float64) callFunc {
 	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
 		res, err := ev.eval(args[0])
