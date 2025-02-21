@@ -202,35 +202,10 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	return scratch
 }
 
-func CounterFromStatshouseMultiValue(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) (float64, bool) {
-	counter := float64(0)
-	if s2.IsSetCounterEq1(fields_mask) {
-		counter = 1
-	}
-	if s2.IsSetCounter(fields_mask) {
-		counter = s2.Counter
-	}
-	if counter <= 0 || math.IsNaN(counter) { // sanity check/check for empty String Top tail
-		return -1, false
-	}
-	if counter > math.MaxFloat32 { // agents do similar check, but this is so cheap, we repeat on aggregators.
-		counter = math.MaxFloat32
-	}
-	return counter, true
-}
-
-func (s *ItemValue) MergeWithTLItem2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
-	counter, ok := CounterFromStatshouseMultiValue(s2, fields_mask)
-	if !ok { // sanity check/check for empty String Top tail
-		return
-	}
-	s.AddCounterHost(rng, counter, TagUnionBytes{I: s2.MaxCounterHostTag, S: s2.MaxCounterHostStag})
-	if !s2.IsSetValueSet(fields_mask) {
-		return
-	}
+func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
 	// We do not care checking values for NaN/Inf here
 	if !s2.IsSetValueMax(fields_mask) {
-		s2.ValueSum = s2.ValueMin * counter
+		s2.ValueSum = s2.ValueMin * s2.Counter
 		s2.ValueSumSquare = s2.ValueSum * s2.ValueMin
 		s2.ValueMax = s2.ValueMin
 	}
@@ -267,17 +242,17 @@ func (s *MultiItem) TLSizeEstimate() int {
 }
 
 func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag TagUnionBytes, compression float64) {
-	if s2.IsSetUniques(fields_mask) {
-		_ = s.HLL.MergeRead(bytes.NewBuffer(s2.Uniques)) // return error, write meta metric
+	// 1. restore and check cuunter
+	if s2.IsSetCounterEq1(fields_mask) {
+		s2.Counter = 1
 	}
-	if s2.IsSetCentroids(fields_mask) {
-		if s.ValueTDigest == nil && len(s2.Centroids) != 0 {
-			s.ValueTDigest = tdigest.NewWithCompression(compression)
-		}
-		for _, c := range s2.Centroids {
-			s.ValueTDigest.Add(float64(c.Value), float64(c.Count))
-		}
+	if s2.Counter <= 0 || math.IsNaN(s2.Counter) { // sanity check/check for empty String Top tail
+		return
+	} // TODO - write metric
+	if s2.Counter > math.MaxFloat32 { // agents do similar check, but this is so cheap, we repeat on aggregators.
+		s2.Counter = math.MaxFloat32
 	}
+	// 2. restore hosts
 	if !s2.IsSetMaxHostTag(fields_mask) && !s2.IsSetMaxHostStag(fields_mask) {
 		if hostTag.I != 0 {
 			s2.MaxHostTag = hostTag.I
@@ -295,5 +270,28 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 		s2.MaxCounterHostTag = s2.MaxHostTag
 		s2.MaxCounterHostStag = s2.MaxHostStag
 	}
-	s.Value.MergeWithTLItem2(rng, s2, fields_mask)
+	// 3. aggregate counter
+	s.AddCounterHost(rng, s2.Counter, TagUnionBytes{I: s2.MaxCounterHostTag, S: s2.MaxCounterHostStag})
+	if len(s2.Uniques) != 0 {
+		_ = s.HLL.MergeRead(bytes.NewBuffer(s2.Uniques)) // return error, write meta metric
+	}
+	if !s2.IsSetValueSet(fields_mask) {
+		return
+	}
+	// 4. aggregate value
+	s.Value.MergeWithTLItem2(s2, fields_mask)
+	if len(s2.Centroids) != 0 {
+		if s.ValueTDigest == nil {
+			s.ValueTDigest = tdigest.NewWithCompression(compression)
+		}
+		for _, c := range s2.Centroids {
+			s.ValueTDigest.Add(float64(c.Value), float64(c.Count))
+		}
+	}
+	if s2.IsSetImplicitCentroid(fields_mask) {
+		if s.ValueTDigest == nil {
+			s.ValueTDigest = tdigest.NewWithCompression(compression)
+		}
+		s.ValueTDigest.Add(float64(s2.ValueMin), float64(s2.Counter))
+	}
 }
