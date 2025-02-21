@@ -220,7 +220,7 @@ func TestFairKeySampling(t *testing.T) {
 			for j := 1; j <= v; j++ {
 				key.Tags[1] = int32(j)
 				v := &MultiItem{}
-				mi, _ := b.GetOrCreateMultiItem(&key, 0, nil, 1, nil)
+				mi, _ := b.GetOrCreateMultiItem(&key, nil, 1, nil)
 				mi.Tail.Value.AddValueCounter(0, 1)
 				b.sumSize += int64(key.TLSizeEstimate(key.Timestamp) + v.TLSizeEstimate())
 			}
@@ -414,7 +414,7 @@ func (b *samplingTestBucket) generateSeriesCount(t *rapid.T, s samplingTestSpec)
 			var (
 				k = Key{Metric: metricID, Tags: [format.MaxTags]int32{int32(i + 1)}}
 			)
-			mi, _ := miMap.GetOrCreateMultiItem(&k, 0, nil, 1, nil)
+			mi, _ := miMap.GetOrCreateMultiItem(&k, nil, 1, nil)
 			mi.Tail.Value.AddValueCounter(0, 1)
 			sumSize += int64(k.TLSizeEstimate(k.Timestamp) + mi.TLSizeEstimate())
 		}
@@ -438,7 +438,7 @@ func (b *samplingTestBucket) generateSeriesSize(t *rapid.T, s samplingTestSpec) 
 		)
 		for i := int32(1); size < sizeT; i++ {
 			var k = Key{Metric: metricID, Tags: [format.MaxTags]int32{i}}
-			item, _ := miMap.GetOrCreateMultiItem(&k, 0, nil, 1, nil)
+			item, _ := miMap.GetOrCreateMultiItem(&k, nil, 1, nil)
 			item.Tail.Value.AddValueCounter(0, 1)
 			size += samplingTestSizeOf(item)
 		}
@@ -532,7 +532,7 @@ func benchmarkSampleBucket(b *testing.B, f func(*MetricsBucket, samplerConfigEx)
 			var (
 				k = Key{Metric: metricID, Tags: [format.MaxTags]int32{int32(i + 1)}}
 			)
-			mi, _ := bucket.GetOrCreateMultiItem(&k, 0, nil, 1, nil)
+			mi, _ := bucket.GetOrCreateMultiItem(&k, nil, 1, nil)
 			mi.Tail.Value.AddValueCounter(0, 1)
 		}
 	}
