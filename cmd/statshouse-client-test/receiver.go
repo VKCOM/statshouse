@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
+	"net"
 	"slices"
 	"sort"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type series map[tags]map[uint32]*value
@@ -34,20 +37,48 @@ func (handler) HandleParseError(pkt []byte, err error) {
 	log.Fatalln(pkt, err)
 }
 
-func listenUDP(args argv, ch chan series) (func(), error) {
-	addr := ":13337"
-	ln, err := receiver.ListenUDP("udp4", addr, 16*1024*1024, false, nil, nil, nil)
-	if err != nil {
-		return nil, err
+func listen(args argv, ch chan series) (func(), error) {
+	var addr = ":13337"
+	var serve func(func(*tlstatshouse.MetricBytes)) error
+	var cancel func() error
+	switch args.network {
+	case "udp":
+		listenerUDP, err := receiver.ListenUDP("udp4", addr, 16*1024*1024, false, nil, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		cancel = listenerUDP.Close
+		log.Printf("listen UDP %s\n", addr)
+		serve = func(f func(*tlstatshouse.MetricBytes)) error {
+			return listenerUDP.Serve(handler{f})
+		}
+	case "tcp":
+		listenerTCP, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("listen TCP %s\n", addr)
+		hijackL := rpc.NewHijackListener(listenerTCP.Addr())
+		hijackH := func(conn *rpc.HijackConnection) {
+			conn.Magic = conn.Magic[len(receiver.TCPPrefix):]
+			hijackL.AddConnection(conn)
+		}
+		server := rpc.NewServer(rpc.ServerWithSocketHijackHandler(hijackH))
+		cancel = server.Close
+		serve = func(f func(*tlstatshouse.MetricBytes)) error {
+			go receiver.NewTCPReceiver(nil, nil).Serve(handler{f}, hijackL)
+			return server.Serve(listenerTCP)
+		}
+	default:
+		return nil, fmt.Errorf("not supported transport %s", args.network)
 	}
-	log.Printf("listen UDP %s\n", addr)
 	syncCh := make(chan int, 1)
 	go func() {
 		defer close(syncCh)
 		res := make(series, args.m)
 		var n int
 		syncCh <- 1 // started
-		if err := ln.Serve(handler{func(b *tlstatshouse.MetricBytes) {
+		if err := serve(func(b *tlstatshouse.MetricBytes) {
 			if bytes.Equal(b.Name, endOfIterationMarkBytes) {
 				n += int(b.Counter)
 				log.Println("iteration #", n)
@@ -62,13 +93,13 @@ func listenUDP(args argv, ch chan series) (func(), error) {
 			} else {
 				res.addMetricBytes(b)
 			}
-		}}); err != nil {
+		}); err != nil {
 			log.Fatalln(err)
 		}
 	}()
 	<-syncCh // wait started
 	return func() {
-		ln.Close()
+		cancel()
 		<-syncCh // wait closed
 	}, nil
 }
