@@ -72,6 +72,7 @@ type Options struct {
 	Offsets          []int64
 	GroupBy          []string
 	Limit            int
+	Play             int
 	Rand             *rand.Rand
 	Vars             map[string]Variable
 

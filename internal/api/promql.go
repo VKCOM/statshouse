@@ -511,6 +511,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 				minMaxHost:  qry.MinMaxHost,
 				utcOffset:   h.utcOffset,
 				point:       qry.Options.Mode == data_model.PointQuery,
+				play:        qry.Options.Play,
 			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
