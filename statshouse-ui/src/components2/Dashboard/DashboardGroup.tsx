@@ -92,16 +92,17 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
     [setDashboardGroup]
   );
 
-  const onEditGroupSize = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
-      const size = e.currentTarget.value ?? '2';
-      setDashboardGroup(groupKey, (g) => {
-        g.size = size;
-      });
-    },
-    [setDashboardGroup]
-  );
+  // const onEditGroupSize = useCallback(
+  //   (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //     const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
+  //     const size = e.currentTarget.value ?? '2';
+
+  //     setDashboardGroup(groupKey, (g) => {
+  //       g.size = size;
+  //     });
+  //   },
+  //   [setDashboardGroup]
+  // );
 
   const onAddGroup = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -155,7 +156,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
                   onInput={onEditGroupName}
                   placeholder="Enter group name"
                 />
-                <select
+                {/* <select
                   className="form-select flex-grow-0 w-auto"
                   data-group={groupKey}
                   value={groups[groupKey]?.size?.toString() || '2'}
@@ -167,7 +168,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
                   <option value="m">M, auto width</option>
                   <option value="4">S, 4 per row</option>
                   <option value="s">S, auto width</option>
-                </select>
+                </select> */}
                 <div className="d-flex flex-column">
                   <Button
                     className="btn btn-sm btn-outline-primary py-0 rounded-0"
