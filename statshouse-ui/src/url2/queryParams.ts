@@ -15,6 +15,18 @@ import {
 
 export type PlotKey = string;
 
+// export type PlotData = {
+//   key: PlotKey;
+//   coordinates?: PlotCoordinates;
+// };
+
+// export type PlotCoordinates = {
+//   x: number;
+//   y: number;
+//   w: number;
+//   h: number;
+// };
+
 export type GroupKey = string;
 
 export type GroupInfo = {
@@ -105,6 +117,7 @@ export type QueryParams = {
   timeShifts: number[];
   tabNum: string;
   plots: Partial<Record<PlotKey, PlotParams>>;
+  // orderPlot: PlotData[];
   orderPlot: PlotKey[];
   variables: Partial<Record<VariableKey, VariableParams>>;
   orderVariables: VariableKey[];
