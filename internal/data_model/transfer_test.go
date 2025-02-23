@@ -245,69 +245,76 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 	})
 }
 
-// uncomment if you need to set threshold below
-// var maxD1 float64
-// var maxD2 float64
-// var maxD3 float64
-func TestValuePercentiles(t *testing.T) {
+func testValuePercentiles(t *testing.T, agentLegacy bool) {
+	const testPercentileCompression = 10000 // compression makes our test non-deterministic
 	// we pass nil rng because all hosts are the same and we should never throw dice
+	metricInfo := &format.MetricMetaValue{MetricID: 1, Name: "a", Kind: "value_p"}
+	require.NoError(t, metricInfo.RestoreCachedInfo())
+	require.True(t, metricInfo.HasPercentiles)
 	rapid.Check(t, func(t *rapid.T) {
 		mv := MultiValue{}
-		hasPercentiles := true // rapid.Bool().Draw(t, "has_percentiles")
 		iter := rapid.IntRange(0, 4).Draw(t, "iter")
 		// if we miss some centroid, we'll skew the distribution enough to trigger test failure
-		sumValues := 0.0
-		sum2Values := 0.0
-		sum3Values := 0.0
+		allValues := map[float32]float64{} // v->c
 		for i := 0; i < iter; i++ {
-			values := rapid.SliceOf(rapid.Float64Range(-math.MaxFloat32, math.MaxFloat32)).Draw(t, "values")
+			values := rapid.SliceOfN(rapid.Float64Range(-math.MaxFloat32, math.MaxFloat32), 0, 10).Draw(t, "values")
 			for _, v := range values {
-				sumValues += v
-				sum2Values += v * v
-				sum3Values += v * v * v
+				allValues[float32(v)] += 1
 			}
-			mv.ApplyValues(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, AgentPercentileCompression, hasPercentiles)
+			if rapid.Bool().Draw(t, "kind") {
+				if agentLegacy {
+					mv.ApplyValuesLegacy(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, testPercentileCompression, metricInfo.HasPercentiles)
+				} else {
+					mv.ApplyValues(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, testPercentileCompression, metricInfo.HasPercentiles)
+				}
+			} else {
+				for _, v := range values {
+					if agentLegacy {
+						mv.AddValueCounterHostPercentileLegacy(nil, v, 1, TagUnionBytes{}, testPercentileCompression)
+					} else {
+						mv.AddValueCounterHostPercentile(nil, v, 1, TagUnionBytes{}, testPercentileCompression)
+					}
+				}
+			}
 		}
 		tlSrc := tlstatshouse.MultiValue{}
 		var fm uint32
-		scratch := mv.MultiValueToTL(&tlSrc, 1, &fm, nil)
+		scratch := mv.MultiValueToTL(metricInfo, &tlSrc, 1, &fm, nil)
 		scratch = tlSrc.Write(scratch[:0], fm)
 		tlDst := tlstatshouse.MultiValueBytes{}
 		_, err := tlDst.Read(scratch, fm)
 		require.NoError(t, err)
 		mv2 := MultiValue{}
-		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnionBytes{}, AggregatorPercentileCompression)
+		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnionBytes{}, testPercentileCompression)
 		// Verify key components
 		require.Equal(t, mv.Value, mv2.Value, "wrong value")
-		if !hasPercentiles {
-			require.True(t, mv2.ValueTDigest == nil, "must not have tdigest")
-			return
-		}
-		dstSumValues := 0.0
-		dstSum2Values := 0.0
-		dstSum3Values := 0.0
+		//if !hasPercentiles { - we decide we want separate test for that
+		//	require.True(t, mv2.ValueTDigest == nil, "must not have tdigest")
+		//	return
+		//}
 		if mv2.ValueTDigest == nil {
 			require.False(t, mv2.Value.ValueSet, "must not have tdigest")
 			return
 		}
 		for _, v := range mv2.ValueTDigest.Centroids() {
-			dstSumValues += v.Weight * v.Mean
-			dstSum2Values += v.Weight * v.Mean * v.Mean
-			dstSum3Values += v.Weight * v.Mean * v.Mean * v.Mean
+			existing, ok := allValues[float32(v.Mean)]
+			if !ok {
+				t.Fatalf("centroid mean does not exist")
+			}
+			allValues[float32(v.Mean)] = existing - v.Weight
 		}
-		deltaFun := func(a, b float64) float64 { // some approximation
-			return math.Abs(a-b) / (1 + math.Abs(a+b))
+		for _, v := range allValues {
+			if v != 0 {
+				t.Fatalf("wrong centroids")
+			}
 		}
-		d1 := deltaFun(sumValues, dstSumValues)
-		d2 := deltaFun(sum2Values, dstSum2Values)
-		d3 := deltaFun(sum3Values, dstSum3Values)
-		const threshold = 1e-6 // we set it with arbitrary safe margin
-		require.Less(t, d1, threshold, "wrong centroids")
-		require.Less(t, d2, threshold, "wrong centroids")
-		require.Less(t, d3, threshold, "wrong centroids")
-		//maxD1 = max(maxD1, d1)
-		//maxD2 = max(maxD2, d2)
-		//maxD3 = max(maxD3, d3)
 	})
-	//fmt.Printf("%v %v %v\n", maxD1, maxD2, maxD3)
+}
+
+func TestValuePercentiles(t *testing.T) {
+	testValuePercentiles(t, false)
+}
+
+func TestValuePercentilesAgentLegacy(t *testing.T) {
+	testValuePercentiles(t, true)
 }

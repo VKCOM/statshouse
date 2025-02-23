@@ -454,6 +454,15 @@ func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64
 	s.ValueTDigest.Add(value, count)
 }
 
+// for tests between existing and new percentiles transfer
+func (s *MultiValue) AddValueCounterHostPercentileLegacy(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes, compression float64) {
+	s.Value.AddValueCounterHost(rng, value, count, hostTag)
+	if s.ValueTDigest == nil {
+		s.ValueTDigest = tdigest.NewWithCompression(compression)
+	}
+	s.ValueTDigest.Add(value, count)
+}
+
 func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnionBytes, compression float64, hasPercentiles bool) {
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
@@ -504,6 +513,46 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 		cc := kv[1]
 		s.ValueTDigest.Add(fv, mult*cc)
 	}
+}
+
+// for tests between existing and new percentiles transfer
+func (s *MultiValue) ApplyValuesLegacy(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnionBytes, compression float64, hasPercentiles bool) {
+	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
+		return
+	}
+	if s.ValueTDigest == nil && hasPercentiles {
+		s.ValueTDigest = tdigest.NewWithCompression(compression)
+	}
+	mult := 1.0
+	// mult is for TDigest only, we must make multiplication when we Add()
+	// mult can be 0.3333333333, so we divide our sums by totalCount, not multiply by mult
+	if count != totalCount {
+		mult = count / totalCount
+	}
+	tmp := SimpleItemCounter(count, hostTag)
+	for _, fv := range values {
+		if hasPercentiles {
+			s.ValueTDigest.Add(fv, mult)
+		}
+		tmp.addOnlyValue(fv, 1, hostTag)
+	}
+	for _, kv := range histogram {
+		fv := kv[0]
+		cc := kv[1]
+		if hasPercentiles {
+			s.ValueTDigest.Add(fv, mult*cc)
+		}
+		tmp.addOnlyValue(fv, cc, hostTag)
+	}
+	if count != totalCount {
+		tmp.ValueSum *= count
+		tmp.ValueSumSquare *= count
+		if totalCount != 1 { // optimization
+			tmp.ValueSum /= totalCount // clean division by, for example 3
+			tmp.ValueSumSquare /= totalCount
+		}
+	}
+	s.Value.Merge(rng, &tmp)
 }
 
 func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag TagUnionBytes) {
