@@ -6,6 +6,7 @@
 package data_model
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -35,11 +36,12 @@ func genKey() *rapid.Generator[Key] {
 	return rapid.Custom(func(t *rapid.T) Key {
 		key := Key{
 			Timestamp: uint32(rapid.Int64Range(1, now).Draw(t, "timestamp")),
-			Metric:    int32(rapid.Int64Range(0, 1000).Draw(t, "metric")),
+			Metric:    int32(rapid.Int64Range(1, 1000).Draw(t, "metric")),
 		}
 
 		// Generate random tags
-		for i := range key.Tags {
+		tags := rapid.IntRange(0, len(key.Tags)-1).Draw(t, "tags")
+		for i := 0; i < tags; i++ {
 			key.Tags[i] = int32(rapid.Int64Range(0, 1000).Draw(t, "tag"))
 		}
 
@@ -241,4 +243,71 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 		require.Equal(t, originalKey.STags, reconstructedKey.STags, "STags should match")
 		timestampValid(t, originalKey.Timestamp, newestTime, reconstructedKey.Timestamp, bucketTimestamp)
 	})
+}
+
+// uncomment if you need to set threshold below
+// var maxD1 float64
+// var maxD2 float64
+// var maxD3 float64
+func TestValuePercentiles(t *testing.T) {
+	// we pass nil rng because all hosts are the same and we should never throw dice
+	rapid.Check(t, func(t *rapid.T) {
+		mv := MultiValue{}
+		hasPercentiles := true // rapid.Bool().Draw(t, "has_percentiles")
+		iter := rapid.IntRange(0, 4).Draw(t, "iter")
+		// if we miss some centroid, we'll skew the distribution enough to trigger test failure
+		sumValues := 0.0
+		sum2Values := 0.0
+		sum3Values := 0.0
+		for i := 0; i < iter; i++ {
+			values := rapid.SliceOf(rapid.Float64Range(-math.MaxFloat32, math.MaxFloat32)).Draw(t, "values")
+			for _, v := range values {
+				sumValues += v
+				sum2Values += v * v
+				sum3Values += v * v * v
+			}
+			mv.ApplyValues(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, AgentPercentileCompression, hasPercentiles)
+		}
+		tlSrc := tlstatshouse.MultiValue{}
+		var fm uint32
+		scratch := mv.MultiValueToTL(&tlSrc, 1, &fm, nil)
+		scratch = tlSrc.Write(scratch[:0], fm)
+		tlDst := tlstatshouse.MultiValueBytes{}
+		_, err := tlDst.Read(scratch, fm)
+		require.NoError(t, err)
+		mv2 := MultiValue{}
+		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnionBytes{}, AggregatorPercentileCompression)
+		// Verify key components
+		require.Equal(t, mv.Value, mv2.Value, "wrong value")
+		if !hasPercentiles {
+			require.True(t, mv2.ValueTDigest == nil, "must not have tdigest")
+			return
+		}
+		dstSumValues := 0.0
+		dstSum2Values := 0.0
+		dstSum3Values := 0.0
+		if mv2.ValueTDigest == nil {
+			require.False(t, mv2.Value.ValueSet, "must not have tdigest")
+			return
+		}
+		for _, v := range mv2.ValueTDigest.Centroids() {
+			dstSumValues += v.Weight * v.Mean
+			dstSum2Values += v.Weight * v.Mean * v.Mean
+			dstSum3Values += v.Weight * v.Mean * v.Mean * v.Mean
+		}
+		deltaFun := func(a, b float64) float64 { // some approximation
+			return math.Abs(a-b) / (1 + math.Abs(a+b))
+		}
+		d1 := deltaFun(sumValues, dstSumValues)
+		d2 := deltaFun(sum2Values, dstSum2Values)
+		d3 := deltaFun(sum3Values, dstSum3Values)
+		const threshold = 1e-6 // we set it with arbitrary safe margin
+		require.Less(t, d1, threshold, "wrong centroids")
+		require.Less(t, d2, threshold, "wrong centroids")
+		require.Less(t, d3, threshold, "wrong centroids")
+		//maxD1 = max(maxD1, d1)
+		//maxD2 = max(maxD2, d2)
+		//maxD3 = max(maxD3, d3)
+	})
+	//fmt.Printf("%v %v %v\n", maxD1, maxD2, maxD3)
 }
