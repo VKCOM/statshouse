@@ -654,6 +654,8 @@ github.com/vkcom/statshouse-go v0.5.9 h1:EKaNA/BBSexgVsM2LhIFEcid2qVp6SppoRuuxR4
 github.com/vkcom/statshouse-go v0.5.9/go.mod h1:Fd9dY/lWh40JEfDxBu6u3hjU5NxemVsURNrkuoBCYBw=
 github.com/vkcom/statshouse-go v0.5.12 h1:yds/o9YkurVTePtu7bEOkhlnwtKz7SNydQDc/Lvbr0Y=
 github.com/vkcom/statshouse-go v0.5.12/go.mod h1:Fd9dY/lWh40JEfDxBu6u3hjU5NxemVsURNrkuoBCYBw=
+github.com/vkcom/statshouse-go v0.5.13 h1:D5YgdacAYZq67Xaz7g5EEskIkiq/Y/9c6IN7FHZ0K4I=
+github.com/vkcom/statshouse-go v0.5.13/go.mod h1:Fd9dY/lWh40JEfDxBu6u3hjU5NxemVsURNrkuoBCYBw=
 github.com/vultr/govultr/v2 v2.17.0 h1:BHa6MQvQn4YNOw+ecfrbISOf4+3cvgofEQHKBSXt6t0=
 github.com/vultr/govultr/v2 v2.17.0/go.mod h1:ZFOKGWmgjytfyjeyAdhQlSWwTjh2ig+X49cAp50dzXI=
 github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 h1:nIPpBwaJSVYIxUFsDv3M8ofmx9yWTog9BfvIu0q41lo=
