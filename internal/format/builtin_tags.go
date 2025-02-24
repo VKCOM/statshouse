@@ -387,7 +387,7 @@ var (
 	// insert additional names from here
 	// https://github.com/ClickHouse/clickhouse-java/blob/2417ae4c286dd1f26e2eac0e7752033fe1aac8b3/src/main/java/ru/yandex/clickhouse/except/ClickHouseErrorCode.java
 	clickhouseExceptions = map[int32]string{
-		0:      "OK",
+		// 0:      "OK", - do not add, we have exception 0 set for timeouts when we get no response
 		115:    "UNKNOWN_SETTING",
 		164:    "READONLY",
 		192:    "UNKNOWN_USER",
