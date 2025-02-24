@@ -274,12 +274,14 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 	s.mu.Unlock()
 
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
-		ModeAgent:        !config.DisableNoSampleAgent,
-		SampleNamespaces: config.SampleNamespaces,
-		SampleGroups:     config.SampleGroups,
-		SampleKeys:       config.SampleKeys,
-		Meta:             s.agent.metricStorage,
-		Rand:             rnd,
+		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
+		SampleKeepSingle:     config.SampleKeepSingle,
+		DisableNoSampleAgent: config.DisableNoSampleAgent,
+		SampleNamespaces:     config.SampleNamespaces,
+		SampleGroups:         config.SampleGroups,
+		SampleKeys:           config.SampleKeys,
+		Meta:                 s.agent.metricStorage,
+		Rand:                 rnd,
 		DiscardF: func(item *data_model.MultiItem, _ uint32) {
 			bucket.DeleteMultiItem(&item.Key)
 		}, // remove from map
