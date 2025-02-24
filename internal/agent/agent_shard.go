@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 // we start sending at the end of the minute, plus we need to spread metric around the next 60 seconds
@@ -183,7 +184,11 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, weightMul, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
-	mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
+	if s.config.LegacyApplyValues {
+		mv.ApplyValuesLegacy(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
+	} else {
+		mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
+	}
 }
 
 func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue, weightMul int) {
