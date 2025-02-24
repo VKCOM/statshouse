@@ -18,11 +18,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/agent"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/constants"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -137,6 +139,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		startTime:       uint32(time.Now().Unix()),
 		firstClientConn: make(map[string]bool),
 	}
+	restart := make(chan int)
 	if config.UpstreamAddr != "" {
 		addresses := strings.Split(config.UpstreamAddr, ",")
 		p.agent = &agent.Agent{GetConfigResult: tlstatshouse.GetConfigResult3{
@@ -183,6 +186,10 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		if err != nil {
 			log.Fatalf("error creating agent: %v", err)
 		}
+		go func() {
+			p.agent.GoGetConfig() // if terminates, proxy must restart
+			close(restart)
+		}()
 		p.agent.Run(0, 0, 0)
 	}
 	p.uniqueStartTime.Store(p.startTime)
@@ -223,7 +230,10 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
 	tcp4.run()
 	tcp6.run()
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+	case <-restart:
+	}
 	shutdown()
 	p.group.Wait()
 	return nil
@@ -233,12 +243,10 @@ func (p *ingressProxy) newProxyServer(network string) proxyServer {
 	return proxyServer{
 		ingressProxy: p,
 		config2: tlstatshouse.GetConfigResult{
-			Addresses:         make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
 			MaxAddressesCount: int32(len(p.agent.GetConfigResult.Addresses)),
 			PreviousAddresses: int32(len(p.agent.GetConfigResult.Addresses)),
 		},
 		config3: tlstatshouse.GetConfigResult3{
-			Addresses:          make([]string, 0, len(p.agent.GetConfigResult.Addresses)),
 			ShardByMetricCount: p.agent.GetConfigResult.ShardByMetricCount,
 		},
 		network: network,
@@ -420,6 +428,13 @@ func (p *proxyConn) run() {
 			return // server shutdown
 		}
 		if firstReq.tip == rpcInvokeReqHeaderTLTag {
+			if firstReq.RequestTag() == constants.StatshouseGetConfig3 {
+				// GetConfig3 does not send shardReplica
+				if res := firstReq.process(p); res.Error() != nil {
+					return // failed serve GetConfig3 request
+				}
+				continue
+			}
 			break
 		}
 		log.Printf("Client skip #%d looking for invoke request, addr %v\n", firstReq.tip, p.clientConn.RemoteAddr())
@@ -532,9 +547,12 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 		}
 		switch req.RequestTag() {
 		case constants.StatshouseGetConfig2,
+			constants.StatshouseGetConfig3,
 			constants.StatshouseGetTagMapping2,
 			constants.StatshouseSendKeepAlive2,
+			constants.StatshouseSendKeepAlive3,
 			constants.StatshouseSendSourceBucket2,
+			constants.StatshouseSendSourceBucket3,
 			constants.StatshouseTestConnection2,
 			constants.StatshouseGetTargets2,
 			constants.StatshouseGetTagMappingBootstrap,
@@ -609,18 +627,49 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 	case rpcInvokeReqHeaderTLTag:
 		switch req.RequestTag() {
 		case constants.StatshouseGetConfig2:
+			var autoConfigStatus int32
 			var args tlstatshouse.GetConfig2
 			if _, err = args.ReadBoxed(req.Request); err == nil {
 				if args.Cluster != p.cluster {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
 					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
+					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
 				} else {
 					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
+					autoConfigStatus = format.TagValueIDAutoConfigOK
 				}
+				p.sendAutoConfigStatus(&args.Header, autoConfigStatus)
 			}
 			if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
 				p.logClientError("write", err, rpc.PacketHeaderCircularBuffer{})
 				// not an error ("requestLoop" exits on request read-write errors only)
+			}
+		case constants.StatshouseGetConfig3:
+			var autoConfigStatus int32
+			var args tlstatshouse.GetConfig3
+			if _, err = args.ReadBoxed(req.Request); err == nil {
+				if args.Cluster != p.cluster {
+					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
+					p.logClientError("GetConfig3", err, rpc.PacketHeaderCircularBuffer{})
+					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
+				} else {
+					equalConfig := args.IsSetPreviousConfig() &&
+						slices.Equal(p.config3.Addresses, args.PreviousConfig.Addresses) &&
+						p.config3.ShardByMetricCount == args.PreviousConfig.ShardByMetricCount
+					if equalConfig {
+						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
+					} else {
+						req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
+						autoConfigStatus = format.TagValueIDAutoConfigOK
+					}
+				}
+				p.sendAutoConfigStatus(&args.Header, autoConfigStatus)
+			}
+			if autoConfigStatus == format.TagValueIDAutoConfigOK || err != nil {
+				if err = req.WriteReponseAndFlush(p.clientConn, err); err != nil {
+					p.logClientError("write", err, rpc.PacketHeaderCircularBuffer{})
+					// not an error ("requestLoop" exits on request read-write errors only)
+				}
 			}
 		default:
 			req.setIngressProxy(p)
@@ -650,6 +699,21 @@ func (req *proxyRequest) forwardAndFlush(p *proxyConn) error {
 		p.reqBuf = req.Request // buffer reuse
 	}
 	return nil
+}
+
+func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, status int32) {
+	p.agent.AddCounterHostAERA(
+		uint32(time.Now().Unix()),
+		format.BuiltinMetricMetaAutoConfig,
+		[]int32{0, 0, 0, 0, status},
+		1, // count
+		data_model.TagUnionBytes{I: p.hostnameID.Load()},
+		format.AgentEnvRouteArch{
+			AgentEnv:  format.TagValueIDProduction,
+			Route:     format.TagValueIDRouteIngressProxy,
+			BuildArch: format.FilterBuildArch(h.BuildArch),
+		})
+
 }
 
 func (req *proxyRequest) setIngressProxy(p *proxyConn) {
