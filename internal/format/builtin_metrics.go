@@ -279,8 +279,8 @@ var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
 		Description: "http_status",
 		RawKind:     "int",
 	}, {
-		Description: "clickhouse_exception",
-		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+		Description:   "clickhouse_exception",
+		ValueComments: convertToValueComments(clickhouseExceptions),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
@@ -482,8 +482,8 @@ var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 		Description: "http_status",
 		RawKind:     "int",
 	}, {
-		Description: "clickhouse_exception",
-		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+		Description:   "clickhouse_exception",
+		ValueComments: convertToValueComments(clickhouseExceptions),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
@@ -557,8 +557,8 @@ var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 		Description: "http_status",
 		RawKind:     "int",
 	}, {
-		Description: "clickhouse_exception",
-		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+		Description:   "clickhouse_exception",
+		ValueComments: convertToValueComments(clickhouseExceptions),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
@@ -1834,8 +1834,8 @@ var BuiltinMetricMetaAggSamplingTime = &MetricMetaValue{
 		Description: "http_status",
 		RawKind:     "int",
 	}, {
-		Description: "clickhouse_exception",
-		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+		Description:   "clickhouse_exception",
+		ValueComments: convertToValueComments(clickhouseExceptions),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
@@ -2585,8 +2585,8 @@ var BuiltinMetricMetaAggInsertSize = &MetricMetaValue{
 		Description: "http_status",
 		RawKind:     "int",
 	}, {
-		Description: "clickhouse_exception",
-		RawKind:     "int", // TODO - ValueComments with popular clickhouse exceptions
+		Description:   "clickhouse_exception",
+		ValueComments: convertToValueComments(clickhouseExceptions),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
