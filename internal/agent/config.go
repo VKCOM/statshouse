@@ -42,6 +42,7 @@ type Config struct {
 	NewShardingByName      string // metrics with name <= NewShardingByName will be sharded new way
 	ConveyorV3Staging      string
 	ConveyorV3StagingList  []int
+	LegacyApplyValues      bool
 
 	MappingCacheSize int64
 	MappingCacheTTL  int
@@ -122,6 +123,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 	f.StringVar(&c.NewShardingByName, "new-sharding-by-name", d.NewShardingByName, "Shard by metric_id % 16 for metrics with name less then given")
 	f.StringVar(&c.ConveyorV3Staging, "conveyor-v3-staging", d.ConveyorV3Staging, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
+	f.BoolVar(&c.LegacyApplyValues, "legacy-apply-values", d.LegacyApplyValues, "Statshouse will sample at key level.")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
