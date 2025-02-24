@@ -48,10 +48,12 @@ type (
 
 	SamplerConfig struct {
 		// Options
-		ModeAgent        bool // to support "NoSampleAgent" option above
-		SampleNamespaces bool
-		SampleGroups     bool
-		SampleKeys       bool
+		ModeAgent            bool
+		SampleKeepSingle     bool
+		DisableNoSampleAgent bool // disables "noSampleAgent" option above
+		SampleNamespaces     bool
+		SampleGroups         bool
+		SampleKeys           bool
 
 		// External services
 		Meta format.MetaStorageInterface
@@ -149,6 +151,7 @@ func (h *sampler) Run(budget int64) {
 	}
 	h.timePartition = time.Now()
 	// query metric meta, initialize fair key
+	// TODO: do not query metric meta on agent
 	sort.Slice(h.items, func(i, j int) bool {
 		return h.items[i].MetricID < h.items[j].MetricID
 	})
@@ -304,7 +307,7 @@ func (h *sampler) run(g samplerGroup) {
 		} else if s[i].depth == len(h.partF) && s[i].MetricID != h.currentMetricID {
 			h.setCurrentMetric(s[i].MetricID)
 		}
-		if s[i].noSampleAgent && h.ModeAgent {
+		if s[i].noSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent {
 			s[i].keep(h)
 		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
 			s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
@@ -344,6 +347,10 @@ func (h *sampler) sample(g samplerGroup) {
 	}
 	timeStart := time.Now()
 	defer func() { h.timeSampling += time.Since(timeStart) }()
+	if h.SampleKeepSingle && len(g.items) == 1 {
+		g.items[0].keep(1, h)
+		return
+	}
 	sfNum := g.budgetDenom * g.sumSize
 	sfDenom := g.budget
 	if sfNum < 1 {
