@@ -41,9 +41,13 @@ export function urlEncodeGlobalParam(
     paramArr.push([GET_PARAMS.metricTabNum, params.tabNum]);
   }
   if (!dequal(defaultParams.timeShifts, params.timeShifts)) {
-    params.timeShifts.forEach((shift) => {
-      paramArr.push([GET_PARAMS.metricTimeShifts, shift.toString()]);
-    });
+    if (params.timeShifts.length === 0 && defaultParams.timeShifts.length > 0) {
+      paramArr.push([GET_PARAMS.metricTimeShifts, removeValueChar]);
+    } else {
+      params.timeShifts.forEach((shift) => {
+        paramArr.push([GET_PARAMS.metricTimeShifts, shift.toString()]);
+      });
+    }
   }
   if (defaultParams.eventFrom !== params.eventFrom) {
     paramArr.push([GET_PARAMS.metricEventFrom, params.eventFrom.toString()]);
