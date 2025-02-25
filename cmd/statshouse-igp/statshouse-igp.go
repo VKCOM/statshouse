@@ -29,6 +29,7 @@ import (
 const defaultPathToPwd = `/etc/engine/pass`
 
 var argv struct {
+	logFile            string
 	userLogin          string // логин для setuid
 	userGroup          string // логин для setguid
 	maxOpenFiles       uint64
@@ -43,6 +44,16 @@ var argv struct {
 	ConfigIngressProxy
 }
 
+var logFile *os.File
+
+func logRotate() {
+	var err error
+	logFile, err = srvfunc.LogRotate(logFile, argv.logFile)
+	if err != nil {
+		log.Printf("logrotate %s error: %v", argv.logFile, err)
+	}
+}
+
 func main() {
 	os.Exit(mainIngressProxy())
 }
@@ -52,6 +63,7 @@ func mainIngressProxy() int {
 		log.Println(err)
 		return 1
 	}
+	logRotate()
 	// Read AES password
 	var aesPwd string
 	if argv.aesPwdFile == "" {
@@ -106,15 +118,22 @@ func mainIngressProxy() int {
 		exit <- RunIngressProxy(ctx, argv.ConfigIngressProxy, aesPwd, mappingsCache)
 	}()
 	signalC := make(chan os.Signal, 1)
-	signal.Notify(signalC, syscall.SIGINT)
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGUSR1)
+main_loop:
 	select {
-	case <-signalC:
-		cancel()
-		select {
-		case <-exit:
-		case <-time.After(5 * time.Second):
+	case v := <-signalC:
+		switch v {
+		case syscall.SIGUSR1:
+			logRotate()
+			goto main_loop
+		default: // syscall.SIGINT
+			cancel()
+			select {
+			case <-exit:
+			case <-time.After(5 * time.Second):
+			}
+			log.Println("Buy")
 		}
-		log.Println("Buy")
 	case err := <-exit:
 		log.Println(err)
 		cancel()
@@ -123,27 +142,22 @@ func mainIngressProxy() int {
 }
 
 func parseCommandLine() error {
+	const conveyorName = "ingress_proxy"
 	if len(os.Args) > 1 {
-		const conveyorName = "ingress_proxy"
-		switch os.Args[1] {
-		case conveyorName, "-" + conveyorName:
-			log.Printf("positional argument %q is deprecated, it is safe to remove it", os.Args[1])
+		if os.Args[1] == conveyorName {
+			log.Printf("positional argument %q is deprecated, you can safely remote it", conveyorName)
 			os.Args = append(os.Args[:1], os.Args[2:]...)
 		}
-		const conveyorArgPrefix = "-new-conveyor="
-		for i, v := range os.Args {
-			if strings.HasPrefix(v, conveyorArgPrefix) {
-				if s := v[len(conveyorArgPrefix):]; s == conveyorName {
-					log.Printf("option %q is deprecated, it is safe to remove it", v)
-					os.Args = append(os.Args[:i], os.Args[i+1:]...)
-					break
-				} else {
-					return fmt.Errorf("wrong value for -new-conveyor option %s, must be %q", s, conveyorName)
-				}
-			}
-		}
 	}
+	var dummyVerb bool
+	flag.BoolVar(&dummyVerb, conveyorName, false, "not used, you can safely remote it")
+	var dummyVersion, dummyConveyor, dummyHostname, dummyMetadataAddr string
+	flag.StringVar(&dummyVersion, "ingress-version", "", "not used, you can safely remote it")
+	flag.StringVar(&dummyConveyor, "new-conveyor", "", "not used, you can safely remote it")
+	flag.StringVar(&dummyHostname, "hostname", "", "not used, you can safely remote it")
+	flag.StringVar(&dummyMetadataAddr, "metadata-addr", "", "not used, you can safely remote it")
 
+	flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
 	flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
 	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
 	flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
@@ -158,11 +172,17 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressExtAddrIPv6, "ingress-external-addr-ipv6", "", "Comma-separate list of IPv6 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
-	flag.StringVar(&argv.Version, "ingress-version", "", "")
 	flag.StringVar(&argv.UpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
 	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	build.FlagParseShowVersionHelp()
 
+	switch dummyConveyor {
+	case "": // ok
+	case conveyorName:
+		log.Printf("new-conveyor option is deprecated, you can safely remote it")
+	default:
+		return fmt.Errorf("wrong value for -new-conveyor option %s, must be %q", dummyConveyor, conveyorName)
+	}
 	argv.ConfigAgent.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
 	argv.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	argv.ExternalAddressesIPv6 = strings.Split(argv.ingressExtAddrIPv6, ",")
