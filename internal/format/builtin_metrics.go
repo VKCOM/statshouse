@@ -250,6 +250,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			TagValueIDSrcIngestionStatusWarnTimestampClampedPast:     "warn_timestamp_clamped_past",
 			TagValueIDSrcIngestionStatusWarnTimestampClampedFuture:   "warn_timestamp_clamped_future",
 			TagValueIDSrcIngestionStatusErrMetricBuiltin:             "err_metric_builtin",
+			TagValueIDSrcIngestionStatusOKDup:                        "ok_dup",
 		}),
 	}, {
 		Description: "tag_id",

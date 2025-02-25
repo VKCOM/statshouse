@@ -14,8 +14,9 @@ import (
 	"go4.org/mem"
 )
 
-func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeader, autoCreate *data_model.AutoCreate) {
-	s.mapAllTags(h, args.MetricBytes, autoCreate)
+// TODO - remove isDup after metric duplicates removed
+func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeader, autoCreate *data_model.AutoCreate, isDup bool) {
+	s.mapAllTags(h, args.MetricBytes, autoCreate, isDup)
 	if h.IngestionStatus != 0 {
 		return
 	}
@@ -26,10 +27,11 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 
 // mapAllTags processes all tags in a single pass, including environment tag
 // unlike v2, it doesn't stop on the first invalid tag
-func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate) {
+// TODO - remove isDup after metric duplicates removed
+func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate, isDup bool) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-		tagMeta, tagIDKey, validEvent := data_model.ValidateTag(v, metric, h, autoCreate)
+		tagMeta, tagIDKey, validEvent := data_model.ValidateTag(v, metric, h, autoCreate, isDup)
 		if !validEvent { // invalid tag key encoding, drop the whole event
 			return
 		}
