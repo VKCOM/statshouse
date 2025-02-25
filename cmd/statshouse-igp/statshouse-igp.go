@@ -156,6 +156,8 @@ func parseCommandLine() error {
 	flag.StringVar(&dummyConveyor, "new-conveyor", "", "not used, you can safely remote it")
 	flag.StringVar(&dummyHostname, "hostname", "", "not used, you can safely remote it")
 	flag.StringVar(&dummyMetadataAddr, "metadata-addr", "", "not used, you can safely remote it")
+	var dummyMaxResponseMem int
+	flag.IntVar(&dummyMaxResponseMem, "max-response-mem", 0, "not used, you can safely remote it")
 
 	flag.StringVar(&argv.logFile, "l", "/dev/stdout", "log file")
 	flag.StringVar(&argv.userLogin, "u", "kitten", "sets user name to make setuid")
