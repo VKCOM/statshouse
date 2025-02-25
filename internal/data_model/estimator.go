@@ -21,6 +21,11 @@ import (
 // Cur            [ .   ...   *         ]
 // Next                     [ *         ]
 
+type EstimatorMetricHash struct {
+	Metric int32
+	Hash   uint64
+}
+
 type Estimator struct {
 	mu sync.Mutex
 
@@ -31,13 +36,13 @@ type Estimator struct {
 	maxCardinality float64
 }
 
-func updateEstimate(e map[int32]*ChUnique, metric int32, hash uint64) {
-	u, ok := e[metric]
+func updateEstimate(e map[int32]*ChUnique, mh EstimatorMetricHash) {
+	u, ok := e[mh.Metric]
 	if !ok {
 		u = &ChUnique{}
-		e[metric] = u
+		e[mh.Metric] = u
 	}
-	u.Insert(hash)
+	u.Insert(mh.Hash)
 }
 
 // Will cause divide by 0 if forgotten
@@ -48,14 +53,13 @@ func (e *Estimator) Init(window int, maxCardinality int) {
 	e.halfHour = map[uint32]map[int32]*ChUnique{}
 }
 
-func (e *Estimator) UpdateWithKeys(time uint32, keys []Key) {
+func (e *Estimator) UpdateWithKeys(time uint32, mhs []EstimatorMetricHash) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	ah, bh := e.createEstimatorsLocked(time)
-	for _, key := range keys {
-		hash := key.Hash()
-		updateEstimate(ah, key.Metric, hash)
-		updateEstimate(bh, key.Metric, hash)
+	for _, mh := range mhs {
+		updateEstimate(ah, mh)
+		updateEstimate(bh, mh)
 	}
 }
 

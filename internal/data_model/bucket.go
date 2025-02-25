@@ -126,7 +126,7 @@ func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte)
 	// ts 4b + metric 4b + #tags 1b + tags 4b each + #stags 1b + stags zero term strings from 1 to 129 bytes each
 	updatedBuffer = append(buffer, make([]byte, 4+4+1+tagsCount*4+1+stagsSize)...)
 	newKey = updatedBuffer[len(buffer):]
-	binary.LittleEndian.PutUint32(newKey[0:], uint32(k.Timestamp))
+	binary.LittleEndian.PutUint32(newKey[0:], k.Timestamp)
 	binary.LittleEndian.PutUint32(newKey[4:], uint32(k.Metric))
 	newKey[8] = byte(tagsCount)
 	const tagsPos = 9
