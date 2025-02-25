@@ -103,8 +103,14 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 						})
 					}
 				}
-				skey := maybeAddQuerySeriesTagValueString(kvs, req.by, tags.stag[format.StringTopTagIndexV3])
-				rowRepr.SKey = skey
+				if tags.stag[format.StringTopTagIndexV3] != "" {
+					rowRepr.SKey = maybeAddQuerySeriesTagValueString(kvs, req.by, tags.stag[format.StringTopTagIndexV3])
+				} else if tags.tag[format.StringTopTagIndexV3] != 0 {
+					v := h.getRichTagValue(metricMeta, req.version, format.StringTopTagID, tags.tag[format.StringTopTagIndexV3])
+					v = emptyToUnspecified(v)
+					kvs[format.LegacyStringTopTagID] = SeriesMetaTag{Value: v}
+					rowRepr.SKey = v
+				}
 				key := tableRowKey{
 					time:   rows[i].time,
 					tsTags: rows[i].tsTags,
