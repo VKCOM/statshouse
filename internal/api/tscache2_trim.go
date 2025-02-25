@@ -69,24 +69,26 @@ func (tr *cache2Trim) trimAged(maxAge time.Duration) {
 	c := tr.c
 	c.debugPrintRuntimeInfof("remove older than %s", maxAge)
 	now := time.Now()
-	info := cache2UpdateInfo{
-		minChunkAccessTimeSeen: now.UnixNano(),
-	}
+	infoM := make(cache2UpdateInfoM)
 	t := now.Add(-maxAge).UnixNano()
 	for _, m := range c.shards {
 		for _, shard := range m {
 			v := shard.trimIteratorStart()
 			for v != nil {
+				info := cache2UpdateInfo{
+					minChunkAccessTimeSeen: now.UnixNano(),
+				}
 				if v.notUsedAfter(t) {
 					shard.removeBucket(v, &info)
 				} else {
 					v.removeChunksNotUsedAfter(t, &info)
 				}
+				infoM.add(v.fau, info)
 				v = shard.trimIteratorNext()
 			}
 		}
 	}
-	c.updateRuntimeInfo(info)
+	c.updateRuntimeInfoM(infoM)
 }
 
 func (tr *cache2Trim) reduceMemoryUsage() int {
@@ -107,7 +109,7 @@ func (tr *cache2Trim) reduceMemoryUsage() int {
 		b.m.removeBucket(b.v, &info)
 		// update runtime info and check if done
 		c.mu.Lock()
-		c.updateRuntimeInfoUnlocked(info)
+		c.updateRuntimeInfoUnlocked(b.v.fau, info)
 		size, ok := c.memoryUsageWithinLimitUnlocked()
 		c.mu.Unlock()
 		if ok {
