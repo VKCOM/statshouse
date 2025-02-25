@@ -22,7 +22,8 @@ var errSeriesCacheRemovedBeforeBeingLocked = fmt.Errorf("series cache removed be
 type cache2 struct {
 	mu       sync.Mutex
 	trimCond sync.Cond
-	info     cache2RuntimeInfo
+	info     cache2RuntimeInfo  // total
+	infoM    cache2RuntimeInfoM // by owner, solely for metrics
 	limits   cache2Limits
 
 	// readonly after init
@@ -73,7 +74,8 @@ type cache2Bucket struct {
 	playInterval   int            // seconds
 
 	// readonly after init
-	key string
+	fau string // first access user
+	key string // "cache2Shard" key
 
 	// double linked list, managed by "cache2Shard"
 	prev *cache2Bucket
@@ -113,11 +115,15 @@ type cache2Limits struct {
 	maxSize int
 }
 
+type cache2RuntimeInfoM map[string]cache2RuntimeInfo
+
 type cache2RuntimeInfo struct {
 	minChunkAccessTime int64 // nanoseconds
 	chunkCount         int
 	size               int
 }
+
+type cache2UpdateInfoM map[string]cache2UpdateInfo
 
 type cache2UpdateInfo struct {
 	sizeDelta              int
@@ -136,6 +142,7 @@ func newCache2(h *Handler) *cache2 {
 		info: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
+		infoM: make(cache2RuntimeInfoM),
 	}
 	res.trimCond = *sync.NewCond(&res.mu)
 	for version, v := range data_model.LODTables {
@@ -149,6 +156,7 @@ func newCache2(h *Handler) *cache2 {
 			res.info.size += sizeofCache2Shard
 		}
 	}
+	res.infoM[""] = res.info
 	go res.trim()
 	return res
 }
@@ -157,10 +165,10 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 	shard := c.shards[lod.Version][time.Duration(lod.StepSec)*time.Second]
 	for i := 0; i < 2; i++ {
 		info := cache2UpdateInfo{}
-		bucket := shard.getOrCreateBucket(q, &info)
+		bucket := shard.getOrCreateBucket(h, q, &info)
 		res, err = c.get(ctx, h, q, &lod, forceLoad, bucket, &info)
 		if err != errSeriesCacheRemovedBeforeBeingLocked {
-			c.updateRuntimeInfo(info)
+			c.updateRuntimeInfo(bucket.fau, info)
 			break
 		}
 		// try again
@@ -186,7 +194,7 @@ func (c *cache2) get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 		for j < len(l.chunks) && l.chunks[j-1].end == l.chunks[j].start {
 			j++
 		}
-		go c.loadChunk(lod, l.chunks[i:j], h, q)
+		go c.loadChunks(l.chunks[i:j], lod, b.fau, h, q)
 		i = j
 	}
 	if l.waitN == 0 {
@@ -212,7 +220,7 @@ func (c *cache2) get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 	}
 }
 
-func (c *cache2) loadChunk(l *data_model.LOD, s []*cache2Chunk, h *requestHandler, q *queryBuilder) {
+func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, fau string, h *requestHandler, q *queryBuilder) {
 	lod := data_model.LOD{
 		FromSec:    s[0].start / 1e9,
 		ToSec:      s[len(s)-1].end / 1e9,
@@ -288,7 +296,7 @@ func (c *cache2) loadChunk(l *data_model.LOD, s []*cache2Chunk, h *requestHandle
 		end += n
 	}
 	if sizeDelta != 0 {
-		c.updateRuntimeInfo(cache2UpdateInfo{
+		c.updateRuntimeInfo(fau, cache2UpdateInfo{
 			sizeDelta: sizeDelta,
 		})
 	}
@@ -304,23 +312,31 @@ func (c *cache2) setLimits(v cache2Limits) {
 	}
 }
 
-func (c *cache2) updateRuntimeInfo(info cache2UpdateInfo) {
+func (c *cache2) updateRuntimeInfoM(infoM cache2UpdateInfoM) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.updateRuntimeInfoUnlocked(info)
+	for fau, info := range infoM {
+		c.updateRuntimeInfoUnlocked(fau, info)
+	}
 }
 
-func (c *cache2) updateRuntimeInfoUnlocked(info cache2UpdateInfo) {
-	// chunk info
-	c.info.chunkCount += info.chunkCountDelta
-	if c.info.minChunkAccessTime < info.minChunkAccessTimeSeen {
-		c.info.minChunkAccessTime = info.minChunkAccessTimeSeen
-	}
-	// memory usage
-	c.info.size += info.sizeDelta
+func (c *cache2) updateRuntimeInfo(fau string, info cache2UpdateInfo) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.updateRuntimeInfoUnlocked(fau, info)
+}
+
+func (c *cache2) updateRuntimeInfoUnlocked(fau string, info cache2UpdateInfo) {
+	c.info.update(info)
 	if _, ok := c.memoryUsageWithinLimitUnlocked(); !ok {
 		c.trimCond.Signal()
 	}
+	r, ok := c.infoM[fau]
+	if !ok {
+		r.minChunkAccessTime = time.Now().UnixNano()
+	}
+	r.update(info)
+	c.infoM[fau] = r
 }
 
 func (c *cache2) runtimeInfo() cache2RuntimeInfo {
@@ -334,25 +350,30 @@ func (c *cache2) memoryUsageWithinLimitUnlocked() (int, bool) {
 }
 
 func (c *cache2) sendMetrics(client *statshouse.Client) {
-	v := c.runtimeInfo()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse()}
 	// TODO: replace with builtins
-	client.Count("statshouse_api_cache_chunk_count", tags, float64(v.chunkCount))
-	client.Value("statshouse_api_cache_size", tags, float64(v.size))
-	client.Value("statshouse_api_cache_age", tags, v.age().Seconds())
+	client.Value("statshouse_api_cache_age", tags, c.info.age().Seconds())
+	client.Value("statshouse_api_cache_size_sum", tags, float64(c.info.size))
+	client.Count("statshouse_api_cache_chunk_count_sum", tags, float64(c.info.chunkCount))
+	for fau, info := range c.infoM {
+		tags[2] = fau
+		client.Value("statshouse_api_cache_size", tags, float64(info.size))
+		client.Count("statshouse_api_cache_chunk_count", tags, float64(info.chunkCount))
+	}
 }
 
 func (c *cache2) reset() {
 	c.debugPrintRuntimeInfo("reset start")
-	info := cache2UpdateInfo{
-		minChunkAccessTimeSeen: time.Now().UnixNano(),
-	}
+	infoM := make(cache2UpdateInfoM)
+	timeNow := time.Now().UnixNano()
 	for _, m := range c.shards {
-		for _, m := range m {
-			m.reset(&info)
+		for _, shard := range m {
+			shard.reset(infoM, timeNow)
 		}
 	}
-	c.updateRuntimeInfo(info)
+	c.updateRuntimeInfoM(infoM)
 	c.debugPrintRuntimeInfo("reset end")
 }
 
@@ -514,7 +535,7 @@ func (l *cache2Loader) addChunk(c *cache2Chunk, data cache2Data, t int64) (cache
 	return data[n:], c.end
 }
 
-func (s *cache2Shard) getOrCreateBucket(q *queryBuilder, info *cache2UpdateInfo) *cache2Bucket {
+func (s *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, info *cache2UpdateInfo) *cache2Bucket {
 	k := q.getOrBuildCacheKey()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -522,6 +543,7 @@ func (s *cache2Shard) getOrCreateBucket(q *queryBuilder, info *cache2UpdateInfo)
 		return res
 	}
 	res := &cache2Bucket{
+		fau:   getStatTokenName(h.accessInfo.user),
 		key:   k,
 		cache: s.cache,
 	}
@@ -531,11 +553,15 @@ func (s *cache2Shard) getOrCreateBucket(q *queryBuilder, info *cache2UpdateInfo)
 	return res
 }
 
-func (s *cache2Shard) reset(info *cache2UpdateInfo) {
+func (s *cache2Shard) reset(infoM cache2UpdateInfoM, timeNow int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, v := range s.bucketM {
-		s.removeBucketUnlocked(v, info)
+		info := cache2UpdateInfo{
+			minChunkAccessTimeSeen: timeNow,
+		}
+		s.removeBucketUnlocked(v, &info)
+		infoM.add(v.fau, info)
 	}
 }
 
@@ -693,35 +719,47 @@ func (c *cache2Chunk) contains(t int64) bool {
 	return c.start <= t && t < c.end
 }
 
-func (r cache2RuntimeInfo) age() time.Duration {
+func (r *cache2RuntimeInfo) age() time.Duration {
 	return time.Since(time.Unix(0, r.minChunkAccessTime))
 }
 
-func cache2ChunkLen(step time.Duration) int {
-	// NB! keep in sync with "tsCache2ChunkDuration"
-	if step < time.Minute {
-		// max 120 points (seconds, two minutes) from second table
-		return int(2 * time.Minute / step)
-	} else if step < time.Hour {
-		// max 120 points (minutes, two hours) from minute table
-		return int(2 * time.Hour / step)
-	} else if step <= timeDay {
-		// max 24 points (two days) from hour table
-		return int(2 * timeDay / step)
-	} else {
-		return 1 // for week or month
+func (r *cache2RuntimeInfo) update(info cache2UpdateInfo) {
+	r.size += info.sizeDelta
+	r.chunkCount += info.chunkCountDelta
+	if r.minChunkAccessTime < info.minChunkAccessTimeSeen {
+		r.minChunkAccessTime = info.minChunkAccessTimeSeen
 	}
 }
 
-func cache2ChunkDuration(step time.Duration) time.Duration {
-	// NB! keep in sync with "tsCache2ChunkSize"
-	if step < time.Minute {
-		return 2 * time.Minute
-	} else if step < time.Hour {
-		return 2 * time.Hour
-	} else if step <= timeDay {
-		return 2 * timeDay
+func (m cache2UpdateInfoM) add(fau string, newInfo cache2UpdateInfo) {
+	if v, ok := m[fau]; ok {
+		v.sizeDelta += newInfo.sizeDelta
+		v.chunkCountDelta += newInfo.chunkCountDelta
+		if newInfo.minChunkAccessTimeSeen != 0 && v.minChunkAccessTimeSeen > newInfo.minChunkAccessTimeSeen {
+			v.minChunkAccessTimeSeen = newInfo.minChunkAccessTimeSeen
+		}
+		m[fau] = v
 	} else {
+		m[fau] = newInfo
+	}
+}
+
+func cache2ChunkLen(step time.Duration) int {
+	return int(cache2ChunkDuration(step) / step)
+}
+
+func cache2ChunkDuration(step time.Duration) time.Duration {
+	if step < time.Minute {
+		// max 60 points from second table
+		return time.Minute
+	} else if step < time.Hour {
+		// max 60 points from minute table
+		return time.Hour
+	} else if step <= timeDay {
+		// max 24 points from hour table
+		return timeDay
+	} else {
+		// max 1 point for week or month
 		return step
 	}
 }
