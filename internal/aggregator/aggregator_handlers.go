@@ -422,8 +422,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	defer aggBucket.sendMu.RUnlock()
 
 	lockedShard := -1
-	var newKeys []data_model.Key
-	var usedMetrics []int32
+	var newKeys []data_model.EstimatorMetricHash
+	usedMetrics := map[int32]struct{}{}
 	measurementIntKeys := 0
 	measurementStringKeys := 0
 	measurementLocks := 0
@@ -607,9 +607,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
-				newKeys = append(newKeys, k)
+				newKeys = append(newKeys, data_model.EstimatorMetricHash{Metric: k.Metric, Hash: hash})
 			}
-			usedMetrics = append(usedMetrics, k.Metric)
+			usedMetrics[k.Metric] = struct{}{}
 		}
 	}
 	if lockedShard != -1 {
@@ -627,7 +627,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if aggBucket.usedMetrics == nil {
 		aggBucket.usedMetrics = map[int32]struct{}{}
 	}
-	for _, m := range usedMetrics {
+	for m := range usedMetrics {
 		aggBucket.usedMetrics[m] = struct{}{}
 	}
 	if args.IsSetHistoric() {
