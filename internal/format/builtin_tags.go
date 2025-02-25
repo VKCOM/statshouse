@@ -130,6 +130,7 @@ const (
 	TagValueIDSrcIngestionStatusWarnTimestampClampedPast     = 55
 	TagValueIDSrcIngestionStatusWarnTimestampClampedFuture   = 56
 	TagValueIDSrcIngestionStatusErrMetricBuiltin             = 57
+	TagValueIDSrcIngestionStatusOKDup                        = 58 // TODO - remove after removing duplication code
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
