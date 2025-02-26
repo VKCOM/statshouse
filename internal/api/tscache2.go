@@ -60,7 +60,8 @@ type cache2Shard struct {
 	invalidateIter *cache2Bucket
 
 	// readonly after init
-	cache *cache2
+	cache    *cache2
+	chunkLen int
 }
 
 type cache2BucketList struct {
@@ -76,8 +77,9 @@ type cache2Bucket struct {
 	playInterval   int            // seconds
 
 	// readonly after init
-	fau string // first access user
-	key string // "cache2Shard" key
+	fau      string // first access user
+	key      string // "cache2Shard" key
+	chunkLen int
 
 	// double linked list, managed by "cache2Shard"
 	prev *cache2Bucket
@@ -122,11 +124,14 @@ type cache2RuntimeInfoM map[string]cache2RuntimeInfo
 
 type cache2RuntimeInfo struct {
 	// waterlevel
+	len                int // number of points
 	size               int
 	chunkCount         int
 	minChunkAccessTime int64 // nanoseconds
 
 	// per second
+	hitLen         int
+	hitLenP        int // play mode
 	hitSize        int
 	hitSizeP       int // play mode
 	hitChunkCount  int
@@ -137,11 +142,14 @@ type cache2UpdateInfoM map[string]cache2UpdateInfo
 
 type cache2UpdateInfo struct {
 	// waterlevel
+	lenDelta               int
 	sizeDelta              int
 	chunkCountDelta        int
 	minChunkAccessTimeSeen int64
 
 	// per second
+	hitLen         int
+	hitLenP        int // play mode
 	hitSize        int
 	hitSizeP       int // play mode
 	hitChunkCount  int
@@ -165,10 +173,12 @@ func newCache2(h *Handler) *cache2 {
 	for version, v := range data_model.LODTables {
 		res.shards[version] = make(map[time.Duration]*cache2Shard, len(v))
 		for stepSec := range v {
-			res.shards[version][time.Duration(stepSec)*time.Second] = &cache2Shard{
-				bucketM: make(map[string]*cache2Bucket),
-				bucketL: newCache2BucketList(),
-				cache:   res,
+			step := time.Duration(stepSec) * time.Second
+			res.shards[version][step] = &cache2Shard{
+				bucketM:  make(map[string]*cache2Bucket),
+				bucketL:  newCache2BucketList(),
+				cache:    res,
+				chunkLen: cache2ChunkLen(step),
 			}
 			res.info.size += sizeofCache2Shard
 		}
@@ -213,7 +223,7 @@ func (c *cache2) get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 		for j < len(l.chunks) && l.chunks[j-1].end == l.chunks[j].start {
 			j++
 		}
-		go c.loadChunks(l.chunks[i:j], lod, b.fau, h, q)
+		go c.loadChunks(l.chunks[i:j], lod, b.chunkLen, b.fau, h, q)
 		i = j
 	}
 	if l.waitN == 0 {
@@ -239,7 +249,7 @@ func (c *cache2) get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 	}
 }
 
-func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, fau string, h *requestHandler, q *queryBuilder) {
+func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, chunkLen int, fau string, h *requestHandler, q *queryBuilder) {
 	lod := data_model.LOD{
 		FromSec:    s[0].start / 1e9,
 		ToSec:      s[len(s)-1].end / 1e9,
@@ -250,8 +260,7 @@ func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, fau string, h *
 		PreKeyOnly: l.PreKeyOnly,
 		Location:   l.Location,
 	}
-	n := cache2ChunkLen(time.Duration(lod.StepSec) * time.Second)
-	res := make(cache2Data, n*len(s))
+	res := make(cache2Data, chunkLen*len(s))
 	_, err := loadPoints(context.Background(), h, q, lod, res, 0)
 	if err == nil && q.metric != nil && len(q.by) != 0 {
 		// map string tags
@@ -275,7 +284,7 @@ func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, fau string, h *
 			}
 		}
 	}
-	start, end := 0, n
+	start, end := 0, chunkLen
 	var sizeDelta int
 	for _, c := range s {
 		var cache *cache2
@@ -312,7 +321,7 @@ func (c *cache2) loadChunks(s []*cache2Chunk, l *data_model.LOD, fau string, h *
 			w.c <- err
 		}
 		start = end
-		end += n
+		end += chunkLen
 	}
 	if sizeDelta != 0 {
 		c.updateRuntimeInfo(fau, cache2UpdateInfo{
@@ -379,21 +388,24 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	client.Count("statshouse_api_cache_chunk_count_sum", tags, float64(c.info.chunkCount))
 	for fau, info := range c.infoM {
 		tags[2] = fau
+		client.Value("statshouse_api_cache_len", tags, float64(info.len))
 		client.Value("statshouse_api_cache_size", tags, float64(info.size))
 		client.Count("statshouse_api_cache_chunk_count", tags, float64(info.chunkCount))
 		if fau != "" {
 			tagsP[2] = fau
+			client.Value("statshouse_api_cache_hit_len", tags, float64(info.hitLen))
+			client.Value("statshouse_api_cache_hit_len", tagsP, float64(info.hitLenP))
 			client.Value("statshouse_api_cache_hit_size", tags, float64(info.hitSize))
 			client.Value("statshouse_api_cache_hit_size", tagsP, float64(info.hitSizeP))
 			client.Count("statshouse_api_cache_hit_chunk_count", tags, float64(info.hitChunkCount))
 			client.Count("statshouse_api_cache_hit_chunk_count", tagsP, float64(info.hitChunkCountP))
-			if info.hitSize != 0 || info.hitSizeP != 0 || info.hitChunkCount != 0 || info.hitChunkCountP != 0 {
-				info.hitSize = 0
-				info.hitSizeP = 0
-				info.hitChunkCount = 0
-				info.hitChunkCountP = 0
-				c.infoM[fau] = info
-			}
+			info.hitLen = 0
+			info.hitLenP = 0
+			info.hitSize = 0
+			info.hitSizeP = 0
+			info.hitChunkCount = 0
+			info.hitChunkCountP = 0
+			c.infoM[fau] = info
 		}
 	}
 }
@@ -500,6 +512,7 @@ func (l *cache2Loader) run() (cache2Data, error) {
 			b.chunks = append(append(b.chunks[:i], chunks...), b.chunks[i:]...)
 			info.chunkCountDelta += len(chunks)
 			info.sizeDelta += len(chunks) * sizeofCache2Chunk
+			info.lenDelta += len(chunks) * b.chunkLen
 			i += len(ts)
 		}
 	}
@@ -524,9 +537,10 @@ func (l *cache2Loader) addChunk(c *cache2Chunk, data cache2Data, t int64) (cache
 		startLoad = true
 	}
 	var n int
+	b := l.bucket
 	if await {
 		// cache miss
-		n = cache2ChunkLen(step) - offset
+		n = b.chunkLen - offset
 		if n > len(data) {
 			n = len(data)
 		}
@@ -541,18 +555,6 @@ func (l *cache2Loader) addChunk(c *cache2Chunk, data cache2Data, t int64) (cache
 		l.waitN++
 	} else {
 		// cache hit
-		c.hitCount++
-		info := l.info
-		tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: l.bucket.fau}
-		if l.bucket.playInterval > 0 {
-			tags[3] = "1" // play mode
-			info.hitSizeP += c.size()
-			info.hitChunkCountP++
-		} else {
-			info.hitSize += c.size()
-			info.hitChunkCount++
-		}
-		statshouse.Value("statshouse_api_cache_chunk_hit_count", tags, float64(c.hitCount))
 		// map string tags
 		src := c.data[offset:]
 		for i := 0; i < len(src) && i < len(data); i++ {
@@ -572,11 +574,27 @@ func (l *cache2Loader) addChunk(c *cache2Chunk, data cache2Data, t int64) (cache
 					}
 				}
 			}
-			// and copy
+			// copy
 			data[i] = make([]tsSelectRow, len(src[i]))
 			copy(data[i], src[i])
 			n++
 		}
+		// update runtime info
+		c.hitCount++
+		info := l.info
+		tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: b.fau}
+		if b.playInterval > 0 {
+			tags[3] = "1" // play mode
+			info.hitLenP += n
+			info.hitSizeP += c.size()
+			info.hitChunkCountP++
+		} else {
+			info.hitLen += n
+			info.hitSize += c.size()
+			info.hitChunkCount++
+		}
+		// send metrics
+		statshouse.Value("statshouse_api_cache_chunk_hit_count", tags, float64(c.hitCount))
 	}
 	if startLoad && !c.loading {
 		l.chunks = append(l.chunks, c)
@@ -595,9 +613,10 @@ func (s *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, info
 		return res
 	}
 	res := &cache2Bucket{
-		fau:   getStatTokenName(h.accessInfo.user),
-		key:   k,
-		cache: s.cache,
+		fau:      getStatTokenName(h.accessInfo.user),
+		key:      k,
+		cache:    s.cache,
+		chunkLen: s.chunkLen,
 	}
 	s.bucketM[k] = res
 	s.bucketL.add(res)
@@ -776,8 +795,11 @@ func (r *cache2RuntimeInfo) age() time.Duration {
 }
 
 func (r *cache2RuntimeInfo) update(info cache2UpdateInfo) {
+	r.len += info.lenDelta
 	r.size += info.sizeDelta
 	r.chunkCount += info.chunkCountDelta
+	r.hitLen += info.hitLen
+	r.hitLenP += info.hitLenP
 	r.hitSize += info.hitSize
 	r.hitSizeP += info.hitSizeP
 	r.hitChunkCount += info.hitChunkCount

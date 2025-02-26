@@ -171,6 +171,7 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 		}
 		info.chunkCountDelta -= len(chunks)
 		info.sizeDelta -= sizeofCache2Chunks(chunks)
+		info.lenDelta -= len(chunks) * b.chunkLen
 		k := i
 		for m := j; m < len(b.chunks); m++ {
 			b.time[k] = b.time[m]
