@@ -7,12 +7,10 @@
 package agent
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log"
-	"slices"
 	"sync"
 	"time"
 
@@ -92,28 +90,52 @@ func (s *Shard) StopPreprocessor() {
 	close(s.BucketsToPreprocess)
 }
 
-func (s *Shard) addSizeByTypeMetric(t uint32, partKey int32, size int) {
+func (s *Shard) addSizeByTypeMetric(t uint32, partKey int32, samplingKey int32, size int) {
 	// This metric is added by source, because aggregator has no spare time for that
-	s.agent.AddValueCounter(t, format.BuiltinMetricMetaTLByteSizePerInflightType,
-		[]int32{0, partKey, s.agent.componentTag, format.AggShardTag: s.ShardKey},
-		float64(size), 1)
+	if size > 0 { // save approx. half zero rows
+		s.agent.AddValueCounter(t, format.BuiltinMetricMetaTLByteSizePerInflightType,
+			[]int32{0, partKey, s.agent.componentTag, samplingKey, format.AggShardTag: s.ShardKey},
+			float64(size), 1)
+	}
 }
 
-func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket3, _ []byte) {
-	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
+func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
+	defer wg.Done()
+	rng := rand.New() // We use distinct rand so that we can use it without locking
 
-	for _, v := range bucket.MultiItems {
-		if v.Key.Metric == format.BuiltinMetricIDIngestionStatus && v.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
-			// transfer optimization
-			status := tlstatshouse.IngestionStatus2{
-				Env:    v.Key.Tags[0],
-				Metric: v.Key.Tags[1],
-				Value:  float32(v.Tail.Value.Count() * v.SF),
-			}
-			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, status)
-			continue
-		}
+	var scratch []byte
+	for bucket := range s.BucketsToPreprocess {
+		start := time.Now()
+		scratch = s.preProcess(bucket, scratch, rng)
+		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
+	}
+	log.Printf("Preprocessor quit")
+}
 
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng *rand.Rand) []byte {
+	var buffers data_model.SamplerBuffers
+	// If bucket is empty, we must still do processing and sending
+	// for each contributor every second.
+	// We generate only v3 buckets, but can have v2 on disk from previous agent version
+	var sb tlstatshouse.SourceBucket3
+
+	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
+	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
+	scratch = sb.WriteBoxed(scratch[:0])
+	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
+	cbd := compressedBucketData{time: bucket.Time, data: compressed, version: 3}
+	s.sendToSenders(cbd)
+	return scratch
+}
+
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
+	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
+
+	s.mu.Lock()
+	config := s.config
+	s.mu.Unlock()
+
+	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
 		scratch = v.Tail.MultiValueToTL(v.MetricMeta, &item.Tail, v.SF, &item.FieldsMask, scratch)
@@ -121,15 +143,15 @@ func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sample
 
 		switch { // This is only an approximation
 		case item.Tail.IsSetUniques(item.FieldsMask):
-			sizeUnique += len(scratch)
+			sizeUnique[sampling] += len(scratch)
 		case item.Tail.IsSetCentroids(item.FieldsMask):
-			sizePercentiles += len(scratch)
+			sizePercentiles[sampling] += len(scratch)
 		case item.Tail.IsSetValueMax(item.FieldsMask):
-			sizeValue += len(scratch)
+			sizeValue[sampling] += len(scratch)
 		case item.Tail.IsSetValueMin(item.FieldsMask):
-			sizeSingleValue += len(scratch)
+			sizeSingleValue[sampling] += len(scratch)
 		default:
-			sizeCounter += len(scratch)
+			sizeCounter[sampling] += len(scratch)
 		}
 
 		var top []tlstatshouse.TopElement
@@ -141,7 +163,7 @@ func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sample
 			scratch = value.MultiValueToTL(v.MetricMeta, &el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
 			scratch = el.Write(scratch[:0])
-			sizeStringTop += len(scratch)
+			sizeStringTop[sampling] += len(scratch)
 		}
 		if len(top) != 0 {
 			item.SetTop(top)
@@ -149,59 +171,6 @@ func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sample
 
 		sb.Metrics = append(sb.Metrics, item)
 	}
-	// Add size metrics
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeUnique, sizeUnique)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizePercentiles, sizePercentiles)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeValue, sizeValue)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSingleValue, sizeSingleValue)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, sizeCounter)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, sizeStringTop)
-
-	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
-
-	// Calculate size metrics for sample factors and ingestion status
-	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
-	scratch = sbSizeCalc.Write(scratch[:0])
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, len(scratch))
-
-	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
-	scratch = sbSizeCalc.Write(scratch[:0])
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, len(scratch))
-
-	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
-		return cmp.Compare(a.Metric, b.Metric)
-	})
-
-	return sb, scratch
-}
-
-func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
-	defer wg.Done()
-	rng := rand.New() // We use distinct rand so that we can use it without locking
-
-	var scratch []byte
-	for bucket := range s.BucketsToPreprocess {
-		var buffers data_model.SamplerBuffers
-		start := time.Now()
-		// If bucket is empty, we must still do processing and sending
-		// for each contributor every second.
-		// We generate only v3 buckets, but can have v2 on disk from previous agent version
-		buffers = s.sampleBucket(bucket, buffers, rng)
-		var sb tlstatshouse.SourceBucket3
-		sb, scratch = s.bucketToSourceBucket3TL(bucket, buffers.SampleFactors, scratch)
-		scratch = sb.WriteBoxed(scratch[:0])
-		compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
-		cbd := compressedBucketData{time: bucket.Time, data: compressed, version: 3}
-		s.sendToSenders(cbd)
-		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
-	}
-	log.Printf("Preprocessor quit")
-}
-
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand) data_model.SamplerBuffers {
-	s.mu.Lock()
-	config := s.config
-	s.mu.Unlock()
 
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
@@ -212,12 +181,25 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 		SampleKeys:           config.SampleKeys,
 		Meta:                 s.agent.metricStorage,
 		Rand:                 rnd,
-		DiscardF: func(item *data_model.MultiItem, _ uint32) {
-			bucket.DeleteMultiItem(&item.Key)
-		}, // remove from map
-		SamplerBuffers: buffers,
+		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
+		SamplerBuffers:       buffers,
 	})
 	for _, item := range bucket.MultiItems {
+		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
+			// transfer optimization, outside budget, size tracked below in format.TagValueIDSizeSampleFactors
+			status := tlstatshouse.IngestionStatus2{
+				Env:    item.Key.Tags[0],
+				Metric: item.Key.Tags[1],
+				Value:  float32(item.Tail.Value.Count()),
+			}
+			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, status)
+			continue
+		}
+		if item.MetricMeta.NoSampleAgent {
+			keepF(item, bucket.Time, 1)
+			continue
+		}
+
 		whaleWeight := item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
 		accountMetric := item.Key.Metric
 		sz := item.Key.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
@@ -227,10 +209,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 				// So metrics are better isolated
 				accountMetric = item.Key.Tags[1]
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
-			}
-			if item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
-				// These are so common, we have transfer optimization for them
-				sz = 3 * 4 // see statshouse.ingestion_status2
 			}
 		}
 		sampler.Add(data_model.SamplingMultiItemPair{
@@ -267,7 +245,33 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
 		[]int32{0, s.agent.componentTag},
 		float64(sampler.MetricCount), 1)
-	return sampler.SamplerBuffers
+
+	// Add size metrics
+	for i := 0; i != 2; i++ {
+		samplingTag := int32(format.TagValueIDSamplingNo)
+		if i == 1 {
+			samplingTag = format.TagValueIDSamplingYes
+		}
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeUnique, samplingTag, sizeUnique[i])
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizePercentiles, samplingTag, sizePercentiles[i])
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeValue, samplingTag, sizeValue[i])
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSingleValue, samplingTag, sizeSingleValue[i])
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, samplingTag, sizeCounter[i])
+		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
+	}
+
+	sb.SampleFactors = append(sb.SampleFactors, buffers.SampleFactors...)
+
+	// Calculate size metrics for sample factors and ingestion status
+	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
+	scratch = sbSizeCalc.Write(scratch[:0])
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, format.TagValueIDSamplingNo, len(scratch))
+
+	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
+	scratch = sbSizeCalc.Write(scratch[:0])
+	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
+
+	return sampler.SamplerBuffers, scratch
 }
 
 func (s *Shard) sendToSenders(cbd compressedBucketData) {
