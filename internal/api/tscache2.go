@@ -546,10 +546,10 @@ func (l *cache2Loader) addChunk(c *cache2Chunk, data cache2Data, t int64) (cache
 		tags := statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: l.bucket.fau}
 		if l.bucket.playInterval > 0 {
 			tags[3] = "1" // play mode
-			info.hitSizeP += c.dataSize
+			info.hitSizeP += c.size()
 			info.hitChunkCountP++
 		} else {
-			info.hitSize += c.dataSize
+			info.hitSize += c.size()
 			info.hitChunkCount++
 		}
 		statshouse.Value("statshouse_api_cache_chunk_hit_count", tags, float64(c.hitCount))
