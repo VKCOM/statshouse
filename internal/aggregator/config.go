@@ -38,7 +38,9 @@ type ConfigAggregator struct {
 	HistoricInserters  int
 	InsertHistoricWhen int
 
-	KHAddr string
+	KHAddr     string
+	KHUser     string
+	KHPassword string
 
 	CardinalityWindow int
 	MaxCardinality    int

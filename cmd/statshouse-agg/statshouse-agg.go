@@ -235,6 +235,8 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
 	flag.StringVar(&argv.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 	flag.StringVar(&argv.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
+	flag.StringVar(&argv.KHUser, "kh-user", "", "clickhouse user")
+	flag.StringVar(&argv.KHPassword, "kh-password", "", "clickhouse password")
 	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
 	build.FlagParseShowVersionHelp()
 
