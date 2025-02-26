@@ -99,82 +99,6 @@ func (s *Shard) addSizeByTypeMetric(t uint32, partKey int32, size int) {
 		float64(size), 1)
 }
 
-func (s *Shard) bucketToSourceBucket2TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket2, _ []byte) {
-	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
-
-	for _, v := range bucket.MultiItems {
-		if v.Key.Metric == format.BuiltinMetricIDIngestionStatus && v.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
-			// transfer optimization
-			status := tlstatshouse.IngestionStatus2{
-				Env:    v.Key.Tags[0],
-				Metric: v.Key.Tags[1],
-				Value:  float32(v.Tail.Value.Count() * v.SF),
-			}
-			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, status)
-			continue
-		}
-
-		item := v.Key.TLMultiItemFromKey(bucket.Time)
-		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
-		scratch = v.Tail.MultiValueToTL(v.MetricMeta, &item.Tail, v.SF, &item.FieldsMask, scratch)
-		scratch = item.Write(scratch[:0])
-		switch { // This is only an approximation
-		case item.Tail.IsSetUniques(item.FieldsMask):
-			sizeUnique += len(scratch)
-		case item.Tail.IsSetCentroids(item.FieldsMask):
-			sizePercentiles += len(scratch)
-		case item.Tail.IsSetValueMax(item.FieldsMask):
-			sizeValue += len(scratch)
-		case item.Tail.IsSetValueMin(item.FieldsMask):
-			sizeSingleValue += len(scratch)
-		default:
-			sizeCounter += len(scratch)
-		}
-
-		var top []tlstatshouse.TopElement
-		for key, value := range v.Top {
-			el := tlstatshouse.TopElement{Stag: key.S} // TODO - send I
-			scratch = value.MultiValueToTL(v.MetricMeta, &el.Value, v.SF, &el.FieldsMask, scratch)
-			top = append(top, el)
-			scratch = el.Write(scratch[:0])
-			sizeStringTop += len(scratch)
-		}
-		if len(top) != 0 {
-			item.SetTop(top)
-		}
-
-		sb.Metrics = append(sb.Metrics, item)
-	}
-
-	// Add size metrics
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeUnique, sizeUnique)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizePercentiles, sizePercentiles)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeValue, sizeValue)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSingleValue, sizeSingleValue)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, sizeCounter)
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, sizeStringTop)
-
-	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
-
-	// Calculate size metrics for sample factors and ingestion status - bucket 2
-	sbSizeCalc := tlstatshouse.SourceBucket2{SampleFactors: sb.SampleFactors}
-	scratch = sbSizeCalc.Write(scratch[:0])
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, len(scratch))
-
-	sbSizeCalc = tlstatshouse.SourceBucket2{
-		IngestionStatusOk:  sb.IngestionStatusOk,
-		IngestionStatusOk2: sb.IngestionStatusOk2,
-	}
-	scratch = sbSizeCalc.Write(scratch[:0])
-	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, len(scratch))
-
-	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
-		return cmp.Compare(a.Metric, b.Metric)
-	})
-
-	return sb, scratch
-}
-
 func (s *Shard) bucketToSourceBucket3TL(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) (sb tlstatshouse.SourceBucket3, _ []byte) {
 	sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop := 0, 0, 0, 0, 0, 0
 
@@ -261,8 +185,14 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 		start := time.Now()
 		// If bucket is empty, we must still do processing and sending
 		// for each contributor every second.
+		// We generate only v3 buckets, but can have v2 on disk from previous agent version
 		buffers = s.sampleBucket(bucket, buffers, rng)
-		scratch = s.sendToSenders(bucket, buffers.SampleFactors, scratch)
+		var sb tlstatshouse.SourceBucket3
+		sb, scratch = s.bucketToSourceBucket3TL(bucket, buffers.SampleFactors, scratch)
+		scratch = sb.WriteBoxed(scratch[:0])
+		compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
+		cbd := compressedBucketData{time: bucket.Time, data: compressed, version: 3}
+		s.sendToSenders(cbd)
 		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
@@ -340,25 +270,13 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 	return sampler.SamplerBuffers
 }
 
-func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) []byte {
-	version := uint8(3)
-	if s.sendSourceBucket2 {
-		version = 2
-	}
-	data, scratch, err := s.compressBucket(bucket, sampleFactors, version, scratch)
-	cbd := compressedBucketData{time: bucket.Time, data: data, version: version} // No id as not saved to disk yet
-	if err != nil {
-		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
-		s.agent.logF("Internal Error: Failed to compress bucket %v for shard %d bucket %d",
-			err, s.ShardKey, bucket.Time)
-		return scratch
-	}
+func (s *Shard) sendToSenders(cbd compressedBucketData) {
 	s.mu.Lock() // must send under lock, otherwise s.BucketsToSend might be closed
 	if s.BucketsToSend != nil {
 		select {
 		case s.BucketsToSend <- cbd:
 			s.mu.Unlock() // now goSendRecent is responsible for saving/sending/etc.
-			return scratch
+			return
 		default:
 			break
 		}
@@ -368,21 +286,6 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []
 	// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
 	cbd = s.diskCachePutWithLog(cbd) // assigns id
 	s.appendHistoricBucketsToSend(cbd)
-	return scratch
-}
-
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, version uint8, scratch []byte) (data []byte, _ []byte, err error) {
-	if version == 3 {
-		var sb tlstatshouse.SourceBucket3
-		sb, scratch = s.bucketToSourceBucket3TL(bucket, sampleFactors, scratch)
-		scratch = sb.WriteBoxed(scratch[:0])
-	} else {
-		var sb tlstatshouse.SourceBucket2
-		sb, scratch = s.bucketToSourceBucket2TL(bucket, sampleFactors, scratch)
-		scratch = sb.WriteBoxed(scratch[:0])
-	}
-	compressed, err := compress.CompressAndFrame(scratch)
-	return compressed, scratch, err
 }
 
 func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, sendMoreBytes int) bool {
