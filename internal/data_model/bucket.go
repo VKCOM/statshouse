@@ -419,6 +419,26 @@ func (s *MultiItem) RowBinarySizeEstimate() int {
 	return size
 }
 
+func (s *MultiItem) isSingleValueCounter() bool {
+	switch len(s.Top) {
+	case 0:
+		return s.Tail.isSingleValueCounter()
+	case 1:
+		if s.Tail.Empty() {
+			for _, v := range s.Top {
+				if v.isSingleValueCounter() {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (s *MultiValue) isSingleValueCounter() bool {
+	return s.ValueTDigest == nil && s.HLL.ItemsCount() == 0
+}
+
 func (s *MultiValue) Empty() bool {
 	return s.Value.Count() <= 0
 }
