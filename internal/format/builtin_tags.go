@@ -273,6 +273,9 @@ const (
 	TagValueIDSizeSampleFactors     = 7
 	TagValueIDSizeIngestionStatusOK = 8
 	TagValueIDSizeBuiltIn           = 9
+
+	TagValueIDSamplingYes = 1
+	TagValueIDSamplingNo  = 2
 )
 
 var insertKindToValue = map[int32]string{
@@ -285,6 +288,11 @@ var insertKindToValue = map[int32]string{
 	TagValueIDSizeSampleFactors:     "sample_factor",    // used only by agent
 	TagValueIDSizeIngestionStatusOK: "ingestion_status", // used only by agent
 	TagValueIDSizeBuiltIn:           "builtin",          // used only by aggregator
+}
+
+var samplingYesNoToValue = map[int32]string{
+	TagValueIDSamplingYes: "yes",
+	TagValueIDSamplingNo:  "no",
 }
 
 const (
