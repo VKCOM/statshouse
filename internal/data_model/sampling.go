@@ -347,7 +347,9 @@ func (h *sampler) sample(g samplerGroup) {
 	}
 	timeStart := time.Now()
 	defer func() { h.timeSampling += time.Since(timeStart) }()
-	if h.SampleKeepSingle && len(g.items) == 1 {
+	if h.SampleKeepSingle && len(g.items) == 1 &&
+		g.items[0].Item != nil && len(g.items[0].Item.Top) == 0 &&
+		g.items[0].Item.Tail.HLL.ItemsCount() == 0 && g.items[0].Item.Tail.ValueTDigest == nil {
 		g.items[0].keep(1, h)
 		return
 	}
