@@ -607,12 +607,18 @@ func makeHTTPClient() *http.Client {
 	}
 }
 
-func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr string, table string, body []byte, settings string) (status int, exception int, elapsed time.Duration, err error) {
+func sendToClickhouse(ctx context.Context, httpClient *http.Client, khAddr, khUser, khPassword string, table string, body []byte, settings string) (status int, exception int, elapsed time.Duration, err error) {
 	queryPrefix := url.PathEscape(fmt.Sprintf("INSERT INTO %s %s FORMAT RowBinary", table, settings))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
 	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(body))
 	if err != nil {
 		return 0, 0, 0, err
+	}
+	if khUser != "" {
+		req.Header.Set("X-ClickHouse-User", khUser)
+	}
+	if khPassword != "" {
+		req.Header.Set("X-ClickHouse-Key", khPassword)
 	}
 	if khAddr == "" { // local mode without inserting anything
 		return 0, 0, 1, nil

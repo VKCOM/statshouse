@@ -164,7 +164,7 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 	var replicaKey int32 = 1
 	var addresses = []string{listenAddr}
 	if config.KHAddr != "" {
-		shardKey, replicaKey, addresses, err = selectShardReplica(config.KHAddr, config.Cluster, config.ExternalPort)
+		shardKey, replicaKey, addresses, err = selectShardReplica(config.KHAddr, config.KHUser, config.KHPassword, config.Cluster, config.ExternalPort)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 		}
@@ -574,13 +574,13 @@ func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTot
 	return nil
 }
 
-func selectShardReplica(khAddr string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {
+func selectShardReplica(khAddr, khUser, khPassword string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {
 	log.Printf("[debug] starting autoconfiguration by making SELECT to clickhouse address %q", khAddr)
 	httpClient := makeHTTPClient()
 	backoffTimeout := time.Duration(0)
 	for i := 0; ; i++ {
 		// motivation for several attempts is random clickhouse errors, plus starting before clickhouse is ready to process requests in demo mode
-		shardKey, replicaKey, addresses, err = selectShardReplicaImpl(httpClient, khAddr, cluster, listenPort)
+		shardKey, replicaKey, addresses, err = selectShardReplicaImpl(httpClient, khAddr, khUser, khPassword, cluster, listenPort)
 		if err == nil || i >= data_model.ClickhouseConfigRetries {
 			return
 		}
@@ -590,7 +590,7 @@ func selectShardReplica(khAddr string, cluster string, listenPort string) (shard
 	}
 }
 
-func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {
+func selectShardReplicaImpl(httpClient *http.Client, khAddr, khUser, khPassword string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {
 	// We assume replicas 4+ are for readers only
 	queryPrefix := url.PathEscape(fmt.Sprintf("SELECT shard_num, replica_num, is_local, host_name FROM system.clusters where cluster='%s' and replica_num <= 3 order by shard_num, replica_num", cluster))
 	URL := fmt.Sprintf("http://%s/?input_format_values_interpret_expressions=0&query=%s", khAddr, queryPrefix)
@@ -600,6 +600,12 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	req, err := http.NewRequestWithContext(ctx, "POST", URL, nil)
 	if err != nil {
 		return 0, 0, nil, err
+	}
+	if khUser != "" {
+		req.Header.Add("X-ClickHouse-User", khUser)
+	}
+	if khPassword != "" {
+		req.Header.Add("X-ClickHouse-Key", khPassword)
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -778,7 +784,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		if writeToV3First {
 			settings = v3InsertSettings
 		}
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(writeToV3First), bodyStorage, settings)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(writeToV3First), bodyStorage, settings)
 		// if we are mirriring that will happen after second ch write
 		if !mirrorChWrite {
 			cancelSendToCh()
@@ -845,7 +851,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			} else {
 				settings = v3InsertSettings
 			}
-			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, getTableDesc(!writeToV3First), bodyStorage, settings)
+			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(!writeToV3First), bodyStorage, settings)
 			cancelSendToCh()
 			if sendErr != nil {
 				comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
