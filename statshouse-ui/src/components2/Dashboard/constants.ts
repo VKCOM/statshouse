@@ -1,5 +1,3 @@
-import { Layout } from '~@types/react-grid-layout';
-
 export const BREAKPOINT_WIDTH = {
   xxxl: 2700,
   xxl: 2400,
@@ -38,18 +36,8 @@ export const DEFAULT_LAYOUT_COORDS = {
   y: 0,
   w: 1,
   h: 1,
-  i: '0',
+  i: '',
 } as const;
-
-// Default layout object used for all breakpoints
-
-export const DEFAULT_BREAKPOINTS = Object.keys(BREAKPOINT_WIDTH).reduce(
-  (acc, key) => {
-    acc[key as keyof typeof BREAKPOINT_WIDTH] = [{ ...DEFAULT_LAYOUT_COORDS }] as Layout[];
-    return acc;
-  },
-  {} as Record<keyof typeof BREAKPOINT_WIDTH, Layout[]>
-);
 
 export const BREAKPOINTS_SIZES = {
   xxxl: 'xxxl',

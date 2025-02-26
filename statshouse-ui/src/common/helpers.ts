@@ -475,19 +475,11 @@ export const calculateDynamicRowHeight = (width: number, baseWidth: number = 270
   return finalHeight;
 };
 
-export const updateGroupWithLayout = (
-  groupInfo: GroupInfo,
-  groupKey: string,
-  layouts?: LayoutScheme,
-  breakpointKey: string = 'lg'
-) => {
+export const updateGroupWithLayout = (groupInfo: GroupInfo, groupKey: string, layouts?: LayoutScheme) => {
   const layoutScheme = layouts?.groupKey === groupKey;
 
   if (layoutScheme) {
-    groupInfo.layouts = {
-      ...groupInfo.layouts,
-      [breakpointKey]: layouts.layout,
-    };
+    groupInfo.layouts = layouts.layout;
   }
   return groupInfo;
 };
