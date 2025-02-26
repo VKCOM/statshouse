@@ -266,7 +266,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setDashboardGroup(groupKey, next) {
       setUrlStore(updateGroup(groupKey, next));
     },
-    setNextDashboardSchemePlot(nextScheme, layouts, breakpointKey = 'lg') {
+    setNextDashboardSchemePlot(nextScheme, layouts) {
       setUrlStore(
         updateParamsPlotStruct((plotStruct) => {
           plotStruct.groups = nextScheme.map((g) => {
@@ -287,19 +287,13 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
               const groupInfo = updateGroupWithLayout(
                 { ...plotStruct.groups[sourceGroupIndex].groupInfo },
                 g.groupKey,
-                layouts,
-                breakpointKey
+                layouts
               );
 
               return { groupInfo, plots };
             }
 
-            const newGroup = updateGroupWithLayout(
-              { ...getNewGroup(), id: g.groupKey },
-              g.groupKey,
-              layouts,
-              breakpointKey
-            );
+            const newGroup = updateGroupWithLayout({ ...getNewGroup(), id: g.groupKey }, g.groupKey, layouts);
 
             return { groupInfo: newGroup, plots };
           });

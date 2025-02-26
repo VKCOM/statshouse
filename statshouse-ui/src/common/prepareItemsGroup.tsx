@@ -27,19 +27,17 @@ type PrepareItemsGroupWithLayoutProps = {
   groups: QueryParams['groups'];
   orderGroup: QueryParams['orderGroup'];
   orderPlot: PlotKey[];
-  breakpoint?: string;
 };
 
 type PrepareItemsGroupWithLayoutResult = {
   itemsGroup: { groupKey: GroupKey; plots: PlotKey[] }[];
-  layoutsCoords: { groupKey: GroupKey; layout: Layout | Layout[] | { x: number; y: number; w: number; h: number } }[];
+  layoutsCoords: { groupKey: GroupKey; layout: Layout[] }[];
 };
 
 export function prepareItemsGroupWithLayout({
   groups,
   orderGroup,
   orderPlot,
-  breakpoint = 'lg',
 }: PrepareItemsGroupWithLayoutProps): PrepareItemsGroupWithLayoutResult {
   const orderP = [...orderPlot];
   const itemsGroup = orderGroup
@@ -58,7 +56,7 @@ export function prepareItemsGroupWithLayout({
     .filter((groupKey) => groups[groupKey]?.show !== false)
     .map((groupKey) => ({
       groupKey,
-      layout: groups[groupKey]?.layouts?.[breakpoint] ?? DEFAULT_LAYOUT_COORDS,
+      layout: groups[groupKey]?.layouts ?? [DEFAULT_LAYOUT_COORDS],
     }));
 
   return { itemsGroup, layoutsCoords };

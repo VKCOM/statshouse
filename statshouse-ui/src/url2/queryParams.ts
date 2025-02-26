@@ -25,9 +25,7 @@ export type GroupInfo = {
   count: number;
   size: string;
   show: boolean;
-  layouts: {
-    [breakpoint: string]: Layout[];
-  };
+  layouts: Layout[];
 };
 
 export type VariableParamsLink = [PlotKey, TagKey];

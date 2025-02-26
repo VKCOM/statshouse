@@ -9,7 +9,7 @@ import { TAG_KEY, TIME_RANGE_KEYS_TO } from '@/api/enum';
 import { deepClone, emptyArray } from '@/common/helpers';
 import { globalSettings } from '@/common/settings';
 import { getNewMetric } from './widgetsParams';
-import { DEFAULT_BREAKPOINTS } from '@/components2/Dashboard/constants';
+import { DEFAULT_LAYOUT_COORDS } from '@/components2/Dashboard/constants';
 
 export function getDefaultParams(): QueryParams {
   return {
@@ -59,7 +59,7 @@ export function getNewGroup(): GroupInfo {
     count: 0,
     size: '2',
     show: true,
-    layouts: DEFAULT_BREAKPOINTS,
+    layouts: [DEFAULT_LAYOUT_COORDS],
   };
 }
 

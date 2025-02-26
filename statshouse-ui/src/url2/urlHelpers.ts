@@ -7,6 +7,7 @@
 import { toNumber, toString } from '@/common/helpers';
 import type { PlotKey, VariableParamsLink } from './queryParams';
 import { GET_PARAMS, toTagKey } from '@/api/enum';
+import { Layout } from '~@types/react-grid-layout';
 
 export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
@@ -78,3 +79,54 @@ export const toGroupInfoPrefix = (i: number | string) => `${GET_PARAMS.dashboard
 export const toPlotPrefix = (i: number | string) => (i && i !== '0' ? `${GET_PARAMS.plotPrefix}${i}.` : '');
 export const toVariablePrefix = (i: number | string) => `${GET_PARAMS.variablePrefix}${i}.`;
 export const toVariableValuePrefix = (name: string) => `${GET_PARAMS.variableValuePrefix}.${name}`;
+
+// Compresses layout data to a compact string format for URL
+// Format: "id:x:y:w:h,id:x:y:w:h,..."
+export function compressLayouts(layouts: Layout[]): string {
+  if (!layouts || !layouts.length) return '';
+
+  return layouts
+    .map((item) => {
+      const idParts = item.i.split('::');
+      const plotId = idParts.length > 1 ? idParts[1] : item.i;
+
+      let result = plotId;
+
+      // Add non-default values with their position indicators
+      if (item.x !== 0) result += `x${item.x}`;
+      if (item.y !== 0) result += `y${item.y}`;
+      if (item.w !== 1) result += `w${item.w}`;
+      if (item.h !== 1) result += `h${item.h}`;
+
+      return result;
+    })
+    .join(',');
+}
+
+// Decompresses a compact string format back to layout array
+export function decompressLayouts(compressedString: string | null | undefined, groupKey: string): Layout[] {
+  if (!compressedString) return [];
+
+  return compressedString.split(',').map((itemStr) => {
+    // Parse the item string using more precise regex
+    const idMatch = itemStr.match(/^([^xywh]+)/);
+    const xMatch = itemStr.match(/x(\d+)/);
+    const yMatch = itemStr.match(/y(\d+)/);
+    const wMatch = itemStr.match(/w(\d+)/);
+    const hMatch = itemStr.match(/h(\d+)/);
+
+    const id = idMatch ? idMatch[1] : '';
+    const x = xMatch ? parseInt(xMatch[1]) : 0;
+    const y = yMatch ? parseInt(yMatch[1]) : 0;
+    const w = wMatch ? parseInt(wMatch[1]) : 1;
+    const h = hMatch ? parseInt(hMatch[1]) : 1;
+
+    return {
+      i: `${groupKey}::${id}`,
+      x,
+      y,
+      w,
+      h,
+    };
+  });
+}

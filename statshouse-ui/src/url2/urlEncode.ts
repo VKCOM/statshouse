@@ -10,7 +10,7 @@ import { dequal } from 'dequal/lite';
 
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './constants';
-import { toGroupInfoPrefix, toVariablePrefix, toVariableValuePrefix } from './urlHelpers';
+import { compressLayouts, toGroupInfoPrefix, toVariablePrefix, toVariableValuePrefix } from './urlHelpers';
 import { metricFilterEncode, widgetsParamsEncode } from './widgetsParams';
 
 export function urlEncode(params: QueryParams, defaultParams?: QueryParams): [string, string][] {
@@ -135,6 +135,10 @@ export function urlEncodeGroup(group: GroupInfo, defaultGroup: GroupInfo = getNe
   }
   if (defaultGroup.show !== group.show) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoShow, group.show ? '1' : '0']);
+  }
+  if (defaultGroup.layouts !== group.layouts) {
+    const compressedLayouts = compressLayouts(group.layouts);
+    paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoLayouts, compressedLayouts]);
   }
   if (!paramArr.length && !defaultGroup.id) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoName, group.name]);
