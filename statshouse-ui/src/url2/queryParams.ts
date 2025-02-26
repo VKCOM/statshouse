@@ -12,30 +12,22 @@ import {
   type TagKey,
   type TimeRangeKeysTo,
 } from '@/api/enum';
+import type { Layout } from 'react-grid-layout';
 
 export type PlotKey = string;
-
-// export type PlotData = {
-//   key: PlotKey;
-//   coordinates?: PlotCoordinates;
-// };
-
-// export type PlotCoordinates = {
-//   x: number;
-//   y: number;
-//   w: number;
-//   h: number;
-// };
 
 export type GroupKey = string;
 
 export type GroupInfo = {
-  id: GroupKey;
+  id: string;
   name: string;
-  show: boolean;
+  description: string;
   count: number;
   size: string;
-  description: string;
+  show: boolean;
+  layouts: {
+    [breakpoint: string]: Layout[];
+  };
 };
 
 export type VariableParamsLink = [PlotKey, TagKey];
@@ -117,7 +109,6 @@ export type QueryParams = {
   timeShifts: number[];
   tabNum: string;
   plots: Partial<Record<PlotKey, PlotParams>>;
-  // orderPlot: PlotData[];
   orderPlot: PlotKey[];
   variables: Partial<Record<VariableKey, VariableParams>>;
   orderVariables: VariableKey[];

@@ -13,6 +13,7 @@ import { ReactComponent as SVGChevronCompactDown } from 'bootstrap-icons/icons/c
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
+import css from './style.module.css';
 import { GroupKey } from '@/url2';
 import { Button, TextArea, Tooltip } from '@/components/UI';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
@@ -140,7 +141,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
     >
       <h6
         hidden={isSingle && groups[groupKey]?.show !== false && !dashboardLayoutEdit && !groups[groupKey]?.name}
-        className="border-bottom pb-1"
+        className={cn('border-bottom pb-1', css.gridLayout)}
       >
         {dashboardLayoutEdit ? (
           <div className="p-0 container-xl">

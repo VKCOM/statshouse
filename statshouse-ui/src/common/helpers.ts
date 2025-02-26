@@ -7,6 +7,9 @@
 import { produce } from 'immer';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from './toggleKeyboard';
 import type uPlot from 'uplot';
+import { BREAKPOINT_WIDTH } from '@/components2/Dashboard/constants';
+import { GroupInfo } from '@/url2';
+import { BreakpointKey, LayoutScheme } from '@/components2/Dashboard/types';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -426,4 +429,65 @@ export const bwd = (v: number) => {
     return -(Math.pow(2, -v) - 1);
   }
   return Math.pow(2, v) - 1;
+};
+
+const getBreakpointKey = (width: number): BreakpointKey => {
+  if (width >= BREAKPOINT_WIDTH.xxxl) return 'xxxl';
+  if (width >= BREAKPOINT_WIDTH.xxl) return 'xxl';
+  if (width >= BREAKPOINT_WIDTH.xl) return 'xl';
+  if (width >= BREAKPOINT_WIDTH.lg) return 'lg';
+  if (width >= BREAKPOINT_WIDTH.md) return 'md';
+  if (width >= BREAKPOINT_WIDTH.sm) return 'sm';
+  if (width >= BREAKPOINT_WIDTH.xs) return 'xs';
+  return 'xxs';
+};
+
+export const getBreakpointConfig = () => {
+  const width = window.innerWidth;
+  return { breakpointKey: getBreakpointKey(width) };
+};
+
+export const calculateMaxRows = (plots: string[], cols: number, layout?: { y: number; h: number }[]) => {
+  if (!layout?.length) {
+    return Math.ceil(plots.length / cols) + 1;
+  }
+
+  const maxOccupiedRow = layout.reduce((max, item) => {
+    const itemLastRow = item.y + item.h;
+    return Math.max(max, itemLastRow);
+  }, 0);
+
+  return maxOccupiedRow + 1;
+};
+
+export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 290) => {
+  if (width <= baseWidth) {
+    return baseHeight;
+  }
+
+  // Calculate how many additional "blocks" of 300px exist after baseWidth
+  const extraWidth = width - baseWidth;
+  const extraBlocks = Math.floor(extraWidth / 300);
+
+  // Add 40px height for each additional 300px of width
+  const finalHeight = baseHeight + extraBlocks * 25;
+
+  return finalHeight;
+};
+
+export const updateGroupWithLayout = (
+  groupInfo: GroupInfo,
+  groupKey: string,
+  layouts?: LayoutScheme,
+  breakpointKey: string = 'lg'
+) => {
+  const layoutScheme = layouts?.groupKey === groupKey;
+
+  if (layoutScheme) {
+    groupInfo.layouts = {
+      ...groupInfo.layouts,
+      [breakpointKey]: layouts.layout,
+    };
+  }
+  return groupInfo;
 };
