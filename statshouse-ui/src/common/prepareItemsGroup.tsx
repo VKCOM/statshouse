@@ -40,24 +40,20 @@ export function prepareItemsGroupWithLayout({
   orderPlot,
 }: PrepareItemsGroupWithLayoutProps): PrepareItemsGroupWithLayoutResult {
   const orderP = [...orderPlot];
-  const itemsGroup = orderGroup
-    .filter((groupKey) => groups[groupKey]?.show !== false)
-    .map((groupKey) => {
-      const count = groups[groupKey]?.count ?? 0;
-      const groupPlots = orderP.splice(0, count);
+  const itemsGroup = orderGroup.map((groupKey) => {
+    const count = groups[groupKey]?.count ?? 0;
+    const groupPlots = orderP.splice(0, count);
 
-      return {
-        groupKey,
-        plots: groupPlots,
-      };
-    });
-
-  const layoutsCoords = orderGroup
-    .filter((groupKey) => groups[groupKey]?.show !== false)
-    .map((groupKey) => ({
+    return {
       groupKey,
-      layout: groups[groupKey]?.layouts ?? [DEFAULT_LAYOUT_COORDS],
-    }));
+      plots: groupPlots,
+    };
+  });
+
+  const layoutsCoords = orderGroup.map((groupKey) => ({
+    groupKey,
+    layout: groups[groupKey]?.layouts ?? [DEFAULT_LAYOUT_COORDS],
+  }));
 
   return { itemsGroup, layoutsCoords };
 }
