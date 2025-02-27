@@ -10,6 +10,7 @@ import type uPlot from 'uplot';
 import { BREAKPOINT_WIDTH } from '@/components2/Dashboard/constants';
 import { GroupInfo } from '@/url2';
 import { BreakpointKey, LayoutScheme } from '@/components2/Dashboard/types';
+import { BREAKPOINTS_SIZES } from '@/components2/Dashboard/constants';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -432,14 +433,14 @@ export const bwd = (v: number) => {
 };
 
 const getBreakpointKey = (width: number): BreakpointKey => {
-  if (width >= BREAKPOINT_WIDTH.xxxl) return 'xxxl';
-  if (width >= BREAKPOINT_WIDTH.xxl) return 'xxl';
-  if (width >= BREAKPOINT_WIDTH.xl) return 'xl';
-  if (width >= BREAKPOINT_WIDTH.lg) return 'lg';
-  if (width >= BREAKPOINT_WIDTH.md) return 'md';
-  if (width >= BREAKPOINT_WIDTH.sm) return 'sm';
-  if (width >= BREAKPOINT_WIDTH.xs) return 'xs';
-  return 'xxs';
+  if (width >= BREAKPOINT_WIDTH.xxxl) return BREAKPOINTS_SIZES.xxxl;
+  if (width >= BREAKPOINT_WIDTH.xxl) return BREAKPOINTS_SIZES.xxl;
+  if (width >= BREAKPOINT_WIDTH.xl) return BREAKPOINTS_SIZES.xl;
+  if (width >= BREAKPOINT_WIDTH.lg) return BREAKPOINTS_SIZES.lg;
+  if (width >= BREAKPOINT_WIDTH.md) return BREAKPOINTS_SIZES.md;
+  if (width >= BREAKPOINT_WIDTH.sm) return BREAKPOINTS_SIZES.sm;
+  if (width >= BREAKPOINT_WIDTH.xs) return BREAKPOINTS_SIZES.xs;
+  return BREAKPOINTS_SIZES.xxs;
 };
 
 export const getBreakpointConfig = () => {
@@ -464,12 +465,9 @@ export const calculateDynamicRowHeight = (width: number, baseWidth: number = 270
   if (width <= baseWidth) {
     return baseHeight;
   }
-
-  // Calculate how many additional "blocks" of 300px exist after baseWidth
   const extraWidth = width - baseWidth;
   const extraBlocks = Math.floor(extraWidth / 300);
 
-  // Add 40px height for each additional 300px of width
   const finalHeight = baseHeight + extraBlocks * 25;
 
   return finalHeight;
