@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -70,6 +71,7 @@ var argv struct {
 	chV2MaxHardwareSlowConns int
 
 	chV2Password             string
+	chV2PasswordFile         string
 	chV2User                 string
 	defaultMetric            string
 	defaultMetricFilterIn    []string
@@ -491,6 +493,7 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.chV2MaxHardwareSlowConns, "clickhouse-v2-max-hardware-slow-conns", 4, "maximum number of ClickHouse-v2 connections (hardware slow)")
 
 	flag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
+	flag.StringVar(&argv.chV2PasswordFile, "clickhouse-v2-password-file", "", "file with ClickHouse-v2 password")
 	flag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
 	flag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricMetaAggBucketReceiveDelaySec.Name, "default metric to show")
 	config.StringSliceVar(flag.CommandLine, &argv.defaultMetricFilterIn, "default-metric-filter-in", "", "default metric filter in <key0>:value")
@@ -542,6 +545,15 @@ func parseCommandLine() (err error) {
 	}
 	if argv.vkuthPublicKeys, err = vkuth.ParseVkuthKeys(argv.vkuthPublicKeysArg); err != nil {
 		return err
+	}
+	if argv.chV2PasswordFile != "" {
+		if p, err := os.ReadFile(argv.chV2PasswordFile); err == nil {
+			p = bytes.TrimSpace(p)
+			argv.chV2Password = string(p)
+		} else {
+			return fmt.Errorf("failed to read --clickhouse-v2-password-file: %w", err)
+		}
+
 	}
 	if err = argv.Config.ValidateConfig(); err != nil {
 		return err
