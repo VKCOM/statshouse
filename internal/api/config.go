@@ -23,6 +23,7 @@ type Config struct {
 	MaxCacheAge            int   // seconds
 	CacheStaleAcceptPeriod int64 // seconds
 	CacheTrimBackoffPeriod int64 // seconds
+	DisableCacheUsers      []string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -56,6 +57,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 120, "maximum cache age in seconds")
 	f.Int64Var(&argv.CacheStaleAcceptPeriod, "cache-stale-accept-period", 5, "cache stale accept period in seconds")
 	f.Int64Var(&argv.CacheTrimBackoffPeriod, "cache-trim-backoff-period", 1, "cache trim backoff period in seconds")
+	config.StringSliceVar(f, &argv.DisableCacheUsers, "disable-cache-user", "", "user(s) with cache disabled")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
 
