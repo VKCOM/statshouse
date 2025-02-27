@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -236,7 +237,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 	flag.StringVar(&argv.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
 	flag.StringVar(&argv.KHUser, "kh-user", "", "clickhouse user")
-	flag.StringVar(&argv.KHPassword, "kh-password", "", "clickhouse password")
+	flag.StringVar(&argv.KHPasswordFile, "kh-password-file", "", "file with clickhouse password")
 	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
 	build.FlagParseShowVersionHelp()
 
@@ -249,6 +250,15 @@ func parseCommandLine() error {
 	if argv.customHostName == "" {
 		argv.customHostName = srvfunc.HostnameForStatshouse()
 		log.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
+	}
+	if argv.KHPasswordFile != "" {
+		if p, err := os.ReadFile(argv.KHPasswordFile); err == nil {
+			p = bytes.TrimSpace(p)
+			argv.KHPassword = string(p)
+			log.Printf("got dpassword '%s' from file %s", argv.KHPassword, argv.KHPasswordFile)
+		} else {
+			return fmt.Errorf("failed to open --kh-password-file %q: %v", argv.KHPasswordFile, err)
+		}
 	}
 
 	return aggregator.ValidateConfigAggregator(argv.ConfigAggregator)
