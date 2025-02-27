@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
-import type { Layout, Layouts } from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout';
 import { useStatsHouseShallow } from '@/store2';
 import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
