@@ -80,46 +80,46 @@ export const toPlotPrefix = (i: number | string) => (i && i !== '0' ? `${GET_PAR
 export const toVariablePrefix = (i: number | string) => `${GET_PARAMS.variablePrefix}${i}.`;
 export const toVariableValuePrefix = (name: string) => `${GET_PARAMS.variableValuePrefix}.${name}`;
 
-// Compresses layout data to a compact string format for URL
-// Format: "id:x:y:w:h,id:x:y:w:h,..."
+// Compresses layout data into a compact string for URL
+// Format: "id.x.y.w.h-id.x.y.w.h-..." where values are in sequential order
 export function compressLayouts(layouts: Layout[]): string {
-  if (!layouts || !layouts.length) return '';
+  if (!layouts?.length) return '';
 
   return layouts
     .map((item) => {
       const idParts = item.i.split('::');
-      const plotId = idParts.length > 1 ? idParts[1] : item.i;
+      const id = idParts.length > 1 ? idParts[1] : item.i;
 
-      let result = plotId;
+      const values = [
+        id,
+        item.x !== 0 ? item.x.toString() : undefined,
+        item.y !== 0 ? item.y.toString() : undefined,
+        item.w !== 1 ? item.w.toString() : undefined,
+        item.h !== 1 ? item.h.toString() : undefined,
+      ];
 
-      // Add non-default values with their position indicators
-      if (item.x !== 0) result += `x${item.x}`;
-      if (item.y !== 0) result += `y${item.y}`;
-      if (item.w !== 1) result += `w${item.w}`;
-      if (item.h !== 1) result += `h${item.h}`;
+      while (values.length > 1 && values[values.length - 1] === undefined) {
+        values.pop();
+      }
 
-      return result;
+      return values.map((v) => (v === undefined ? '' : v)).join('.');
     })
-    .join(',');
+    .join('-');
 }
 
-// Decompresses a compact string format back to layout array
+// Decompress the compact string back to layout array
 export function decompressLayouts(compressedString: string | null | undefined, groupKey: string): Layout[] {
   if (!compressedString) return [];
 
-  return compressedString.split(',').map((itemStr) => {
-    // Parse the item string using more precise regex
-    const idMatch = itemStr.match(/^([^xywh]+)/);
-    const xMatch = itemStr.match(/x(\d+)/);
-    const yMatch = itemStr.match(/y(\d+)/);
-    const wMatch = itemStr.match(/w(\d+)/);
-    const hMatch = itemStr.match(/h(\d+)/);
+  return compressedString.split('-').map((itemStr) => {
+    const parts = itemStr.split('.');
 
-    const id = idMatch ? idMatch[1] : '';
-    const x = xMatch ? parseInt(xMatch[1]) : 0;
-    const y = yMatch ? parseInt(yMatch[1]) : 0;
-    const w = wMatch ? parseInt(wMatch[1]) : 1;
-    const h = hMatch ? parseInt(hMatch[1]) : 1;
+    const id = parts[0] || '';
+
+    const x = parts.length > 1 && parts[1] ? Number(parts[1]) : 0;
+    const y = parts.length > 2 && parts[2] ? Number(parts[2]) : 0;
+    const w = parts.length > 3 && parts[3] ? Number(parts[3]) : 1;
+    const h = parts.length > 4 && parts[4] ? Number(parts[4]) : 1;
 
     return {
       i: `${groupKey}::${id}`,
