@@ -166,11 +166,10 @@ export function urlDecodeGroup(
   groupKey: GroupKey,
   searchParams?: TreeParamsObject,
   defaultGroup: GroupInfo = getNewGroup()
-): GroupInfo {
-  // ): GroupInfo | undefined {
-  // if (searchParams?.[treeParamsObjectValueSymbol]?.[0] === removeValueChar) {
-  //   return undefined;
-  // }
+): GroupInfo | undefined {
+  if (searchParams?.[treeParamsObjectValueSymbol]?.[0] === removeValueChar) {
+    return undefined;
+  }
   const show = searchParams?.[GET_PARAMS.dashboardGroupInfoShow]?.[treeParamsObjectValueSymbol]?.[0];
 
   const layoutsStr = searchParams?.[GET_PARAMS.dashboardGroupInfoLayouts]?.[treeParamsObjectValueSymbol]?.[0];
