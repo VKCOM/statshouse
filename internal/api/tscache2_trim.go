@@ -29,17 +29,17 @@ func (c *cache2) trim() {
 	for {
 		trimAged := c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge
 		if trimAged {
-			tr.sendEvent(" 1", " 1", c.info.size)
+			tr.sendEvent(" 1", " 1", c.info.size())
 			maxAge := c.limits.maxAge
 			c.mu.Unlock()
 			c.debugPrint("trim aged")
 			tr.trimAged(maxAge)
 			c.mu.Lock()
-			tr.sendEvent(" 2", " 1", c.info.size)
+			tr.sendEvent(" 2", " 1", c.info.size())
 		}
-		trimSize := c.limits.maxSize > 0 && c.info.size > c.limits.maxSize
+		trimSize := c.limits.maxSize > 0 && c.info.size() > c.limits.maxSize
 		if trimSize {
-			tr.sendEvent(" 1", " 2", c.info.size)
+			tr.sendEvent(" 1", " 2", c.info.size())
 			c.mu.Unlock()
 			c.debugPrint("trim size")
 			v := tr.reduceMemoryUsage()
@@ -76,7 +76,7 @@ func (tr *cache2Trim) trimAged(maxAge time.Duration) {
 			v := shard.trimIteratorStart()
 			for v != nil {
 				info := cache2UpdateInfo{
-					minChunkAccessTimeSeen: now.UnixNano(),
+					minChunkAccessTimeSeenS: now.UnixNano(),
 				}
 				if v.notUsedAfter(t) {
 					shard.removeBucket(v, &info)
@@ -109,7 +109,7 @@ func (tr *cache2Trim) reduceMemoryUsage() int {
 		b.m.removeBucket(b.v, &info)
 		// update runtime info and check if done
 		c.mu.Lock()
-		c.updateRuntimeInfoUnlocked(b.v.fau, info)
+		c.updateRuntimeInfoUnlocked(b.v.fau, &info)
 		size, ok := c.memoryUsageWithinLimitUnlocked()
 		c.mu.Unlock()
 		if ok {
@@ -117,7 +117,8 @@ func (tr *cache2Trim) reduceMemoryUsage() int {
 			return size
 		}
 	}
-	return c.runtimeInfo().size
+	r := c.runtimeInfo()
+	return r.size()
 }
 
 func (tr *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
@@ -135,7 +136,7 @@ func (b *cache2Bucket) clearAndDetach(info *cache2UpdateInfo) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info) // remove all chunks
-	info.sizeDelta -= sizeofCache2Bucket
+	info.sizeDeltaS[b.mode()] -= sizeofCache2Bucket
 	b.time = nil
 	b.chunks = nil
 	b.cache = nil // now detached
@@ -148,10 +149,11 @@ func (b *cache2Bucket) removeChunksNotUsedAfter(t int64, info *cache2UpdateInfo)
 }
 
 func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2UpdateInfo) {
+	mode := b.mode()
 	for i := 0; i < len(b.chunks); {
 		for i < len(b.chunks) && b.chunks[i].lastAccessTime >= t {
-			if info.minChunkAccessTimeSeen > b.chunks[i].lastAccessTime {
-				info.minChunkAccessTimeSeen = b.chunks[i].lastAccessTime
+			if info.minChunkAccessTimeSeenS > b.chunks[i].lastAccessTime {
+				info.minChunkAccessTimeSeenS = b.chunks[i].lastAccessTime
 			}
 			i++
 		}
@@ -169,9 +171,9 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 			v.cache = nil // detach
 			v.mu.Unlock()
 		}
-		info.chunkCountDelta -= len(chunks)
-		info.sizeDelta -= sizeofCache2Chunks(chunks)
-		info.lenDelta -= len(chunks) * b.chunkLen
+		info.chunkCountDeltaS[mode] -= len(chunks)
+		info.sizeDeltaS[mode] -= sizeofCache2Chunks(chunks)
+		info.lenDeltaS[mode] -= len(chunks) * b.chunkLen
 		k := i
 		for m := j; m < len(b.chunks); m++ {
 			b.time[k] = b.time[m]

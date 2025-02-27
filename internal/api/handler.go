@@ -178,6 +178,8 @@ type (
 		CacheVersion           atomic.Int32
 		CacheStaleAcceptPeriod atomic.Int64
 		CacheTrimBackoffPeriod atomic.Int64
+		DisableCacheUsersMu    sync.RWMutex
+		DisableCacheUsers      []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -664,6 +666,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.CacheStaleAcceptPeriod.Store(cfg.CacheStaleAcceptPeriod)
 		h.CacheTrimBackoffPeriod.Store(cfg.CacheTrimBackoffPeriod)
 		chV2.SetLimits(cfg.UserLimits)
+		h.DisableCacheUsersMu.Lock()
+		h.DisableCacheUsers = cfg.DisableCacheUsers
+		h.DisableCacheUsersMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -3389,6 +3394,18 @@ func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDurati
 		protocol: h.endpointStat.protocol,
 		user:     h.endpointStat.user,
 	}
+}
+
+func (h *requestHandler) cacheDisabled() bool {
+	h.DisableCacheUsersMu.RLock()
+	defer h.DisableCacheUsersMu.RUnlock()
+	v := getStatTokenName(h.accessInfo.user)
+	for i := 0; i < len(h.DisableCacheUsers); i++ {
+		if h.DisableCacheUsers[i] == v {
+			return true
+		}
+	}
+	return false
 }
 
 func HandleTagDraftList(r *httpRequestHandler) {
