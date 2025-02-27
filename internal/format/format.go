@@ -83,7 +83,7 @@ const (
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseJournalDump                  = "statshouse_journal_dump" // journals will be dumped to disk for analysis at each point before this event
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
-	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config_malpinskiy"
+	StatshouseAPIRemoteConfig              = "statshouse_api_remote_config"
 )
 
 // Do not change values, they are stored in DB
