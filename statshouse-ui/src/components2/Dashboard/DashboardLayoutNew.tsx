@@ -417,8 +417,10 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                       >
                         <PlotView
                           className={cn(
-                            isDashboardEditAllowed && css.pointerEventsNone,
-                            isDashboardEditAllowed && isNotMobile && 'position-relative overflow-hidden w-100 h-100'
+                            isDashboardEditAllowed && [
+                              css.pointerEventsNone,
+                              'position-relative overflow-hidden w-100 h-100',
+                            ]
                           )}
                           key={`plot-${plot}`}
                           plotKey={plot}
