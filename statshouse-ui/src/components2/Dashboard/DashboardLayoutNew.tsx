@@ -43,26 +43,12 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       })
     );
 
-  const [layouts, setLayouts] = useState<Layouts>({
-    xxxl: [],
-    xxl: [],
-    xl: [],
-    lg: [],
-    md: [],
-    sm: [],
-    xs: [],
-    xxs: [],
-  });
-
   const [isDragging, setIsDragging] = useState(false);
   const [draggedPlotKey, setDraggedPlotKey] = useState<string | null>(null);
   const [draggedGroupKey, setDraggedGroupKey] = useState<string | null>(null);
   const [draggedItemDimensions, setDraggedItemDimensions] = useState<{ w: number; h: number } | null>(null);
 
-  // Reference to track if an item is being dragged between different groups
   const isCrossingGroupsRef = useRef(false);
-
-  // Get current breakpoint configuration based on screen size
   const { breakpointKey } = useMemo(() => getBreakpointConfig(), []);
 
   // itemsGroup: Contains the structure of groups and their plots
@@ -172,7 +158,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           const draggedItemLayout = layout.find((item) => item.i === `${draggedGroupKey}::${draggedPlotKey}`);
 
           if (draggedItemLayout && draggedGroupKey) {
-            // Find the maximum y (bottom row)
             let maxY = 0;
             if (Array.isArray(targetGroupLayout) && targetGroupLayout.length > 0) {
               targetGroupLayout.forEach((item) => {
@@ -182,7 +167,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
               });
             }
 
-            // Find the maximum x in the bottom row
             let maxX = 0;
             if (Array.isArray(targetGroupLayout) && targetGroupLayout.length > 0) {
               // Consider only items that are in the bottom row
@@ -307,14 +291,13 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
   // Handle layout changes during drag within the same group
   const onLayoutChange = useCallback(
-    (layout: Layout[], layouts: Layouts) => {
+    (layout: Layout[]) => {
       if (isDragging && draggedGroupKey && !isCrossingGroupsRef.current) {
         const [groupKey, plotKey] = layout[0].i.split('::');
         if (groupKey === draggedGroupKey) {
           save(plotKey, groupKey, layout);
         }
       }
-      setLayouts(layouts);
     },
     [draggedGroupKey, isDragging, save]
   );
@@ -402,7 +385,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 maxRows={calculateMaxRows(
                   plots,
                   COLS[breakpointKey],
-                  layouts[breakpointKey]?.filter((item) => item.i.startsWith(`${groupKey}::`))
+                  layoutsCoords.find((l) => l.groupKey === groupKey)?.layout
                 )}
                 onDragStop={onDragStop}
                 onDragStart={onDragStart}
