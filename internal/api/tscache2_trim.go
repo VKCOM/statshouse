@@ -10,14 +10,14 @@ import (
 )
 
 type cache2Trim struct {
-	c *cache2
-	h cache2TrimBucketHeap
+	cache *cache2
+	heap  cache2TrimBucketHeap
 }
 
 type cache2TrimBucket struct {
-	r cache2BucketRuntimeInfo
-	m *cache2Shard
-	v *cache2Bucket
+	shard  *cache2Shard
+	bucket *cache2Bucket
+	info   cache2BucketRuntimeInfo
 }
 
 type cache2TrimBucketHeap []cache2TrimBucket
@@ -26,7 +26,7 @@ func (c *cache2) trim() {
 	tr := cache2Trim{c, newCache2TrimBucketHeap()}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for {
+	for !c.shutdownF {
 		trimAged := c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge
 		if trimAged {
 			tr.sendEvent(" 1", " 1", c.info.size())
@@ -58,62 +58,63 @@ func (c *cache2) trim() {
 			}
 		}
 		if wait {
-			t := time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
+			var t *time.Timer
+			if c.limits.maxAge > 0 {
+				t = time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
+			}
 			c.trimCond.Wait()
-			t.Stop()
+			if t != nil {
+				t.Stop()
+			}
 		}
 	}
 }
 
-func (tr *cache2Trim) trimAged(maxAge time.Duration) {
-	c := tr.c
+func (t *cache2Trim) trimAged(maxAge time.Duration) {
+	c := t.cache
 	c.debugPrintRuntimeInfof("remove older than %s", maxAge)
 	now := time.Now()
 	infoM := make(cache2UpdateInfoM)
-	t := now.Add(-maxAge).UnixNano()
-	for _, m := range c.shards {
-		for _, shard := range m {
-			v := shard.trimIteratorStart()
-			for v != nil {
-				info := cache2UpdateInfo{
-					minChunkAccessTimeSeenS: now.UnixNano(),
-				}
-				if v.notUsedAfter(t) {
-					shard.removeBucket(v, &info)
-				} else {
-					v.removeChunksNotUsedAfter(t, &info)
-				}
-				infoM.add(v.fau, info)
-				v = shard.trimIteratorNext()
+	timeNow := now.Add(-maxAge).UnixNano()
+	for _, shard := range c.shards {
+		bucket := shard.trimIteratorStart()
+		for bucket != nil {
+			info := &cache2UpdateInfo{
+				minChunkAccessTime: now.UnixNano(),
 			}
+			if bucket.notUsedAfter(timeNow) {
+				shard.removeBucket(bucket, info)
+			} else {
+				bucket.removeChunksNotUsedAfter(timeNow, info)
+			}
+			infoM.add(shard.stepS, bucket.fau, info)
+			bucket = shard.trimIteratorNext()
 		}
 	}
 	c.updateRuntimeInfoM(infoM)
 }
 
-func (tr *cache2Trim) reduceMemoryUsage() int {
-	c := tr.c
-	h := tr.h
-	for _, m := range c.shards {
-		for _, m := range m {
-			v := m.trimIteratorStart()
-			for v != nil {
-				h = h.push(cache2TrimBucket{v.runtimeInfo(), m, v})
-				v = m.trimIteratorNext()
-			}
+func (t *cache2Trim) reduceMemoryUsage() int {
+	c := t.cache
+	h := t.heap
+	for _, shard := range c.shards {
+		bucket := shard.trimIteratorStart()
+		for bucket != nil {
+			h = h.push(cache2TrimBucket{shard, bucket, bucket.runtimeInfo()})
+			bucket = shard.trimIteratorNext()
 		}
 	}
 	for ; h.len() > 0; h = h.pop() {
-		b := h.min()
-		var info cache2UpdateInfo
-		b.m.removeBucket(b.v, &info)
+		v := h.min()
+		info := cache2UpdateInfo{}
+		v.shard.removeBucket(v.bucket, &info)
 		// update runtime info and check if done
 		c.mu.Lock()
-		c.updateRuntimeInfoUnlocked(b.v.fau, &info)
-		size, ok := c.memoryUsageWithinLimitUnlocked()
+		c.updateRuntimeInfoUnlocked(v.shard.stepS, v.bucket.fau, &info)
+		size, maxSize := c.info.size(), c.limits.maxSizeSoft
 		c.mu.Unlock()
-		if ok {
-			tr.h = h.clear()
+		if size <= maxSize {
+			t.heap = h.clear()
 			return size
 		}
 	}
@@ -121,7 +122,7 @@ func (tr *cache2Trim) reduceMemoryUsage() int {
 	return r.size()
 }
 
-func (tr *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
+func (t *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
 	statshouse.Value(
 		"statshouse_api_cache_trim",
 		statshouse.Tags{
@@ -135,11 +136,14 @@ func (tr *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
 func (b *cache2Bucket) clearAndDetach(info *cache2UpdateInfo) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info) // remove all chunks
-	info.sizeDeltaS[b.mode()] -= sizeofCache2Bucket
-	b.time = nil
+	// remove all chunks
+	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info)
+	// free memory
+	b.key = ""
+	b.times = nil
 	b.chunks = nil
-	b.cache = nil // now detached
+	// detach
+	b.attached = false
 }
 
 func (b *cache2Bucket) removeChunksNotUsedAfter(t int64, info *cache2UpdateInfo) {
@@ -152,8 +156,8 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 	mode := b.mode()
 	for i := 0; i < len(b.chunks); {
 		for i < len(b.chunks) && b.chunks[i].lastAccessTime >= t {
-			if info.minChunkAccessTimeSeenS > b.chunks[i].lastAccessTime {
-				info.minChunkAccessTimeSeenS = b.chunks[i].lastAccessTime
+			if info.minChunkAccessTime > b.chunks[i].lastAccessTime {
+				info.minChunkAccessTime = b.chunks[i].lastAccessTime
 			}
 			i++
 		}
@@ -167,20 +171,21 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 		chunks := b.chunks[i:j]
 		for _, v := range chunks {
 			v.mu.Lock()
-			v.data = nil  // help GC
-			v.cache = nil // detach
+			info.sumSizeS[mode] -= v.size
+			v.size = 0
+			v.data = nil       // free memory
+			v.attached = false // detach
 			v.mu.Unlock()
 		}
-		info.chunkCountDeltaS[mode] -= len(chunks)
-		info.sizeDeltaS[mode] -= sizeofCache2Chunks(chunks)
-		info.lenDeltaS[mode] -= len(chunks) * b.chunkLen
+		info.sumChunkCountS[mode] -= len(chunks)
+		info.sumChunkSizeS[mode] -= len(chunks) * b.chunkSize
 		k := i
 		for m := j; m < len(b.chunks); m++ {
-			b.time[k] = b.time[m]
+			b.times[k] = b.times[m]
 			b.chunks[k] = b.chunks[m]
 			k++
 		}
-		b.time = b.time[:k]
+		b.times = b.times[:k]
 		b.chunks = b.chunks[:k]
 		i = j
 	}
@@ -244,7 +249,7 @@ func (h cache2TrimBucketHeap) clear() cache2TrimBucketHeap {
 }
 
 func (h cache2TrimBucketHeap) less(i, j int) bool {
-	l, r := &h[i].r, &h[j].r
+	l, r := &h[i].info, &h[j].info
 	if v := cmp.Compare(l.playInterval, r.playInterval); v != 0 {
 		return v > 0 // larger play period goes first
 	}

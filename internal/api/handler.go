@@ -192,6 +192,7 @@ type (
 		tagValueIDCache       *pcache.Cache
 		cache                 *tsCacheGroup
 		cache2                *cache2
+		cache2Mu              sync.RWMutex
 		pointsCache           *pointsCache
 		pointFloatsPool       sync.Pool
 		pointFloatsPoolSize   atomic.Int64
@@ -650,14 +651,16 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
 	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
-	h.cache2 = newCache2(h)
+	h.cache2 = newCache2(h, cfg.CacheChunkSize)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
-		h.cache2.setLimits(cache2Limits{
-			maxSize: cfg.MaxCacheSize,
-			maxAge:  time.Duration(cfg.MaxCacheAge) * time.Second,
+		cache2 := h.setCache2ChunkSize(cfg.CacheChunkSize)
+		cache2.setLimits(cache2Limits{
+			maxAge:      time.Duration(cfg.MaxCacheAge) * time.Second,
+			maxSize:     cfg.MaxCacheSize,
+			maxSizeSoft: cfg.MaxCacheSizeSoft,
 		})
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
@@ -728,7 +731,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			h.bufferPoolBytesTotal.Value(float64(n))
 		}
 		if h.CacheVersion.Load() == 2 {
-			h.cache2.sendMetrics(client)
+			h.getCache2().sendMetrics(client)
 		}
 	})
 	h.promEngine = promql.NewEngine(h.location, h.utcOffset)

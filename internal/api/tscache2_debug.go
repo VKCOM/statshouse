@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type cache2DebugLogMessage struct {
@@ -20,7 +21,7 @@ func DebugCacheLog(r *httpRequestHandler) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	s := r.cache2.debugLog()
+	s := r.getCache2().debugLog()
 	n := 0
 	for ; n < len(s) && !s[n].t.IsZero(); n++ {
 		// pass
@@ -55,18 +56,134 @@ func DebugCacheReset(r *httpRequestHandler) {
 		r.cache.reset()
 		w.Write([]byte("Version 1 cache is now empty!"))
 	case "2":
-		r.cache2.reset()
+		r.getCache2().reset()
 		w.Write([]byte("Version 2 cache is now empty!"))
 	default:
 		r.cache.reset()
-		r.cache2.reset()
+		r.getCache2().reset()
 		w.Write([]byte("All cache versions are now empty!"))
 	}
 }
 
+func DebugCacheCreateMetrics(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	tags := []format.MetricMetaTag{
+		{Index: 0}, // environment
+		{Index: 1, Description: "host"},
+	}
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_age",
+		Kind: format.MetricKindValue,
+		Tags: tags,
+	})
+	tags = append(tags, format.MetricMetaTag{
+		Index:       2,
+		Description: "mode",
+		Raw:         true,
+		RawKind:     "int",
+		ValueComments: map[string]string{
+			" 0": "default",
+			" 1": "play",
+		}})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_sum_size",
+		Kind: format.MetricKindValue,
+		Tags: tags,
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_sum_chunks",
+		Kind: format.MetricKindCounter,
+		Tags: tags,
+	})
+	tags = append(tags,
+		format.MetricMetaTag{
+			Index:       3,
+			Description: "result",
+			Raw:         true,
+			RawKind:     "int",
+			ValueComments: map[string]string{
+				" 0": "miss",
+				" 1": "hit",
+			}},
+		format.MetricMetaTag{
+			Index:       4,
+			Description: "step",
+			Raw:         true,
+			RawKind:     "int",
+		},
+		format.MetricMetaTag{
+			Index:       5,
+			Description: "usergroup",
+		},
+	)
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_size",
+		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_chunk_size",
+		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_chunk_count",
+		Kind:                 format.MetricKindCounter,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_access_size",
+		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_access_chunk_size",
+		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_access_chunk_count",
+		Kind:                 format.MetricKindCounter,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	tags[3] = format.MetricMetaTag{}
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_chunk_hit",
+		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+}
+
+func debugCacheCreateMetric(r *httpRequestHandler, metric format.MetricMetaValue) {
+	w := r.Response()
+	w.Write([]byte(metric.Name + "\n"))
+	if v := r.metricsStorage.GetMetaMetricByName(metric.Name); v != nil {
+		metric.MetricID = v.MetricID
+		metric.Version = v.Version
+	}
+	if _, err := r.handlePostMetric(context.Background(), accessInfo{insecureMode: true}, "", metric); err != nil {
+		w.Write([]byte(err.Error()))
+	} else {
+		w.Write([]byte("OK"))
+	}
+	w.Write([]byte("\n\n"))
+}
+
 func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 	if h.CacheVersion.Load() == 2 {
-		return h.cache2.Get(ctx, h, pq, lod, avoidCache)
+		return h.getCache2().Get(ctx, h, pq, lod, avoidCache)
 	} else {
 		return h.cache.Get(ctx, h, pq, lod, avoidCache)
 	}
@@ -74,7 +191,7 @@ func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data
 
 func cacheInvalidate(h *Handler, ts []int64, stepSec int64) {
 	if h.CacheVersion.Load() == 2 {
-		h.cache2.invalidate(ts, stepSec)
+		h.getCache2().invalidate(ts, stepSec)
 	} else {
 		h.cache.Invalidate(stepSec, ts)
 	}
@@ -85,9 +202,25 @@ func (h *Handler) setCacheVersion(cacheVersion int32) {
 		if cacheVersion == 2 {
 			h.cache.reset()
 		} else {
-			h.cache2.reset()
+			h.getCache2().reset()
 		}
 	}
+}
+
+func (h *Handler) getCache2() *cache2 {
+	h.cache2Mu.RLock()
+	defer h.cache2Mu.RUnlock()
+	return h.cache2
+}
+
+func (h *Handler) setCache2ChunkSize(v int) *cache2 {
+	h.cache2Mu.Lock()
+	defer h.cache2Mu.Unlock()
+	if h.cache2.chunkSize != v {
+		h.cache2.shutdown()
+		h.cache2 = newCache2(h, v)
+	}
+	return h.cache2
 }
 
 func (c *cache2) debugPrint(s string) {
