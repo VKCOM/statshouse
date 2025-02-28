@@ -351,6 +351,7 @@ func run() int {
 	m.Path("/debug/tag/draft").Methods("GET").HandlerFunc(api.HandleTagDraftList)
 	m.Path("/debug/cache/log").Methods("GET").HandlerFunc(api.DebugCacheLog)
 	m.Path("/debug/cache/reset").Methods("GET").HandlerFunc(api.DebugCacheReset)
+	m.Path("/debug/cache/init").Methods("GET").HandlerFunc(api.DebugCacheCreateMetrics)
 	m.Router.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
