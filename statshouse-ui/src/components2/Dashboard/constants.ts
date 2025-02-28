@@ -9,23 +9,34 @@ export const BREAKPOINT_WIDTH = {
   xxs: 0,
 } as const;
 
+export const BREAKPOINTS_SIZES = {
+  xxxl: 'xxxl',
+  xxl: 'xxl',
+  xl: 'xl',
+  lg: 'lg',
+  md: 'md',
+  sm: 'sm',
+  xs: 'xs',
+  xxs: 'xxs',
+} as const;
+
 export const COLS = {
-  xxxl: 8,
-  xxl: 8,
-  xl: 8,
-  lg: 8,
-  md: 6,
-  sm: 4,
-  xs: 3,
-  xxs: 2,
+  xxxl: 10,
+  xxl: 10,
+  xl: 10,
+  lg: 10,
+  md: 10,
+  sm: 10,
+  xs: 10,
+  xxs: 10,
 } as const;
 
 export const ROW_HEIGHTS = {
-  xxxl: 290,
-  xxl: 260,
-  xl: 230,
-  lg: 200,
-  md: 190,
+  xxxl: 450,
+  xxl: 400,
+  xl: 340,
+  lg: 280,
+  md: 240,
   sm: 220,
   xs: 160,
   xxs: 140,
@@ -37,15 +48,4 @@ export const DEFAULT_LAYOUT_COORDS = {
   w: 1,
   h: 1,
   i: '',
-} as const;
-
-export const BREAKPOINTS_SIZES = {
-  xxxl: 'xxxl',
-  xxl: 'xxl',
-  xl: 'xl',
-  lg: 'lg',
-  md: 'md',
-  sm: 'sm',
-  xs: 'xs',
-  xxs: 'xxs',
 } as const;

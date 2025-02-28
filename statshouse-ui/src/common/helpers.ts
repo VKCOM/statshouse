@@ -461,14 +461,14 @@ export const calculateMaxRows = (plots: string[], cols: number, layout?: { y: nu
   return maxOccupiedRow + 1;
 };
 
-export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 290) => {
+export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 480) => {
   if (width <= baseWidth) {
     return baseHeight;
   }
   const extraWidth = width - baseWidth;
   const extraBlocks = Math.floor(extraWidth / 300);
 
-  const finalHeight = baseHeight + extraBlocks * 25;
+  const finalHeight = baseHeight + extraBlocks * 30;
 
   return finalHeight;
 };
@@ -481,3 +481,24 @@ export const updateGroupWithLayout = (groupInfo: GroupInfo, groupKey: string, la
   }
   return groupInfo;
 };
+
+// convert size to number of columns
+export function getSizeColumns(size?: string): number {
+  if (size === undefined) return 2;
+
+  const numericSize = Number(size);
+  if (!isNaN(numericSize)) {
+    return numericSize;
+  }
+
+  switch (size) {
+    case 'l':
+      return 2;
+    case 'm':
+      return 3;
+    case 's':
+      return 4;
+    default:
+      return 2;
+  }
+}
