@@ -7,6 +7,10 @@
 import { produce } from 'immer';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from './toggleKeyboard';
 import type uPlot from 'uplot';
+import { BREAKPOINT_WIDTH } from '@/components2/Dashboard/constants';
+import { GroupInfo } from '@/url2';
+import { BreakpointKey, LayoutScheme } from '@/components2/Dashboard/types';
+import { BREAKPOINTS_SIZES } from '@/components2/Dashboard/constants';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -427,3 +431,74 @@ export const bwd = (v: number) => {
   }
   return Math.pow(2, v) - 1;
 };
+
+const getBreakpointKey = (width: number): BreakpointKey => {
+  if (width >= BREAKPOINT_WIDTH.xxxl) return BREAKPOINTS_SIZES.xxxl;
+  if (width >= BREAKPOINT_WIDTH.xxl) return BREAKPOINTS_SIZES.xxl;
+  if (width >= BREAKPOINT_WIDTH.xl) return BREAKPOINTS_SIZES.xl;
+  if (width >= BREAKPOINT_WIDTH.lg) return BREAKPOINTS_SIZES.lg;
+  if (width >= BREAKPOINT_WIDTH.md) return BREAKPOINTS_SIZES.md;
+  if (width >= BREAKPOINT_WIDTH.sm) return BREAKPOINTS_SIZES.sm;
+  if (width >= BREAKPOINT_WIDTH.xs) return BREAKPOINTS_SIZES.xs;
+  return BREAKPOINTS_SIZES.xxs;
+};
+
+export const getBreakpointConfig = () => {
+  const width = window.innerWidth;
+  return { breakpointKey: getBreakpointKey(width) };
+};
+
+export const calculateMaxRows = (plots: string[], cols: number, layout?: { y: number; h: number }[]) => {
+  if (!layout?.length) {
+    return Math.ceil(plots.length / cols) + 1;
+  }
+
+  const maxOccupiedRow = layout.reduce((max, item) => {
+    const itemLastRow = item.y + item.h;
+    return Math.max(max, itemLastRow);
+  }, 0);
+
+  return maxOccupiedRow + 1;
+};
+
+export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 480) => {
+  if (width <= baseWidth) {
+    return baseHeight;
+  }
+  const extraWidth = width - baseWidth;
+  const extraBlocks = Math.floor(extraWidth / 300);
+
+  const finalHeight = baseHeight + extraBlocks * 30;
+
+  return finalHeight;
+};
+
+export const updateGroupWithLayout = (groupInfo: GroupInfo, groupKey: string, layouts?: LayoutScheme) => {
+  const layoutScheme = layouts?.groupKey === groupKey;
+
+  if (layoutScheme) {
+    groupInfo.layouts = layouts.layout;
+  }
+  return groupInfo;
+};
+
+// convert size to number of columns
+export function getSizeColumns(size?: string): number {
+  if (size === undefined) return 2;
+
+  const numericSize = Number(size);
+  if (!isNaN(numericSize)) {
+    return numericSize;
+  }
+
+  switch (size) {
+    case 'l':
+      return 2;
+    case 'm':
+      return 3;
+    case 's':
+      return 4;
+    default:
+      return 2;
+  }
+}
