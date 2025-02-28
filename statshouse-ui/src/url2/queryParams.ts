@@ -19,7 +19,7 @@ export type PlotKey = string;
 export type GroupKey = string;
 
 export type GroupInfo = {
-  id: string;
+  id: GroupKey;
   name: string;
   description: string;
   count: number;

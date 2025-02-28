@@ -116,10 +116,10 @@ export function decompressLayouts(compressedString: string | null | undefined, g
 
     const id = parts[0] || '';
 
-    const x = parts.length > 1 && parts[1] ? Number(parts[1]) : 0;
-    const y = parts.length > 2 && parts[2] ? Number(parts[2]) : 0;
-    const w = parts.length > 3 && parts[3] ? Number(parts[3]) : 1;
-    const h = parts.length > 4 && parts[4] ? Number(parts[4]) : 1;
+    const x = parts.length > 1 && parts[1] ? toNumber(parts[1], 0) : 0;
+    const y = parts.length > 2 && parts[2] ? toNumber(parts[2], 0) : 0;
+    const w = parts.length > 3 && parts[3] ? toNumber(parts[3], 1) : 1;
+    const h = parts.length > 4 && parts[4] ? toNumber(parts[4], 1) : 1;
 
     return {
       i: `${groupKey}::${id}`,

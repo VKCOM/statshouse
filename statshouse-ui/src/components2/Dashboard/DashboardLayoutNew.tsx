@@ -15,7 +15,7 @@ import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import css from './style.module.css';
 import { GroupKey } from '@/url2';
 import { BREAKPOINT_WIDTH, BREAKPOINTS_SIZES, COLS, ROW_HEIGHTS } from './constants';
-import { calculateDynamicRowHeight, calculateMaxRows, getBreakpointConfig } from '@/common/helpers';
+import { calculateDynamicRowHeight, calculateMaxRows, getBreakpointConfig, getSizeColumns } from '@/common/helpers';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -362,6 +362,114 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     return ROW_HEIGHTS[breakpointKey];
   }, [breakpointKey]);
 
+  // calculate dynamic row height based on widgetColsWidth
+  const calculateRowHeightForGroup = useCallback(
+    (groupKey: string) => {
+      const size = groups[groupKey]?.size;
+      const widgetColsWidth = getSizeColumns(size);
+
+      let baseRowHeight = dynamicRowHeight;
+
+      if (breakpointKey === BREAKPOINTS_SIZES.xxxl) {
+        const currentWidth = window.innerWidth;
+        baseRowHeight = calculateDynamicRowHeight(currentWidth);
+      } else {
+        baseRowHeight = ROW_HEIGHTS[breakpointKey];
+      }
+
+      let scaleFactor;
+
+      const breakpointMultiplier =
+        {
+          xxxl: 1.5,
+          xxl: 1.5,
+          xl: 1.5,
+          lg: 1.4,
+          md: 1.4,
+          sm: 1.1,
+          xs: 1.0,
+          xxs: 0.95,
+        }[breakpointKey] || 1.0;
+
+      switch (widgetColsWidth) {
+        case 2:
+          return baseRowHeight * breakpointMultiplier;
+        case 3:
+          return baseRowHeight;
+        case 4:
+          return baseRowHeight;
+        default:
+          // For custom sizes, scale inversely with number of items
+          scaleFactor = 3 / widgetColsWidth;
+
+          return baseRowHeight * Math.min(1.5, Math.max(0.8, scaleFactor));
+      }
+    },
+    [groups, breakpointKey, dynamicRowHeight]
+  );
+
+  const generateDefaultLayout = useCallback(
+    (plots: string[], groupKey: string) => {
+      const size = groups[groupKey]?.size;
+      const widgetColsWidth = getSizeColumns(size);
+      const cols = COLS[breakpointKey] || 10;
+
+      let itemWidth = 0;
+      const leftMargin = widgetColsWidth === 4 ? 1 : 2;
+
+      switch (widgetColsWidth) {
+        case 2:
+          itemWidth = 3;
+          break;
+        case 3:
+          itemWidth = 2;
+          break;
+        case 4:
+          itemWidth = 2;
+          break;
+        default:
+          itemWidth = Math.floor((cols - 4) / widgetColsWidth);
+      }
+
+      return plots.map((plot, index) => {
+        const row = Math.floor(index / widgetColsWidth);
+        const col = index % widgetColsWidth;
+        const startX = leftMargin + col * itemWidth;
+
+        return {
+          i: `${groupKey}::${plot}`,
+          x: startX,
+          y: row,
+          w: itemWidth,
+          h: 1,
+        };
+      });
+    },
+    [groups, breakpointKey]
+  );
+
+  const getLayoutForGroup = useCallback(
+    (groupKey: string, plots: string[]) => {
+      const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
+
+      // If we have a layout and it has items for all plots, use it
+      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+        const validLayouts = existingGroupLayout.layout.filter((item) => {
+          const plotKey = item.i.split('::')[1];
+          return plots.includes(plotKey);
+        });
+
+        // If we have valid layouts for all plots, use them
+        if (validLayouts.length === plots.length) {
+          return validLayouts;
+        }
+      }
+
+      return generateDefaultLayout(plots, groupKey);
+    },
+    [layoutsCoords, generateDefaultLayout]
+  );
+
   return (
     <div className="container-fluid">
       <div className={cn(isDashboardEditAllowed && 'dashboard-edit', className)}>
@@ -377,11 +485,10 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 breakpoints={BREAKPOINT_WIDTH}
                 margin={[0, 30]}
                 cols={COLS}
-                rowHeight={dynamicRowHeight}
+                rowHeight={calculateRowHeightForGroup(groupKey)}
                 autoSize
                 isDraggable={isDashboardEditAllowed}
                 isResizable={isDashboardEditAllowed}
-                compactType="horizontal"
                 maxRows={calculateMaxRows(
                   plots,
                   COLS[breakpointKey],
@@ -393,42 +500,32 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 onResizeStop={(layout) => handleResizeStop(layout, groupKey)}
                 onLayoutChange={onLayoutChange}
                 isDroppable={isDashboardEditAllowed}
+                layouts={{
+                  [breakpointKey]: getLayoutForGroup(groupKey, plots),
+                }}
               >
                 {/* mapping right to left because elements are rendered from right to left */}
                 {plots
                   .slice()
                   .reverse()
-                  .map((plot) => {
-                    const layout = layoutsCoords.find((l) => l.groupKey === groupKey)?.layout;
-                    const plotLayout = Array.isArray(layout)
-                      ? layout.find((l) => l.i === `${groupKey}::${plot}`)
-                      : undefined;
-                    return (
-                      <DashboardPlotWrapper
-                        key={`${groupKey}::${plot}`}
-                        data-grid={{
-                          x: plotLayout?.x || 0,
-                          y: plotLayout?.y || 0,
-                          w: plotLayout?.w || 1,
-                          h: plotLayout?.h || 1,
-                          i: `${groupKey}::${plot}`,
-                        }}
-                        className={cn('plot-item p-1', isDashboardEditAllowed && css.cursorMove)}
-                      >
-                        <PlotView
-                          className={cn(
-                            isDashboardEditAllowed && [
-                              css.pointerEventsNone,
-                              'position-relative overflow-hidden w-100 h-100',
-                            ]
-                          )}
-                          key={`plot-${plot}`}
-                          plotKey={plot}
-                          isDashboard
-                        />
-                      </DashboardPlotWrapper>
-                    );
-                  })}
+                  .map((plot) => (
+                    <DashboardPlotWrapper
+                      key={`${groupKey}::${plot}`}
+                      className={cn('plot-item p-1', isDashboardEditAllowed && css.cursorMove)}
+                    >
+                      <PlotView
+                        className={cn(
+                          isDashboardEditAllowed && [
+                            css.pointerEventsNone,
+                            'position-relative overflow-hidden w-100 h-100',
+                          ]
+                        )}
+                        key={`plot-${plot}`}
+                        plotKey={plot}
+                        isDashboard
+                      />
+                    </DashboardPlotWrapper>
+                  ))}
               </ResponsiveGridLayout>
             )}
           </DashboardGroup>
