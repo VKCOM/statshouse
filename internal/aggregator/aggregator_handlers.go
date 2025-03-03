@@ -601,6 +601,15 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		keyBytes, hash = k.XXHash(keyBytes)
 		sID := int(hash % data_model.AggregationShardsPerSecond)
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
+		if s.metricStats == nil {
+			s.metricStats = make(map[int32]metricStat)
+		}
+		ms := s.metricStats[item.Metric]
+		ms.total++
+		if item.IsSetWeightMultiplier() {
+			ms.multipliers++
+		}
+		s.metricStats[item.Metric] = ms
 		mi, created := s.GetOrCreateMultiItem(&k, nil, 1, keyBytes)
 		mi.MergeWithTLMultiItem(rng, data_model.AggregatorStringTopCapacity, &item, hostTag)
 		// we unlock shard to calculate hash and do other heavy operations not under lock
