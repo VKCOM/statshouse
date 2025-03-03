@@ -412,9 +412,13 @@ func (s *MultiItem) FinishStringTop(rng *rand.Rand, capacity int) float64 {
 //}
 
 func (s *MultiItem) RowBinarySizeEstimate() int {
-	size := s.Tail.RowBinarySizeEstimate()
+	keySize := 4 + 4 + format.MaxTags*4 // time, metric, tags
+	for _, st := range s.Key.STags {    // stags
+		keySize += len(st)
+	}
+	size := keySize + s.Tail.RowBinarySizeEstimate()
 	for k, v := range s.Top {
-		size += 4 + len(k.S) + v.RowBinarySizeEstimate()
+		size += keySize + 4 + len(k.S) + v.RowBinarySizeEstimate()
 	}
 	return size
 }
@@ -616,8 +620,7 @@ func (s *MultiValue) RowBinarySizeEstimate() int {
 	if s.Empty() {
 		return 0
 	}
-	size := 4 + 4 + format.MaxTags*4 + // time, metric, keys
-		5*8 + // Aggregates
+	size := 5*8 + // Aggregates
 		1 + 1 + // centroids count byte, unique, string size byte
 		10 // max_host
 	size += s.HLL.MarshallAppendEstimatedSize()
