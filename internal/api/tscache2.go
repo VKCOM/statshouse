@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -16,6 +17,8 @@ import (
 
 const timeDay = 24 * time.Hour
 const timeMonth = 31 * 24 * time.Hour
+
+var errNegativeChunkOffset = fmt.Errorf("negative chunk offset")
 
 type cache2 struct {
 	mu        sync.Mutex
@@ -62,9 +65,10 @@ type cache2Shard struct {
 	invalidateIter *cache2Bucket
 
 	// readonly after init
-	step      time.Duration
-	stepS     string
-	chunkSize int
+	stepS         string
+	step          time.Duration
+	chunkDuration time.Duration
+	chunkSize     int
 }
 
 type cache2BucketList struct {
@@ -157,7 +161,7 @@ func newCache2(h *Handler, chunkSize int) *cache2 {
 		shards:    make(map[time.Duration]*cache2Shard),
 		handler:   h,
 		location:  h.location,
-		utcOffset: h.utcOffset * int64(time.Second),
+		utcOffset: h.utcOffset * int64(time.Second), // nanoseconds from seconds
 		info: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
@@ -168,12 +172,14 @@ func newCache2(h *Handler, chunkSize int) *cache2 {
 	c.shards = make(map[time.Duration]*cache2Shard, len(data_model.LODTables[Version3]))
 	for stepSec := range data_model.LODTables[Version3] {
 		step := time.Duration(stepSec) * time.Second
+		size, duration := cache2ChunkSizeDuration(chunkSize, step)
 		c.shards[step] = &cache2Shard{
-			bucketM:   make(map[string]*cache2Bucket),
-			bucketL:   newCache2BucketList(),
-			chunkSize: cache2ChunkSize(step, chunkSize),
-			step:      step,
-			stepS:     strconv.FormatInt(stepSec, 10),
+			bucketM:       make(map[string]*cache2Bucket),
+			bucketL:       newCache2BucketList(),
+			step:          step,
+			stepS:         strconv.FormatInt(stepSec, 10),
+			chunkSize:     size,
+			chunkDuration: duration,
 		}
 	}
 	go c.trim()
@@ -244,12 +250,6 @@ func (c *cache2) updateRuntimeInfoUnlocked(step, user string, info *cache2Update
 	}
 }
 
-func (c *cache2) runtimeInfo() cache2RuntimeInfo {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.info
-}
-
 func (c *cache2) sendMetrics(client *statshouse.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -295,7 +295,8 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	for i := 0; i < 2; i++ {
 		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sumSizeS[i]))
-		client.NamedCount("statshouse_api_cache_sum_chunks", tags[i][0], float64(c.info.sumChunkCountS[i]))
+		client.NamedValue("statshouse_api_cache_sum_chunk_size", tags[i][0], float64(c.info.sumChunkSizeS[i]))
+		client.NamedCount("statshouse_api_cache_sum_chunk_count", tags[i][0], float64(c.info.sumChunkCountS[i]))
 	}
 	for step, m := range c.infoM {
 		for user, info := range m {
@@ -347,29 +348,27 @@ func (c *cache2) invalidate(times []int64, stepSec int64) {
 	if len(times) == 0 {
 		return
 	}
-	var s []int64
-	now := time.Now().UnixNano()
-	step := time.Duration(stepSec) * time.Second
-	shard := c.shards[step]
-	start := c.chunkStart(shard, times[0]*1e6)
-	end := c.chunkEnd(shard, start)
-	s = append(s[:0], end)
+	t := times[0] * int64(time.Second) // nanoseconds from seconds
+	shard := c.shards[time.Duration(stepSec)*time.Second]
+	end := c.chunkEnd(shard, c.chunkStart(shard, t))
+	s := []int64{end}
 	for i := 1; i < len(times); i++ {
-		if end <= times[i] {
-			end = c.chunkEnd(shard, c.chunkStart(shard, times[i]))
+		t = times[i] * int64(time.Second) // nanoseconds from seconds
+		if end <= t {
+			end = c.chunkEnd(shard, c.chunkStart(shard, t))
 			s = append(s, end)
 		}
 	}
-	shard.invalidate(s, now)
+	shard.invalidate(s, time.Now().UnixNano())
 }
 
-func (c *cache2) chunkStart(s *cache2Shard, t int64) int64 {
-	d64 := int64(s.step)
-	if s.step < timeDay {
-		return (t / d64) * d64
-	} else if s.step < timeMonth {
+func (c *cache2) chunkStart(shard *cache2Shard, t int64) int64 {
+	d := int64(shard.chunkDuration)
+	if shard.step < timeDay {
+		return (t / d) * d
+	} else if shard.step < timeMonth {
 		utcOffset := c.utcOffset
-		return ((t+utcOffset)/d64)*d64 - utcOffset
+		return ((t+utcOffset)/d)*d - utcOffset
 	} else {
 		l := c.location
 		t := time.Unix(0, t).In(l)
@@ -377,41 +376,42 @@ func (c *cache2) chunkStart(s *cache2Shard, t int64) int64 {
 	}
 }
 
-func (c *cache2) chunkEnd(s *cache2Shard, t int64) int64 {
-	switch s.step {
+func (c *cache2) chunkEnd(shard *cache2Shard, t int64) int64 {
+	switch shard.step {
 	case timeMonth:
 		l := c.location
 		return time.Unix(0, t).In(l).AddDate(0, 1, 0).UTC().UnixNano()
 	default:
-		return t + int64(s.chunkSize)*int64(s.step)
+		return t + int64(shard.chunkDuration)
 	}
 }
 
 func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool, data cache2Data) *cache2Loader {
 	s := c.shards[time.Duration(lod.StepSec)*time.Second]
+	b := s.getOrCreateBucket(h, q, c)
 	l := &cache2Loader{
 		handler:           h,
 		query:             q,
 		lod:               lod,
 		cache:             c,
 		shard:             s,
-		bucket:            s.getOrCreateBucket(h, q, c),
+		bucket:            b,
 		mode:              cache2BucketMode(time.Duration(q.play) * time.Second),
 		timeNow:           time.Now().UnixNano(),
 		staleAcceptPeriod: cache2StaleAcceptPeriod(h, q),
 		forceLoad:         forceLoad,
 	}
-	l.init(data, lod.FromSec*int64(time.Second))
+	info := cache2UpdateInfo{}
+	l.init(data, lod.FromSec*int64(time.Second), &info)
+	c.updateRuntimeInfo(s.stepS, b.fau, &info)
 	return l
 }
 
-func (l *cache2Loader) init(d cache2Data, t int64) {
+func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 	cache, shard, bucket := l.cache, l.shard, l.bucket
 	bucket.mu.Lock()
 	defer bucket.mu.Unlock()
-	info := cache2UpdateInfo{}
 	if bucket.attached {
-		defer cache.updateRuntimeInfo(shard.stepS, bucket.fau, &info)
 		if mode := cache2BucketMode(bucket.playInterval); mode != l.mode {
 			sizeDelta := sizeofCache2Chunks(bucket.chunks)
 			chunkSizeDelta := len(bucket.chunks) * bucket.chunkSize
@@ -420,7 +420,7 @@ func (l *cache2Loader) init(d cache2Data, t int64) {
 			info.sumSizeS[l.mode] += sizeDelta
 			info.sumChunkSizeS[mode] -= chunkSizeDelta
 			info.sumChunkSizeS[l.mode] += chunkSizeDelta
-			info.sumChunkCountS[l.mode] -= chunkCountDelta
+			info.sumChunkCountS[mode] -= chunkCountDelta
 			info.sumChunkCountS[l.mode] += chunkCountDelta
 		}
 		bucket.playInterval = time.Duration(l.query.play) * time.Second
@@ -430,17 +430,34 @@ func (l *cache2Loader) init(d cache2Data, t int64) {
 	var chunks []*cache2Chunk
 	i, _ := slices.BinarySearch(bucket.times, t)
 	for len(d) != 0 {
-		times = times[:0]
-		chunks = chunks[:0]
-		var newChunkCount int
-		for len(d) != 0 && (i >= len(bucket.chunks) || !bucket.chunks[i].contains(t)) {
+		pos := i // new chunks insert position
+		end := int64(math.MaxInt64)
+		if i < len(bucket.chunks) {
+			if t < bucket.chunks[i].start {
+				end = bucket.chunks[i].start
+			} else {
+				nextChunkPos, nextChunkStart := i+1, int64(math.MaxInt64)
+				if nextChunkPos < len(bucket.chunks) {
+					nextChunkStart = bucket.chunks[nextChunkPos].start
+				}
+				if bucket.chunks[i].end <= t && t < nextChunkStart {
+					pos = nextChunkPos
+					end = nextChunkStart
+				} else {
+					end = t // no new chunks to insert
+				}
+			}
+		}
+		newChunkCount := 0
+		chunks, times = chunks[:0], times[:0]
+		for len(d) != 0 && t < end {
 			start := cache.chunkStart(shard, t)
 			chunk := &cache2Chunk{
 				attached: bucket.attached,
 				start:    start,
 				end:      cache.chunkEnd(shard, start),
 			}
-			d, t = l.addChunk(d, t, chunk, &info)
+			d, t = l.addChunk(d, t, chunk, info)
 			if bucket.attached {
 				times = append(times, chunk.end)
 				chunks = append(chunks, chunk)
@@ -448,13 +465,13 @@ func (l *cache2Loader) init(d cache2Data, t int64) {
 			newChunkCount++
 		}
 		if newChunkCount == 0 {
-			d, t = l.addChunk(d, t, bucket.chunks[i], &info)
+			d, t = l.addChunk(d, t, bucket.chunks[i], info)
 			i++
 		} else if bucket.attached {
-			bucket.times = append(append(bucket.times[:i], times...), bucket.times[i:]...)
-			bucket.chunks = append(append(bucket.chunks[:i], chunks...), bucket.chunks[i:]...)
-			info.sumChunkCountS[l.mode] += len(chunks)
+			bucket.times = append(append(bucket.times[:pos], times...), bucket.times[pos:]...)
+			bucket.chunks = append(append(bucket.chunks[:pos], chunks...), bucket.chunks[pos:]...)
 			info.sumChunkSizeS[l.mode] += len(chunks) * bucket.chunkSize
+			info.sumChunkCountS[l.mode] += len(chunks)
 			i += newChunkCount
 		}
 	}
@@ -475,6 +492,9 @@ func (l *cache2Loader) run(ctx context.Context) error {
 func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cache2UpdateInfo) (cache2Data, int64) {
 	bucket := l.bucket
 	offset := int((t - c.start) / int64(l.shard.step))
+	if offset < 0 {
+		panic(errNegativeChunkOffset)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var startLoad, await bool
@@ -547,11 +567,11 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 			mode = 1
 			tags[2][1] = "1" // play mode
 		}
-		info.hitChunkSizeS[mode][1] += n
 		info.hitSizeS[mode][1] += accessSize
+		info.hitChunkSizeS[mode][1] += n
 		info.hitChunkCountS[mode][1]++
 		c.hitCount++
-		statshouse.NamedValue("statshouse_api_cache_chunk_hit", tags, float64(c.hitCount))
+		statshouse.NamedValue("statshouse_api_cache_chunk_hit_count", tags, float64(c.hitCount))
 	}
 	if startLoad && !c.loading {
 		l.chunks = append(l.chunks, c)
@@ -565,8 +585,8 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 func (l *cache2Loader) loadChunks(start, end int) {
 	chunks := l.chunks[start:end]
 	lod := data_model.LOD{
-		FromSec:    chunks[0].start / 1e9,
-		ToSec:      chunks[len(chunks)-1].end / 1e9,
+		FromSec:    chunks[0].start / int64(time.Second),           // nanoseconds from seconds
+		ToSec:      chunks[len(chunks)-1].end / int64(time.Second), // nanoseconds from seconds
 		StepSec:    l.lod.StepSec,
 		Version:    l.lod.Version,
 		Table:      l.lod.Table,
@@ -622,13 +642,16 @@ func (l *cache2Loader) loadChunks(start, end int) {
 		chunk.waiting, waiting = waiting, chunk.waiting
 		if shutdown || (0 < sizeDelta && budget < sizeDelta) {
 			// release chunk memory
-			chunk.data = nil
-			info.sumSizeS[mode] -= chunk.size
-			chunk.size = 0
+			if chunk.size != 0 {
+				info.sumSizeS[mode] -= chunk.size
+				chunk.data = nil
+				chunk.size = 0
+			}
 		} else if err == nil && chunk.attached {
+			// update chunk data
 			attached = true
 			budget -= sizeDelta
-			// update chunk data
+			info.sumSizeS[mode] += sizeDelta
 			chunk.data = data
 			chunk.size = size
 			if chunk.loadStartedAt < chunk.invalidatedAt {
@@ -636,7 +659,6 @@ func (l *cache2Loader) loadChunks(start, end int) {
 			} else {
 				chunk.invalidatedAt = 0
 			}
-			info.sumSizeS[mode] += sizeDelta
 		}
 		chunk.loading = false
 		chunk.mu.Unlock()
@@ -653,10 +675,10 @@ func (l *cache2Loader) loadChunks(start, end int) {
 						// shallow copy last for detached chunk
 						dst[j] = src[j]
 					}
-					missSize += len(src[j]) * sizeofCache2DataRow
+					missSize += sizeofCache2DataCol + len(src[j])*sizeofCache2DataRow
 				}
-				info.hitChunkSizeS[mode][0] += len(src)
 				info.hitSizeS[mode][0] += missSize
+				info.hitChunkSizeS[mode][0] += len(src)
 				info.hitChunkCountS[mode][0]++
 			}
 			w.dstC <- err
@@ -691,104 +713,104 @@ func (l *cache2Loader) wait(ctx context.Context) error {
 	}
 }
 
-func (s *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2) *cache2Bucket {
+func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2) *cache2Bucket {
 	k := q.getOrBuildCacheKey()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if res := s.bucketM[k]; res != nil {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+	if res := shard.bucketM[k]; res != nil {
 		return res
 	}
 	b := &cache2Bucket{
 		fau:          h.accessInfo.user,
-		chunkSize:    s.chunkSize,
+		chunkSize:    shard.chunkSize,
 		playInterval: time.Duration(q.play) * time.Second,
 	}
-	c.mu.Lock() // NB! the only place with nested locking, keep an eye on it
+	c.mu.Lock() // NB! "shard.mu" and "c.mu" are never get locked in reverse order, keep an eye on it
 	createAttached := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
 	c.mu.Unlock()
 	if createAttached {
 		b.key = k
 		b.attached = true
-		s.bucketM[k] = b
-		s.bucketL.add(b)
+		shard.bucketM[k] = b
+		shard.bucketL.add(b)
 	}
 	return b
 }
 
-func (s *cache2Shard) reset(infoM cache2UpdateInfoM, timeNow int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, v := range s.bucketM {
+func (shard *cache2Shard) reset(infoM cache2UpdateInfoM, timeNow int64) {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+	for _, v := range shard.bucketM {
 		info := &cache2UpdateInfo{
 			minChunkAccessTime: timeNow,
 		}
-		s.removeBucketUnlocked(v, info)
-		infoM.add(s.stepS, v.fau, info)
+		shard.removeBucketUnlocked(v, info)
+		infoM.add(shard.stepS, v.fau, info)
 	}
 }
 
-func (s *cache2Shard) removeBucket(b *cache2Bucket, info *cache2UpdateInfo) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.removeBucketUnlocked(b, info)
+func (shard *cache2Shard) removeBucket(b *cache2Bucket, info *cache2UpdateInfo) {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+	shard.removeBucketUnlocked(b, info)
 }
 
-func (s *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2UpdateInfo) {
-	s.bucketM[b.key] = nil
-	delete(s.bucketM, b.key)
-	if s.trimIter == b {
-		s.trimIter = s.bucketL.next(b)
+func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2UpdateInfo) {
+	shard.bucketM[b.key] = nil
+	delete(shard.bucketM, b.key)
+	if shard.trimIter == b {
+		shard.trimIter = shard.bucketL.next(b)
 	}
-	if s.invalidateIter == b {
-		s.invalidateIter = s.bucketL.next(b)
+	if shard.invalidateIter == b {
+		shard.invalidateIter = shard.bucketL.next(b)
 	}
-	s.bucketL.remove(b)
+	shard.bucketL.remove(b)
 	b.clearAndDetach(info)
 }
 
-func (s *cache2Shard) invalidate(ts []int64, now int64) {
-	v := s.invalidateIteratorStart()
-	for v != nil {
-		v.invalidate(ts, now)
-		v = s.invalidateIteratorNext()
+func (shard *cache2Shard) invalidate(times []int64, timeNow int64) {
+	bucket := shard.invalidateIteratorStart()
+	for bucket != nil {
+		bucket.invalidate(times, timeNow)
+		bucket = shard.invalidateIteratorNext()
 	}
 }
 
-func (s *cache2Shard) trimIteratorStart() *cache2Bucket {
-	return s.iteratorStart(&s.trimIter)
+func (shard *cache2Shard) trimIteratorStart() *cache2Bucket {
+	return shard.iteratorStart(&shard.trimIter)
 }
 
-func (s *cache2Shard) trimIteratorNext() *cache2Bucket {
-	return s.iteratorNext(&s.trimIter)
+func (shard *cache2Shard) trimIteratorNext() *cache2Bucket {
+	return shard.iteratorNext(&shard.trimIter)
 }
 
-func (s *cache2Shard) invalidateIteratorStart() *cache2Bucket {
-	return s.iteratorStart(&s.invalidateIter)
+func (shard *cache2Shard) invalidateIteratorStart() *cache2Bucket {
+	return shard.iteratorStart(&shard.invalidateIter)
 }
 
-func (s *cache2Shard) invalidateIteratorNext() *cache2Bucket {
-	return s.iteratorNext(&s.invalidateIter)
+func (shard *cache2Shard) invalidateIteratorNext() *cache2Bucket {
+	return shard.iteratorNext(&shard.invalidateIter)
 }
 
-func (s *cache2Shard) iteratorStart(iter **cache2Bucket) *cache2Bucket {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	res := s.bucketL.next(s.bucketL.head)
+func (shard *cache2Shard) iteratorStart(iter **cache2Bucket) *cache2Bucket {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+	res := shard.bucketL.next(shard.bucketL.head)
 	if res == nil {
 		return nil
 	}
-	*iter = s.bucketL.next(res)
+	*iter = shard.bucketL.next(res)
 	return res
 }
 
-func (s *cache2Shard) iteratorNext(iter **cache2Bucket) *cache2Bucket {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (shard *cache2Shard) iteratorNext(iter **cache2Bucket) *cache2Bucket {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
 	res := *iter
 	if res == nil {
 		return nil
 	}
-	*iter = s.bucketL.next(res)
+	*iter = shard.bucketL.next(res)
 	return res
 }
 
@@ -831,24 +853,24 @@ func (l cache2BucketList) len() int {
 	}
 }
 
-func (b *cache2Bucket) invalidate(ts []int64, now int64) {
+func (b *cache2Bucket) invalidate(times []int64, timeNow int64) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if len(b.times) == 0 {
 		return
 	}
-	if ts[len(ts)-1] < b.times[0] || b.times[len(b.times)-1] < ts[0] {
+	if times[len(times)-1] < b.times[0] || b.times[len(b.times)-1] < times[0] {
 		return
 	}
-	for i, j := 0, 0; i < len(ts) && j < len(b.times); {
-		for i < len(ts) && ts[i] < b.times[j] {
+	for i, j := 0, 0; i < len(times) && j < len(b.times); {
+		for i < len(times) && times[i] < b.times[j] {
 			i++
 		}
-		for j < len(b.times) && b.times[j] < ts[i] {
+		for j < len(b.times) && b.times[j] < times[i] {
 			j++
 		}
-		for i < len(ts) && j < len(b.times) && ts[i] == b.times[j] {
-			b.chunks[j].invalidate(now)
+		for i < len(times) && j < len(b.times) && times[i] == b.times[j] {
+			b.chunks[j].invalidate(timeNow)
 			i++
 			j++
 		}
@@ -877,14 +899,10 @@ func (b *cache2Bucket) mode() int {
 	return cache2BucketMode(b.playInterval)
 }
 
-func (c *cache2Chunk) invalidate(now int64) {
+func (c *cache2Chunk) invalidate(timeNow int64) {
 	c.mu.Lock()
-	c.invalidatedAt = now
+	c.invalidatedAt = timeNow
 	c.mu.Unlock()
-}
-
-func (c *cache2Chunk) contains(t int64) bool {
-	return c.start <= t && t < c.end
 }
 
 func (r *cache2RuntimeInfo) age() time.Duration {
@@ -896,52 +914,54 @@ func (r *cache2RuntimeInfo) size() int {
 }
 
 func (r *cache2RuntimeInfo) update(info *cache2UpdateInfo) {
-	r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
-	r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
 	r.sumSizeS[0] += info.sumSizeS[0]
 	r.sumSizeS[1] += info.sumSizeS[1]
+	r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
+	r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
 	r.sumChunkCountS[0] += info.sumChunkCountS[0]
 	r.sumChunkCountS[1] += info.sumChunkCountS[1]
 	if r.minChunkAccessTime < info.minChunkAccessTime {
 		r.minChunkAccessTime = info.minChunkAccessTime
 	}
-	r.hitChunkSizeS[0][0] += info.hitChunkSizeS[0][0]
-	r.hitChunkSizeS[0][1] += info.hitChunkSizeS[0][1]
-	r.hitChunkSizeS[1][0] += info.hitChunkSizeS[1][0]
-	r.hitChunkSizeS[1][1] += info.hitChunkSizeS[1][1]
 	r.hitSizeS[0][0] += info.hitSizeS[0][0]
 	r.hitSizeS[0][1] += info.hitSizeS[0][1]
 	r.hitSizeS[1][0] += info.hitSizeS[1][0]
 	r.hitSizeS[1][1] += info.hitSizeS[1][1]
+	r.hitChunkSizeS[0][0] += info.hitChunkSizeS[0][0]
+	r.hitChunkSizeS[0][1] += info.hitChunkSizeS[0][1]
+	r.hitChunkSizeS[1][0] += info.hitChunkSizeS[1][0]
+	r.hitChunkSizeS[1][1] += info.hitChunkSizeS[1][1]
 	r.hitChunkCountS[0][0] += info.hitChunkCountS[0][0]
 	r.hitChunkCountS[0][1] += info.hitChunkCountS[0][1]
 	r.hitChunkCountS[1][0] += info.hitChunkCountS[1][0]
 	r.hitChunkCountS[1][1] += info.hitChunkCountS[1][1]
 }
 
-func (m cache2UpdateInfoM) add(step, user string, newInfo *cache2UpdateInfo) {
+func (m cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
 	m2 := m[step]
 	if m2 == nil {
 		m2 = make(map[string]*cache2UpdateInfo)
 		m[step] = m2
 	}
-	if v, ok := m2[user]; ok {
-		v.sumSizeS[0] += newInfo.sumSizeS[0]
-		v.sumSizeS[1] += newInfo.sumSizeS[1]
-		v.sumChunkCountS[0] += newInfo.sumChunkCountS[0]
-		v.sumChunkCountS[1] += newInfo.sumChunkCountS[1]
-		if newInfo.minChunkAccessTime != 0 && v.minChunkAccessTime > newInfo.minChunkAccessTime {
-			v.minChunkAccessTime = newInfo.minChunkAccessTime
+	if v := m2[user]; v != nil {
+		v.sumSizeS[0] += info.sumSizeS[0]
+		v.sumSizeS[1] += info.sumSizeS[1]
+		v.sumChunkSizeS[0] += info.sumChunkSizeS[0]
+		v.sumChunkSizeS[1] += info.sumChunkSizeS[1]
+		v.sumChunkCountS[0] += info.sumChunkCountS[0]
+		v.sumChunkCountS[1] += info.sumChunkCountS[1]
+		if info.minChunkAccessTime != 0 && v.minChunkAccessTime > info.minChunkAccessTime {
+			v.minChunkAccessTime = info.minChunkAccessTime
 		}
 		m2[user] = v
 	} else {
-		m2[user] = newInfo
+		m2[user] = info
 	}
 }
 
-func cache2ChunkSize(step time.Duration, chunkSize int) int {
+func cache2ChunkSizeDuration(chunkSize int, step time.Duration) (int, time.Duration) {
 	if chunkSize > 0 {
-		return chunkSize
+		return chunkSize, time.Duration(chunkSize) * step
 	}
 	var d time.Duration
 	if step < time.Minute {
@@ -951,9 +971,9 @@ func cache2ChunkSize(step time.Duration, chunkSize int) int {
 	} else if step <= timeDay {
 		d = timeDay // max 24 points from hour table
 	} else {
-		return 1 // max 1 point for week or month
+		return 1, step // max 1 point for week or month
 	}
-	return int(d / step)
+	return int(d / step), d
 }
 
 func cache2StaleAcceptPeriod(h *requestHandler, q *queryBuilder) time.Duration {
