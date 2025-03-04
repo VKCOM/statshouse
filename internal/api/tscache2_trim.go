@@ -97,10 +97,11 @@ func (t *cache2Trim) trimAged(maxAge time.Duration) {
 func (t *cache2Trim) reduceMemoryUsage() int {
 	c := t.cache
 	h := t.heap
+	timeNow := time.Now().UnixNano()
 	for _, shard := range c.shards {
 		bucket := shard.trimIteratorStart()
 		for bucket != nil {
-			h = h.push(cache2TrimBucket{shard, bucket, bucket.runtimeInfo()})
+			h = h.push(cache2TrimBucket{shard, bucket, bucket.runtimeInfo(timeNow)})
 			bucket = shard.trimIteratorNext()
 		}
 	}
@@ -253,8 +254,8 @@ func (h cache2TrimBucketHeap) less(i, j int) bool {
 	if v := cmp.Compare(l.playInterval, r.playInterval); v != 0 {
 		return v > 0 // larger play period goes first
 	}
-	if v := cmp.Compare(l.lastAccessTime, r.lastAccessTime); v != 0 {
-		return v < 0 // least recently used goes first
+	if v := cmp.Compare(l.idlePeriod, r.idlePeriod); v != 0 {
+		return v > 0 // least recently used goes first
 	}
 	// larger one goes first
 	return cmp.Compare(l.size, r.size) > 0

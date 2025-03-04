@@ -2,6 +2,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
@@ -43,14 +44,14 @@ func TestCache2TrimBucketHeapMinAccessTime(t *testing.T) {
 		h := make(cache2TrimBucketHeap, 0, 1000)
 		for i := 0; i < 1000; i++ {
 			h = h.push(cache2TrimBucket{info: cache2BucketRuntimeInfo{
-				lastAccessTime: rapid.Int64().Draw(t, "lastAccessTime"),
+				idlePeriod: time.Duration(rapid.Int64().Draw(t, "lastAccessTime")),
 			}})
 		}
-		lastAccessTime := h.min().info.lastAccessTime
+		lastAccessTime := h.min().info.idlePeriod
 		for h.len() > 1 {
 			h = h.pop()
-			require.LessOrEqual(t, lastAccessTime, h.min().info.lastAccessTime)
-			lastAccessTime = h.min().info.lastAccessTime
+			require.GreaterOrEqual(t, lastAccessTime, h.min().info.idlePeriod)
+			lastAccessTime = h.min().info.idlePeriod
 		}
 	})
 }
@@ -60,7 +61,7 @@ func TestCache2TrimBucketHeapMaxPlay(t *testing.T) {
 		h := make(cache2TrimBucketHeap, 0, 1000)
 		for i := 0; i < 1000; i++ {
 			h = h.push(cache2TrimBucket{info: cache2BucketRuntimeInfo{
-				playInterval: rapid.Int().Draw(t, "play"),
+				playInterval: time.Duration(rapid.Int64().Draw(t, "play")),
 			}})
 		}
 		play := h.min().info.playInterval

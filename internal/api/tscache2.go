@@ -76,7 +76,7 @@ type cache2Bucket struct {
 	times          []int64        // sorted
 	chunks         []*cache2Chunk // same length and order as "times"
 	lastAccessTime int64          // nanoseconds
-	playInterval   int            // seconds
+	playInterval   time.Duration
 
 	// readonly after init
 	key       string // "cache2Shard" key
@@ -91,9 +91,9 @@ type cache2Bucket struct {
 }
 
 type cache2BucketRuntimeInfo struct {
-	lastAccessTime int64 // seconds
-	playInterval   int   // seconds
-	size           int
+	idlePeriod   time.Duration
+	playInterval time.Duration
+	size         int
 }
 
 type cache2Chunk struct {
@@ -396,7 +396,7 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 		cache:             c,
 		shard:             s,
 		bucket:            s.getOrCreateBucket(h, q, c),
-		mode:              cache2BucketMode(q.play),
+		mode:              cache2BucketMode(time.Duration(q.play) * time.Second),
 		timeNow:           time.Now().UnixNano(),
 		staleAcceptPeriod: cache2StaleAcceptPeriod(h, q),
 		forceLoad:         forceLoad,
@@ -423,7 +423,7 @@ func (l *cache2Loader) init(d cache2Data, t int64) {
 			info.sumChunkCountS[l.mode] -= chunkCountDelta
 			info.sumChunkCountS[l.mode] += chunkCountDelta
 		}
-		bucket.playInterval = l.query.play
+		bucket.playInterval = time.Duration(l.query.play) * time.Second
 		bucket.lastAccessTime = l.timeNow
 	}
 	var times []int64
@@ -701,7 +701,7 @@ func (s *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *c
 	b := &cache2Bucket{
 		fau:          h.accessInfo.user,
 		chunkSize:    s.chunkSize,
-		playInterval: q.play,
+		playInterval: time.Duration(q.play) * time.Second,
 	}
 	c.mu.Lock() // NB! the only place with nested locking, keep an eye on it
 	createAttached := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
@@ -855,19 +855,21 @@ func (b *cache2Bucket) invalidate(ts []int64, now int64) {
 	}
 }
 
-func (b *cache2Bucket) runtimeInfo() cache2BucketRuntimeInfo {
+func (b *cache2Bucket) runtimeInfo(timeNow int64) cache2BucketRuntimeInfo {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	idlePeriod := time.Duration(timeNow - b.lastAccessTime)
 	playInterval := b.playInterval
-	if playInterval <= 0 {
-		// no playing equvalent to playing with infinite period
+	if playInterval < idlePeriod || playInterval <= 0 {
+		// - being not accessed longer than play interval means not playing
+		// - not playing is equvalent to playing with infinite period
 		// simplifies bucket compare
 		playInterval = math.MaxInt
 	}
 	return cache2BucketRuntimeInfo{
-		lastAccessTime: b.lastAccessTime / 1e9,
-		size:           sizeofCache2Chunks(b.chunks),
-		playInterval:   playInterval,
+		idlePeriod:   idlePeriod,
+		size:         sizeofCache2Chunks(b.chunks),
+		playInterval: playInterval,
 	}
 }
 
@@ -963,7 +965,7 @@ func cache2StaleAcceptPeriod(h *requestHandler, q *queryBuilder) time.Duration {
 	return 0
 }
 
-func cache2BucketMode(playInterval int) int {
+func cache2BucketMode(playInterval time.Duration) int {
 	if playInterval > 0 {
 		return 1 // play mode
 	}
