@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/api"
@@ -67,11 +68,16 @@ func (m *valueMetric) Update(now time.Time, rng *rand.Rand) {
 		}
 		return
 	}
-	if rng.Float64() < 0.5 {
-		m.value += rng.Float64()
-	} else {
-		// encourage metrics to go up
-		m.value -= rng.Float64() / 2
+	ts := now.Unix()
+	switch m.resolution {
+	case 1:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%300) / 300.)
+	case 15:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%600) / 600.)
+	case 60:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%1800) / 1800.)
+	default:
+		panic("unexpected resolution")
 	}
 }
 
@@ -105,9 +111,17 @@ func (m *countMetric) Write(c *statshouse.Client) {
 	c.NamedCount(m.name, m.tags, float64(m.count))
 }
 
-func (m *countMetric) Update(now time.Time, rng *rand.Rand) {
-	if rng.Float64() < 0.5 {
-		m.count++
+func (m *countMetric) Update(now time.Time, _ *rand.Rand) {
+	ts := now.Unix()
+	switch m.resolution {
+	case 1:
+		m.count = int(10 + 10*math.Sin(math.Pi*2.*float64(ts%300)/300.))
+	case 15:
+		m.count = int(10 + 10*math.Sin(math.Pi*2.*float64(ts%600)/600.))
+	case 60:
+		m.count = int(10 + 10*math.Sin(math.Pi*2.*float64(ts%1800)/1800.))
+	default:
+		panic("unexpected resolution")
 	}
 	updateNamedTags(m.tags, now)
 }

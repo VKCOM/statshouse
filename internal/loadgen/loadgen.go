@@ -34,21 +34,25 @@ func RunClientLoad() {
 		clients: []*statshouse.Client{sh},
 	}
 
+	res1Slices := make([][]GenericMetric, baseCard)
+	res15Slices := make([][]GenericMetric, baseCard)
+	res60Slices := make([][]GenericMetric, baseCard)
 	wasLen := 0
 	for idx := 1; idx <= baseCard; idx++ {
 		addMetrics(&g, 1, idx)
+		res1Slices[idx-1] = g.metrics[wasLen:len(g.metrics)]
+		wasLen = len(g.metrics)
 	}
-	res1Slice := g.metrics[wasLen:len(g.metrics)]
-	wasLen = len(g.metrics)
 	for idx := 1; idx <= baseCard; idx++ {
 		addMetrics(&g, 15, idx)
+		res15Slices[idx-1] = g.metrics[wasLen:len(g.metrics)]
+		wasLen = len(g.metrics)
 	}
-	res15Slice := g.metrics[wasLen:len(g.metrics)]
-	wasLen = len(g.metrics)
 	for idx := 1; idx <= baseCard; idx++ {
 		addMetrics(&g, 60, idx)
+		res60Slices[idx-1] = g.metrics[wasLen:len(g.metrics)]
+		wasLen = len(g.metrics)
 	}
-	res60Slice := g.metrics[wasLen:len(g.metrics)]
 
 	log.Print("Ensure metrics exist")
 	for _, metric := range g.metrics {
@@ -60,10 +64,16 @@ func RunClientLoad() {
 		log.Fatalf("Failed to ensure dashboard: %v", err)
 	}
 	log.Print("Running load on agent via StatsHouse client")
-	// 1000 writes per resolution period
-	go g.goRun(ctx, 1*time.Millisecond, res1Slice)
-	go g.goRun(ctx, 15*time.Millisecond, res15Slice)
-	go g.goRun(ctx, 60*time.Millisecond, res60Slice)
+	// 10 writes per resolution period
+	for _, res1Slice := range res1Slices {
+		go g.goRun(ctx, 100*time.Millisecond, res1Slice)
+	}
+	for _, res15Slice := range res15Slices {
+		go g.goRun(ctx, 1500*time.Millisecond, res15Slice)
+	}
+	for _, res60Slice := range res60Slices {
+		go g.goRun(ctx, 6000*time.Millisecond, res60Slice)
+	}
 
 	<-ctx.Done()
 	log.Print("Stopping...")
