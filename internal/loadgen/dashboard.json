@@ -12,864 +12,864 @@
       "tabNum": -1,
       "plots": [
         {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
+          "events": [],
+          "eventsBy": [],
+          "eventsHide": [],
+          "filledGraph": true,
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "0",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_cnt_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "1",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_val_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": -0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "2",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_per_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "p95",
             "p50"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "3",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_cnt_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "4",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_val_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "5",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_per_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "p95",
             "p50"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "6",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_cnt_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "7",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_val_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 5,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 5,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "8",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_const_per_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
-          "what": [
-            "p95",
-            "p50"
-          ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
           "numSeries": 5,
-          "useV2": true,
-          "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
+          "promQL": "",
+          "totalLine": false,
           "type": 0,
+          "useV2": true,
+          "what": [
+            "p95",
+            "p50"
+          ],
+          "yLock": {
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "3"
+          ],
           "id": "9",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_cnt_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "3"
+          ],
           "id": "10",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_val_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "3"
+          ],
           "id": "11",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_per_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "p95",
             "p50"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "4"
+          ],
           "id": "12",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_cnt_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "4"
+          ],
           "id": "13",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_val_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "4"
+          ],
           "id": "14",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_per_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "p95",
             "p50"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "3"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "5"
+          ],
           "id": "15",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_cnt_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "4"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "5"
+          ],
           "id": "16",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_val_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "sum_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "4"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "5"
+          ],
           "id": "17",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_per_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "p95",
             "p50"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "4"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 5,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "_s"
+          ],
           "id": "18",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_top_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 0,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "_s"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "_s"
+          ],
           "id": "19",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_top_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "_s"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [
+            "_s"
+          ],
           "id": "20",
+          "logScale": false,
+          "maxHost": false,
           "metricName": "loadgen_changing_top_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "count_norm"
           ],
-          "customAgg": 0,
-          "groupBy": [
-            "_s"
-          ],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": false,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "21",
+          "logScale": false,
+          "maxHost": true,
           "metricName": "loadgen_const_val_host_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "avg"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "22",
+          "logScale": false,
+          "maxHost": true,
           "metricName": "loadgen_const_val_host_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "avg"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "23",
+          "logScale": false,
+          "maxHost": true,
           "metricName": "loadgen_const_val_host_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "avg"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "24",
+          "logScale": false,
+          "maxHost": true,
           "metricName": "loadgen_changing_val_host_1",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "avg"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
+            "max": 0,
+            "min": 0
+          }
+        },
+        {
+          "customAgg": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
-        },
-        {
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
           "id": "25",
+          "logScale": false,
+          "maxHost": true,
           "metricName": "loadgen_changing_val_host_15",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
           "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
           "what": [
             "avg"
           ],
-          "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
           "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
-          "events": [],
-          "eventsBy": [],
-          "eventsHide": [],
-          "totalLine": false,
-          "filledGraph": true,
-          "logScale": false
+            "max": 0,
+            "min": 0
+          }
         },
         {
-          "id": "26",
-          "metricName": "loadgen_changing_val_host_60",
-          "customName": "",
-          "customDescription": "",
-          "promQL": "",
-          "metricType": "",
-          "what": [
-            "avg"
-          ],
           "customAgg": 0,
-          "groupBy": [],
-          "filterIn": {},
-          "filterNotIn": {},
-          "numSeries": 100,
-          "useV2": true,
-          "yLock": {
-            "min": 0,
-            "max": 0
-          },
-          "maxHost": true,
-          "type": 0,
+          "customDescription": "",
+          "customName": "",
           "events": [],
           "eventsBy": [],
           "eventsHide": [],
-          "totalLine": false,
           "filledGraph": true,
-          "logScale": false
+          "filterIn": {},
+          "filterNotIn": {},
+          "groupBy": [],
+          "id": "26",
+          "logScale": false,
+          "maxHost": true,
+          "metricName": "loadgen_changing_val_host_60",
+          "metricType": "",
+          "numSeries": 100,
+          "promQL": "",
+          "totalLine": false,
+          "type": 0,
+          "useV2": true,
+          "what": [
+            "avg"
+          ],
+          "yLock": {
+            "max": 0,
+            "min": 0
+          }
         }
       ],
       "timeShifts": [],
-      "variables": [],
+      "tagSync": [],
       "eventFrom": 0,
+      "variables": [],
       "dashboard": {
         "name": "loadgen",
         "description": "",
         "groupInfo": [
           {
+            "count": 9,
+            "description": "",
             "name": "Tags do not change",
-            "description": "",
-            "count": 9,
-            "size": "3",
-            "show": true
+            "show": true,
+            "size": "3"
           },
           {
+            "count": 9,
+            "description": "",
             "name": "Tags are changing every sec/min/10min",
-            "description": "",
-            "count": 9,
-            "size": "3",
-            "show": true
+            "show": true,
+            "size": "3"
           },
           {
+            "count": 3,
+            "description": "",
             "name": "String top",
-            "description": "",
-            "count": 3,
-            "size": "3",
-            "show": true
+            "show": true,
+            "size": "3"
           },
           {
+            "count": 3,
+            "description": "",
             "name": "Custom host - 2 constant values",
-            "description": "",
-            "count": 3,
-            "size": "3",
-            "show": true
+            "show": true,
+            "size": "3"
           },
           {
-            "name": "Custom host - changing every minute",
-            "description": "",
             "count": 3,
-            "size": "3",
-            "show": true
+            "description": "",
+            "name": "Custom host - changing every minute",
+            "show": true,
+            "size": "3"
           }
         ]
       },
-      "tagSync": [],
       "searchParams": [
         [
           "tn",
@@ -884,16 +884,12 @@
           "loadgen"
         ],
         [
-          "dv",
-          "110"
-        ],
-        [
           "t",
           "0"
         ],
         [
           "f",
-          "-900"
+          "-300"
         ],
         [
           "s",
@@ -906,6 +902,14 @@
         [
           "t1.qw",
           "sum_norm"
+        ],
+        [
+          "t1.yl",
+          "-696.7741935483882"
+        ],
+        [
+          "t1.yh",
+          "748.3870967741932"
         ],
         [
           "t2.s",
@@ -1021,7 +1025,7 @@
         ],
         [
           "t12.qb",
-          "3"
+          "4"
         ],
         [
           "t12.n",
@@ -1037,7 +1041,7 @@
         ],
         [
           "t13.qb",
-          "3"
+          "4"
         ],
         [
           "t13.n",
@@ -1057,7 +1061,7 @@
         ],
         [
           "t14.qb",
-          "3"
+          "4"
         ],
         [
           "t14.n",
@@ -1069,7 +1073,7 @@
         ],
         [
           "t15.qb",
-          "4"
+          "5"
         ],
         [
           "t15.n",
@@ -1085,7 +1089,7 @@
         ],
         [
           "t16.qb",
-          "4"
+          "5"
         ],
         [
           "t16.n",
@@ -1105,7 +1109,7 @@
         ],
         [
           "t17.qb",
-          "4"
+          "5"
         ],
         [
           "t17.n",
@@ -1116,12 +1120,16 @@
           "loadgen_changing_top_1"
         ],
         [
+          "t20.g",
+          "5"
+        ],
+        [
           "t20.qb",
           "_s"
         ],
         [
           "t20.n",
-          "100"
+          "0"
         ],
         [
           "t21.s",
