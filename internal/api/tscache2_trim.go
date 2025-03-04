@@ -27,7 +27,7 @@ func (c *cache2) trim() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for !c.shutdownF {
-		trimAged := c.limits.maxAge > 0 && c.info.age() > c.limits.maxAge
+		trimAged := 0 < c.limits.maxAge && c.limits.maxAge < c.info.age()
 		if trimAged {
 			tr.sendEvent(" 1", " 1", c.info.size())
 			maxAge := c.limits.maxAge
@@ -37,7 +37,7 @@ func (c *cache2) trim() {
 			c.mu.Lock()
 			tr.sendEvent(" 2", " 1", c.info.size())
 		}
-		trimSize := c.limits.maxSize > 0 && c.info.size() > c.limits.maxSize
+		trimSize := 0 < c.limits.maxSizeSoft && c.limits.maxSizeSoft < c.info.size()
 		if trimSize {
 			tr.sendEvent(" 1", " 2", c.info.size())
 			c.mu.Unlock()
