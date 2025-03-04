@@ -56,7 +56,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
 	f.IntVar(&argv.CacheVersion, "cache-version", 1, "cache version")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", 4*1024*1024*1024, "cache hard memory limit (in bytes)")
-	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", 2*1024*1024*1024, "cache soft memory limit (in bytes)")
+	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", 0, "cache soft memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 120, "maximum cache age in seconds")
 	f.IntVar(&argv.CacheChunkSize, "cache-chunk-size", 0, "cache chunk size")
 	f.Int64Var(&argv.CacheStaleAcceptPeriod, "cache-stale-accept-period", 5, "cache stale accept period in seconds")

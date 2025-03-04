@@ -233,15 +233,14 @@ func (c *cache2) updateRuntimeInfoUnlocked(step, user string, info *cache2Update
 		m = make(map[string]*cache2RuntimeInfo)
 		c.infoM[step] = m
 	}
-	userGroup := getStatTokenName(user)
-	if r := m[userGroup]; r != nil {
+	if r := m[user]; r != nil {
 		r.update(info)
 	} else {
 		r := &cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		}
 		r.update(info)
-		m[userGroup] = r
+		m[user] = r
 	}
 }
 
