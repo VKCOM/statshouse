@@ -17,11 +17,11 @@ import (
 const metricPrefixG = "loadgen_"
 
 // tag names signify how often they change
-const constTag = "const"    // 1 tag
-const secTag = "sec"        // 2 tag
-const minTag = "min"        // 3 tag
-const tenMinTag = "ten_min" // 4 tag
-const rawTag = "raw"        // 5 tag
+const mappedTag = "mapped"  // 1 tag
+const rawTag = "raw"        // 2 tag
+const secTag = "sec"        // 3 tag
+const minTag = "min"        // 4 tag
+const tenMinTag = "ten_min" // 5 tag
 const hostTag = "_h"
 
 type GenericMetric interface {
@@ -173,7 +173,12 @@ func setCommonMetricValues(mv *format.MetricMetaValue) {
 			Description: "environment",
 		},
 		{
-			Name: constTag,
+			Name: mappedTag,
+		},
+		{
+			Name:    rawTag,
+			Raw:     true,
+			RawKind: "int",
 		},
 		{
 			Name: secTag,
@@ -184,18 +189,13 @@ func setCommonMetricValues(mv *format.MetricMetaValue) {
 		{
 			Name: tenMinTag,
 		},
-		{
-			Name:    rawTag,
-			Raw:     true,
-			RawKind: "int",
-		},
 	}
 }
 
 func updateNamedTags(tags statshouse.NamedTags, now time.Time) {
 	for i := range tags {
 		switch tags[i][0] {
-		case constTag:
+		case mappedTag, rawTag:
 			continue
 		case secTag:
 			tags[i][1] = now.Format("15:04:05")
@@ -231,38 +231,39 @@ func (g *Generator) goRun(ctx context.Context, frequency time.Duration, metrics 
 	}
 }
 
-func (g *Generator) AddConstCounter(resolution int) {
+func (g *Generator) AddConstCounter(resolution int, idx int) {
 	m := countMetric{
 		name:       metricPrefixG + "const_cnt_" + fmt.Sprint(resolution),
-		tags:       statshouse.NamedTags{{constTag, "constant"}},
+		tags:       statshouse.NamedTags{{mappedTag, fmt.Sprint(idx)}, {rawTag, fmt.Sprint(idx)}},
 		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddConstValue(resolution int) {
+func (g *Generator) AddConstValue(resolution int, idx int) {
 	m := valueMetric{
 		name:       metricPrefixG + "const_val_" + fmt.Sprint(resolution),
-		tags:       statshouse.NamedTags{{constTag, "constant"}},
+		tags:       statshouse.NamedTags{{mappedTag, fmt.Sprint(idx)}, {rawTag, fmt.Sprint(idx)}},
 		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddConstValueHost(resolution int, host string) {
+func (g *Generator) AddConstValueHost(resolution int, idx int, host string) {
 	m := valueMetric{
 		name:       metricPrefixG + "const_val_host_" + fmt.Sprint(resolution),
-		tags:       statshouse.NamedTags{{constTag, "constant"}, {hostTag, host}},
+		tags:       statshouse.NamedTags{{mappedTag, fmt.Sprint(idx)}, {rawTag, fmt.Sprint(idx)}, {hostTag, host}},
 		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingCounter(resolution int) {
+func (g *Generator) AddChangingCounter(resolution int, idx int) {
 	m := countMetric{
 		name: metricPrefixG + "changing_cnt_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
-			{constTag, "constant"},
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
@@ -272,11 +273,12 @@ func (g *Generator) AddChangingCounter(resolution int) {
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingValue(resolution int) {
+func (g *Generator) AddChangingValue(resolution int, idx int) {
 	m := valueMetric{
 		name: metricPrefixG + "changing_val_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
-			{constTag, "constant"},
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
@@ -286,11 +288,12 @@ func (g *Generator) AddChangingValue(resolution int) {
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingValueHost(resolution int) {
+func (g *Generator) AddChangingValueHost(resolution int, idx int) {
 	m := valueMetric{
 		name: metricPrefixG + "changing_val_host_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
-			{constTag, "constant"},
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},
@@ -302,11 +305,12 @@ func (g *Generator) AddChangingValueHost(resolution int) {
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingStringTop(resolution int, card int) {
+func (g *Generator) AddChangingStringTop(resolution int, idx int, card int) {
 	m := stringTopMetric{
 		name: metricPrefixG + "changing_top_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
-			{constTag, "constant"},
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
 		},
 		resolution: resolution,
 		card:       card,
@@ -314,21 +318,25 @@ func (g *Generator) AddChangingStringTop(resolution int, card int) {
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddConstPercentile(resolution int) {
+func (g *Generator) AddConstPercentile(resolution int, idx int) {
 	m := valueMetric{
-		name:         metricPrefixG + "const_per_" + fmt.Sprint(resolution),
-		tags:         statshouse.NamedTags{{constTag, "constant"}},
+		name: metricPrefixG + "const_per_" + fmt.Sprint(resolution),
+		tags: statshouse.NamedTags{
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
+		},
 		resolution:   resolution,
 		isPercentile: true,
 	}
 	g.metrics = append(g.metrics, &m)
 }
 
-func (g *Generator) AddChangingPercentile(resolution int) {
+func (g *Generator) AddChangingPercentile(resolution int, idx int) {
 	m := valueMetric{
 		name: metricPrefixG + "changing_per_" + fmt.Sprint(resolution),
 		tags: statshouse.NamedTags{
-			{constTag, "constant"},
+			{mappedTag, fmt.Sprint(idx)},
+			{rawTag, fmt.Sprint(idx)},
 			{secTag, ""},
 			{minTag, ""},
 			{tenMinTag, ""},

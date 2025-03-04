@@ -18,6 +18,14 @@ import (
 )
 
 func RunClientLoad() {
+	baseCard := 1
+	if len(os.Args) >= 3 {
+		card, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatalf("Invalid card number %s: %v", os.Args[2], err)
+		}
+		baseCard = card
+	}
 	ctx := makeInterruptibleContext()
 	apiClient := api.NewClient("http://127.0.0.1:10888", "loadgen")
 	sh := statshouse.NewClient(log.Printf, "tcp", statshouse.DefaultAddr, "")
@@ -27,13 +35,19 @@ func RunClientLoad() {
 	}
 
 	wasLen := 0
-	addMetrics(&g, 1)
+	for idx := 1; idx <= baseCard; idx++ {
+		addMetrics(&g, 1, idx)
+	}
 	res1Slice := g.metrics[wasLen:len(g.metrics)]
 	wasLen = len(g.metrics)
-	addMetrics(&g, 15)
+	for idx := 1; idx <= baseCard; idx++ {
+		addMetrics(&g, 15, idx)
+	}
 	res15Slice := g.metrics[wasLen:len(g.metrics)]
 	wasLen = len(g.metrics)
-	addMetrics(&g, 60)
+	for idx := 1; idx <= baseCard; idx++ {
+		addMetrics(&g, 60, idx)
+	}
 	res60Slice := g.metrics[wasLen:len(g.metrics)]
 
 	log.Print("Ensure metrics exist")
@@ -57,19 +71,19 @@ func RunClientLoad() {
 	log.Print("DONE")
 }
 
-func addMetrics(g *Generator, resolution int) {
+func addMetrics(g *Generator, resolution int, idx int) {
 	// metrics that do not change tag values
-	g.AddConstCounter(resolution)
-	g.AddConstValue(resolution)
-	g.AddConstPercentile(resolution)
-	g.AddConstValueHost(resolution, "host_1")
-	g.AddConstValueHost(resolution, "host_2")
+	g.AddConstCounter(resolution, idx)
+	g.AddConstValue(resolution, idx)
+	g.AddConstPercentile(resolution, idx)
+	g.AddConstValueHost(resolution, idx, "host_1")
+	g.AddConstValueHost(resolution, idx, "host_2")
 	// metrics with changing tag values
-	g.AddChangingCounter(resolution)
-	g.AddChangingValue(resolution)
-	g.AddChangingPercentile(resolution)
-	g.AddChangingStringTop(resolution, 10)
-	g.AddChangingValueHost(resolution)
+	g.AddChangingCounter(resolution, idx)
+	g.AddChangingValue(resolution, idx)
+	g.AddChangingPercentile(resolution, idx)
+	g.AddChangingStringTop(resolution, idx, 10)
+	g.AddChangingValueHost(resolution, idx)
 }
 
 func makeInterruptibleContext() context.Context {
