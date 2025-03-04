@@ -96,7 +96,12 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		Tags: tags,
 	})
 	debugCacheCreateMetric(r, format.MetricMetaValue{
-		Name: "statshouse_api_cache_sum_chunks",
+		Name: "statshouse_api_cache_sum_chunk_size",
+		Kind: format.MetricKindValue,
+		Tags: tags,
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_sum_chunk_count",
 		Kind: format.MetricKindCounter,
 		Tags: tags,
 	})
@@ -159,7 +164,7 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	})
 	tags[3] = format.MetricMetaTag{}
 	debugCacheCreateMetric(r, format.MetricMetaValue{
-		Name:                 "statshouse_api_cache_chunk_hit",
+		Name:                 "statshouse_api_cache_chunk_hit_count",
 		Kind:                 format.MetricKindValue,
 		Tags:                 tags,
 		StringTopDescription: "user",
@@ -189,11 +194,11 @@ func cacheGet(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data
 	}
 }
 
-func cacheInvalidate(h *Handler, ts []int64, stepSec int64) {
+func cacheInvalidate(h *Handler, times []int64, stepSec int64) {
 	if h.CacheVersion.Load() == 2 {
-		h.getCache2().invalidate(ts, stepSec)
+		h.getCache2().invalidate(times, stepSec)
 	} else {
-		h.cache.Invalidate(stepSec, ts)
+		h.cache.Invalidate(stepSec, times)
 	}
 }
 

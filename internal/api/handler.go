@@ -2027,6 +2027,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 			Vars:             req.vars,
 			Compat:           req.compat,
 			TimeNow:          time.Now().Unix(),
+			Play:             req.play,
 		},
 	}
 	if query.Expr == "" {
