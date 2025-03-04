@@ -2,9 +2,11 @@ package loadgen
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -116,6 +118,35 @@ func ensureMetricWithDescription(ctx context.Context, client *api.Client, name, 
 	m.Metric.Description = desc
 	m.Metric.Tags = tags
 	err = client.PostMetric(ctx, m)
+	if err != nil {
+		log.Fatalf("Failed to post metric: %v", err)
+	}
+}
+
+func RunSetSharding() {
+	if len(os.Args) < 4 {
+		fmt.Println("Usage: loadgen set-sharding <metric> <strategy> [<shard>]")
+		os.Exit(1)
+	}
+	metric := os.Args[2]
+	strategy := os.Args[3]
+	var shard int
+	var err error
+	if len(os.Args) > 4 {
+		shard, err = strconv.Atoi(os.Args[4])
+		if err != nil || shard < 0 {
+			log.Fatal("Invalid shard value: ", os.Args[4], err)
+		}
+	}
+	ctx := makeInterruptibleContext()
+	c := api.NewClient("http://127.0.0.1:10888", "loadgen")
+	m, err := c.GetMetric(ctx, metric)
+	if err != nil {
+		log.Fatalf("Failed to get metric: %v", err)
+	}
+	m.Metric.ShardStrategy = strategy
+	m.Metric.ShardNum = uint32(shard)
+	err = c.PostMetric(ctx, m)
 	if err != nil {
 		log.Fatalf("Failed to post metric: %v", err)
 	}

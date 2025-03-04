@@ -8,7 +8,7 @@ import (
 )
 
 func usage() {
-	fmt.Printf("usage: loadgen client|new-pipeline\n")
+	fmt.Printf("usage: loadgen client|new-pipeline|set-sharding\n")
 	os.Exit(1)
 }
 
@@ -20,6 +20,9 @@ func main() {
 			return
 		case "new-pipeline":
 			loadgen.RunEnableNewPipeline()
+			return
+		case "set-sharding":
+			loadgen.RunSetSharding()
 			return
 		}
 	}
