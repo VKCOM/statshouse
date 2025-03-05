@@ -28,6 +28,7 @@ type ConfigAggregatorRemote struct {
 	MappingCacheSize     int64
 	MappingCacheTTL      int
 	MapStringTop         bool
+	SkipOldMetrics       bool
 
 	configTagsMapper2
 }
@@ -119,6 +120,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
+		f.BoolVar(&c.SkipOldMetrics, "skip-old-metrics", d.SkipOldMetrics, "Skip old metrics")
 
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
