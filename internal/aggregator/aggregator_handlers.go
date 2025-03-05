@@ -460,7 +460,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
-		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
+		if configR.SkipOldMetrics && item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
 			measurementOutdatedRows++
 			continue
 		}
