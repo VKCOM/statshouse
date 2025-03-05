@@ -454,15 +454,27 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		clampedTag int32
 	}
 	clampedTimestampsMetrics := map[clampedKey]float32{}
+	oldMetricBuckets := map[int32][3]int{}
 
 	var resp tlstatshouse.SendSourceBucket3Response
 	// we will allocate if key won't fit into this buffer, but it is quite unlikely
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
-		if configR.SkipOldMetrics && item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
-			measurementOutdatedRows++
-			continue
+		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
+			b := oldMetricBuckets[item.Metric]
+			if nowUnix-item.T >= 48*3600 {
+				b[2]++
+			} else if nowUnix-item.T >= 24*3600 {
+				b[1]++
+			} else if nowUnix-item.T >= 6*3600 {
+				b[0]++
+			}
+			oldMetricBuckets[item.Metric] = b
+			if configR.SkipOldMetrics {
+				measurementOutdatedRows++
+				continue
+			}
 		}
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)
@@ -764,6 +776,23 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		a.sh2.AddCounterHostStringBytesAERA((args.Time/60)*60, format.BuiltinMetricMetaVersions,
 			[]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag},
 			bcStr, 1, hostTag, aera)
+	}
+	for m, b := range oldMetricBuckets {
+		if b[0] > 0 {
+			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+				[]int32{0, format.TagValueIDOldMetricForm6hTo1d, m},
+				bcStr, float64(b[0]), hostTag, aera)
+		}
+		if b[1] > 0 {
+			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+				[]int32{0, format.TagValueIDOldMetricForm1dTo2d, m},
+				bcStr, float64(b[1]), hostTag, aera)
+		}
+		if b[2] > 0 {
+			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+				[]int32{0, format.TagValueIDOldMetricForm2d, m},
+				bcStr, float64(b[2]), hostTag, aera)
+		}
 	}
 
 	// Ingestion statuses, sample factors and badges are written into the same shard as metric itself.
