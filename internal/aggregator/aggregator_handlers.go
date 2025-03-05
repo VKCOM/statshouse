@@ -431,6 +431,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	measurementUniqueBytes := 0
 	measurementStringTops := 0
 	measurementIntTops := 0
+	measurementOutdatedRows := 0
 	unknownTags := map[string]format.CreateMappingExtra{}
 	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
 	mappingHits := 0
@@ -459,6 +460,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
+		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
+			measurementOutdatedRows++
+			continue
+		}
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)
 		measurementCentroids += len(item.Tail.Centroids)
@@ -660,6 +665,8 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoRows}, float64(len(bucket.Metrics)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoOutdatedRows}, float64(measurementOutdatedRows), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoIntKeys}, float64(measurementIntKeys), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,

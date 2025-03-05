@@ -361,6 +361,7 @@ const (
 	TagValueIDAggBucketInfoIntTops            = 11
 	TagValueIDAggBucketInfoNewKeys            = 12
 	TagValueIDAggBucketInfoMetrics            = 13
+	TagValueIDAggBucketInfoOutdatedRows       = 14
 
 	TagValueIDMappingCacheEventHit                 = 1
 	TagValueIDMappingCacheEventMiss                = 2
