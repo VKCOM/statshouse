@@ -18,7 +18,7 @@ import (
 const timeDay = 24 * time.Hour
 const timeMonth = 31 * 24 * time.Hour
 
-var errNegativeChunkOffset = fmt.Errorf("negative chunk offset")
+var errOutOfRangeChunkOffset = fmt.Errorf("out of range chunk offset")
 
 type cache2 struct {
 	mu        sync.Mutex
@@ -350,13 +350,15 @@ func (c *cache2) invalidate(times []int64, stepSec int64) {
 	}
 	t := times[0] * int64(time.Second) // nanoseconds from seconds
 	shard := c.shards[time.Duration(stepSec)*time.Second]
-	end := c.chunkEnd(shard, c.chunkStart(shard, t))
-	s := []int64{end}
+	start := c.chunkStart(shard, t)
+	end := c.chunkEnd(shard, start)
+	s := []int64{start}
 	for i := 1; i < len(times); i++ {
 		t = times[i] * int64(time.Second) // nanoseconds from seconds
 		if end <= t {
-			end = c.chunkEnd(shard, c.chunkStart(shard, t))
-			s = append(s, end)
+			start = c.chunkStart(shard, t)
+			end = c.chunkEnd(shard, start)
+			s = append(s, start)
 		}
 	}
 	shard.invalidate(s, time.Now().UnixNano())
@@ -408,14 +410,14 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 }
 
 func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
-	cache, shard, bucket := l.cache, l.shard, l.bucket
-	bucket.mu.Lock()
-	defer bucket.mu.Unlock()
-	if bucket.attached {
-		if mode := cache2BucketMode(bucket.playInterval); mode != l.mode {
-			sizeDelta := sizeofCache2Chunks(bucket.chunks)
-			chunkSizeDelta := len(bucket.chunks) * bucket.chunkSize
-			chunkCountDelta := len(bucket.chunks)
+	c, shard, b := l.cache, l.shard, l.bucket
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.attached {
+		if mode := cache2BucketMode(b.playInterval); mode != l.mode {
+			sizeDelta := sizeofCache2Chunks(b.chunks)
+			chunkSizeDelta := len(b.chunks) * b.chunkSize
+			chunkCountDelta := len(b.chunks)
 			info.sumSizeS[mode] -= sizeDelta
 			info.sumSizeS[l.mode] += sizeDelta
 			info.sumChunkSizeS[mode] -= chunkSizeDelta
@@ -423,54 +425,38 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 			info.sumChunkCountS[mode] -= chunkCountDelta
 			info.sumChunkCountS[l.mode] += chunkCountDelta
 		}
-		bucket.playInterval = time.Duration(l.query.play) * time.Second
-		bucket.lastAccessTime = l.timeNow
+		b.playInterval = time.Duration(l.query.play) * time.Second
+		b.lastAccessTime = l.timeNow
 	}
 	var times []int64
 	var chunks []*cache2Chunk
-	i, _ := slices.BinarySearch(bucket.times, t)
+	start := c.chunkStart(shard, t)
+	i, _ := slices.BinarySearch(b.times, start)
 	for len(d) != 0 {
-		pos := i // new chunks insert position
-		end := int64(math.MaxInt64)
-		if i < len(bucket.chunks) {
-			if t < bucket.chunks[i].start {
-				end = bucket.chunks[i].start
-			} else {
-				nextChunkPos, nextChunkStart := i+1, int64(math.MaxInt64)
-				if nextChunkPos < len(bucket.chunks) {
-					nextChunkStart = bucket.chunks[nextChunkPos].start
-				}
-				if bucket.chunks[i].end <= t && t < nextChunkStart {
-					pos = nextChunkPos
-					end = nextChunkStart
-				} else {
-					end = t // no new chunks to insert
-				}
-			}
-		}
 		newChunkCount := 0
 		chunks, times = chunks[:0], times[:0]
-		for len(d) != 0 && t < end {
-			start := cache.chunkStart(shard, t)
+		for len(d) != 0 && (i >= len(b.times) || start != b.chunks[i].start) {
 			chunk := &cache2Chunk{
-				attached: bucket.attached,
+				attached: b.attached,
 				start:    start,
-				end:      cache.chunkEnd(shard, start),
+				end:      c.chunkEnd(shard, start),
 			}
 			d, t = l.addChunk(d, t, chunk, info)
-			if bucket.attached {
-				times = append(times, chunk.end)
+			start = t
+			newChunkCount++
+			if b.attached {
+				times = append(times, chunk.start)
 				chunks = append(chunks, chunk)
 			}
-			newChunkCount++
 		}
 		if newChunkCount == 0 {
-			d, t = l.addChunk(d, t, bucket.chunks[i], info)
+			d, t = l.addChunk(d, t, b.chunks[i], info)
+			start = t
 			i++
-		} else if bucket.attached {
-			bucket.times = append(append(bucket.times[:pos], times...), bucket.times[pos:]...)
-			bucket.chunks = append(append(bucket.chunks[:pos], chunks...), bucket.chunks[pos:]...)
-			info.sumChunkSizeS[l.mode] += len(chunks) * bucket.chunkSize
+		} else if b.attached {
+			b.times = append(append(b.times[:i], times...), b.times[i:]...)
+			b.chunks = append(append(b.chunks[:i], chunks...), b.chunks[i:]...)
+			info.sumChunkSizeS[l.mode] += len(chunks) * b.chunkSize
 			info.sumChunkCountS[l.mode] += len(chunks)
 			i += newChunkCount
 		}
@@ -490,10 +476,10 @@ func (l *cache2Loader) run(ctx context.Context) error {
 }
 
 func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cache2UpdateInfo) (cache2Data, int64) {
-	bucket := l.bucket
+	b := l.bucket
 	offset := int((t - c.start) / int64(l.shard.step))
-	if offset < 0 {
-		panic(errNegativeChunkOffset)
+	if offset < 0 || b.chunkSize <= offset {
+		panic(errOutOfRangeChunkOffset)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -512,7 +498,7 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 	var n int
 	if await {
 		// cache miss
-		n = bucket.chunkSize - offset
+		n = b.chunkSize - offset
 		if n > len(d) {
 			n = len(d)
 		}
@@ -560,10 +546,10 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 			{"1", srvfunc.HostnameForStatshouse()},
 			{"2", "0"}, // mode
 			{"4", l.shard.stepS},
-			{"5", getStatTokenName(bucket.fau)},
-			{"_s", bucket.fau},
+			{"5", getStatTokenName(b.fau)},
+			{"_s", b.fau},
 		}
-		if bucket.playInterval > 0 {
+		if b.playInterval > 0 {
 			mode = 1
 			tags[2][1] = "1" // play mode
 		}
@@ -769,10 +755,10 @@ func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2Upda
 }
 
 func (shard *cache2Shard) invalidate(times []int64, timeNow int64) {
-	bucket := shard.invalidateIteratorStart()
-	for bucket != nil {
-		bucket.invalidate(times, timeNow)
-		bucket = shard.invalidateIteratorNext()
+	b := shard.invalidateIteratorStart()
+	for b != nil {
+		b.invalidate(times, timeNow)
+		b = shard.invalidateIteratorNext()
 	}
 }
 
