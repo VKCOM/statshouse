@@ -2155,6 +2155,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
 				TimeNow:          timeNow.Unix(),
+				Play:             req.play,
 			},
 		},
 	}
