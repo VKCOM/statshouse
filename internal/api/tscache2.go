@@ -868,10 +868,9 @@ func (b *cache2Bucket) runtimeInfo(timeNow int64) cache2BucketRuntimeInfo {
 	defer b.mu.Unlock()
 	idlePeriod := time.Duration(timeNow - b.lastAccessTime)
 	playInterval := b.playInterval
-	if playInterval < idlePeriod || playInterval <= 0 {
+	if playInterval <= 0 || playInterval+5*time.Second < idlePeriod {
 		// - being not accessed longer than play interval means not playing
-		// - not playing is equvalent to playing with infinite period
-		// simplifies bucket compare
+		// - not playing is equvalent to playing with infinite period (simplifies bucket compare)
 		playInterval = math.MaxInt
 	}
 	return cache2BucketRuntimeInfo{
