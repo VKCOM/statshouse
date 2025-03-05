@@ -2597,3 +2597,25 @@ var BuiltinMetricMetaAggInsertSize = &MetricMetaValue{
 		ValueComments: convertToValueComments(insertKindToValue),
 	}},
 }
+
+var BuiltinMetricMetaAggOldMetrics = &MetricMetaValue{
+	Name:                    "__agg_old_metrics",
+	Kind:                    MetricKindCounter,
+	Resolution:              60,
+	Description:             "Distribution of historical points",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "age",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDOldMetricForm6hTo1d: "6h-1d",
+			TagValueIDOldMetricForm1dTo2d: "1d-2d",
+			TagValueIDOldMetricForm2d:     "2d+",
+		}),
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}},
+}

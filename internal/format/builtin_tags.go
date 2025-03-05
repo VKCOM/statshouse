@@ -152,6 +152,11 @@ const (
 	TagValueIDPacketProtocolVKRPC    = 4
 	TagValueIDPacketProtocolHTTP     = 5
 )
+const (
+	TagValueIDOldMetricForm6hTo1d = 2
+	TagValueIDOldMetricForm1dTo2d = 3
+	TagValueIDOldMetricForm2d     = 4
+)
 
 var packetProtocolToValue = map[int32]string{
 	TagValueIDPacketProtocolUDP:      "udp",
