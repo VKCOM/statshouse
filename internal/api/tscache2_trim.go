@@ -32,7 +32,6 @@ func (c *cache2) trim() {
 			t.sendEvent(" 1", " 1", c.info.size())
 			maxAge := c.limits.maxAge
 			c.mu.Unlock()
-			c.debugPrint("trim aged")
 			t.trimAged(maxAge)
 			c.mu.Lock()
 			t.sendEvent(" 2", " 1", c.info.size())
@@ -41,7 +40,6 @@ func (c *cache2) trim() {
 		if trimSize {
 			t.sendEvent(" 1", " 2", c.info.size())
 			c.mu.Unlock()
-			c.debugPrint("trim size")
 			v := t.reduceMemoryUsage()
 			t.sendEvent(" 2", " 2", v)
 			c.mu.Lock()
@@ -50,7 +48,6 @@ func (c *cache2) trim() {
 		if trimAged || trimSize {
 			if p := c.handler.CacheTrimBackoffPeriod.Load(); p > 0 {
 				d := time.Duration(p) * time.Second
-				c.debugPrintf("trim backoff for %s", d)
 				c.mu.Unlock()
 				time.Sleep(d)
 				wait = false
@@ -72,23 +69,22 @@ func (c *cache2) trim() {
 
 func (t *cache2Trim) trimAged(maxAge time.Duration) {
 	c := t.cache
-	c.debugPrintRuntimeInfof("remove older than %s", maxAge)
-	now := time.Now()
 	infoM := make(cache2UpdateInfoM)
-	timeNow := now.Add(-maxAge).UnixNano()
+	timeNow := time.Now()
+	maxAgeTime := timeNow.Add(-maxAge).UnixNano()
 	for _, shard := range c.shards {
-		bucket := shard.trimIteratorStart()
-		for bucket != nil {
+		b := shard.trimIteratorStart()
+		for b != nil {
 			info := &cache2UpdateInfo{
-				minChunkAccessTime: now.UnixNano(),
+				minChunkAccessTime: timeNow.UnixNano(),
 			}
-			if bucket.notUsedAfter(timeNow) {
-				shard.removeBucket(bucket, info)
+			if b.notUsedAfter(maxAgeTime) {
+				shard.removeBucket(b, info)
 			} else {
-				bucket.removeChunksNotUsedAfter(timeNow, info)
+				b.removeChunksNotUsedAfter(maxAgeTime, info)
 			}
-			infoM.add(shard.stepS, bucket.fau, info)
-			bucket = shard.trimIteratorNext()
+			infoM.add(shard.stepS, b.fau, info)
+			b = shard.trimIteratorNext()
 		}
 	}
 	c.updateRuntimeInfoM(infoM)
@@ -96,20 +92,23 @@ func (t *cache2Trim) trimAged(maxAge time.Duration) {
 
 func (t *cache2Trim) reduceMemoryUsage() int {
 	c, h := t.cache, t.heap
-	for {
+	for i := 0; ; i++ {
+		n := 0
 		timeNow := time.Now().UnixNano()
 		for _, shard := range c.shards {
-			bucket := shard.trimIteratorStart()
-			for bucket != nil {
-				h = h.push(cache2TrimBucket{shard, bucket, bucket.runtimeInfo(timeNow)})
-				bucket = shard.trimIteratorNext()
+			b := shard.trimIteratorStart()
+			for b != nil {
+				h = h.push(cache2TrimBucket{shard, b, b.runtimeInfo(timeNow)})
+				b = shard.trimIteratorNext()
+				n++
 			}
 		}
+		c.debugPrintf("trim start #%d, buckets #%d/%d", i, n, c.bucketCount())
 		if h.len() == 0 {
 			t.heap = h
 			return 0
 		}
-		for ; h.len() > 0; h = h.pop() {
+		for j := 1; h.len() != 0; j++ {
 			v := h.min()
 			info := cache2UpdateInfo{}
 			v.shard.removeBucket(v.bucket, &info)
@@ -119,9 +118,11 @@ func (t *cache2Trim) reduceMemoryUsage() int {
 			size, maxSize := c.info.size(), c.limits.maxSizeSoft
 			c.mu.Unlock()
 			if size <= maxSize {
+				c.debugPrintf("trim end   #%d, buckets #%d", i, j)
 				t.heap = h.clear()
 				return size
 			}
+			h = h.pop()
 		}
 	}
 }
