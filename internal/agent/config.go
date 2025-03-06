@@ -133,20 +133,16 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 func (c *Config) updateFromRemoteDescription(description string) error {
 	var f flag.FlagSet
+	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
 	c.Bind(&f, *c)
 	s := strings.Split(description, "\n")
-	for i := 0; i < len(s); {
+	for i := 0; i < len(s); i++ {
 		t := strings.TrimSpace(s[i])
 		if len(t) == 0 || strings.HasPrefix(t, "#") {
-			s = append(s[0:i], s[i+1:]...)
-		} else {
-			s[i] = t
-			i++
+			continue
 		}
-	}
-	if err := f.Parse(s); err != nil {
-		return err
+		_ = f.Parse([]string{t})
 	}
 	c.ConveyorV3StagingList = c.ConveyorV3StagingList[:0]
 	for _, env := range strings.Split(c.ConveyorV3Staging, ",") {
