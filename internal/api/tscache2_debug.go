@@ -96,6 +96,11 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		Tags: tags,
 	})
 	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_sum_bucket_count",
+		Kind: format.MetricKindCounter,
+		Tags: tags,
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
 		Name: "statshouse_api_cache_sum_chunk_size",
 		Kind: format.MetricKindValue,
 		Tags: tags,
@@ -129,6 +134,12 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	debugCacheCreateMetric(r, format.MetricMetaValue{
 		Name:                 "statshouse_api_cache_size",
 		Kind:                 format.MetricKindValue,
+		Tags:                 tags,
+		StringTopDescription: "user",
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name:                 "statshouse_api_cache_bucket_count",
+		Kind:                 format.MetricKindCounter,
 		Tags:                 tags,
 		StringTopDescription: "user",
 	})
