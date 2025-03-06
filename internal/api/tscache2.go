@@ -465,14 +465,14 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 		if newChunkCount == 0 {
 			d, t = l.addChunk(d, t, b.chunks[i], info)
 			start = t
-			i++
 		} else if l.attach {
 			b.times = append(append(b.times[:i], times...), b.times[i:]...)
 			b.chunks = append(append(b.chunks[:i], chunks...), b.chunks[i:]...)
 			info.sumChunkSizeS[l.mode] += len(chunks) * b.chunkSize
 			info.sumChunkCountS[l.mode] += len(chunks)
-			i += newChunkCount
+			i += newChunkCount - 1 // consider i++ below
 		}
+		i++
 	}
 }
 
