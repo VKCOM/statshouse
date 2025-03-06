@@ -26,6 +26,7 @@ const tenMinTag = "ten_min" // 5 tag
 const hostTag = "_h"
 
 type GenericMetric interface {
+	Name() string
 	Write(c *statshouse.Client)
 	Update(now time.Time, rng *rand.Rand)
 	Ensure(ctx context.Context, c *api.Client)
@@ -39,6 +40,10 @@ type valueMetric struct {
 	changingHost bool
 
 	value float64
+}
+
+func (m *valueMetric) Name() string {
+	return m.name
 }
 
 func (m *valueMetric) Write(c *statshouse.Client) {
@@ -107,6 +112,10 @@ type countMetric struct {
 	count      int
 }
 
+func (m *countMetric) Name() string {
+	return m.name
+}
+
 func (m *countMetric) Write(c *statshouse.Client) {
 	c.NamedCount(m.name, m.tags, float64(m.count))
 }
@@ -147,6 +156,10 @@ type stringTopMetric struct {
 	resolution int
 	card       int
 	stringTop  string
+}
+
+func (m *stringTopMetric) Name() string {
+	return m.name
 }
 
 func (m *stringTopMetric) Write(c *statshouse.Client) {
