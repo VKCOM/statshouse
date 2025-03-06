@@ -641,11 +641,9 @@ func (l *cache2Loader) loadChunks(start, end int) {
 		chunk.waiting, waiting = waiting, chunk.waiting
 		if shutdown || (0 < sizeDelta && budget < sizeDelta) {
 			// release chunk memory
-			if chunk.size != 0 {
-				info.sumSizeS[mode] -= chunk.size
-				chunk.data = nil
-				chunk.size = 0
-			}
+			info.sumSizeS[mode] -= chunk.size
+			chunk.data = nil
+			chunk.size = 0
 		} else if err == nil && chunk.attached {
 			// update chunk data
 			attached = true
@@ -850,7 +848,7 @@ func (l cache2BucketList) next(v *cache2Bucket) *cache2Bucket {
 }
 
 func (l cache2BucketList) len() int {
-	// linear time, for unit tests
+	// linear time, for unit tests only
 	var n int
 	for v := l.head.next; ; v = v.next {
 		if v == l.head {
