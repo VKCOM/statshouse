@@ -18,13 +18,15 @@ var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`)
 
-func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD) *seriesQuery {
+func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
 		version:      lod.Version,
 	}
 	var sb strings.Builder
-	q.writeSelect(&sb, &lod)
+	if err := q.writeSelect(&sb, &lod); err != nil {
+		return nil, err
+	}
 	q.writeFrom(&sb, &lod)
 	b.writeWhere(&sb, &lod, buildSeriesQuery)
 	q.writeGroupBy(&sb, &lod)
@@ -35,15 +37,17 @@ func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD) *seriesQuery {
 	}
 	sb.WriteString(fmt.Sprintf(" LIMIT %v SETTINGS optimize_aggregation_in_order=1", limit))
 	q.body = sb.String()
-	return q
+	return q, nil
 }
 
-func (q *seriesQuery) writeSelect(sb *strings.Builder, lod *data_model.LOD) {
+func (q *seriesQuery) writeSelect(sb *strings.Builder, lod *data_model.LOD) error {
 	sb.WriteString("SELECT ")
 	comma := q.newListComma()
 	q.writeSelectTime(sb, lod, &comma)
-	q.writeSelectValues(sb, lod, &comma)
-	q.writeSelectTags(sb, lod, &comma)
+	if err := q.writeSelectValues(sb, lod, &comma); err != nil {
+		return err
+	}
+	return q.writeSelectTags(sb, lod, &comma)
 }
 
 func (q *seriesQuery) writeSelectTime(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
@@ -57,11 +61,11 @@ func (q *seriesQuery) writeSelectTime(sb *strings.Builder, lod *data_model.LOD, 
 	q.res = append(q.res, proto.ResultColumn{Name: "_time", Data: &q.time})
 }
 
-func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
 	if q.version == Version1 && q.isStringTop() {
 		sb.WriteString("toFloat64(sumMerge(count)) AS _val0")
 		q.res = append(q.res, proto.ResultColumn{Name: "_val0", Data: &q.count})
-		return // count is the only column available
+		return nil // count is the only column available
 	}
 	var has [data_model.DigestLast]bool
 	var hasSumSquare bool
@@ -149,7 +153,7 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 			sb.WriteString(columnName)
 			j++
 		default:
-			panic(fmt.Errorf("unsupported operation kind: %q", q.what[i].What))
+			return fmt.Errorf("unsupported operation kind: %q", q.what[i].What)
 		}
 		has[q.what[i].What] = true
 	}
@@ -179,6 +183,7 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 		}
 	}
+	return nil
 }
 
 func (q *seriesQuery) writeSelectSum(sb *strings.Builder, i int, lod *data_model.LOD, comma *listItemSeparator) {
@@ -214,7 +219,7 @@ func sqlMaxHost(lod *data_model.LOD) string {
 	return "argMaxMergeState(max_host)"
 }
 
-func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
+func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
 	switch lod.Version {
 	case Version3:
 		q.writeSelectTagsV3(sb, lod, comma)
@@ -223,8 +228,9 @@ func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, 
 	case Version1:
 		q.writeSelectTagsV1(sb, lod, comma)
 	default:
-		panic(fmt.Errorf("bad schema version %s", lod.Version))
+		return fmt.Errorf("bad schema version %s", lod.Version)
 	}
+	return nil
 }
 
 func (q *seriesQuery) writeSelectTagsV3(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
@@ -331,7 +337,7 @@ func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, fi
 	}
 }
 
-func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) {
+func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) error {
 	predicate, sep := op[0], op[1]
 	in := predicate == operatorIn
 	version3StrcmpOn := b.version3StrcmpOn(lod)
@@ -365,7 +371,9 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 					} else {
 						started = true
 					}
-					sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+					if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
+						return err
+					}
 					sb.WriteString(predicate)
 					sb.WriteString("(")
 					hasMapped = true
@@ -439,7 +447,9 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 			}
 			sb.WriteString("(")
 			if lod.Version == "3" {
-				sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
+					return err
+				}
 				sb.WriteString("=0")
 				if !raw {
 					sb.WriteString(" AND ")
@@ -450,13 +460,16 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 				sb.WriteString(b.colStr(tagX, lod))
 				sb.WriteString("=''")
 			} else {
-				sb.WriteString(b.whereIntExpr(tagX, lod, mod))
+				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
+					return err
+				}
 				sb.WriteString("=0")
 			}
 			sb.WriteString(")")
 		}
 		sb.WriteString(")")
 	}
+	return nil
 }
 
 func (q *queryBuilder) writeGroupBy(sb *strings.Builder, lod *data_model.LOD) {
@@ -512,26 +525,35 @@ func (b *queryBuilder) selectIntExpr(tagX int, lod *data_model.LOD) (string, boo
 	return b.colInt(tagX, lod), true
 }
 
+func (b *queryBuilder) writeWhereIntExpr(sb *strings.Builder, tagX int, lod *data_model.LOD, mod queryBuilderMode) error {
+	v, err := b.whereIntExpr(tagX, lod, mod)
+	if err != nil {
+		return err
+	}
+	sb.WriteString(v)
+	return nil
+}
+
 // as appears in WHERE clause
 // either alias, expression or column name
-func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuilderMode) string {
+func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuilderMode) (string, error) {
 	switch mod {
 	case buildSeriesQuery:
 		if lod.HasPreKey && tagX == b.preKeyTagX() {
-			return "_prekey"
+			return "_prekey", nil
 		}
 	case buildTagValuesQuery, buildTagValueIDsQuery:
 		// pass
 	default:
-		panic(fmt.Errorf("bad query kind"))
+		return "", fmt.Errorf("bad query kind")
 	}
 	if b.raw64(tagX) {
 		if b.groupedBy(tagX) {
-			return "_tag" + strconv.Itoa(int(tagX))
+			return "_tag" + strconv.Itoa(int(tagX)), nil
 		}
-		return b.raw64Expr(tagX, lod)
+		return b.raw64Expr(tagX, lod), nil
 	}
-	return b.colInt(tagX, lod)
+	return b.colInt(tagX, lod), nil
 }
 
 func (q *queryBuilder) writeByTags(sb *strings.Builder, lod *data_model.LOD) {

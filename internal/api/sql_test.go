@@ -107,9 +107,10 @@ func TestLoadPointsQueryV2(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
 
 	// checks
+	assert.NoError(t, err)
 	assert.Equal(t, 2, query.what.len())
 	assert.False(t, query.minMaxHost[0])
 	assert.False(t, query.minMaxHost[1])
@@ -139,9 +140,10 @@ func TestLoadPointsQueryV2_maxHost(t *testing.T) {
 	lod := getLod(t, Version2)
 
 	// execute
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
 
 	// checks
+	assert.NoError(t, err)
 	assert.Equal(t, 6, query.what.len())
 	assert.True(t, query.minMaxHost[0])
 	assert.True(t, query.minMaxHost[1])
@@ -166,9 +168,10 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	lod := getLod(t, Version3)
 
 	// execute
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
 
 	// checks
+	assert.NoError(t, err)
 	assert.Equal(t, 2, query.what.len())
 	assert.False(t, query.minMaxHost[0])
 	assert.False(t, query.minMaxHost[1])
@@ -199,9 +202,10 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	lod := getLod(t, Version3)
 
 	// execute
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
 
 	// checks
+	assert.NoError(t, err)
 	assert.Equal(t, 6, query.what.len())
 	assert.True(t, query.minMaxHost[0])
 	assert.True(t, query.minMaxHost[1])

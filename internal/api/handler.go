@@ -2952,7 +2952,10 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
+	if err != nil {
+		return 0, err
+	}
 	rows := 0
 	isFast := lod.IsFast()
 	isLight := query.isLight()
@@ -2960,7 +2963,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	metric := pq.metricID()
 	table := lod.Table
 	start := time.Now()
-	err := h.doSelect(ctx, chutil.QueryMetaInto{
+	err = h.doSelect(ctx, chutil.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
 		IsHardware: isHardware,
@@ -3009,7 +3012,10 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error) {
-	query := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod)
+	if err != nil {
+		return nil, err
+	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
 	isFast := lod.IsFast()
@@ -3017,7 +3023,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 	isHardware := query.isHardware()
 	metric := pq.metricID()
 	table := lod.Table
-	err := h.doSelect(ctx, chutil.QueryMetaInto{
+	err = h.doSelect(ctx, chutil.QueryMetaInto{
 		IsFast:     isFast,
 		IsLight:    isLight,
 		IsHardware: isHardware,
