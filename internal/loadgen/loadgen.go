@@ -10,9 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/format"
-	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse-go"
 )
@@ -55,9 +56,14 @@ func RunClientLoad() {
 	}
 
 	log.Print("Ensure metrics exist")
+	created := map[string]bool{}
 	for _, metric := range g.metrics {
-		metric.Ensure(ctx, apiClient)
+		if _, ok := created[metric.Name()]; !ok {
+			metric.Ensure(ctx, apiClient)
+			created[metric.Name()] = true
+		}
 	}
+	created = nil
 	log.Print("Ensure dashboard exist")
 	err := EnsureDashboardExists(ctx, apiClient)
 	if err != nil {
