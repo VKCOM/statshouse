@@ -20,11 +20,16 @@ func TestUpdateFromRemoteDescription(t *testing.T) {
 	err = copy.updateFromRemoteDescription(`
 	# comment
 	-sample-budget=200000
+	-unknown-flag
+	-unknown-option=10
+	-liveness-window=10
 	`)
 	require.Nil(t, err)
 	// Verify only sample-budget has changed
 	require.Equal(t, copy.SampleBudget, 200000)
+	require.Equal(t, copy.LivenessResponsesWindowLength, 10)
 	require.NotEqual(t, master, copy)
 	copy.SampleBudget = master.SampleBudget
+	copy.LivenessResponsesWindowLength = master.LivenessResponsesWindowLength
 	require.Equal(t, master, copy)
 }
