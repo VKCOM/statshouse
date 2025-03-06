@@ -450,7 +450,7 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 		chunks, times = chunks[:0], times[:0]
 		for len(d) != 0 && (i >= len(b.times) || start != b.chunks[i].start) {
 			chunk := &cache2Chunk{
-				attached: b.attached,
+				attached: l.attach,
 				start:    start,
 				end:      c.chunkEnd(shard, start),
 			}
@@ -954,17 +954,16 @@ func (m cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
 		m2 = make(map[string]*cache2UpdateInfo)
 		m[step] = m2
 	}
-	if v := m2[user]; v != nil {
-		v.sumSizeS[0] += info.sumSizeS[0]
-		v.sumSizeS[1] += info.sumSizeS[1]
-		v.sumChunkSizeS[0] += info.sumChunkSizeS[0]
-		v.sumChunkSizeS[1] += info.sumChunkSizeS[1]
-		v.sumChunkCountS[0] += info.sumChunkCountS[0]
-		v.sumChunkCountS[1] += info.sumChunkCountS[1]
-		if info.minChunkAccessTime != 0 && v.minChunkAccessTime > info.minChunkAccessTime {
-			v.minChunkAccessTime = info.minChunkAccessTime
+	if r := m2[user]; r != nil {
+		r.sumSizeS[0] += info.sumSizeS[0]
+		r.sumSizeS[1] += info.sumSizeS[1]
+		r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
+		r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
+		r.sumChunkCountS[0] += info.sumChunkCountS[0]
+		r.sumChunkCountS[1] += info.sumChunkCountS[1]
+		if info.minChunkAccessTime != 0 && r.minChunkAccessTime > info.minChunkAccessTime {
+			r.minChunkAccessTime = info.minChunkAccessTime
 		}
-		m2[user] = v
 	} else {
 		m2[user] = info
 	}
