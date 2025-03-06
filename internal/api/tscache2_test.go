@@ -36,6 +36,8 @@ func TestCache2TrimBucketHeapMaxSize(t *testing.T) {
 			require.GreaterOrEqual(t, sizeInBytes, h.min().info.size)
 			sizeInBytes = h.min().info.size
 		}
+		h = h.pop()
+		require.Zero(t, h.len())
 	})
 }
 
@@ -53,6 +55,8 @@ func TestCache2TrimBucketHeapMinAccessTime(t *testing.T) {
 			require.GreaterOrEqual(t, lastAccessTime, h.min().info.idlePeriod)
 			lastAccessTime = h.min().info.idlePeriod
 		}
+		h = h.pop()
+		require.Zero(t, h.len())
 	})
 }
 
@@ -70,5 +74,7 @@ func TestCache2TrimBucketHeapMaxPlay(t *testing.T) {
 			require.GreaterOrEqual(t, play, h.min().info.playInterval)
 			play = h.min().info.playInterval
 		}
+		h = h.pop()
+		require.Zero(t, h.len())
 	})
 }

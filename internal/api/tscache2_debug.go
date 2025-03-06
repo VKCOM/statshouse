@@ -239,20 +239,6 @@ func (c *cache2) debugPrintf(format string, a ...any) {
 	c.debugPrint(fmt.Sprintf(format, a...))
 }
 
-func (c *cache2) debugPrintRuntimeInfof(f string, a ...any) {
-	c.debugPrintRuntimeInfo(fmt.Sprintf(f, a...))
-}
-
-func (c *cache2) debugPrintRuntimeInfo(s string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.debugPrintRuntimeInfoUnlocked(s)
-}
-
-func (c *cache2) debugPrintRuntimeInfoUnlocked(s string) {
-	c.debugPrint(fmt.Sprintf("%s, size=%d (max=%d), age %s (max %s)", s, c.info.size(), c.limits.maxSize, c.info.age(), c.limits.maxAge))
-}
-
 func (c *cache2) debugLog() [100]cache2DebugLogMessage {
 	c.debugLogMu.Lock()
 	defer c.debugLogMu.Unlock()

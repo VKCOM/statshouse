@@ -55,6 +55,7 @@ type cache2Loader struct {
 	waitN             int
 	mode              int
 	forceLoad         bool
+	attach            bool
 }
 
 type cache2Shard struct {
@@ -208,7 +209,6 @@ func (c *cache2) setLimits(v cache2Limits) {
 	defer c.mu.Unlock()
 	if c.limits != v {
 		c.limits = v
-		c.debugPrintRuntimeInfoUnlocked("set limits")
 		c.trimCond.Signal()
 	}
 }
@@ -334,14 +334,12 @@ func (c *cache2) shutdown() {
 }
 
 func (c *cache2) reset() {
-	c.debugPrintRuntimeInfo("reset start")
 	infoM := make(cache2UpdateInfoM)
 	timeNow := time.Now().UnixNano()
 	for _, shard := range c.shards {
 		shard.reset(infoM, timeNow)
 	}
 	c.updateRuntimeInfoM(infoM)
-	c.debugPrintRuntimeInfo("reset end")
 }
 
 func (c *cache2) invalidate(times []int64, stepSec int64) {
@@ -366,7 +364,7 @@ func (c *cache2) invalidate(times []int64, stepSec int64) {
 
 func (c *cache2) chunkStart(shard *cache2Shard, t int64) int64 {
 	d := int64(shard.chunkDuration)
-	if shard.step < timeDay {
+	if shard.step <= time.Hour {
 		return (t / d) * d
 	} else if shard.step < timeMonth {
 		utcOffset := c.utcOffset
@@ -390,7 +388,7 @@ func (c *cache2) chunkEnd(shard *cache2Shard, t int64) int64 {
 
 func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool, data cache2Data) *cache2Loader {
 	s := c.shards[time.Duration(lod.StepSec)*time.Second]
-	b := s.getOrCreateBucket(h, q, c)
+	b, attach := s.getOrCreateBucket(h, q, c)
 	l := &cache2Loader{
 		handler:           h,
 		query:             q,
@@ -402,11 +400,20 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 		timeNow:           time.Now().UnixNano(),
 		staleAcceptPeriod: cache2StaleAcceptPeriod(h, q),
 		forceLoad:         forceLoad,
+		attach:            attach,
 	}
 	info := cache2UpdateInfo{}
 	l.init(data, lod.FromSec*int64(time.Second), &info)
 	c.updateRuntimeInfo(s.stepS, b.fau, &info)
 	return l
+}
+
+func (c *cache2) bucketCount() int {
+	res := 0
+	for _, shard := range c.shards {
+		res += shard.bucketCount()
+	}
+	return res
 }
 
 func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
@@ -444,7 +451,7 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 			d, t = l.addChunk(d, t, chunk, info)
 			start = t
 			newChunkCount++
-			if b.attached {
+			if l.attach {
 				times = append(times, chunk.start)
 				chunks = append(chunks, chunk)
 			}
@@ -453,7 +460,7 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 			d, t = l.addChunk(d, t, b.chunks[i], info)
 			start = t
 			i++
-		} else if b.attached {
+		} else if l.attach {
 			b.times = append(append(b.times[:i], times...), b.times[i:]...)
 			b.chunks = append(append(b.chunks[:i], chunks...), b.chunks[i:]...)
 			info.sumChunkSizeS[l.mode] += len(chunks) * b.chunkSize
@@ -699,28 +706,28 @@ func (l *cache2Loader) wait(ctx context.Context) error {
 	}
 }
 
-func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2) *cache2Bucket {
+func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2) (*cache2Bucket, bool) {
+	c.mu.Lock()
+	attach := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
+	c.mu.Unlock()
 	k := q.getOrBuildCacheKey()
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
-	if res := shard.bucketM[k]; res != nil {
-		return res
+	if b := shard.bucketM[k]; b != nil {
+		return b, attach
 	}
 	b := &cache2Bucket{
 		fau:          h.accessInfo.user,
 		chunkSize:    shard.chunkSize,
 		playInterval: time.Duration(q.play) * time.Second,
 	}
-	c.mu.Lock() // NB! "shard.mu" and "c.mu" are never get locked in reverse order, keep an eye on it
-	createAttached := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
-	c.mu.Unlock()
-	if createAttached {
+	if attach {
 		b.key = k
 		b.attached = true
 		shard.bucketM[k] = b
 		shard.bucketL.add(b)
 	}
-	return b
+	return b, attach
 }
 
 func (shard *cache2Shard) reset(infoM cache2UpdateInfoM, timeNow int64) {
@@ -798,6 +805,12 @@ func (shard *cache2Shard) iteratorNext(iter **cache2Bucket) *cache2Bucket {
 	}
 	*iter = shard.bucketL.next(res)
 	return res
+}
+
+func (shard *cache2Shard) bucketCount() int {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+	return len(shard.bucketM)
 }
 
 func newCache2BucketList() cache2BucketList {
