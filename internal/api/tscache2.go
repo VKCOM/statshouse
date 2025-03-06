@@ -852,6 +852,9 @@ func (b *cache2Bucket) invalidate(times []int64, timeNow int64) {
 		for i < len(times) && times[i] < b.times[j] {
 			i++
 		}
+		if i == len(times) {
+			return
+		}
 		for j < len(b.times) && b.times[j] < times[i] {
 			j++
 		}
