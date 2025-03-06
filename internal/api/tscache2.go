@@ -130,6 +130,7 @@ type cache2Limits struct {
 type cache2RuntimeInfo struct {
 	// waterlevel ["play mode" at 1]
 	sumSizeS           [2]int
+	sumBucketCountS    [2]int
 	sumChunkSizeS      [2]int
 	sumChunkCountS     [2]int
 	minChunkAccessTime int64 // nanoseconds
@@ -145,6 +146,7 @@ type cache2UpdateInfoM map[string]map[string]*cache2UpdateInfo // step, user
 type cache2UpdateInfo struct {
 	// waterlevel ["play mode" at 1]
 	sumSizeS           [2]int
+	sumBucketCountS    [2]int
 	sumChunkSizeS      [2]int
 	sumChunkCountS     [2]int
 	minChunkAccessTime int64
@@ -295,6 +297,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	for i := 0; i < 2; i++ {
 		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sumSizeS[i]))
+		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.sumBucketCountS[i]))
 		client.NamedValue("statshouse_api_cache_sum_chunk_size", tags[i][0], float64(c.info.sumChunkSizeS[i]))
 		client.NamedCount("statshouse_api_cache_sum_chunk_count", tags[i][0], float64(c.info.sumChunkCountS[i]))
 	}
@@ -305,6 +308,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 				tags[i][0][4][1] = getStatTokenName(user)
 				tags[i][0][5][1] = user
 				client.NamedValue("statshouse_api_cache_size", tags[i][0], float64(info.sumSizeS[i]))
+				client.NamedCount("statshouse_api_cache_bucket_count", tags[i][0], float64(info.sumBucketCountS[i]))
 				client.NamedValue("statshouse_api_cache_chunk_size", tags[i][0], float64(info.sumChunkSizeS[i]))
 				client.NamedCount("statshouse_api_cache_chunk_count", tags[i][0], float64(info.sumChunkCountS[i]))
 				for j := 0; j < 2; j++ { // hit at 1
@@ -387,14 +391,15 @@ func (c *cache2) chunkEnd(shard *cache2Shard, t int64) int64 {
 }
 
 func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool, data cache2Data) *cache2Loader {
-	s := c.shards[time.Duration(lod.StepSec)*time.Second]
-	b, attach := s.getOrCreateBucket(h, q, c)
+	info := cache2UpdateInfo{}
+	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
+	b, attach := shard.getOrCreateBucket(h, q, c, &info)
 	l := &cache2Loader{
 		handler:           h,
 		query:             q,
 		lod:               lod,
 		cache:             c,
-		shard:             s,
+		shard:             shard,
 		bucket:            b,
 		mode:              cache2BucketMode(time.Duration(q.play) * time.Second),
 		timeNow:           time.Now().UnixNano(),
@@ -402,9 +407,8 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 		forceLoad:         forceLoad,
 		attach:            attach,
 	}
-	info := cache2UpdateInfo{}
 	l.init(data, lod.FromSec*int64(time.Second), &info)
-	c.updateRuntimeInfo(s.stepS, b.fau, &info)
+	c.updateRuntimeInfo(shard.stepS, b.fau, &info)
 	return l
 }
 
@@ -427,6 +431,8 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 			chunkCountDelta := len(b.chunks)
 			info.sumSizeS[mode] -= sizeDelta
 			info.sumSizeS[l.mode] += sizeDelta
+			info.sumBucketCountS[mode] -= 1
+			info.sumBucketCountS[l.mode] += 1
 			info.sumChunkSizeS[mode] -= chunkSizeDelta
 			info.sumChunkSizeS[l.mode] += chunkSizeDelta
 			info.sumChunkCountS[mode] -= chunkCountDelta
@@ -706,7 +712,7 @@ func (l *cache2Loader) wait(ctx context.Context) error {
 	}
 }
 
-func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2) (*cache2Bucket, bool) {
+func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2, info *cache2UpdateInfo) (*cache2Bucket, bool) {
 	c.mu.Lock()
 	attach := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
 	c.mu.Unlock()
@@ -726,6 +732,7 @@ func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, 
 		b.attached = true
 		shard.bucketM[k] = b
 		shard.bucketL.add(b)
+		info.sumBucketCountS[b.mode()]++
 	}
 	return b, attach
 }
@@ -758,6 +765,7 @@ func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2Upda
 		shard.invalidateIter = shard.bucketL.next(b)
 	}
 	shard.bucketL.remove(b)
+	info.sumBucketCountS[b.mode()]--
 	b.clearAndDetach(info)
 }
 
@@ -917,6 +925,8 @@ func (r *cache2RuntimeInfo) size() int {
 func (r *cache2RuntimeInfo) update(info *cache2UpdateInfo) {
 	r.sumSizeS[0] += info.sumSizeS[0]
 	r.sumSizeS[1] += info.sumSizeS[1]
+	r.sumBucketCountS[0] += info.sumBucketCountS[0]
+	r.sumBucketCountS[1] += info.sumBucketCountS[1]
 	r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
 	r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
 	r.sumChunkCountS[0] += info.sumChunkCountS[0]
