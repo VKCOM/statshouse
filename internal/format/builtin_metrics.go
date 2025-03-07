@@ -98,6 +98,9 @@ var BuiltinMetricMetaTLByteSizePerInflightType = &MetricMetaValue{
 	}, {
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description:   "sampling",
+		ValueComments: convertToValueComments(samplingYesNoToValue),
 	}, AggShardTag - 1: { // we reuse index of aggregator_shard here. -1 because we do not include env tag
 		Description: "agent_shard",
 		RawKind:     "int",

@@ -16,11 +16,11 @@ import (
 
 // We concatenate original size and compressed data in this function to efficiently store on disk
 // we return this frame
-func CompressAndFrame(originaldata []byte) ([]byte, error) {
+func CompressAndFrame(originaldata []byte) []byte {
 	compressed := make([]byte, 4+lz4.CompressBlockBound(len(originaldata))) // Framing - first 4 bytes is original size
 	compressedSize, err := lz4.CompressBlockHC(originaldata, compressed[4:], 0)
-	if err != nil {
-		return nil, fmt.Errorf("CompressBlockHC failed for sbV2: %w", err)
+	if err != nil { // must be never
+		panic(fmt.Sprintf("CompressBlockHC failed src size %d dst size %d: %v", len(originaldata), len(compressed[4:]), err))
 	}
 	binary.LittleEndian.PutUint32(compressed, uint32(len(originaldata)))
 	if compressedSize >= len(originaldata) { // does not compress (rare for large buckets, so copy is not a problem)
@@ -28,7 +28,7 @@ func CompressAndFrame(originaldata []byte) ([]byte, error) {
 	} else {
 		compressed = compressed[:4+compressedSize]
 	}
-	return compressed, nil
+	return compressed
 }
 
 func DeFrame(frame []byte) (originalSize uint32, compressedData []byte, err error) {
