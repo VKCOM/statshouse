@@ -231,7 +231,7 @@ func (c *cache2) setLimits(v cache2Limits) {
 	if c.limits.maxSizeSoft < size {
 		c.trimCond.Signal()
 	}
-	if size < c.limits.maxSize {
+	if size <= c.limits.maxSize || c.limits.maxSize <= 0 {
 		c.allocCond.Broadcast()
 	}
 }
@@ -254,12 +254,12 @@ func (c *cache2) updateRuntimeInfo(step, user string, info *cache2UpdateInfo) {
 
 func (c *cache2) updateRuntimeInfoUnlocked(step, user string, info *cache2UpdateInfo) {
 	c.info.update(info)
-	if 0 < c.limits.maxSize {
+	if c.limits.maxSize > 0 {
 		size := c.info.size()
 		if c.limits.maxSizeSoft < size {
 			c.trimCond.Signal()
 		}
-		if size < c.limits.maxSize {
+		if size <= c.limits.maxSize {
 			c.allocCond.Broadcast()
 		}
 	}
