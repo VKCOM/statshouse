@@ -194,8 +194,12 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 	if err != nil || n == 0 {
 		return nil, err
 	}
-	d := make(cache2Data, n)
-	return d, c.newLoader(h, q, lod, forceLoad, d).run(ctx)
+	res := make(cache2Data, n)
+	if h.cacheDisabled() {
+		_, err := loadPoints(ctx, h, q, lod, res, 0)
+		return res, err
+	}
+	return res, c.newLoader(h, q, lod, forceLoad, res).run(ctx)
 }
 
 func (c *cache2) setLimits(v cache2Limits) {
@@ -712,7 +716,7 @@ func (l *cache2Loader) wait(ctx context.Context) error {
 
 func (shard *cache2Shard) getOrCreateBucket(h *requestHandler, q *queryBuilder, c *cache2, info *cache2UpdateInfo) (*cache2Bucket, bool) {
 	c.mu.Lock()
-	attach := !c.shutdownF && !h.cacheDisabled() && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
+	attach := !c.shutdownF && 0 < c.limits.maxSize && c.info.size() <= c.limits.maxSize
 	c.mu.Unlock()
 	k := q.getOrBuildCacheKey()
 	shard.mu.Lock()
