@@ -29,6 +29,7 @@ type ConfigAggregatorRemote struct {
 	MappingCacheTTL      int
 	MapStringTop         bool
 	SkipOldMetrics       bool
+	BufferedInsertAgeSec int // age in seconds of data that should be sent to buffer table
 
 	configTagsMapper2
 }
@@ -121,6 +122,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
 		f.BoolVar(&c.SkipOldMetrics, "skip-old-metrics", d.SkipOldMetrics, "Skip old metrics")
+		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
