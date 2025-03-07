@@ -223,12 +223,15 @@ func (c *cache2) setLimits(v cache2Limits) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.shutdownF {
+	if c.shutdownF || c.limits == v {
 		return
 	}
-	if c.limits != v {
-		c.limits = v
+	c.limits = v
+	size := c.info.size()
+	if c.limits.maxSizeSoft < size {
 		c.trimCond.Signal()
+	}
+	if size < c.limits.maxSize {
 		c.allocCond.Broadcast()
 	}
 }

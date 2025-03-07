@@ -27,34 +27,25 @@ func (c *cache2) trim() {
 	defer t.reduceMemoryUsage()
 	defer c.mu.Unlock()
 	for !c.shutdownF {
-		trimAged := 0 < c.limits.maxAge && c.limits.maxAge < c.info.age()
-		if trimAged {
-			t.sendEvent(" 1", " 1", c.info.size())
+		size := c.info.size()
+		if 0 < size && 0 < c.limits.maxAge && c.limits.maxAge < c.info.age() {
+			t.sendEvent(" 1", " 1", size)
 			maxAge := c.limits.maxAge
 			c.mu.Unlock()
 			t.trimAged(maxAge)
 			c.mu.Lock()
 			t.sendEvent(" 2", " 1", c.info.size())
 		}
-		trimSize := c.limits.maxSizeSoft < c.info.size()
-		if trimSize {
-			t.sendEvent(" 1", " 2", c.info.size())
+		size = c.info.size()
+		if c.limits.maxSizeSoft < size {
+			t.sendEvent(" 1", " 2", size)
 			c.mu.Unlock()
 			v := t.reduceMemoryUsage()
 			t.sendEvent(" 2", " 2", v)
 			c.mu.Lock()
 		}
-		wait := true
-		if trimAged || trimSize {
-			if p := c.handler.CacheTrimBackoffPeriod.Load(); p > 0 {
-				d := time.Duration(p) * time.Second
-				c.mu.Unlock()
-				time.Sleep(d)
-				wait = false
-				c.mu.Lock()
-			}
-		}
-		if wait {
+		size = c.info.size()
+		if size <= c.limits.maxSize || c.limits.maxSize <= 0 {
 			var t *time.Timer
 			if c.limits.maxAge > 0 {
 				t = time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
