@@ -245,15 +245,14 @@ func (c *cache2) updateRuntimeInfoUnlocked(step, user string, info *cache2Update
 		m = make(map[string]*cache2RuntimeInfo)
 		c.infoM[step] = m
 	}
-	if r := m[user]; r != nil {
-		r.update(info)
-	} else {
-		r := &cache2RuntimeInfo{
+	r := m[user]
+	if r == nil {
+		r = &cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		}
-		r.update(info)
 		m[user] = r
 	}
+	r.update(info)
 }
 
 func (c *cache2) sendMetrics(client *statshouse.Client) {
@@ -343,11 +342,11 @@ func (c *cache2) shutdown() {
 
 func (c *cache2) reset() {
 	infoM := make(cache2UpdateInfoM)
+	defer c.updateRuntimeInfoM(infoM)
 	timeNow := time.Now().UnixNano()
 	for _, shard := range c.shards {
 		shard.reset(infoM, timeNow)
 	}
-	c.updateRuntimeInfoM(infoM)
 }
 
 func (c *cache2) invalidate(times []int64, stepSec int64) {
@@ -398,6 +397,7 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 	info := cache2UpdateInfo{}
 	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
 	b, attach := shard.getOrCreateBucket(h, q, c, &info)
+	defer c.updateRuntimeInfo(shard.stepS, b.fau, &info)
 	l := &cache2Loader{
 		handler:           h,
 		query:             q,
@@ -412,7 +412,6 @@ func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LO
 		attach:            attach,
 	}
 	l.init(data, lod.FromSec*int64(time.Second), &info)
-	c.updateRuntimeInfo(shard.stepS, b.fau, &info)
 	return l
 }
 
@@ -598,8 +597,8 @@ func (l *cache2Loader) loadChunks(start, end int) {
 		Location:   l.lod.Location,
 	}
 	h, q := l.handler, l.query
-	cache, shard, bucket := l.cache, l.shard, l.bucket
-	res := make(cache2Data, bucket.chunkSize*len(chunks))
+	c, b := l.cache, l.bucket
+	res := make(cache2Data, b.chunkSize*len(chunks))
 	_, err := loadPoints(context.Background(), h, q, lod, res, 0)
 	if err == nil {
 		// map string tags
@@ -625,11 +624,12 @@ func (l *cache2Loader) loadChunks(start, end int) {
 			}
 		}
 	}
-	cache.mu.Lock()
-	shutdown, budget := cache.shutdownF, cache.limits.maxSize-cache.info.size()
-	cache.mu.Unlock()
-	start, end = 0, bucket.chunkSize
+	c.mu.Lock()
+	shutdown, budget := c.shutdownF, c.limits.maxSize-c.info.size()
+	c.mu.Unlock()
+	start, end = 0, b.chunkSize
 	info := cache2UpdateInfo{}
+	defer c.updateRuntimeInfo(l.shard.stepS, b.fau, &info)
 	mode := l.mode
 	for _, chunk := range chunks {
 		var data cache2Data
@@ -643,25 +643,27 @@ func (l *cache2Loader) loadChunks(start, end int) {
 		sizeDelta := size - chunk.size
 		var waiting []cache2Waiting
 		chunk.waiting, waiting = waiting, chunk.waiting
-		if shutdown || (0 < sizeDelta && budget < sizeDelta) {
-			// release chunk memory
-			info.sumSizeS[mode] -= chunk.size
-			chunk.data = nil
-			chunk.size = 0
-		} else if err == nil && chunk.attached {
-			// update chunk data
-			attached = true
-			budget -= sizeDelta
-			info.sumSizeS[mode] += sizeDelta
-			chunk.data = data
-			chunk.size = size
-			if chunk.loadStartedAt < chunk.invalidatedAt {
-				// chunk has been invalidated while loading
-			} else {
-				chunk.invalidatedAt = 0
+		if chunk.attached {
+			if shutdown || (0 < sizeDelta && budget < sizeDelta) {
+				// release chunk memory
+				info.sumSizeS[mode] -= chunk.size
+				chunk.data = nil
+				chunk.size = 0
+			} else if err == nil {
+				// update chunk data
+				attached = true
+				budget -= sizeDelta
+				info.sumSizeS[mode] += sizeDelta
+				chunk.data = data
+				chunk.size = size
+				if chunk.loadStartedAt < chunk.invalidatedAt {
+					// chunk has been invalidated while loading
+				} else {
+					chunk.invalidatedAt = 0
+				}
 			}
+			chunk.loading = false
 		}
-		chunk.loading = false
 		chunk.mu.Unlock()
 		for i, w := range waiting {
 			if err == nil {
@@ -685,9 +687,8 @@ func (l *cache2Loader) loadChunks(start, end int) {
 			w.dstC <- err
 		}
 		start = end
-		end += bucket.chunkSize
+		end += b.chunkSize
 	}
-	cache.updateRuntimeInfo(shard.stepS, bucket.fau, &info)
 }
 
 func (l *cache2Loader) wait(ctx context.Context) error {
@@ -758,6 +759,7 @@ func (shard *cache2Shard) removeBucket(b *cache2Bucket, info *cache2UpdateInfo) 
 }
 
 func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2UpdateInfo) {
+	// remove from shard
 	shard.bucketM[b.key] = nil
 	delete(shard.bucketM, b.key)
 	if shard.trimIter == b {
@@ -767,8 +769,15 @@ func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2Upda
 		shard.invalidateIter = shard.bucketL.next(b)
 	}
 	shard.bucketL.remove(b)
+	// free bucket memory, mark as detached
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	info.sumBucketCountS[b.mode()]--
-	b.clearAndDetach(info)
+	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info)
+	b.key = ""
+	b.times = nil
+	b.chunks = nil
+	b.attached = false
 }
 
 func (shard *cache2Shard) invalidate(times []int64, timeNow int64) {
@@ -950,24 +959,26 @@ func (r *cache2RuntimeInfo) update(info *cache2UpdateInfo) {
 	r.hitChunkCountS[1][1] += info.hitChunkCountS[1][1]
 }
 
-func (m cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
-	m2 := m[step]
-	if m2 == nil {
-		m2 = make(map[string]*cache2UpdateInfo)
-		m[step] = m2
+func (infoM cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
+	m := infoM[step]
+	if m == nil {
+		m = make(map[string]*cache2UpdateInfo)
+		infoM[step] = m
 	}
-	if r := m2[user]; r != nil {
-		r.sumSizeS[0] += info.sumSizeS[0]
-		r.sumSizeS[1] += info.sumSizeS[1]
-		r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
-		r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
-		r.sumChunkCountS[0] += info.sumChunkCountS[0]
-		r.sumChunkCountS[1] += info.sumChunkCountS[1]
-		if info.minChunkAccessTime != 0 && r.minChunkAccessTime > info.minChunkAccessTime {
-			r.minChunkAccessTime = info.minChunkAccessTime
+	if v := m[user]; v != nil {
+		v.sumSizeS[0] += info.sumSizeS[0]
+		v.sumSizeS[1] += info.sumSizeS[1]
+		v.sumBucketCountS[0] += info.sumBucketCountS[0]
+		v.sumBucketCountS[1] += info.sumBucketCountS[1]
+		v.sumChunkSizeS[0] += info.sumChunkSizeS[0]
+		v.sumChunkSizeS[1] += info.sumChunkSizeS[1]
+		v.sumChunkCountS[0] += info.sumChunkCountS[0]
+		v.sumChunkCountS[1] += info.sumChunkCountS[1]
+		if info.minChunkAccessTime != 0 && v.minChunkAccessTime > info.minChunkAccessTime {
+			v.minChunkAccessTime = info.minChunkAccessTime
 		}
 	} else {
-		m2[user] = info
+		m[user] = info
 	}
 }
 

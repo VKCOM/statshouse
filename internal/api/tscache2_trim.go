@@ -2,7 +2,6 @@ package api
 
 import (
 	"cmp"
-	"math"
 	"time"
 
 	"github.com/vkcom/statshouse-go"
@@ -70,24 +69,24 @@ func (c *cache2) trim() {
 func (t *cache2Trim) trimAged(maxAge time.Duration) {
 	c := t.cache
 	infoM := make(cache2UpdateInfoM)
+	defer c.updateRuntimeInfoM(infoM)
 	timeNow := time.Now()
-	maxAgeTime := timeNow.Add(-maxAge).UnixNano()
+	timeDOB := timeNow.Add(-maxAge).UnixNano()
 	for _, shard := range c.shards {
 		b := shard.trimIteratorStart()
 		for b != nil {
 			info := &cache2UpdateInfo{
 				minChunkAccessTime: timeNow.UnixNano(),
 			}
-			if b.notUsedAfter(maxAgeTime) {
+			if b.notUsedAfter(timeDOB) {
 				shard.removeBucket(b, info)
 			} else {
-				b.removeChunksNotUsedAfter(maxAgeTime, info)
+				b.removeChunksNotUsedAfter(timeDOB, info)
 			}
 			infoM.add(shard.stepS, b.fau, info)
 			b = shard.trimIteratorNext()
 		}
 	}
-	c.updateRuntimeInfoM(infoM)
 }
 
 func (t *cache2Trim) reduceMemoryUsage() int {
@@ -138,19 +137,6 @@ func (t *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
 		float64(sizeInBytes))
 }
 
-func (b *cache2Bucket) clearAndDetach(info *cache2UpdateInfo) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	// remove all chunks
-	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info)
-	// free memory
-	b.key = ""
-	b.times = nil
-	b.chunks = nil
-	// detach
-	b.attached = false
-}
-
 func (b *cache2Bucket) removeChunksNotUsedAfter(t int64, info *cache2UpdateInfo) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -174,13 +160,13 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 			j++
 		}
 		chunks := b.chunks[i:j]
-		for _, v := range chunks {
-			v.mu.Lock()
-			info.sumSizeS[mode] -= v.size
-			v.size = 0
-			v.data = nil       // free memory
-			v.attached = false // detach
-			v.mu.Unlock()
+		for _, chunk := range chunks {
+			chunk.mu.Lock()
+			info.sumSizeS[mode] -= chunk.size
+			chunk.size = 0
+			chunk.data = nil       // free memory
+			chunk.attached = false // detach
+			chunk.mu.Unlock()
 		}
 		info.sumChunkSizeS[mode] -= len(chunks) * b.chunkSize
 		info.sumChunkCountS[mode] -= len(chunks)
