@@ -24,6 +24,7 @@ type cache2TrimBucketHeap []cache2TrimBucket
 func (c *cache2) trim() {
 	t := cache2Trim{c, newCache2TrimBucketHeap()}
 	c.mu.Lock()
+	defer t.reduceMemoryUsage()
 	defer c.mu.Unlock()
 	for !c.shutdownF {
 		trimAged := 0 < c.limits.maxAge && c.limits.maxAge < c.info.age()
