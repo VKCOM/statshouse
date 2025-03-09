@@ -2,6 +2,7 @@ package api
 
 import (
 	"cmp"
+	"slices"
 	"time"
 
 	"github.com/vkcom/statshouse-go"
@@ -22,9 +23,10 @@ type cache2TrimBucket struct {
 type cache2TrimBucketHeap []cache2TrimBucket
 
 func (c *cache2) trim() {
+	defer c.shutdownG.Done()
 	t := cache2Trim{c, newCache2TrimBucketHeap()}
 	c.mu.Lock()
-	defer t.reduceMemoryUsage()
+	defer t.reduceMemoryUsage() // run with unlocked cache
 	defer c.mu.Unlock()
 	for !c.shutdownF {
 		size := c.info.size()
@@ -44,8 +46,11 @@ func (c *cache2) trim() {
 			t.sendEvent(" 2", " 2", v)
 			c.mu.Lock()
 		}
+		if c.shutdownF {
+			break
+		}
 		size = c.info.size()
-		if size <= c.limits.maxSize || c.limits.maxSize <= 0 {
+		if c.limits.maxSize == 0 || size <= c.limits.maxSize {
 			var t *time.Timer
 			if c.limits.maxAge > 0 {
 				t = time.AfterFunc(c.limits.maxAge-c.info.age(), c.trimCond.Signal)
@@ -138,38 +143,40 @@ func (b *cache2Bucket) removeChunksNotUsedAfter(t int64, info *cache2UpdateInfo)
 func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2UpdateInfo) {
 	mode := b.mode()
 	for i := 0; i < len(b.chunks); {
-		for i < len(b.chunks) && b.chunks[i].lastAccessTime >= t {
+		for ; i < len(b.chunks); i++ {
+			b.chunks[i].mu.Lock()
+			if b.chunks[i].lastAccessTime < t {
+				break // found not used, remains locked until removal
+			}
 			if info.minChunkAccessTime > b.chunks[i].lastAccessTime {
 				info.minChunkAccessTime = b.chunks[i].lastAccessTime
 			}
-			i++
+			b.chunks[i].mu.Unlock()
 		}
 		if i == len(b.chunks) {
-			break
+			break // all remaining are in use
 		}
 		j := i + 1
-		for j < len(b.chunks) && b.chunks[j].lastAccessTime < t {
+		for j < len(b.chunks) {
+			b.chunks[j].mu.Lock()
+			if b.chunks[j].lastAccessTime >= t {
+				b.chunks[j].mu.Unlock()
+				break // found used
+			}
 			j++
 		}
-		chunks := b.chunks[i:j]
-		for _, chunk := range chunks {
-			chunk.mu.Lock()
-			info.sumSizeS[mode] -= chunk.size
-			chunk.size = 0
-			chunk.data = nil       // free memory
-			chunk.attached = false // detach
-			chunk.mu.Unlock()
+		for k := i; k < j; k++ {
+			info.sumSizeS[mode] -= b.chunks[k].size
+			b.chunks[k].size = 0
+			b.chunks[k].data = nil      // free memory
+			b.chunks[k].detached = true // detach
+			b.chunks[k].mu.Unlock()
 		}
-		info.sumChunkSizeS[mode] -= len(chunks) * b.chunkSize
-		info.sumChunkCountS[mode] -= len(chunks)
-		k := i
-		for m := j; m < len(b.chunks); m++ {
-			b.times[k] = b.times[m]
-			b.chunks[k] = b.chunks[m]
-			k++
-		}
-		b.times = b.times[:k]
-		b.chunks = b.chunks[:k]
+		b.times = slices.Delete(b.times, i, j)
+		b.chunks = slices.Delete(b.chunks, i, j)
+		n := j - i
+		info.sumChunkSizeS[mode] -= n * b.chunkSize
+		info.sumChunkCountS[mode] -= n
 		i = j
 	}
 }

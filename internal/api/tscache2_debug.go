@@ -233,8 +233,8 @@ func (h *Handler) setCache2ChunkSize(v int) *cache2 {
 	h.cache2Mu.Lock()
 	defer h.cache2Mu.Unlock()
 	if h.cache2.chunkSize != v {
-		h.cache2.shutdown()
-		h.cache2 = newCache2(h, v)
+		_ = h.cache2.shutdown() // do not wait
+		h.cache2 = newCache2(h, v, loadPoints)
 	}
 	return h.cache2
 }
