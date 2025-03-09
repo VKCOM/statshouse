@@ -96,7 +96,7 @@ func TestCache2AddRemoveChunks(t *testing.T) {
 	info := cache2UpdateInfo{}
 	b := shard.getOrCreateLockedBucket(h, q, &info)
 	b.mu.Unlock()
-	c.updateRuntimeInfo(shard.stepS, b.fau, &info)
+	c.updateRuntimeInfo(info)
 	rapid.Check(t, func(t *rapid.T) {
 		// add chunks
 		lenG := rapid.IntRange(0, 32)
@@ -113,7 +113,7 @@ func TestCache2AddRemoveChunks(t *testing.T) {
 			d := make(cache2Data, lenG.Draw(t, "chunk length"))
 			info := cache2UpdateInfo{}
 			l.init(d, timeG.Draw(t, "load time start"), &info)
-			c.updateRuntimeInfo(shard.stepS, b.fau, &info)
+			c.updateRuntimeInfo(info)
 		}
 		// acccess chunks
 		for _, chunk := range b.chunks {
@@ -124,12 +124,12 @@ func TestCache2AddRemoveChunks(t *testing.T) {
 			i := rapid.IntRange(0, n-1).Draw(t, "chunk index")
 			info := cache2UpdateInfo{}
 			b.removeChunksNotUsedAfterUnlocked(b.chunks[i].lastAccessTime+1, &info)
-			c.updateRuntimeInfo(shard.stepS, b.fau, &info)
+			c.updateRuntimeInfo(info)
 			require.Less(t, len(b.chunks), n)
 		}
 	})
 	c.shutdown().Wait()
-	require.Zero(t, c.info.size())
+	require.Zero(t, c.info.size)
 }
 
 func TestCache2Parallel(t *testing.T) {
@@ -165,7 +165,6 @@ func TestCache2Parallel(t *testing.T) {
 	})
 	c.shutdown().Wait()
 	requireCache2Valid(t, c)
-	c.info.normalizeWaterLevel()
 	c.info.resetPerSecond()
 	require.Equal(t, c.info, cache2RuntimeInfo{minChunkAccessTime: c.info.minChunkAccessTime})
 }
