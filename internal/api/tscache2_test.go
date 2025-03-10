@@ -166,7 +166,7 @@ func TestCache2Parallel(t *testing.T) {
 	c.shutdown().Wait()
 	requireCache2Valid(t, c)
 	c.info.normalizeWaterLevel()
-	c.info.resetPerSecond()
+	c.info.resetAccessInfo()
 	require.Equal(t, c.info, cache2RuntimeInfo{minChunkAccessTime: c.info.minChunkAccessTime})
 }
 
