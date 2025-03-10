@@ -166,7 +166,7 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 			j++
 		}
 		for k := i; k < j; k++ {
-			info.sumSizeS[mode] -= b.chunks[k].size
+			info.sizeS[mode] -= b.chunks[k].size
 			b.chunks[k].size = 0
 			b.chunks[k].data = nil      // free memory
 			b.chunks[k].detached = true // detach
@@ -175,8 +175,8 @@ func (b *cache2Bucket) removeChunksNotUsedAfterUnlocked(t int64, info *cache2Upd
 		b.times = slices.Delete(b.times, i, j)
 		b.chunks = slices.Delete(b.chunks, i, j)
 		n := j - i
-		info.sumChunkSizeS[mode] -= n * b.chunkSize
-		info.sumChunkCountS[mode] -= n
+		info.chunkSizeS[mode] -= n * b.chunkSize
+		info.chunkCountS[mode] -= n
 		i = j
 	}
 }

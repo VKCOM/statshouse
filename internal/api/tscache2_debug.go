@@ -65,15 +65,35 @@ func DebugCacheReset(r *httpRequestHandler) {
 	}
 }
 
-func DebugCacheBuckets(r *httpRequestHandler) {
+func DebugCacheInfo(r *httpRequestHandler) {
 	w := r.Response()
 	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte("# runtime waterlevel\n"))
+	cache := r.getCache2()
+	info := cache.runtimeInfo()
+	sum2 := func(s [2]int) int {
+		return s[0] + s[1]
+	}
+	sum4 := func(s [2][2]int) int {
+		return sum2(s[0]) + sum2(s[1])
+	}
+	w.Write([]byte(fmt.Sprintf("age\t%v\n", info.age())))
+	w.Write([]byte(fmt.Sprintf("buckets\t%v\n", sum2(info.bucketCountS))))
+	w.Write([]byte(fmt.Sprintf("chunks\t%v\n", sum2(info.chunkCountS))))
+	w.Write([]byte(fmt.Sprintf("length\t%v\n", sum2(info.chunkSizeS))))
+	w.Write([]byte(fmt.Sprintf("size\t%v\n", info.size())))
+	w.Write([]byte("\n"))
+	w.Write([]byte("# runtime access\n"))
+	w.Write([]byte(fmt.Sprintf("chunks\t%v\n", sum4(info.accessChunkCountS))))
+	w.Write([]byte(fmt.Sprintf("length\t%v\n", sum4(info.accessChunkSizeS))))
+	w.Write([]byte(fmt.Sprintf("size\t%v\n", sum4(info.accessSizeS))))
+	w.Write([]byte("\n"))
 	sumChunkCount, sumSize := 0, 0
-	for step, shard := range r.getCache2().shards {
+	for step, shard := range cache.shards {
 		shard.mu.Lock()
 		if len(shard.bucketM) != 0 {
 			w.Write([]byte(fmt.Sprintf("# shard %v\n", step)))
@@ -94,7 +114,7 @@ func DebugCacheBuckets(r *httpRequestHandler) {
 		}
 		shard.mu.Unlock()
 	}
-	w.Write([]byte("# TOTAL\n"))
+	w.Write([]byte("# shard total\n"))
 	w.Write([]byte(fmt.Sprintf("%d\t%d\n", sumChunkCount, sumSize)))
 }
 

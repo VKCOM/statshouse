@@ -132,26 +132,26 @@ type cache2Limits struct {
 
 type cache2RuntimeInfo struct {
 	// waterlevel ["play mode" at 1]
-	sumSizeS           [2]int
-	sumBucketCountS    [2]int
-	sumChunkSizeS      [2]int
-	sumChunkCountS     [2]int
+	sizeS              [2]int
+	bucketCountS       [2]int
+	chunkSizeS         [2]int
+	chunkCountS        [2]int
 	minChunkAccessTime int64 // nanoseconds
 
 	// per second ["play mode" at 1]["miss" at 0, "hit" at 1]
-	hitSizeS       [2][2]int
-	hitChunkSizeS  [2][2]int
-	hitChunkCountS [2][2]int
+	accessSizeS       [2][2]int
+	accessChunkSizeS  [2][2]int
+	accessChunkCountS [2][2]int
 }
 
 type cache2UpdateInfoM map[string]map[string]*cache2UpdateInfo // step, user
 
 type cache2UpdateInfo struct {
 	// waterlevel ["play mode" at 1]
-	sumSizeS           [2]int
-	sumBucketCountS    [2]int
-	sumChunkSizeS      [2]int
-	sumChunkCountS     [2]int
+	sizeS              [2]int
+	bucketCountS       [2]int
+	chunkSizeS         [2]int
+	chunkCountS        [2]int
 	minChunkAccessTime int64
 
 	// per second ["play mode" at 1]["miss" at 0, "hit" at 1]
@@ -339,10 +339,10 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	client.NamedCount("statshouse_api_cache_waiting", tags[0][0], float64(c.waitN.Load()))
 	for i := 0; i < 2; i++ {
-		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sumSizeS[i]))
-		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.sumBucketCountS[i]))
-		client.NamedValue("statshouse_api_cache_sum_chunk_size", tags[i][0], float64(c.info.sumChunkSizeS[i]))
-		client.NamedCount("statshouse_api_cache_sum_chunk_count", tags[i][0], float64(c.info.sumChunkCountS[i]))
+		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sizeS[i]))
+		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.bucketCountS[i]))
+		client.NamedValue("statshouse_api_cache_sum_chunk_size", tags[i][0], float64(c.info.chunkSizeS[i]))
+		client.NamedCount("statshouse_api_cache_sum_chunk_count", tags[i][0], float64(c.info.chunkCountS[i]))
 	}
 	for step, m := range c.infoM {
 		for user, r := range m {
@@ -351,24 +351,30 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 				tags[i][0][3][1] = step
 				tags[i][0][4][1] = getStatTokenName(user)
 				tags[i][0][5][1] = user
-				client.NamedValue("statshouse_api_cache_size", tags[i][0], float64(r.sumSizeS[i]))
-				client.NamedCount("statshouse_api_cache_bucket_count", tags[i][0], float64(r.sumBucketCountS[i]))
-				client.NamedValue("statshouse_api_cache_chunk_size", tags[i][0], float64(r.sumChunkSizeS[i]))
-				client.NamedCount("statshouse_api_cache_chunk_count", tags[i][0], float64(r.sumChunkCountS[i]))
+				client.NamedValue("statshouse_api_cache_size", tags[i][0], float64(r.sizeS[i]))
+				client.NamedCount("statshouse_api_cache_bucket_count", tags[i][0], float64(r.bucketCountS[i]))
+				client.NamedValue("statshouse_api_cache_chunk_size", tags[i][0], float64(r.chunkSizeS[i]))
+				client.NamedCount("statshouse_api_cache_chunk_count", tags[i][0], float64(r.chunkCountS[i]))
 				for j := 0; j < 2; j++ { // hit at 1
 					if j == 1 {
 						tags[i][1][3] = tags[i][0][3]
 						tags[i][1][4] = tags[i][0][4]
 						tags[i][1][5] = tags[i][0][5]
 					}
-					client.NamedValue("statshouse_api_cache_access_size", tags[i][j], float64(r.hitSizeS[i][j]))
-					client.NamedValue("statshouse_api_cache_access_chunk_size", tags[i][j], float64(r.hitChunkSizeS[i][j]))
-					client.NamedCount("statshouse_api_cache_access_chunk_count", tags[i][j], float64(r.hitChunkCountS[i][j]))
+					client.NamedValue("statshouse_api_cache_access_size", tags[i][j], float64(r.accessSizeS[i][j]))
+					client.NamedValue("statshouse_api_cache_access_chunk_size", tags[i][j], float64(r.accessChunkSizeS[i][j]))
+					client.NamedCount("statshouse_api_cache_access_chunk_count", tags[i][j], float64(r.accessChunkCountS[i][j]))
 				}
 			}
-			r.resetPerSecond()
+			r.resetAccessInfo()
 		}
 	}
+}
+
+func (c *cache2) runtimeInfo() cache2RuntimeInfo {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.info
 }
 
 func (c *cache2) shutdown() *sync.WaitGroup {
@@ -466,19 +472,6 @@ func (c *cache2) bucketCount() int {
 func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 	// NB! bucket must be locked
 	c, shard, b := l.cache, l.shard, l.bucket
-	if mode := cache2BucketMode(b.playInterval); mode != l.mode {
-		sizeDelta := sizeofCache2Chunks(b.chunks)
-		chunkSizeDelta := len(b.chunks) * b.chunkSize
-		chunkCountDelta := len(b.chunks)
-		info.sumSizeS[mode] -= sizeDelta
-		info.sumSizeS[l.mode] += sizeDelta
-		info.sumBucketCountS[mode] -= 1
-		info.sumBucketCountS[l.mode] += 1
-		info.sumChunkSizeS[mode] -= chunkSizeDelta
-		info.sumChunkSizeS[l.mode] += chunkSizeDelta
-		info.sumChunkCountS[mode] -= chunkCountDelta
-		info.sumChunkCountS[l.mode] += chunkCountDelta
-	}
 	b.playInterval = time.Duration(l.query.play) * time.Second
 	b.lastAccessTime = l.timeNow
 	start := c.chunkStart(shard, t)
@@ -504,8 +497,8 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 		} else {
 			b.times = slices.Insert(b.times, i, times...)
 			b.chunks = slices.Insert(b.chunks, i, chunks...)
-			info.sumChunkSizeS[l.mode] += len(chunks) * b.chunkSize
-			info.sumChunkCountS[l.mode] += len(chunks)
+			info.chunkSizeS[l.mode] += len(chunks) * b.chunkSize
+			info.chunkCountS[l.mode] += len(chunks)
 			i += len(chunks) - 1 // consider i++ below
 		}
 		i++
@@ -652,7 +645,7 @@ func (l *cache2Loader) loadChunks(start, end int) {
 		chunk.waiting, waiting = waiting, chunk.waiting
 		attached := !chunk.detached
 		if attached {
-			info.sumSizeS[l.mode] += size
+			info.sizeS[l.mode] += size - chunk.size
 			chunk.data = data
 			chunk.size = size
 			if chunk.loadStartedAt < chunk.invalidatedAt {
@@ -729,7 +722,7 @@ func (shard *cache2Shard) getOrCreateLockedBucket(h *requestHandler, q *queryBui
 		}
 		shard.bucketM[key] = b
 		shard.bucketL.add(b)
-		info.sumBucketCountS[b.mode()]++
+		info.bucketCountS[b.mode()]++
 	}
 	// NB! don't forget to unblock on the calling side
 	// bucket returned locked to not allow deletion while loader initialized
@@ -770,7 +763,7 @@ func (shard *cache2Shard) removeBucketUnlocked(b *cache2Bucket, info *cache2Upda
 	}
 	shard.bucketL.remove(b)
 	// free bucket memory, mark as detached
-	info.sumBucketCountS[b.mode()]--
+	info.bucketCountS[b.mode()]--
 	b.removeChunksNotUsedAfterUnlocked(math.MaxInt64, info)
 	if len(b.chunks) != 0 {
 		panic("len(b.chunks) != 0")
@@ -930,33 +923,33 @@ func (r *cache2RuntimeInfo) age() time.Duration {
 }
 
 func (r *cache2RuntimeInfo) size() int {
-	return r.sumSizeS[0] + r.sumSizeS[1]
+	return r.sizeS[0] + r.sizeS[1]
 }
 
 func (r *cache2RuntimeInfo) update(info *cache2UpdateInfo) {
-	r.sumSizeS[0] += info.sumSizeS[0]
-	r.sumSizeS[1] += info.sumSizeS[1]
-	r.sumBucketCountS[0] += info.sumBucketCountS[0]
-	r.sumBucketCountS[1] += info.sumBucketCountS[1]
-	r.sumChunkSizeS[0] += info.sumChunkSizeS[0]
-	r.sumChunkSizeS[1] += info.sumChunkSizeS[1]
-	r.sumChunkCountS[0] += info.sumChunkCountS[0]
-	r.sumChunkCountS[1] += info.sumChunkCountS[1]
+	r.sizeS[0] += info.sizeS[0]
+	r.sizeS[1] += info.sizeS[1]
+	r.bucketCountS[0] += info.bucketCountS[0]
+	r.bucketCountS[1] += info.bucketCountS[1]
+	r.chunkSizeS[0] += info.chunkSizeS[0]
+	r.chunkSizeS[1] += info.chunkSizeS[1]
+	r.chunkCountS[0] += info.chunkCountS[0]
+	r.chunkCountS[1] += info.chunkCountS[1]
 	if r.minChunkAccessTime < info.minChunkAccessTime {
 		r.minChunkAccessTime = info.minChunkAccessTime
 	}
-	r.hitSizeS[0][0] += info.hitSizeS[0][0]
-	r.hitSizeS[0][1] += info.hitSizeS[0][1]
-	r.hitSizeS[1][0] += info.hitSizeS[1][0]
-	r.hitSizeS[1][1] += info.hitSizeS[1][1]
-	r.hitChunkSizeS[0][0] += info.hitChunkSizeS[0][0]
-	r.hitChunkSizeS[0][1] += info.hitChunkSizeS[0][1]
-	r.hitChunkSizeS[1][0] += info.hitChunkSizeS[1][0]
-	r.hitChunkSizeS[1][1] += info.hitChunkSizeS[1][1]
-	r.hitChunkCountS[0][0] += info.hitChunkCountS[0][0]
-	r.hitChunkCountS[0][1] += info.hitChunkCountS[0][1]
-	r.hitChunkCountS[1][0] += info.hitChunkCountS[1][0]
-	r.hitChunkCountS[1][1] += info.hitChunkCountS[1][1]
+	r.accessSizeS[0][0] += info.hitSizeS[0][0]
+	r.accessSizeS[0][1] += info.hitSizeS[0][1]
+	r.accessSizeS[1][0] += info.hitSizeS[1][0]
+	r.accessSizeS[1][1] += info.hitSizeS[1][1]
+	r.accessChunkSizeS[0][0] += info.hitChunkSizeS[0][0]
+	r.accessChunkSizeS[0][1] += info.hitChunkSizeS[0][1]
+	r.accessChunkSizeS[1][0] += info.hitChunkSizeS[1][0]
+	r.accessChunkSizeS[1][1] += info.hitChunkSizeS[1][1]
+	r.accessChunkCountS[0][0] += info.hitChunkCountS[0][0]
+	r.accessChunkCountS[0][1] += info.hitChunkCountS[0][1]
+	r.accessChunkCountS[1][0] += info.hitChunkCountS[1][0]
+	r.accessChunkCountS[1][1] += info.hitChunkCountS[1][1]
 }
 
 func (r *cache2RuntimeInfo) normalizeWaterLevel() {
@@ -967,16 +960,16 @@ func (r *cache2RuntimeInfo) normalizeWaterLevel() {
 			s[0], s[1] = s[0]+s[1], 0
 		}
 	}
-	f(&r.sumSizeS)
-	f(&r.sumBucketCountS)
-	f(&r.sumChunkSizeS)
-	f(&r.sumChunkCountS)
+	f(&r.sizeS)
+	f(&r.bucketCountS)
+	f(&r.chunkSizeS)
+	f(&r.chunkCountS)
 }
 
-func (r *cache2RuntimeInfo) resetPerSecond() {
-	r.hitSizeS = [2][2]int{}
-	r.hitChunkSizeS = [2][2]int{}
-	r.hitChunkCountS = [2][2]int{}
+func (r *cache2RuntimeInfo) resetAccessInfo() {
+	r.accessSizeS = [2][2]int{}
+	r.accessChunkSizeS = [2][2]int{}
+	r.accessChunkCountS = [2][2]int{}
 }
 
 func (infoM cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
@@ -986,14 +979,14 @@ func (infoM cache2UpdateInfoM) add(step, user string, info *cache2UpdateInfo) {
 		infoM[step] = m
 	}
 	if v := m[user]; v != nil {
-		v.sumSizeS[0] += info.sumSizeS[0]
-		v.sumSizeS[1] += info.sumSizeS[1]
-		v.sumBucketCountS[0] += info.sumBucketCountS[0]
-		v.sumBucketCountS[1] += info.sumBucketCountS[1]
-		v.sumChunkSizeS[0] += info.sumChunkSizeS[0]
-		v.sumChunkSizeS[1] += info.sumChunkSizeS[1]
-		v.sumChunkCountS[0] += info.sumChunkCountS[0]
-		v.sumChunkCountS[1] += info.sumChunkCountS[1]
+		v.sizeS[0] += info.sizeS[0]
+		v.sizeS[1] += info.sizeS[1]
+		v.bucketCountS[0] += info.bucketCountS[0]
+		v.bucketCountS[1] += info.bucketCountS[1]
+		v.chunkSizeS[0] += info.chunkSizeS[0]
+		v.chunkSizeS[1] += info.chunkSizeS[1]
+		v.chunkCountS[0] += info.chunkCountS[0]
+		v.chunkCountS[1] += info.chunkCountS[1]
 		if info.minChunkAccessTime != 0 && v.minChunkAccessTime > info.minChunkAccessTime {
 			v.minChunkAccessTime = info.minChunkAccessTime
 		}

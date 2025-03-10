@@ -352,7 +352,7 @@ func run() int {
 	m.Path("/debug/cache/log").Methods("GET").HandlerFunc(api.DebugCacheLog)
 	m.Path("/debug/cache/reset").Methods("GET").HandlerFunc(api.DebugCacheReset)
 	m.Path("/debug/cache/init").Methods("GET").HandlerFunc(api.DebugCacheCreateMetrics)
-	m.Path("/debug/cache/buckets").Methods("GET").HandlerFunc(api.DebugCacheBuckets)
+	m.Path("/debug/cache/info").Methods("GET").HandlerFunc(api.DebugCacheInfo)
 	m.Router.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
