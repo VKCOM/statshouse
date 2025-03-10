@@ -7,6 +7,7 @@
 import { toNumber, toString } from '@/common/helpers';
 import type { PlotKey, VariableParamsLink } from './queryParams';
 import { GET_PARAMS, toTagKey } from '@/api/enum';
+import { Layout } from '~@types/react-grid-layout';
 
 export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
@@ -78,3 +79,54 @@ export const toGroupInfoPrefix = (i: number | string) => `${GET_PARAMS.dashboard
 export const toPlotPrefix = (i: number | string) => (i && i !== '0' ? `${GET_PARAMS.plotPrefix}${i}.` : '');
 export const toVariablePrefix = (i: number | string) => `${GET_PARAMS.variablePrefix}${i}.`;
 export const toVariableValuePrefix = (name: string) => `${GET_PARAMS.variableValuePrefix}.${name}`;
+
+// Compresses layout data into a compact string for URL
+// Format: "id.x.y.w.h-id.x.y.w.h-..." where values are in sequential order
+export function compressLayouts(layouts: Layout[]): string {
+  if (!layouts?.length) return '';
+
+  return layouts
+    .map((item) => {
+      const idParts = item.i.split('::');
+      const id = idParts.length > 1 ? idParts[1] : item.i;
+
+      const values = [
+        id,
+        item.x !== 0 ? item.x.toString() : undefined,
+        item.y !== 0 ? item.y.toString() : undefined,
+        item.w !== 1 ? item.w.toString() : undefined,
+        item.h !== 1 ? item.h.toString() : undefined,
+      ];
+
+      while (values.length > 1 && values[values.length - 1] === undefined) {
+        values.pop();
+      }
+
+      return values.map((v) => (v === undefined ? '' : v)).join('.');
+    })
+    .join('-');
+}
+
+// Decompress the compact string back to layout array
+export function decompressLayouts(compressedString: string | null | undefined, groupKey: string): Layout[] {
+  if (!compressedString) return [];
+
+  return compressedString.split('-').map((itemStr) => {
+    const parts = itemStr.split('.');
+
+    const id = parts[0] || '';
+
+    const x = parts.length > 1 && parts[1] ? toNumber(parts[1], 0) : 0;
+    const y = parts.length > 2 && parts[2] ? toNumber(parts[2], 0) : 0;
+    const w = parts.length > 3 && parts[3] ? toNumber(parts[3], 1) : 1;
+    const h = parts.length > 4 && parts[4] ? toNumber(parts[4], 1) : 1;
+
+    return {
+      i: `${groupKey}::${id}`,
+      x,
+      y,
+      w,
+      h,
+    };
+  });
+}

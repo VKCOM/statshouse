@@ -163,7 +163,11 @@ export const PlotHeader = memo(function PlotHeader({ plotKey, isDashboard }: Plo
             {dashboardLayoutEdit ? (
               <div className="w-100 d-flex flex-row">
                 <InputText
-                  className={cn(css.plotInputName, 'form-control-sm flex-grow-1')}
+                  className={cn(
+                    css.plotInputName,
+                    'form-control-sm flex-grow-1',
+                    dashboardLayoutEdit && css.pointerEventsNone
+                  )}
                   value={localCustomName}
                   placeholder={metricFullName}
                   onPointerDown={stopPropagation}
