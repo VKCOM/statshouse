@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vkcom/statshouse-go"
@@ -21,6 +22,7 @@ const timeMonth = 31 * 24 * time.Hour
 var errOutOfRangeChunkOffset = fmt.Errorf("out of range chunk offset")
 
 type cache2 struct {
+	waitN     atomic.Int64
 	mu        sync.Mutex
 	trimCond  *sync.Cond
 	allocCond *sync.Cond
@@ -335,6 +337,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	c.info.normalizeWaterLevel()
 	// TODO: replace with builtins
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
+	client.NamedCount("statshouse_api_cache_waiting", tags[0][0], float64(c.waitN.Load()))
 	for i := 0; i < 2; i++ {
 		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sumSizeS[i]))
 		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.sumBucketCountS[i]))
@@ -556,6 +559,7 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 			srcOffset: offset,
 		})
 		l.waitN++
+		l.cache.waitN.Add(1)
 	} else {
 		// cache hit
 		accessSize := 0
@@ -695,9 +699,11 @@ func (l *cache2Loader) wait(ctx context.Context) error {
 		var err error
 		for ; n < l.waitN && err == nil; n++ {
 			err = <-l.waitC
+			l.cache.waitN.Add(-1)
 		}
 		for ; n < l.waitN; n++ {
 			<-l.waitC
+			l.cache.waitN.Add(-1)
 		}
 		c <- err
 	}()

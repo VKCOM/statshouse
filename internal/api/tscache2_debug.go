@@ -65,6 +65,39 @@ func DebugCacheReset(r *httpRequestHandler) {
 	}
 }
 
+func DebugCacheBuckets(r *httpRequestHandler) {
+	w := r.Response()
+	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	sumChunkCount, sumSize := 0, 0
+	for step, shard := range r.getCache2().shards {
+		shard.mu.Lock()
+		if len(shard.bucketM) != 0 {
+			w.Write([]byte(fmt.Sprintf("# shard %v\n", step)))
+			shardChunkCount, shardSize := 0, 0
+			for _, b := range shard.bucketM {
+				b.mu.Lock()
+				chunkCount, size := len(b.chunks), sizeofCache2Chunks(b.chunks)
+				shardChunkCount += chunkCount
+				shardSize += size
+				w.Write([]byte(fmt.Sprintf("%d\t%d\n", chunkCount, size)))
+				b.mu.Unlock()
+			}
+			w.Write([]byte("--\n"))
+			w.Write([]byte(fmt.Sprintf("%d\t%d\n", shardChunkCount, shardSize)))
+			w.Write([]byte("\n"))
+			sumChunkCount += shardChunkCount
+			sumSize += shardSize
+		}
+		shard.mu.Unlock()
+	}
+	w.Write([]byte("# TOTAL\n"))
+	w.Write([]byte(fmt.Sprintf("%d\t%d\n", sumChunkCount, sumSize)))
+}
+
 func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	w := r.Response()
 	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
@@ -79,6 +112,11 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	debugCacheCreateMetric(r, format.MetricMetaValue{
 		Name: "statshouse_api_cache_age",
 		Kind: format.MetricKindValue,
+		Tags: tags,
+	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_waiting",
+		Kind: format.MetricKindCounter,
 		Tags: tags,
 	})
 	tags = append(tags, format.MetricMetaTag{
