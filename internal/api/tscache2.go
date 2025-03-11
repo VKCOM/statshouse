@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -18,8 +17,6 @@ import (
 
 const timeDay = 24 * time.Hour
 const timeMonth = 31 * 24 * time.Hour
-
-var errOutOfRangeChunkOffset = fmt.Errorf("out of range chunk offset")
 
 type cache2 struct {
 	waitN     atomic.Int64
@@ -47,25 +44,44 @@ type cache2 struct {
 }
 
 type cache2Loader struct {
-	handler           *requestHandler
-	query             *queryBuilder
-	cache             *cache2
-	shard             *cache2Shard
-	bucket            *cache2Bucket
-	chunks            []cache2LoaderChunk
-	lod               data_model.LOD
-	waitC             chan error
+	handler *requestHandler
+	query   *queryBuilder
+	cache   *cache2
+	shard   *cache2Shard
+	bucket  *cache2Bucket
+	lod     data_model.LOD
+	data    cache2Data
+	groups  []cache2LoaderGroup
+	waitC   chan error
+
+	// in play mode with one second query interval stale data might be returned
+	// not waiting for data load (we are going to return it next second)
 	staleAcceptPeriod time.Duration
-	timeNow           int64
-	waitN             int
-	mode              int
-	forceLoad         bool
+
+	// time range to query and current time
+	timeStart int64
+	timeEnd   int64
+	timeNow   int64
+
+	// data range to return
+	posStart int
+	posEnd   int
+
+	mode      int // play mode indicator
+	waitN     int // number of values to read from "waitC"
+	forceLoad bool
+}
+
+type cache2LoaderGroup struct {
+	chunks []cache2LoaderChunk
+	data   cache2Data
+	offset int // from loader data start
 }
 
 type cache2LoaderChunk struct {
 	*cache2Chunk
-	queryPosStart int
-	queryPosEnd   int
+	chunkStart int
+	chunkEnd   int
 }
 
 type cache2Shard struct {
@@ -113,7 +129,7 @@ type cache2BucketRuntimeInfo struct {
 type cache2Chunk struct {
 	mu             sync.Mutex
 	data           cache2Data
-	waiting        []cache2Waiting
+	awaiters       []cache2Awaiter
 	start, end     int64 // [start, end)
 	invalidatedAt  int64 // nanoseconds
 	loadStartedAt  int64 // nanoseconds
@@ -124,16 +140,17 @@ type cache2Chunk struct {
 	detached       bool
 }
 
-type cache2Waiting struct {
-	dst       cache2Data
-	dstC      chan<- error
-	srcOffset int
+type cache2Awaiter struct {
+	loaderChan chan<- error
+	chunkData  cache2Data
+	chunkStart int
+	chunkEnd   int
 }
 
 type cache2Limits struct {
 	maxAge      time.Duration
-	maxSize     int
-	maxSizeSoft int
+	maxSize     int // memory hard limit
+	maxSizeSoft int // memory soft limit
 }
 
 type cache2RuntimeInfo struct {
@@ -202,14 +219,16 @@ func newCache2(h *Handler, chunkSize int, loader tsLoadFunc) *cache2 {
 	return c
 }
 
-func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool) (cache2Data, error) {
-	n, err := lod.IndexOf(lod.ToSec)
+func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool) (res cache2Data, err error) {
+	var n int
+	n, err = lod.IndexOf(lod.ToSec)
 	if err != nil || n == 0 {
 		return nil, err
 	}
-	res, cacheDisabled := c.alloc(n)
 	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
-	if cacheDisabled || h.cacheDisabled() {
+	if h.cacheDisabled() {
+		c.tryNotExceedMemoryHardLimit()
+		res = make(cache2Data, n)
 		_, err = c.loader(ctx, h, q, lod, res, 0)
 		if err == nil {
 			cache2MapStringTags(h, q, res)
@@ -219,23 +238,22 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 			c.updateRuntimeInfo(shard.stepS, h.accessInfo.user, &info)
 		}
 	} else {
-		err = c.newLoader(h, q, lod, forceLoad, shard, res).run(ctx)
+		res, err = c.newLoader(h, q, lod, n, forceLoad, shard).run(ctx)
 	}
 	return res, err
 }
 
-func (c *cache2) alloc(n int) (cache2Data, bool) {
+func (c *cache2) tryNotExceedMemoryHardLimit() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for c.limits.maxSize != 0 && c.info.size() > c.limits.maxSize {
 		c.allocCond.Wait()
 	}
-	return make(cache2Data, n), c.limits.maxSize == 0
 }
 
 func (c *cache2) setLimits(v cache2Limits) {
 	if v.maxSize <= 0 {
-		// caching disabled
+		// running without memory limit
 		v.maxSize = 0
 		v.maxSizeSoft = 0
 	} else if v.maxSizeSoft <= 0 || v.maxSize <= v.maxSizeSoft {
@@ -446,60 +464,75 @@ func (c *cache2) chunkEnd(shard *cache2Shard, t int64) int64 {
 	}
 }
 
-func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LOD, forceLoad bool, shard *cache2Shard, data cache2Data) *cache2Loader {
+func (c *cache2) newLoader(h *requestHandler, q *queryBuilder, lod data_model.LOD, size int, forceLoad bool, shard *cache2Shard) *cache2Loader {
+	c.tryNotExceedMemoryHardLimit()
+	lodStart := lod.FromSec * int64(time.Second)
+	lodEnd := lod.ToSec * int64(time.Second)
+	firstChunkStart := c.chunkStart(shard, lodStart)
+	lastChunkEnd, chunkCount := firstChunkStart, 0
+	for lastChunkEnd < lodEnd {
+		lastChunkEnd = c.chunkEnd(shard, lastChunkEnd)
+		chunkCount++
+	}
+	startPos := int(time.Duration(lodStart-firstChunkStart) / shard.step)
 	info := cache2UpdateInfo{}
-	b := shard.getOrCreateLockedBucket(h, q, &info)
-	defer c.updateRuntimeInfo(shard.stepS, b.fau, &info) // run with unlocked bucket
-	defer b.mu.Unlock()                                  // bucket returned locked
+	bucket := shard.getOrCreateLockedBucket(h, q, &info)
+	defer c.updateRuntimeInfo(shard.stepS, bucket.fau, &info) // run with unlocked bucket
+	defer bucket.mu.Unlock()                                  // bucket returned locked
 	l := &cache2Loader{
 		handler:           h,
 		query:             q,
-		lod:               lod,
 		cache:             c,
 		shard:             shard,
-		bucket:            b,
-		mode:              cache2BucketMode(time.Duration(q.play) * time.Second),
+		bucket:            bucket,
+		lod:               lod,
+		staleAcceptPeriod: cache2StaleAcceptPeriod(q),
 		timeNow:           time.Now().UnixNano(),
-		staleAcceptPeriod: cache2StaleAcceptPeriod(h, q),
+		timeStart:         firstChunkStart,
+		timeEnd:           lastChunkEnd,
+		data:              make(cache2Data, chunkCount*shard.chunkSize),
+		posStart:          startPos,
+		posEnd:            startPos + size,
+		mode:              cache2BucketMode(time.Duration(q.play) * time.Second),
 		forceLoad:         forceLoad,
 	}
-	l.init(data, lod.FromSec*int64(time.Second), &info)
+	l.init(&info)
 	return l
 }
 
 func (c *cache2) bucketCount() int {
-	res := 0
+	n := 0
 	for _, shard := range c.shards {
-		res += shard.bucketCount()
+		n += shard.bucketCount()
 	}
-	return res
+	return n
 }
 
-func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
+func (l *cache2Loader) init(info *cache2UpdateInfo) {
 	// NB! bucket must be locked
-	c, shard, b := l.cache, l.shard, l.bucket
-	b.playInterval = time.Duration(l.query.play) * time.Second
-	b.lastAccessTime = l.timeNow
-	start := c.chunkStart(shard, t)
-	i, _ := slices.BinarySearch(b.times, start)
 	var times []int64
 	var chunks []*cache2Chunk
-	for len(d) != 0 {
+	c, shard, b, t := l.cache, l.shard, l.bucket, l.timeStart
+	i, _ := slices.BinarySearch(b.times, t)
+	offset := 0
+	for t < l.timeEnd {
 		times = times[:0]
 		chunks = chunks[:0]
-		for len(d) != 0 && (i >= len(b.times) || start != b.chunks[i].start) {
+		for t < l.timeEnd && (i >= len(b.times) || t != b.chunks[i].start) {
 			chunk := &cache2Chunk{
-				start: start,
-				end:   c.chunkEnd(shard, start),
+				start: t,
+				end:   c.chunkEnd(shard, t),
 			}
-			d, t = l.addChunk(d, t, chunk, info)
-			start = t
+			l.maybeAddChunk(offset, chunk, info)
+			t = chunk.end
+			offset += shard.chunkSize
 			times = append(times, chunk.start)
 			chunks = append(chunks, chunk)
 		}
 		if len(chunks) == 0 {
-			d, t = l.addChunk(d, t, b.chunks[i], info)
-			start = t
+			l.maybeAddChunk(offset, b.chunks[i], info)
+			t = b.chunks[i].end
+			offset += shard.chunkSize
 		} else {
 			b.times = slices.Insert(b.times, i, times...)
 			b.chunks = slices.Insert(b.chunks, i, chunks...)
@@ -509,92 +542,88 @@ func (l *cache2Loader) init(d cache2Data, t int64, info *cache2UpdateInfo) {
 		}
 		i++
 	}
+	b.playInterval = time.Duration(l.query.play) * time.Second
+	b.lastAccessTime = l.timeNow
 }
 
-func (l *cache2Loader) run(ctx context.Context) (err error) {
-	for i, j := 0, 1; i < len(l.chunks); i, j = j, j+1 {
-		for j < len(l.chunks) && l.chunks[j-1].end == l.chunks[j].start {
-			j++
-		}
-		if j == len(l.chunks) {
-			if lastErr := l.loadChunks(i, j); lastErr != nil {
-				// NB! need load all chunks because other loader might be waiting for them
-				// keep last error and go on
-				err = lastErr
+func (l *cache2Loader) run(ctx context.Context) (cache2Data, error) {
+	for i, group := range l.groups {
+		if group.data != nil {
+			if i < len(l.groups)-1 {
+				// hope this path won't hit too often
+				end := group.chunks[len(group.chunks)-1].end
+				nextStart := l.groups[i+1].chunks[0].start
+				statshouse.Value(
+					"statshouse_api_cache_load_amplification",
+					statshouse.Tags{1: srvfunc.HostnameForStatshouse()},
+					float64(time.Duration(nextStart-end)/time.Second))
+				if l.waitC == nil {
+					l.waitC = make(chan error)
+				}
+				l.waitN++
+				go func(group cache2LoaderGroup) {
+					l.waitC <- l.loadChunks(group)
+				}(group)
+			} else {
+				// last load in current gorouting
+				err := l.loadChunks(group)
+				if err != nil {
+					return nil, err
+				}
 			}
 		} else {
-			// hope this path won't hit often
-			statshouse.Value(
-				"statshouse_api_cache_split_gap",
-				statshouse.Tags{1: srvfunc.HostnameForStatshouse()},
-				float64(time.Duration(l.chunks[j].end-l.chunks[j-1].start)/time.Second))
-			if l.waitC == nil {
-				l.waitC = make(chan error)
-			}
-			l.waitN++
-			go func(i, j int) {
-				l.waitC <- l.loadChunks(i, j)
-			}(i, j)
+			go l.loadChunks(group)
 		}
 	}
-	if err == nil {
-		err = l.wait(ctx)
-	}
-	return err
+	return l.data[l.posStart:l.posEnd], l.wait(ctx)
 }
 
-func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cache2UpdateInfo) (cache2Data, int64) {
-	b := l.bucket
-	offset := int((t - c.start) / int64(l.shard.step))
-	if offset < 0 || b.chunkSize <= offset {
-		panic(errOutOfRangeChunkOffset)
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (l *cache2Loader) maybeAddChunk(start int, chunk *cache2Chunk, info *cache2UpdateInfo) {
+	chunk.mu.Lock()
+	defer chunk.mu.Unlock()
 	var needLoad, await bool
-	if c.data == nil || c.loadStartedAt < c.end || l.forceLoad {
+	if chunk.data == nil || chunk.loadStartedAt < chunk.end || l.forceLoad {
 		needLoad = true
 		await = true
-	} else if c.invalidatedAt != 0 {
+	} else if chunk.invalidatedAt != 0 {
 		needLoad = true
-		if time.Duration(l.timeNow-c.invalidatedAt) >= l.staleAcceptPeriod {
+		if time.Duration(l.timeNow-chunk.invalidatedAt) >= l.staleAcceptPeriod {
 			await = true
 		}
-	} else if c.loadStartedAt < (c.end + int64(invalidateLinger)) {
+	} else if chunk.loadStartedAt < (chunk.end + int64(invalidateLinger)) {
 		needLoad = true
-	} else {
-		// single load is preferred over several ones even if we get more data in response
-		needLoad = len(l.chunks) != 0
 	}
-	var n int
-	startLoad := needLoad && !c.loading
+	startLoad := needLoad && !chunk.loading
+	startPos := max(start, l.posStart)
+	end := start + l.shard.chunkSize
+	endPos := min(l.posEnd, end)
+	chunkStart := startPos - start
+	chunkEnd := endPos - start
 	if await {
 		// cache miss
-		n = b.chunkSize - offset
-		if n > len(d) {
-			n = len(d)
-		}
 		if !startLoad {
 			if l.waitC == nil {
 				l.waitC = make(chan error)
 			}
-			c.waiting = append(c.waiting, cache2Waiting{
-				dst:       d[:n],
-				dstC:      l.waitC,
-				srcOffset: offset,
+			chunk.awaiters = append(chunk.awaiters, cache2Awaiter{
+				loaderChan: l.waitC,
+				chunkData:  l.data[start:end],
+				chunkStart: chunkStart,
+				chunkEnd:   chunkEnd,
 			})
 			l.waitN++
 			l.cache.waitN.Add(1)
 		}
 	} else {
 		// cache hit
-		accessSize := 0
-		src := c.data[offset:]
+		sizeHit := 0
+		dataHit := l.data[startPos:endPos]
+		chunkData := chunk.data[chunkStart:chunkEnd]
 		// remap string tags
 		h, q := l.handler, l.query
-		for i := 0; i < len(src) && i < len(d); i++ {
-			for j := 0; j < len(src[i]); j++ {
-				row := &src[i][j]
+		for i := 0; i < len(chunkData); i++ {
+			for j := 0; j < len(chunkData[i]); j++ {
+				row := &chunkData[i][j]
 				for k := 0; k < len(row.stag) && row.stagCount != 0; k++ {
 					if s := row.stag[k]; s != "" {
 						var tag format.MetricMetaTag
@@ -610,45 +639,70 @@ func (l *cache2Loader) addChunk(d cache2Data, t int64, c *cache2Chunk, info *cac
 				}
 			}
 			// copy
-			accessSize += sizeofCache2DataCol + len(src[i])*sizeofCache2DataRow
-			d[i] = make([]tsSelectRow, len(src[i]))
-			copy(d[i], src[i])
-			n++
+			sizeHit += sizeofCache2DataCol + len(chunkData[i])*sizeofCache2DataRow
+			dataHit[i] = make([]tsSelectRow, len(chunkData[i]))
+			copy(dataHit[i], chunkData[i])
 		}
 		// update runtime info and send metrics
-		mode := 0
+		bucket, mode := l.bucket, 0
 		tags := statshouse.NamedTags{
 			{"1", srvfunc.HostnameForStatshouse()},
 			{"2", "0"}, // mode
 			{"4", l.shard.stepS},
-			{"5", getStatTokenName(b.fau)},
-			{"_s", b.fau},
+			{"5", getStatTokenName(bucket.fau)},
+			{"_s", bucket.fau},
 		}
-		if b.playInterval > 0 {
+		if bucket.playInterval > 0 {
 			mode = 1
 			tags[2][1] = "1" // play mode
 		}
-		info.hitSizeS[mode][1] += accessSize
-		info.hitChunkSizeS[mode][1] += n
+		info.hitSizeS[mode][1] += sizeHit
+		info.hitChunkSizeS[mode][1] += len(dataHit)
 		info.hitChunkCountS[mode][1]++
-		c.hitCount++
-		statshouse.NamedValue("statshouse_api_cache_chunk_hit_count", tags, float64(c.hitCount))
+		chunk.hitCount++
+		statshouse.NamedValue("statshouse_api_cache_chunk_hit_count", tags, float64(chunk.hitCount))
 	}
 	if startLoad {
-		l.chunks = append(l.chunks, cache2LoaderChunk{
-			cache2Chunk:   c,
-			queryPosStart: offset,
-			queryPosEnd:   offset + n,
-		})
-		c.loading = true
-		c.loadStartedAt = l.timeNow
+		var lastGroup *cache2LoaderGroup
+		if len(l.groups) != 0 {
+			lastGroup = &l.groups[len(l.groups)-1]
+			if awaitLast := lastGroup.data != nil; awaitLast == await {
+				lastChunk := lastGroup.chunks[len(lastGroup.chunks)-1]
+				if lastChunk.end == chunk.start {
+					lastGroup.chunks = append(lastGroup.chunks, cache2LoaderChunk{
+						cache2Chunk: chunk,
+						chunkStart:  chunkStart,
+						chunkEnd:    chunkEnd,
+					})
+					chunk.loading = true
+				}
+			}
+		}
+		if !chunk.loading {
+			if lastGroup != nil && lastGroup.data != nil {
+				lastGroup.data = lastGroup.data[:start-lastGroup.offset]
+			}
+			group := cache2LoaderGroup{
+				chunks: []cache2LoaderChunk{{
+					cache2Chunk: chunk,
+					chunkStart:  chunkStart,
+					chunkEnd:    chunkEnd,
+				}},
+			}
+			if await {
+				group.data = l.data[start:]
+				group.offset = start
+			}
+			l.groups = append(l.groups, group)
+			chunk.loading = true
+		}
+		chunk.loadStartedAt = l.timeNow
 	}
-	c.lastAccessTime = l.timeNow
-	return d[n:], c.end
+	chunk.lastAccessTime = l.timeNow
 }
 
-func (l *cache2Loader) loadChunks(start, end int) error {
-	chunks := l.chunks[start:end]
+func (l *cache2Loader) loadChunks(group cache2LoaderGroup) error {
+	chunks := group.chunks
 	lod := data_model.LOD{
 		FromSec:    chunks[0].start / int64(time.Second),           // nanoseconds from seconds
 		ToSec:      chunks[len(chunks)-1].end / int64(time.Second), // nanoseconds from seconds
@@ -661,67 +715,74 @@ func (l *cache2Loader) loadChunks(start, end int) error {
 	}
 	h, q := l.handler, l.query
 	c, b := l.cache, l.bucket
-	res, _ := c.alloc(b.chunkSize * len(chunks))
-	_, err := c.loader(context.Background(), h, q, lod, res, 0)
-	if err == nil {
-		cache2MapStringTags(h, q, res)
+	data := group.data
+	if data == nil {
+		data = make(cache2Data, b.chunkSize*len(chunks))
 	}
-	start, end = 0, b.chunkSize
+	_, err := c.loader(context.Background(), h, q, lod, data, 0)
+	if err == nil {
+		cache2MapStringTags(h, q, data)
+	}
+	start, end := 0, b.chunkSize
 	info := cache2UpdateInfo{}
 	defer c.updateRuntimeInfo(l.shard.stepS, b.fau, &info)
 	for _, chunk := range chunks {
-		var data cache2Data
-		var size int
-		if err == nil {
-			// bad idea to reuse "res" slice because it will be kept in memory until all chunks are freed
-			data, _ = c.alloc(b.chunkSize)
-			copy(data, res[start:end])
-			sizeBefore := sizeofCache2Data(data[:chunk.queryPosStart])
-			sizeMiss := sizeofCache2Data(data[chunk.queryPosStart:chunk.queryPosEnd])
-			sizeAfter := sizeofCache2Data(data[chunk.queryPosEnd:])
-			size = sizeBefore + sizeMiss + sizeAfter
-			// report cache miss
-			info.hitSizeS[l.mode][0] += sizeMiss
-			info.hitChunkSizeS[l.mode][0] += chunk.queryPosEnd - chunk.queryPosStart
+		// calculate data size
+		chunkStart := start + chunk.chunkStart
+		chunkEnd := start + chunk.chunkEnd
+		chunkSize := sizeofCache2Data(data[start:chunkStart])
+		dataMiss := data[chunkStart:chunkEnd]
+		sizeMiss := sizeofCache2Data(dataMiss)
+		chunkSize += sizeMiss
+		chunkSize += sizeofCache2Data(data[chunkEnd:end])
+		// report cache miss
+		if group.data != nil {
+			info.hitSizeS[l.mode][0] += chunkSize
+			info.hitChunkSizeS[l.mode][0] += len(data)
 			info.hitChunkCountS[l.mode][0]++
 		}
+		// update chunk
+		chunkData := data[start:end]
+		var awaiters []cache2Awaiter
 		chunk.mu.Lock()
-		var waiting []cache2Waiting
-		chunk.waiting, waiting = waiting, chunk.waiting
+		chunk.awaiters, awaiters = awaiters, chunk.awaiters
 		attached := !chunk.detached
 		if attached {
-			info.sizeS[l.mode] += size - chunk.size
-			chunk.data = data
-			chunk.size = size
-			if chunk.loadStartedAt < chunk.invalidatedAt {
-				// chunk has been invalidated while loading
-			} else {
-				chunk.invalidatedAt = 0
+			if err == nil {
+				if chunk.data == nil {
+					if len(chunks) == 1 && group.data == nil {
+						chunk.data = data // reuse memory
+					} else {
+						chunk.data = make(cache2Data, b.chunkSize)
+					}
+				}
+				for i := 0; i < b.chunkSize; i++ {
+					chunk.data[i] = append(chunk.data[i][:0], chunkData[i]...)
+				}
+				info.sizeS[l.mode] += chunkSize - chunk.size
+				chunk.size = chunkSize
+				if chunk.loadStartedAt < chunk.invalidatedAt {
+					// chunk has been invalidated while loading
+				} else {
+					chunk.invalidatedAt = 0
+				}
 			}
 			chunk.loading = false
 		}
 		chunk.mu.Unlock()
-		for i, w := range waiting {
+		// copy data to awaiters
+		for _, a := range awaiters {
 			if err == nil {
-				sizeMiss := 0
-				dst, src := w.dst, data[w.srcOffset:]
-				for j := 0; j < len(w.dst) && j < len(src); j++ {
-					if attached || i < len(waiting)-1 {
-						// deep copy
-						dst[j] = make([]tsSelectRow, len(src[j]))
-						copy(dst[j], src[j])
-					} else {
-						// shallow copy last for detached chunk
-						dst[j] = src[j]
-					}
-					sizeMiss += sizeofCache2DataCol + len(src[j])*sizeofCache2DataRow
+				for i := a.chunkStart; i < a.chunkEnd; i++ {
+					a.chunkData[i] = append(a.chunkData[i][:0], chunkData[i]...)
 				}
-				// report cache miss
+				// report awaiter cache miss
+				sizeMiss := sizeofCache2Data(a.chunkData[a.chunkStart:a.chunkEnd])
 				info.hitSizeS[l.mode][0] += sizeMiss
-				info.hitChunkSizeS[l.mode][0] += len(src)
+				info.hitChunkSizeS[l.mode][0] += b.chunkSize
 				info.hitChunkCountS[l.mode][0]++
 			}
-			w.dstC <- err
+			a.loaderChan <- err
 		}
 		start = end
 		end += b.chunkSize
@@ -1084,11 +1145,9 @@ func cache2ChunkSizeDuration(chunkSize int, step time.Duration) (int, time.Durat
 	return int(d / step), d
 }
 
-func cache2StaleAcceptPeriod(h *requestHandler, q *queryBuilder) time.Duration {
+func cache2StaleAcceptPeriod(q *queryBuilder) time.Duration {
 	if q.play == 1 {
-		if v := h.CacheStaleAcceptPeriod.Load(); v > 0 {
-			return time.Duration(v) * time.Second
-		}
+		return time.Second
 	}
 	return 0
 }
