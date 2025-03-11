@@ -139,6 +139,11 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		Kind: format.MetricKindCounter,
 		Tags: tags,
 	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_split_gap",
+		Kind: format.MetricKindValue,
+		Tags: tags,
+	})
 	tags = append(tags, format.MetricMetaTag{
 		Index:       2,
 		Description: "mode",
