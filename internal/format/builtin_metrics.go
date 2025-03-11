@@ -984,6 +984,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 	Kind:                    MetricKindValue,
 	Description:             "Size of RPC request bodies.\nFor ingress proxy, key_id can be used to identify senders.",
 	MetricType:              MetricByte,
+	StringTopDescription:    "error_text",
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
