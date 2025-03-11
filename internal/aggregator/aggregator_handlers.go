@@ -40,16 +40,18 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	requestLen := len(hctx.Request) // impl will release hctx
 	err := a.h.Handle(ctx, hctx)
 	status := int32(format.TagValueIDRPCRequestsStatusOK)
+	str := ""
 	if err == rpc.ErrNoHandler {
 		status = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if rpc.IsHijackedResponse(err) {
 		status = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
 		status = format.TagValueIDRPCRequestsStatusErrLocal
+		str = err.Error()
 	}
-	a.sh2.AddValueCounter(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
+	a.sh2.AddValueCounterString(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
 		[]int32{0, format.TagValueIDComponentAggregator, int32(tag), status, 0, 0, keyIDTag, 0, protocol},
-		float64(requestLen), 1)
+		str, float64(requestLen), 1)
 	return err
 }
 
