@@ -264,7 +264,14 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		}
 	}
 	for i, a := range result.GetConfigResult.Addresses {
-		shardReplicaClient := newClient()
+		shardReplicaClient := result.rpcClientConfig
+		if shardNum := i / 3; shardNum != 0 {
+			// We recommend giving configuration addresses of first shard,
+			// so in this case there would be no extra connections for configuration.
+			// In case configuration addresses are of shard other than first or some
+			// random addresses, there would be extra connections.
+			shardReplicaClient = newClient()
+		}
 		// We want separate connection per shard even in case of ingress proxy,
 		// where many/all shards have the same address.
 		// So proxy can simply proxy packet conn, not rpc
