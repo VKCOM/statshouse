@@ -463,6 +463,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
+		if item.T != 0 && item.T < roundedToOurTime {
+			measurementOutdatedRows++
+		}
 		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
 			b := oldMetricBuckets[item.Metric]
 			if nowUnix-item.T >= 48*3600 {
@@ -473,10 +476,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				b[0]++
 			}
 			oldMetricBuckets[item.Metric] = b
-			if configR.SkipOldMetrics {
-				measurementOutdatedRows++
-				continue
-			}
 		}
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)
