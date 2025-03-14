@@ -458,7 +458,10 @@ func (c *cache2) chunkEnd(shard *cache2Shard, t int64) int64 {
 	switch shard.step {
 	case timeMonth:
 		l := c.location
-		return time.Unix(0, t).In(l).AddDate(0, 1, 0).UTC().UnixNano()
+		for i := 0; i < shard.chunkSize; i++ {
+			t = time.Unix(0, t).In(l).AddDate(0, 1, 0).UTC().UnixNano()
+		}
+		return t
 	default:
 		return t + int64(shard.chunkDuration)
 	}
@@ -514,7 +517,7 @@ func (l *cache2Loader) init(info *cache2UpdateInfo) {
 	var cs []*cache2Chunk
 	var chunks []cache2LoaderChunk
 	defer func() {
-		l.addUnlockChunks(chunks, info)
+		l.awaitCopyChunks(chunks, info)
 	}()
 	c, shard, b, t := l.cache, l.shard, l.bucket, l.timeStart
 	i, _ := slices.BinarySearch(b.times, t)
@@ -561,11 +564,11 @@ func (l *cache2Loader) run(ctx context.Context) (cache2Data, error) {
 }
 
 func (l *cache2Loader) maybeAddChunk(s []cache2LoaderChunk, c *cache2Chunk, pos int, info *cache2UpdateInfo) []cache2LoaderChunk {
-	c.mu.Lock()
 	loadStart := max(pos, l.loadStart)
 	chunkEnd := pos + l.shard.chunkSize
 	loadEnd := min(l.loadEnd, chunkEnd)
 	var load, wait bool
+	c.mu.Lock()
 	if c.data == nil || c.loadStartedAt < c.end || l.forceLoad {
 		load = true
 		wait = true
@@ -589,7 +592,7 @@ func (l *cache2Loader) maybeAddChunk(s []cache2LoaderChunk, c *cache2Chunk, pos 
 	if lc.load && c.loading == 0 {
 		defer c.mu.Unlock()
 		if len(l.chunks) == 0 {
-			s = l.addUnlockChunks(s, info)
+			s = l.awaitCopyChunks(s, info)
 		} else {
 			for i, v := range s {
 				l.chunks = append(l.chunks, v)
@@ -606,13 +609,13 @@ func (l *cache2Loader) maybeAddChunk(s []cache2LoaderChunk, c *cache2Chunk, pos 
 		c.loadStartedAt = l.timeNow
 	} else {
 		s = append(s, lc)
-		// chunk remains locked until "addUnlockChunks" called
+		// NB! chunk remains locked
 	}
 	c.lastAccessTime = l.timeNow
 	return s
 }
 
-func (l *cache2Loader) addUnlockChunks(s []cache2LoaderChunk, info *cache2UpdateInfo) []cache2LoaderChunk {
+func (l *cache2Loader) awaitCopyChunks(s []cache2LoaderChunk, info *cache2UpdateInfo) []cache2LoaderChunk {
 	for i, v := range s {
 		if v.wait {
 			v.await(l)
@@ -1115,7 +1118,7 @@ func cache2MapStringTags(h *requestHandler, q *queryBuilder, d cache2Data) {
 }
 
 func cache2ChunkSizeDuration(chunkSize int, step time.Duration) (int, time.Duration) {
-	if chunkSize > 0 {
+	if chunkSize > 0 && step <= time.Hour {
 		return chunkSize, time.Duration(chunkSize) * step
 	}
 	var d time.Duration
