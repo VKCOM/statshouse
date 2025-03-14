@@ -434,12 +434,13 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	metricCache := makeMetricCache(a.metricStorage)
 	usedTimestamps := map[uint32]struct{}{}
 	usedBufferTimestamps := map[uint32]struct{}{}
+	recentTs := buckets[0].time // by convention first bucket is recent all others are historic
 
 	insertItem := func(item *data_model.MultiItem, sf float64, bucketTs uint32) { // lambda is convenient here
 		is := insertSize{}
 
 		bufferedInsert := false
-		if configR.BufferedInsertAgeSec > 0 && item.Key.Timestamp+uint32(configR.BufferedInsertAgeSec) < bucketTs {
+		if configR.BufferedInsertAgeSec > 0 && item.Key.Timestamp+uint32(configR.BufferedInsertAgeSec) < recentTs {
 			bufferedInsert = true
 		}
 		if bufferedInsert {
@@ -485,7 +486,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		}
 		addSizes(bucketTs, is)
 	}
-	recentTime := buckets[0].time // by convention first bucket is recent all other are historic
 	// aggregate per metric sharding data
 	// TODO: remove after we fully migrate to a new sharding
 	metricStats := make(map[int32]metricStat)
@@ -506,11 +506,11 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		SampleKeys:       configR.SampleKeys,
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
-			key := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingFactor, [format.MaxTags]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
+			key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingFactor, [format.MaxTags]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
 			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps, v3Format)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHost, metricCache, v3Format)
 		},
-		KeepF:          func(item *data_model.MultiItem, bt uint32) { insertItem(item, item.SF, bt) },
+		KeepF:          func(item *data_model.MultiItem, bucketTs uint32) { insertItem(item, item.SF, bucketTs) },
 		SamplerBuffers: buffers,
 	})
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
@@ -581,35 +581,35 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	}
 	for _, v := range sampler.MetricGroups {
 		// keep bytes
-		key := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID})
+		key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID})
 		item := data_model.MultiItem{Key: *key, Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
 		insertItem(&item, 1, buckets[0].time)
 		// discard bytes
-		key = a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID})
+		key = a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID})
 		item = data_model.MultiItem{Key: *key, Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
 		insertItem(&item, 1, buckets[0].time)
 		// budget
-		key = a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingGroupBudget, [format.MaxTags]int32{0, historicTag, v.NamespaceID, v.GroupID})
+		key = a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingGroupBudget, [format.MaxTags]int32{0, historicTag, v.NamespaceID, v.GroupID})
 		item = data_model.MultiItem{Key: *key}
 		item.Tail.Value.AddValue(v.Budget())
 		insertItem(&item, 1, buckets[0].time)
 	}
 	// report sampling engine time
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 1, 0, 0, historicTag}), float64(sampler.TimeAppend()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 2, 0, 0, historicTag}), float64(sampler.TimePartition()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 3, 0, 0, historicTag}), float64(sampler.TimeBudgeting()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 4, 0, 0, historicTag}), float64(sampler.TimeSampling()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 5, 0, 0, historicTag}), float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingEngineKeys, [format.MaxTags]int32{0, 0, 0, 0, historicTag}), data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, v3Format, false)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 1, 0, 0, historicTag}), float64(sampler.TimeAppend()), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 2, 0, 0, historicTag}), float64(sampler.TimePartition()), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 3, 0, 0, historicTag}), float64(sampler.TimeBudgeting()), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 4, 0, 0, historicTag}), float64(sampler.TimeSampling()), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 5, 0, 0, historicTag}), float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineKeys, [format.MaxTags]int32{0, 0, 0, 0, historicTag}), data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, v3Format, false)
 
 	// report budget used
-	budgetKey := a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingBudget, [format.MaxTags]int32{0, historicTag})
+	budgetKey := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingBudget, [format.MaxTags]int32{0, historicTag})
 	budgetItem := data_model.MultiItem{Key: *budgetKey}
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	insertItem(&budgetItem, 1, buckets[0].time)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggSamplingMetricCount, [format.MaxTags]int32{0, historicTag}), float64(sampler.MetricCount), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingMetricCount, [format.MaxTags]int32{0, historicTag}), float64(sampler.MetricCount), 1, a.aggregatorHost, metricCache, v3Format)
 
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTime, format.BuiltinMetricIDAggContributors, [format.MaxTags]int32{}), float64(numContributors), 1, a.aggregatorHost, metricCache, v3Format)
+	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggContributors, [format.MaxTags]int32{}), float64(numContributors), 1, a.aggregatorHost, metricCache, v3Format)
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
