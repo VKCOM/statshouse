@@ -101,18 +101,22 @@ func TestCache2AddRemoveChunks(t *testing.T) {
 		// add chunks
 		lenG := rapid.IntRange(0, 32)
 		timeNow := time.Now()
-		timeG := rapid.Int64Range(timeNow.Add(-24*time.Hour).UnixNano(), timeNow.UnixNano())
+		timeG := rapid.Int64Range(timeNow.Add(-24*time.Hour).Unix(), timeNow.Unix())
 		for i := 0; i < 512; i++ {
+			start := timeG.Draw(t, "from sec")
 			l := cache2Loader{
 				cache:   c,
 				handler: h,
 				query:   q,
 				shard:   shard,
 				bucket:  b,
+				lod: data_model.LOD{
+					FromSec: start,
+					ToSec:   start + int64(lenG.Draw(t, "chunk length")),
+				},
 			}
-			d := make(cache2Data, lenG.Draw(t, "chunk length"))
 			info := cache2UpdateInfo{}
-			l.init(d, timeG.Draw(t, "load time start"), &info)
+			l.init(&info)
 			c.updateRuntimeInfo(shard.stepS, b.fau, &info)
 		}
 		// acccess chunks

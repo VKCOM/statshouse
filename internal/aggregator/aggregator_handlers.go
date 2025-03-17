@@ -40,16 +40,18 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	requestLen := len(hctx.Request) // impl will release hctx
 	err := a.h.Handle(ctx, hctx)
 	status := int32(format.TagValueIDRPCRequestsStatusOK)
+	str := ""
 	if err == rpc.ErrNoHandler {
 		status = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if rpc.IsHijackedResponse(err) {
 		status = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
 		status = format.TagValueIDRPCRequestsStatusErrLocal
+		str = err.Error()
 	}
-	a.sh2.AddValueCounter(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
+	a.sh2.AddValueCounterString(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
 		[]int32{0, format.TagValueIDComponentAggregator, int32(tag), status, 0, 0, keyIDTag, 0, protocol},
-		float64(requestLen), 1)
+		str, float64(requestLen), 1)
 	return err
 }
 
@@ -461,6 +463,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
 	for _, item := range bucket.Metrics {
+		if item.T != 0 && item.T < roundedToOurTime {
+			measurementOutdatedRows++
+		}
 		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
 			b := oldMetricBuckets[item.Metric]
 			if nowUnix-item.T >= 48*3600 {
@@ -471,10 +476,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				b[0]++
 			}
 			oldMetricBuckets[item.Metric] = b
-			if configR.SkipOldMetrics {
-				measurementOutdatedRows++
-				continue
-			}
 		}
 		measurementIntKeys += len(item.Keys)
 		measurementStringKeys += len(item.Skeys)

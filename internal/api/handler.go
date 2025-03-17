@@ -176,7 +176,6 @@ type (
 		Version3Prob           atomic.Float64
 		Version3StrcmpOff      atomic.Bool
 		CacheVersion           atomic.Int32
-		CacheStaleAcceptPeriod atomic.Int64
 		CacheTrimBackoffPeriod atomic.Int64
 		DisableCacheUsersMu    sync.RWMutex
 		DisableCacheUsers      []string
