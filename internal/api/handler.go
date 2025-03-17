@@ -1778,6 +1778,74 @@ func HandleGetMetricTagValues(r *httpRequestHandler) {
 	respondJSON(r, resp, cache, cacheStale, err)
 }
 
+func HandleMetricTagCard(r *httpRequestHandler) {
+	w := r.w.ResponseWriter
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
+	tagValue := r.FormValue("kv")
+	if tagValue == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`"kv" query parameter (key value) not set`))
+		return
+	}
+	metricName := formValueParamMetric(r.Request)
+	metricMeta, err := r.getMetricMeta(metricName)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write([]byte(fmt.Sprintf("not found metric %q", metricName)))
+		return
+	}
+	tagID := r.FormValue(ParamTagID)
+	tag := metricMeta.Name2Tag(tagID)
+	if tag == nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(fmt.Sprintf("not found tag %q", tagID)))
+		return
+	}
+	const tagValuePlaceHolder = "{value}"
+	if !strings.Contains(tag.Description, tagValuePlaceHolder) {
+		// tag does not contain card link, that's OK
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	url := strings.ReplaceAll(tag.Description, tagValuePlaceHolder, tagValue)
+	req, err := http.NewRequestWithContext(r.Context(), "GET", url, nil)
+	if err != nil {
+		// tag does not contain valid URL, that's might be OK
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if v := r.Header.Get("Accept"); v != "" {
+		req.Header.Set("Accept", v)
+	}
+	if v := r.Header.Get("X-Vkuth-JWT"); v != "" {
+		req.Header.Set("X-Vkuth-JWT", v)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write([]byte(url))
+		w.Write([]byte(err.Error()))
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		w.WriteHeader(http.StatusBadGateway)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write([]byte(fmt.Sprintf("upstream HTTP code %d\n\n", resp.StatusCode)))
+		io.Copy(w, resp.Body)
+		return
+	}
+	// forward OK response
+	w.WriteHeader(http.StatusOK)
+	for k, s := range resp.Header {
+		for _, v := range s {
+			w.Header().Set(k, v)
+		}
+	}
+	io.Copy(w, resp.Body)
+}
+
 type selectRow struct {
 	valID int64
 	val   string
