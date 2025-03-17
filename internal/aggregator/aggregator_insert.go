@@ -571,7 +571,11 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	for _, b := range buckets {
 		numContributors += int(b.contributorsCount())
 	}
-	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(configR.InsertBudget*numContributors)
+	insertBudget := configR.InsertBudget
+	if shardInsertBuget, ok := configR.ShardInsertBudget[int(a.shardKey)]; ok {
+		insertBudget = shardInsertBuget
+	}
+	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(insertBudget*numContributors)
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
 	sampler.Run(remainingBudget)

@@ -9,13 +9,15 @@ package aggregator
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 )
 
 type ConfigAggregatorRemote struct {
-	InsertBudget         int // for single replica, in bytes per contributor, when many contributors
+	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
+	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
 	StringTopCountInsert int
 	SampleNamespaces     bool
 	SampleGroups         bool
@@ -105,8 +107,29 @@ func DefaultConfigAggregator() ConfigAggregator {
 	}
 }
 
+func (c *ConfigAggregatorRemote) setShardBudget(param string) error {
+	parts := strings.Split(param, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid input format for --shard-insert-budget, expected {shard}:{budget}, got %s", param)
+	}
+	shard, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return fmt.Errorf("invalid shard value in --shard-insert-budget, expected integer, got %s: %v", parts[0], err)
+	}
+	budget, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf("invalid budget value in --shard-insert-budget, expected integer, got %s: %v", parts[1], err)
+	}
+	if c.ShardInsertBudget == nil {
+		c.ShardInsertBudget = make(map[int]int)
+	}
+	c.ShardInsertBudget[shard] = budget
+	return nil
+}
+
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
+	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 	if !legacyVerb {
 		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
