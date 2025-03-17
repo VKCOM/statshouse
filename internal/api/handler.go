@@ -1823,14 +1823,14 @@ func HandleMetricTagCard(r *httpRequestHandler) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
+		w.WriteHeader(http.StatusNotFound)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte(url))
 		w.Write([]byte(err.Error()))
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		w.WriteHeader(http.StatusBadGateway)
+		w.WriteHeader(http.StatusNotFound)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte(fmt.Sprintf("upstream HTTP code %d\n\n", resp.StatusCode)))
 		io.Copy(w, resp.Body)
