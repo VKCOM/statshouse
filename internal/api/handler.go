@@ -177,8 +177,9 @@ type (
 		Version3StrcmpOff      atomic.Bool
 		CacheVersion           atomic.Int32
 		CacheTrimBackoffPeriod atomic.Int64
-		DisableCacheUsersMu    sync.RWMutex
-		DisableCacheUsers      []string
+		CacheListMu            sync.RWMutex
+		CacheBlacklist         []string
+		CacheWhitelist         []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -666,9 +667,10 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.setCacheVersion(int32(cfg.CacheVersion))
 		chV2.SetLimits(cfg.UserLimits)
-		h.DisableCacheUsersMu.Lock()
-		h.DisableCacheUsers = cfg.DisableCacheUsers
-		h.DisableCacheUsersMu.Unlock()
+		h.CacheListMu.Lock()
+		h.CacheBlacklist = cfg.CacheBlacklist
+		h.CacheWhitelist = cfg.CacheWhitelist
+		h.CacheListMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -3459,15 +3461,14 @@ func (h *requestHandler) queryDuration(q string, d time.Duration) queryTopDurati
 }
 
 func (h *requestHandler) cacheDisabled() bool {
-	h.DisableCacheUsersMu.RLock()
-	defer h.DisableCacheUsersMu.RUnlock()
+	h.CacheListMu.RLock()
+	defer h.CacheListMu.RUnlock()
 	v := getStatTokenName(h.accessInfo.user)
-	for i := 0; i < len(h.DisableCacheUsers); i++ {
-		if h.DisableCacheUsers[i] == v {
-			return true
-		}
+	if len(h.CacheWhitelist) != 0 {
+		return !slices.Contains(h.CacheWhitelist, v)
+	} else {
+		return slices.Contains(h.CacheBlacklist, v)
 	}
-	return false
 }
 
 func HandleTagDraftList(r *httpRequestHandler) {
