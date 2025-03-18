@@ -300,7 +300,7 @@ func run() int {
 	a.Router.Path("/"+api.EndpointLegacyRedirect).Methods("GET", "HEAD", "POST").HandlerFunc(f.HandleLegacyRedirect)
 	a.Path("/" + api.EndpointMetricList).Methods("GET").HandlerFunc(api.HandleGetMetricsList)
 	a.Path("/" + api.EndpointMetricTagValues).Methods("GET").HandlerFunc(api.HandleGetMetricTagValues)
-	a.Path("/metric-tag-card").Methods("GET", "POST").HandlerFunc(api.HandleMetricTagCard)
+	a.Path("/proxy").Methods("GET", "POST").HandlerFunc(api.HandleProxy)
 	a.Path("/" + api.EndpointMetric).Methods("GET").HandlerFunc(api.HandleGetMetric)
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(api.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(api.HandlePostResetFlood)

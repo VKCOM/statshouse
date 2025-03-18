@@ -80,6 +80,7 @@ type HandlerOptions struct {
 	weekStartAt              int
 	location                 *time.Location
 	utcOffset                int64
+	proxyWhiteList           []string
 }
 
 func (argv *HandlerOptions) Bind(f *flag.FlagSet) {
@@ -92,6 +93,7 @@ func (argv *HandlerOptions) Bind(f *flag.FlagSet) {
 	f.StringVar(&argv.protectedMetricPrefixesS, "protected-metric-prefixes", "", "comma-separated list of metric prefixes that require access bits set")
 	f.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
 	f.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
+	config.StringSliceVar(f, &argv.proxyWhiteList, "proxy-whitelist", "", "list of hosts to which API is allowed to proxy requests")
 }
 
 func (argv *HandlerOptions) Parse() error {
