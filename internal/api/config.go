@@ -23,7 +23,8 @@ type Config struct {
 	MaxCacheSizeSoft   int // soft limit, in bytes
 	MaxCacheAge        int // seconds
 	CacheChunkSize     int
-	DisableCacheUsers  []string
+	CacheBlacklist     []string
+	CacheWhitelist     []string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -57,7 +58,8 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", 0, "cache soft memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 120, "maximum cache age in seconds")
 	f.IntVar(&argv.CacheChunkSize, "cache-chunk-size", 0, "cache chunk size")
-	config.StringSliceVar(f, &argv.DisableCacheUsers, "disable-cache-user", "", "user(s) with cache disabled")
+	config.StringSliceVar(f, &argv.CacheBlacklist, "cache-blacklist", "", "user(s) with cache disabled")
+	config.StringSliceVar(f, &argv.CacheWhitelist, "cache-whitelist", "", "user(s) with cache enabled")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 }
 
