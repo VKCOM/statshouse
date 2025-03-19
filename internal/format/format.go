@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	MaxTags      = 16
-	NewMaxTags   = 48
+	MaxTags      = 48
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
@@ -488,9 +487,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	m.PreKeyIndex = -1
 	tags := m.Tags
-	if len(tags) > NewMaxTags { // prevent various overflows in code
-		tags = tags[:NewMaxTags]
-		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", NewMaxTags))
+	if len(tags) > MaxTags { // prevent various overflows in code
+		tags = tags[:MaxTags]
+		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", MaxTags))
 	}
 	for name, tag := range m.TagsDraft {
 		// in compact journal we clear tag.Name, so we must restore
@@ -521,7 +520,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 		tag.Raw = tag.RawKind != "" // Raw is serialized for v2 agents only
 		tag.raw64 = IsRaw64Kind(tag.RawKind)
-		if tag.raw64 && tag.Index >= NewMaxTags-1 { // for now, to avoid overflows in v2 and v3 mapping
+		if tag.raw64 && tag.Index >= MaxTags-1 { // for now, to avoid overflows in v2 and v3 mapping
 			err = multierr.Append(err, fmt.Errorf("last tag cannot be raw64 kind %q of tag %d", tag.RawKind, i))
 			tag.raw64 = false
 		}
@@ -1290,7 +1289,7 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.RoundSampleFactors != b.RoundSampleFactors {
 		return false
 	}
-	for i := 0; i < NewMaxTags; i++ {
+	for i := 0; i < MaxTags; i++ {
 		ta := a.Name2Tag(TagID(i))
 		tb := b.Name2Tag(TagID(i))
 		if !SameCompactTag(ta, tb) {
