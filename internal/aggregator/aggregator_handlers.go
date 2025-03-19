@@ -534,21 +534,22 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		}
 		// If agents send lots of strings, this loop is non-trivial amount of work.
 		// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
-		processStringTag := func(i int, str []byte, handleMapped func(mapped int32), handleAllocated func(astr string)) {
+		mapStringTag := func(i int, str []byte) int32 {
 			if len(str) == 0 {
-				return
+				return 0
 			}
 			if mapped, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
 				mappingHits++
-				handleMapped(mapped)
-				return
+				if len(sendMappings) < configR.MaxSendTagsToAgent {
+					sendMappings[string(str)] = mapped
+				}
+				return mapped
 			}
 			mappingMisses++
-			astr := string(str) // allocate here
 			if len(unknownTags) < configR.MaxUnknownTagsInBucket {
 				tagId := int32(i + format.TagIDShift)
-				if _, ok := unknownTags[astr]; !ok { // TODO - benchmark if checking before adding is faster or slower
-					unknownTags[astr] = format.CreateMappingExtra{
+				if _, ok := unknownTags[string(str)]; !ok {
+					unknownTags[string(str)] = format.CreateMappingExtra{
 						Create:    true, // passed as is to meta loader
 						MetricID:  k.Metric,
 						TagIDKey:  tagId,
@@ -559,63 +560,59 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 					}
 				}
 			}
-			if handleAllocated != nil {
-				handleAllocated(astr)
-			}
+			return 0
 		}
 		for i, str := range item.Skeys {
 			// in case agents sends more then 16 tags
 			if i >= format.MaxTags {
 				break
 			}
-			processStringTag(i, str, func(m int32) {
+			if m := mapStringTag(i, str); m > 0 {
 				k.Tags[i] = m
-			}, func(astr string) {
-				k.SetSTag(i, astr)
-			})
+			} else {
+				k.SetSTag(i, string(str))
+			}
 		}
 		if item.Tail.IsSetMaxHostStag(item.FieldsMask) {
-			processStringTag(format.HostTagIndex, item.Tail.MaxHostStag, func(m int32) {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxHostStag); m > 0 {
 				item.Tail.SetMaxHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxHostStag(&item.FieldsMask)
-			}, nil)
+			}
 		}
 		if item.Tail.IsSetMaxCounterHostStag(item.FieldsMask) {
-			processStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, func(m int32) {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag); m > 0 {
 				item.Tail.SetMaxCounterHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxCounterHostStag(&item.FieldsMask)
-			}, nil)
+			}
 		}
 		if item.Tail.IsSetMinHostStag(item.FieldsMask) {
-			processStringTag(format.HostTagIndex, item.Tail.MinHostStag, func(m int32) {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MinHostStag); m > 0 {
 				item.Tail.SetMinHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
-			}, nil)
+			}
 		}
 		if configR.MapStringTop {
 			for i, tb := range item.Top {
-				processStringTag(i, tb.Stag, func(m int32) {
+				if m := mapStringTag(i, tb.Stag); m > 0 {
 					item.Top[i].Tag = m
-					// for now we preserve string value for V2 table
-					//item.Top[i].Stag = item.Top[i].Stag[:0]
-				}, nil)
+				}
 				if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
-					processStringTag(format.HostTagIndex, tb.Value.MaxHostStag, func(m int32) {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag); m > 0 {
 						tb.Value.SetMaxHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMaxHostStag(&item.FieldsMask)
-					}, nil)
+					}
 				}
 				if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
-					processStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, func(m int32) {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag); m > 0 {
 						tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
-					}, nil)
+					}
 				}
 				if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
-					processStringTag(format.HostTagIndex, tb.Value.MinHostStag, func(m int32) {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag); m > 0 {
 						tb.Value.SetMinHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMinHostStag(&item.FieldsMask)
-					}, nil)
+					}
 				}
 			}
 		}
