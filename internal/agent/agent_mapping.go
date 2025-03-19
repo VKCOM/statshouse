@@ -49,9 +49,8 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			if tagMeta.Index+1 < format.MaxTags { // TODO - remove after NewMaxTags
-				h.SetTag(tagMeta.Index+1, hi, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
-			}
+			h.SetTag(tagMeta.Index+1, hi, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
+
 			tagValue.I = lo
 		case tagMeta.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value))
