@@ -6,7 +6,7 @@ import (
 )
 
 // legacyKeyHash will be 0 for all new sharding strategies
-func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, shardByMetricCount uint32, newShardingByName string) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
+func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, shardByMetricCount uint32, newShardingByName string, scratch *[]byte) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
 	s := meta.ShardStrategy
 	if s == "" {
 		if meta.Name <= newShardingByName {
@@ -23,7 +23,14 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, sha
 		shard := uint32(key.Metric) % shardByMetricCount
 		return shard, true, numShards, 0
 	default: // including format.ShardByTagsHsh
-		legacyKeyHash = key.Hash()
+		var scr []byte
+		if scratch != nil {
+			scr = *scratch
+		}
+		scr, legacyKeyHash = key.XXHash(scr)
+		if scratch != nil {
+			*scratch = scr
+		}
 		shard := shardByMappedTags(legacyKeyHash, numShards)
 		return shard, false, 1, legacyKeyHash
 	}
