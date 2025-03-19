@@ -564,6 +564,10 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			}
 		}
 		for i, str := range item.Skeys {
+			// in case agents sends more then 16 tags
+			if i >= format.MaxTags {
+				break
+			}
 			processStringTag(i, str, func(m int32) {
 				k.Tags[i] = m
 			}, func(astr string) {
