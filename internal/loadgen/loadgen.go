@@ -94,6 +94,7 @@ func addMetrics(g *Generator, resolution int, idx int) {
 	g.AddConstPercentile(resolution, idx)
 	g.AddConstValueHost(resolution, idx, "host_1")
 	g.AddConstValueHost(resolution, idx, "host_2")
+	g.AddConstValueManyTags(resolution, idx)
 	// metrics with changing tag values
 	g.AddChangingCounter(resolution, idx)
 	g.AddChangingValue(resolution, idx)
