@@ -1141,7 +1141,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	}
 	// filtering
 	var (
-		emptyCount [format.NewMaxTags]int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
+		emptyCount [format.MaxTags]int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
 	)
 	for _, matcher := range sel.LabelMatchers {
 		if strings.HasPrefix(matcher.Name, "__") {

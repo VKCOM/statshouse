@@ -93,7 +93,7 @@ func (mp *mapPipelineV2) mapTags(h *data_model.MappedMetricHeader, metric *tlsta
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			if tagMeta.Index+1 < format.MaxTags { // TODO - remove after NewMaxTags
+			if tagMeta.Index+1 < format.MaxTags { // TODO - remove after MaxTags
 				h.SetTag(tagMeta.Index+1, hi, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
 			}
 			h.SetTag(tagMeta.Index, lo, tagIDKey)
