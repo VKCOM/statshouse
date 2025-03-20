@@ -111,3 +111,9 @@
   --width-col: calc(1320px / var(--base-cols));
   max-width: calc(var(--width-col) * var(--max-cols));
 }
+
+:global(.react-grid-item.react-grid-placeholder) {
+  background-color: rgba(var(--bs-link-color-rgb), 0.4);
+  border: 1px solid var(--bs-primary);
+  opacity: 1;
+}
