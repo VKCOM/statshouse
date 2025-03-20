@@ -448,27 +448,14 @@ export const getBreakpointConfig = () => {
   return { breakpointKey: getBreakpointKey(width) };
 };
 
-export const calculateMaxRows = (plots: string[], cols: number, layout?: { y: number; h: number }[]) => {
-  if (!layout?.length) {
-    return Math.ceil(plots.length / cols) + 1;
-  }
-
-  const maxOccupiedRow = layout.reduce((max, item) => {
-    const itemLastRow = item.y + item.h;
-    return Math.max(max, itemLastRow);
-  }, 0);
-
-  return maxOccupiedRow + 1;
-};
-
-export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 480) => {
+export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 40) => {
   if (width <= baseWidth) {
     return baseHeight;
   }
   const extraWidth = width - baseWidth;
   const extraBlocks = Math.floor(extraWidth / 300);
 
-  const finalHeight = baseHeight + extraBlocks * 30;
+  const finalHeight = baseHeight + extraBlocks * 5;
 
   return finalHeight;
 };

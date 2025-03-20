@@ -15,7 +15,7 @@ import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import css from './style.module.css';
 import { GroupKey } from '@/url2';
 import { BREAKPOINT_WIDTH, BREAKPOINTS_SIZES, COLS, ROW_HEIGHTS } from './constants';
-import { calculateDynamicRowHeight, calculateMaxRows, getBreakpointConfig, getSizeColumns } from '@/common/helpers';
+import { calculateDynamicRowHeight, getBreakpointConfig, getSizeColumns } from '@/common/helpers';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -377,87 +377,153 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         baseRowHeight = ROW_HEIGHTS[breakpointKey];
       }
 
-      let scaleFactor;
-
-      const breakpointMultiplier =
+      const twoColMultiplier =
         {
-          xxxl: 1.5,
-          xxl: 1.5,
-          xl: 1.5,
-          lg: 1.4,
-          md: 1.4,
+          xxxl: 3.4,
+          xxl: 3,
+          xl: 2.45,
+          lg: 1.95,
+          md: 2.18,
+          sm: 1.2,
+          xs: 0.8,
+          xxs: 0.3,
+        }[breakpointKey] || 2.18;
+
+      const threeColMultiplier =
+        {
+          xxxl: 2.65,
+          xxl: 2.35,
+          xl: 1.93,
+          lg: 1.52,
+          md: 1.32,
+          sm: 0.6,
+          xs: 0.5,
+          xxs: 0.1,
+        }[breakpointKey] || 1.32;
+
+      const fourColMultiplier =
+        {
+          xxxl: 2.65,
+          xxl: 2.35,
+          xl: 1.93,
+          lg: 1.52,
+          md: 2,
           sm: 1.1,
-          xs: 1.0,
-          xxs: 0.95,
-        }[breakpointKey] || 1.0;
+          xs: 0.5,
+          xxs: 0.1,
+        }[breakpointKey] || 1.32;
+
+      let scaleFactor;
 
       switch (widgetColsWidth) {
         case 2:
-          return baseRowHeight * breakpointMultiplier;
+          return baseRowHeight * twoColMultiplier;
         case 3:
-          return baseRowHeight;
+          return baseRowHeight * threeColMultiplier;
         case 4:
-          return baseRowHeight;
+          return baseRowHeight * fourColMultiplier;
         default:
-          // For custom sizes, scale inversely with number of items
           scaleFactor = 3 / widgetColsWidth;
-
-          return baseRowHeight * Math.min(1.5, Math.max(0.8, scaleFactor));
+          return baseRowHeight * Math.min(1.875, Math.max(1.0, scaleFactor));
       }
     },
     [groups, breakpointKey, dynamicRowHeight]
   );
 
   const generateDefaultLayout = useCallback(
-    (plots: string[], groupKey: string) => {
-      const size = groups[groupKey]?.size;
-      const widgetColsWidth = getSizeColumns(size);
-      const cols = COLS[breakpointKey] || 10;
+    (plots: string[], groupKey: string, widgetColsWidth: number, minHeight: number) => {
+      const cols = COLS[breakpointKey] || 12;
+
+      if (!groupKey) {
+        const itemWidth = Math.floor(cols / 2);
+
+        return plots.map((plot) => ({
+          i: `${groupKey}::${plot}`,
+          x: 0,
+          y: 0,
+          w: itemWidth,
+          h: 5,
+          minW: 3,
+          minH: 5,
+        }));
+      }
 
       let itemWidth = 0;
-      const leftMargin = widgetColsWidth === 4 ? 1 : 2;
 
       switch (widgetColsWidth) {
         case 2:
-          itemWidth = 3;
+          itemWidth = Math.floor(cols / 2);
           break;
         case 3:
-          itemWidth = 2;
+          itemWidth = Math.floor(cols / 3);
           break;
         case 4:
-          itemWidth = 2;
+          itemWidth = Math.floor(cols / 4);
           break;
         default:
-          itemWidth = Math.floor((cols - 4) / widgetColsWidth);
+          itemWidth = Math.floor(cols / widgetColsWidth);
       }
 
       return plots.map((plot, index) => {
         const row = Math.floor(index / widgetColsWidth);
         const col = index % widgetColsWidth;
-        const startX = leftMargin + col * itemWidth;
+        const startX = col * itemWidth;
+
+        let defaultHeight = 5;
+        if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
+          // defaultHeight = 7;
+          defaultHeight = 6;
+        } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
+          defaultHeight = 6;
+        } else if (breakpointKey === BREAKPOINTS_SIZES.xs || breakpointKey === BREAKPOINTS_SIZES.xxs) {
+          defaultHeight = 4;
+        }
+
+        // Calculate a more balanced height based on column count
+        let widthRatio;
+        if (widgetColsWidth <= 2) {
+          widthRatio = itemWidth / (cols / 2);
+        } else {
+          widthRatio = Math.max(0.5, itemWidth / (cols / 2.7));
+        }
+
+        // Apply a minimum height that scales with column count
+        const minimumHeight = Math.max(2, 4 - widgetColsWidth * 0.5);
+        defaultHeight = Math.max(minimumHeight, Math.round(defaultHeight * widthRatio));
 
         return {
           i: `${groupKey}::${plot}`,
           x: startX,
-          y: row,
+          y: row * defaultHeight,
           w: itemWidth,
-          h: 1,
+          h: defaultHeight,
+          minW: 3,
+          minH: minHeight,
         };
       });
     },
-    [groups, breakpointKey]
+    [breakpointKey]
   );
 
   const getLayoutForGroup = useCallback(
     (groupKey: string, plots: string[]) => {
+      const size = groups[groupKey]?.size;
+      const widgetColsWidth = getSizeColumns(size);
+      const minHeight = widgetColsWidth === 3 ? 4 : 3;
       const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
 
       // If we have a layout and it has items for all plots, use it
       if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
-        const validLayouts = existingGroupLayout.layout.filter((item) => {
-          const plotKey = item.i.split('::')[1];
-          return plots.includes(plotKey);
-        });
+        const validLayouts = existingGroupLayout.layout
+          .filter((item) => {
+            const plotKey = item.i.split('::')[1];
+            return plots.includes(plotKey);
+          })
+          .map((item) => ({
+            ...item,
+            minW: 3,
+            minH: minHeight,
+          }));
 
         // If we have valid layouts for all plots, use them
         if (validLayouts.length === plots.length) {
@@ -465,9 +531,9 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         }
       }
 
-      return generateDefaultLayout(plots, groupKey);
+      return generateDefaultLayout(plots, groupKey, widgetColsWidth, minHeight);
     },
-    [layoutsCoords, generateDefaultLayout]
+    [groups, layoutsCoords, generateDefaultLayout]
   );
 
   return (
@@ -489,11 +555,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 autoSize
                 isDraggable={isDashboardEditAllowed}
                 isResizable={isDashboardEditAllowed}
-                maxRows={calculateMaxRows(
-                  plots,
-                  COLS[breakpointKey],
-                  layoutsCoords.find((l) => l.groupKey === groupKey)?.layout
-                )}
                 onDragStop={onDragStop}
                 onDragStart={onDragStart}
                 onDrag={onDrag}
