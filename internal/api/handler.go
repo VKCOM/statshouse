@@ -1709,12 +1709,6 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{},
 				httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
-		if diffContainsRawTagChanges(*old, metric) {
-			if isAdmin := ai.isAdmin() || ai.insecureMode; !isAdmin {
-				return format.MetricMetaValue{}, httpErr(http.StatusForbidden,
-					fmt.Errorf("raw tags can only be edited by administrators, please contact the support group"))
-			}
-		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
 			if metajournal.IsUserRequestError(err) {
@@ -1725,26 +1719,6 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 	}
 	return resp, nil
-}
-
-func diffContainsRawTagChanges(old, new format.MetricMetaValue) bool {
-	for i := 0; i < len(old.Tags) && i < len(new.Tags); i++ {
-		if old.Tags[i].Raw != new.Tags[i].Raw {
-			return true // edit
-		}
-		if old.Tags[i].Raw64() != new.Tags[i].Raw64() {
-			return true // edit
-		}
-	}
-	for i := len(new.Tags); i < len(old.Tags); i++ {
-		if old.Tags[i].Raw {
-			return true // removal
-		}
-		if old.Tags[i].Raw64() {
-			return true // removal
-		}
-	}
-	return false
 }
 
 func HandleGetMetricTagValues(r *httpRequestHandler) {
