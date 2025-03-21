@@ -7,6 +7,10 @@
 import { produce } from 'immer';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from './toggleKeyboard';
 import type uPlot from 'uplot';
+import { BREAKPOINT_WIDTH } from '@/components2/Dashboard/constants';
+import { GroupInfo } from '@/url2';
+import { BreakpointKey, LayoutScheme } from '@/components2/Dashboard/types';
+import { BREAKPOINTS_SIZES } from '@/components2/Dashboard/constants';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -427,3 +431,61 @@ export const bwd = (v: number) => {
   }
   return Math.pow(2, v) - 1;
 };
+
+const getBreakpointKey = (width: number): BreakpointKey => {
+  if (width >= BREAKPOINT_WIDTH.xxxl) return BREAKPOINTS_SIZES.xxxl;
+  if (width >= BREAKPOINT_WIDTH.xxl) return BREAKPOINTS_SIZES.xxl;
+  if (width >= BREAKPOINT_WIDTH.xl) return BREAKPOINTS_SIZES.xl;
+  if (width >= BREAKPOINT_WIDTH.lg) return BREAKPOINTS_SIZES.lg;
+  if (width >= BREAKPOINT_WIDTH.md) return BREAKPOINTS_SIZES.md;
+  if (width >= BREAKPOINT_WIDTH.sm) return BREAKPOINTS_SIZES.sm;
+  if (width >= BREAKPOINT_WIDTH.xs) return BREAKPOINTS_SIZES.xs;
+  return BREAKPOINTS_SIZES.xxs;
+};
+
+export const getBreakpointConfig = () => {
+  const width = window.innerWidth;
+  return { breakpointKey: getBreakpointKey(width) };
+};
+
+export const calculateDynamicRowHeight = (width: number, baseWidth: number = 2700, baseHeight: number = 40) => {
+  if (width <= baseWidth) {
+    return baseHeight;
+  }
+  const extraWidth = width - baseWidth;
+  const extraBlocks = Math.floor(extraWidth / 300);
+
+  const finalHeight = baseHeight + extraBlocks * 5;
+
+  return finalHeight;
+};
+
+export const updateGroupWithLayout = (groupInfo: GroupInfo, groupKey: string, layouts?: LayoutScheme) => {
+  const layoutScheme = layouts?.groupKey === groupKey;
+
+  if (layoutScheme) {
+    groupInfo.layouts = layouts.layout;
+  }
+  return groupInfo;
+};
+
+// convert size to number of columns
+export function getSizeColumns(size?: string): number {
+  if (size === undefined) return 2;
+
+  const numericSize = Number(size);
+  if (!isNaN(numericSize)) {
+    return numericSize;
+  }
+
+  switch (size) {
+    case 'l':
+      return 2;
+    case 'm':
+      return 3;
+    case 's':
+      return 4;
+    default:
+      return 2;
+  }
+}
