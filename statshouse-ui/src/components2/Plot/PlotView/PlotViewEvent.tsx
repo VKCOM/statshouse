@@ -34,6 +34,8 @@ import uPlot from 'uplot';
 import { setLiveMode } from '@/store2/liveModeStore';
 import { setPlotVisibility } from '@/store2/plotVisibilityStore';
 import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { isMobile } from '@/common/helpers';
+import { ReactComponent as SVGDragIcon } from 'bootstrap-icons/icons/grip-vertical.svg';
 
 const rightPad = 16;
 
@@ -69,11 +71,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
     legendMaxDotSpaceWidth,
     plotEventsDataRange,
     isActive,
-    // setPlotVisibility,
-    // setPlotYLock,
-    // setTimeRange,
-    // createPlotPreview,
-    // resetZoom,
+    dashboardLayoutEdit,
   } = useStatsHouseShallow(
     useCallback(
       ({
@@ -83,11 +81,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
         metricMeta,
         isEmbed,
         baseRange,
-        // setPlotVisibility,
-        // setPlotYLock,
-        // setTimeRange,
-        // createPlotPreview,
-        // resetZoom,
+        dashboardLayoutEdit,
       }) => {
         const plot = plots[plotKey];
         const plotData = plotsData[plotKey];
@@ -103,7 +97,6 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           dataView: plotData?.dataView,
           bands: plotData?.bands,
           series: plotData?.series,
-          // scales: plotData?.scales,
           seriesShow: plotData?.seriesShow,
           legendNameWidth: plotData?.legendNameWidth,
           legendValueWidth: plotData?.legendValueWidth,
@@ -113,11 +106,7 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
           isEmbed,
           baseRange,
           isActive: tabNum === plotKey,
-          // setPlotVisibility,
-          // setPlotYLock,
-          // setTimeRange,
-          // createPlotPreview,
-          // resetZoom,
+          dashboardLayoutEdit,
         };
       },
       [plotKey]
@@ -377,6 +366,11 @@ export function PlotViewEvent({ plotKey, className, isDashboard }: PlotViewProps
       onMouseOut={onMouseOut}
     >
       <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
+        {isDashboard && dashboardLayoutEdit && !isMobile() && (
+          <div className="position-absolute ms-4">
+            <SVGDragIcon />
+          </div>
+        )}
         <div
           className="d-flex align-items-center position-relative"
           style={{

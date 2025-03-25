@@ -15,7 +15,7 @@ import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import css from './style.module.css';
 import { GroupKey } from '@/url2';
 import { BREAKPOINT_WIDTH, BREAKPOINTS_SIZES, COLS, ROW_HEIGHTS } from './constants';
-import { calculateDynamicRowHeight, getBreakpointConfig, getSizeColumns } from '@/common/helpers';
+import { calculateDynamicRowHeight, getBreakpointConfig, getSizeColumns, isMobile } from '@/common/helpers';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -350,8 +350,8 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
 
   // Determine if dashboard editing is allowed based on device and settings
-  const isNotMobile = BREAKPOINT_WIDTH[breakpointKey] >= BREAKPOINT_WIDTH.md;
-  const isDashboardEditAllowed = dashboardLayoutEdit && isNotMobile;
+  const mobileDevice = isMobile();
+  const isDashboardEditAllowed = dashboardLayoutEdit && !mobileDevice;
 
   // Calculate row height based on screen width and breakpoint
   const dynamicRowHeight = useMemo(() => {
@@ -383,7 +383,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xxl: 3,
           xl: 2.45,
           lg: 1.95,
-          md: 2.18,
+          md: 2.2,
           sm: 1.2,
           xs: 0.8,
           xxs: 0.3,
@@ -395,7 +395,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xxl: 2.35,
           xl: 1.93,
           lg: 1.52,
-          md: 1.32,
+          md: 1.34,
           sm: 0.6,
           xs: 0.5,
           xxs: 0.1,
@@ -407,7 +407,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xxl: 2.35,
           xl: 1.93,
           lg: 1.52,
-          md: 2,
+          md: 2.1,
           sm: 1.1,
           xs: 0.5,
           xxs: 0.1,
@@ -433,6 +433,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const generateDefaultLayout = useCallback(
     (plots: string[], groupKey: string, widgetColsWidth: number, minHeight: number) => {
       const cols = COLS[breakpointKey] || 12;
+      const mobileDevice = isMobile();
 
       if (!groupKey) {
         const itemWidth = Math.floor(cols / 2);
@@ -450,28 +451,33 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       let itemWidth = 0;
 
-      switch (widgetColsWidth) {
-        case 2:
-          itemWidth = Math.floor(cols / 2);
-          break;
-        case 3:
-          itemWidth = Math.floor(cols / 3);
-          break;
-        case 4:
-          itemWidth = Math.floor(cols / 4);
-          break;
-        default:
-          itemWidth = Math.floor(cols / widgetColsWidth);
+      // On mobile, always use full width (1 chart per row)
+      if (mobileDevice) {
+        itemWidth = cols;
+      } else {
+        switch (widgetColsWidth) {
+          case 2:
+            itemWidth = Math.floor(cols / 2);
+            break;
+          case 3:
+            itemWidth = Math.floor(cols / 3);
+            break;
+          case 4:
+            itemWidth = Math.floor(cols / 4);
+            break;
+          default:
+            itemWidth = Math.floor(cols / widgetColsWidth);
+        }
       }
 
       return plots.map((plot, index) => {
-        const row = Math.floor(index / widgetColsWidth);
-        const col = index % widgetColsWidth;
+        // On mobile, each chart gets its own row
+        const row = mobileDevice ? index : Math.floor(index / widgetColsWidth);
+        const col = mobileDevice ? 0 : index % widgetColsWidth;
         const startX = col * itemWidth;
 
         let defaultHeight = 5;
         if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
-          // defaultHeight = 7;
           defaultHeight = 6;
         } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
           defaultHeight = 6;
@@ -552,7 +558,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 margin={[0, 30]}
                 cols={COLS}
                 rowHeight={calculateRowHeightForGroup(groupKey)}
-                autoSize
+                // autoSize={false}
                 isDraggable={isDashboardEditAllowed}
                 isResizable={isDashboardEditAllowed}
                 onDragStop={onDragStop}
@@ -564,6 +570,8 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 layouts={{
                   [breakpointKey]: getLayoutForGroup(groupKey, plots),
                 }}
+                compactType="horizontal"
+                // maxRows={30}
               >
                 {/* mapping right to left because elements are rendered from right to left */}
                 {plots

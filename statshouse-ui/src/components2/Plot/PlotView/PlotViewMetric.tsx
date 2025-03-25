@@ -36,8 +36,9 @@ import {
   UPlotWrapperPropsOpts,
   UPlotWrapperPropsScales,
 } from '@/components/UPlotWrapper';
-import { bwd, fwd, log2Filter, log2Splits } from '@/common/helpers';
+import { bwd, fwd, isMobile, log2Filter, log2Splits } from '@/common/helpers';
 import type uPlot from 'uplot';
+import { ReactComponent as SVGDragIcon } from 'bootstrap-icons/icons/grip-vertical.svg';
 
 const rightPad = 16;
 
@@ -70,9 +71,10 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
     legendMaxDotSpaceWidth,
     isActive,
     isLogScale,
+    dashboardLayoutEdit,
   } = useStatsHouseShallow(
     useCallback(
-      ({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange }) => {
+      ({ plotsData, params: { tabNum, plots, timeRange }, metricMeta, isEmbed, baseRange, dashboardLayoutEdit }) => {
         const plot = plots[plotKey];
         const plotData = plotsData[plotKey];
 
@@ -98,6 +100,7 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
           baseRange,
           isActive: tabNum === plotKey,
           isLogScale: plot?.logScale,
+          dashboardLayoutEdit,
         };
       },
       [plotKey]
@@ -377,6 +380,11 @@ export function PlotViewMetric({ className, plotKey, isDashboard }: PlotViewProp
       onMouseOut={onMouseOut}
     >
       <div data-plot-key={plotKey} ref={setVisibleRef} className="plot-view-inner">
+        {isDashboard && dashboardLayoutEdit && !isMobile() && (
+          <div className="position-absolute ms-4">
+            <SVGDragIcon />
+          </div>
+        )}
         <div
           className="d-flex align-items-center position-relative"
           style={{
