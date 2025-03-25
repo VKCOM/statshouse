@@ -373,6 +373,11 @@ export function MetricWidget({ className, isDashboard, isEmbed, fixRatio }: Plot
       onMouseOut={onMouseOut}
     >
       <div data-plot-key={id} ref={setVisibleRef} className={cn('plot-view-inner', !fixRatio && 'd-flex flex-column')}>
+        {isDashboard && dashboardLayoutEdit && !isMobile() && (
+          <div className="position-absolute ms-4">
+            <SVGDragIcon />
+          </div>
+        )}
         <div
           ref={divInner}
           className={cn('d-flex flex-column', !fixRatio && 'flex-grow-1 h-0')}

@@ -27,6 +27,8 @@ import { xRangeStatic } from '@/components2/Plot/PlotView/xRangeStatic';
 import { calcYRange } from '@/common/calcYRange';
 import { dateRangeFormat } from '@/components2/Plot/PlotView/dateRangeFormat';
 import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { isMobile } from '@/common/helpers';
+import { ReactComponent as SVGDragIcon } from 'bootstrap-icons/icons/grip-vertical.svg';
 import { setPlotVisibility, usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
 import cn from 'classnames';
 import { PlotHealsStatus } from '@/components2/Plot/PlotView/PlotHealsStatus';
@@ -337,6 +339,11 @@ export function EventWidget({ className, isDashboard, isEmbed, fixRatio }: PlotW
       onMouseOut={onMouseOut}
     >
       <div data-plot-key={id} ref={setVisibleRef} className={cn('plot-view-inner', !fixRatio && 'd-flex flex-column')}>
+        {isDashboard && dashboardLayoutEdit && !isMobile() && (
+          <div className="position-absolute ms-4">
+            <SVGDragIcon />
+          </div>
+        )}
         <div
           ref={divInner}
           className={cn('d-flex flex-column', !fixRatio && 'flex-grow-1')}

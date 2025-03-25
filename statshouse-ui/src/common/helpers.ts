@@ -489,3 +489,8 @@ export function getSizeColumns(size?: string): number {
       return 2;
   }
 }
+
+export function isMobile(): boolean {
+  const width = window.innerWidth;
+  return width < BREAKPOINT_WIDTH.sm;
+}
