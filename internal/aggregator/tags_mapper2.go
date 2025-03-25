@@ -143,6 +143,7 @@ func (ms *tagsMapper2) goRun() {
 func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) int32 {
 	var metricID int32
 	metricName := ""
+	var unknownMetricID int32
 	if bm := format.BuiltinMetrics[extra.MetricID]; bm != nil {
 		metricID = extra.MetricID
 		metricName = bm.Name
@@ -152,13 +153,14 @@ func (ms *tagsMapper2) createTag(str string, extra format.CreateMappingExtra) in
 	} else {
 		metricID = format.BuiltinMetricIDBudgetUnknownMetric
 		metricName = format.BuiltinMetricMetaBudgetUnknownMetric.Name
+		unknownMetricID = extra.MetricID
 		// Unknown metrics (also loads from caches after initial error, because cache does not store extra). They all share common limit.
 		// Journal can be stale, while mapping works.
 		// Explicit metric for this situation allows resetting limit from UI, like any other metric
 	}
 	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
 	ms.sh2.AddValueCounterHostAERA(0, format.BuiltinMetricMetaAggMappingCreated,
-		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, 0, keyValue},
+		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
 		float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, extra.Aera)
 	return keyValue
 }
