@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/env"
@@ -122,10 +123,12 @@ func (m *CollectorManager) RunCollector() error {
 	errGroup := errgroup.Group{}
 	for _, c := range m.collectors {
 		collector := c
+		name := c.Name()
 		errGroup.Go(func() (err error) {
 			defer func() {
 				if r := recover(); r != nil {
-					m.logErr.Println("panic:", r)
+					m.logErr.Println("collector", name, "panic:", r)
+					_, _ = m.logErr.Writer().Write(debug.Stack())
 				}
 			}()
 			m.logErr.Printf("start %s collector", collector.Name())
