@@ -657,7 +657,10 @@ Set by aggregator.`,
 			TagValueIDAggMappingCreatedConveyorOld: "old",
 			TagValueIDAggMappingCreatedConveyorNew: "new",
 		}),
-	}, {}, {
+	}, {
+		Description: "unknown_metric_id",
+		RawKind:     "int",
+	}, {
 		Description: "tag_value",
 	}},
 	PreKeyTagID: "4",
