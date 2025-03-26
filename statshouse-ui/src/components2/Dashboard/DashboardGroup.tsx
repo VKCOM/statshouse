@@ -17,6 +17,8 @@ import { GroupKey } from '@/url2';
 import { Button, TextArea, Tooltip } from '@/components/UI';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
 import { useStatsHouseShallow } from '@/store2';
+import css from './style.module.css';
+import { getSizeColumns } from '@/common/helpers';
 
 export type DashboardGroupProps = {
   children?: React.ReactNode;
@@ -131,6 +133,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
     },
     [moveDashboardGroup]
   );
+
   return (
     <div
       key={groupKey}
@@ -139,7 +142,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
     >
       <h6
         hidden={isSingle && groups[groupKey]?.show !== false && !dashboardLayoutEdit && !groups[groupKey]?.name}
-        className="border-bottom pb-1"
+        className={cn('border-bottom pb-1', css.gridLayout)}
       >
         {dashboardLayoutEdit ? (
           <div className="p-0 container-xl">
@@ -158,15 +161,12 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
                 <select
                   className="form-select flex-grow-0 w-auto"
                   data-group={groupKey}
-                  value={groups[groupKey]?.size?.toString() || '2'}
+                  value={getSizeColumns(groups[groupKey]?.size?.toString()) || '2'}
                   onChange={onEditGroupSize}
                 >
                   <option value="2">L, 2 per row</option>
-                  <option value="l">L, auto width</option>
                   <option value="3">M, 3 per row</option>
-                  <option value="m">M, auto width</option>
                   <option value="4">S, 4 per row</option>
-                  <option value="s">S, auto width</option>
                 </select>
                 <div className="d-flex flex-column">
                   <Button
