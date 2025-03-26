@@ -35,7 +35,7 @@ type MappedMetricHeader struct {
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
 	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
 
-	OriginalTagValues [format.NewMaxTags][]byte
+	OriginalTagValues [format.MaxTags][]byte
 	// original strings values as sent by user. Hash of those is stable between agents independent of
 	// mappings, so used as a resolution hash to deterministically place same rows into same resolution buckets
 
