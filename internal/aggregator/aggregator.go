@@ -781,7 +781,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		var marshalDur time.Duration
 		var insertSizes map[uint32]insertSize
-		bodyStorage, buffers, insertSizes, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
+		var stats insertStats
+		bodyStorage, buffers, insertSizes, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -848,9 +849,22 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, float64(len(bodyStorage)))
 		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, dur.Seconds())
 		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, marshalDur.Seconds())
+		tableTag := int32(format.TagValueIDAggInsertV2)
+		if writeToV3First {
+			tableTag = format.TagValueIDAggInsertV3
+		}
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, int32(status), tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
+		for sk, ss := range stats.sampligSizeBytes {
+			keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, int32(status), tableTag}
+			discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, int32(status), tableTag}
+			groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, int32(status), tableTag}
+			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, keepTags, &ss.sampligSizeKeepBytes)
+			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
+			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
+		}
 
 		if mirrorChWrite {
-			bodyStorage, buffers, insertSizes, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
+			bodyStorage, buffers, insertSizes, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
 			if writeToV3First {
 				settings = v2InsertSettings
 			} else {
@@ -880,6 +894,12 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, float64(len(bodyStorage)))
 			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, dur.Seconds())
 			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, marshalDur.Seconds())
+			if writeToV3First {
+				tableTag = format.TagValueIDAggInsertV2
+			} else {
+				tableTag = format.TagValueIDAggInsertV3
+			}
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, int32(status), tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
 		}
 
 		sendErr = fmt.Errorf("simulated error")
