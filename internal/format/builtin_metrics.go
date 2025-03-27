@@ -1468,8 +1468,6 @@ var BuiltinMetricMetaSrcSamplingMetricCount = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingMetricCount = -81
-
 var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 	Name:                    "__agg_sampling_metric_count",
 	Kind:                    MetricKindValue,
@@ -1481,6 +1479,15 @@ var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Name:          "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			0: "success",
+			1: "failure",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 

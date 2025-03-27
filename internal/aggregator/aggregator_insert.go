@@ -410,10 +410,18 @@ type insertSize struct {
 	builtin     int
 }
 
+type insertStats struct {
+	recentTs    uint32
+	historicTag int32
+
+	samplingMetricCount int
+}
+
 func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
-	v3Format bool) ([]byte, data_model.SamplerBuffers, map[uint32]insertSize, time.Duration) {
+	v3Format bool) ([]byte, data_model.SamplerBuffers, map[uint32]insertSize, insertStats, time.Duration) {
 	startTime := time.Now()
 	insertSizes := make(map[uint32]insertSize, len(buckets))
+	stats := insertStats{}
 
 	var configR ConfigAggregatorRemote
 	a.configMu.RLock()
@@ -435,6 +443,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	usedTimestamps := map[uint32]struct{}{}
 	usedBufferTimestamps := map[uint32]struct{}{}
 	recentTs := buckets[0].time // by convention first bucket is recent all others are historic
+	stats.recentTs = recentTs
 
 	insertItem := func(item *data_model.MultiItem, sf float64, bucketTs uint32) { // lambda is convenient here
 		is := insertSize{}
@@ -583,6 +592,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	if len(buckets) > 1 {
 		historicTag = format.TagValueIDConveyorHistoric
 	}
+	stats.historicTag = historicTag
 	for _, v := range sampler.MetricGroups {
 		// keep bytes
 		key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID})
@@ -611,7 +621,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	budgetItem := data_model.MultiItem{Key: *budgetKey}
 	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
 	insertItem(&budgetItem, 1, buckets[0].time)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingMetricCount, [format.MaxTags]int32{0, historicTag}), float64(sampler.MetricCount), 1, a.aggregatorHost, metricCache, v3Format)
+	stats.samplingMetricCount = sampler.MetricCount
 
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggContributors, [format.MaxTags]int32{}), float64(numContributors), 1, a.aggregatorHost, metricCache, v3Format)
 
@@ -628,7 +638,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
 		res = appendBufferedValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, v3Format)
 	}
-	return res, sampler.SamplerBuffers, insertSizes, time.Since(startTime)
+	return res, sampler.SamplerBuffers, insertSizes, stats, time.Since(startTime)
 }
 
 func makeHTTPClient() *http.Client {

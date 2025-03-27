@@ -40,16 +40,16 @@ var (
 	BuiltinMetricByName map[string]*MetricMetaValue
 
 	BuiltinMetrics = map[int32]*MetricMetaValue{
-		BuiltinMetricIDAgentSamplingFactor:      BuiltinMetricMetaAgentSamplingFactor,
-		BuiltinMetricIDAggBucketReceiveDelaySec: BuiltinMetricMetaAggBucketReceiveDelaySec,
+		BuiltinMetricIDAgentSamplingFactor:      BuiltinMetricMetaAgentSamplingFactor,      // used for badges
+		BuiltinMetricIDAggBucketReceiveDelaySec: BuiltinMetricMetaAggBucketReceiveDelaySec, // used for badges
 		-3:                                      BuiltinMetricMetaAggInsertSizeLegacy,
 		-4:                                      BuiltinMetricMetaTLByteSizePerInflightType,
 		-5:                                      BuiltinMetricMetaAggKeepAlive,
 		-6:                                      BuiltinMetricMetaAggSizeCompressed,
 		-7:                                      BuiltinMetricMetaAggSizeUncompressed,
-		BuiltinMetricIDAggHourCardinality:       BuiltinMetricMetaAggHourCardinality,
-		BuiltinMetricIDAggSamplingFactor:        BuiltinMetricMetaAggSamplingFactor,
-		BuiltinMetricIDIngestionStatus:          BuiltinMetricMetaIngestionStatus,
+		BuiltinMetricIDAggHourCardinality:       BuiltinMetricMetaAggHourCardinality, // sharded by metric tag, caculated on aggregator
+		BuiltinMetricIDAggSamplingFactor:        BuiltinMetricMetaAggSamplingFactor,  // sharded by metric tag, used for badges
+		BuiltinMetricIDIngestionStatus:          BuiltinMetricMetaIngestionStatus,    // sharded by metric tag, used for badges
 		-12:                                     BuiltinMetricMetaAggInsertTime,
 		-13:                                     BuiltinMetricMetaAggHistoricBucketsWaiting,
 		-14:                                     BuiltinMetricMetaAggBucketAggregateTimeSec,
@@ -65,24 +65,24 @@ var (
 		-27:                                     BuiltinMetricMetaAggInsertSizeReal,
 		-30:                                     BuiltinMetricMetaAgentMapping,
 		-31:                                     BuiltinMetricMetaAgentReceivedPacketSize,
-		BuiltinMetricIDAggMappingCreated:        BuiltinMetricMetaAggMappingCreated,
+		BuiltinMetricIDAggMappingCreated:        BuiltinMetricMetaAggMappingCreated, // used for bages
 		-34:                                     BuiltinMetricMetaVersions,
-		BuiltinMetricIDBadges:                   BuiltinMetricMetaBadges,
+		BuiltinMetricIDBadges:                   BuiltinMetricMetaBadges, // sharded by metric tag
 		-36:                                     BuiltinMetricMetaAutoConfig,
 		-37:                                     BuiltinMetricMetaJournalVersions,
 		-38:                                     BuiltinMetricMetaPromScrapeTime,
 		-43:                                     BuiltinMetricMetaUsageMemory,
 		-44:                                     BuiltinMetricMetaUsageCPU,
-		BuiltinMetricIDHeartbeatVersion:         BuiltinMetricMetaHeartbeatVersion,
-		BuiltinMetricIDHeartbeatArgs:            BuiltinMetricMetaHeartbeatArgs,
+		BuiltinMetricIDHeartbeatVersion:         BuiltinMetricMetaHeartbeatVersion, // used to set extra tags on agg, can be removed
+		BuiltinMetricIDHeartbeatArgs:            BuiltinMetricMetaHeartbeatArgs,    // used to set extra tags on agg, can be removed
 		-50:                                     BuiltinMetricMetaAPIBRS,
 		-53:                                     BuiltinMetricMetaBudgetHost,
 		-54:                                     BuiltinMetricMetaBudgetAggregatorHost,
 		-55:                                     BuiltinMetricMetaAPIActiveQueries,
-		BuiltinMetricIDRPCRequests:              BuiltinMetricMetaRPCRequests,
-		BuiltinMetricIDBudgetUnknownMetric:      BuiltinMetricMetaBudgetUnknownMetric,
-		BuiltinMetricIDContributorsLog:          BuiltinMetricMetaContributorsLog,
-		BuiltinMetricIDContributorsLogRev:       BuiltinMetricMetaContributorsLogRev,
+		BuiltinMetricIDRPCRequests:              BuiltinMetricMetaRPCRequests,         // used to set extra tags on agg, can be removed
+		BuiltinMetricIDBudgetUnknownMetric:      BuiltinMetricMetaBudgetUnknownMetric, // used only for accounting
+		BuiltinMetricIDContributorsLog:          BuiltinMetricMetaContributorsLog,     // generated and written on aggregator
+		BuiltinMetricIDContributorsLogRev:       BuiltinMetricMetaContributorsLogRev,  // generated and written on aggregator
 		-64:                                     BuiltinMetricMetaGroupSizeBeforeSampling,
 		-65:                                     BuiltinMetricMetaGroupSizeAfterSampling,
 		-66:                                     BuiltinMetricMetaAPISelectBytes,
@@ -99,15 +99,15 @@ var (
 		-78:                                     BuiltinMetricMetaSrcTestConnection,
 		-79:                                     BuiltinMetricMetaAgentAggregatorTimeDiff,
 		-80:                                     BuiltinMetricMetaSrcSamplingMetricCount,
-		BuiltinMetricIDAggSamplingMetricCount:   BuiltinMetricMetaAggSamplingMetricCount,
+		-81:                                     BuiltinMetricMetaAggSamplingMetricCount,
 		-82:                                     BuiltinMetricMetaSrcSamplingSizeBytes,
-		BuiltinMetricIDAggSamplingSizeBytes:     BuiltinMetricMetaAggSamplingSizeBytes,
+		BuiltinMetricIDAggSamplingSizeBytes:     BuiltinMetricMetaAggSamplingSizeBytes, // generated and written on aggregator, can be removed
 		-84:                                     BuiltinMetricMetaUIErrors,
 		-85:                                     BuiltinMetricMetaStatsHouseErrors,
 		-86:                                     BuiltinMetricMetaSrcSamplingBudget,
-		BuiltinMetricIDAggSamplingBudget:        BuiltinMetricMetaAggSamplingBudget,
+		BuiltinMetricIDAggSamplingBudget:        BuiltinMetricMetaAggSamplingBudget, // generated and written on aggregator, can be removed
 		-88:                                     BuiltinMetricMetaSrcSamplingGroupBudget,
-		BuiltinMetricIDAggSamplingGroupBudget:   BuiltinMetricMetaAggSamplingGroupBudget,
+		BuiltinMetricIDAggSamplingGroupBudget:   BuiltinMetricMetaAggSamplingGroupBudget, // generated and written on aggregator, can be removed
 		-90:                                     BuiltinMetricMetaPromQLEngineTime,
 		-91:                                     BuiltinMetricMetaAPICacheHit,
 		-92:                                     BuiltinMetricMetaAggScrapeTargetDispatch,
@@ -115,7 +115,7 @@ var (
 		-94:                                     BuiltinMetricMetaAggScrapeConfigHash,
 		-95:                                     BuiltinMetricMetaAggSamplingTime,
 		-96:                                     BuiltinMetricMetaAgentDiskCacheSize,
-		BuiltinMetricIDAggContributors:          BuiltinMetricMetaAggContributors,
+		BuiltinMetricIDAggContributors:          BuiltinMetricMetaAggContributors, // generated and written on aggregator, can be removed
 		-99:                                     BuiltinMetricMetaAPICacheChunkCount,
 		-101:                                    BuiltinMetricMetaAPICacheSize,
 		-102:                                    BuiltinMetricMetaAPICacheTrim,
@@ -127,8 +127,8 @@ var (
 		-108:                                    BuiltinMetricMetaRestartTimings,
 		-109:                                    BuiltinMetricMetaGCDuration,
 		-110:                                    BuiltinMetricMetaAggHistoricHostsWaiting,
-		BuiltinMetricIDAggSamplingEngineTime:    BuiltinMetricMetaAggSamplingEngineTime,
-		BuiltinMetricIDAggSamplingEngineKeys:    BuiltinMetricMetaAggSamplingEngineKeys,
+		BuiltinMetricIDAggSamplingEngineTime:    BuiltinMetricMetaAggSamplingEngineTime, // generated and written on aggregator, can be removed
+		BuiltinMetricIDAggSamplingEngineKeys:    BuiltinMetricMetaAggSamplingEngineKeys, // generated and written on aggregator, can be removed
 		-113:                                    BuiltinMetricMetaProxyAcceptHandshakeError,
 		-114:                                    BuiltinMetricMetaProxyVmSize,
 		-115:                                    BuiltinMetricMetaProxyVmRSS,
