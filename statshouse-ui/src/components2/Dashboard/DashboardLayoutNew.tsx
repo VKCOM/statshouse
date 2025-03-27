@@ -13,7 +13,7 @@ import 'react-resizable/css/styles.css';
 import cn from 'classnames';
 import { getNextGroupKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import css from './style.module.css';
-import { GroupKey } from '@/url2';
+// import { GroupKey } from '@/url2';
 import { BREAKPOINT_WIDTH, BREAKPOINTS_SIZES, COLS, ROW_HEIGHTS } from './constants';
 import { calculateDynamicRowHeight, getBreakpointConfig, getSizeColumns, isMobile } from '@/common/helpers';
 
@@ -48,11 +48,15 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const [draggedGroupKey, setDraggedGroupKey] = useState<string | null>(null);
   const [draggedItemDimensions, setDraggedItemDimensions] = useState<{ w: number; h: number } | null>(null);
 
-  const isCrossingGroupsRef = useRef(false);
+  const isCrossingGroupsRef = useRef(false); /// ????? not needed
   const { breakpointKey } = useMemo(() => getBreakpointConfig(), []);
+
+  // Move isMobile() call to component level with useMemo to prevent recalculation
+  const mobileDevice = useMemo(() => isMobile(), []);
 
   // itemsGroup: Contains the structure of groups and their plots
   // layoutsCoords: Contains the layout coordinates for each group
+  console.log('-------groups', groups);
   const { itemsGroup, layoutsCoords } = useMemo(
     () =>
       prepareItemsGroupWithLayout({
@@ -62,296 +66,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       }),
     [groups, orderGroup, orderPlot]
   );
-
-  const save = useCallback(
-    (plotKey: string | null, targetGroup: GroupKey | null, layout: Layout[], isResize: boolean = false) => {
-      if (plotKey != null && targetGroup != null) {
-        // If crossing groups and we have original dimensions
-        if (targetGroup !== draggedGroupKey && draggedItemDimensions && !isResize) {
-          // Find the item in the layout
-          const itemIndex = layout.findIndex((item) => item.i === `${targetGroup}::${plotKey}`);
-          if (itemIndex >= 0) {
-            // Create a new layout array with preserved original dimensions
-            layout = layout.map((item, index) => {
-              if (index === itemIndex) {
-                return {
-                  ...item,
-                  w: draggedItemDimensions.w,
-                  h: draggedItemDimensions.h,
-                };
-              }
-              return item;
-            });
-          }
-        }
-
-        // Update groups and items in them
-        const updatedItemsGroup = itemsGroup.map((group) => {
-          // If this is a resize operation, update the layout of the item in its current group
-          if (isResize && group.groupKey === targetGroup) {
-            const resizedLayout = layout.find((l) => l.i === `${targetGroup}::${plotKey}`);
-            if (resizedLayout) {
-              const currentGroupLayout = {
-                groupKey: targetGroup,
-                layout: layout.map((item) => ({ ...item })),
-              };
-
-              setNextDashboardSchemePlot(itemsGroup, currentGroupLayout);
-              return group; // Return the group unchanged as the layout is updated separately
-            }
-          }
-
-          // If this is the source group from which the plot is being dragged
-          if (group.groupKey === draggedGroupKey) {
-            if (group.groupKey === targetGroup) {
-              if (layout) {
-                const newPlots = layout
-                  .filter((item) => item.i.startsWith(`${targetGroup}::`))
-                  .sort((a, b) => {
-                    if (a.y !== b.y) return a.y - b.y;
-                    return a.x - b.x;
-                  })
-                  .map((item) => item.i.split('::')[1]);
-
-                return {
-                  groupKey: group.groupKey,
-                  plots: newPlots,
-                };
-              }
-              return group;
-            }
-            // Otherwise, remove the dragged plot from the group
-            return {
-              groupKey: group.groupKey,
-              plots: group.plots.filter((p) => p !== plotKey),
-            };
-          }
-
-          // If the current group is the target group, add the dragged plot to it
-          if (group.groupKey === targetGroup) {
-            if (!group.plots.includes(plotKey)) {
-              return {
-                groupKey: group.groupKey,
-                plots: [...group.plots, plotKey],
-              };
-            }
-            return group;
-          }
-          return group;
-        });
-
-        // If the target group doesn't exist in the updated items group, create a new group with the dragged plot
-        if (!updatedItemsGroup.find((g) => g.groupKey === targetGroup)) {
-          updatedItemsGroup.push({
-            groupKey: targetGroup,
-            plots: [plotKey],
-          });
-        }
-
-        // Update groups layout
-        if (targetGroup !== draggedGroupKey && draggedPlotKey) {
-          // 1. Find current layouts for source and target groups
-          const sourceGroupLayout = layoutsCoords.find((l) => l.groupKey === draggedGroupKey)?.layout || [];
-          const targetGroupLayout = layoutsCoords.find((l) => l.groupKey === targetGroup)?.layout || [];
-
-          // 2. Find the item we are dragging, from layout
-          const draggedItemLayout = layout.find((item) => item.i === `${draggedGroupKey}::${draggedPlotKey}`);
-
-          if (draggedItemLayout && draggedGroupKey) {
-            let maxY = 0;
-            if (Array.isArray(targetGroupLayout) && targetGroupLayout.length > 0) {
-              targetGroupLayout.forEach((item) => {
-                if (item.y + item.h > maxY) {
-                  maxY = item.y + item.h;
-                }
-              });
-            }
-
-            let maxX = 0;
-            if (Array.isArray(targetGroupLayout) && targetGroupLayout.length > 0) {
-              // Consider only items that are in the bottom row
-              const bottomRowItems = targetGroupLayout.filter(
-                (item) =>
-                  (item.y < maxY && item.y + item.h > maxY) || // Items that span into the bottom row
-                  item.y + item.h === maxY // Items that end exactly at the bottom row
-              );
-
-              bottomRowItems.forEach((item) => {
-                if (item.x + item.w > maxX) {
-                  maxX = item.x + item.w;
-                }
-              });
-            }
-
-            // Check if adding to maxX would exceed grid width
-            const cols = COLS[breakpointKey] || 8;
-            const itemWidth = draggedItemDimensions?.w || draggedItemLayout.w;
-
-            let newX = maxX;
-            let newY = maxY > 0 ? maxY - 1 : 0; // Position at the bottom row, but never negative
-
-            if (maxX + itemWidth > cols) {
-              newX = 0;
-              newY = maxY;
-            }
-
-            // 3. Create a new layout for the target group: keep existing + add new element
-            const newTargetLayout = [
-              ...(Array.isArray(targetGroupLayout) ? targetGroupLayout : []),
-              {
-                ...draggedItemLayout,
-                i: `${targetGroup}::${draggedPlotKey}`,
-                // Keep original dimensions
-                ...(draggedItemDimensions
-                  ? {
-                      w: draggedItemDimensions.w,
-                      h: draggedItemDimensions.h,
-                    }
-                  : {}),
-
-                x: newX,
-                y: newY,
-              },
-            ];
-
-            // 4. Create a new layout for the source group: without the dragged element
-            const newSourceLayout = Array.isArray(sourceGroupLayout)
-              ? sourceGroupLayout.filter((item) => !item.i.endsWith(`::${draggedPlotKey}`))
-              : [];
-
-            // 5. Create an array of layout schemes for both groups
-            const layoutSchemes = [
-              {
-                groupKey: targetGroup,
-                layout: newTargetLayout,
-              },
-              {
-                groupKey: draggedGroupKey,
-                layout: newSourceLayout,
-              },
-            ];
-
-            // 6. Update layouts of both groups in one call
-            layoutSchemes.forEach((scheme) => setNextDashboardSchemePlot(updatedItemsGroup, scheme));
-          }
-        } else {
-          // Moving within the same group or resize
-          const currentGroupLayout = { groupKey: targetGroup, layout };
-          setNextDashboardSchemePlot(updatedItemsGroup, currentGroupLayout);
-        }
-      }
-    },
-    [
-      draggedGroupKey,
-      draggedItemDimensions,
-      itemsGroup,
-      draggedPlotKey,
-      setNextDashboardSchemePlot,
-      breakpointKey,
-      layoutsCoords,
-    ]
-  );
-
-  const onDragStart = useCallback((_layout: Layout[], oldItem: Layout) => {
-    setIsDragging(true);
-    const [groupKey, plotKey] = oldItem.i.split('::');
-    setDraggedPlotKey(plotKey);
-    setDraggedGroupKey(groupKey);
-
-    // Store original dimensions of the dragged item
-    const originalDimensions = {
-      w: oldItem.w,
-      h: oldItem.h,
-    };
-
-    setDraggedItemDimensions(originalDimensions);
-    isCrossingGroupsRef.current = false;
-  }, []);
-
-  // Helper function to determine which group is currently being hovered over during drag
-  const getHoveredGroupKey = (e: MouseEvent): string | null => {
-    const dropElement = document.elementsFromPoint(e.clientX, e.clientY);
-    return dropElement.find((el) => el.getAttribute('data-group'))?.getAttribute('data-group') ?? null;
-  };
-
-  // Track when dragging crosses between different groups
-  const onDrag = useCallback(
-    (_layout: Layout[], _oldItem: Layout, _newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
-      if (!isDragging || !draggedGroupKey) return;
-
-      const hoveredGroup = getHoveredGroupKey(e);
-
-      // Set flag when dragging between different groups
-      if (hoveredGroup && hoveredGroup !== draggedGroupKey) {
-        isCrossingGroupsRef.current = true;
-      }
-    },
-    [isDragging, draggedGroupKey]
-  );
-
-  // Handle layout changes during drag within the same group
-  const onLayoutChange = useCallback(
-    (layout: Layout[]) => {
-      if (isDragging && draggedGroupKey && !isCrossingGroupsRef.current) {
-        const [groupKey, plotKey] = layout[0].i.split('::');
-        if (groupKey === draggedGroupKey) {
-          save(plotKey, groupKey, layout);
-        }
-      }
-    },
-    [draggedGroupKey, isDragging, save]
-  );
-
-  // Handle resize operations for widgets
-  const handleResizeStop = useCallback(
-    (layout: Layout[], groupKey: string) => {
-      const plotKey = layout[0]?.i?.split('::')[1];
-      save(plotKey, groupKey, layout, true);
-    },
-    [save]
-  );
-
-  // Handle the end of drag operations, including cross-group drags
-  const onDragStop = useCallback(
-    (layout: Layout[], _oldItem: Layout, _newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
-      const targetGroup = getHoveredGroupKey(e);
-
-      if (!targetGroup || !draggedPlotKey) {
-        setDraggedPlotKey(null);
-        setDraggedGroupKey(null);
-        setIsDragging(false);
-        isCrossingGroupsRef.current = false;
-        return;
-      }
-
-      // Handle cross-group dragging
-      if (targetGroup !== draggedGroupKey) {
-        isCrossingGroupsRef.current = true;
-        save(draggedPlotKey, targetGroup, layout);
-      }
-
-      setDraggedPlotKey(null);
-      setDraggedGroupKey(null);
-      setIsDragging(false);
-    },
-    [draggedPlotKey, draggedGroupKey, save]
-  );
-
-  // Add a new group to the dashboard
-  const onAddGroup = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
-      addDashboardGroup(groupKey);
-    },
-    [addDashboardGroup]
-  );
-
-  // Get the key for the next group to be created
-  const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
-
-  // Determine if dashboard editing is allowed based on device and settings
-  const mobileDevice = isMobile();
-  const isDashboardEditAllowed = dashboardLayoutEdit && !mobileDevice;
 
   // Calculate row height based on screen width and breakpoint
   const dynamicRowHeight = useMemo(() => {
@@ -430,28 +144,74 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     [groups, breakpointKey, dynamicRowHeight]
   );
 
-  const generateDefaultLayout = useCallback(
-    (plots: string[], groupKey: string, widgetColsWidth: number, minHeight: number) => {
-      const cols = COLS[breakpointKey] || 12;
-      const mobileDevice = isMobile();
+  // Generate unified layout for all groups and plots
+  const unifiedLayout = useMemo(() => {
+    const cols = COLS[breakpointKey] || 12;
+    const layout: Layout[] = [];
+    let currentY = 0;
 
-      if (!groupKey) {
-        const itemWidth = Math.floor(cols / 2);
+    // Process each group
+    itemsGroup.forEach(({ groupKey, plots }) => {
+      if (groups[groupKey]?.show === false) return;
 
-        return plots.map((plot) => ({
-          i: `${groupKey}::${plot}`,
-          x: 0,
-          y: 0,
-          w: itemWidth,
-          h: 5,
-          minW: 3,
-          minH: 5,
-        }));
+      const size = groups[groupKey]?.size;
+      const widgetColsWidth = getSizeColumns(size);
+      // const minHeight = widgetColsWidth === 3 ? 4 : 3;
+      const minHeight = widgetColsWidth === 3 ? 4 : 3;
+
+      // Get row height specific to this group
+      const groupRowHeight = calculateRowHeightForGroup(groupKey);
+      const rowHeightRatio = groupRowHeight / dynamicRowHeight;
+
+      // Add group header as static element
+      layout.push({
+        i: `group::${groupKey}`,
+        x: 0,
+        y: currentY,
+        w: cols,
+        h: dashboardLayoutEdit ? 1.5 : 0.5,
+        isDraggable: false,
+        isResizable: false,
+      });
+
+      currentY += 1;
+
+      if (plots.length === 0) {
+        return;
+      }
+
+      // Find existing layout for this group
+      const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
+      let plotLayouts: Layout[] = [];
+
+      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+        console.log('EXISTING GROUP LAYOUT HERE', existingGroupLayout);
+
+        plotLayouts = existingGroupLayout.layout
+          .filter((item) => {
+            const plotKey = item.i.split('::')[1];
+            return plots.includes(plotKey);
+          })
+          .map((item) => ({
+            ...item,
+            minW: 3,
+            minH: minHeight,
+            w: item.w,
+            y: item.y + currentY,
+            h: item.h,
+          }));
+
+        if (plotLayouts.length === plots.length) {
+          layout.push(...plotLayouts);
+
+          const maxY = plotLayouts.reduce((max, item) => Math.max(max, item.y + item.h), currentY);
+          currentY = maxY;
+          return;
+        }
       }
 
       let itemWidth = 0;
 
-      // On mobile, always use full width (1 chart per row)
       if (mobileDevice) {
         itemWidth = cols;
       } else {
@@ -470,135 +230,320 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         }
       }
 
-      return plots.map((plot, index) => {
+      let defaultHeight = 10;
+      // let defaultHeight = 5;
+      if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
+        defaultHeight = 6;
+      } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
+        defaultHeight = 6;
+      } else if (breakpointKey === BREAKPOINTS_SIZES.xs || breakpointKey === BREAKPOINTS_SIZES.xxs) {
+        defaultHeight = 4;
+      }
+
+      // Calculate a balanced height based on column count
+      let widthRatio;
+      if (widgetColsWidth <= 2) {
+        widthRatio = itemWidth / (cols / 2);
+      } else {
+        widthRatio = Math.max(0.5, itemWidth / (cols / 2.7));
+      }
+
+      // Apply a minimum height that scales with column count
+      const minimumHeight = Math.max(2, 4 - widgetColsWidth * 0.5);
+      defaultHeight = Math.max(minimumHeight, Math.round(defaultHeight * widthRatio));
+      console.log('DEFAULT HERE');
+      // Generate layouts for plots
+      plots.forEach((plot, index) => {
         // On mobile, each chart gets its own row
         const row = mobileDevice ? index : Math.floor(index / widgetColsWidth);
         const col = mobileDevice ? 0 : index % widgetColsWidth;
         const startX = col * itemWidth;
 
-        let defaultHeight = 5;
-        if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
-          defaultHeight = 6;
-        } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
-          defaultHeight = 6;
-        } else if (breakpointKey === BREAKPOINTS_SIZES.xs || breakpointKey === BREAKPOINTS_SIZES.xxs) {
-          defaultHeight = 4;
-        }
-
-        // Calculate a more balanced height based on column count
-        let widthRatio;
-        if (widgetColsWidth <= 2) {
-          widthRatio = itemWidth / (cols / 2);
-        } else {
-          widthRatio = Math.max(0.5, itemWidth / (cols / 2.7));
-        }
-
-        // Apply a minimum height that scales with column count
-        const minimumHeight = Math.max(2, 4 - widgetColsWidth * 0.5);
-        defaultHeight = Math.max(minimumHeight, Math.round(defaultHeight * widthRatio));
-
-        return {
+        layout.push({
           i: `${groupKey}::${plot}`,
           x: startX,
-          y: row * defaultHeight,
+          y: currentY + row * defaultHeight,
           w: itemWidth,
-          h: defaultHeight,
+          h: Math.round(defaultHeight * rowHeightRatio),
           minW: 3,
           minH: minHeight,
-        };
+        });
+      });
+
+      // Update currentY to be after this group
+      const maxPlotY =
+        plots.length > 0
+          ? Math.max(...layout.filter((item) => item.i.startsWith(`${groupKey}::`)).map((item) => item.y + item.h))
+          : currentY;
+
+      currentY = maxPlotY + 1; // Add extra space between groups
+    });
+
+    return layout;
+  }, [
+    breakpointKey,
+    itemsGroup,
+    groups,
+    calculateRowHeightForGroup,
+    dynamicRowHeight,
+    dashboardLayoutEdit,
+    layoutsCoords,
+    mobileDevice,
+  ]);
+
+  const save = useCallback(
+    (layout: Layout[]) => {
+      if (!layout.length) return;
+
+      // Extract plot moves and group assignments from layout
+      const updatedGroupsMap = new Map<string, string[]>();
+
+      // Initialize groups with empty plot arrays
+      itemsGroup.forEach(({ groupKey }) => {
+        updatedGroupsMap.set(groupKey, []);
+      });
+
+      // Parse layout to determine group assignments
+      layout.forEach((item) => {
+        if (item.i.startsWith('group::')) return; // Skip group headers
+
+        const [groupKey, plotKey] = item.i.split('::');
+        if (!groupKey || !plotKey) return;
+
+        const plots = updatedGroupsMap.get(groupKey) || [];
+        if (!plots.includes(plotKey)) {
+          plots.push(plotKey);
+        }
+        updatedGroupsMap.set(groupKey, plots);
+      });
+
+      // Convert to format expected by setNextDashboardSchemePlot
+      const updatedItemsGroup = Array.from(updatedGroupsMap.entries()).map(([groupKey, plots]) => ({
+        groupKey,
+        plots,
+      }));
+      // Process layout updates for each group
+      const groupLayouts = new Map<string, Layout[]>();
+
+      layout.forEach((item) => {
+        if (item.i.startsWith('group::')) return; // Skip group headers
+
+        const [groupKey] = item.i.split('::');
+        if (!groupKey) return;
+
+        const groupLayout = groupLayouts.get(groupKey) || [];
+        groupLayout.push(item);
+        groupLayouts.set(groupKey, groupLayout);
+      });
+
+      // Update each group's layout
+      groupLayouts.forEach((groupLayout, groupKey) => {
+        console.log('SAVINGGGGGG groupLayouts', groupLayout);
+        setNextDashboardSchemePlot(updatedItemsGroup, {
+          groupKey,
+          layout: groupLayout,
+        });
       });
     },
-    [breakpointKey]
+    [itemsGroup, setNextDashboardSchemePlot]
   );
 
-  const getLayoutForGroup = useCallback(
-    (groupKey: string, plots: string[]) => {
-      const size = groups[groupKey]?.size;
-      const widgetColsWidth = getSizeColumns(size);
-      const minHeight = widgetColsWidth === 3 ? 4 : 3;
-      const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
+  const onDragStart = useCallback((_layout: Layout[], oldItem: Layout) => {
+    if (oldItem.i.startsWith('group::')) return; // Don't allow dragging group headers
 
-      // If we have a layout and it has items for all plots, use it
-      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
-        const validLayouts = existingGroupLayout.layout
-          .filter((item) => {
-            const plotKey = item.i.split('::')[1];
-            return plots.includes(plotKey);
-          })
-          .map((item) => ({
-            ...item,
-            minW: 3,
-            minH: minHeight,
-          }));
+    setIsDragging(true);
+    const [groupKey, plotKey] = oldItem.i.split('::');
+    setDraggedPlotKey(plotKey);
+    setDraggedGroupKey(groupKey);
 
-        // If we have valid layouts for all plots, use them
-        if (validLayouts.length === plots.length) {
-          return validLayouts;
+    // Store original dimensions of the dragged item
+    setDraggedItemDimensions({
+      w: oldItem.w,
+      h: oldItem.h,
+    });
+
+    isCrossingGroupsRef.current = false;
+  }, []);
+
+  // Helper function to determine which group is currently being hovered over during drag
+  const getHoveredGroupKey = useCallback((layout: Layout[], draggedY: number): string | null => {
+    // Find all group header items in the layout
+    const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+
+    // Sort group headers by Y position
+    const sortedGroupHeaders = [...groupHeaders].sort((a, b) => a.y - b.y);
+
+    // Find the group whose Y range contains the dragged item's Y position
+    for (let i = 0; i < sortedGroupHeaders.length; i++) {
+      const currentHeader = sortedGroupHeaders[i];
+      const nextHeader = sortedGroupHeaders[i + 1];
+
+      // Extract group key from the header item ID
+      const groupKey = currentHeader.i.replace('group::', '');
+
+      // If this is the last group or the draggedY is between this header and the next one
+      if (!nextHeader || (draggedY >= currentHeader.y && draggedY < nextHeader.y)) {
+        return groupKey;
+      }
+    }
+
+    // If the draggedY is after all groups, return the last group
+    // if (sortedGroupHeaders.length > 0) {
+    //   return sortedGroupHeaders[sortedGroupHeaders.length - 1].i.replace('group::', '');
+    // }
+
+    return null;
+  }, []);
+
+  // Track when dragging crosses between different groups
+  const onDrag = useCallback(
+    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
+      if (!isDragging || !draggedGroupKey) return;
+
+      // Prevent dragging above the first group header
+      const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+      const firstHeaderY = groupHeaders.length > 0 ? Math.min(...groupHeaders.map((header) => header.y)) : 0;
+
+      if (newItem.y < firstHeaderY + 1) {
+        // Force the item to stay below the first header
+        newItem.y = firstHeaderY + 1;
+      }
+
+      const hoveredGroup = getHoveredGroupKey(layout, newItem.y);
+
+      // Set flag when dragging between different groups
+      if (hoveredGroup && hoveredGroup !== draggedGroupKey) {
+        isCrossingGroupsRef.current = true;
+      }
+    },
+    [isDragging, draggedGroupKey, getHoveredGroupKey]
+  );
+
+  // Handle layout changes
+  const onLayoutChange = useCallback(
+    (layout: Layout[]) => {
+      if (isDragging) return; // Don't save during drag operations
+      save(layout);
+    },
+    [isDragging, save]
+  );
+
+  // Handle the end of drag operations
+  const onDragStop = useCallback(
+    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
+      if (!draggedPlotKey || !draggedGroupKey) {
+        setDraggedPlotKey(null);
+        setDraggedGroupKey(null);
+        setIsDragging(false);
+        return;
+      }
+
+      // Handle dragging above first header
+      const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+      if (groupHeaders.length > 0) {
+        const firstHeaderY = Math.min(...groupHeaders.map((header) => header.y));
+        if (newItem.y < firstHeaderY + 1) {
+          newItem.y = firstHeaderY + 1;
         }
       }
 
-      return generateDefaultLayout(plots, groupKey, widgetColsWidth, minHeight);
+      const targetGroup = getHoveredGroupKey(layout, newItem.y);
+
+      if (targetGroup && targetGroup !== draggedGroupKey) {
+        // Cross-group drag: update the item ID to reflect new group
+        const updatedLayout = layout.map((item) => {
+          if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
+            return {
+              ...item,
+              i: `${targetGroup}::${draggedPlotKey}`,
+              ...(draggedItemDimensions ? { w: draggedItemDimensions.w, h: draggedItemDimensions.h } : {}),
+            };
+          }
+          return item;
+        });
+
+        save(updatedLayout);
+      } else {
+        save(layout);
+      }
+
+      setDraggedPlotKey(null);
+      setDraggedGroupKey(null);
+      setIsDragging(false);
+      isCrossingGroupsRef.current = false;
     },
-    [groups, layoutsCoords, generateDefaultLayout]
+    [draggedPlotKey, draggedGroupKey, getHoveredGroupKey, save, draggedItemDimensions]
   );
+
+  // Add a new group to the dashboard
+  const onAddGroup = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
+      addDashboardGroup(groupKey);
+    },
+    [addDashboardGroup]
+  );
+
+  // Get the key for the next group to be created
+  const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
+
+  // Determine if dashboard editing is allowed based on device and settings
+  const isDashboardEditAllowed = dashboardLayoutEdit && !mobileDevice;
 
   return (
     <div className="container-fluid">
       <div className={cn(isDashboardEditAllowed && 'dashboard-edit', className)}>
-        {itemsGroup.map(({ groupKey, plots }) => (
-          <DashboardGroup key={`group-${groupKey}`} groupKey={groupKey}>
-            {groups[groupKey]?.show !== false && (
-              <ResponsiveGridLayout
-                className={cn(
-                  'layout',
-                  'd-flex flex-row flex-wrap',
-                  (!plots.length && !isDashboardEditAllowed) || isEmbed ? 'pb-0' : 'pb-3'
-                )}
-                breakpoints={BREAKPOINT_WIDTH}
-                margin={[0, 30]}
-                cols={COLS}
-                rowHeight={calculateRowHeightForGroup(groupKey)}
-                // autoSize={false}
-                isDraggable={isDashboardEditAllowed}
-                isResizable={isDashboardEditAllowed}
-                onDragStop={onDragStop}
-                onDragStart={onDragStart}
-                onDrag={onDrag}
-                onResizeStop={(layout) => handleResizeStop(layout, groupKey)}
-                onLayoutChange={onLayoutChange}
-                isDroppable={isDashboardEditAllowed}
-                layouts={{
-                  [breakpointKey]: getLayoutForGroup(groupKey, plots),
-                }}
-                compactType="horizontal"
-                // maxRows={30}
-              >
-                {/* mapping right to left because elements are rendered from right to left */}
-                {plots
-                  .slice()
-                  .reverse()
-                  .map((plot) => (
-                    <DashboardPlotWrapper
-                      key={`${groupKey}::${plot}`}
-                      className={cn('plot-item p-1', isDashboardEditAllowed && css.cursorMove)}
-                    >
-                      <PlotView
-                        className={cn(
-                          isDashboardEditAllowed && [
-                            css.pointerEventsNone,
-                            'position-relative overflow-hidden w-100 h-100',
-                          ]
-                        )}
-                        key={`plot-${plot}`}
-                        plotKey={plot}
-                        isDashboard
-                      />
-                    </DashboardPlotWrapper>
-                  ))}
-              </ResponsiveGridLayout>
-            )}
-          </DashboardGroup>
-        ))}
+        <ResponsiveGridLayout
+          className={cn('layout', 'd-flex flex-row flex-wrap', !isEmbed ? 'pb-3' : 'pb-0')}
+          breakpoints={BREAKPOINT_WIDTH}
+          margin={[0, 30]}
+          cols={COLS}
+          rowHeight={dynamicRowHeight}
+          isDraggable={isDashboardEditAllowed}
+          isResizable={isDashboardEditAllowed}
+          onDragStop={onDragStop}
+          onDragStart={onDragStart}
+          onDrag={onDrag}
+          // onLayoutChange={onLayoutChange}
+          isDroppable={isDashboardEditAllowed}
+          layouts={{
+            [breakpointKey]: unifiedLayout,
+          }}
+          // compactType="vertical"
+        >
+          {/* Render group headers as static items */}
+          {itemsGroup.map(
+            ({ groupKey }) =>
+              groups[groupKey]?.show !== false && (
+                <div key={`group::${groupKey}`} className="w-100">
+                  <DashboardGroup groupKey={groupKey} data-group={groupKey} />
+                </div>
+              )
+          )}
+
+          {/* Render all plots */}
+          {itemsGroup.map(
+            ({ groupKey, plots }) =>
+              groups[groupKey]?.show !== false &&
+              plots.map((plot) => (
+                <DashboardPlotWrapper
+                  key={`${groupKey}::${plot}`}
+                  className={cn('plot-item p-1', isDashboardEditAllowed && css.cursorMove)}
+                  data-item-id={`${groupKey}::${plot}`}
+                  data-group-key={groupKey}
+                >
+                  <PlotView
+                    className={cn(
+                      isDashboardEditAllowed && [css.pointerEventsNone, 'position-relative overflow-hidden w-100 h-100']
+                    )}
+                    key={`plot-${plot}`}
+                    plotKey={plot}
+                    isDashboard
+                  />
+                </DashboardPlotWrapper>
+              ))
+          )}
+        </ResponsiveGridLayout>
 
         {isDashboardEditAllowed && (
           <div className={cn('pb-5', isDragging ? '' : 'text-center container-xl')} data-group={nextGroupKey}>
