@@ -101,13 +101,13 @@ var (
 		-80:                                     BuiltinMetricMetaSrcSamplingMetricCount,
 		-81:                                     BuiltinMetricMetaAggSamplingMetricCount,
 		-82:                                     BuiltinMetricMetaSrcSamplingSizeBytes,
-		BuiltinMetricIDAggSamplingSizeBytes:     BuiltinMetricMetaAggSamplingSizeBytes, // generated and written on aggregator, can be removed
+		-83:                                     BuiltinMetricMetaAggSamplingSizeBytes,
 		-84:                                     BuiltinMetricMetaUIErrors,
 		-85:                                     BuiltinMetricMetaStatsHouseErrors,
 		-86:                                     BuiltinMetricMetaSrcSamplingBudget,
 		BuiltinMetricIDAggSamplingBudget:        BuiltinMetricMetaAggSamplingBudget, // generated and written on aggregator, can be removed
 		-88:                                     BuiltinMetricMetaSrcSamplingGroupBudget,
-		BuiltinMetricIDAggSamplingGroupBudget:   BuiltinMetricMetaAggSamplingGroupBudget, // generated and written on aggregator, can be removed
+		-89:                                     BuiltinMetricMetaAggSamplingGroupBudget,
 		-90:                                     BuiltinMetricMetaPromQLEngineTime,
 		-91:                                     BuiltinMetricMetaAPICacheHit,
 		-92:                                     BuiltinMetricMetaAggScrapeTargetDispatch,

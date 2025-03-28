@@ -233,6 +233,11 @@ var tableFormatToValue = map[int32]string{
 	TagValueIDAggInsertV2: "v2",
 }
 
+var successOrFailure = map[int32]string{
+	0: "success",
+	1: "failure",
+}
+
 const (
 	TagValueIDComponentAgent        = 1
 	TagValueIDComponentAggregator   = 2

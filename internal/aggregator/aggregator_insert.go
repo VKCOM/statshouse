@@ -410,11 +410,23 @@ type insertSize struct {
 	builtin     int
 }
 
+type samplingStatKey struct {
+	namespeceId int32
+	groupId     int32
+}
+
+type samplingStat struct {
+	sampligSizeKeepBytes    data_model.ItemValue
+	sampligSizeDiscardBytes data_model.ItemValue
+	samplingGroupBudget     data_model.ItemValue
+}
+
 type insertStats struct {
 	recentTs    uint32
 	historicTag int32
 
 	samplingMetricCount int
+	sampling            map[samplingStatKey]samplingStat
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
@@ -593,20 +605,14 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		historicTag = format.TagValueIDConveyorHistoric
 	}
 	stats.historicTag = historicTag
+	stats.sampling = make(map[samplingStatKey]samplingStat)
 	for _, v := range sampler.MetricGroups {
-		// keep bytes
-		key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID})
-		item := data_model.MultiItem{Key: *key, Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
-		insertItem(&item, 1, buckets[0].time)
-		// discard bytes
-		key = a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingSizeBytes, [format.MaxTags]int32{0, historicTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID})
-		item = data_model.MultiItem{Key: *key, Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
-		insertItem(&item, 1, buckets[0].time)
-		// budget
-		key = a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingGroupBudget, [format.MaxTags]int32{0, historicTag, v.NamespaceID, v.GroupID})
-		item = data_model.MultiItem{Key: *key}
-		item.Tail.Value.AddValue(v.Budget())
-		insertItem(&item, 1, buckets[0].time)
+		sk := samplingStatKey{v.NamespaceID, v.GroupID}
+		ss := stats.sampling[sk]
+		ss.sampligSizeKeepBytes.Merge(rnd, &v.SumSizeKeep)
+		ss.sampligSizeDiscardBytes.Merge(rnd, &v.SumSizeDiscard)
+		ss.samplingGroupBudget.AddValue(v.Budget())
+		stats.sampling[sk] = ss
 	}
 	// report sampling engine time
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 1, 0, 0, historicTag}), float64(sampler.TimeAppend()), 1, a.aggregatorHost, metricCache, v3Format)
