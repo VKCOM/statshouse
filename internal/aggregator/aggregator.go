@@ -853,11 +853,15 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		if writeToV3First {
 			tableTag = format.TagValueIDAggInsertV3
 		}
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, int32(status), tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
+		statusTag := int32(format.TagValueIDStatusOK)
+		if sendErr != nil {
+			statusTag = format.TagValueIDStatusError
+		}
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, statusTag, tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
 		for sk, ss := range stats.sampling {
-			keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, int32(status), tableTag}
-			discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, int32(status), tableTag}
-			groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, int32(status), tableTag}
+			keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, statusTag, tableTag}
+			discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, statusTag, tableTag}
+			groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, statusTag, tableTag}
 			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, keepTags, &ss.sampligSizeKeepBytes)
 			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
 			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
@@ -899,11 +903,15 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			} else {
 				tableTag = format.TagValueIDAggInsertV3
 			}
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, int32(status), tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
+			statusTag = int32(format.TagValueIDStatusOK)
+			if sendErr != nil {
+				statusTag = format.TagValueIDStatusError
+			}
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, []int32{0, stats.historicTag, statusTag, tableTag}, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
 			for sk, ss := range stats.sampling {
-				keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, int32(status), tableTag}
-				discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, int32(status), tableTag}
-				groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, int32(status), tableTag}
+				keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, statusTag, tableTag}
+				discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, statusTag, tableTag}
+				groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, statusTag, tableTag}
 				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, keepTags, &ss.sampligSizeKeepBytes)
 				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
 				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
