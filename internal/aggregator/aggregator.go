@@ -18,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -860,7 +859,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		st := []int32{0, stats.historicTag, statusTag, tableTag}
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, st, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingBudget, st, float64(stats.samplingBudget), 1, a.aggregatorHostTag)
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggContributors, a.withAggTags([]int32{0, statusTag, tableTag}), float64(stats.contributors), 1, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggContributors, []int32{0, statusTag, tableTag}, float64(stats.contributors), 1, a.aggregatorHostTag)
 		for sk, ss := range stats.sampling {
 			keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, statusTag, tableTag}
 			discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, statusTag, tableTag}
@@ -869,12 +868,12 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
 			a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
 		}
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 1, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeAppend, 1, a.aggregatorHostTag)
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 2, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimePartition, 1, a.aggregatorHostTag)
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeSampling, 1, a.aggregatorHostTag)
-		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
-		a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, a.withAggTags([]int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}), stats.samplingEngineKeys, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 1, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeAppend, 1, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 2, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimePartition, 1, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeSampling, 1, a.aggregatorHostTag)
+		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
+		a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, stats.samplingEngineKeys, a.aggregatorHostTag)
 
 		if mirrorChWrite {
 			bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
@@ -928,12 +927,12 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
 				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
 			}
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 1, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeAppend, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 2, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimePartition, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeSampling, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, a.withAggTags([]int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}), stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
-			a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, a.withAggTags([]int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}), stats.samplingEngineKeys, a.aggregatorHostTag)
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 1, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeAppend, 1, a.aggregatorHostTag)
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 2, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimePartition, 1, a.aggregatorHostTag)
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeSampling, 1, a.aggregatorHostTag)
+			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
+			a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, stats.samplingEngineKeys, a.aggregatorHostTag)
 		}
 
 		sendErr = fmt.Errorf("simulated error")
@@ -1101,15 +1100,4 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.configMu.Unlock()
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
 	a.tagsMapper2.SetConfig(config.configTagsMapper2)
-}
-
-func (a *Aggregator) withAggTags(tags []int32) []int32 {
-	tags = slices.Grow(tags, format.AggReplicaTag+1) // to guarantee at most one allocation
-	for len(tags) < format.AggReplicaTag+1 {
-		tags = append(tags, 0)
-	}
-	tags[format.AggHostTag] = a.aggregatorHost
-	tags[format.AggShardTag] = a.shardKey
-	tags[format.AggReplicaTag] = a.replicaKey
-	return tags
 }
