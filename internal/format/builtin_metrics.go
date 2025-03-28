@@ -1896,7 +1896,7 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
+	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1906,11 +1906,7 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
-	},
-		AggHostTag:    {Description: "aggregator_host"},
-		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
-		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
-	},
+	}},
 }
 
 var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
@@ -2126,7 +2122,7 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
+	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
 		Description: "phase",
 		ValueComments: map[string]string{
@@ -2148,11 +2144,7 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
-	},
-		AggHostTag:    {Description: "aggregator_host"},
-		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
-		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
-	},
+	}},
 }
 
 var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
@@ -2162,7 +2154,7 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
+	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
@@ -2175,11 +2167,7 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
-	},
-		AggHostTag:    {Description: "aggregator_host"},
-		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
-		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
-	},
+	}},
 }
 
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
