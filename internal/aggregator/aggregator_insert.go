@@ -425,6 +425,7 @@ type insertStats struct {
 	recentTs    uint32
 	historicTag int32
 
+	contributors        int
 	samplingMetricCount int
 	samplingBudget      int64
 	sampling            map[samplingStatKey]samplingStat
@@ -626,8 +627,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	// report budget used
 	stats.samplingBudget += remainingBudget
 	stats.samplingMetricCount = sampler.MetricCount
-
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggContributors, [format.MaxTags]int32{}), float64(numContributors), 1, a.aggregatorHost, metricCache, v3Format)
+	stats.contributors += numContributors
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
