@@ -425,7 +425,9 @@ type insertStats struct {
 	recentTs    uint32
 	historicTag int32
 
-	contributors        int
+	sizes        map[uint32]insertSize // key is bucketTs
+	contributors int
+
 	samplingMetricCount int
 	samplingBudget      int64
 	sampling            map[samplingStatKey]samplingStat
@@ -439,10 +441,19 @@ type insertStats struct {
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
-	v3Format bool) ([]byte, data_model.SamplerBuffers, map[uint32]insertSize, insertStats, time.Duration) {
+	v3Format bool) ([]byte, data_model.SamplerBuffers, insertStats, time.Duration) {
 	startTime := time.Now()
-	insertSizes := make(map[uint32]insertSize, len(buckets))
-	stats := insertStats{}
+	recentTs := buckets[0].time // by convention first bucket is recent all others are historic
+	historicTag := int32(format.TagValueIDConveyorRecent)
+	if len(buckets) > 1 {
+		historicTag = format.TagValueIDConveyorHistoric
+	}
+	stats := insertStats{
+		recentTs:    recentTs,
+		historicTag: historicTag,
+		sizes:       make(map[uint32]insertSize, len(buckets)),
+		sampling:    make(map[samplingStatKey]samplingStat),
+	}
 
 	var configR ConfigAggregatorRemote
 	a.configMu.RLock()
@@ -450,21 +461,19 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	a.configMu.RUnlock()
 
 	addSizes := func(bucketTs uint32, is insertSize) {
-		sizes := insertSizes[bucketTs]
+		sizes := stats.sizes[bucketTs]
 		sizes.counters += is.counters
 		sizes.values += is.values
 		sizes.percentiles += is.percentiles
 		sizes.uniques += is.uniques
 		sizes.stringTops += is.stringTops
 		sizes.builtin += is.builtin
-		insertSizes[bucketTs] = sizes
+		stats.sizes[bucketTs] = sizes
 	}
 
 	metricCache := makeMetricCache(a.metricStorage)
 	usedTimestamps := map[uint32]struct{}{}
 	usedBufferTimestamps := map[uint32]struct{}{}
-	recentTs := buckets[0].time // by convention first bucket is recent all others are historic
-	stats.recentTs = recentTs
 
 	insertItem := func(item *data_model.MultiItem, sf float64, bucketTs uint32) { // lambda is convenient here
 		is := insertSize{}
@@ -609,12 +618,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
 	sampler.Run(remainingBudget)
-	var historicTag int32 = format.TagValueIDConveyorRecent
-	if len(buckets) > 1 {
-		historicTag = format.TagValueIDConveyorHistoric
-	}
-	stats.historicTag = historicTag
-	stats.sampling = make(map[samplingStatKey]samplingStat)
 	for _, v := range sampler.MetricGroups {
 		sk := samplingStatKey{v.NamespaceID, v.GroupID}
 		ss := stats.sampling[sk]
@@ -649,7 +652,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
 		res = appendBufferedValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, metricCache, v3Format)
 	}
-	return res, sampler.SamplerBuffers, insertSizes, stats, time.Since(startTime)
+	return res, sampler.SamplerBuffers, stats, time.Since(startTime)
 }
 
 func makeHTTPClient() *http.Client {

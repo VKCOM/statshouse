@@ -781,9 +781,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		}
 
 		var marshalDur time.Duration
-		var insertSizes map[uint32]insertSize
 		var stats insertStats
-		bodyStorage, buffers, insertSizes, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
+		bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -838,7 +837,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.mu.Lock()
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
-			is := insertSizes[b.time]
+			is := stats.sizes[b.time]
 			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
 			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeValue, float64(is.values))
 			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
@@ -878,7 +877,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, a.withAggTags([]int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}), stats.samplingEngineKeys, a.aggregatorHostTag)
 
 		if mirrorChWrite {
-			bodyStorage, buffers, insertSizes, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
+			bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
 			if writeToV3First {
 				settings = v2InsertSettings
 			} else {
@@ -897,7 +896,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			}
 
 			for i, b := range aggBuckets {
-				is := insertSizes[b.time]
+				is := stats.sizes[b.time]
 				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
 				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeValue, float64(is.values))
 				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
