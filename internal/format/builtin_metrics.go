@@ -1480,11 +1480,8 @@ var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 		Name:          "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
 	}, {
-		Description: "status",
-		ValueComments: convertToValueComments(map[int32]string{
-			0: "success",
-			1: "failure",
-		}),
+		Description:   "status",
+		ValueComments: convertToValueComments(successOrFailure),
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
@@ -1528,8 +1525,6 @@ var BuiltinMetricMetaSrcSamplingSizeBytes = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingSizeBytes = -83
-
 var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 	Name:                    "__agg_sampling_size_bytes",
 	Kind:                    MetricKindValue,
@@ -1564,6 +1559,14 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
 		}),
+	}, {
+		// former metric_id
+	}, {
+		Description:   "status",
+		ValueComments: convertToValueComments(successOrFailure),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1660,8 +1663,6 @@ var BuiltinMetricMetaSrcSamplingGroupBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingGroupBudget = -89
-
 var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 	Name:                    "__agg_sampling_group_budget",
 	Kind:                    MetricKindValue,
@@ -1690,6 +1691,12 @@ var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
 		}),
+	}, {
+		Description:   "status",
+		ValueComments: convertToValueComments(successOrFailure),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1784,11 +1791,8 @@ var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
-		Description: "status",
-		ValueComments: convertToValueComments(map[int32]string{
-			0: "success",
-			1: "failure",
-		}),
+		Description:   "status",
+		ValueComments: convertToValueComments(successOrFailure),
 	}, {
 		Description: "event_type",
 		ValueComments: convertToValueComments(map[int32]string{
