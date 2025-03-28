@@ -273,8 +273,8 @@ var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDInsertTimeOK:    "ok",
-			TagValueIDInsertTimeError: "error",
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
 		}),
 	}, {
 		Description: "http_status",
@@ -476,8 +476,8 @@ var BuiltinMetricMetaAggInsertTimeReal = &MetricMetaValue{
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDInsertTimeOK:    "ok",
-			TagValueIDInsertTimeError: "error",
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
 		}),
 	}, {
 		Description: "http_status",
@@ -551,8 +551,8 @@ var BuiltinMetricMetaAggInsertSizeReal = &MetricMetaValue{
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDInsertTimeOK:    "ok",
-			TagValueIDInsertTimeError: "error",
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
 		}),
 	}, {
 		Description: "http_status",
@@ -1468,8 +1468,6 @@ var BuiltinMetricMetaSrcSamplingMetricCount = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingMetricCount = -81
-
 var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 	Name:                    "__agg_sampling_metric_count",
 	Kind:                    MetricKindValue,
@@ -1481,6 +1479,15 @@ var BuiltinMetricMetaAggSamplingMetricCount = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Name:          "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1521,8 +1528,6 @@ var BuiltinMetricMetaSrcSamplingSizeBytes = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingSizeBytes = -83
-
 var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 	Name:                    "__agg_sampling_size_bytes",
 	Kind:                    MetricKindValue,
@@ -1557,6 +1562,17 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
 		}),
+	}, {
+		// former metric_id
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1605,8 +1621,6 @@ var BuiltinMetricMetaSrcSamplingBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingBudget = -87
-
 var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 	Name:                    "__agg_sampling_budget",
 	Kind:                    MetricKindValue,
@@ -1619,6 +1633,15 @@ var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Name:          "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1653,8 +1676,6 @@ var BuiltinMetricMetaSrcSamplingGroupBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingGroupBudget = -89
-
 var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 	Name:                    "__agg_sampling_group_budget",
 	Kind:                    MetricKindValue,
@@ -1683,6 +1704,15 @@ var BuiltinMetricMetaAggSamplingGroupBudget = &MetricMetaValue{
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
 		}),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -1777,11 +1807,8 @@ var BuiltinMetricMetaAggScrapeTargetDispatch = &MetricMetaValue{
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
-		Description: "status",
-		ValueComments: convertToValueComments(map[int32]string{
-			0: "success",
-			1: "failure",
-		}),
+		Description:   "status",
+		ValueComments: convertToValueComments(successOrFailure),
 	}, {
 		Description: "event_type",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1832,8 +1859,8 @@ var BuiltinMetricMetaAggSamplingTime = &MetricMetaValue{
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDInsertTimeOK:    "ok",
-			TagValueIDInsertTimeError: "error",
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
 		}),
 	}, {
 		Description: "http_status",
@@ -1862,17 +1889,24 @@ var BuiltinMetricMetaAgentDiskCacheSize = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggContributors = -97
-
 var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	Name:                    "__agg_contributors",
 	Kind:                    MetricKindValue,
 	Description:             "Number of contributors used to calculate sampling budget.",
-	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{}, {}, {}},
+	Tags: []MetricMetaTag{{
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
+	}},
 }
 
 var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
@@ -2080,8 +2114,6 @@ var BuiltinMetricMetaAggHistoricHostsWaiting = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingEngineTime = -111
-
 var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	Name:                    "__agg_sampling_engine_time",
 	Kind:                    MetricKindValue,
@@ -2103,10 +2135,17 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
-
-const BuiltinMetricIDAggSamplingEngineKeys = -112
 
 var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	Name:                    "__agg_sampling_engine_keys",
@@ -2119,6 +2158,15 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
@@ -2584,8 +2632,8 @@ var BuiltinMetricMetaAggInsertSize = &MetricMetaValue{
 	}, {
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDInsertTimeOK:    "ok",
-			TagValueIDInsertTimeError: "error",
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
 		}),
 	}, {
 		Description: "http_status",

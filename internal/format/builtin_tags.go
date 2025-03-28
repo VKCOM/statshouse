@@ -84,8 +84,8 @@ const (
 	TagValueIDSecondReal    = 1
 	TagValueIDSecondPhantom = 2 // We do not add phantom seconds anymore
 
-	TagValueIDInsertTimeOK    = 1
-	TagValueIDInsertTimeError = 2
+	TagValueIDStatusOK    = 1
+	TagValueIDStatusError = 2
 
 	TagValueIDHistoricQueueMemory     = 1
 	TagValueIDHistoricQueueDiskUnsent = 2
@@ -231,6 +231,11 @@ const (
 var tableFormatToValue = map[int32]string{
 	TagValueIDAggInsertV3: "v3",
 	TagValueIDAggInsertV2: "v2",
+}
+
+var successOrFailure = map[int32]string{
+	0: "success",
+	1: "failure",
 }
 
 const (

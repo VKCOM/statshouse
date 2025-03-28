@@ -77,9 +77,9 @@ func (a *Aggregator) reportInsertMetric(t uint32, metricInfo *format.MetricMetaV
 	if historic {
 		historicTag = format.TagValueIDConveyorHistoric
 	}
-	statusTag := int32(format.TagValueIDInsertTimeOK)
+	statusTag := int32(format.TagValueIDStatusOK)
 	if err != nil {
-		statusTag = format.TagValueIDInsertTimeError
+		statusTag = format.TagValueIDStatusError
 	}
 	a.sh2.AddValueCounter(t, metricInfo,
 		[]int32{0, 0, 0, 0, historicTag, statusTag, int32(status), int32(exception), v3FormatTag, inflightType},
