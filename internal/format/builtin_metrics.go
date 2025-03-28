@@ -2155,8 +2155,6 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	},
 }
 
-const BuiltinMetricIDAggSamplingEngineKeys = -112
-
 var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	Name:                    "__agg_sampling_engine_keys",
 	Kind:                    MetricKindCounter,
@@ -2164,11 +2162,24 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
-	}},
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
+	},
+		AggHostTag:    {Description: "aggregator_host"},
+		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
+		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
+	},
 }
 
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{

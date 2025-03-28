@@ -435,6 +435,7 @@ type insertStats struct {
 	sampleTimeBudgeting  float64
 	sampleTimeSampling   float64
 	sampleTimeMetricMeta float64
+	samplingEngineKeys   float64
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
@@ -628,7 +629,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	stats.sampleTimeSampling = sampler.TimeSampling()
 	stats.sampleTimeBudgeting = sampler.TimeBudgeting()
 	stats.sampleTimeMetricMeta = sampler.TimeMetricMeta()
-	res = appendValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineKeys, [format.MaxTags]int32{0, 0, 0, 0, historicTag}), data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, v3Format, false)
+	stats.samplingEngineKeys = float64(sampler.ItemCount())
 
 	// report budget used
 	stats.samplingBudget += remainingBudget

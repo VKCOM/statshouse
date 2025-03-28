@@ -128,7 +128,7 @@ var (
 		-109:                                    BuiltinMetricMetaGCDuration,
 		-110:                                    BuiltinMetricMetaAggHistoricHostsWaiting,
 		-111:                                    BuiltinMetricMetaAggSamplingEngineTime,
-		BuiltinMetricIDAggSamplingEngineKeys:    BuiltinMetricMetaAggSamplingEngineKeys, // generated and written on aggregator, can be removed
+		-112:                                    BuiltinMetricMetaAggSamplingEngineKeys,
 		-113:                                    BuiltinMetricMetaProxyAcceptHandshakeError,
 		-114:                                    BuiltinMetricMetaProxyVmSize,
 		-115:                                    BuiltinMetricMetaProxyVmRSS,
