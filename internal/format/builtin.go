@@ -105,7 +105,7 @@ var (
 		-84:                                     BuiltinMetricMetaUIErrors,
 		-85:                                     BuiltinMetricMetaStatsHouseErrors,
 		-86:                                     BuiltinMetricMetaSrcSamplingBudget,
-		BuiltinMetricIDAggSamplingBudget:        BuiltinMetricMetaAggSamplingBudget, // generated and written on aggregator, can be removed
+		-87:                                     BuiltinMetricMetaAggSamplingBudget,
 		-88:                                     BuiltinMetricMetaSrcSamplingGroupBudget,
 		-89:                                     BuiltinMetricMetaAggSamplingGroupBudget,
 		-90:                                     BuiltinMetricMetaPromQLEngineTime,

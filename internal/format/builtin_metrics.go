@@ -1621,8 +1621,6 @@ var BuiltinMetricMetaSrcSamplingBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingBudget = -87
-
 var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 	Name:                    "__agg_sampling_budget",
 	Kind:                    MetricKindValue,
@@ -1635,6 +1633,15 @@ var BuiltinMetricMetaAggSamplingBudget = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Name:          "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
 	}},
 }
 
