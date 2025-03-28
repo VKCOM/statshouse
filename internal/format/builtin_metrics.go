@@ -1889,17 +1889,24 @@ var BuiltinMetricMetaAgentDiskCacheSize = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggContributors = -97
-
 var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	Name:                    "__agg_contributors",
 	Kind:                    MetricKindValue,
 	Description:             "Number of contributors used to calculate sampling budget.",
-	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
+	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{}, {}, {}},
+	Tags: []MetricMetaTag{{
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
+	}},
 }
 
 var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{

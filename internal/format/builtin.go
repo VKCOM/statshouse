@@ -115,7 +115,7 @@ var (
 		-94:                                     BuiltinMetricMetaAggScrapeConfigHash,
 		-95:                                     BuiltinMetricMetaAggSamplingTime,
 		-96:                                     BuiltinMetricMetaAgentDiskCacheSize,
-		BuiltinMetricIDAggContributors:          BuiltinMetricMetaAggContributors, // generated and written on aggregator, can be removed
+		-97:                                     BuiltinMetricMetaAggContributors,
 		-99:                                     BuiltinMetricMetaAPICacheChunkCount,
 		-101:                                    BuiltinMetricMetaAPICacheSize,
 		-102:                                    BuiltinMetricMetaAPICacheTrim,
