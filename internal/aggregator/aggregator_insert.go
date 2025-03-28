@@ -426,6 +426,7 @@ type insertStats struct {
 	historicTag int32
 
 	samplingMetricCount int
+	samplingBudget      int64
 	sampling            map[samplingStatKey]samplingStat
 }
 
@@ -623,10 +624,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	res = appendValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineKeys, [format.MaxTags]int32{0, 0, 0, 0, historicTag}), data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, v3Format, false)
 
 	// report budget used
-	budgetKey := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingBudget, [format.MaxTags]int32{0, historicTag})
-	budgetItem := data_model.MultiItem{Key: *budgetKey}
-	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
-	insertItem(&budgetItem, 1, buckets[0].time)
+	stats.samplingBudget += remainingBudget
 	stats.samplingMetricCount = sampler.MetricCount
 
 	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggContributors, [format.MaxTags]int32{}), float64(numContributors), 1, a.aggregatorHost, metricCache, v3Format)
