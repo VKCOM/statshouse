@@ -2118,8 +2118,6 @@ var BuiltinMetricMetaAggHistoricHostsWaiting = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDAggSamplingEngineTime = -111
-
 var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	Name:                    "__agg_sampling_engine_time",
 	Kind:                    MetricKindValue,
@@ -2128,7 +2126,7 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "phase",
 		ValueComments: map[string]string{
@@ -2141,7 +2139,20 @@ var BuiltinMetricMetaAggSamplingEngineTime = &MetricMetaValue{
 	}, {}, {}, {
 		Description:   "conveyor",
 		ValueComments: convertToValueComments(conveyorToValue),
-	}},
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}, {
+		Description:   "table",
+		ValueComments: convertToValueComments(tableFormatToValue),
+	},
+		AggHostTag:    {Description: "aggregator_host"},
+		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
+		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
+	},
 }
 
 const BuiltinMetricIDAggSamplingEngineKeys = -112
