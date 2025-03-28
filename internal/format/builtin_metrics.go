@@ -1896,7 +1896,7 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	NoSampleAgent:           true, // limited cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
+	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "status",
 		ValueComments: convertToValueComments(map[int32]string{
@@ -1906,7 +1906,11 @@ var BuiltinMetricMetaAggContributors = &MetricMetaValue{
 	}, {
 		Description:   "table",
 		ValueComments: convertToValueComments(tableFormatToValue),
-	}},
+	},
+		AggHostTag:    {Description: "aggregator_host"},
+		AggShardTag:   {Description: "aggregator_shard", RawKind: "int"},
+		AggReplicaTag: {Description: "aggregator_replica", RawKind: "int"},
+	},
 }
 
 var BuiltinMetricMetaAPICacheChunkCount = &MetricMetaValue{
