@@ -429,6 +429,12 @@ type insertStats struct {
 	samplingMetricCount int
 	samplingBudget      int64
 	sampling            map[samplingStatKey]samplingStat
+
+	sampleTimeAppend     float64
+	sampleTimePartition  float64
+	sampleTimeBudgeting  float64
+	sampleTimeSampling   float64
+	sampleTimeMetricMeta float64
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers, rnd *rand.Rand, res []byte,
@@ -617,11 +623,11 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		stats.sampling[sk] = ss
 	}
 	// report sampling engine time
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 1, 0, 0, historicTag}), float64(sampler.TimeAppend()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 2, 0, 0, historicTag}), float64(sampler.TimePartition()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 3, 0, 0, historicTag}), float64(sampler.TimeBudgeting()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 4, 0, 0, historicTag}), float64(sampler.TimeSampling()), 1, a.aggregatorHost, metricCache, v3Format)
-	res = appendSimpleValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineTime, [format.MaxTags]int32{0, 5, 0, 0, historicTag}), float64(sampler.TimeMetricMeta()), 1, a.aggregatorHost, metricCache, v3Format)
+	stats.sampleTimeAppend = sampler.TimeAppend()
+	stats.sampleTimePartition = sampler.TimePartition()
+	stats.sampleTimeSampling = sampler.TimeSampling()
+	stats.sampleTimeBudgeting = sampler.TimeBudgeting()
+	stats.sampleTimeMetricMeta = sampler.TimeMetricMeta()
 	res = appendValueStat(rnd, res, a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingEngineKeys, [format.MaxTags]int32{0, 0, 0, 0, historicTag}), data_model.SimpleItemCounter(float64(sampler.ItemCount()), a.aggregatorHostTag), metricCache, v3Format, false)
 
 	// report budget used
