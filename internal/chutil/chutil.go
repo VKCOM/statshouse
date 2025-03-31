@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/util/queue"
 )
 
@@ -44,9 +46,10 @@ type QueryMetaInto struct {
 	IsLight    bool
 	IsHardware bool
 
-	User   string
-	Metric int32
-	Table  string
+	User        string
+	Metric      *format.MetricMetaValue
+	NewSharding bool
+	Table       string
 }
 
 type QueryHandleInfo struct {
@@ -237,8 +240,18 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 		return nil
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
-	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
-	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
+	shard := -1
+	if meta.NewSharding {
+		shard = meta.Metric.Shard(len(pool.servers) / 3)
+	}
+	var servers []*chpool.Pool
+	if shard < 0 {
+		servers = append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
+	} else {
+		i := shard * 3
+		servers = append(make([]*chpool.Pool, 0, 3), pool.servers[i:i+3]...)
+	}
+	for safetyCounter := len(servers); safetyCounter > 0; safetyCounter-- {
 		var i int
 		i, err = pickRandomServer(servers, pool.rnd)
 		if err != nil {
@@ -266,7 +279,7 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 		}
 		log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		// keep searching alive server
-		servers = append(servers[:i], servers[i+1:]...)
+		servers = slices.Delete(servers, i, i+1)
 	}
 	return info, err
 }
