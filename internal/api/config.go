@@ -25,6 +25,7 @@ type Config struct {
 	CacheChunkSize     int
 	CacheBlacklist     []string
 	CacheWhitelist     []string
+	NewShardingStart   int64
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -61,6 +62,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	config.StringSliceVar(f, &argv.CacheBlacklist, "cache-blacklist", "", "user(s) with cache disabled")
 	config.StringSliceVar(f, &argv.CacheWhitelist, "cache-whitelist", "", "user(s) with cache enabled")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
+	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", 0, "timestamp of new sharding start, zero means not set")
 }
 
 func DefaultConfig() *Config {

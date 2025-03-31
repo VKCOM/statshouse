@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,6 +23,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ClickHouse/ch-go"
+	"github.com/ClickHouse/ch-go/proto"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 	"github.com/vkcom/statshouse-go"
@@ -184,8 +187,13 @@ func run() int {
 		defer func() { chV1.Close() }()
 	}
 	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
+	chV2Addrs, err := getV2ClusterHosts()
+	if err != nil {
+		log.Printf("failed to get ClickHouse-v2 host list: %v", err)
+		return 1
+	}
 	chV2, err := chutil.OpenClickHouse(chutil.ChConnOptions{
-		Addrs:       argv.chV2Addrs,
+		Addrs:       chV2Addrs,
 		User:        argv.chV2User,
 		Password:    argv.chV2Password,
 		DialTimeout: chDialTimeout,
@@ -563,4 +571,92 @@ func parseCommandLine() (err error) {
 	}
 
 	return argv.HandlerOptions.Parse()
+}
+
+func getV2ClusterHosts() (_ []string, err error) {
+	if len(argv.chV2Addrs) == 0 {
+		return nil, fmt.Errorf("no ClickHouse address provided")
+	}
+	var client *ch.Client
+	for _, addr := range argv.chV2Addrs {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		client, err = ch.Dial(ctx, ch.Options{
+			Address:  addr,
+			User:     argv.chV2User,
+			Password: argv.chV2Password,
+		})
+		cancel()
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+	var sb strings.Builder
+	sb.WriteString("SELECT host_name,cluster FROM system.clusters where host_name IN('")
+	if err = writeHostName(&sb, argv.chV2Addrs[0]); err != nil {
+		return nil, err
+	}
+	for _, v := range argv.chV2Addrs[1:] {
+		sb.WriteString("','")
+		if err = writeHostName(&sb, v); err != nil {
+			return nil, err
+		}
+	}
+	sb.WriteString("')")
+	var cluster proto.ColStr
+	var hostName proto.ColStr
+	m := map[string][]string{}
+	err = client.Do(context.Background(), ch.Query{
+		Body: sb.String(),
+		Result: proto.Results{
+			{Name: "host_name", Data: &hostName},
+			{Name: "cluster", Data: &cluster},
+		},
+		OnResult: func(ctx context.Context, block proto.Block) error {
+			for i := range block.Rows {
+				m[cluster.Row(i)] = append(m[cluster.Row(i)], hostName.Row(i))
+			}
+			return nil
+		},
+	})
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	if len(m) > 1 {
+		client.Close()
+		return nil, fmt.Errorf("specified hosts belong to different clusters")
+	}
+	for cluster := range m {
+		var host proto.ColStr
+		var port proto.ColUInt16
+		var s []string
+		err = client.Do(context.Background(), ch.Query{
+			Body: "SELECT host_name,port FROM system.clusters WHERE cluster='" + cluster + "' ORDER BY shard_num,replica_num",
+			Result: proto.Results{
+				{Name: "host_name", Data: &host},
+				{Name: "port", Data: &port},
+			},
+			OnResult: func(ctx context.Context, block proto.Block) error {
+				for i := range block.Rows {
+					s = append(s, fmt.Sprint(host.Row(i), ":", port.Row(i)))
+				}
+				return nil
+			},
+		})
+		return s, err
+	}
+	return nil, fmt.Errorf("cannot identify cluster")
+}
+
+func writeHostName(sb *strings.Builder, addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	sb.WriteString(host)
+	return nil
 }

@@ -187,13 +187,24 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(h, pq, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == realLoadTo {
-			ChCacheRate(cachedRows, 0, pq.metricID(), lod.Table, "")
+			newSharding := pq.metric.NewSharding(lod.FromSec, pq.newShardingStart)
+			ChCacheRate(cachedRows, 0, pq.metricID(), lod.Table(newSharding), "")
 			return ret, nil
 		}
 	}
 
 	loadAtNano := time.Now().UnixNano()
-	loadLOD := data_model.LOD{FromSec: realLoadFrom, ToSec: realLoadTo, StepSec: c.stepSec, Table: lod.Table, HasPreKey: lod.HasPreKey, PreKeyOnly: lod.PreKeyOnly, Location: lod.Location, Version: lod.Version}
+	loadLOD := data_model.LOD{
+		FromSec:     realLoadFrom,
+		ToSec:       realLoadTo,
+		StepSec:     c.stepSec,
+		Metric:      lod.Metric,
+		NewSharding: lod.NewSharding,
+		HasPreKey:   lod.HasPreKey,
+		PreKeyOnly:  lod.PreKeyOnly,
+		Location:    lod.Location,
+		Version:     lod.Version,
+	}
 	startX, err := lod.IndexOf(realLoadFrom)
 	if err != nil {
 		return nil, err
@@ -203,7 +214,8 @@ func (c *tsCache) get(ctx context.Context, h *requestHandler, pq *queryBuilder, 
 		return nil, err
 	}
 
-	ChCacheRate(cachedRows, chRows, pq.metricID(), lod.Table, "")
+	newSharding := pq.metric.NewSharding(lod.FromSec, pq.newShardingStart)
+	ChCacheRate(cachedRows, chRows, pq.metricID(), lod.Table(newSharding), "")
 
 	// map string tags
 	endX, err := lod.IndexOf(realLoadTo)
