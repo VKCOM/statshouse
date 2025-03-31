@@ -36,6 +36,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         groups,
         orderGroup,
         orderPlot,
+
         dashboardLayoutEdit,
         isEmbed,
         addDashboardGroup,
@@ -56,7 +57,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
   // itemsGroup: Contains the structure of groups and their plots
   // layoutsCoords: Contains the layout coordinates for each group
-  console.log('-------groups', groups);
   const { itemsGroup, layoutsCoords } = useMemo(
     () =>
       prepareItemsGroupWithLayout({
@@ -98,7 +98,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xl: 2.45,
           lg: 1.95,
           md: 2.2,
-          sm: 1.2,
+          sm: 1.3,
           xs: 0.8,
           xxs: 0.3,
         }[breakpointKey] || 2.18;
@@ -110,7 +110,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xl: 1.93,
           lg: 1.52,
           md: 1.34,
-          sm: 0.6,
+          sm: 1,
           xs: 0.5,
           xxs: 0.1,
         }[breakpointKey] || 1.32;
@@ -121,8 +121,8 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           xxl: 2.35,
           xl: 1.93,
           lg: 1.52,
-          md: 2.1,
-          sm: 1.1,
+          md: 1.91,
+          sm: 1.24,
           xs: 0.5,
           xxs: 0.1,
         }[breakpointKey] || 1.32;
@@ -156,8 +156,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       const size = groups[groupKey]?.size;
       const widgetColsWidth = getSizeColumns(size);
-      // const minHeight = widgetColsWidth === 3 ? 4 : 3;
-      const minHeight = widgetColsWidth === 3 ? 4 : 3;
 
       // Get row height specific to this group
       const groupRowHeight = calculateRowHeightForGroup(groupKey);
@@ -169,7 +167,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         x: 0,
         y: currentY,
         w: cols,
-        h: dashboardLayoutEdit ? 1.5 : 0.5,
+        h: dashboardLayoutEdit ? 2 : 1,
         isDraggable: false,
         isResizable: false,
       });
@@ -185,8 +183,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       let plotLayouts: Layout[] = [];
 
       if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
-        console.log('EXISTING GROUP LAYOUT HERE', existingGroupLayout);
-
         plotLayouts = existingGroupLayout.layout
           .filter((item) => {
             const plotKey = item.i.split('::')[1];
@@ -195,7 +191,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           .map((item) => ({
             ...item,
             minW: 3,
-            minH: minHeight,
+            minH: 7,
             w: item.w,
             y: item.y + currentY,
             h: item.h,
@@ -230,8 +226,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         }
       }
 
-      let defaultHeight = 10;
-      // let defaultHeight = 5;
+      let defaultHeight = 5;
       if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
         defaultHeight = 6;
       } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
@@ -251,7 +246,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       // Apply a minimum height that scales with column count
       const minimumHeight = Math.max(2, 4 - widgetColsWidth * 0.5);
       defaultHeight = Math.max(minimumHeight, Math.round(defaultHeight * widthRatio));
-      console.log('DEFAULT HERE');
       // Generate layouts for plots
       plots.forEach((plot, index) => {
         // On mobile, each chart gets its own row
@@ -264,9 +258,9 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           x: startX,
           y: currentY + row * defaultHeight,
           w: itemWidth,
-          h: Math.round(defaultHeight * rowHeightRatio),
+          h: Math.round(defaultHeight * rowHeightRatio + 0.8),
           minW: 3,
-          minH: minHeight,
+          minH: 7,
         });
       });
 
@@ -322,6 +316,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         groupKey,
         plots,
       }));
+
       // Process layout updates for each group
       const groupLayouts = new Map<string, Layout[]>();
 
@@ -338,7 +333,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       // Update each group's layout
       groupLayouts.forEach((groupLayout, groupKey) => {
-        console.log('SAVINGGGGGG groupLayouts', groupLayout);
         setNextDashboardSchemePlot(updatedItemsGroup, {
           groupKey,
           layout: groupLayout,
@@ -365,35 +359,61 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     isCrossingGroupsRef.current = false;
   }, []);
 
-  // Helper function to determine which group is currently being hovered over during drag
-  const getHoveredGroupKey = useCallback((layout: Layout[], draggedY: number): string | null => {
-    // Find all group header items in the layout
+  // Get the key for the next group to be created
+  const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
+
+  // Helper function to check if dragged below last group
+  const isDroppedBelowLastGroup = useCallback((layout: Layout[], draggedY: number): boolean => {
     const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+    if (groupHeaders.length === 0) return true;
 
-    // Sort group headers by Y position
+    // Get the last header
     const sortedGroupHeaders = [...groupHeaders].sort((a, b) => a.y - b.y);
+    const lastHeaderItem = sortedGroupHeaders[sortedGroupHeaders.length - 1];
 
-    // Find the group whose Y range contains the dragged item's Y position
-    for (let i = 0; i < sortedGroupHeaders.length; i++) {
-      const currentHeader = sortedGroupHeaders[i];
-      const nextHeader = sortedGroupHeaders[i + 1];
+    // Get items belonging to the last group
+    const lastGroupItems = layout.filter(
+      (item) => !item.i.startsWith('group::') && item.i.startsWith(lastHeaderItem.i.replace('group::', ''))
+    );
 
-      // Extract group key from the header item ID
-      const groupKey = currentHeader.i.replace('group::', '');
+    // Calculate the maximum Y position of the last group's items
+    const maxLastGroupY =
+      lastGroupItems.length > 0
+        ? Math.max(...lastGroupItems.map((item) => item.y + item.h))
+        : lastHeaderItem.y + lastHeaderItem.h;
 
-      // If this is the last group or the draggedY is between this header and the next one
-      if (!nextHeader || (draggedY >= currentHeader.y && draggedY < nextHeader.y)) {
-        return groupKey;
-      }
-    }
-
-    // If the draggedY is after all groups, return the last group
-    // if (sortedGroupHeaders.length > 0) {
-    //   return sortedGroupHeaders[sortedGroupHeaders.length - 1].i.replace('group::', '');
-    // }
-
-    return null;
+    // Return true if dragged below the last group
+    return draggedY + 1 > maxLastGroupY;
   }, []);
+
+  // Helper function to determine which group is currently being hovered over during drag
+  const getHoveredGroupKey = useCallback(
+    (layout: Layout[], draggedY: number): string | null => {
+      // Find all group header items in the layout
+      const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+      if (groupHeaders.length === 0) return null;
+
+      // Sort group headers by Y position
+      const sortedGroupHeaders = [...groupHeaders].sort((a, b) => a.y - b.y);
+
+      if (isDroppedBelowLastGroup(layout, draggedY)) {
+        return nextGroupKey;
+      }
+
+      for (let i = 0; i < sortedGroupHeaders.length; i++) {
+        const currentHeader = sortedGroupHeaders[i];
+        const nextHeader = sortedGroupHeaders[i + 1];
+        const groupKey = currentHeader.i.replace('group::', '');
+
+        if (!nextHeader || (draggedY >= currentHeader.y && draggedY < nextHeader.y)) {
+          return groupKey;
+        }
+      }
+
+      return null;
+    },
+    [isDroppedBelowLastGroup, nextGroupKey]
+  );
 
   // Track when dragging crosses between different groups
   const onDrag = useCallback(
@@ -403,12 +423,12 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       // Prevent dragging above the first group header
       const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
       const firstHeaderY = groupHeaders.length > 0 ? Math.min(...groupHeaders.map((header) => header.y)) : 0;
-
       if (newItem.y < firstHeaderY + 1) {
         // Force the item to stay below the first header
         newItem.y = firstHeaderY + 1;
       }
 
+      // const hoveredGroup = getHoveredGroupKey(layout, newItem.y, e);
       const hoveredGroup = getHoveredGroupKey(layout, newItem.y);
 
       // Set flag when dragging between different groups
@@ -449,7 +469,24 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       const targetGroup = getHoveredGroupKey(layout, newItem.y);
 
-      if (targetGroup && targetGroup !== draggedGroupKey) {
+      // Check if the target group is the new group key (dropped below all groups)
+      if (targetGroup === nextGroupKey) {
+        // Create a new layout with the dragged item now in the new group
+        const updatedLayout = layout.map((item) => {
+          if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
+            return {
+              ...item,
+              i: `${nextGroupKey}::${draggedPlotKey}`,
+              ...(draggedItemDimensions ? { w: draggedItemDimensions.w, h: draggedItemDimensions.h } : {}),
+            };
+          }
+          return item;
+        });
+
+        // Add the new group and save the updated layout
+        addDashboardGroup(nextGroupKey);
+        save(updatedLayout);
+      } else if (targetGroup && targetGroup !== draggedGroupKey) {
         // Cross-group drag: update the item ID to reflect new group
         const updatedLayout = layout.map((item) => {
           if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
@@ -472,7 +509,14 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       setIsDragging(false);
       isCrossingGroupsRef.current = false;
     },
-    [draggedPlotKey, draggedGroupKey, getHoveredGroupKey, save, draggedItemDimensions]
+    [draggedPlotKey, draggedGroupKey, getHoveredGroupKey, nextGroupKey, addDashboardGroup, save, draggedItemDimensions]
+  );
+
+  const handleResizeStop = useCallback(
+    (layout: Layout[]) => {
+      save(layout);
+    },
+    [save]
   );
 
   // Add a new group to the dashboard
@@ -484,9 +528,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     [addDashboardGroup]
   );
 
-  // Get the key for the next group to be created
-  const nextGroupKey = useMemo(() => getNextGroupKey({ orderGroup }), [orderGroup]);
-
   // Determine if dashboard editing is allowed based on device and settings
   const isDashboardEditAllowed = dashboardLayoutEdit && !mobileDevice;
 
@@ -496,7 +537,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         <ResponsiveGridLayout
           className={cn('layout', 'd-flex flex-row flex-wrap', !isEmbed ? 'pb-3' : 'pb-0')}
           breakpoints={BREAKPOINT_WIDTH}
-          margin={[0, 30]}
+          // margin={[0, 30]}
           cols={COLS}
           rowHeight={dynamicRowHeight}
           isDraggable={isDashboardEditAllowed}
@@ -505,6 +546,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           onDragStart={onDragStart}
           onDrag={onDrag}
           // onLayoutChange={onLayoutChange}
+          onResizeStop={handleResizeStop}
           isDroppable={isDashboardEditAllowed}
           layouts={{
             [breakpointKey]: unifiedLayout,
@@ -520,7 +562,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 </div>
               )
           )}
-
           {/* Render all plots */}
           {itemsGroup.map(
             ({ groupKey, plots }) =>

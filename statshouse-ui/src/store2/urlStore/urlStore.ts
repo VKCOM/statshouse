@@ -267,7 +267,6 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setUrlStore(updateGroup(groupKey, next));
     },
     setNextDashboardSchemePlot(nextScheme, layouts) {
-      console.log('HEREEE SETTING NEXT SCHEME');
       setUrlStore(
         updateParamsPlotStruct((plotStruct) => {
           plotStruct.groups = nextScheme.map((g) => {
