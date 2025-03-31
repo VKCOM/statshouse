@@ -168,6 +168,8 @@ func TestCache2Parallel(t *testing.T) {
 		}
 	})
 	c.shutdown().Wait()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	requireCache2Valid(t, c)
 	c.info.normalizeWaterLevel()
 	c.info.resetAccessInfo()
