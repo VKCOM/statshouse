@@ -27,20 +27,21 @@ const (
 )
 
 type queryBuilder struct {
-	cacheKey    string
-	version     string
-	user        string
-	metric      *format.MetricMetaValue
-	what        tsWhat
-	by          []int
-	filterIn    data_model.TagFilters
-	filterNotIn data_model.TagFilters
-	sort        querySort // for table view requests
-	strcmpOff   bool      // version 3 experimental
-	minMaxHost  [2]bool   // "min" at [0], "max" at [1]
-	point       bool      // point query
-	play        int
-	utcOffset   int64
+	cacheKey         string
+	version          string
+	user             string
+	metric           *format.MetricMetaValue
+	what             tsWhat
+	by               []int
+	filterIn         data_model.TagFilters
+	filterNotIn      data_model.TagFilters
+	sort             querySort // for table view requests
+	strcmpOff        bool      // version 3 experimental
+	minMaxHost       [2]bool   // "min" at [0], "max" at [1]
+	point            bool      // point query
+	play             int
+	utcOffset        int64
+	newShardingStart int64
 
 	// specific to queryKindTagValues, queryKindTagValueIDs
 	tag        format.MetricMetaTag
@@ -72,10 +73,11 @@ func (b *queryBuilder) preKeyTableName(lod *data_model.LOD) string {
 			}
 		}
 	}
+	newSharding := b.metric.NewSharding(lod.FromSec, b.newShardingStart)
 	if usePreKey {
-		return preKeyTableNames[lod.Table]
+		return preKeyTableNames[lod.Table(newSharding)]
 	}
-	return lod.Table
+	return lod.Table(newSharding)
 }
 
 func (b *queryBuilder) preKeyTagX() int {

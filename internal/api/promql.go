@@ -142,11 +142,12 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					End:   end,
 					Expr:  expr,
 					Options: promql.Options{
-						Version:       r.version,
-						Version3Start: r.Version3Start.Load(),
-						Limit:         1000,
-						Mode:          data_model.TagsQuery,
-						Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+						Version:          r.version,
+						Version3Start:    r.Version3Start.Load(),
+						NewShardingStart: r.NewShardingStart.Load(),
+						Limit:            1000,
+						Mode:             data_model.TagsQuery,
+						Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
 					},
 				})
 			if err != nil {
@@ -245,12 +246,13 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							End:   end,
 							Expr:  expr,
 							Options: promql.Options{
-								Version:       r.version,
-								Version3Start: r.Version3Start.Load(),
-								Limit:         1000,
-								Mode:          data_model.TagsQuery,
-								GroupBy:       []string{tagName},
-								Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+								Version:          r.version,
+								Version3Start:    r.Version3Start.Load(),
+								NewShardingStart: r.NewShardingStart.Load(),
+								Limit:            1000,
+								Mode:             data_model.TagsQuery,
+								GroupBy:          []string{tagName},
+								Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
 							},
 						})
 					if err != nil {
@@ -527,13 +529,15 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		start := qry.Timescale.Time[0]
 		metric := qry.Metric
 		lods = []data_model.LOD{{
-			FromSec:    qry.Timescale.Time[0] - qry.Offset,
-			ToSec:      qry.Timescale.Time[1] - qry.Offset,
-			StepSec:    lod0.Step,
-			Table:      data_model.LODTables[qry.Options.Version][lod0.Step],
-			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly: metric.PreKeyOnly,
-			Location:   h.location,
+			FromSec:     qry.Timescale.Time[0] - qry.Offset,
+			ToSec:       qry.Timescale.Time[1] - qry.Offset,
+			StepSec:     lod0.Step,
+			Version:     qry.Options.Version,
+			Metric:      qry.Metric,
+			NewSharding: h.newSharding(qry.Metric, start),
+			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly:  metric.PreKeyOnly,
+			Location:    h.location,
 		}}
 	} else {
 		lods = qry.Timescale.GetLODs(qry.Metric, qry.Offset)
@@ -560,18 +564,19 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		var tx int // time index
 		for _, lod := range lods {
 			pq := queryBuilder{
-				version:     h.version,
-				user:        h.accessInfo.user,
-				metric:      qry.Metric,
-				what:        what.qry,
-				by:          qry.GroupBy,
-				filterIn:    qry.FilterIn,
-				filterNotIn: qry.FilterNotIn,
-				strcmpOff:   h.Version3StrcmpOff.Load(),
-				minMaxHost:  qry.MinMaxHost,
-				utcOffset:   h.utcOffset,
-				point:       qry.Options.Mode == data_model.PointQuery,
-				play:        qry.Options.Play,
+				version:          h.version,
+				user:             h.accessInfo.user,
+				metric:           qry.Metric,
+				what:             what.qry,
+				by:               qry.GroupBy,
+				filterIn:         qry.FilterIn,
+				filterNotIn:      qry.FilterNotIn,
+				strcmpOff:        h.Version3StrcmpOff.Load(),
+				minMaxHost:       qry.MinMaxHost,
+				utcOffset:        h.utcOffset,
+				point:            qry.Options.Mode == data_model.PointQuery,
+				play:             qry.Options.Play,
+				newShardingStart: h.NewShardingStart.Load(),
 			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
@@ -739,24 +744,28 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int64, error) {
 	var (
 		pq = &queryBuilder{
-			version:    h.version,
-			metric:     qry.Metric,
-			tag:        qry.Tag,
-			numResults: math.MaxInt - 1,
-			strcmpOff:  h.Version3StrcmpOff.Load(),
-			utcOffset:  h.utcOffset,
+			version:          h.version,
+			metric:           qry.Metric,
+			tag:              qry.Tag,
+			numResults:       math.MaxInt - 1,
+			strcmpOff:        h.Version3StrcmpOff.Load(),
+			utcOffset:        h.utcOffset,
+			newShardingStart: h.NewShardingStart.Load(),
 		}
 		tags = make(map[int64]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
 		query := pq.buildTagValueIDsQuery(lod)
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
+		newSharding := h.newSharding(pq.metric, lod.FromSec)
 		err := h.doSelect(ctx, chutil.QueryMetaInto{
-			IsFast:  isFast,
-			IsLight: true,
-			User:    h.accessInfo.user,
-			Metric:  qry.Metric.MetricID,
-			Table:   lod.Table,
+			IsFast:         isFast,
+			IsLight:        true,
+			User:           h.accessInfo.user,
+			Metric:         qry.Metric,
+			Table:          lod.Table(newSharding),
+			NewSharding:    newSharding,
+			DisableCHAddrs: h.disabledCHAddrs(),
 		}, Version2, ch.Query{
 			Body:   query.body,
 			Result: query.res,

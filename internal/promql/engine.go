@@ -74,6 +74,7 @@ type Options struct {
 	Play             int
 	Rand             *rand.Rand
 	Vars             map[string]Variable
+	NewShardingStart int64
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
 }
@@ -267,18 +268,19 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	}
 	// init timescale
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
-		QueryStat:     ev.QueryStat,
-		Version:       qry.Options.Version,
-		Version3Start: qry.Options.Version3Start,
-		Start:         qry.Start,
-		End:           qry.End,
-		Step:          qry.Step,
-		TimeNow:       qry.Options.TimeNow,
-		ScreenWidth:   qry.Options.ScreenWidth,
-		Mode:          qry.Options.Mode,
-		Extend:        qry.Options.Extend,
-		Location:      ng.location,
-		UTCOffset:     ng.utcOffset,
+		QueryStat:        ev.QueryStat,
+		Version:          qry.Options.Version,
+		Version3Start:    qry.Options.Version3Start,
+		Start:            qry.Start,
+		End:              qry.End,
+		Step:             qry.Step,
+		TimeNow:          qry.Options.TimeNow,
+		ScreenWidth:      qry.Options.ScreenWidth,
+		Mode:             qry.Options.Mode,
+		Extend:           qry.Options.Extend,
+		Location:         ng.location,
+		UTCOffset:        ng.utcOffset,
+		NewShardingStart: qry.Options.NewShardingStart,
 	})
 	if err != nil {
 		return evaluator{}, Error{what: err}
