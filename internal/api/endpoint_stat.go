@@ -145,10 +145,14 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight, isHardware bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaValue, user, table, kind string, isFast, isLight, isHardware bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
+	}
+	var metricID int32
+	if metric != nil {
+		metricID = metric.MetricID
 	}
 	statshouse.Value(
 		format.BuiltinMetricMetaAPISelectDuration.Name,

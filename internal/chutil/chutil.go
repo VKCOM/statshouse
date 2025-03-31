@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/util/queue"
 )
 
@@ -45,9 +47,11 @@ type QueryMetaInto struct {
 	IsLight    bool
 	IsHardware bool
 
-	User   string
-	Metric int32
-	Table  string
+	User           string
+	Metric         *format.MetricMetaValue
+	NewSharding    bool
+	Table          string
+	DisableCHAddrs []string
 }
 
 type QueryHandleInfo struct {
@@ -219,7 +223,7 @@ func QueryKind(isFast, isLight, isHardware bool) int {
 }
 func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
 	pool := ch1.resolvePoolBy(meta)
-	return pool.selectCH(ctx, meta, query)
+	return pool.selectCH(ctx, ch1, meta, query)
 }
 
 func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
@@ -236,45 +240,58 @@ func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
 	return ch1.namedPools[defaultUserName][kind]
 }
 
-func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
+func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
 		return nil
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
-	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
-	serverAddrs := append(make([]string, 0, len(pool.serverAddrs)), pool.serverAddrs...)
-	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
+	shard := -1
+	if meta.NewSharding {
+		shard = meta.Metric.Shard(len(pool.servers) / 3)
+	}
+	var servers []*chpool.Pool
+	var serverAddrs []string
+	if shard < 0 {
+		servers = append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
+		serverAddrs = append(make([]string, 0, len(pool.serverAddrs)), pool.serverAddrs...)
+	} else {
+		i := shard * 3
+		servers = append(make([]*chpool.Pool, 0, 3), pool.servers[i:i+3]...)
+		serverAddrs = append(make([]string, 0, 3), pool.serverAddrs[i:i+3]...)
+	}
+	for safetyCounter := 0; safetyCounter < len(servers); safetyCounter++ {
 		var i int
 		i, err = pickRandomServer(servers, pool.rnd)
 		if err != nil {
 			return info, err
 		}
-		startTime := time.Now()
+		if !slices.Contains(meta.DisableCHAddrs, ch.opt.Addrs[i]) {
+			startTime := time.Now()
 
-		err = pool.sem.Acquire(ctx, meta.User)
-		info.WaitLockDuration = time.Since(startTime)
+			err = pool.sem.Acquire(ctx, meta.User)
+			info.WaitLockDuration = time.Since(startTime)
 
-		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName}, info.WaitLockDuration.Seconds())
-		if err != nil {
-			return info, err
+			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName}, info.WaitLockDuration.Seconds())
+			if err != nil {
+				return info, err
+			}
+			start := time.Now()
+			err = servers[i].Do(ctx, query)
+			info.QueryDuration = time.Since(start)
+			info.Host = serverAddrs[i]
+			pool.sem.Release()
+			if err == nil {
+				return // succeeded
+			}
+			if ctx.Err() != nil {
+				return // failed
+			}
+			log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		}
-
-		start := time.Now()
-		err = servers[i].Do(ctx, query)
-		info.QueryDuration = time.Since(start)
-		info.Host = serverAddrs[i]
-		pool.sem.Release()
-		if err == nil {
-			return // succeeded
-		}
-		if ctx.Err() != nil {
-			return // failed
-		}
-		log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		// keep searching alive server
-		servers = append(servers[:i], servers[i+1:]...)
-		serverAddrs = append(serverAddrs[:i], serverAddrs[i+1:]...)
+		servers = slices.Delete(servers, i, i+1)
+		serverAddrs = slices.Delete(serverAddrs, i, i+1)
 	}
 	return info, err
 }

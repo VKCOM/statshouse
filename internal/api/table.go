@@ -58,26 +58,28 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				continue
 			}
 			pq := queryBuilder{
-				version:     h.version,
-				user:        tableReqParams.user,
-				metric:      metricMeta,
-				what:        q.qry,
-				by:          metricMeta.GroupBy(req.by),
-				filterIn:    tableReqParams.mappedFilterIn,
-				filterNotIn: tableReqParams.mappedFilterNotIn,
-				sort:        req.tableSort(),
-				strcmpOff:   h.Version3StrcmpOff.Load(),
-				utcOffset:   h.utcOffset,
+				version:          h.version,
+				user:             tableReqParams.user,
+				metric:           metricMeta,
+				what:             q.qry,
+				by:               metricMeta.GroupBy(req.by),
+				filterIn:         tableReqParams.mappedFilterIn,
+				filterNotIn:      tableReqParams.mappedFilterNotIn,
+				sort:             req.tableSort(),
+				strcmpOff:        h.Version3StrcmpOff.Load(),
+				utcOffset:        h.utcOffset,
+				newShardingStart: h.NewShardingStart.Load(),
 			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
-				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
-				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
-				StepSec:    lod.StepSec,
-				Version:    lod.Version,
-				Table:      lod.Table,
-				HasPreKey:  lod.HasPreKey,
-				PreKeyOnly: lod.PreKeyOnly,
-				Location:   tableReqParams.location,
+				FromSec:     shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
+				ToSec:       shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
+				StepSec:     lod.StepSec,
+				Version:     lod.Version,
+				Metric:      pq.metric,
+				NewSharding: h.newSharding(metricMeta, lod.FromSec),
+				HasPreKey:   lod.HasPreKey,
+				PreKeyOnly:  lod.PreKeyOnly,
+				Location:    tableReqParams.location,
 			}, req.avoidCache)
 			if err != nil {
 				return nil, false, err
@@ -153,6 +155,10 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 		sort.Sort(queryRows)
 	}
 	return queryRows, hasMore, nil
+}
+
+func (h *Handler) newSharding(metric *format.MetricMetaValue, timestamp int64) bool {
+	return metric.NewSharding(timestamp, h.NewShardingStart.Load())
 }
 
 func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, limit int) (res []tsSelectRow, hasMore bool) {

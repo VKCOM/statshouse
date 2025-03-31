@@ -675,6 +675,32 @@ func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 	return res
 }
 
+func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bool {
+	if metric == nil {
+		return false
+	}
+	switch metric.ShardStrategy {
+	case ShardFixed, ShardByMetric, "":
+		return newShardingStart != 0 && timestamp >= newShardingStart
+	default:
+		return false
+	}
+}
+
+func (m *MetricMetaValue) Shard(numShards int) int {
+	if m == nil {
+		return -1
+	}
+	switch m.ShardStrategy {
+	case ShardFixed:
+		return int(m.ShardNum)
+	case ShardByMetric, "":
+		return int(uint32(m.MetricID) % uint32(numShards))
+	default:
+		return -1
+	}
+}
+
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
 func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	var err error

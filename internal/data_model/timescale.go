@@ -62,16 +62,17 @@ const (
 )
 
 type Timescale struct {
-	Location   *time.Location
-	UTCOffset  int64
-	Time       []int64
-	LODs       []TimescaleLOD
-	Start      int64
-	End        int64
-	Step       int64 // aggregation interval requested (former "desiredStepMul")
-	StartX     int   // requested time interval starts at "Time[StartX]"
-	ViewStartX int
-	ViewEndX   int
+	Location         *time.Location
+	UTCOffset        int64
+	Time             []int64
+	LODs             []TimescaleLOD
+	Start            int64
+	End              int64
+	Step             int64 // aggregation interval requested (former "desiredStepMul")
+	StartX           int   // requested time interval starts at "Time[StartX]"
+	ViewStartX       int
+	ViewEndX         int
+	NewShardingStart int64
 }
 
 type TimescaleLOD struct {
@@ -92,30 +93,32 @@ type QueryStat struct {
 
 type GetTimescaleArgs struct {
 	QueryStat
-	Version       string
-	Version3Start int64 // timestamp of schema version 3 start, zero means not set
-	Start         int64 // inclusive
-	End           int64 // exclusive
-	Step          int64
-	TimeNow       int64
-	ScreenWidth   int64
-	Mode          QueryMode
-	Extend        bool
-	Metric        *format.MetricMetaValue
-	Offset        int64
-	Location      *time.Location
-	UTCOffset     int64
+	Version          string
+	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
+	Start            int64 // inclusive
+	End              int64 // exclusive
+	Step             int64
+	TimeNow          int64
+	ScreenWidth      int64
+	Mode             QueryMode
+	Extend           bool
+	Metric           *format.MetricMetaValue
+	Offset           int64
+	Location         *time.Location
+	UTCOffset        int64
+	NewShardingStart int64
 }
 
 type LOD struct {
-	FromSec    int64 // inclusive
-	ToSec      int64 // exclusive
-	StepSec    int64
-	Version    string
-	Table      string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
-	HasPreKey  bool
-	PreKeyOnly bool
-	Location   *time.Location
+	FromSec     int64 // inclusive
+	ToSec       int64 // exclusive
+	StepSec     int64
+	Version     string
+	Metric      *format.MetricMetaValue
+	NewSharding bool
+	HasPreKey   bool
+	PreKeyOnly  bool
+	Location    *time.Location
 }
 
 type lodSwitch struct {
@@ -497,14 +500,15 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			end = StepForward(end, lod.Step, t.Location)
 		}
 		res = append(res, LOD{
-			FromSec:    start,
-			ToSec:      end,
-			StepSec:    lod.Step,
-			Version:    lod.Version,
-			Table:      LODTables[lod.Version][lod.Step],
-			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly: metric.PreKeyOnly,
-			Location:   t.Location,
+			FromSec:     start,
+			ToSec:       end,
+			StepSec:     lod.Step,
+			Version:     lod.Version,
+			Metric:      metric,
+			NewSharding: t.NewShardingStart != 0 && t.NewShardingStart < start,
+			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly:  metric.PreKeyOnly,
+			Location:    t.Location,
 		})
 		start = end
 	}
@@ -548,6 +552,20 @@ func (lod LOD) IndexOf(timestamp int64) (int, error) {
 
 func (lod LOD) IsFast() bool {
 	return lod.FromSec+fastQueryTimeInterval >= lod.ToSec
+}
+
+func (lod LOD) Table(newSharding bool) string {
+	if newSharding {
+		switch {
+		case lod.StepSec < _1m:
+			return "statshouse_v3_1s"
+		case lod.StepSec < _1h:
+			return "statshouse_v3_1m"
+		default:
+			return "statshouse_v3_1h"
+		}
+	}
+	return LODTables[lod.Version][lod.StepSec]
 }
 
 func (s *QueryStat) Add(m *format.MetricMetaValue, offset int64) {

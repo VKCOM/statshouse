@@ -645,14 +645,15 @@ func (l *cache2Loader) loadChunks() {
 	first := chunks[0]
 	last := chunks[len(chunks)-1]
 	lod := data_model.LOD{
-		FromSec:    first.chunk.start / int64(time.Second), // nanoseconds from seconds
-		ToSec:      last.chunk.end / int64(time.Second),    // nanoseconds from seconds
-		StepSec:    l.lod.StepSec,
-		Version:    l.lod.Version,
-		Table:      l.lod.Table,
-		HasPreKey:  l.lod.HasPreKey,
-		PreKeyOnly: l.lod.PreKeyOnly,
-		Location:   l.lod.Location,
+		FromSec:     first.chunk.start / int64(time.Second), // nanoseconds from seconds
+		ToSec:       last.chunk.end / int64(time.Second),    // nanoseconds from seconds
+		StepSec:     l.lod.StepSec,
+		Version:     l.lod.Version,
+		Metric:      l.lod.Metric,
+		NewSharding: l.lod.NewSharding,
+		HasPreKey:   l.lod.HasPreKey,
+		PreKeyOnly:  l.lod.PreKeyOnly,
+		Location:    l.lod.Location,
 	}
 	h, q := l.handler, l.query
 	c, b := l.cache, l.bucket
