@@ -50,10 +50,30 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const [draggedItemDimensions, setDraggedItemDimensions] = useState<{ w: number; h: number } | null>(null);
   const [lastMovedItem, setLastMovedItem] = useState<string | null>(null);
 
+  const saveTimeoutRef = useRef<number | null>(null);
+  const prevGroupSizesRef = useRef<Record<string, string | undefined>>({});
+
   const { breakpointKey } = useMemo(() => getBreakpointConfig(), []);
 
   // Move isMobile() call to component level with useMemo to prevent recalculation
   const mobileDevice = useMemo(() => isMobile(), []);
+
+  // Compare current sizes with previous to detect changes
+  const sizeChanged = useMemo(() => {
+    let changed = false;
+
+    orderGroup.forEach((groupKey) => {
+      if (prevGroupSizesRef.current[groupKey] !== groups[groupKey]?.size) {
+        changed = true;
+      }
+    });
+
+    orderGroup.forEach((groupKey) => {
+      prevGroupSizesRef.current[groupKey] = groups[groupKey]?.size;
+    });
+
+    return changed;
+  }, [groups, orderGroup]);
 
   // itemsGroup: Contains the structure of groups and their plots
   // layoutsCoords: Contains the layout coordinates for each group
@@ -151,7 +171,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     let currentY = 0;
 
     // Process each group
-    itemsGroup.forEach(({ groupKey, plots }) => {
+    itemsGroup.forEach(({ groupKey, plots }, index) => {
       const size = groups[groupKey]?.size;
       const widgetColsWidth = getSizeColumns(size);
 
@@ -169,6 +189,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         // h: 2,
         isDraggable: false,
         isResizable: false,
+        static: index === 0,
       });
 
       currentY += 1;
@@ -179,8 +200,9 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
       let plotLayouts: Layout[] = [];
 
-      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
-        console.log('HERE1111');
+      // Only use existing layout if size hasn't changed
+      if (!sizeChanged && existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+        // if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
         plotLayouts = existingGroupLayout.layout
           .filter((item) => {
             const plotKey = item.i.split('::')[1];
@@ -280,12 +302,29 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     dynamicRowHeight,
     dashboardLayoutEdit,
     layoutsCoords,
+    sizeChanged,
     mobileDevice,
   ]);
 
   const save = useCallback(
     (layout: Layout[]) => {
       if (!layout.length) return;
+
+      // Если есть активный таймаут, значит сохранение уже запланировано
+      if (saveTimeoutRef.current !== null) {
+        return;
+      }
+
+      // Устанавливаем блокировку на 300мс
+      saveTimeoutRef.current = window.setTimeout(() => {
+        saveTimeoutRef.current = null;
+      }, 300);
+
+      // if (sizeChanged) {
+      //   // Просто сохраняем текущий макет, но React пересчитает его заново
+      //   // из-за зависимости sizeChanged в useMemo для unifiedLayout
+      //   return;
+      // }
 
       // Extract plot moves and group assignments from layout
       const updatedGroupsMap = new Map<string, string[]>();
@@ -371,7 +410,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     );
     const maxLastGroupY =
       lastGroupItems.length > 0
-        ? Math.max(...lastGroupItems.map((item) => item.y + item.h))
+        ? Math.max(...lastGroupItems.map((item) => item.y + item.h)) - 6
         : lastHeaderItem.y + lastHeaderItem.h + 6;
 
     return draggedY > maxLastGroupY;
@@ -457,14 +496,11 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           return item;
         });
 
-        // Add the new group and save the updated layout
         addDashboardGroup(nextGroupKey);
         save(updatedLayout);
 
-        // Установить последний перемещенный элемент
         setLastMovedItem(`${nextGroupKey}::${draggedPlotKey}`);
       } else if (targetGroup && targetGroup !== draggedGroupKey) {
-        // Cross-group drag: update the item ID to reflect new group
         const updatedLayout = layout.map((item) => {
           if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
             return {
@@ -478,12 +514,10 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
         save(updatedLayout);
 
-        // Установить последний перемещенный элемент
         setLastMovedItem(`${targetGroup}::${draggedPlotKey}`);
       } else {
         save(layout);
 
-        // Установить последний перемещенный элемент
         setLastMovedItem(`${draggedGroupKey}::${draggedPlotKey}`);
       }
 
@@ -495,6 +529,13 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   );
 
   const handleResizeStop = useCallback(
+    (layout: Layout[]) => {
+      save(layout);
+    },
+    [save]
+  );
+
+  const onLayoutChange = useCallback(
     (layout: Layout[]) => {
       save(layout);
     },
@@ -519,7 +560,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         <ResponsiveGridLayout
           className={cn('layout', 'd-flex flex-row flex-wrap', !isEmbed ? 'pb-3' : 'pb-0')}
           breakpoints={BREAKPOINT_WIDTH}
-          // margin={[0, 30]}
           cols={COLS}
           rowHeight={dynamicRowHeight}
           isDraggable={isDashboardEditAllowed}
@@ -527,13 +567,12 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           onDragStop={onDragStop}
           onDragStart={onDragStart}
           onDrag={onDrag}
-          // onLayoutChange={onLayoutChange}
+          onLayoutChange={onLayoutChange}
           onResizeStop={handleResizeStop}
           isDroppable={isDashboardEditAllowed}
           layouts={{
             [breakpointKey]: unifiedLayout,
           }}
-          // compactType="vertical"
         >
           {/* Render group headers as static items */}
           {itemsGroup.map(({ groupKey }) => (
