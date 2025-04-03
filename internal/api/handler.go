@@ -2439,15 +2439,16 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		return nil, false, err
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:     req.version,
-		Start:       req.from.Unix(),
-		End:         req.to.Unix(),
-		Step:        req.step,
-		ScreenWidth: req.screenWidth,
-		TimeNow:     time.Now().Unix(),
-		Metric:      metricMeta,
-		Location:    h.location,
-		UTCOffset:   h.utcOffset,
+		Version:       req.version,
+		Version3Start: h.Version3Start.Load(),
+		Start:         req.from.Unix(),
+		End:           req.to.Unix(),
+		Step:          req.step,
+		ScreenWidth:   req.screenWidth,
+		TimeNow:       time.Now().Unix(),
+		Metric:        metricMeta,
+		Location:      h.location,
+		UTCOffset:     h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
