@@ -30,11 +30,9 @@ type (
 )
 
 type loadPointsFunc func(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error)
-type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int64) bool
 
 func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model.LOD, tableReqParams tableReqParams,
-	loadPoints loadPointsFunc,
-	maybeAddQuerySeriesTagValue maybeAddQuerySeriesTagValue) (_ []queryTableRow, hasMore bool, _ error) {
+	loadPoints loadPointsFunc) (_ []queryTableRow, hasMore bool, _ error) {
 	req := tableReqParams.req
 	metricMeta := tableReqParams.metricMeta
 	rowsIdx := make(map[tableRowKey]int)
@@ -96,7 +94,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				tags := &rows[i].tsTags
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, req.by, j, tags.tag[j])
+					wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, req.by, j, tags)
 					if wasAdded {
 						rowRepr.Tags = append(rowRepr.Tags, RawTag{
 							Index: j,
