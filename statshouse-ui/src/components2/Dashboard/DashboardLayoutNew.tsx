@@ -201,8 +201,8 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       let plotLayouts: Layout[] = [];
 
       // Only use existing layout if size hasn't changed
-      if (!sizeChanged && existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
-        // if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+      // if (!sizeChanged && existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
         plotLayouts = existingGroupLayout.layout
           .filter((item) => {
             const plotKey = item.i.split('::')[1];
@@ -302,7 +302,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     dynamicRowHeight,
     dashboardLayoutEdit,
     layoutsCoords,
-    sizeChanged,
     mobileDevice,
   ]);
 
@@ -310,31 +309,54 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     (layout: Layout[]) => {
       if (!layout.length) return;
 
-      // Если есть активный таймаут, значит сохранение уже запланировано
       if (saveTimeoutRef.current !== null) {
         return;
       }
 
-      // Устанавливаем блокировку на 300мс
       saveTimeoutRef.current = window.setTimeout(() => {
         saveTimeoutRef.current = null;
       }, 300);
 
-      // if (sizeChanged) {
-      //   // Просто сохраняем текущий макет, но React пересчитает его заново
-      //   // из-за зависимости sizeChanged в useMemo для unifiedLayout
-      //   return;
-      // }
-
-      // Extract plot moves and group assignments from layout
-      const updatedGroupsMap = new Map<string, string[]>();
-
-      // Initialize groups with empty plot arrays
-      itemsGroup.forEach(({ groupKey }) => {
-        updatedGroupsMap.set(groupKey, []);
+      // Находим заголовки групп и их позиции
+      const groupHeaders = layout.filter((item) => item.i.startsWith('group::'));
+      const collapsedGroups = groupHeaders.filter((header) => {
+        const groupKey = header.i.replace('group::', '');
+        // Проверяем есть ли графики группы в layout
+        return !layout.some(
+          (item) =>
+            !item.i.startsWith('group::') && // не заголовок
+            item.i.startsWith(`${groupKey}::`) // принадлежит группе
+        );
       });
 
-      // Parse layout to determine group assignments
+      // Проверяем не попадают ли графики в область свёрнутых групп
+      const isLayoutValid = !layout.some((item) => {
+        if (item.i.startsWith('group::')) return false;
+
+        return collapsedGroups.some((header) => {
+          // Проверяем пересечение по Y координате
+          return item.y >= header.y && item.y < header.y + header.h;
+        });
+      });
+
+      if (!isLayoutValid) {
+        return;
+      }
+
+      const updatedGroupsMap = new Map<string, string[]>();
+
+      // Сначала добавляем все существующие графики из itemsGroup
+      itemsGroup.forEach(({ groupKey, plots }) => {
+        // Для свёрнутых групп сохраняем все их графики
+        const isCollapsed = collapsedGroups.some((header) => header.i === `group::${groupKey}`);
+        if (isCollapsed) {
+          updatedGroupsMap.set(groupKey, [...plots]);
+        } else {
+          updatedGroupsMap.set(groupKey, []);
+        }
+      });
+
+      // Теперь добавляем графики из текущего layout
       layout.forEach((item) => {
         if (item.i.startsWith('group::')) return; // Skip group headers
 
@@ -357,11 +379,26 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       // Process layout updates for each group
       const groupLayouts = new Map<string, Layout[]>();
 
+      // Для свёрнутых групп используем их оригинальный layout
+      collapsedGroups.forEach((header) => {
+        const groupKey = header.i.replace('group::', '');
+        const originalLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
+        if (originalLayout) {
+          groupLayouts.set(groupKey, originalLayout.layout);
+        }
+      });
+
+      // Для остальных групп используем текущий layout
       layout.forEach((item) => {
-        if (item.i.startsWith('group::')) return; // Skip group headers
+        if (item.i.startsWith('group::')) return;
 
         const [groupKey] = item.i.split('::');
         if (!groupKey) return;
+
+        // Пропускаем свёрнутые группы, их layout мы уже обработали
+        if (collapsedGroups.some((header) => header.i === `group::${groupKey}`)) {
+          return;
+        }
 
         const groupLayout = groupLayouts.get(groupKey) || [];
         groupLayout.push(item);
@@ -376,7 +413,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
         });
       });
     },
-    [itemsGroup, setNextDashboardSchemePlot]
+    [itemsGroup, setNextDashboardSchemePlot, layoutsCoords]
   );
 
   const onDragStart = useCallback((_layout: Layout[], oldItem: Layout) => {
@@ -481,43 +518,178 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       }
 
       const targetGroup = getHoveredGroupKey(layout, newItem.y);
+      if (!targetGroup) {
+        // Если не определили группу, просто сохраняем текущий layout
+        save(layout);
+        setIsDragging(false);
+        return;
+      }
+
+      // Важная проверка: является ли график единственным в исходной группе
+      const sourceGroupInfo = itemsGroup.find((group) => group.groupKey === draggedGroupKey);
+      const isLastPlotInGroup =
+        sourceGroupInfo && sourceGroupInfo.plots.length === 1 && sourceGroupInfo.plots[0] === draggedPlotKey;
+
+      // Создаем обновленный список групп с графиками
+      const updatedItemsGroup = itemsGroup.map((group) => {
+        if (group.groupKey === targetGroup) {
+          // Добавляем график в целевую группу
+          const updatedPlots = [...group.plots];
+          if (!updatedPlots.includes(draggedPlotKey)) {
+            updatedPlots.push(draggedPlotKey);
+          }
+          return { groupKey: targetGroup, plots: updatedPlots };
+        }
+        if (group.groupKey === draggedGroupKey) {
+          // Удаляем график из исходной группы
+          return {
+            groupKey: draggedGroupKey,
+            plots: group.plots.filter((p) => p !== draggedPlotKey),
+          };
+        }
+        return group;
+      });
 
       // Check if the target group is the new group key (dropped below all groups)
       if (targetGroup === nextGroupKey) {
-        // Create a new layout with the dragged item now in the new group
+        // Создаем новую группу и подготавливаем её структуру
+        addDashboardGroup(nextGroupKey);
+
+        // Создаём новую структуру групп с перемещённым графиком
+        const newUpdatedItemsGroup = updatedItemsGroup
+          .filter((group) => group.groupKey !== nextGroupKey) // Удаляем пустую группу, если она уже есть
+          .concat([
+            // Добавляем новую группу с перемещённым графиком
+            {
+              groupKey: nextGroupKey,
+              plots: [draggedPlotKey],
+            },
+          ]);
+
+        // Получаем актуальные координаты x, y элемента из newItem
+        const { x: newX, y: newY } = newItem;
+
+        // Обновляем layout: переносим график в новую группу с сохранением координат
         const updatedLayout = layout.map((item) => {
           if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
             return {
               ...item,
               i: `${nextGroupKey}::${draggedPlotKey}`,
+              x: newX, // Используем координаты из newItem
+              y: newY, // Используем координаты из newItem
               ...(draggedItemDimensions ? { w: draggedItemDimensions.w, h: draggedItemDimensions.h } : {}),
             };
           }
           return item;
         });
 
-        addDashboardGroup(nextGroupKey);
-        save(updatedLayout);
+        // Создаём объекты с layout для новой и исходной групп
+        const layoutUpdates = [
+          // Layout для новой группы
+          {
+            groupKey: nextGroupKey,
+            layout: updatedLayout.filter(
+              (item) => !item.i.startsWith('group::') && item.i.startsWith(`${nextGroupKey}::`)
+            ),
+          },
+        ];
+
+        // Если это был последний график, добавляем пустой layout для исходной группы
+        if (isLastPlotInGroup) {
+          layoutUpdates.push({
+            groupKey: draggedGroupKey,
+            layout: [],
+          });
+        }
+
+        // Применяем обновления для всех затронутых групп
+        layoutUpdates.forEach((update) => {
+          setNextDashboardSchemePlot(newUpdatedItemsGroup, update);
+        });
 
         setLastMovedItem(`${nextGroupKey}::${draggedPlotKey}`);
-      } else if (targetGroup && targetGroup !== draggedGroupKey) {
+      } else if (targetGroup !== draggedGroupKey) {
+        // Проверяем, является ли целевая группа свёрнутой
+        const isTargetGroupCollapsed = !layout.some(
+          (item) => !item.i.startsWith('group::') && item.i.startsWith(`${targetGroup}::`)
+        );
+
+        // Проверяем, является ли целевая группа пустой (не имеет графиков)
+        const isTargetGroupEmpty = itemsGroup.find((group) => group.groupKey === targetGroup)?.plots.length === 0;
+
+        // Находим перемещаемый элемент
+        const draggedItemLayout = layout.find((item) => item.i === `${draggedGroupKey}::${draggedPlotKey}`);
+        if (!draggedItemLayout) {
+          setIsDragging(false);
+          return;
+        }
+
+        // Получаем актуальные координаты x, y элемента из newItem
+        const { x: newX, y: newY } = newItem;
+
+        // Обновляем layout: переносим график в целевую группу с сохранением координат
         const updatedLayout = layout.map((item) => {
           if (item.i === `${draggedGroupKey}::${draggedPlotKey}`) {
             return {
               ...item,
               i: `${targetGroup}::${draggedPlotKey}`,
+              x: newX, // Используем координаты из newItem
+              y: newY, // Используем координаты из newItem
               ...(draggedItemDimensions ? { w: draggedItemDimensions.w, h: draggedItemDimensions.h } : {}),
             };
           }
           return item;
         });
 
-        save(updatedLayout);
+        // Находим layout элемент для целевой группы
+        const targetGroupHeader = layout.find((item) => item.i === `group::${targetGroup}`);
+        const targetGroupY = targetGroupHeader ? targetGroupHeader.y + 1 : 0;
+
+        // Создаём новый элемент для пустой группы, если группа была пустой
+        let updatedItem;
+        if (isTargetGroupEmpty) {
+          updatedItem = {
+            i: `${targetGroup}::${draggedPlotKey}`,
+            x: newX,
+            y: newY,
+            w: draggedItemDimensions ? draggedItemDimensions.w : 4, // Используем оригинальную ширину или значение по умолчанию
+            h: draggedItemDimensions ? draggedItemDimensions.h : 5, // Используем оригинальную высоту или значение по умолчанию
+            minW: 3,
+            minH: 7,
+          };
+        }
+
+        // Создаём объекты с layout для целевой и исходной групп
+        const layoutUpdates = [
+          // Layout для целевой группы
+          {
+            groupKey: targetGroup,
+            layout: isTargetGroupCollapsed
+              ? []
+              : isTargetGroupEmpty && updatedItem
+                ? [updatedItem] // Для пустой группы используем специально созданный элемент
+                : updatedLayout.filter(
+                    (item) => !item.i.startsWith('group::') && item.i.startsWith(`${targetGroup}::`)
+                  ),
+          },
+        ];
+
+        // Если это был последний график, добавляем пустой layout для исходной группы
+        if (isLastPlotInGroup) {
+          layoutUpdates.push({
+            groupKey: draggedGroupKey,
+            layout: [],
+          });
+        }
+
+        // Применяем обновления для всех затронутых групп
+        layoutUpdates.forEach((update) => {
+          setNextDashboardSchemePlot(updatedItemsGroup, update);
+        });
 
         setLastMovedItem(`${targetGroup}::${draggedPlotKey}`);
       } else {
         save(layout);
-
         setLastMovedItem(`${draggedGroupKey}::${draggedPlotKey}`);
       }
 
@@ -525,7 +697,17 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       setDraggedGroupKey(null);
       setIsDragging(false);
     },
-    [draggedPlotKey, draggedGroupKey, getHoveredGroupKey, nextGroupKey, addDashboardGroup, save, draggedItemDimensions]
+    [
+      draggedPlotKey,
+      draggedGroupKey,
+      getHoveredGroupKey,
+      nextGroupKey,
+      addDashboardGroup,
+      save,
+      draggedItemDimensions,
+      itemsGroup,
+      setNextDashboardSchemePlot,
+    ]
   );
 
   const handleResizeStop = useCallback(
@@ -537,9 +719,12 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
   const onLayoutChange = useCallback(
     (layout: Layout[]) => {
+      if (isDragging) {
+        return;
+      }
       save(layout);
     },
-    [save]
+    [save, isDragging]
   );
 
   // Add a new group to the dashboard
