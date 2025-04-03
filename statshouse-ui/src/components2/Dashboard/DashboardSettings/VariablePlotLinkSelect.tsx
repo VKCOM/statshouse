@@ -22,7 +22,7 @@ export function VariablePlotLinkSelect({ plotKey, selectTag, onChange }: Variabl
   const plot = useStatsHouse(useCallback(({ params: { plots } }) => plots[plotKey], [plotKey]));
   const plotData = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plotKey], [plotKey]));
   const metricName = useMemo(() => getMetricName(plot, plotData), [plot, plotData]);
-  const metricMeta = useMetricMeta(metricName);
+  const metricMeta = useMetricMeta(metricName, true);
 
   const changeTag = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
