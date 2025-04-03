@@ -227,7 +227,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		return fmt.Errorf("at least one ingress-external-addr must be provided")
 	}
 	// run
-	log.Printf("Running ingress proxy v2, PID %d\n", os.Getpid())
+	log.Printf("Running IGPv2, commit %s, PID %d\n", build.Commit(), os.Getpid())
 	tcp4.run()
 	tcp6.run()
 	select {
