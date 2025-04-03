@@ -2476,7 +2476,7 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		rawValue:          req.screenWidth == 0 || req.step == _1M,
 		desiredStepMul:    desiredStepMul,
 		location:          h.location,
-	}, cacheGet, h.maybeAddQuerySeriesTagValue)
+	}, cacheGet)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2825,12 +2825,15 @@ func (h *Handler) putFloatsSlice(s *[]float64) {
 	h.pointFloatsPoolSize.Sub(int64(sizeInBytes))
 }
 
-func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tagValueID int64) bool {
+func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tags *tsTags) bool {
 	tagID := format.TagID(tagIndex)
 	if !containsString(by, tagID) {
 		return false
 	}
-	metaTag := SeriesMetaTag{Value: h.getRichTagValue(metricMeta, version, tagID, tagValueID)}
+	metaTag := SeriesMetaTag{Value: tags.stag[tagIndex]}
+	if metaTag.Value == "" {
+		metaTag.Value = h.getRichTagValue(metricMeta, version, tagID, tags.tag[tagIndex])
+	}
 	if tag := metricMeta.Name2Tag(tagID); tag != nil {
 		metaTag.Comment = tag.ValueComments[metaTag.Value]
 		metaTag.Raw = tag.Raw
