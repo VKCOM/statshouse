@@ -287,9 +287,6 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
-		if mode == buildSeriesQuery {
-			sb.WriteString(" AND index_type=0")
-		}
 	}
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
