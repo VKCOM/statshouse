@@ -20,6 +20,7 @@ import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './co
 import { isKeyId, isNotNilVariableLink, TreeParamsObject, treeParamsObjectValueSymbol } from './urlHelpers';
 import { readTimeRange } from './timeRangeHelpers';
 import { metricFilterDecode, widgetsParamsDecode } from './widgetsParams';
+import { decompressLayouts } from './urlHelpers';
 
 export function urlDecode(
   searchParams: TreeParamsObject,
@@ -170,6 +171,10 @@ export function urlDecodeGroup(
     return undefined;
   }
   const show = searchParams?.[GET_PARAMS.dashboardGroupInfoShow]?.[treeParamsObjectValueSymbol]?.[0];
+
+  const layoutsStr = searchParams?.[GET_PARAMS.dashboardGroupInfoLayouts]?.[treeParamsObjectValueSymbol]?.[0];
+  const layouts = layoutsStr ? decompressLayouts(layoutsStr, groupKey) : defaultGroup.layouts;
+
   return {
     id: groupKey,
     name: searchParams?.[GET_PARAMS.dashboardGroupInfoName]?.[treeParamsObjectValueSymbol]?.[0] ?? defaultGroup.name,
@@ -182,6 +187,7 @@ export function urlDecodeGroup(
     ),
     size: searchParams?.[GET_PARAMS.dashboardGroupInfoSize]?.[treeParamsObjectValueSymbol]?.[0] ?? defaultGroup.size,
     show: show != null ? show !== '0' : defaultGroup.show,
+    layouts: layouts,
   };
 }
 

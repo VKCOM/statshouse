@@ -132,6 +132,10 @@
   cursor: crosshair;
 }
 
+.pointerEventsNone {
+  pointer-events: none;
+}
+
 @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {
     display: block;

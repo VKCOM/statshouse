@@ -167,6 +167,7 @@ describe('@/urlStore urlDecode', () => {
           [GET_PARAMS.dashboardGroupInfoShow]: {},
           [GET_PARAMS.dashboardGroupInfoCount]: {},
           [GET_PARAMS.dashboardGroupInfoSize]: {},
+          [GET_PARAMS.dashboardGroupInfoLayouts]: {},
         },
         dParams
       )
@@ -190,6 +191,15 @@ describe('@/urlStore urlDecode', () => {
       name: 'name',
       show: false,
       size: '4',
+      layouts: expect.arrayContaining([
+        expect.objectContaining({
+          i: expect.any(String),
+          x: expect.any(Number),
+          y: expect.any(Number),
+          w: expect.any(Number),
+          h: expect.any(Number),
+        }),
+      ]),
     });
   });
   test('@/urlDecodeGroups', () => {
