@@ -53,14 +53,19 @@ const selectorStore = ({
   params: {
     timeRange: { to, from },
   },
-}: StatsHouseStore) => ({ timeRangeTo: to, timeRangeFrom: from });
+  dashboardLayoutEdit,
+}: StatsHouseStore) => ({
+  timeRangeTo: to,
+  timeRangeFrom: from,
+  dashboardLayoutEdit,
+});
 
 export function EventWidget({ className, isDashboard, isEmbed, fixRatio }: PlotWidgetRouterProps) {
   const {
     plot: { id, what: plotWhat, yLock, metricUnit },
   } = useWidgetPlotContext();
 
-  const { timeRangeTo, timeRangeFrom } = useStatsHouseShallow(selectorStore);
+  const { timeRangeTo, timeRangeFrom, dashboardLayoutEdit } = useStatsHouseShallow(selectorStore);
 
   const metricMeta = useMetricName(true);
   const divOut = useRef<HTMLDivElement>(null);

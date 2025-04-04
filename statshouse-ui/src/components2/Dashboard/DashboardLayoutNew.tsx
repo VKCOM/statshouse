@@ -5,7 +5,7 @@ import { useStatsHouseShallow } from '@/store2';
 import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { DashboardPlotWrapper } from './DashboardPlotWrapper';
-import { PlotView } from '../Plot';
+import { PlotWidget } from '@/components2/PlotWidgets/PlotWidget';
 import { DashboardGroup } from '@/components2';
 import { prepareItemsGroupWithLayout } from '@/common/prepareItemsGroup';
 import 'react-grid-layout/css/styles.css';
@@ -906,13 +906,13 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                   data-item-id={`${groupKey}::${plot}`}
                   data-group-key={groupKey}
                 >
-                  <PlotView
-                    className={cn(
-                      isDashboardEditAllowed && [css.pointerEventsNone, 'position-relative overflow-hidden w-100 h-100']
-                    )}
-                    key={`plot-${plot}`}
+                  <PlotWidget
+                    className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
+                    key={plot}
                     plotKey={plot}
                     isDashboard
+                    isEmbed={isEmbed}
+                    fixRatio
                   />
                 </DashboardPlotWrapper>
               ))

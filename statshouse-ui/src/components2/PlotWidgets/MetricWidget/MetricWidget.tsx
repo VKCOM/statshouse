@@ -24,13 +24,14 @@ import { setLiveMode } from '@/store2/liveModeStore';
 import { formatByMetricType, getMetricType } from '@/common/formatByMetricType';
 import { dataIdxNearest } from '@/common/dataIdxNearest';
 import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '@/common/axisValues';
-import { bwd, fwd, log2Filter, log2Splits } from '@/common/helpers';
+import { bwd, fwd, isMobile, log2Filter, log2Splits } from '@/common/helpers';
 import { yAxisSize } from '@/common/settings';
 import { metricTypeIncrs } from '@/components2/Plot/PlotView/constants';
 import { xRangeStatic } from '@/components2/Plot/PlotView/xRangeStatic';
 import { calcYRange } from '@/common/calcYRange';
 import { dateRangeFormat } from '@/components2/Plot/PlotView/dateRangeFormat';
 import { createPlotPreview } from '@/store2/plotPreviewStore';
+import { ReactComponent as SVGDragIcon } from 'bootstrap-icons/icons/grip-vertical.svg';
 import { setPlotVisibility, usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
 import cn from 'classnames';
 import { PlotHealsStatus } from '@/components2/Plot/PlotView/PlotHealsStatus';
@@ -51,14 +52,19 @@ const selectorStore = ({
   params: {
     timeRange: { to, from },
   },
-}: StatsHouseStore) => ({ timeRangeTo: to, timeRangeFrom: from });
+  dashboardLayoutEdit,
+}: StatsHouseStore) => ({
+  timeRangeTo: to,
+  timeRangeFrom: from,
+  dashboardLayoutEdit,
+});
 
 export function MetricWidget({ className, isDashboard, isEmbed, fixRatio }: PlotWidgetRouterProps) {
   const {
     plot: { id, what: plotWhat, yLock, numSeries, metricUnit, logScale, events },
   } = useWidgetPlotContext();
 
-  const { timeRangeTo, timeRangeFrom } = useStatsHouseShallow(selectorStore);
+  const { timeRangeTo, timeRangeFrom, dashboardLayoutEdit } = useStatsHouseShallow(selectorStore);
 
   const metricMeta = useMetricName(true);
   const divOut = useRef<HTMLDivElement>(null);
