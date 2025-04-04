@@ -468,7 +468,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   );
 
   const onDrag = useCallback(
-    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
+    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout) => {
       if (!isDragging || !draggedGroupKey) return;
 
       // Prevent dragging above the first group header
@@ -483,7 +483,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   );
 
   const onDragStop = useCallback(
-    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout, e: MouseEvent) => {
+    (layout: Layout[], _oldItem: Layout, newItem: Layout, _placeholder: Layout) => {
       if (!draggedPlotKey || !draggedGroupKey) {
         setDraggedPlotKey(null);
         setDraggedGroupKey(null);
@@ -881,6 +881,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
           rowHeight={dynamicRowHeight}
           isDraggable={isDashboardEditAllowed}
           isResizable={isDashboardEditAllowed}
+          resizeHandles={['se', 'sw']}
           onDragStop={onDragStop}
           onDragStart={onDragStart}
           onDrag={onDrag}
