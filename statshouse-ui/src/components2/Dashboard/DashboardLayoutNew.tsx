@@ -864,6 +864,13 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   // Determine if dashboard editing is allowed based on device and settings
   const isDashboardEditAllowed = dashboardLayoutEdit && !mobileDevice;
 
+  // Reset lastMovedItem when exiting edit mode
+  useEffect(() => {
+    if (!dashboardLayoutEdit) {
+      setLastMovedItem(null);
+    }
+  }, [dashboardLayoutEdit]);
+
   return (
     <div className="container-fluid">
       <div className={cn(isDashboardEditAllowed && 'dashboard-edit', className)}>
