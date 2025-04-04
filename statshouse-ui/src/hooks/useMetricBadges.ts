@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { ApiBadges, useApiBadges } from '../api/badges';
-import { getNewMetric, PlotParams, type TimeRange, type VariableKey, type VariableParams } from '../url2';
+import { type ApiBadges, useApiBadges } from '@/api/badges';
+import { getNewMetric, type PlotParams, type TimeRange, type VariableKey, type VariableParams } from '@/url2';
 import { useMemo } from 'react';
 
 const badgesSelector = (r?: ApiBadges) => ({
@@ -21,9 +21,11 @@ export function useMetricBadges(
   plot: PlotParams = defaultPlot,
   timeRange: TimeRange,
   timeShifts: number[],
-  variables: Partial<Record<VariableKey, VariableParams>>
+  variables: Partial<Record<VariableKey, VariableParams>>,
+  enabled: boolean = false,
+  priority: number = 2
 ) {
-  const queryData = useApiBadges(plot, timeRange, timeShifts, variables, badgesSelector);
+  const queryData = useApiBadges(plot, timeRange, timeShifts, variables, badgesSelector, enabled, priority);
   return useMemo(
     () => ({
       isLoading: queryData.isLoading,
