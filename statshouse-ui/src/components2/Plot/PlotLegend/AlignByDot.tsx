@@ -22,7 +22,7 @@ export const AlignByDot: React.FC<AlignByDotProps> = ({ value, title, unit = '',
   return (
     <Tooltip<'span'> as="span" className={cn(className, 'font-monospace')} title={title}>
       <span>{i}</span>
-      <span className={cn(css.dotSpace)}>
+      <span className={cn(css.dotSpace, 'text-body-tertiary')}>
         {f && '.'}
         {f}
         {!!value && unit}
