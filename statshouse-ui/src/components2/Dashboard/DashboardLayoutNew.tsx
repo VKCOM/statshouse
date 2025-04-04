@@ -60,6 +60,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const saveTimeoutRef = useRef<number | null>(null);
   const lastSavedDashboardIdRef = useRef<string | undefined>(null);
   const layoutChangeTimeoutRef = useRef<number | null>(null);
+  const prevGroupSizesRef = useRef<Record<string, string>>({});
 
   const { breakpointKey } = useMemo(() => getBreakpointConfig(), []);
 
@@ -76,6 +77,31 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       }),
     [groups, orderGroup, orderPlot]
   );
+
+  // Check if any group sizes have changed
+  const changedSizeGroups = useMemo(() => {
+    const changedGroups = new Set<string>();
+    const currentSizes: Record<string, string> = {};
+
+    // Collect current sizes
+    itemsGroup.forEach(({ groupKey }) => {
+      const size = groups[groupKey]?.size || '';
+      currentSizes[groupKey] = size;
+
+      // Check if size has changed from previous render
+      if (prevGroupSizesRef.current[groupKey] !== size) {
+        changedGroups.add(groupKey);
+      }
+    });
+
+    // Update the ref with current sizes
+    prevGroupSizesRef.current = currentSizes;
+
+    return changedGroups;
+  }, [groups, itemsGroup]);
+
+  // Flag for if any groups changed size
+  const hasGroupSizesChanged = useMemo(() => changedSizeGroups.size > 0, [changedSizeGroups]);
 
   // Calculate row height based on screen width and breakpoint
   const dynamicRowHeight = useMemo(() => {
@@ -190,9 +216,11 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
       let plotLayouts: Layout[] = [];
 
-      // Only use existing layout if size hasn't changed
+      // Only use existing layout if this specific group's size hasn't changed and there are enough layouts
+      const shouldUseExistingLayout =
+        !changedSizeGroups.has(groupKey) && existingGroupLayout && existingGroupLayout.layout.length >= plots.length;
 
-      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
+      if (shouldUseExistingLayout) {
         plotLayouts = existingGroupLayout.layout
           .filter((item) => {
             const plotKey = item.i.split('::')[1];
@@ -293,6 +321,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     dashboardLayoutEdit,
     layoutsCoords,
     mobileDevice,
+    changedSizeGroups,
   ]);
 
   const save = useCallback(
@@ -393,13 +422,25 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       // Update each group's layout
       groupLayouts.forEach((groupLayout, groupKey) => {
-        setNextDashboardSchemePlot(updatedItemsGroup, {
-          groupKey,
-          layout: groupLayout,
-        });
+        // Check if we should only update specific groups with changed size
+        if (hasGroupSizesChanged && changedSizeGroups.size > 0) {
+          // Only update if this group's size has changed
+          if (changedSizeGroups.has(groupKey)) {
+            setNextDashboardSchemePlot(updatedItemsGroup, {
+              groupKey,
+              layout: groupLayout,
+            });
+          }
+        } else {
+          // Original behavior - update all groups
+          setNextDashboardSchemePlot(updatedItemsGroup, {
+            groupKey,
+            layout: groupLayout,
+          });
+        }
       });
     },
-    [itemsGroup, layoutsCoords, setNextDashboardSchemePlot]
+    [itemsGroup, layoutsCoords, setNextDashboardSchemePlot, hasGroupSizesChanged, changedSizeGroups]
   );
 
   const onDragStart = useCallback((_layout: Layout[], oldItem: Layout) => {
