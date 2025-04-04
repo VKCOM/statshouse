@@ -898,7 +898,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                 <DashboardPlotWrapper
                   key={`${groupKey}::${plot}`}
                   className={cn(
-                    'plot-item p-1',
+                    'plot-item p-1 d-flex',
                     isDashboardEditAllowed && css.cursorMove,
 
                     lastMovedItem === `${groupKey}::${plot}` && 'border border-primary'
@@ -912,7 +912,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
                     plotKey={plot}
                     isDashboard
                     isEmbed={isEmbed}
-                    fixRatio
                   />
                 </DashboardPlotWrapper>
               ))
