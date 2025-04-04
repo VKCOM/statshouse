@@ -119,5 +119,5 @@
 }
 
 :global(.react-resizable-handle::after) {
-  border-color: var(--bs-primary) !important;
+  border-color: var(--bs-secondary) !important;
 }
