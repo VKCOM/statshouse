@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import { useStatsHouseShallow } from '@/store2';
@@ -60,7 +60,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
   const saveTimeoutRef = useRef<number | null>(null);
   const lastSavedDashboardIdRef = useRef<string | undefined>(null);
   const layoutChangeTimeoutRef = useRef<number | null>(null);
-  const prevGroupSizesRef = useRef<Record<string, string>>({});
 
   const { breakpointKey } = useMemo(() => getBreakpointConfig(), []);
 
@@ -77,31 +76,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       }),
     [groups, orderGroup, orderPlot]
   );
-
-  // Check if any group sizes have changed
-  const changedSizeGroups = useMemo(() => {
-    const changedGroups = new Set<string>();
-    const currentSizes: Record<string, string> = {};
-
-    // Collect current sizes
-    itemsGroup.forEach(({ groupKey }) => {
-      const size = groups[groupKey]?.size || '';
-      currentSizes[groupKey] = size;
-
-      // Check if size has changed from previous render
-      if (prevGroupSizesRef.current[groupKey] !== size) {
-        changedGroups.add(groupKey);
-      }
-    });
-
-    // Update the ref with current sizes
-    prevGroupSizesRef.current = currentSizes;
-
-    return changedGroups;
-  }, [groups, itemsGroup]);
-
-  // Flag for if any groups changed size
-  const hasGroupSizesChanged = useMemo(() => changedSizeGroups.size > 0, [changedSizeGroups]);
 
   // Calculate row height based on screen width and breakpoint
   const dynamicRowHeight = useMemo(() => {
@@ -216,11 +190,9 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
       const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
       let plotLayouts: Layout[] = [];
 
-      // Only use existing layout if this specific group's size hasn't changed and there are enough layouts
-      const shouldUseExistingLayout =
-        !changedSizeGroups.has(groupKey) && existingGroupLayout && existingGroupLayout.layout.length >= plots.length;
+      // Only use existing layout if size hasn't changed
 
-      if (shouldUseExistingLayout) {
+      if (existingGroupLayout && existingGroupLayout.layout.length >= plots.length) {
         plotLayouts = existingGroupLayout.layout
           .filter((item) => {
             const plotKey = item.i.split('::')[1];
@@ -321,7 +293,6 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     dashboardLayoutEdit,
     layoutsCoords,
     mobileDevice,
-    changedSizeGroups,
   ]);
 
   const save = useCallback(
@@ -422,25 +393,13 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       // Update each group's layout
       groupLayouts.forEach((groupLayout, groupKey) => {
-        // Check if we should only update specific groups with changed size
-        if (hasGroupSizesChanged && changedSizeGroups.size > 0) {
-          // Only update if this group's size has changed
-          if (changedSizeGroups.has(groupKey)) {
-            setNextDashboardSchemePlot(updatedItemsGroup, {
-              groupKey,
-              layout: groupLayout,
-            });
-          }
-        } else {
-          // Original behavior - update all groups
-          setNextDashboardSchemePlot(updatedItemsGroup, {
-            groupKey,
-            layout: groupLayout,
-          });
-        }
+        setNextDashboardSchemePlot(updatedItemsGroup, {
+          groupKey,
+          layout: groupLayout,
+        });
       });
     },
-    [itemsGroup, layoutsCoords, setNextDashboardSchemePlot, hasGroupSizesChanged, changedSizeGroups]
+    [itemsGroup, layoutsCoords, setNextDashboardSchemePlot]
   );
 
   const onDragStart = useCallback((_layout: Layout[], oldItem: Layout) => {
@@ -760,6 +719,124 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     },
     [save, isDragging, dashboardId]
   );
+
+  // Track previous group sizes to detect changes
+  const prevGroupSizesRef = useRef<Record<string, number>>({});
+
+  // Effect to detect and handle group size changes
+  useEffect(() => {
+    const updatedGroups: string[] = [];
+
+    // Check each group to see if its size has changed
+    Object.entries(groups).forEach(([groupKey, group]) => {
+      const prevSize = prevGroupSizesRef.current[groupKey];
+      // Convert size to numeric value using getSizeColumns
+      const currentSize = getSizeColumns(group?.size);
+
+      // If the size has changed, add this group to the list to update
+      if (prevSize !== undefined && prevSize !== currentSize) {
+        updatedGroups.push(groupKey);
+      }
+
+      // Update the ref with current sizes
+      prevGroupSizesRef.current[groupKey] = currentSize;
+    });
+
+    // Only proceed if we have groups that need updating
+    if (updatedGroups.length > 0) {
+      // Get the current layout information
+      const currentItemsGroup = itemsGroup.map((group) => ({ ...group }));
+
+      // For each updated group, recalculate and update its layout
+      updatedGroups.forEach((groupKey) => {
+        const size = groups[groupKey]?.size;
+        const widgetColsWidth = getSizeColumns(size);
+        const cols = COLS[breakpointKey] || 12;
+
+        // Find plots for this group
+        const groupInfo = itemsGroup.find((g) => g.groupKey === groupKey);
+        if (!groupInfo || groupInfo.plots.length === 0) return;
+
+        // Calculate new layout for this group based on new size
+        let itemWidth = 0;
+        if (mobileDevice) {
+          itemWidth = cols;
+        } else {
+          switch (widgetColsWidth) {
+            case 2:
+              itemWidth = Math.floor(cols / 2);
+              break;
+            case 3:
+              itemWidth = Math.floor(cols / 3);
+              break;
+            case 4:
+              itemWidth = Math.floor(cols / 4);
+              break;
+            default:
+              itemWidth = Math.floor(cols / widgetColsWidth);
+          }
+        }
+
+        // Calculate row height specific to this group
+        const groupRowHeight = calculateRowHeightForGroup(groupKey);
+        const rowHeightRatio = groupRowHeight / dynamicRowHeight;
+
+        let defaultHeight = 5;
+        if (breakpointKey === BREAKPOINTS_SIZES.xxxl || breakpointKey === BREAKPOINTS_SIZES.xxl) {
+          defaultHeight = 6;
+        } else if (breakpointKey === BREAKPOINTS_SIZES.xl || breakpointKey === BREAKPOINTS_SIZES.lg) {
+          defaultHeight = 6;
+        } else if (breakpointKey === BREAKPOINTS_SIZES.xs || breakpointKey === BREAKPOINTS_SIZES.xxs) {
+          defaultHeight = 4;
+        }
+
+        // Calculate balanced height based on column count
+        let widthRatio;
+        if (widgetColsWidth <= 2) {
+          widthRatio = itemWidth / (cols / 2);
+        } else {
+          widthRatio = Math.max(0.5, itemWidth / (cols / 2.7));
+        }
+
+        // Apply minimum height that scales with column count
+        const minimumHeight = Math.max(2, 4 - widgetColsWidth * 0.5);
+        defaultHeight = Math.max(minimumHeight, Math.round(defaultHeight * widthRatio));
+
+        // Create new layout for this group's plots
+        const newGroupLayout: Layout[] = [];
+        groupInfo.plots.forEach((plot, index) => {
+          // On mobile, each chart gets its own row
+          const row = mobileDevice ? index : Math.floor(index / widgetColsWidth);
+          const col = mobileDevice ? 0 : index % widgetColsWidth;
+          const startX = col * itemWidth;
+
+          newGroupLayout.push({
+            i: `${groupKey}::${plot}`,
+            x: startX,
+            y: row * defaultHeight,
+            w: itemWidth,
+            h: Math.round(defaultHeight * rowHeightRatio + 0.8),
+            minW: 3,
+            minH: 7,
+          });
+        });
+
+        // Update only this group's layout
+        setNextDashboardSchemePlot(currentItemsGroup, {
+          groupKey,
+          layout: newGroupLayout,
+        });
+      });
+    }
+  }, [
+    groups,
+    itemsGroup,
+    breakpointKey,
+    dynamicRowHeight,
+    calculateRowHeightForGroup,
+    mobileDevice,
+    setNextDashboardSchemePlot,
+  ]);
 
   // Add a new group to the dashboard
   const onAddGroup = useCallback(
