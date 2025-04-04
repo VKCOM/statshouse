@@ -749,13 +749,26 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
 
       // For each updated group, recalculate and update its layout
       updatedGroups.forEach((groupKey) => {
-        const size = groups[groupKey]?.size;
-        const widgetColsWidth = getSizeColumns(size);
-        const cols = COLS[breakpointKey] || 12;
-
         // Find plots for this group
         const groupInfo = itemsGroup.find((g) => g.groupKey === groupKey);
         if (!groupInfo || groupInfo.plots.length === 0) return;
+
+        // Check if this group has a custom layout saved
+        const existingGroupLayout = layoutsCoords.find((l) => l.groupKey === groupKey);
+
+        // If custom layout exists and has items for all plots, respect it and don't recalculate
+        if (existingGroupLayout && existingGroupLayout.layout.length > 0) {
+          const hasAllPlots = groupInfo.plots.every((plotKey) =>
+            existingGroupLayout.layout.some((item) => item.i === `${groupKey}::${plotKey}`)
+          );
+
+          // If all plots have a defined position in the saved layout, skip recalculation
+          if (hasAllPlots) return;
+        }
+
+        const size = groups[groupKey]?.size;
+        const widgetColsWidth = getSizeColumns(size);
+        const cols = COLS[breakpointKey] || 12;
 
         // Calculate new layout for this group based on new size
         let itemWidth = 0;
@@ -836,6 +849,7 @@ export const DashboardLayoutNew = memo(function DashboardLayoutNew({ className }
     calculateRowHeightForGroup,
     mobileDevice,
     setNextDashboardSchemePlot,
+    layoutsCoords,
   ]);
 
   // Add a new group to the dashboard
