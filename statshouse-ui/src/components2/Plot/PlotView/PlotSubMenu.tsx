@@ -29,7 +29,7 @@ export const PlotSubMenu = memo(function PlotSubMenu({ className }: PlotSubMenuP
   const { timeRange, timeShifts, variables } = useStatsHouseShallow(selectorStore);
   const metricName = useMetricName(true);
   const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
-    useMetricBadges(plot, timeRange, timeShifts, variables);
+    useMetricBadges(plot, timeRange, timeShifts, variables, true, 1);
 
   const linkCSV = useLinkCSV2(plot.id);
   return (

@@ -10,8 +10,8 @@ import type { PlotParams, TimeRange, VariableKey, VariableParams } from '@/url2'
 import { useLiveModeStore } from '@/store2/liveModeStore';
 import { useMemo } from 'react';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { useStatsHouse } from '@/store2';
 import { getLoadPlotUrlParamsLight } from '@/store2/plotDataStore/loadPlotData2';
+import { usePlotHeal } from '@/hooks/usePlotHeal';
 
 export const ApiBadgesEndpoint = '/api/badges';
 
@@ -52,10 +52,7 @@ export function useApiBadges<T = ApiBadges>(
     return getLoadPlotUrlParamsLight(plot, timeRange, timeShifts, variables, interval);
   }, [interval, plot, timeRange, timeShifts, variables]);
 
-  const plotHeals = useStatsHouse((s) => {
-    const status = s.plotHeals[plot.id];
-    return !(!!status && !status.status && status.lastTimestamp + status.timeout * 1000 > Date.now());
-  });
+  const plotHeals = usePlotHeal(plot.id);
 
   const fetchParams = useMemo(() => {
     if (!plot?.id) {
@@ -65,7 +62,12 @@ export function useApiBadges<T = ApiBadges>(
   }, [interval, plot, priority, timeRange, timeShifts, variables]);
 
   return useQuery({
-    enabled: plotHeals && enabled,
+    enabled: (): boolean => {
+      if (enabled) {
+        return plotHeals === true || plotHeals > Date.now();
+      }
+      return false;
+    },
     select,
     queryKey: [ApiBadgesEndpoint, keyParams],
     queryFn: async ({ signal }) => {
