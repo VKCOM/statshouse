@@ -30,7 +30,6 @@ func Test_getTableFromLODs(t *testing.T) {
 		FromSec:  1,
 		ToSec:    10,
 		StepSec:  1,
-		Table:    "",
 		Location: l,
 	}
 	_ = queryTableRow{

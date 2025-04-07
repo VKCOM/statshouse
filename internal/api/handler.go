@@ -177,6 +177,7 @@ type (
 		Version3StrcmpOff      atomic.Bool
 		CacheVersion           atomic.Int32
 		CacheTrimBackoffPeriod atomic.Int64
+		NewShardingStart       atomic.Int64
 		CacheListMu            sync.RWMutex
 		CacheBlacklist         []string
 		CacheWhitelist         []string
@@ -667,6 +668,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.setCacheVersion(int32(cfg.CacheVersion))
 		chV2.SetLimits(cfg.UserLimits)
+		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.CacheListMu.Lock()
 		h.CacheBlacklist = cfg.CacheBlacklist
 		h.CacheWhitelist = cfg.CacheWhitelist
@@ -819,11 +821,12 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		}
 	)
 	err := req.doSelect(ctx, chutil.QueryMetaInto{
-		IsFast:  true,
-		IsLight: true,
-		User:    "cache-update",
-		Metric:  format.BuiltinMetricIDContributorsLog,
-		Table:   _1sTableSH3,
+		IsFast:      true,
+		IsLight:     true,
+		User:        "cache-update",
+		Metric:      format.BuiltinMetricMetaContributorsLog,
+		NewSharding: false,
+		Table:       _1sTableSH3,
 	}, Version2, ch.Query{
 		Body: sb.String(),
 		Result: proto.Results{
@@ -1912,15 +1915,16 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:       version,
-		Start:         from.Unix(),
-		End:           to.Unix(),
-		ScreenWidth:   100, // really dumb
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
-		Version3Start: h.Version3Start.Load(),
+		Version:          version,
+		Start:            from.Unix(),
+		End:              to.Unix(),
+		ScreenWidth:      100, // really dumb
+		TimeNow:          time.Now().Unix(),
+		Metric:           metricMeta,
+		Location:         h.location,
+		UTCOffset:        h.utcOffset,
+		Version3Start:    h.Version3Start.Load(),
+		NewShardingStart: h.NewShardingStart.Load(),
 	})
 	if err != nil {
 		return nil, false, err
@@ -1943,12 +1947,14 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		for _, lod := range lods {
 			query := pq.buildTagValuesQuery(lod)
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
+			newSharding := h.newSharding(pq.metric, lod.FromSec)
 			err = h.doSelect(ctx, chutil.QueryMetaInto{
-				IsFast:  isFast,
-				IsLight: true,
-				User:    req.ai.user,
-				Metric:  metricMeta.MetricID,
-				Table:   lod.Table,
+				IsFast:      isFast,
+				IsLight:     true,
+				User:        req.ai.user,
+				Metric:      metricMeta,
+				Table:       lod.Table(newSharding),
+				NewSharding: newSharding,
 			}, version, ch.Query{
 				Body:   query.body,
 				Result: query.res,
@@ -2073,6 +2079,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Options: promql.Options{
 			Version:          req.version,
 			Version3Start:    r.Version3Start.Load(),
+			NewShardingStart: r.NewShardingStart.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,
 			ExplicitGrouping: true,
@@ -2204,6 +2211,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Options: promql.Options{
 				Version:          req.version,
 				Version3Start:    h.Version3Start.Load(),
+				NewShardingStart: h.NewShardingStart.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
@@ -2439,16 +2447,17 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		return nil, false, err
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:       req.version,
-		Version3Start: h.Version3Start.Load(),
-		Start:         req.from.Unix(),
-		End:           req.to.Unix(),
-		Step:          req.step,
-		ScreenWidth:   req.screenWidth,
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
+		Version:          req.version,
+		Version3Start:    h.Version3Start.Load(),
+		Start:            req.from.Unix(),
+		End:              req.to.Unix(),
+		Step:             req.step,
+		ScreenWidth:      req.screenWidth,
+		TimeNow:          time.Now().Unix(),
+		Metric:           metricMeta,
+		Location:         h.location,
+		UTCOffset:        h.utcOffset,
+		NewShardingStart: h.NewShardingStart.Load(),
 	})
 	if err != nil {
 		return nil, false, err
@@ -2577,6 +2586,7 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		Options: promql.Options{
 			Version:          req.version,
 			Version3Start:    h.Version3Start.Load(),
+			NewShardingStart: h.NewShardingStart.Load(),
 			Mode:             opt.mode,
 			AvoidCache:       req.avoidCache,
 			TimeNow:          opt.timeNow.Unix(),
@@ -3017,16 +3027,17 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	isFast := lod.IsFast()
 	isLight := query.isLight()
 	isHardware := query.isHardware()
-	metric := pq.metricID()
-	table := lod.Table
+	newSharding := h.newSharding(pq.metric, lod.FromSec)
+	table := lod.Table(newSharding)
 	start := time.Now()
 	err = h.doSelect(ctx, chutil.QueryMetaInto{
-		IsFast:     isFast,
-		IsLight:    isLight,
-		IsHardware: isHardware,
-		User:       pq.user,
-		Metric:     metric,
-		Table:      table,
+		IsFast:      isFast,
+		IsLight:     isLight,
+		IsHardware:  isHardware,
+		User:        pq.user,
+		Metric:      pq.metric,
+		Table:       table,
+		NewSharding: newSharding,
 	}, lod.Version, ch.Query{
 		Body:   query.body,
 		Result: query.res,
@@ -3055,7 +3066,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
 			rows,
-			lod.Table,
+			table,
 			(lod.ToSec-lod.FromSec)/lod.StepSec,
 			time.Unix(lod.FromSec, 0),
 			time.Unix(lod.ToSec, 0),
@@ -3078,15 +3089,16 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 	isFast := lod.IsFast()
 	isLight := query.isLight()
 	isHardware := query.isHardware()
-	metric := pq.metricID()
-	table := lod.Table
+	newSharding := h.newSharding(pq.metric, lod.FromSec)
+	table := lod.Table(newSharding)
 	err = h.doSelect(ctx, chutil.QueryMetaInto{
-		IsFast:     isFast,
-		IsLight:    isLight,
-		IsHardware: isHardware,
-		User:       pq.user,
-		Metric:     metric,
-		Table:      table,
+		IsFast:      isFast,
+		IsLight:     isLight,
+		IsHardware:  isHardware,
+		User:        pq.user,
+		Metric:      pq.metric,
+		Table:       table,
+		NewSharding: newSharding,
 	}, lod.Version, ch.Query{
 		Body:   query.body,
 		Result: query.res,
@@ -3108,7 +3120,7 @@ func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod dat
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in",
 			rows,
-			lod.Table,
+			table,
 			time.Unix(lod.FromSec, 0),
 			time.Unix(lod.ToSec, 0),
 			pq.user,
