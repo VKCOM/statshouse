@@ -428,10 +428,11 @@ func (p *proxyConn) run() {
 			return // server shutdown
 		}
 		if firstReq.tip == rpcInvokeReqHeaderTLTag {
-			if firstReq.RequestTag() == constants.StatshouseGetConfig3 {
-				// GetConfig3 does not send shardReplica
+			switch firstReq.RequestTag() {
+			case constants.StatshouseGetConfig2, constants.StatshouseGetConfig3:
+				// GetConfigX does not send shardReplica
 				if res := firstReq.process(p); res.Error() != nil {
-					return // failed serve GetConfig3 request
+					return // failed to serve GetConfigX request
 				}
 				continue
 			}
