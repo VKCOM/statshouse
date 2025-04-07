@@ -238,6 +238,7 @@ const (
 	ShardByTagsHash = "tags_hash"
 	ShardFixed      = "fixed_shard"
 	ShardByMetric   = "metric_id" // shard = metric_id % num_shards
+	ShardBuiltin    = "builtin"   // for special builtin metrics that are written in all shards (only dist)
 )
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -272,6 +273,7 @@ type MetricMetaValue struct {
 	ShardNum             uint32                   `json:"shard_num,omitempty"`
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
+	MetricTagID          uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes

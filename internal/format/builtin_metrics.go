@@ -170,7 +170,9 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID: "4",
+	PreKeyTagID:   "4",
+	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
+	MetricTagID:   4,
 }
 
 const BuiltinMetricIDAggSamplingFactor = -10
@@ -194,7 +196,9 @@ Set only if greater than 1.`,
 			TagValueIDAggSamplingFactorReasonInsertSize: "insert_size",
 		}),
 	}},
-	PreKeyTagID: "4",
+	PreKeyTagID:   "4",
+	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
+	MetricTagID:   4,
 }
 
 const BuiltinMetricIDIngestionStatus = -11
@@ -255,7 +259,9 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 	}, {
 		Description: "tag_id",
 	}},
-	PreKeyTagID: "1",
+	PreKeyTagID:   "1",
+	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
+	MetricTagID:   1,
 }
 
 var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
@@ -712,7 +718,9 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID: "2",
+	PreKeyTagID:   "2",
+	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
+	MetricTagID:   2,
 }
 
 var BuiltinMetricMetaAutoConfig = &MetricMetaValue{
@@ -1064,6 +1072,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		Description: "timestamp",
 		RawKind:     "timestamp",
 	}},
+	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
 }
 
 const BuiltinMetricIDContributorsLogRev = -62
@@ -1082,6 +1091,7 @@ Value is delta between second value and time it was inserted.`,
 		Description: "insert_timestamp",
 		RawKind:     "timestamp",
 	}},
+	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
 }
 
 var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{
