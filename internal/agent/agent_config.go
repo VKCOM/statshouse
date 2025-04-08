@@ -66,6 +66,14 @@ func (s *Agent) getInitialConfig() tlstatshouse.GetConfigResult3 {
 					strings.Join(addresses, ","), filterUnusedConfigFields(dst.String()))
 				return dst
 			}
+			// legacy GetConfig2 fallback
+			c2, err := GetConfig(s.network, s.rpcClientConfig, addresses, string(s.hostName), s.stagingLevel, s.componentTag, s.buildArchTag, s.config.Cluster, s.cacheDir, s.logF)
+			if err == nil && len(c2.Addresses) != 0 && len(c2.Addresses)%3 == 0 {
+				return tlstatshouse.GetConfigResult3{
+					Addresses:          c2.Addresses,
+					ShardByMetricCount: uint32(len(c2.Addresses) / 3),
+				}
+			}
 			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
 			s.logF("Configuration: failed autoconfiguration from all addresses (%q), and no getConfigResult in disc cache, will retry after %v delay",
 				strings.Join(addresses, ","), backoffTimeout)
@@ -187,4 +195,68 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 		return res, fmt.Errorf("loaded invalid config from cache: %s", filterUnusedConfigFields(res.String()))
 	}
 	return res, err
+}
+
+func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string, cacheDir string, logF func(format string, args ...interface{})) (dst tlstatshouse.GetConfigResult, err error) {
+	addresses := append([]string{}, addressesExt...) // For simulator, where many start concurrently with the copy of the config
+	rnd := rand.New()
+	rnd.Shuffle(len(addresses), func(i, j int) { // randomize configuration load
+		addresses[i], addresses[j] = addresses[j], addresses[i]
+	})
+	backoffTimeout := time.Duration(0)
+	for nextAddr := 0; nextAddr < len(addresses); nextAddr++ {
+		addr := addresses[nextAddr]
+		dst, err = clientGetConfig(network, rpcClient, nextAddr, addr, hostName, stagingLevel, componentTag, archTag, cluster)
+		if err == nil {
+			logF("Configuration: success autoconfiguration from (%q), address list is (%q), max is %d", strings.Join(addresses, ","), strings.Join(dst.Addresses, ","), dst.MaxAddressesCount)
+			aggregatorTime := time.UnixMilli(dst.Ts)
+			timeDiff := time.Since(aggregatorTime)
+			if timeDiff.Abs() > time.Second {
+				logF("Configuration: WARNING time difference with aggregator is %v more then a second", timeDiff)
+			} else {
+				logF("Configuration: time difference with aggregator is %v", timeDiff)
+			}
+			return dst, nil
+		}
+		logF("Configuration: failed autoconfiguration from address (%q) - %v", addr, err)
+		if nextAddr == len(addresses)-1 { // last one
+			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
+			logF("Configuration: failed autoconfiguration from all addresses (%q), will retry after %v delay",
+				strings.Join(addresses, ","), backoffTimeout)
+			time.Sleep(backoffTimeout)
+			// This sleep will not affect shutdown time
+		}
+	}
+	return tlstatshouse.GetConfigResult{}, err
+}
+
+func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	client := tlstatshouse.Client{
+		Client:  rpcClient,
+		Network: network,
+		Address: addr,
+		ActorID: 0,
+	}
+	args := tlstatshouse.GetConfig2{
+		Cluster: cluster,
+		Header: tlstatshouse.CommonProxyHeader{
+			ShardReplica: int32(shardReplicaNum), // proxies do proxy GetConfig requests to write __autoconfig metric with correct host, which proxy cannot map
+			HostName:     hostName,
+			ComponentTag: componentTag,
+			BuildArch:    archTag,
+		},
+	}
+	args.SetTs(true)
+	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, stagingLevel)
+	var ret tlstatshouse.GetConfigResult
+	ctx, cancel := context.WithTimeout(context.Background(), data_model.AutoConfigTimeout)
+	defer cancel()
+	if err := client.GetConfig2(ctx, args, &extra, &ret); err != nil {
+		return tlstatshouse.GetConfigResult{}, err
+	}
+	if len(ret.Addresses)%3 != 0 || len(ret.Addresses) == 0 || ret.MaxAddressesCount <= 0 || ret.MaxAddressesCount%3 != 0 || int(ret.MaxAddressesCount) > len(ret.Addresses) {
+		return tlstatshouse.GetConfigResult{}, fmt.Errorf("received invalid address list %q max is %d from aggregator %q", strings.Join(ret.Addresses, ","), ret.MaxAddressesCount, addr)
+	}
+	return ret, nil
 }
