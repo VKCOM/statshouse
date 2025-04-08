@@ -7,7 +7,7 @@
 import { memo, useCallback, useMemo } from 'react';
 import { Select, type SelectOptionProps } from '@/components/Select';
 import cn from 'classnames';
-import { isNotNil, parseURLSearchParams } from '@/common/helpers';
+import { emptyArray, isNotNil, parseURLSearchParams } from '@/common/helpers';
 import { produce } from 'immer';
 import { dequal } from 'dequal/lite';
 import { PLOT_TYPE } from '@/api/enum';
@@ -16,9 +16,10 @@ import { globalSettings } from '@/common/settings';
 import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from '@/url2';
 import { addPlot, getMetricFullName } from '@/store2/helpers';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
-import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
 import { StatsHouseStore, useStatsHouse } from '@/store2';
 import { setParams } from '@/store2/methods';
+import { usePlotsDataStore } from '@/store2/plotDataStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const eventPreset: (SelectOptionProps & { plot: PlotParams })[] = globalSettings.event_preset
   .map((url) => {
@@ -47,7 +48,14 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
   const {
     plot: { id, events },
   } = useWidgetPlotContext();
-  const { plotData } = useWidgetPlotDataContext();
+  const { metricName, whats } = usePlotsDataStore(
+    useShallow(
+      useCallback(
+        ({ plotsData }) => ({ metricName: plotsData[id]?.metricName ?? '', whats: plotsData[id]?.whats ?? emptyArray }),
+        [id]
+      )
+    )
+  );
 
   const onChange = useCallback(
     (value: string | string[] = []) => {
@@ -96,7 +104,7 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
       return false;
     });
     const eventPlots: SelectOptionProps[] = plotsArr.map((p) => {
-      const name = getMetricFullName(p, plotData);
+      const name = getMetricFullName(p, { metricName, whats });
       return {
         value: p.id,
         name,
@@ -107,7 +115,7 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
     }
     eventPlots.unshift(...eventPresetFilter);
     return eventPlots;
-  }, [plotData, plots]);
+  }, [metricName, plots, whats]);
 
   if (!list.length) {
     return null;

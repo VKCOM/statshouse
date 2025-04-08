@@ -24,8 +24,8 @@ import { formatByMetricType } from '@/common/formatByMetricType';
 import { emptyArray, isNotNil } from '@/common/helpers';
 import { freeKeyPrefix } from '@/url2';
 import { SeriesMetaTag } from '@/api/query';
-import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
 import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
+import { usePlotsDataStore } from '@/store2/plotDataStore';
 
 export type PlotEventsProps = {
   className?: string;
@@ -60,9 +60,10 @@ const selectorStore = ({ params: { timeRange, variables } }: StatsHouseStore) =>
 
 export function PlotEvents({ className, onCursor, cursor, setTimeRange }: PlotEventsProps) {
   const { plot } = useWidgetPlotContext();
-  const {
-    plotData: { metricUnit },
-  } = useWidgetPlotDataContext();
+
+  const metricUnit = usePlotsDataStore(
+    useCallback(({ plotsData }) => plotsData[plot.id]?.metricUnit ?? METRIC_TYPE.none, [plot.id])
+  );
 
   const { timeRange, variables } = useStatsHouseShallow(selectorStore);
 

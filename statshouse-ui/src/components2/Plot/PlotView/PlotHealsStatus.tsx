@@ -14,8 +14,8 @@ import { useLiveModeStore } from '@/store2/liveModeStore';
 import { usePlotLoader } from '@/store2/plotQueryStore';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { refetchQuery } from '@/api/query';
-import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
 import { removePlotHeals } from '@/store2/methods';
+import { setPlotData, usePlotsDataStore } from '@/store2/plotDataStore';
 
 export type PlotHealsStatusProps = {
   className?: string;
@@ -29,10 +29,8 @@ const selectorStore = ({ params: { timeRange, timeShifts, variables } }: StatsHo
 
 export const PlotHealsStatus = memo(function PlotHealsStatus({ className }: PlotHealsStatusProps) {
   const { plot } = useWidgetPlotContext();
-  const {
-    plotData: { error },
-    setPlotData,
-  } = useWidgetPlotDataContext();
+  const setPlotDataProduce = useMemo(() => setPlotData.bind(undefined, plot.id), [plot.id]);
+  const error = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plot.id]?.error ?? '', [plot.id]));
   const { timeRange, timeShifts, variables } = useStatsHouseShallow(selectorStore);
   const id = plot.id;
   const interval = useLiveModeStore(({ interval }) => interval);
@@ -52,11 +50,11 @@ export const PlotHealsStatus = memo(function PlotHealsStatus({ className }: Plot
     return undefined;
   }, [interval, plotHealsTimeout]);
   const clearLastError = useCallback(() => {
-    setPlotData((d) => {
+    setPlotDataProduce((d) => {
       d.error = '';
     });
     removePlotHeals(id);
-  }, [id, setPlotData]);
+  }, [id, setPlotDataProduce]);
   const reload = useCallback(() => {
     refetchQuery(plot, timeRange, timeShifts, variables);
     clearLastError();
