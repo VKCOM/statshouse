@@ -359,7 +359,7 @@ export function EventWidget({ className, isDashboard, isEmbed, fixRatio }: PlotW
               <PlotHealsStatus />
             </div>
             {/*header*/}
-            <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
+            <div className="d-flex flex-column flex-grow-1 w-0 overflow-force-wrap">
               <PlotHeader isDashboard={isDashboard} isEmbed={isEmbed} />
               {!compact && <PlotSubMenu />}
             </div>

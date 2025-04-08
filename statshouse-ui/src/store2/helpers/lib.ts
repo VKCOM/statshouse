@@ -7,16 +7,16 @@
 import { type PlotParams, promQLMetric } from '@/url2';
 import type { PlotData } from '../plotDataStore';
 import { MetricMeta } from '../metricsMetaStore';
-import { whatToWhatDesc } from '../../view/whatToWhatDesc';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
 
-export function getMetricName(plot?: PlotParams, plotData?: PlotData) {
+export function getMetricName(plot?: PlotParams, plotData?: Pick<PlotData, 'metricName'>) {
   if (!plot) {
     return '';
   }
   return (plot.metricName !== promQLMetric ? plot.metricName : plotData?.metricName) || `plot#${plot.id}`;
 }
 
-export function getMetricWhat(plot?: PlotParams, plotData?: PlotData) {
+export function getMetricWhat(plot?: PlotParams, plotData?: Pick<PlotData, 'whats'>) {
   if (!plot) {
     return '';
   }
@@ -27,7 +27,7 @@ export function getMetricWhat(plot?: PlotParams, plotData?: PlotData) {
   );
 }
 
-export function getMetricFullName(plot?: PlotParams, plotData?: PlotData) {
+export function getMetricFullName(plot?: PlotParams, plotData?: Pick<PlotData, 'metricName' | 'whats'>) {
   if (!plot) {
     return '';
   }

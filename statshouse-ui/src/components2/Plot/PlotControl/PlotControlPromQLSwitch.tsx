@@ -16,7 +16,9 @@ import { getHomePlot, promQLMetric } from '@/url2';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { useMetricMeta } from '@/hooks/useMetricMeta';
 import { useMetricName } from '@/hooks/useMetricName';
-import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
+import { usePlotsDataStore } from '@/store2/plotDataStore';
+import { emptyArray } from '@/common/helpers';
+import { useShallow } from 'zustand/react/shallow';
 
 export type PlotControlPromQLSwitchProps = {
   className?: string;
@@ -26,9 +28,18 @@ export const PlotControlPromQLSwitch = memo(function PlotControlPromQLSwitch({
   className,
 }: PlotControlPromQLSwitchProps) {
   const { plot, setPlot } = useWidgetPlotContext();
-  const {
-    plotData: { metricName, promQL, whats },
-  } = useWidgetPlotDataContext();
+  const { metricName, promQL, whats } = usePlotsDataStore(
+    useShallow(
+      useCallback(
+        ({ plotsData }) => ({
+          metricName: plotsData[plot.id]?.metricName ?? '',
+          promQL: plotsData[plot.id]?.promQL ?? '',
+          whats: plotsData[plot.id]?.whats ?? emptyArray,
+        }),
+        [plot.id]
+      )
+    )
+  );
   const isPlotPromQL = isPromQL(plot);
   const meta = useMetricMeta(useMetricName(true));
 

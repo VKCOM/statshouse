@@ -7,7 +7,6 @@
 import { defaultMetric, PlotKey } from '@/url2';
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { WidgetPlotContext, WidgetPlotContextProps } from '@/contexts/WidgetPlotContext';
-import { WidgetPlotDataContextProvider } from '@/contexts/WidgetPlotDataContextProvider';
 import { useStatsHouse } from '@/store2';
 import { removePlot, setPlot } from '@/store2/methods';
 
@@ -29,9 +28,5 @@ export function WidgetPlotContextProvider({ children, plotKey }: WidgetPlotConte
     }),
     [plot, removePlotMemo, setPlotMemo]
   );
-  return (
-    <WidgetPlotContext.Provider value={widgetContextValue}>
-      <WidgetPlotDataContextProvider>{children}</WidgetPlotDataContextProvider>
-    </WidgetPlotContext.Provider>
-  );
+  return <WidgetPlotContext.Provider value={widgetContextValue}>{children}</WidgetPlotContext.Provider>;
 }

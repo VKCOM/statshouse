@@ -11,7 +11,9 @@ import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
 import { debug } from '@/common/debug';
 import { Button } from '@/components/UI';
 import type { PlotKey } from '@/url2';
-import { useWidgetPlotDataContext } from '@/contexts/useWidgetPlotDataContext';
+import { usePlotsDataStore } from '@/store2/plotDataStore';
+import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
+import { emptyArray } from '@/common/helpers';
 
 type PlotLegendMaxHostProps = {
   value: string;
@@ -30,8 +32,12 @@ function copyItem(value?: string | string[]) {
 
 export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({ value, placeholder, idx }: PlotLegendMaxHostProps) {
   const {
-    plotData: { maxHostLists },
-  } = useWidgetPlotDataContext();
+    plot: { id },
+  } = useWidgetPlotContext();
+
+  const maxHostLists = usePlotsDataStore(
+    useCallback(({ plotsData }) => plotsData[id]?.maxHostLists ?? emptyArray, [id])
+  );
   const onCopyList = useCallback(() => {
     const list: string = maxHostLists[idx - 1]?.map(({ name }) => name).join('\r\n') ?? '';
     window.navigator.clipboard.writeText(list).then(() => {
