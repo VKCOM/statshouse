@@ -182,7 +182,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyHeapInuse,
 					tags, 1, float64(memStats.HeapInuse))
 			},
-			nil, nil)
+			nil, nil, config.ConfigAgent.SendSourceBucket2)
 		if err != nil {
 			log.Fatalf("error creating agent: %v", err)
 		}

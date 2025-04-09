@@ -150,7 +150,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	mappingsCache *pcache.MappingsCache,
 	journalHV func() (int64, string, string), journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult3, envLoader *env.Loader) (*Agent, error) {
+	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult3, envLoader *env.Loader, sendSourceBucket2 bool) (*Agent, error) {
 	newClient := func() *rpc.Client {
 		return rpc.NewClient(
 			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
@@ -247,6 +247,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 			rng:                 rnd,
 			CurrentTime:         nowUnix,
 			SendTime:            nowUnix - 2, // accept previous seconds at the start of the agent
+			sendSourceBucket2:   sendSourceBucket2,
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))

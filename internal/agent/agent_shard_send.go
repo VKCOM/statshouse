@@ -342,6 +342,9 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, buffers data_mode
 
 func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, sampleFactors []tlstatshouse.SampleFactor, scratch []byte) []byte {
 	version := uint8(3)
+	if s.sendSourceBucket2 {
+		version = 2
+	}
 	data, scratch, err := s.compressBucket(bucket, sampleFactors, version, scratch)
 	cbd := compressedBucketData{time: bucket.Time, data: data, version: version} // No id as not saved to disk yet
 	if err != nil {
