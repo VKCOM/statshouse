@@ -190,7 +190,6 @@ type (
 		metricsStorage        *metajournal.MetricsStorage
 		tagValueCache         *pcache.Cache
 		tagValueIDCache       *pcache.Cache
-		cache                 *tsCacheGroup
 		cache2                *cache2
 		cache2Mu              sync.RWMutex
 		pointsCache           *pointsCache
@@ -650,12 +649,10 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
 		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
 	}
-	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, loadPoints)
 	h.cache2 = newCache2(h, cfg.CacheChunkSize, loadPoints)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
-		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
 		cache2 := h.setCache2ChunkSize(cfg.CacheChunkSize)
 		cache2.setLimits(cache2Limits{
 			maxAge:      time.Duration(cfg.MaxCacheAge) * time.Second,
@@ -665,7 +662,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		h.setCacheVersion(int32(cfg.CacheVersion))
 		chV2.SetLimits(cfg.UserLimits)
 		h.CacheListMu.Lock()
 		h.CacheBlacklist = cfg.CacheBlacklist
