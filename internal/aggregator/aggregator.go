@@ -319,7 +319,7 @@ func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappi
 		format.TagValueIDComponentAggregator,
 		a.metricStorage, mappingsCache,
 		a.journal.VersionHash, a.journalFast.VersionHash, a.journalCompact.VersionHash,
-		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)
+		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil, false)
 	if err != nil {
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
 	}

@@ -25,10 +25,11 @@ type (
 	// Shard gets data after initial hashing and shard number
 	Shard struct {
 		// Never change, so do not require protection
-		agent    *Agent
-		ShardNum int
-		ShardKey int32
-		rng      *rand.Rand
+		agent             *Agent
+		ShardNum          int
+		ShardKey          int32
+		rng               *rand.Rand
+		sendSourceBucket2 bool
 
 		mu                                   sync.Mutex
 		config                               Config       // can change if remotely updated
