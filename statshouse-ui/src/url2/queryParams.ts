@@ -12,6 +12,7 @@ import {
   type TagKey,
   type TimeRangeKeysTo,
 } from '@/api/enum';
+import type { Layout } from 'react-grid-layout';
 
 export type PlotKey = string;
 
@@ -20,10 +21,11 @@ export type GroupKey = string;
 export type GroupInfo = {
   id: GroupKey;
   name: string;
-  show: boolean;
+  description: string;
   count: number;
   size: string;
-  description: string;
+  show: boolean;
+  layouts: Layout[];
 };
 
 export type VariableParamsLink = [PlotKey, TagKey];
