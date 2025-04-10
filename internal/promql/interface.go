@@ -365,6 +365,7 @@ type Handler interface {
 	GetHostName64(hostID int64) string
 	GetTagValue(qry TagValueQuery) string
 	GetTagValueID(qry TagValueIDQuery) (int64, error)
+	GetTagFilter(metric *format.MetricMetaValue, tagIndex int, tagValue string) (data_model.TagValue, error)
 
 	//
 	// # Metric Metadata

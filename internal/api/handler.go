@@ -1050,25 +1050,6 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 	return int64(v), err
 }
 
-func (h *requestHandler) getRichTagValueIDs(metricMeta *format.MetricMetaValue, version string, tagID string, tagValues []string) ([]int64, error) {
-	tag := metricMeta.Name2Tag(tagID)
-	if tag == nil {
-		return nil, fmt.Errorf("tag with name %s not found for metric %s", tagID, metricMeta.Name)
-	}
-	ids := make([]int64, 0, len(tagValues))
-	for _, v := range tagValues {
-		id, err := h.getRichTagValueID(tag, version, v)
-		if err != nil {
-			if httpCode(err) == http.StatusNotFound {
-				continue // ignore values with no mapping
-			}
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
 func formValueParamMetric(r *http.Request) string {
 	str := r.FormValue(ParamMetric)
 	ns := r.FormValue(ParamNamespace)
@@ -1087,11 +1068,13 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 				stringTop.Values = append(stringTop.Values, data_model.NewTagValueS(val))
 			}
 		} else if tag := metricMeta.Name2Tag(k); tag != nil {
-			ids, err := h.getRichTagValueIDs(metricMeta, version, k, values)
-			if err != nil {
-				return data_model.TagFilters{}, err
+			for _, v := range values {
+				if f, err := h.GetTagFilter(metricMeta, int(tag.Index), v); err != nil {
+					return data_model.TagFilters{}, err
+				} else {
+					m.Append(int(tag.Index), f)
+				}
 			}
-			m.AppendMapped(int(tag.Index), ids...)
 		} else {
 			return data_model.TagFilters{}, fmt.Errorf("not found tag %s", k)
 		}

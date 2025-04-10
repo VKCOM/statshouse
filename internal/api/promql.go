@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
@@ -425,6 +426,65 @@ func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int64, error
 		}
 	}
 	return res, err
+}
+
+func (ev *requestHandler) GetTagFilter(metric *format.MetricMetaValue, tagIndex int, tagValue string) (data_model.TagValue, error) {
+	if tagValue == "" {
+		return data_model.NewTagValue("", 0), nil
+	}
+	if format.HasRawValuePrefix(tagValue) {
+		v, err := format.ParseCodeTagValue(tagValue)
+		if err != nil {
+			return data_model.TagValue{}, err
+		}
+		if v != 0 {
+			return data_model.NewTagValueM(v), nil
+		} else {
+			return data_model.NewTagValue("", 0), nil
+		}
+	}
+	var t format.MetricMetaTag
+	if 0 <= tagIndex && tagIndex < len(metric.Tags) {
+		t = metric.Tags[tagIndex]
+		if t.Raw {
+			// histogram bucket label
+			if t.Name == labels.BucketLabel {
+				if v, err := strconv.ParseFloat(tagValue, 32); err == nil {
+					return data_model.NewTagValueM(int64(statshouse.LexEncode(float32(v)))), nil
+				}
+			}
+			// mapping from raw value comments
+			var s string
+			for k, v := range t.ValueComments {
+				if v == tagValue {
+					if s != "" {
+						return data_model.TagValue{}, fmt.Errorf("ambiguous comment to value mapping")
+					}
+					s = k
+				}
+			}
+			if s != "" {
+				v, err := format.ParseCodeTagValue(s)
+				if err != nil {
+					return data_model.TagValue{}, err
+				}
+				return data_model.NewTagValueM(v), nil
+			}
+		}
+	}
+	v, err := ev.GetTagValueID(promql.TagValueIDQuery{
+		Version:  ev.version,
+		Tag:      t,
+		TagValue: tagValue,
+	})
+	switch err {
+	case nil:
+		return data_model.NewTagValue(tagValue, v), nil
+	case promql.ErrNotFound:
+		return data_model.NewTagValue(tagValue, format.TagValueIDDoesNotExist), nil
+	default:
+		return data_model.TagValue{}, err
+	}
 }
 
 func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
