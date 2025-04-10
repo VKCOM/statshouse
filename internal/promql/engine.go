@@ -12,7 +12,6 @@ import (
 	"hash"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1147,13 +1146,13 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 		switch matcher.Type {
 		case labels.MatchEqual:
-			if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+			if v, err := ev.GetTagFilter(metric, i, matcher.Value); err == nil {
 				sel.FilterIn.Append(i, v)
 			} else {
 				return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 			}
 		case labels.MatchNotEqual:
-			if v, err := ev.getTagValue(metric, i, matcher.Value); err == nil {
+			if v, err := ev.GetTagFilter(metric, i, matcher.Value); err == nil {
 				sel.FilterNotIn.Append(i, v)
 			} else {
 				return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
@@ -1292,65 +1291,6 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	}
 	m2[offset] = res
 	return res, nil
-}
-
-func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagX int, tagV string) (data_model.TagValue, error) {
-	if tagV == "" {
-		return data_model.NewTagValue("", 0), nil
-	}
-	if format.HasRawValuePrefix(tagV) {
-		v, err := format.ParseCodeTagValue(tagV)
-		if err != nil {
-			return data_model.TagValue{}, err
-		}
-		if v != 0 {
-			return data_model.NewTagValueM(v), nil
-		} else {
-			return data_model.NewTagValue("", 0), nil
-		}
-	}
-	var t format.MetricMetaTag
-	if 0 <= tagX && tagX < len(metric.Tags) {
-		t = metric.Tags[tagX]
-		if t.Raw {
-			// histogram bucket label
-			if t.Name == labels.BucketLabel {
-				if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-					return data_model.NewTagValueM(int64(statshouse.LexEncode(float32(v)))), nil
-				}
-			}
-			// mapping from raw value comments
-			var s string
-			for k, v := range t.ValueComments {
-				if v == tagV {
-					if s != "" {
-						return data_model.TagValue{}, fmt.Errorf("ambiguous comment to value mapping")
-					}
-					s = k
-				}
-			}
-			if s != "" {
-				v, err := format.ParseCodeTagValue(s)
-				if err != nil {
-					return data_model.TagValue{}, err
-				}
-				return data_model.NewTagValueM(v), nil
-			}
-		}
-	}
-	v, err := ev.GetTagValueID(TagValueIDQuery{
-		Version:  ev.opt.Version,
-		Tag:      t,
-		TagValue: tagV,
-	})
-	switch err {
-	case nil:
-		return data_model.NewTagValue(tagV, v), nil
-	case ErrNotFound:
-		return data_model.NewTagValue(tagV, format.TagValueIDDoesNotExist), nil
-	default:
-		return data_model.TagValue{}, err
-	}
 }
 
 func (ev *evaluator) weight(ds []SeriesData) []float64 {
