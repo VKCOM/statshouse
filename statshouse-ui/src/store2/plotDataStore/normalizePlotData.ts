@@ -9,7 +9,7 @@ import { type PlotParams, promQLMetric, type TimeRange } from '@/url2';
 import type { ProduceUpdate } from '../helpers';
 import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetricType } from '@/api/enum';
 import uPlot from 'uplot';
-import type { PlotData, PlotValues } from './plotsDataStore';
+import { PlotData, PlotDataSeries, PlotValues } from './plotsDataStore';
 import { metaToBaseLabel, metaToLabel } from '@/view/api';
 import { pxPerChar } from '@/common/settings';
 import { stackData } from '@/common/stackData';
@@ -149,7 +149,7 @@ export function normalizePlotData(
     const oneGraph = series_meta.filter((s) => s.time_shift === 0).length <= 1;
     const seriesShow: boolean[] = new Array(series_meta.length).fill(true);
     const seriesTimeShift: number[] = [];
-    const series = series_meta.map((meta, indexMeta): uPlot.Series => {
+    const series = series_meta.map((meta, indexMeta): PlotDataSeries => {
       const timeShift = meta.time_shift !== 0;
       // TimeShift = 1 for total line
       seriesTimeShift[indexMeta] = totalLineId !== indexMeta ? meta.time_shift : 1;

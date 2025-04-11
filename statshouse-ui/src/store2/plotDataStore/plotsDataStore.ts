@@ -28,11 +28,15 @@ export type TopInfo = {
   info: string;
 };
 
+export type PlotDataSeries = uPlot.Series & {
+  label: string | undefined;
+};
+
 export type PlotData = {
   data: uPlot.AlignedData;
   dataView: uPlot.AlignedData;
   bands?: uPlot.Band[];
-  series: uPlot.Series[];
+  series: PlotDataSeries[];
   seriesShow: boolean[];
   promQL: string;
   metricName: string;

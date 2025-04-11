@@ -20,10 +20,12 @@ const customLinkComponents: Components = {
   ),
 };
 
-const _MarkdownRender = ({ children = '', components, ...props }: IMarkdownRenderer) => (
-  <ReactMarkdown remarkPlugins={remarkPlugins} components={{ ...customLinkComponents, ...components }} {...props}>
-    {children}
-  </ReactMarkdown>
+const _MarkdownRender = ({ children = '', components, className, ...props }: IMarkdownRenderer) => (
+  <div className={className}>
+    <ReactMarkdown remarkPlugins={remarkPlugins} components={{ ...customLinkComponents, ...components }} {...props}>
+      {children}
+    </ReactMarkdown>
+  </div>
 );
 
 export const MarkdownRender = React.memo(_MarkdownRender);
