@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DataGrid, { Column, DataGridHandle, RenderRowProps, Row, SortColumn } from 'react-data-grid';
+import { Column, DataGrid, DataGridHandle, RenderRowProps, Row, SortColumn } from 'react-data-grid';
 import cn from 'classnames';
 import css from './style.module.css';
 import 'react-data-grid/lib/styles.css';

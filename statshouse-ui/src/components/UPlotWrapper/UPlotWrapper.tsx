@@ -7,7 +7,7 @@
 import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import { debug } from '@/common/debug';
-import { deepClone } from '@/common/helpers';
+import { deepClone, labelAsString } from '@/common/helpers';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 
 export type LegendItem<T = Record<string, unknown>> = {
@@ -91,7 +91,7 @@ function readLegend<LV = Record<string, unknown>>(u: uPlot): LegendItem<LV>[] {
           .replace('--', '') ?? ''; // replace '--' uplot
     }
     return {
-      label: s.label ?? '',
+      label: labelAsString(s.label) ?? '',
       width:
         (u.legend.markers?.width instanceof Function ? u.legend.markers?.width(u, index) : u.legend.markers?.width) ??
         1,
@@ -206,13 +206,14 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
         uRef.current.batch((u: uPlot) => {
           const show: Record<string, boolean | undefined> = {};
           for (let i = u.series.length - 1; i > 0; i--) {
-            show[u.series[i].label!] = u.series[i].show;
+            show[labelAsString(u.series[i].label)!] = u.series[i].show;
             u.delSeries(i);
           }
 
           let nextSeries = series.map((s) => ({
             ...s,
-            show: typeof show[s.label!] !== 'undefined' ? show[s.label!] : (s.show ?? true),
+            show:
+              typeof show[labelAsString(s.label)!] !== 'undefined' ? show[labelAsString(s.label)!] : (s.show ?? true),
           }));
 
           if (nextSeries.every((s) => !s.show)) {

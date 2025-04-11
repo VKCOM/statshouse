@@ -427,3 +427,7 @@ export const bwd = (v: number) => {
   }
   return Math.pow(2, v) - 1;
 };
+
+export function labelAsString(label?: string | HTMLElement): string | undefined {
+  return label instanceof HTMLElement ? label.innerText : label;
+}
