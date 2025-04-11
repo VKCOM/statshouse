@@ -4,13 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { CSSProperties, FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import { useDebounceState } from '@/hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import cn from 'classnames';
 import { SearchFabric } from '@/common/helpers';
 import { Button } from '../UI';
+import { pxPerChar } from '@/common/settings';
 
 const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
@@ -657,6 +658,14 @@ export const Select: FC<SelectProps> = ({
     }
   }, [filterOptions, updatePositionClass, multiple, meOpen, listOnlyOpen]);
 
+  const labelWidth = useMemo(() => {
+    const labelsLength = options.map((o) => (o.title || o.value).length).sort((a, b) => b - a);
+    const k = multiple ? 30 : 0;
+    const full = (labelsLength[0] ?? 0) * pxPerChar + k;
+    const p75 = (labelsLength[Math.floor(labelsLength.length * 0.25)] ?? 0) * pxPerChar + k;
+    return full - p75 > 20 ? p75 : full;
+  }, [multiple, options]);
+
   useEffect(() => {
     if (meFocus === meFocusDebounce) {
       if (!meFocus) {
@@ -691,6 +700,7 @@ export const Select: FC<SelectProps> = ({
       onKeyDown={onKey}
       onMouseMove={onHover}
       ref={select}
+      style={{ '--select-label-width': `${labelWidth}px` } as CSSProperties}
     >
       <Button type="button" aria-label="Close" className={`btn ${css.close}`} onClick={onClose}></Button>
       <input

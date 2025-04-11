@@ -16,6 +16,7 @@
   --selectDisabledColor: var(--bs-tertiary-color);
   --selectSelectedCursorBgColor: var(--bs-primary-border-subtle);
   --selectIconChevron: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23343a40%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
+  --select-label-width: 0px;
 }
 [data-bs-theme='dark'] {
   --selectIconChevron: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23adb5bd%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
@@ -122,7 +123,7 @@
   left: -1px;
   width: auto;
   max-width: 100%;
-  min-width: 100%;
+  min-width: calc(max(280px,var(--select-label-width), 100%));
   height: auto;
   max-height: 250px;
   min-height: 1.7em;

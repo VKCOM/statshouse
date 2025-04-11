@@ -433,12 +433,13 @@ export function MetricWidget({ className, isDashboard, isEmbed, fixRatio }: Plot
         {!error403 && (
           <div className="plot-legend">
             <PlotLegend
-              plotKey={id}
               legend={legend}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && isDashboard)}
               unit={metricType}
+              visible={visibleBool || iconVisible}
+              priority={visibleBool ? (isDashboard ? 2 : 1) : 3}
             />
             {topInfo && (!compact || (fixHeight > 0 && isDashboard)) && (
               <div className="pb-3">
