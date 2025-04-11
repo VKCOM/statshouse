@@ -7,7 +7,7 @@
 import { calcYRange2 } from '@/common/calcYRange';
 import { PlotData } from '@/store2/plotDataStore';
 
-export function getMinMaxY(plotData: PlotData): {
+export function getMinMaxY(plotData?: PlotData): {
   min: number;
   max: number;
 } {

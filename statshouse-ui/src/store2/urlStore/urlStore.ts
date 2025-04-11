@@ -170,7 +170,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     setPlotType(plotKey, nextType, replace) {
       setUrlStore(updatePlotType(plotKey, nextType), replace);
     },
-    setPlotYLock(plotKey, status, yLock: { min: number; max: number }) {
+    setPlotYLock(plotKey, status, yLock) {
       setUrlStore(updatePlotYLock(plotKey, status, yLock));
     },
     resetZoom(plotKey: PlotKey) {
