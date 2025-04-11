@@ -35,7 +35,6 @@ export function useMetricData(
   const response = queryData.data?.data;
   const error = queryData.error;
   const isLoading = queryData.isLoading || queryData.isRefetching;
-
   useEffect(() => {
     let prepareEnd: () => void = emptyFunction;
     if (isLoading) {

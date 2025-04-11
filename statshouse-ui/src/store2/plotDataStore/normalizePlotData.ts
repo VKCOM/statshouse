@@ -9,7 +9,6 @@ import { type PlotParams, promQLMetric, type TimeRange } from '@/url2';
 import type { ProduceUpdate } from '../helpers';
 import { isQueryWhat, METRIC_TYPE, PLOT_TYPE, QUERY_WHAT, type QueryWhat, toMetricType } from '@/api/enum';
 import uPlot from 'uplot';
-import type { SelectOptionProps } from '@/components/Select';
 import type { PlotData, PlotValues } from './plotsDataStore';
 import { metaToBaseLabel, metaToLabel } from '@/view/api';
 import { pxPerChar } from '@/common/settings';
@@ -20,8 +19,9 @@ import { dequal } from 'dequal/lite';
 import { calcYRange2 } from '@/common/calcYRange';
 import { getEmptyPlotData } from './getEmptyPlotData';
 import { deepClone } from '@/common/helpers';
-import { formatLegendValue, formatPercent, timeShiftToDash } from '@/view/utils2';
+import { formatLegendValue, timeShiftToDash } from '@/view/utils2';
 import { useThemeStore } from '../themeStore';
+import { PlotType } from '@/url/queryParams';
 
 export function normalizePlotData(
   response: SeriesResponse,
@@ -31,11 +31,7 @@ export function normalizePlotData(
 ): ProduceUpdate<PlotData> {
   const width = 2000;
   return (plotData = getEmptyPlotData()) => {
-    const {
-      lastPlotParams: currentPrevLastPlotParams,
-      seriesShow: currentPrevSeriesShow,
-      series: currentPrevSeries,
-    } = plotData;
+    const { lastPlotParams: currentPrevLastPlotParams } = plotData;
     plotData.promqltestfailed = response.promqltestfailed;
 
     const uniqueWhat: Set<QueryWhat> = new Set();
@@ -105,9 +101,7 @@ export function normalizePlotData(
       baseColors[`${prefColor}${totalLineLabel}`] = totalLineColor;
       series_data.push(totalLineData);
     }
-    // const currentPrevState = getState();
 
-    // const currentPrevSeries = getState().plotsData[index].series.map((s) => ({ ...s, values: undefined }));
     if (uniqueName.size === 0 && currentPrevLastPlotParams && currentPrevLastPlotParams.metricName !== promQLMetric) {
       uniqueName.add(currentPrevLastPlotParams.metricName);
     }
@@ -141,11 +135,7 @@ export function normalizePlotData(
       plotData.dataView = stacked.data;
       plotData.bands = stacked.bands;
     }
-    // let changeColor = false;
-    // let changeType = currentPrevLastPlotParams?.type !== plot.type;
-    // const changeView =
-    //   currentPrevLastPlotParams?.totalLine !== plot.totalLine ||
-    //   currentPrevLastPlotParams?.filledGraph !== plot.filledGraph;
+
     const widthLine =
       (width ?? 0) > response.series.time.length
         ? devicePixelRatio > 1
@@ -156,14 +146,13 @@ export function normalizePlotData(
     const topInfoCounts: Record<string, number> = {};
     const topInfoTotals: Record<string, number> = {};
     plotData.topInfo = undefined;
-    const maxHostLists: SelectOptionProps[][] = new Array(series_meta.length).fill([]);
-    plotData.maxHostLists = maxHostLists;
     const oneGraph = series_meta.filter((s) => s.time_shift === 0).length <= 1;
-    const seriesShow = new Array(series_meta.length).fill(true);
-    plotData.seriesTimeShift = [];
-    plotData.series = series_meta.map((meta, indexMeta): uPlot.Series => {
+    const seriesShow: boolean[] = new Array(series_meta.length).fill(true);
+    const seriesTimeShift: number[] = [];
+    const series = series_meta.map((meta, indexMeta): uPlot.Series => {
       const timeShift = meta.time_shift !== 0;
-      plotData.seriesTimeShift[indexMeta] = meta.time_shift;
+      // TimeShift = 1 for total line
+      seriesTimeShift[indexMeta] = totalLineId !== indexMeta ? meta.time_shift : 1;
       const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
       const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
       const isValue = baseLabel.indexOf('Value') === 0;
@@ -173,116 +162,39 @@ export function normalizePlotData(
       // client select color line
       const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
       baseColors[colorKey] = baseColor;
-
       if (meta.max_hosts) {
         const max_hosts_l = meta.max_hosts
-          .map((host) => host.length * pxPerChar * 1.25 + 65)
+          .map((host) => host.length)
           .filter(Boolean)
-          .sort();
-        const full = max_hosts_l[0] ?? 0;
-        const p75 = max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0;
+          .sort((a, b) => b - a);
+        const full = (max_hosts_l[0] ?? 0) * pxPerChar * 1.25 + 65;
+        const p75 = (max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0) * pxPerChar * 1.25 + 65;
         plotData.legendMaxHostWidth = Math.max(plotData.legendMaxHostWidth, full - p75 > 20 ? p75 : full);
       }
-      const max_host_map =
-        meta.max_hosts?.reduce(
-          (res, host) => {
-            if (host) {
-              res[host] = (res[host] ?? 0) + 1;
-            }
-            return res;
-          },
-          {} as Record<string, number>
-        ) ?? {};
-      const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
-      seriesShow[indexMeta] = currentPrevSeries[indexMeta]?.label === label ? currentPrevSeriesShow[indexMeta] : true;
-      maxHostLists[indexMeta] = Object.entries(max_host_map)
-        .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
-        .map(([host, count]) => {
-          const percent = formatPercent(count / max_host_total);
-          return {
-            value: host,
-            title: `${host}: ${percent}`,
-            name: `${host}: ${percent}`,
-            html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
-          };
-        });
       if (totalLineId !== indexMeta) {
         const key = `${meta.what}|${meta.time_shift}`;
         topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
         topInfoTotals[key] = meta.total;
       }
-      const paths =
-        plot.type === PLOT_TYPE.Event
-          ? uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 })
-          : uPlot.paths.stepped!({
-              align: 1,
-            });
       return {
         show: seriesShow[indexMeta] ?? true,
         auto: false, // we control the scaling manually
-        label,
+        label: baseLabel,
         stroke: baseColor,
         width: widthLine,
         dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
         fill: totalLineId !== indexMeta && plot.filledGraph ? rgba(baseColor, timeShift ? 0.1 : 0.15) : undefined,
-        points:
-          plot.type === PLOT_TYPE.Event
-            ? { show: false, size: 0 }
-            : {
-                filter: filterPoints,
-                size: 5,
-              },
-        paths,
-        values(u, seriesIdx, idx): PlotValues {
-          if (idx === null) {
-            return {
-              metricName: '',
-              rawValue: null,
-              value: '',
-              label: '',
-              baseLabel: '',
-              timeShift: 0,
-              max_host: '',
-              total: 0,
-              percent: '',
-              max_host_percent: '',
-              top_max_host: '',
-              top_max_host_percent: '',
-            };
-          }
-          const rawValue = localData[seriesIdx]?.[idx] ?? null;
-          let total = 0;
-          for (let i = 1; i < u.series.length; i++) {
-            const v = localData[i]?.[idx];
-            if (v !== null && v !== undefined && i - 1 !== totalLineId) {
-              total += v;
-            }
-          }
-          const value = formatLegendValue(rawValue);
-          const max_host = meta.max_hosts !== null && idx < meta.max_hosts.length ? meta.max_hosts[idx] : '';
-
-          const max_host_percent =
-            meta.max_hosts !== null && max_host_map && meta.max_hosts[idx]
-              ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
-              : '';
-          const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
-          return {
-            metricName,
-            rawValue,
-            value,
-            label,
-            baseLabel,
-            timeShift: meta.time_shift,
-            max_host,
-            total,
-            percent: totalLineId !== indexMeta ? percent : '100%',
-            max_host_percent,
-            top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
-            top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
-          };
-        },
+        points: PointsType[plot.type],
+        paths: PathsType[plot.type],
+        values: getLegendValues,
       };
     });
+    if (!dequal(plotData.series, series)) {
+      plotData.series = series;
+    }
+    if (!dequal(plotData.seriesTimeShift, seriesTimeShift)) {
+      plotData.seriesTimeShift = seriesTimeShift;
+    }
     if (!dequal(plotData.seriesShow, seriesShow)) {
       plotData.seriesShow = seriesShow;
     }
@@ -297,7 +209,7 @@ export function normalizePlotData(
     const topInfoFunc = currentPrevLastPlotParams?.what.length ?? 0;
     const topInfoShifts = timeShifts.length;
     const info: string[] = [];
-    //
+
     if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
       if (topInfoFunc > 1) {
         info.push(`${topInfoFunc} functions`);
@@ -356,3 +268,37 @@ export function normalizePlotData(
     plotData.mappingFloodEvents = response.mapping_errors;
   };
 }
+
+export function getLegendValues(u: uPlot, seriesIdx: number, idx: number | null): PlotValues {
+  if (idx === null) {
+    return {
+      rawValue: null,
+      value: '',
+      seriesIdx: 0,
+      idx: null,
+    };
+  }
+  const rawValue = u.data[seriesIdx]?.[idx] ?? null;
+  const value = formatLegendValue(rawValue);
+  return {
+    rawValue,
+    value,
+    seriesIdx,
+    idx,
+  };
+}
+
+export const PointsType: Record<PlotType, uPlot.Series.Points> = {
+  [PLOT_TYPE.Metric]: {
+    filter: filterPoints,
+    size: 5,
+  },
+  [PLOT_TYPE.Event]: { show: false, size: 0 },
+};
+
+export const PathsType: Record<PlotType, uPlot.Series.PathBuilder> = {
+  [PLOT_TYPE.Metric]: uPlot.paths.stepped!({
+    align: 1,
+  }),
+  [PLOT_TYPE.Event]: uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 }),
+};

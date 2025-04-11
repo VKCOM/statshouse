@@ -6,7 +6,7 @@
 
 import { METRIC_TYPE } from '@/api/enum';
 import type { PlotData } from './plotsDataStore';
-import { autoAgg } from '../constants';
+import { autoAgg } from '@/store2';
 
 export function getEmptyPlotData(): PlotData {
   return {
@@ -15,7 +15,6 @@ export function getEmptyPlotData(): PlotData {
     bands: [],
     series: [],
     seriesShow: [],
-    // scales: {},
     promQL: '',
     metricName: '',
     metricWhat: '',
@@ -28,10 +27,6 @@ export function getEmptyPlotData(): PlotData {
     error403: '',
     errorSkipCount: 0,
     seriesTimeShift: [],
-    // lastPlotParams?: PlotParams;
-    // lastTimeRange?: TimeRange;
-    // lastTimeShifts?: number[];
-    // lastQuerySeriesMeta?: querySeriesMeta[];
     receiveErrors: 0,
     receiveWarnings: 0,
     samplingFactorSrc: 0,
@@ -43,8 +38,6 @@ export function getEmptyPlotData(): PlotData {
     legendPercentWidth: 0,
     legendMaxHostWidth: 0,
     legendMaxHostPercentWidth: 0,
-    // topInfo?: TopInfo;
-    maxHostLists: [],
     promqltestfailed: false,
     promqlExpand: false,
   };

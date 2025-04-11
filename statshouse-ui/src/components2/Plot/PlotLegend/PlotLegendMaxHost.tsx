@@ -9,17 +9,16 @@ import { Select } from '@/components/Select';
 
 import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
 import { debug } from '@/common/debug';
-import { Button } from '@/components/UI';
-import type { PlotKey } from '@/url2';
-import { usePlotsDataStore } from '@/store2/plotDataStore';
-import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
-import { emptyArray } from '@/common/helpers';
+import { Button, Tooltip } from '@/components/UI';
+import { useMaxHosts } from '@/hooks/useMaxHosts';
 
 type PlotLegendMaxHostProps = {
-  value: string;
-  placeholder: string;
-  plotKey: PlotKey;
-  idx: number;
+  value?: string;
+  placeholder?: string;
+  seriesIdx: number;
+  idx?: number | null;
+  visible?: boolean;
+  priority?: number;
 };
 
 function copyItem(value?: string | string[]) {
@@ -30,35 +29,49 @@ function copyItem(value?: string | string[]) {
   }
 }
 
-export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({ value, placeholder, idx }: PlotLegendMaxHostProps) {
-  const {
-    plot: { id },
-  } = useWidgetPlotContext();
+export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
+  seriesIdx,
+  idx,
+  visible = false,
+  priority = 2,
+}: PlotLegendMaxHostProps) {
+  const [maxHostLists, maxHostValues] = useMaxHosts(visible, priority);
 
-  const maxHostLists = usePlotsDataStore(
-    useCallback(({ plotsData }) => plotsData[id]?.maxHostLists ?? emptyArray, [id])
-  );
   const onCopyList = useCallback(() => {
-    const list: string = maxHostLists[idx - 1]?.map(({ name }) => name).join('\r\n') ?? '';
+    const list: string = maxHostLists[seriesIdx]?.map(({ name }) => name).join('\r\n') ?? '';
     window.navigator.clipboard.writeText(list).then(() => {
       debug.log('clipboard max host list');
     });
-  }, [idx, maxHostLists]);
+  }, [maxHostLists, seriesIdx]);
 
-  const options = useMemo(() => maxHostLists[idx - 1] ?? [], [idx, maxHostLists]);
+  const value = useMemo(
+    () =>
+      maxHostValues[seriesIdx]?.max_hosts[idx ?? -1] ?? {
+        host: '',
+        percent: '',
+      },
+    [idx, maxHostValues, seriesIdx]
+  );
+
+  const options = useMemo(() => maxHostLists[seriesIdx] ?? [], [maxHostLists, seriesIdx]);
   return (
     <div className="d-flex flex-nowrap">
-      <Select
-        className="form-control pt-0 pb-0 min-h-auto form-control-sm"
-        classNameList="dropdown-menu"
-        value={value}
-        placeholder={placeholder}
-        options={options}
-        onChange={copyItem}
-        listOnlyOpen
-        showCountItems
-        valueToInput
-      />
+      <Tooltip
+        className="flex-grow-1 w-0"
+        title={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0].title}
+      >
+        <Select
+          className="form-control pt-0 pb-0 min-h-auto form-control-sm"
+          classNameList="dropdown-menu"
+          value={value.host ?? maxHostLists[seriesIdx]?.[0].value}
+          placeholder={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0].title}
+          options={options}
+          onChange={copyItem}
+          listOnlyOpen
+          showCountItems
+          valueToInput
+        />
+      </Tooltip>
       <Button
         onClick={onCopyList}
         type="button"
