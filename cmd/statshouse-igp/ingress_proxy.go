@@ -306,6 +306,7 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 		return err
 	}
 	// build external address and listen
+	s := make([]string, 0, len(p.agent.GetConfigResult.Addresses))
 	if version == "2" {
 		externalTCPAddr := make([]*net.TCPAddr, len(externalAddr))
 		for i := range externalAddr {
@@ -322,6 +323,10 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 				return err
 			}
 			listenAddr.Port++
+			for j := range externalTCPAddr {
+				s = append(s, externalTCPAddr[j].String())
+				externalTCPAddr[j].Port++
+			}
 		}
 	} else {
 		log.Printf("Listen addr %v\n", listenAddr)
@@ -330,12 +335,10 @@ func (p *proxyServer) listen(addr string, externalAddr []string, version string)
 		if err != nil {
 			return err
 		}
-	}
-	n := len(p.agent.GetConfigResult.Addresses)
-	s := make([]string, 0, n)
-	for len(s) < n {
-		for i := 0; i < len(externalAddr) && len(s) < n; i++ {
-			s = append(s, externalAddr[i])
+		for len(s) < len(p.agent.GetConfigResult.Addresses) {
+			for i := 0; i < len(externalAddr) && len(s) < len(p.agent.GetConfigResult.Addresses); i++ {
+				s = append(s, externalAddr[i])
+			}
 		}
 	}
 	p.config2.Addresses = s

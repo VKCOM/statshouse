@@ -151,8 +151,8 @@ func parseCommandLine() error {
 	}
 	var dummyVerb bool
 	flag.BoolVar(&dummyVerb, conveyorName, false, "not used, you can safely remote it")
-	var dummyVersion, dummyConveyor, dummyHostname, dummyMetadataAddr string
-	flag.StringVar(&dummyVersion, "ingress-version", "", "not used, you can safely remote it")
+	var dummyConveyor, dummyHostname, dummyMetadataAddr string
+	flag.StringVar(&argv.Version, "ingress-version", "", "ingress version")
 	flag.StringVar(&dummyConveyor, "new-conveyor", "", "not used, you can safely remote it")
 	flag.StringVar(&dummyHostname, "hostname", "", "not used, you can safely remote it")
 	flag.StringVar(&dummyMetadataAddr, "metadata-addr", "", "not used, you can safely remote it")
