@@ -156,7 +156,9 @@ export function normalizePlotData(
       const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
       const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
       const isValue = baseLabel.indexOf('Value') === 0;
-
+      if (plotData.series[indexMeta]?.label === baseLabel) {
+        seriesShow[indexMeta] = plotData.seriesShow[indexMeta];
+      }
       const metricName = isValue ? `${meta.name || (plot.metricName !== promQLMetric ? plot.metricName : '')}: ` : '';
       const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
       // client select color line
