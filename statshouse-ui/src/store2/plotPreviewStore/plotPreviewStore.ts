@@ -8,8 +8,8 @@ import { Queue } from '@/common/Queue';
 import { createStore, StoreSlice } from '../createStore';
 import { PlotKey } from '@/url2';
 import { canvasToImageData } from '@/common/canvasToImage';
-import { skipTimeout } from '../../common/helpers';
-import { usePlotVisibilityStore } from '../plotVisibilityStore';
+import { skipTimeout } from '@/common/helpers';
+import { usePlotVisibilityStore } from '@/store2/plotVisibilityStore';
 
 const queuePreview = new Queue();
 
