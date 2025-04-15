@@ -1595,7 +1595,38 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
-	Tags:                    []MetricMetaTag{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+	// having all those tags is important for UI, do NOT remove them
+	Tags: []MetricMetaTag{{
+		Name: "tag1",
+	}, {
+		Name: "tag2",
+	}, {
+		Name: "tag3",
+	}, {
+		Name: "tag4",
+	}, {
+		Name: "tag5",
+	}, {
+		Name: "tag6",
+	}, {
+		Name: "tag7",
+	}, {
+		Name: "tag8",
+	}, {
+		Name: "tag9",
+	}, {
+		Name: "tag10",
+	}, {
+		Name: "tag11",
+	}, {
+		Name: "tag12",
+	}, {
+		Name: "tag13",
+	}, {
+		Name: "tag14",
+	}, {
+		Name: "tag15",
+	}},
 }
 
 var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
