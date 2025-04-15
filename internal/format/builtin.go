@@ -102,7 +102,7 @@ var (
 		-81:                                     BuiltinMetricMetaAggSamplingMetricCount,
 		-82:                                     BuiltinMetricMetaSrcSamplingSizeBytes,
 		-83:                                     BuiltinMetricMetaAggSamplingSizeBytes,
-		-84:                                     BuiltinMetricMetaUIErrors,
+		BuiltinMetricIDMetaUIErrors:             BuiltinMetricMetaUIErrors, // to explicitly set env
 		-85:                                     BuiltinMetricMetaStatsHouseErrors,
 		-86:                                     BuiltinMetricMetaSrcSamplingBudget,
 		-87:                                     BuiltinMetricMetaAggSamplingBudget,
@@ -249,7 +249,7 @@ func init() {
 
 		BuiltinMetricByName[m.Name] = m
 
-		if id == BuiltinMetricIDIngestionStatus || id == BuiltinMetricIDAggMappingCreated {
+		if id == BuiltinMetricIDIngestionStatus || id == BuiltinMetricIDAggMappingCreated || id == BuiltinMetricIDMetaUIErrors {
 			m.Tags = append([]MetricMetaTag{{Description: "environment"}}, m.Tags...)
 		} else {
 			m.Tags = append([]MetricMetaTag{{Description: "-"}}, m.Tags...)
