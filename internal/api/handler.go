@@ -172,14 +172,12 @@ type (
 	}
 
 	Handler struct {
-		Version3Start          atomic.Int64
-		Version3Prob           atomic.Float64
-		Version3StrcmpOff      atomic.Bool
-		CacheVersion           atomic.Int32
-		CacheTrimBackoffPeriod atomic.Int64
-		CacheListMu            sync.RWMutex
-		CacheBlacklist         []string
-		CacheWhitelist         []string
+		Version3Start     atomic.Int64
+		Version3Prob      atomic.Float64
+		Version3StrcmpOff atomic.Bool
+		CacheListMu       sync.RWMutex
+		CacheBlacklist    []string
+		CacheWhitelist    []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -725,9 +723,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		if n := h.pointFloatsPoolSize.Load(); n != 0 {
 			h.bufferPoolBytesTotal.Value(float64(n))
 		}
-		if h.CacheVersion.Load() == 2 {
-			h.getCache2().sendMetrics(client)
-		}
+		h.getCache2().sendMetrics(client)
 	})
 	h.promEngine = promql.NewEngine(h.location, h.utcOffset)
 	return h, nil
