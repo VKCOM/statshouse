@@ -1586,6 +1586,8 @@ var BuiltinMetricMetaAggSamplingSizeBytes = &MetricMetaValue{
 	}},
 }
 
+const BuiltinMetricIDMetaUIErrors = -84
+
 var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	Name:                    "__ui_errors",
 	Kind:                    MetricKindValue,
