@@ -18,7 +18,6 @@ type Config struct {
 	Version3StrcmpOff  bool
 	UserLimitsStr      string
 	UserLimits         []chutil.ConnLimits
-	cacheVersion       int
 	MaxCacheSize       int // hard limit, in bytes
 	MaxCacheSizeSoft   int // soft limit, in bytes
 	MaxCacheAge        int // seconds
@@ -53,7 +52,6 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
 	f.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
 	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
-	f.IntVar(&argv.cacheVersion, "cache-version", 2, "cache version (deprecated)")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", 5*1024*1024*1024, "cache hard memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", 0, "cache soft memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 60, "maximum cache age in seconds")
