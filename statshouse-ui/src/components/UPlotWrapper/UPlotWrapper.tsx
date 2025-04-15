@@ -405,7 +405,9 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
   }, []);
 
   useLayoutEffect(() => {
-    uRef.current?.setSize({ width, height });
+    if (width > 0) {
+      uRef.current?.setSize({ width, height });
+    }
   }, [height, width]);
 
   useEffect(() => {

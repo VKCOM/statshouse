@@ -81,7 +81,7 @@ export const PlotLegend = memo(function PlotLegend({
           }
         }
         return s;
-      }),
+      }) ?? [],
     [data, seriesTimeShift]
   );
 
