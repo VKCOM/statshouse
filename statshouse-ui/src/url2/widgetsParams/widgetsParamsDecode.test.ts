@@ -5,12 +5,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import '@/testMock/matchMedia.mock';
-import { getDefaultParams } from '../getDefault';
-import { getNewMetric } from './metric';
-import { GET_PARAMS } from '../../api/enum';
-import { toTreeObj } from '../urlHelpers';
-import { orderPlotSplitter, removeValueChar } from '../constants';
-import { widgetsParamsDecode } from './widgetsParamsDecode';
+import {
+  getDefaultParams,
+  getNewMetric,
+  orderPlotSplitter,
+  removeValueChar,
+  toTreeObj,
+  widgetsParamsDecode,
+} from '@/url2';
+import { GET_PARAMS } from '@/api/enum';
 
 describe('@/urlStore widgetsParamsDecode', () => {
   test('widgetsParamsDecode', () => {

@@ -5,11 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import '@/testMock/matchMedia.mock';
-import { QueryParams } from '../queryParams';
-import { getNewMetric } from './metric';
-import { widgetsParamsEncode } from './widgetsParamsEncode';
-import { removeValueChar } from '../constants';
-import { getDefaultParams } from '../getDefault';
+import { getDefaultParams, getNewMetric, QueryParams, removeValueChar, widgetsParamsEncode } from '@/url2';
 
 const params: QueryParams = getDefaultParams();
 

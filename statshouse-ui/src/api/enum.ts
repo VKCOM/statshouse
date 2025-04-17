@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { invertObj, isEnum, toEnum, toNumber } from '../common/helpers';
+import { invertObj, isEnum, toEnum, toNumber } from '@/common/helpers';
 
 export type Enum<T> = T[keyof T];
 
@@ -36,6 +36,8 @@ export const GET_PARAMS = {
   metricMaxHost: 'mh',
   metricAgg: 'g',
   metricPromQL: 'q',
+  metricGroupKey: 'dg',
+  metricLayout: 'dl',
   /**
    * widget type
    */
@@ -447,3 +449,20 @@ export const TIME_RANGE_ABBREV_DESCRIPTION: Record<TimeRangeAbbrev, string> = {
   [TIME_RANGE_ABBREV.last1y]: 'Last year',
   [TIME_RANGE_ABBREV.last2y]: 'Last 2 years',
 };
+
+export const LAYOUT_WIDGET_SIZE = Object.freeze({
+  [PLOT_TYPE.Metric]: {
+    minW: 2,
+    minH: 2,
+    maxW: 12,
+    maxH: 10,
+  },
+  [PLOT_TYPE.Event]: {
+    minW: 2,
+    minH: 2,
+    maxW: 12,
+    maxH: 10,
+  },
+} as const);
+
+export const LAYOUT_COLUMNS = 12;

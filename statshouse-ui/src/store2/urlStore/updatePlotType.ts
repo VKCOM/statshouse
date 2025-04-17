@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { StatsHouseStore } from '../statsHouseStore';
+import { StatsHouseStore } from '@/store2';
 import type { PlotKey } from '@/url2';
 import { PLOT_TYPE, type PlotType, QUERY_WHAT, TAG_KEY } from '@/api/enum';
 import { ProduceUpdate } from '../helpers';
@@ -41,7 +41,7 @@ export function updatePlotType(plotKey: PlotKey, nextType: PlotType): ProduceUpd
       }
 
       if (plot.type === PLOT_TYPE.Metric) {
-        store.params.orderPlot.forEach((pK) => {
+        Object.keys(store.params.plots).forEach((pK) => {
           const pl = store.params.plots[pK];
           if (pl?.events.indexOf(plotKey)) {
             pl.events = pl.events.filter((epK) => epK !== plotKey);

@@ -4,13 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { PlotParams } from '../../queryParams';
-import { getNewMetric } from './getNewMetric';
-import { GET_PARAMS, metricTypeToMetricTypeUrl, PLOT_TYPE, type TagKey } from '../../../api/enum';
-import { toPlotPrefix } from '../../urlHelpers';
-import { promQLMetric, removeValueChar } from '../../constants';
+import type { PlotParams } from '@/url2';
+import { getNewMetric, metricFilterEncode, promQLMetric, removeValueChar, toPlotPrefix } from '@/url2';
+import { GET_PARAMS, metricTypeToMetricTypeUrl, PLOT_TYPE, type TagKey } from '@/api/enum';
 import { dequal } from 'dequal/lite';
-import { metricFilterEncode } from './metricFilterEncode';
+import { metricLayoutEncode } from '@/url2/widgetsParams/metric/metricLayoutEncode';
 
 export function metricEncode(plot: PlotParams, defaultPlot: PlotParams = getNewMetric()): [string, string][] {
   const paramArr: [string, string][] = [];
@@ -152,6 +150,24 @@ export function metricEncode(plot: PlotParams, defaultPlot: PlotParams = getNewM
       });
     }
   }
+
+  if (defaultPlot.group !== plot.group) {
+    if (plot.group == null) {
+      paramArr.push([prefix + GET_PARAMS.metricGroupKey, removeValueChar]);
+    } else {
+      paramArr.push([prefix + GET_PARAMS.metricGroupKey, plot.group.toString()]);
+    }
+  }
+
+  if (!dequal(defaultPlot.layout, plot.layout)) {
+    //remove metric layout
+    if (plot.layout == null) {
+      paramArr.push([prefix + GET_PARAMS.metricLayout, removeValueChar]);
+    } else {
+      paramArr.push([prefix + GET_PARAMS.metricLayout, metricLayoutEncode(plot.layout)]);
+    }
+  }
+
   if (!paramArr.length && !defaultPlot.id) {
     if (plot.metricName === promQLMetric) {
       paramArr.push([prefix + GET_PARAMS.metricPromQL, plot.promQL]);
@@ -159,5 +175,6 @@ export function metricEncode(plot: PlotParams, defaultPlot: PlotParams = getNewM
       paramArr.push([prefix + GET_PARAMS.metricName, plot.metricName]);
     }
   }
+
   return paramArr;
 }

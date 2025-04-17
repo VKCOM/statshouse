@@ -38,6 +38,7 @@ const params: QueryParams = {
     '3': { ...getNewVariable(), id: '3' },
   },
   orderVariables: ['3', '2', '1', '0'],
+  version: '3',
 };
 const params2: QueryParams = {
   ...getDefaultParams(),
@@ -60,6 +61,7 @@ const params2: QueryParams = {
     '3': { ...getNewVariable(), id: '3' },
   },
   orderVariables: ['3', '1', '0'],
+  version: '3',
 };
 
 describe('@/urlStore', () => {

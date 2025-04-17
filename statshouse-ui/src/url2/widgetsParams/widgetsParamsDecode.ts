@@ -4,12 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { isPlotKey, TreeParamsObject, treeParamsObjectValueSymbol } from '../urlHelpers';
-import { PlotKey, PlotParams, QueryParams } from '../queryParams';
-import { uniqueArray } from '../../common/helpers';
-import { GET_PARAMS, PLOT_TYPE, toPlotType } from '../../api/enum';
-import { orderPlotSplitter } from '../constants';
-import { metricDecode } from './metric';
+import {
+  isPlotKey,
+  metricDecode,
+  orderPlotSplitter,
+  PlotKey,
+  PlotParams,
+  QueryParams,
+  TreeParamsObject,
+  treeParamsObjectValueSymbol,
+} from '@/url2';
+import { uniqueArray } from '@/common/helpers';
+import { GET_PARAMS, PLOT_TYPE, toPlotType } from '@/api/enum';
 
 export function widgetsParamsDecode(
   searchParams: TreeParamsObject,

@@ -6,6 +6,7 @@
 
 export const filterInSep = '-';
 export const filterNotInSep = '~';
+export const layoutPlotSplitter = '.';
 export const orderPlotSplitter = '.';
 export const orderGroupSplitter = '.';
 export const orderVariableSplitter = '.';

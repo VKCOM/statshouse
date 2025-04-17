@@ -20,6 +20,7 @@ import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './co
 import { isKeyId, isNotNilVariableLink, TreeParamsObject, treeParamsObjectValueSymbol } from './urlHelpers';
 import { readTimeRange } from './timeRangeHelpers';
 import { metricFilterDecode, widgetsParamsDecode } from './widgetsParams';
+import { urlDecodeVersion } from '@/url2/urlDecodeVersion';
 
 export function urlDecode(
   searchParams: TreeParamsObject,
@@ -62,11 +63,13 @@ export function urlDecode(
     uniqueArray([...variableKeys, ...defaultParams.orderVariables]),
     defaultParams
   );
+  const version = urlDecodeVersion({ ...plots });
   //fix lose plot
   if (groups.orderGroup.length === 1 && groups.groups[groups.orderGroup[0]]?.count !== plots.orderPlot.length) {
     groups.groups[groups.orderGroup[0]]!.count = plots.orderPlot.length;
   }
   return {
+    version,
     ...global,
     ...timeRange,
     ...plots,

@@ -659,7 +659,7 @@ export const Select: FC<SelectProps> = ({
   }, [filterOptions, updatePositionClass, multiple, meOpen, listOnlyOpen]);
 
   const labelWidth = useMemo(() => {
-    const labelsLength = options.map((o) => (o.title || o.value).length).sort((a, b) => b - a);
+    const labelsLength = options.map((o) => (o.name || o.title || o.value).length).sort((a, b) => b - a);
     const k = multiple ? 30 : 0;
     const full = (labelsLength[0] ?? 0) * pxPerChar + k;
     const p75 = (labelsLength[Math.floor(labelsLength.length * 0.25)] ?? 0) * pxPerChar + k;
