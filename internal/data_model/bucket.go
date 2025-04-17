@@ -14,7 +14,6 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/dchest/siphash"
 	"github.com/hrissan/tdigest"
 	"github.com/zeebo/xxh3"
 
@@ -95,10 +94,6 @@ func (t TagUnionBytes) Empty() bool {
 	return t.I == 0 && len(t.S) == 0
 }
 
-// Randomly selected, do not change. Which keys go to which shard depends on this.
-const sipKeyA = 0x3605bf49d8e3adf2
-const sipKeyB = 0xc302580679a8cef2
-
 func (s *ItemCounter) Count() float64 { return s.counter }
 
 func (k *Key) SetSTag(i int, s string) {
@@ -150,30 +145,6 @@ func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTa
 	key.Tags[format.AggShardTag] = shardTag
 	key.Tags[format.AggReplicaTag] = replicaTag
 	return &key
-}
-
-func (k *Key) Hash() uint64 {
-	var b [4 + 4*format.MaxTags]byte
-	// timestamp is not part of shard
-	binary.LittleEndian.PutUint32(b[:], uint32(k.Metric))
-	binary.LittleEndian.PutUint32(b[4+0*4:], uint32(k.Tags[0]))
-	binary.LittleEndian.PutUint32(b[4+1*4:], uint32(k.Tags[1]))
-	binary.LittleEndian.PutUint32(b[4+2*4:], uint32(k.Tags[2]))
-	binary.LittleEndian.PutUint32(b[4+3*4:], uint32(k.Tags[3]))
-	binary.LittleEndian.PutUint32(b[4+4*4:], uint32(k.Tags[4]))
-	binary.LittleEndian.PutUint32(b[4+5*4:], uint32(k.Tags[5]))
-	binary.LittleEndian.PutUint32(b[4+6*4:], uint32(k.Tags[6]))
-	binary.LittleEndian.PutUint32(b[4+7*4:], uint32(k.Tags[7]))
-	binary.LittleEndian.PutUint32(b[4+8*4:], uint32(k.Tags[8]))
-	binary.LittleEndian.PutUint32(b[4+9*4:], uint32(k.Tags[9]))
-	binary.LittleEndian.PutUint32(b[4+10*4:], uint32(k.Tags[10]))
-	binary.LittleEndian.PutUint32(b[4+11*4:], uint32(k.Tags[11]))
-	binary.LittleEndian.PutUint32(b[4+12*4:], uint32(k.Tags[12]))
-	binary.LittleEndian.PutUint32(b[4+13*4:], uint32(k.Tags[13]))
-	binary.LittleEndian.PutUint32(b[4+14*4:], uint32(k.Tags[14]))
-	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Tags[15]))
-	const _ = uint(16 - format.MaxTags) // compile time assert to manually add new keys above
-	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }
 
 // returns possibly reallocated scratch
