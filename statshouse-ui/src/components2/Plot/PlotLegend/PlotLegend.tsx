@@ -123,16 +123,24 @@ export const PlotLegend = memo(function PlotLegend({
 
   const legendRows = useMemo(
     () =>
-      legend.map((l) => {
+      legend.map((l, indexL) => {
         const idx = l.values?.idx;
         const rawValue = l.values?.rawValue;
         const percent = (idx != null && rawValue != null && formatPercent(rawValue / totalLine[idx])) || '';
+        let timeShift = '';
+        let baseLabel = l.label;
+        if (seriesTimeShift && indexL && seriesTimeShift[indexL - 1] < 0) {
+          timeShift = timeShiftDesc(seriesTimeShift[indexL - 1]);
+          baseLabel = l.label.replace(timeShift + ' ', '');
+        }
         return {
           ...l,
           percent,
+          baseLabel,
+          timeShift,
         };
       }),
-    [legend, totalLine]
+    [legend, seriesTimeShift, totalLine]
   );
 
   return (
@@ -152,8 +160,8 @@ export const PlotLegend = memo(function PlotLegend({
                 className={css.marker}
                 style={{ border: l.stroke && `${l.width}px solid ${l.stroke}`, background: l.fill }}
               ></div>
-              <Tooltip className={css.labelCompact} title={l.label}>
-                {l.label}
+              <Tooltip className={css.labelCompact} title={l.baseLabel}>
+                {l.baseLabel}
               </Tooltip>
             </div>
           ))}
@@ -192,16 +200,11 @@ export const PlotLegend = memo(function PlotLegend({
                       {index !== 0 ? (
                         l.values ? (
                           <>
-                            {!!seriesTimeShift?.[index - 1] && seriesTimeShift[index - 1] < 0 && (
-                              <span className="text-secondary">{timeShiftDesc(seriesTimeShift?.[index - 1])} </span>
-                            )}
-                            <span>
-                              {l.label}
-                              {/*{l.values.baseLabel}*/}
-                            </span>
+                            {l.timeShift && <span className="text-secondary">{l.timeShift} </span>}
+                            <span>{l.baseLabel}</span>
                           </>
                         ) : (
-                          l.label
+                          l.baseLabel
                         )
                       ) : (
                         l.value || ' '

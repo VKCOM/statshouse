@@ -318,6 +318,9 @@ export function MetricWidget({ className, isDashboard, isEmbed, fixRatio }: Plot
         } else {
           d.seriesShow[idx] = show ?? !d.seriesShow[idx];
         }
+        if (d.seriesShow.every((i) => !i)) {
+          d.seriesShow.fill(true);
+        }
       });
     },
     [setData]

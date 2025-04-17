@@ -156,7 +156,7 @@ export function normalizePlotData(
       const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
       const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
       const isValue = baseLabel.indexOf('Value') === 0;
-      if (plotData.series[indexMeta]?.label === baseLabel) {
+      if (plotData.series[indexMeta]?.label === label) {
         seriesShow[indexMeta] = plotData.seriesShow[indexMeta];
       }
       const metricName = isValue ? `${meta.name || (plot.metricName !== promQLMetric ? plot.metricName : '')}: ` : '';
@@ -181,7 +181,7 @@ export function normalizePlotData(
       return {
         show: seriesShow[indexMeta] ?? true,
         auto: false, // we control the scaling manually
-        label: baseLabel,
+        label: label,
         stroke: baseColor,
         width: widthLine,
         dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
