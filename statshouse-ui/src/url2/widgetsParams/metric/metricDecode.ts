@@ -4,15 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { PlotKey, PlotParams } from '../../queryParams';
 import {
   freeKeyPrefix,
+  getNewMetric,
+  metricFilterDecode,
+  metricLayoutDecode,
+  PlotKey,
+  PlotParams,
+  promQLMetric,
+  removeValueChar,
   sortUniqueKeys,
   toPlotKey,
   TreeParamsObject,
   treeParamsObjectValueSymbol,
-} from '../../urlHelpers';
-import { promQLMetric, removeValueChar } from '../../constants';
+} from '@/url2';
 import {
   GET_PARAMS,
   isQueryWhat,
@@ -21,10 +26,8 @@ import {
   PLOT_TYPE,
   toMetricValueBackendVersion,
   toPlotType,
-} from '../../../api/enum';
-import { isNotNil, toNumber, toNumberM } from '../../../common/helpers';
-import { getNewMetric } from './getNewMetric';
-import { metricFilterDecode } from './metricFilterDecode';
+} from '@/api/enum';
+import { isNotNil, toNumber, toNumberM } from '@/common/helpers';
 
 export function metricDecode(
   plotKey: PlotKey,
@@ -43,6 +46,8 @@ export function metricDecode(
   const rawPrometheusCompat = searchParams?.[GET_PARAMS.prometheusCompat]?.[treeParamsObjectValueSymbol]?.[0];
   const metricName = searchParams?.[GET_PARAMS.metricName]?.[treeParamsObjectValueSymbol]?.[0];
   const promQL = searchParams?.[GET_PARAMS.metricPromQL]?.[treeParamsObjectValueSymbol]?.[0];
+  const rawLayout = searchParams?.[GET_PARAMS.metricLayout]?.[treeParamsObjectValueSymbol]?.[0];
+  const rawGroup = searchParams?.[GET_PARAMS.metricGroupKey]?.[treeParamsObjectValueSymbol]?.[0];
 
   return {
     id: plotKey,
@@ -64,7 +69,14 @@ export function metricDecode(
       searchParams?.[GET_PARAMS.metricGroupBy]?.[treeParamsObjectValueSymbol]?.map(freeKeyPrefix).filter(isTagKey) ??
         defaultPlot.groupBy
     ),
+    group: rawGroup == removeValueChar ? undefined : (rawGroup ?? defaultPlot.group),
     ...metricFilterDecode(GET_PARAMS.metricFilter, searchParams, defaultPlot),
+    layout:
+      rawLayout === removeValueChar
+        ? undefined
+        : rawLayout == null
+          ? defaultPlot.layout
+          : metricLayoutDecode(rawLayout),
     numSeries:
       toNumber(searchParams?.[GET_PARAMS.numResults]?.[treeParamsObjectValueSymbol]?.[0]) ??
       (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries),

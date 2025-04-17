@@ -16,12 +16,12 @@ import {
   VariableKey,
   VariableParams,
 } from '@/url2';
-import type { StatsHouseStore } from '../statsHouseStore';
+import type { StatsHouseStore } from '@/store2';
 import type { TagKey } from '@/api/enum';
 import { isNotNil, toNumberM } from '@/common/helpers';
-import { clonePlot } from '../../url2/clonePlot';
-import { cloneGroup } from '../../url2/cloneGroup';
-import { cloneVariable } from '../../url2/cloneVariable';
+import { clonePlot } from '@/url2/clonePlot';
+import { cloneGroup } from '@/url2/cloneGroup';
+import { cloneVariable } from '@/url2/cloneVariable';
 
 export type VariableLinks = { variableKey: VariableKey; tag: TagKey };
 

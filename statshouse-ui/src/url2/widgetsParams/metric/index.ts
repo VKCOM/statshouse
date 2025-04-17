@@ -9,3 +9,4 @@ export * from './metricDecode';
 export * from './metricEncode';
 export { metricFilterDecode } from './metricFilterDecode';
 export { metricFilterEncode } from './metricFilterEncode';
+export { metricLayoutDecode } from './metricLayoutDecode';

@@ -174,6 +174,30 @@ export function useApiTable<T = ApiTable>(
   });
 }
 
+export function useApiTableNoLive<T = ApiTable>(
+  plot: PlotParams,
+  timeRange: TimeRange,
+  variables: Partial<Record<VariableKey, VariableParams>>,
+  key?: string,
+  fromEnd: boolean = false,
+  limit: number = 1000,
+  select?: (response?: ApiTable) => T,
+  enabled: boolean = true
+) {
+  const queryClient = useQueryClient();
+
+  const options = useMemo(
+    () => getTableOptions<ApiTable>(queryClient, plot, timeRange, variables, undefined, key, fromEnd, limit),
+    [queryClient, plot, timeRange, variables, key, fromEnd, limit]
+  );
+
+  return useQuery({
+    ...options,
+    select,
+    enabled,
+  });
+}
+
 type QueryFnTableInfinitePageParam = {
   fromEnd: boolean;
   key: string;

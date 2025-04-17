@@ -4,11 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { QueryParams } from '../queryParams';
-import { getDefaultParams } from '../getDefault';
-import { metricEncode } from './metric';
-import { GET_PARAMS, PLOT_TYPE } from '../../api/enum';
-import { orderPlotSplitter, removeValueChar } from '../constants';
+import { getDefaultParams, metricEncode, orderPlotSplitter, QueryParams, removeValueChar } from '@/url2';
+import { GET_PARAMS, PLOT_TYPE } from '@/api/enum';
 import { dequal } from 'dequal/lite';
 
 export function widgetsParamsEncode(

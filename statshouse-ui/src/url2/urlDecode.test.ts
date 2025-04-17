@@ -20,7 +20,7 @@ import { QueryParams, VariableParams, VariableParamsSource } from './queryParams
 import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } from './getDefault';
 import { orderGroupSplitter, orderVariableSplitter, promQLMetric, removeValueChar } from './constants';
 import { toTreeObj, treeParamsObjectValueSymbol } from './urlHelpers';
-import { getNewMetric } from './widgetsParams/metric';
+import { getNewMetric } from '@/url2/widgetsParams';
 
 jest.useFakeTimers().setSystemTime(new Date('2020-01-01 00:00:00'));
 
@@ -429,6 +429,7 @@ describe('@/urlStore urlDecode', () => {
         },
       },
       orderGroup: ['0', '1'],
+      version: '3',
     };
     expect(urlDecode({}, dParams)).toEqual(dParams);
     expect(

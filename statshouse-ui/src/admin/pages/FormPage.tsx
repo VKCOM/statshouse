@@ -428,9 +428,9 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
           </label>
           <div className="col">
             <div id="tagsDraft" className="form-text"></div>
-            {values.tags_draft.map((tag_draft_info, index) => (
+            {values.tags_draft.map((tag_draft_info) => (
               <TagDraft
-                key={index}
+                key={tag_draft_info.name}
                 tag_key={tag_draft_info.name}
                 tag={tag_draft_info}
                 free_tags={free_tags}

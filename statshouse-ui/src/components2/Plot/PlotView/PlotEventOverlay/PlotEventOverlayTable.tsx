@@ -12,7 +12,7 @@ import cn from 'classnames';
 import css from './style.module.css';
 import { freeKeyPrefix, PlotParams, TimeRange } from '@/url2';
 import { useEventTagColumns2 } from '@/hooks/useEventTagColumns2';
-import { ApiTable, useApiTable } from '@/api/table';
+import { ApiTable, useApiTableNoLive } from '@/api/table';
 import { toNumber } from '@/common/helpers';
 import { StatsHouseStore, useStatsHouse } from '@/store2';
 
@@ -69,7 +69,7 @@ export const PlotEventOverlayTable = memo(function PlotEventOverlayTable({
     [plot]
   );
 
-  const queryTable = useApiTable(
+  const queryTable = useApiTableNoLive(
     { ...plot, customAgg: toNumber(agg, 1) },
     range,
     variables,
