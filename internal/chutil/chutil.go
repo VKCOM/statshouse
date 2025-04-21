@@ -50,8 +50,9 @@ type QueryMetaInto struct {
 }
 
 type QueryHandleInfo struct {
-	Duration time.Duration
-	Profile  proto.Profile
+	WaitLockDuration time.Duration
+	QueryDuration    time.Duration
+	Profile          proto.Profile
 }
 
 type ConnLimits struct {
@@ -247,16 +248,16 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 		startTime := time.Now()
 
 		err = pool.sem.Acquire(ctx, meta.User)
-		waitLockDuration := time.Since(startTime)
+		info.WaitLockDuration = time.Since(startTime)
 
-		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName}, waitLockDuration.Seconds())
+		statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName}, info.WaitLockDuration.Seconds())
 		if err != nil {
 			return info, err
 		}
 
 		start := time.Now()
 		err = servers[i].Do(ctx, query)
-		info.Duration = time.Since(start)
+		info.QueryDuration = time.Since(start)
 		pool.sem.Release()
 		if err == nil {
 			return // succeeded
