@@ -867,12 +867,11 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 
 	h.Tracef("%s", query.Body)
 
-	start := time.Now()
 	h.endpointStat.reportQueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	info, err := h.ch[version].Select(ctx, meta, query)
-	duration := time.Since(start)
-	h.endpointStat.reportTiming("ch-select", duration)
-	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
+	h.endpointStat.reportTiming("ch-select", info.QueryDuration)
+	h.endpointStat.reportTiming("wait-lock", info.WaitLockDuration)
+	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, info.Profile, err)
 
 	return err
