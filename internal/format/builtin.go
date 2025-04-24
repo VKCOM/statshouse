@@ -218,7 +218,7 @@ func init() {
 		// v.WithAgentEnvRouteArch = false
 		// v.WithAggregatorID = false
 	}
-	for i := 0; i < NewMaxTags; i++ {
+	for i := 0; i < MaxTags; i++ {
 		name := strconv.Itoa(i)
 		legacyName := legacyTagIDPrefix + name
 		tagIDsLegacy = append(tagIDsLegacy, legacyName)
