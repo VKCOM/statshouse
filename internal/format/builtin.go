@@ -156,6 +156,7 @@ var (
 		-137:                                    BuiltinMetricMetaAgentTimings,
 		-138:                                    BuiltinMetricMetaAggInsertSize,
 		-139:                                    BuiltinMetricMetaAggOldMetrics,
+		-140:                                    BuiltinMetricMetaApiChRequests,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly

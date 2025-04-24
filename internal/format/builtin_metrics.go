@@ -2714,3 +2714,30 @@ var BuiltinMetricMetaAggOldMetrics = &MetricMetaValue{
 		BuiltinKind: BuiltinKindMetric,
 	}},
 }
+
+var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
+	Name:                    "__api_ch_requests",
+	Kind:                    MetricKindCounter,
+	Resolution:              60,
+	Description:             "Distribution of API requests to clickhouse",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}, {
+		Description: "shard",
+		RawKind:     "int",
+	}, {
+		Description: "aggregator_host",
+	}, {
+		Description: "table",
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDStatusOK:    "ok",
+			TagValueIDStatusError: "error",
+		}),
+	}},
+}

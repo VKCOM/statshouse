@@ -30,6 +30,7 @@ type connPool struct {
 	rnd            *rand.Rand
 	maxActiveQuery int
 	servers        []*chpool.Pool
+	serverAddrs    []string
 	sem            *queue.Queue
 }
 
@@ -53,6 +54,8 @@ type QueryHandleInfo struct {
 	WaitLockDuration time.Duration
 	QueryDuration    time.Duration
 	Profile          proto.Profile
+	Host             string
+	Shard            int
 }
 
 type ConnLimits struct {
@@ -85,7 +88,7 @@ const (
 )
 
 func newConnPool(poolName string, maxConn int) *connPool {
-	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), queue.NewQueue(int64(maxConn))}
+	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), make([]string, 0), queue.NewQueue(int64(maxConn))}
 }
 
 func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
@@ -134,6 +137,7 @@ func (ch1 *ClickHouse) SetLimits(limits []ConnLimits) error {
 					return err
 				}
 				pool.servers = append(pool.servers, server)
+				pool.serverAddrs = append(pool.serverAddrs, addr)
 			}
 		}
 	}
@@ -239,6 +243,7 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
+	serverAddrs := append(make([]string, 0, len(pool.serverAddrs)), pool.serverAddrs...)
 	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
 		var i int
 		i, err = pickRandomServer(servers, pool.rnd)
@@ -258,6 +263,7 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 		start := time.Now()
 		err = servers[i].Do(ctx, query)
 		info.QueryDuration = time.Since(start)
+		info.Host = serverAddrs[i]
 		pool.sem.Release()
 		if err == nil {
 			return // succeeded
@@ -268,6 +274,7 @@ func (pool *connPool) selectCH(ctx context.Context, meta QueryMetaInto, query ch
 		log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		// keep searching alive server
 		servers = append(servers[:i], servers[i+1:]...)
+		serverAddrs = append(serverAddrs[:i], serverAddrs[i+1:]...)
 	}
 	return info, err
 }

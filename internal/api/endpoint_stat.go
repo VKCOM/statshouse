@@ -165,6 +165,22 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table,
 		duration.Seconds())
 }
 
+func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
+	status := "1"
+	if !ok {
+		status = "2"
+	}
+	statshouse.Count(
+		format.BuiltinMetricMetaApiChRequests.Name,
+		statshouse.Tags{
+			1: srvfunc.HostnameForStatshouse(),
+			2: strconv.Itoa(shard),
+			3: aggHost,
+			4: table,
+			5: status,
+		}, 1)
+}
+
 func ChSelectProfile(isFast, isLight, isHardware bool, info proto.Profile, err error) {
 	chSelectPushMetric(format.BuiltinMetricMetaAPISelectBytes.Name, isFast, isLight, isHardware, float64(info.Bytes), err)
 	chSelectPushMetric(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), err)
