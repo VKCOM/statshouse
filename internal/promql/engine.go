@@ -1016,6 +1016,11 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 							ID:    LabelOffset,
 							Value: selOffset})
 					}
+					for tid := range sr.Meta.STags {
+						if tag, ok := sr.Data[k].Tags.Get(tid); ok {
+							tag.stringify(ev)
+						}
+					}
 					sr.Data[k].Offset = offset
 				}
 				if qry.prefixSum {
