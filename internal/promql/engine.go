@@ -732,6 +732,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 					on:         expr.VectorMatching.On,
 					tags:       expr.VectorMatching.MatchingLabels,
 					stags:      rhs.Meta.STags,
+					stags2:     lhs.Meta.STags,
 					listUnused: true,
 				})
 				if err != nil {
@@ -739,9 +740,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				}
 				var rhsM map[uint64]hashMeta
 				rhsM, err = rhs.hash(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
+					on:     expr.VectorMatching.On,
+					tags:   expr.VectorMatching.MatchingLabels,
+					stags:  lhs.Meta.STags,
+					stags2: rhs.Meta.STags,
 				})
 				if err != nil {
 					return nil, err
@@ -769,18 +771,20 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 		case parser.CardOneToMany:
 			var lhsM map[uint64]hashMeta
 			lhsM, err = lhs.hash(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
-				stags: rhs.Meta.STags,
+				on:     expr.VectorMatching.On,
+				tags:   expr.VectorMatching.MatchingLabels,
+				stags:  rhs.Meta.STags,
+				stags2: lhs.Meta.STags,
 			})
 			if err != nil {
 				return nil, err
 			}
 			var rhsM map[uint64][]int
 			rhsM, _, err = rhs.group(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
-				stags: lhs.Meta.STags,
+				on:     expr.VectorMatching.On,
+				tags:   expr.VectorMatching.MatchingLabels,
+				stags:  lhs.Meta.STags,
+				stags2: rhs.Meta.STags,
 			})
 			if err != nil {
 				return nil, err
@@ -812,9 +816,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 		case parser.CardManyToMany:
 			var lhsM map[uint64][]int
 			lhsM, _, err = lhs.group(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
-				stags: rhs.Meta.STags,
+				on:     expr.VectorMatching.On,
+				tags:   expr.VectorMatching.MatchingLabels,
+				stags:  rhs.Meta.STags,
+				stags2: lhs.Meta.STags,
 			})
 			if err != nil {
 				return nil, err
@@ -823,9 +828,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			case parser.LAND:
 				var rhsM map[uint64][]int
 				rhsM, _, err = rhs.group(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
+					on:     expr.VectorMatching.On,
+					tags:   expr.VectorMatching.MatchingLabels,
+					stags:  lhs.Meta.STags,
+					stags2: rhs.Meta.STags,
 				})
 				if err != nil {
 					return nil, err
@@ -851,9 +857,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				} else {
 					var rhsM map[uint64]hashMeta
 					rhsM, err = rhs.hash(ev, hashOptions{
-						on:    expr.VectorMatching.On,
-						tags:  expr.VectorMatching.MatchingLabels,
-						stags: lhs.Meta.STags,
+						on:     expr.VectorMatching.On,
+						tags:   expr.VectorMatching.MatchingLabels,
+						stags:  lhs.Meta.STags,
+						stags2: rhs.Meta.STags,
 					})
 					if err != nil {
 						return nil, err
@@ -875,9 +882,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				} else {
 					var rhsM map[uint64][]int
 					rhsM, _, err = rhs.group(ev, hashOptions{
-						on:    expr.VectorMatching.On,
-						tags:  expr.VectorMatching.MatchingLabels,
-						stags: lhs.Meta.STags,
+						on:     expr.VectorMatching.On,
+						tags:   expr.VectorMatching.MatchingLabels,
+						stags:  lhs.Meta.STags,
+						stags2: rhs.Meta.STags,
 					})
 					if err != nil {
 						return nil, err
@@ -908,9 +916,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			case parser.LUNLESS:
 				var rhsM map[uint64][]int
 				rhsM, _, err = rhs.group(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
+					on:     expr.VectorMatching.On,
+					tags:   expr.VectorMatching.MatchingLabels,
+					stags:  lhs.Meta.STags,
+					stags2: rhs.Meta.STags,
 				})
 				if err != nil {
 					return nil, err
@@ -1015,11 +1024,6 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 						sr.AddTagAt(k, &SeriesTag{
 							ID:    LabelOffset,
 							Value: selOffset})
-					}
-					for tid := range sr.Meta.STags {
-						if tag, ok := sr.Data[k].Tags.Get(tid); ok {
-							tag.stringify(ev)
-						}
 					}
 					sr.Data[k].Offset = offset
 				}

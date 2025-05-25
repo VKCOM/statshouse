@@ -78,9 +78,10 @@ type bucket struct {
 }
 
 type hashOptions struct {
-	on    bool
-	tags  []string
-	stags map[string]int
+	on     bool
+	tags   []string
+	stags  map[string]int
+	stags2 map[string]int
 
 	listUsed   bool // list tags used in hash calculation
 	listUnused bool // list tags not used in hash calculation
@@ -708,7 +709,8 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 		if err != nil {
 			return 0, hashTags{}, err
 		}
-		if opt.stags != nil && opt.stags[t.ID] != 0 {
+		if (opt.stags != nil && opt.stags[t.ID] != 0) ||
+			(opt.stags2 != nil && opt.stags2[t.ID] != 0) {
 			t.stringify(ev)
 		}
 		if t.stringified {
