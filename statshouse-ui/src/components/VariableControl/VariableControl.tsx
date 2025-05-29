@@ -15,6 +15,7 @@ import { MetricTagValueInfo } from '@/api/metricTagValues';
 import { escapeHTML } from '@/common/helpers';
 import { Button } from '@/components/UI';
 import { formatPercent } from '@/view/utils2';
+import { MetricTagValueTooltip } from '@/components/UI/ExtendedInfo';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];
@@ -39,7 +40,7 @@ export type VariableControlProps<T> = {
   setOpen?: (name: T | undefined, value: boolean) => void;
   customBadge?: React.ReactNode;
 };
-export function VariableControl<T>({
+export function VariableControl<T extends string>({
   target,
   placeholder,
   className,
@@ -146,28 +147,30 @@ export function VariableControl<T>({
       <div className={cn('d-flex flex-wrap gap-2', (!!customBadge || values.length > 0 || notValues.length) && 'mt-2')}>
         {customBadge}
         {values.map((v) => (
-          <Button
-            type="button"
-            key={v}
-            data-value={v}
-            className="overflow-force-wrap btn btn-sm py-0 btn-success"
-            style={{ userSelect: 'text' }}
-            onClick={onRemoveFilter}
-          >
-            {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </Button>
+          <MetricTagValueTooltip key={v} target={target} value={v}>
+            <Button
+              type="button"
+              data-value={v}
+              className="overflow-force-wrap btn btn-sm py-0 btn-success"
+              style={{ userSelect: 'text' }}
+              onClick={onRemoveFilter}
+            >
+              {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+            </Button>
+          </MetricTagValueTooltip>
         ))}
         {notValues.map((v) => (
-          <Button
-            type="button"
-            key={v}
-            data-value={v}
-            className="overflow-force-wrap btn btn-sm py-0 btn-danger"
-            style={{ userSelect: 'text' }}
-            onClick={onRemoveFilter}
-          >
-            {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </Button>
+          <MetricTagValueTooltip key={v} target={target} value={v}>
+            <Button
+              type="button"
+              data-value={v}
+              className="overflow-force-wrap btn btn-sm py-0 btn-danger"
+              style={{ userSelect: 'text' }}
+              onClick={onRemoveFilter}
+            >
+              {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+            </Button>
+          </MetricTagValueTooltip>
         ))}
       </div>
     </div>
