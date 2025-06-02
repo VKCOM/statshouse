@@ -85,6 +85,10 @@
   pointer-events: auto;
 }
 
+.plotMenu {
+  pointer-events: auto;
+}
+
 .badge:empty {
   display: none !important;
 }

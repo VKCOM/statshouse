@@ -73,6 +73,7 @@ export type UrlStore = {
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
   setNextDashboardSchemePlot(nextScheme: { groupKey: GroupKey; plots: PlotKey[] }[]): void;
+  setPlotGroup(plotKey: PlotKey, groupKey: GroupKey): void;
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(copy?: boolean): Promise<void | ApiDashboard>;
   removeDashboard(): Promise<void>;
@@ -295,6 +296,22 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
               plots,
             };
           });
+        })
+      );
+    },
+    setPlotGroup(plotKey, groupKey) {
+      setUrlStore(
+        updateParamsPlotStruct((plotStruct) => {
+          const oldGroup = plotStruct.mapPlotToGroup[plotKey];
+          if (oldGroup != null && oldGroup !== groupKey) {
+            const groupSourceIndex = plotStruct.mapGroupIndex[oldGroup];
+            const groupTargetIndex = plotStruct.mapGroupIndex[groupKey];
+            const plotSourceIndex = plotStruct.mapPlotIndex[plotKey];
+            if (plotSourceIndex != null && groupSourceIndex != null && groupTargetIndex != null) {
+              const plot = plotStruct.groups[groupSourceIndex].plots.splice(plotSourceIndex, 1);
+              plotStruct.groups[groupTargetIndex].plots.push(...plot);
+            }
+          }
         })
       );
     },

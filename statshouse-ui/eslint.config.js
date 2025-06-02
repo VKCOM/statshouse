@@ -45,6 +45,7 @@ export default tseslint.config({
     'react/no-unescaped-entities': 'off',
     'no-console': 'warn',
     'no-empty': ['error', { allowEmptyCatch: true }],
+    'no-empty-pattern': ['error', { allowObjectPatternsAsParameters: true }],
     '@typescript-eslint/no-unused-vars': [
       'warn',
       {
