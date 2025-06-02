@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Popper, POPPER_HORIZONTAL, POPPER_VERTICAL, PopperHorizontal, PopperVertical } from './Popper';
 import type { JSX } from 'react/jsx-runtime';
 import { TooltipTitleContent } from './TooltipTitleContent';
-import { useOnClickOutside } from '@/hooks';
+import { useOnClickOutside, useStateToRef } from '@/hooks';
 
 import cn from 'classnames';
 import css from './style.module.css';
@@ -27,6 +27,7 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   delay?: number;
   delayClose?: number;
   onClickOuter?: () => void;
+  noStyle?: boolean;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
 declare function _TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
@@ -52,32 +53,36 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
     onMouseOut,
     onMouseMove,
     onClick,
+    noStyle,
     ...props
   },
   ref
 ) {
   const timeoutDelayRef = useRef<NodeJS.Timeout | null>(null);
   const [localRef, setLocalRef] = useState<Element | null>(null);
+  const [open, setOpen] = useState(false);
 
-  const targetRef = useRef<Element | null>(null);
+  const openRef = useStateToRef(open);
+  const targetRef = useStateToRef(localRef);
 
   useImperativeHandle<Element | null, Element | null>(ref, () => localRef, [localRef]);
 
   const portalRef = useRef(null);
-  useOnClickOutside(portalRef, () => {
-    if (outerOpen == null) {
-      timeoutDelayRef.current = setTimeout(() => {
-        setOpen(false);
-      }, delayClose);
-    }
-    onClickOuter?.();
-  });
+  const innerRef = useMemo(() => [portalRef, targetRef], [targetRef]);
 
-  useEffect(() => {
-    targetRef.current = localRef;
-  }, [localRef]);
-
-  const [open, setOpen] = useState(false);
+  useOnClickOutside(
+    innerRef,
+    useCallback(() => {
+      if (outerOpen == null) {
+        timeoutDelayRef.current = setTimeout(() => {
+          setOpen(false);
+        }, delayClose);
+      }
+      if (openRef.current) {
+        onClickOuter?.();
+      }
+    }, [delayClose, onClickOuter, openRef, outerOpen])
+  );
 
   useEffect(() => {
     if (outerOpen != null) {
@@ -163,8 +168,12 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
           vertical={vertical}
           show={open}
         >
-          <div ref={portalRef} className={cn(titleClassName, 'card overflow-auto')} onClick={stopPropagation}>
-            <div className="card-body p-1" style={{ minHeight, minWidth, maxHeight, maxWidth }}>
+          <div
+            ref={portalRef}
+            className={cn(titleClassName, !noStyle && 'card overflow-auto')}
+            onClick={stopPropagation}
+          >
+            <div className={cn(!noStyle && 'card-body p-1')} style={{ minHeight, minWidth, maxHeight, maxWidth }}>
               <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>
           </div>

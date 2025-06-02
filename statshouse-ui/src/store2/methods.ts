@@ -19,4 +19,5 @@ export const {
   timeRangeZoomOut,
   setPlotType,
   removePlotHeals,
+  setPlotGroup,
 } = useStatsHouse.getState();
