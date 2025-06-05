@@ -57,6 +57,7 @@ type ConfigIngressProxy struct {
 	ResponseMemoryLimit   int
 	Version               string
 	ConfigAgent           agent.Config
+	Debug                 bool
 }
 
 type ingressProxy struct {
@@ -76,6 +77,7 @@ type ingressProxy struct {
 	// logging
 	rareLogLast time.Time
 	rareLogMu   sync.Mutex
+	debug       bool
 
 	firstClientConn   map[string]bool
 	firstClientConnMu sync.Mutex
@@ -138,6 +140,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		serverKeys:      config.IngressKeys,
 		startTime:       uint32(time.Now().Unix()),
 		firstClientConn: make(map[string]bool),
+		debug:           config.Debug,
 	}
 	restart := make(chan int)
 	if config.UpstreamAddr != "" {
@@ -254,6 +257,10 @@ func (p *ingressProxy) newProxyServer(network string) proxyServer {
 }
 
 func (p *ingressProxy) rareLog(format string, args ...any) {
+	if p.debug {
+		log.Printf(format, args...)
+		return
+	}
 	now := time.Now()
 	p.rareLogMu.Lock()
 	defer p.rareLogMu.Unlock()

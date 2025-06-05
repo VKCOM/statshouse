@@ -175,6 +175,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.ingressExtAddrIPv6, "ingress-external-addr-ipv6", "", "Comma-separate list of IPv6 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
 	flag.StringVar(&argv.UpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
+	flag.BoolVar(&argv.Debug, "debug", false, "enable debug logging")
 	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	build.FlagParseShowVersionHelp()
 
