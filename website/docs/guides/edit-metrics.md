@@ -204,8 +204,8 @@ timestamps. To make such raw tag values more readable in the UI, choose the form
 
 :::note
 Please note that you send only 32-bit integer values as raw tag values. If you send IP-addresses, they look like 
-`1234567890` but not `12.345.67.890` as the latter would be a string. When you choose an _ip_ option as the format, 
-StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI.
+`1062731276` but not `63.87.254.12` as the latter would be a string. When you choose an _ip_ option as the format, 
+StatsHouse displays your `1062731276` raw tag value as `63.87.254.12` in the UI.
 :::
 
 ### Set up _String top tag_
