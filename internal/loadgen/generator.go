@@ -32,6 +32,60 @@ type GenericMetric interface {
 	Ensure(ctx context.Context, c *api.Client)
 }
 
+type manyTagsValueMetric struct {
+	name       string
+	tags       statshouse.Tags
+	resolution int
+
+	value float64
+}
+
+func (m *manyTagsValueMetric) Name() string {
+	return m.name
+}
+
+func (m *manyTagsValueMetric) Write(c *statshouse.Client) {
+	c.Value(m.name, m.tags, m.value)
+}
+
+func (m *manyTagsValueMetric) Update(now time.Time, rng *rand.Rand) {
+	ts := now.Unix()
+	switch m.resolution {
+	case 1:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%300) / 300.)
+	case 15:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%600) / 600.)
+	case 60:
+		m.value = math.Sin(math.Pi * 2. * float64(ts%1800) / 1800.)
+	default:
+		panic("unexpected resolution")
+	}
+}
+
+func (m *manyTagsValueMetric) Ensure(ctx context.Context, c *api.Client) {
+	metric, err := c.GetMetric(ctx, m.name)
+	if err != nil {
+		log.Printf("error getting metric: %v", err)
+	}
+	metric.Metric.Tags = []format.MetricMetaTag{
+		{
+			Description: "environment",
+		},
+	}
+	for i := 1; i < 48; i++ {
+		metric.Metric.Tags = append(metric.Metric.Tags, format.MetricMetaTag{
+			Name: fmt.Sprintf("tag_%d", i),
+		})
+	}
+	metric.Metric.Name = m.name
+	metric.Metric.Resolution = m.resolution
+	metric.Metric.Kind = format.MetricKindValue
+	err = c.PostMetric(ctx, metric)
+	if err != nil {
+		log.Printf("error creating metric: %v", err)
+	}
+}
+
 type valueMetric struct {
 	name         string
 	tags         statshouse.NamedTags
@@ -271,6 +325,19 @@ func (g *Generator) AddConstValue(resolution int, idx int) {
 	m := valueMetric{
 		name:       metricPrefixG + "const_val_" + fmt.Sprint(resolution),
 		tags:       statshouse.NamedTags{{mappedTag, fmt.Sprint(idx)}, {rawTag, fmt.Sprint(idx)}},
+		resolution: resolution,
+	}
+	g.metrics = append(g.metrics, &m)
+}
+
+func (g *Generator) AddConstValueManyTags(resolution int, idx int) {
+	tags := statshouse.Tags{}
+	for i := range tags {
+		tags[i] = fmt.Sprint("tag_", i)
+	}
+	m := manyTagsValueMetric{
+		name:       metricPrefixG + "const_val_many_tags_" + fmt.Sprint(resolution),
+		tags:       tags,
 		resolution: resolution,
 	}
 	g.metrics = append(g.metrics, &m)

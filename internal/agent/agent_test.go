@@ -66,17 +66,6 @@ func Benchmark_Original_Marshal(b *testing.B) {
 	}
 }
 
-func Benchmark_Hash(b *testing.B) {
-	var k data_model.Key
-	var result uint64
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		k.Tags[14]++
-		k.Tags[0] = int32(i)
-		result += k.Hash()
-	}
-}
-
 // cpu: 13th Gen Intel(R) Core(TM) i7-1360P
 // Benchmark_XXHash-16    	10919467	       102.8 ns/op	       0 B/op	       0 allocs/op
 func Benchmark_XXHash(b *testing.B) {
