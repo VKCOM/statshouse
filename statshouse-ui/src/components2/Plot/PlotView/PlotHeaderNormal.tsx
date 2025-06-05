@@ -15,12 +15,11 @@ import { PlotHeaderBadges } from '@/components2/Plot/PlotView/PlotHeaderBadges';
 import { PlotNavigate } from '@/components2';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { useCallback, useId, useMemo, useRef, useState } from 'react';
-import { TooltipMarkdown } from '@/components2/Plot/PlotView/TooltipMarkdown';
+import { TooltipMarkdown } from '@/components/Markdown/TooltipMarkdown';
 import { useMetricName } from '@/hooks/useMetricName';
 import { useMetricMeta } from '@/hooks/useMetricMeta';
 import { useMetricWhats } from '@/hooks/useMetricWhats';
-import { MarkdownRender } from '@/components2/Plot/PlotView/MarkdownRender';
-import markdownStyles from '../../style.module.css';
+import { MarkdownRender } from '@/components/Markdown/MarkdownRender';
 import { useOnClickOutside } from '@/hooks';
 
 export function PlotHeaderNormal() {
@@ -147,17 +146,8 @@ export function PlotHeaderNormal() {
           }
           hover
         >
-          <small className="text-secondary w-0 flex-grow-1 no-tooltip-safari-fix">
-            <MarkdownRender
-              className={markdownStyles.markdown}
-              allowedElements={['p', 'a']}
-              components={{
-                p: ({ node, ...props }) => <span {...props} />,
-              }}
-              unwrapDisallowed
-            >
-              {description}
-            </MarkdownRender>
+          <small className="text-secondary w-0 flex-grow-1 d-flex overflow-hidden no-tooltip-safari-fix">
+            <MarkdownRender inline>{description}</MarkdownRender>
           </small>
         </Tooltip>
       )}
