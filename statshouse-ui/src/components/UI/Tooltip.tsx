@@ -173,7 +173,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<'div'>>(function T
             className={cn(titleClassName, !noStyle && 'card overflow-auto')}
             onClick={stopPropagation}
           >
-            <div className={cn(!noStyle && 'card-body p-1')} style={{ minHeight, minWidth, maxHeight, maxWidth }}>
+            <div className={cn(!noStyle && 'card-body px-3 py-1')} style={{ minHeight, minWidth, maxHeight, maxWidth }}>
               <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>
           </div>

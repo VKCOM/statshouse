@@ -14,8 +14,8 @@ import { MetricMetaTag } from '@/api/metric';
 import { MetricTagValueInfo } from '@/api/metricTagValues';
 import { escapeHTML } from '@/common/helpers';
 import { Button } from '@/components/UI';
-import { formatPercent } from '@/view/utils2';
-import { MetricTagValueTooltip } from '@/components/UI/ExtendedInfo';
+import { clearOuterInfo, formatPercent, isOuterInfo } from '@/view/utils2';
+import { TooltipMarkdown } from '@/components/Markdown/TooltipMarkdown';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];
@@ -127,7 +127,7 @@ export function VariableControl<T extends string>({
         <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm' : 'input-group')}>
           <TagSelect
             values={negative ? notValues : values}
-            placeholder={placeholder}
+            placeholder={clearOuterInfo(placeholder)}
             loading={loaded}
             onChange={onChangeFilter}
             moreOption={more}
@@ -147,30 +147,50 @@ export function VariableControl<T extends string>({
       <div className={cn('d-flex flex-wrap gap-2', (!!customBadge || values.length > 0 || notValues.length) && 'mt-2')}>
         {customBadge}
         {values.map((v) => (
-          <MetricTagValueTooltip key={v} target={target} value={v}>
-            <Button
-              type="button"
-              data-value={v}
-              className="overflow-force-wrap btn btn-sm py-0 btn-success"
-              style={{ userSelect: 'text' }}
-              onClick={onRemoveFilter}
-            >
-              {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-            </Button>
-          </MetricTagValueTooltip>
+          <Button
+            key={v}
+            type="button"
+            data-value={v}
+            className="overflow-force-wrap btn btn-sm py-0 btn-success"
+            style={{ userSelect: 'text' }}
+            onClick={onRemoveFilter}
+            title={
+              isOuterInfo(placeholder) ? (
+                <div className="small text-secondary overflow-auto">
+                  <TooltipMarkdown
+                    description={placeholder}
+                    value={formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+                  />
+                </div>
+              ) : undefined
+            }
+            hover
+          >
+            {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+          </Button>
         ))}
         {notValues.map((v) => (
-          <MetricTagValueTooltip key={v} target={target} value={v}>
-            <Button
-              type="button"
-              data-value={v}
-              className="overflow-force-wrap btn btn-sm py-0 btn-danger"
-              style={{ userSelect: 'text' }}
-              onClick={onRemoveFilter}
-            >
-              {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-            </Button>
-          </MetricTagValueTooltip>
+          <Button
+            key={v}
+            type="button"
+            data-value={v}
+            className="overflow-force-wrap btn btn-sm py-0 btn-danger"
+            style={{ userSelect: 'text' }}
+            onClick={onRemoveFilter}
+            title={
+              isOuterInfo(placeholder) ? (
+                <div className="small text-secondary overflow-auto">
+                  <TooltipMarkdown
+                    description={placeholder}
+                    value={formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+                  />
+                </div>
+              ) : undefined
+            }
+            hover
+          >
+            {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+          </Button>
         ))}
       </div>
     </div>

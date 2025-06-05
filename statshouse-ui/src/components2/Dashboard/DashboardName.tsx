@@ -8,8 +8,7 @@ import { memo, useMemo, useState } from 'react';
 import { Tooltip } from '@/components/UI';
 import { DashboardNameTitle } from './DashboardNameTitle';
 import { useStatsHouseShallow } from '@/store2';
-import css from '../style.module.css';
-import { MarkdownRender } from '@/components2/Plot/PlotView/MarkdownRender';
+import { MarkdownRender } from '@/components/Markdown/MarkdownRender';
 import { produce } from 'immer';
 import { StickyTop } from '../StickyTop';
 import { SaveButton } from '../SaveButton';
@@ -80,17 +79,8 @@ export const DashboardName = memo(function DashboardName() {
             {!!dashboardDescription && ':'}
           </div>
           {!!dashboardDescription && (
-            <div className="text-secondary flex-grow-1 w-0 overflow-hidden">
-              <MarkdownRender
-                className={css.markdown}
-                allowedElements={['p', 'a']}
-                components={{
-                  p: ({ node, ...props }) => <span {...props} />,
-                }}
-                unwrapDisallowed
-              >
-                {dashboardDescription}
-              </MarkdownRender>
+            <div className="text-secondary flex-grow-1 w-0 d-flex overflow-hidden">
+              <MarkdownRender inline>{dashboardDescription}</MarkdownRender>
             </div>
           )}
         </Tooltip>

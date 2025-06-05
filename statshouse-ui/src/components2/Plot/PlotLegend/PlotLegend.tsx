@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, PropsWithChildren, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
 
 import css from './style.module.css';
@@ -15,13 +15,12 @@ import { PlotValues, usePlotsDataStore } from '@/store2/plotDataStore';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 import { formatPercent, secondsRangeToString, timeShiftDesc } from '@/view/utils2';
 import { LegendItem } from '@/components/UPlotWrapper';
-import { Tooltip, TooltipProps } from '@/components/UI';
+import { Tooltip } from '@/components/UI';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { useShallow } from 'zustand/react/shallow';
 import { emptyArray } from '@/common/helpers';
 import { PlotLegendMaxHost } from '@/components2/Plot/PlotLegend/PlotLegendMaxHost';
 import { pxPerChar } from '@/common/settings';
-import { MetricTagValueTooltip } from '@/components/UI/ExtendedInfo';
 
 type PlotLegendProps = {
   legend: LegendItem<PlotValues>[];
@@ -34,22 +33,6 @@ type PlotLegendProps = {
   priority?: number;
 };
 
-function SingleGroupExtendedInfo({
-  label,
-  groupBy,
-  children,
-  tooltipOptions,
-}: PropsWithChildren<{ label: string; groupBy: string[]; tooltipOptions?: TooltipProps<'div'> }>) {
-  if (groupBy.length !== 1) {
-    return children;
-  }
-  return (
-    <MetricTagValueTooltip value={label} target={groupBy[0]} tooltipOptions={tooltipOptions}>
-      {children}
-    </MetricTagValueTooltip>
-  );
-}
-
 export const PlotLegend = memo(function PlotLegend({
   legend,
   onLegendShow,
@@ -61,7 +44,7 @@ export const PlotLegend = memo(function PlotLegend({
   priority = 2,
 }: PlotLegendProps) {
   const {
-    plot: { id, maxHost, groupBy },
+    plot: { id, maxHost },
   } = useWidgetPlotContext();
   const { seriesTimeShift, data } = usePlotsDataStore(
     useShallow(
@@ -206,39 +189,27 @@ export const PlotLegend = memo(function PlotLegend({
                         borderStyle: l.dash?.length ? 'dashed' : l.stroke ? 'solid' : 'none',
                       }}
                     ></div>
-                    {index !== 0 ? (
-                      <SingleGroupExtendedInfo
-                        groupBy={groupBy}
-                        label={l.baseLabel}
-                        tooltipOptions={{
-                          style: {
-                            width: index !== 0 ? `${legendWidth}px` : undefined,
-                            minWidth: index === 0 ? 250 : undefined,
-                          },
-                          className: css.label,
-                        }}
-                      >
-                        {l.values ? (
+                    <Tooltip
+                      style={{
+                        width: index !== 0 ? `${legendWidth}px` : undefined,
+                        minWidth: index === 0 ? 250 : undefined,
+                      }}
+                      className={css.label}
+                      title={l.label}
+                    >
+                      {index !== 0 ? (
+                        l.values ? (
                           <>
                             {l.timeShift && <span className="text-secondary">{l.timeShift} </span>}
                             <span>{l.baseLabel}</span>
                           </>
                         ) : (
                           l.baseLabel
-                        )}
-                      </SingleGroupExtendedInfo>
-                    ) : (
-                      <Tooltip
-                        style={{
-                          width: index !== 0 ? `${legendWidth}px` : undefined,
-                          minWidth: index === 0 ? 250 : undefined,
-                        }}
-                        className={css.label}
-                        title={l.label}
-                      >
-                        {l.value || ' '}
-                      </Tooltip>
-                    )}
+                        )
+                      ) : (
+                        l.value || ' '
+                      )}
+                    </Tooltip>
                   </div>
                 </td>
                 {index !== 0 && (

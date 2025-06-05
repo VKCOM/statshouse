@@ -44,6 +44,18 @@ export function getTagDescription(meta: MetricMetaValue | undefined, tagKey: num
   return `tag ${tagKey}`;
 }
 
+export function clearOuterInfo(value?: string): string | undefined {
+  if (isOuterInfo(value)) {
+    const [description] = value.slice(2).split(']');
+    return String(description);
+  }
+  return value;
+}
+
+export function isOuterInfo(value?: string): value is string {
+  return value != null && value.indexOf('$[') === 0;
+}
+
 export function getTagValue(meta: MetricMetaValue | undefined, tagKey: TagKey | null, value: string): string {
   if (tagKey != null) {
     const infoTag = meta?.tags?.[+tagKey];

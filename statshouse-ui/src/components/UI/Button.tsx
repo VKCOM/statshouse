@@ -5,12 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
-import { Tooltip } from './Tooltip';
+import { Tooltip, type TooltipProps } from './Tooltip';
 
 export type ButtonProps = {
   children?: React.ReactNode;
-  title?: React.ReactNode;
-} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'title'>;
+} & TooltipProps<'button'>;
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { children, title, ...props }: ButtonProps,

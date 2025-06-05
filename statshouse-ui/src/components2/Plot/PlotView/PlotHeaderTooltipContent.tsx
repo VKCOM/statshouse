@@ -6,7 +6,7 @@
 
 import React from 'react';
 import cn from 'classnames';
-import { TooltipMarkdown } from './TooltipMarkdown';
+import { TooltipMarkdown } from '@/components/Markdown/TooltipMarkdown';
 
 export type PlotHeaderTooltipContentProps = {
   name: React.ReactNode;
