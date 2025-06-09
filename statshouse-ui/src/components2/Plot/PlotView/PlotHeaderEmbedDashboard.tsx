@@ -43,7 +43,7 @@ export function PlotHeaderEmbedDashboard() {
       <div className={cn('d-flex position-relative w-100', !plot?.customName && !showTags && 'pe-4')}>
         <div className="flex-grow-1 w-50 px-1 d-flex">
           <Tooltip hover as="span" className="text-decoration-none overflow-hidden text-nowrap" title={plotTooltip}>
-            <PlotLink plotKey={plot.id} className="text-decoration-none" target={'_self'}>
+            <PlotLink plotKey={plot.id} className="text-decoration-none" target={'_blank'}>
               <PlotName />
             </PlotLink>
           </Tooltip>
