@@ -27,11 +27,11 @@ export type GroupInfo = {
   /**
    * @deprecated
    */
-  count: number;
+  count?: number;
   /**
    * @deprecated
    */
-  size: string;
+  size?: string;
   description: string;
 };
 
@@ -124,7 +124,8 @@ export type QueryParams = {
   timeShifts: number[];
   tabNum: string;
   plots: Partial<Record<PlotKey, PlotParams>>;
-  orderPlot: PlotKey[];
+  /** @deprecated */
+  orderPlot?: PlotKey[];
   variables: Partial<Record<VariableKey, VariableParams>>;
   orderVariables: VariableKey[];
   groups: Partial<Record<GroupKey, GroupInfo>>;

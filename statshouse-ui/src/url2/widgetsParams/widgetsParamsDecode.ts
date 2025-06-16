@@ -25,7 +25,9 @@ export function widgetsParamsDecode(
   const orderPlot = uniqueArray([
     ...(searchParams[GET_PARAMS.orderPlot]?.[treeParamsObjectValueSymbol]?.[0]
       ?.split(orderPlotSplitter)
-      .filter((s) => isPlotKey(s)) ?? defaultParams.orderPlot),
+      .filter((s) => isPlotKey(s)) ??
+      defaultParams.orderPlot ??
+      []),
     ...keys,
   ]);
   const plots: Partial<Record<PlotKey, PlotParams>> = {};

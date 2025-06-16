@@ -13,24 +13,28 @@ import {
   type QueryParams as OldQueryParams,
   type VariableParams as OldVariableParams,
 } from '@/url/queryParams';
-import type { PlotKey, QueryParams } from '@/url2';
-import { deepClone, toNumber } from '../../common/helpers';
-import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '../../api/enum';
+import type { PlotKey, QueryParams, VariableParamsLink } from '@/url2';
+import { deepClone, isNotNil, toNumber } from '@/common/helpers';
+import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '@/api/enum';
 import { normalizeDashboard as normalizeDashboardOld } from '../../view/normalizeDashboard';
+import { selectorMapGroupPlotKeys, selectorOrderPlot } from '@/store2/selectors';
+import { produce } from 'immer';
 
 export function dashboardMigrate(data: unknown) {
   return encodeParams(normalizeDashboardOld(data as DashboardInfo));
 }
 
 export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
-  const mapPlotIndex: Record<PlotKey, number> = params.orderPlot.reduce(
+  const mapGroupPlotKeys = selectorMapGroupPlotKeys({ params });
+  const orderPlot = selectorOrderPlot({ params });
+  const mapPlotIndex: Record<PlotKey, number> = orderPlot.reduce(
     (res, pK, index) => {
       res[pK] = index;
       return res;
     },
     {} as Record<PlotKey, number>
   );
-  const plots: OldPlotParams[] = params.orderPlot.map((pK, index) => {
+  const plots: OldPlotParams[] = orderPlot.map((pK, index) => {
     const plot: OldPlotParams = {
       id: index.toString(),
       metricName: params.plots[pK]?.metricName ?? '',
@@ -71,7 +75,12 @@ export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
           filterIn: deepClone(params.variables[vK]?.source[sK]?.filterIn ?? {}),
           filterNotIn: deepClone(params.variables[vK]?.source[sK]?.filterNotIn ?? {}),
         })) ?? [],
-      link: params.variables[vK]?.link?.map(([pK, tK]) => [mapPlotIndex[pK].toString(), tK]) ?? [],
+      link:
+        params.variables[vK]?.link
+          ?.map(([pK, tK]) =>
+            mapPlotIndex[pK] ? ([mapPlotIndex[pK].toString(), tK] as VariableParamsLink) : undefined
+          )
+          .filter(isNotNil) ?? [],
       values: params.variables[vK]?.values.map((v) => v) ?? [],
       args: {
         groupBy: params.variables[vK]?.groupBy ?? false,
@@ -88,7 +97,7 @@ export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
     groupInfo: params.orderGroup.map((gK) => ({
       name: params.groups[gK]?.name ?? '',
       description: params.groups[gK]?.description ?? '',
-      count: params.groups[gK]?.count ?? 0,
+      count: mapGroupPlotKeys[gK]?.plotKeys.length ?? params.groups[gK]?.count ?? 0,
       size: params.groups[gK]?.size ?? '2',
       show: params.groups[gK]?.show ?? true,
     })),
@@ -118,4 +127,31 @@ export function dashboardMigrateSaveToOld(params: QueryParams) {
     },
   };
   return paramsDashboard;
+}
+
+export function fixV4forDash(params: QueryParams): QueryParams {
+  const mapGroupPlotKeys = selectorMapGroupPlotKeys({ params });
+  const orderPlot = selectorOrderPlot({ params });
+  const mapPlotKey: Record<PlotKey, boolean> = orderPlot.reduce(
+    (res, pK) => {
+      res[pK] = true;
+      return res;
+    },
+    {} as Record<PlotKey, boolean>
+  );
+  return produce(params, (p) => {
+    p.orderPlot = orderPlot;
+    p.orderGroup.forEach((gK) => {
+      if (p.groups[gK]) {
+        p.groups[gK].count = mapGroupPlotKeys[gK]?.plotKeys.length ?? params.groups[gK]?.count ?? 0;
+      }
+    });
+    p.orderVariables.forEach((vK) => {
+      if (p.variables[vK]) {
+        if (!p.variables[vK].link.every(([pK]) => mapPlotKey[pK])) {
+          p.variables[vK].link = p.variables[vK].link.filter(([pK]) => mapPlotKey[pK]);
+        }
+      }
+    });
+  });
 }

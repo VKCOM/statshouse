@@ -12,6 +12,7 @@ import { getDefaultParams, getNewGroup, getNewVariable, getNewVariableSource } f
 import { orderGroupSplitter, orderVariableSplitter, removeValueChar } from './constants';
 import { toGroupInfoPrefix, toVariablePrefix, toVariableValuePrefix } from './urlHelpers';
 import { metricFilterEncode, widgetsParamsEncode } from './widgetsParams';
+import { getFullDashSave } from '@/common/migrate/migrate3to4';
 
 export function urlEncode(params: QueryParams, defaultParams?: QueryParams): [string, string][] {
   return [
@@ -68,6 +69,10 @@ export function urlEncodeGlobalParam(
     params.dashboardVersion !== params.dashboardCurrentVersion
   ) {
     paramArr.push([GET_PARAMS.dashboardVersion, params.dashboardVersion.toString()]);
+  }
+
+  if (getFullDashSave() && params.version) {
+    paramArr.push([GET_PARAMS.dashboardSchemeVersion, params.version]);
   }
 
   return paramArr;
@@ -127,11 +132,13 @@ export function urlEncodeGroup(group: GroupInfo, defaultGroup: GroupInfo = getNe
   if (defaultGroup.description !== group.description) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoDescription, group.description]);
   }
-  if (defaultGroup.count !== group.count) {
-    paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoCount, group.count.toString()]);
-  }
-  if (defaultGroup.size !== group.size) {
-    paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoSize, group.size]);
+  if (getFullDashSave()) {
+    if (group.count != null && defaultGroup.count !== group.count) {
+      paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoCount, group.count.toString()]);
+    }
+    if (group.size != null && defaultGroup.size !== group.size) {
+      paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoSize, group.size]);
+    }
   }
   if (defaultGroup.show !== group.show) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoShow, group.show ? '1' : '0']);

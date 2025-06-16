@@ -48,12 +48,11 @@ export function urlDecode(
       plotKeys.push('0');
     }
   });
-
   const global = urlDecodeGlobalParam(searchParams, defaultParams);
   const timeRange = urlDecodeTimeRange(searchParams, defaultParams);
   const plots = widgetsParamsDecode(
     searchParams,
-    uniqueArray([...plotKeys, ...defaultParams.orderPlot]),
+    uniqueArray([...plotKeys, ...(defaultParams.orderPlot ?? [])]),
     defaultParams
   );
 
@@ -65,16 +64,20 @@ export function urlDecode(
   );
   const version = urlDecodeVersion({ ...plots });
   //fix lose plot
-  if (groups.orderGroup.length === 1 && groups.groups[groups.orderGroup[0]]?.count !== plots.orderPlot.length) {
+  if (
+    plots.orderPlot &&
+    groups.orderGroup.length === 1 &&
+    groups.groups[groups.orderGroup[0]]?.count !== plots.orderPlot.length
+  ) {
     groups.groups[groups.orderGroup[0]]!.count = plots.orderPlot.length;
   }
   return {
-    version,
     ...global,
     ...timeRange,
     ...plots,
     ...groups,
     ...variables,
+    version: global.version ?? version,
   };
 }
 
@@ -93,6 +96,7 @@ export function urlDecodeGlobalParam(
   | 'dashboardDescription'
   | 'dashboardVersion'
   | 'dashboardCurrentVersion'
+  | 'version'
 > {
   const rawLive = searchParams[GET_PARAMS.metricLive]?.[treeParamsObjectValueSymbol]?.[0];
   const rawTheme = searchParams[GET_PARAMS.theme]?.[treeParamsObjectValueSymbol]?.[0];
@@ -117,6 +121,7 @@ export function urlDecodeGlobalParam(
     dashboardDescription: rawDashboardDescription ?? defaultParams.dashboardDescription,
     dashboardVersion: rawDashboardVersion ?? defaultParams.dashboardVersion,
     dashboardCurrentVersion: defaultParams.dashboardCurrentVersion,
+    version: searchParams[GET_PARAMS.dashboardSchemeVersion]?.[treeParamsObjectValueSymbol]?.[0],
   };
 }
 
@@ -181,7 +186,7 @@ export function urlDecodeGroup(
       defaultGroup.description,
     count: toNumber(
       searchParams?.[GET_PARAMS.dashboardGroupInfoCount]?.[treeParamsObjectValueSymbol]?.[0],
-      defaultGroup.count
+      defaultGroup.count ?? 0
     ),
     size: searchParams?.[GET_PARAMS.dashboardGroupInfoSize]?.[treeParamsObjectValueSymbol]?.[0] ?? defaultGroup.size,
     show: show != null ? show !== '0' : defaultGroup.show,

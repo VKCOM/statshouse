@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -15,9 +15,6 @@ import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/b
 import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
-// import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
-// import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
-// import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import css from './style.module.css';
 import { LeftMenuItem } from './LeftMenuItem';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -28,11 +25,11 @@ import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import { addPlotByUrl } from '@/store2/helpers';
 import { produce } from 'immer';
 import { LeftMenuPlotItem } from './LeftMenuPlotItem';
-import { prepareItemsGroup } from '@/common/prepareItemsGroup';
 import { useAddLinkPlot, useLinkPlot } from '@/hooks/useLinkPlot';
 import { setDevEnabled, useStoreDev } from '@/store2/dev';
 import { setTheme, THEMES, toTheme, useThemeStore } from '@/store2/themeStore';
 import { WidgetPlotContextProvider } from '@/contexts/WidgetPlotContextProvider';
+import { selectorOrderPlotShow } from '@/store2/selectors';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -51,24 +48,16 @@ export function LeftMenu({ className }: LeftMenuProps) {
   const location = useLocation();
   const devEnabled = useStoreDev((s) => s.enabled);
   const theme = useThemeStore((s) => s.theme);
-  const { tabNum, setUrlStore, user, paramsTheme, orderPlot, groups, orderGroup } = useStatsHouseShallow(
-    ({ params: { theme, tabNum, orderPlot, groups, orderGroup }, setUrlStore, user }) => ({
+  const { tabNum, setUrlStore, user, paramsTheme } = useStatsHouseShallow(
+    ({ params: { theme, tabNum }, setUrlStore, user }) => ({
       tabNum,
       setUrlStore,
       user,
       paramsTheme: theme,
-      orderPlot,
-      groups,
-      orderGroup,
     })
   );
-  const viewPlots = useMemo(
-    () =>
-      prepareItemsGroup({ groups, orderGroup, orderPlot }).flatMap(({ plots, groupKey }) =>
-        groups[groupKey]?.show ? plots : []
-      ),
-    [groups, orderGroup, orderPlot]
-  );
+  const viewPlots = useStatsHouse(selectorOrderPlotShow);
+
   const isView = location.pathname.indexOf('view') > -1;
   const isSettings = location.pathname.indexOf('settings') > -1;
   const isDash = tabNum === '-1' || tabNum === '-2' || tabNum === '-3';
@@ -113,16 +102,6 @@ export function LeftMenu({ className }: LeftMenuProps) {
           </NavLink>
         </li>
         <li className={css.splitter}></li>
-        {/*<li className={css.subItem}>
-          <a
-            className={css.link}
-            href="https://github.com/VKCOM/statshouse/discussions/categories/announcements"
-            target="_blank"
-            rel="noreferrer"
-          >
-            News
-          </a>
-        </li>*/}
         <li className={css.subItem}>
           <a className={css.link} href="https://vkcom.github.io/statshouse/" target="_blank" rel="noreferrer">
             Documentation
@@ -211,13 +190,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
         </li>
       </LeftMenuItem>
       {user.admin && (
-        <LeftMenuItem
-          icon={SVGGear}
-          to="settings/group"
-          title="Group"
-          active={isSettings}
-          // className={cn(isSettings && css.activeItem)}
-        >
+        <LeftMenuItem icon={SVGGear} to="settings/group" title="Group" active={isSettings}>
           <li className={css.splitter}></li>
           <li className={css.subItem}>
             <Link className={css.link} to="settings/namespace">
@@ -234,20 +207,13 @@ export function LeftMenu({ className }: LeftMenuProps) {
         to="dash-list"
         active={location.pathname.indexOf('dash-list') > -1}
         title="Dashboard list"
-        // className={cn(isDashList && css.activeItem)}
       ></LeftMenuItem>
-      <LeftMenuItem
-        icon={SVGGridFill}
-        to={dashboardLink}
-        active={isView && isDash}
-        title="Dashboard"
-        // className={cn(params.tabNum < 0 && isView && css.activeItem)}
-      ></LeftMenuItem>
+      <LeftMenuItem icon={SVGGridFill} to={dashboardLink} active={isView && isDash} title="Dashboard"></LeftMenuItem>
       <li className={cn(css.scrollStyle, css.plotMenu)}>
         <ul ref={refListMenuItemPlot} className={cn(css.plotNav)}>
           {viewPlots.map((plotKey) => (
             <WidgetPlotContextProvider key={plotKey} plotKey={plotKey}>
-              <LeftMenuPlotItem active={isView && tabNum === plotKey} />
+              <LeftMenuPlotItem key={plotKey} active={isView && tabNum === plotKey} />
             </WidgetPlotContextProvider>
           ))}
         </ul>

@@ -33,6 +33,7 @@ import {
 } from '@/url2';
 import { type StatsHouseStore, useStatsHouse } from '@/store2';
 import { ExtendedError } from '@/api/api';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 export type VariableItem = {
   list: MetricTagValueInfo[];
@@ -59,7 +60,8 @@ useStatsHouse.subscribe((state, prevState) => {
   if (prevState.params.dashboardId !== state.params.dashboardId) {
     clearTagsAll();
   } else if (prevState.params.plots !== state.params.plots) {
-    prevState.params.orderPlot.forEach((plotKey) => {
+    const orderPlot = selectorOrderPlot(state);
+    orderPlot?.forEach((plotKey) => {
       if (
         !state.params.plots[plotKey] ||
         state.params.plots[plotKey]?.metricName !== prevState.params.plots[plotKey]?.metricName
@@ -385,9 +387,8 @@ export async function loadValuableSourceList(variableParam: VariableParams) {
 
 export async function loadSourceList(variableParamSource: VariableParamsSource, limit = 25000) {
   const store = useStatsHouse.getState();
-  const useV2 = store.params.orderPlot.every(
-    (pK) => store.params.plots[pK]?.backendVersion === METRIC_VALUE_BACKEND_VERSION.v2
-  );
+  const orderPlot = selectorOrderPlot(store);
+  const useV2 = orderPlot.every((pK) => store.params.plots[pK]?.backendVersion === METRIC_VALUE_BACKEND_VERSION.v2);
 
   if (!variableParamSource.metric || !variableParamSource.tag || !useV2) {
     return undefined;

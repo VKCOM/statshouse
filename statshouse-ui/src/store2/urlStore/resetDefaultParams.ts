@@ -7,9 +7,9 @@
 import { getHomePlot, QueryParams, readTimeRange } from '@/url2';
 import { produce } from 'immer';
 import { globalSettings } from '@/common/settings';
-import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '../../api/enum';
+import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '@/api/enum';
 import { addPlot, timeRangeAbbrevExpand } from '../helpers';
-import { defaultBaseRange } from '../constants';
+import { defaultBaseRange } from '@/store2';
 
 export function resetDefaultParams(params: QueryParams) {
   let reset = false;
@@ -19,7 +19,7 @@ export function resetDefaultParams(params: QueryParams) {
   }
   params = produce(params, (p) => {
     if (+p.tabNum >= 0 && !p.plots[params.tabNum]) {
-      p.tabNum = p.orderPlot.length > 1 ? '-1' : '0';
+      p.tabNum = Object.keys(p.plots).length > 1 ? '-1' : '0';
       reset = true;
     }
 

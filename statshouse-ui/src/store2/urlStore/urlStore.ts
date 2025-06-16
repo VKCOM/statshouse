@@ -34,7 +34,7 @@ import {
 } from './timeRangeNavigate';
 import { updatePlotYLock } from './updatePlotYLock';
 import { toggleGroupShow } from './toggleGroupShow';
-import { updateParamsPlotStruct, VariableLinks } from './updateParamsPlotStruct';
+import { getNextGroupKey } from './updateParamsPlotStruct';
 import { getAutoSearchVariable } from './getAutoSearchVariable';
 import { useErrorStore } from '@/store2/errors';
 import { debug } from '@/common/debug';
@@ -43,10 +43,12 @@ import { mergeParams } from './mergeParams';
 import { setLiveMode } from '../liveModeStore';
 import { filterVariableByPlot } from '../helpers/filterVariableByPlot';
 import { fixMessageTrouble } from '@/url/fixMessageTrouble';
-import { isNotNil } from '@/common/helpers';
 import { getUrlObject } from '@/common/getUrlObject';
 import { ApiDashboard, apiDashboardSave } from '@/api/dashboard';
 import { ExtendedError } from '@/api/api';
+import { findGroupPositionLayout } from '@/store2/urlStore/findGroupPositionLayout';
+import { selectorMapGroupPlotKeys } from '@/store2/selectors';
+import { updatePlotRemove } from '@/store2/urlStore/updatePlotRemove';
 
 export type UrlStore = {
   params: QueryParams;
@@ -72,7 +74,6 @@ export type UrlStore = {
   addDashboardGroup(groupKey: GroupKey): void;
   removeDashboardGroup(groupKey: GroupKey): void;
   setDashboardGroup(groupKey: GroupKey, next: ProduceUpdate<GroupInfo>): void;
-  setNextDashboardSchemePlot(nextScheme: { groupKey: GroupKey; plots: PlotKey[] }[]): void;
   setPlotGroup(plotKey: PlotKey, groupKey: GroupKey): void;
   autoSearchVariable(): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>>;
   saveDashboard(copy?: boolean): Promise<void | ApiDashboard>;
@@ -178,21 +179,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       setUrlStore(updateResetZoom(plotKey));
     },
     removePlot(plotKey: PlotKey) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          const sourceGroupIndex = plotStruct.mapGroupIndex[plotStruct.mapPlotToGroup[plotKey] ?? ''];
-          const sourceIndex = plotStruct.mapPlotIndex[plotKey];
-          if (sourceGroupIndex != null && sourceIndex != null) {
-            plotStruct.groups[sourceGroupIndex].plots.splice(sourceIndex, 1);
-          }
-          //remove event link
-          plotStruct.groups.forEach((g) => {
-            g.plots.forEach((p) => {
-              p.plotInfo.events = p.plotInfo.events.filter((pK) => plotKey !== pK);
-            });
-          });
-        })
-      );
+      getState().setParams(updatePlotRemove(plotKey));
     },
     timeRangePanLeft() {
       setLiveMode(false);
@@ -228,92 +215,55 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
       }
     },
     moveDashboardGroup(groupKey, direction) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
-          if (sourceIndex != null) {
-            const targetIndex = Math.max(0, Math.min(plotStruct.groups.length - 1, sourceIndex + direction));
-            const targetGroup = plotStruct.groups[targetIndex];
-            plotStruct.groups[targetIndex] = plotStruct.groups[sourceIndex];
-            plotStruct.groups[sourceIndex] = targetGroup;
+      getState().setParams((params) => {
+        const sourceIndex = params.orderGroup.indexOf(groupKey);
+        if (sourceIndex > -1) {
+          const targetIndex = Math.max(0, Math.min(params.orderGroup.length - 1, sourceIndex + direction));
+          const targetKey = params.orderGroup[targetIndex];
+          if (targetKey !== groupKey) {
+            params.orderGroup[targetIndex] = groupKey;
+            params.orderGroup[sourceIndex] = targetKey;
           }
-        })
-      );
+        }
+      });
     },
     addDashboardGroup(groupKey) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
-          const nextGroup = { groupInfo: getNewGroup(), plots: [] };
-          if (sourceIndex != null) {
-            plotStruct.groups.splice(sourceIndex, 0, nextGroup);
-          } else {
-            plotStruct.groups.push(nextGroup);
-          }
-        })
-      );
+      getState().setParams((params) => {
+        const sourceIndex = params.orderGroup.indexOf(groupKey);
+        const nextGroupKey = getNextGroupKey(params);
+        params.groups[nextGroupKey] = { ...getNewGroup(), id: nextGroupKey };
+        if (sourceIndex > -1) {
+          params.orderGroup.splice(sourceIndex, 0, nextGroupKey);
+        } else {
+          params.orderGroup.push(nextGroupKey);
+        }
+      });
     },
     removeDashboardGroup(groupKey) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          const sourceIndex = plotStruct.mapGroupIndex[groupKey];
-          if (sourceIndex != null) {
-            plotStruct.groups.splice(sourceIndex, 1);
-          }
-        })
-      );
+      getState().setParams((params) => {
+        const plotKeys = selectorMapGroupPlotKeys({ params })[groupKey]?.plotKeys;
+        const sourceIndex = params.orderGroup.indexOf(groupKey);
+
+        if (sourceIndex > -1) {
+          plotKeys?.forEach((plotKey) => {
+            updatePlotRemove(plotKey)(params);
+          });
+          params.orderGroup.splice(sourceIndex, 1);
+          delete params.groups[groupKey];
+        }
+      });
     },
     setDashboardGroup(groupKey, next) {
       setUrlStore(updateGroup(groupKey, next));
     },
-    setNextDashboardSchemePlot(nextScheme) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          plotStruct.groups = nextScheme.map((g) => {
-            const sourceGroupIndex = plotStruct.mapGroupIndex[g.groupKey];
-            const plots: { plotInfo: PlotParams; variableLinks: VariableLinks[] }[] = g.plots
-              .map((pK) => {
-                const sourceGroupKey = plotStruct.mapPlotToGroup[pK] ?? '';
-                const sourceGroupIndex = plotStruct.mapGroupIndex[sourceGroupKey];
-                const sourcePlotIndex = plotStruct.mapPlotIndex[pK];
-                if (sourceGroupIndex != null && sourcePlotIndex != null) {
-                  return plotStruct.groups[sourceGroupIndex].plots[sourcePlotIndex];
-                }
-                return null;
-              })
-              .filter(isNotNil);
-            if (sourceGroupIndex != null) {
-              return {
-                groupInfo: plotStruct.groups[sourceGroupIndex].groupInfo,
-                plots,
-              };
-            }
-            return {
-              groupInfo: {
-                ...getNewGroup(),
-                id: g.groupKey,
-              },
-              plots,
-            };
-          });
-        })
-      );
-    },
     setPlotGroup(plotKey, groupKey) {
-      setUrlStore(
-        updateParamsPlotStruct((plotStruct) => {
-          const oldGroup = plotStruct.mapPlotToGroup[plotKey];
-          if (oldGroup != null && oldGroup !== groupKey) {
-            const groupSourceIndex = plotStruct.mapGroupIndex[oldGroup];
-            const groupTargetIndex = plotStruct.mapGroupIndex[groupKey];
-            const plotSourceIndex = plotStruct.mapPlotIndex[plotKey];
-            if (plotSourceIndex != null && groupSourceIndex != null && groupTargetIndex != null) {
-              const plot = plotStruct.groups[groupSourceIndex].plots.splice(plotSourceIndex, 1);
-              plotStruct.groups[groupTargetIndex].plots.push(...plot);
-            }
-          }
-        })
-      );
+      getState().setParams((params) => {
+        const plot = params.plots[plotKey];
+        if (plot) {
+          plot.layout = findGroupPositionLayout(params, plot.layout ?? { x: 0, y: 0, w: 1, h: 1 }, groupKey);
+          plot.group = groupKey;
+        }
+      });
     },
     async autoSearchVariable() {
       return getAutoSearchVariable(getState);

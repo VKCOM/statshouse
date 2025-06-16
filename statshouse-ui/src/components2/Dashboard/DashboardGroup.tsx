@@ -10,6 +10,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
 import { ReactComponent as SVGChevronCompactUp } from 'bootstrap-icons/icons/chevron-compact-up.svg';
 import { ReactComponent as SVGChevronCompactDown } from 'bootstrap-icons/icons/chevron-compact-down.svg';
+import { ReactComponent as SVGGrid3x2 } from 'bootstrap-icons/icons/grid-3x2.svg';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
@@ -17,6 +18,16 @@ import { GroupKey } from '@/url2';
 import { Button, TextArea, Tooltip } from '@/components/UI';
 import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
 import { useStatsHouseShallow } from '@/store2';
+import { Dropdown } from '@/components/UI/Dropdown';
+import {
+  addDashboardGroup,
+  moveDashboardGroup,
+  removeDashboardGroup,
+  setDashboardGroup,
+  setParams,
+  toggleGroupShow,
+} from '@/store2/methods';
+import { setLayoutAutoPosition } from '@/common/migrate/migrate3to4';
 
 export type DashboardGroupProps = {
   children?: React.ReactNode;
@@ -25,111 +36,69 @@ export type DashboardGroupProps = {
 };
 
 export const DashboardGroup = memo(function DashboardGroup({ children, groupKey, className }: DashboardGroupProps) {
-  const {
-    groups,
-    isSingle,
-    dashboardLayoutEdit,
-    isEmbed,
-    isFirst,
-    isLast,
-    setDashboardGroup,
-    addDashboardGroup,
-    removeDashboardGroup,
-    moveDashboardGroup,
-  } = useStatsHouseShallow(
+  const { groups, isSingle, dashboardLayoutEdit, isEmbed, isFirst, isLast } = useStatsHouseShallow(
     useCallback(
-      ({
-        params: { groups, orderGroup },
-        dashboardLayoutEdit,
-        isEmbed,
-        setDashboardGroup,
-        addDashboardGroup,
-        removeDashboardGroup,
-        moveDashboardGroup,
-      }) => ({
+      ({ params: { groups, orderGroup }, dashboardLayoutEdit, isEmbed }) => ({
         groups,
         isSingle: orderGroup.length === 1,
         isFirst: groupKey === orderGroup[0],
         isLast: groupKey === orderGroup[orderGroup.length - 1],
         dashboardLayoutEdit,
         isEmbed,
-        setDashboardGroup,
-        addDashboardGroup,
-        removeDashboardGroup,
-        moveDashboardGroup,
       }),
       [groupKey]
     )
   );
-  const onEditGroupName = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
-      const name = e.currentTarget.value;
-      setDashboardGroup(groupKey, (g) => {
-        g.name = name;
-      });
-    },
-    [setDashboardGroup]
-  );
+  const onEditGroupName = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
+    const name = e.currentTarget.value;
+    setDashboardGroup(groupKey, (g) => {
+      g.name = name;
+    });
+  }, []);
 
-  const onEditGroupDescription = useCallback(
-    (value: string, event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const groupKey = event.currentTarget.getAttribute('data-group') ?? '0';
-      setDashboardGroup(groupKey, (g) => {
-        g.description = value;
-      });
-    },
-    [setDashboardGroup]
-  );
+  const onEditGroupDescription = useCallback((value: string, event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const groupKey = event.currentTarget.getAttribute('data-group') ?? '0';
+    setDashboardGroup(groupKey, (g) => {
+      g.description = value;
+    });
+  }, []);
 
-  const onGroupShowToggle = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
-      setDashboardGroup(groupKey, (g) => {
-        g.show = !g.show;
-      });
-    },
-    [setDashboardGroup]
-  );
+  const onGroupShowToggle = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
+    toggleGroupShow(groupKey);
+  }, []);
 
-  const onEditGroupSize = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-group') ?? '0';
-      const size = e.currentTarget.value ?? '2';
-      setDashboardGroup(groupKey, (g) => {
-        g.size = size;
-      });
-    },
-    [setDashboardGroup]
-  );
+  const onAddGroup = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
+    addDashboardGroup(groupKey);
+  }, []);
+  const onRemoveGroup = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
+    removeDashboardGroup(groupKey);
+  }, []);
+  const onMoveGroupUp = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
+    moveDashboardGroup(groupKey, -1);
+  }, []);
+  const onMoveGroupDown = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
+    moveDashboardGroup(groupKey, 1);
+  }, []);
 
-  const onAddGroup = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
-      addDashboardGroup(groupKey);
+  const onSetGrid = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const value = event.currentTarget.getAttribute('data-value');
+      if (value) {
+        setParams((params) => {
+          setLayoutAutoPosition([groupKey], [value])(params);
+          if (params.groups[groupKey] && value) {
+            params.groups[groupKey].size = value;
+          }
+        });
+      }
     },
-    [addDashboardGroup]
-  );
-  const onRemoveGroup = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
-      removeDashboardGroup(groupKey);
-    },
-    [removeDashboardGroup]
-  );
-  const onMoveGroupUp = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
-      moveDashboardGroup(groupKey, -1);
-    },
-    [moveDashboardGroup]
-  );
-  const onMoveGroupDown = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const groupKey = e.currentTarget.getAttribute('data-index-group') ?? '0';
-      moveDashboardGroup(groupKey, 1);
-    },
-    [moveDashboardGroup]
+    [groupKey]
   );
   return (
     <div
@@ -155,19 +124,50 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
                   onInput={onEditGroupName}
                   placeholder="Enter group name"
                 />
-                <select
-                  className="form-select flex-grow-0 w-auto"
-                  data-group={groupKey}
-                  value={groups[groupKey]?.size?.toString() || '2'}
-                  onChange={onEditGroupSize}
-                >
-                  <option value="2">L, 2 per row</option>
-                  <option value="l">L, auto width</option>
-                  <option value="3">M, 3 per row</option>
-                  <option value="m">M, auto width</option>
-                  <option value="4">S, 4 per row</option>
-                  <option value="s">S, auto width</option>
-                </select>
+                <Dropdown className="btn btn-outline-primary" caption={<SVGGrid3x2 />}>
+                  <div className="list-group text-nowrap shadow shadow-1">
+                    <Button
+                      type="button"
+                      className="list-group-item list-group-item-action d-flex gap-2 align-items-center"
+                      data-value="1"
+                      onClick={onSetGrid}
+                    >
+                      1 plot in line
+                    </Button>
+                    <Button
+                      type="button"
+                      className="list-group-item list-group-item-action d-flex gap-2 align-items-center"
+                      data-value="2"
+                      onClick={onSetGrid}
+                    >
+                      2 plot in line
+                    </Button>
+                    <Button
+                      type="button"
+                      className="list-group-item list-group-item-action d-flex gap-2 align-items-center"
+                      data-value="3"
+                      onClick={onSetGrid}
+                    >
+                      3 plot in line
+                    </Button>
+                    <Button
+                      type="button"
+                      className="list-group-item list-group-item-action d-flex gap-2 align-items-center"
+                      data-value="4"
+                      onClick={onSetGrid}
+                    >
+                      4 plot in line
+                    </Button>
+                    <Button
+                      type="button"
+                      className="list-group-item list-group-item-action d-flex gap-2 align-items-center"
+                      data-value="6"
+                      onClick={onSetGrid}
+                    >
+                      6 plot in line
+                    </Button>
+                  </div>
+                </Dropdown>
                 <div className="d-flex flex-column">
                   <Button
                     className="btn btn-sm btn-outline-primary py-0 rounded-0"
@@ -246,7 +246,7 @@ export const DashboardGroup = memo(function DashboardGroup({ children, groupKey,
           </div>
         )}
       </h6>
-      {children}
+      <div>{groups[groupKey]?.show !== false && children}</div>
     </div>
   );
 });

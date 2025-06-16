@@ -17,9 +17,10 @@ import {
 } from '@tanstack/react-query';
 import { queryClient } from '@/common/queryClient';
 import { type QueryParams, urlEncode } from '@/url2';
-import { dashboardMigrateSaveToOld } from '@/store2/urlStore/dashboardMigrate';
+import { dashboardMigrateSaveToOld, fixV4forDash } from '@/store2/urlStore/dashboardMigrate';
 import { toNumber } from '@/common/helpers';
 import { API_HISTORY } from './history';
+import { setFullDashSave } from '@/common/migrate/migrate3to4';
 
 const ApiDashboardEndpoint = '/api/dashboard';
 
@@ -152,7 +153,9 @@ export function useApiDashboard<T = ApiDashboard>(
   return useQuery({ ...options, select, enabled });
 }
 export function getDashboardSaveFetchParams(params: QueryParams, remove?: boolean, copy?: boolean): DashboardInfo {
-  const searchParams = urlEncode(params);
+  setFullDashSave(true);
+  const searchParams = urlEncode(fixV4forDash(params));
+  setFullDashSave(false);
 
   const oldDashboardParams = dashboardMigrateSaveToOld(params);
   oldDashboardParams.dashboard.data.searchParams = searchParams;

@@ -12,9 +12,14 @@ import { useStateBoolean } from '@/hooks';
 
 import { DropdownContextProvider } from '@/contexts/DropdownContextProvider';
 
-export type DropdownProps = { className?: string; caption?: React.ReactNode; children?: React.ReactNode };
+export type DropdownProps = {
+  className?: string;
+  caption?: React.ReactNode;
+  children?: React.ReactNode;
+  autoClose?: boolean;
+};
 
-export const Dropdown = memo(function Dropdown({ className, children, caption }: DropdownProps) {
+export const Dropdown = memo(function Dropdown({ className, children, caption, autoClose = true }: DropdownProps) {
   const [dropdown, setDropdown] = useStateBoolean(false);
 
   return (
@@ -22,13 +27,18 @@ export const Dropdown = memo(function Dropdown({ className, children, caption }:
       as="button"
       type="button"
       className={cn(className, 'overflow-auto')}
-      title={<DropdownContextProvider value={setDropdown}>{children}</DropdownContextProvider>}
+      title={
+        <DropdownContextProvider value={setDropdown}>
+          <div onClick={autoClose ? setDropdown.off : undefined}>{children}</div>
+        </DropdownContextProvider>
+      }
       open={dropdown}
       vertical={POPPER_VERTICAL.outBottom}
       horizontal={POPPER_HORIZONTAL.right}
       onClick={setDropdown.toggle}
       onClickOuter={setDropdown.off}
       titleClassName={'p-0 m-0'}
+      hover
       noStyle
     >
       {caption}

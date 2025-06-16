@@ -12,7 +12,7 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     return target;
   }
   let changePlots = false;
-  const nextPlots = value.orderPlot.reduce(
+  const nextPlots = Object.keys(value.plots).reduce(
     (res, pK) => {
       res[pK] = mergePlot(target.plots[pK], value.plots[pK]!);
       if (res[pK] !== target.plots[pK]) {
@@ -52,7 +52,7 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
   return {
     ...value,
     timeShifts: dequal(target.timeShifts, nextTimeShifts) ? target.timeShifts : nextTimeShifts,
-    orderPlot: dequal(target.orderPlot, value.orderPlot) ? target.orderPlot : value.orderPlot,
+    orderPlot: [],
     plots: changePlots ? nextPlots : target.plots,
     orderGroup: dequal(target.orderGroup, value.orderGroup) ? target.orderGroup : value.orderGroup,
     groups: changeGroups ? nextGroups : target.groups,
