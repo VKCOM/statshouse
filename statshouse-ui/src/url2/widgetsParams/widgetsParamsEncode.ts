@@ -4,9 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getDefaultParams, metricEncode, orderPlotSplitter, QueryParams, removeValueChar } from '@/url2';
+import { getDefaultParams, metricEncode, QueryParams, removeValueChar } from '@/url2';
 import { GET_PARAMS, PLOT_TYPE } from '@/api/enum';
-import { dequal } from 'dequal/lite';
 
 export function widgetsParamsEncode(
   params: QueryParams,
@@ -32,8 +31,8 @@ export function widgetsParamsEncode(
       }
     });
   }
-  if (!dequal(defaultParams.orderPlot, params.orderPlot)) {
-    paramArr.push([GET_PARAMS.orderPlot, params.orderPlot.join(orderPlotSplitter)]);
-  }
+  // if (!dequal(defaultParams.orderPlot, params.orderPlot)) {
+  //   paramArr.push([GET_PARAMS.orderPlot, params.orderPlot.join(orderPlotSplitter)]);
+  // }
   return paramArr;
 }

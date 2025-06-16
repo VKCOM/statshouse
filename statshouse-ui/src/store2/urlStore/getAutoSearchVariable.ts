@@ -4,20 +4,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { StatsHouseStore } from '../statsHouseStore';
+import type { StatsHouseStore } from '@/store2';
 import { getNewVariable, promQLMetric, type QueryParams, type VariableParamsLink } from '@/url2';
 import { GET_PARAMS, TAG_KEY, toTagKey } from '@/api/enum';
 import { produce } from 'immer';
 import { getNextVariableKey } from './updateParamsPlotStruct';
 import { getTagDescription, isTagEnabled, isValidVariableName } from '@/view/utils2';
 import { loadMetricMeta } from '@/api/metric';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 export async function getAutoSearchVariable(
   getState: () => StatsHouseStore
 ): Promise<Pick<QueryParams, 'variables' | 'orderVariables'>> {
   const {
-    params: { orderPlot, plots, variables, orderVariables },
+    params: { plots, variables, orderVariables },
   } = getState();
+  const orderPlot = selectorOrderPlot(getState());
   const metricsMeta = await Promise.all(
     orderPlot.map((plotKey) => {
       const metricName = plots[plotKey]?.metricName;

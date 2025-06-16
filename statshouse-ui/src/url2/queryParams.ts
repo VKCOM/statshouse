@@ -124,6 +124,7 @@ export type QueryParams = {
   timeShifts: number[];
   tabNum: string;
   plots: Partial<Record<PlotKey, PlotParams>>;
+  /** @deprecated */
   orderPlot: PlotKey[];
   variables: Partial<Record<VariableKey, VariableParams>>;
   orderVariables: VariableKey[];

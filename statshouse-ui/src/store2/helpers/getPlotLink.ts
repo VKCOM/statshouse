@@ -107,10 +107,9 @@ export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string
           p.plots = {
             [plot.id]: plot,
           };
-          p.orderPlot = [plot.id];
+          p.orderPlot = [];
           plotEvents.forEach((pE) => {
             p.plots[pE.id] = pE;
-            p.orderPlot.push(pE.id);
           });
           p.variables = {};
           p.orderVariables = [];
@@ -118,7 +117,6 @@ export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string
             '0': {
               ...getNewGroup(),
               id: '0',
-              count: 1 + plotEvents.length,
             },
           };
           p.orderGroup = ['0'];

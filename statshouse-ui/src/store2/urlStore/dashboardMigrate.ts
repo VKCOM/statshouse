@@ -14,23 +14,26 @@ import {
   type VariableParams as OldVariableParams,
 } from '@/url/queryParams';
 import type { PlotKey, QueryParams } from '@/url2';
-import { deepClone, toNumber } from '../../common/helpers';
-import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '../../api/enum';
+import { deepClone, toNumber } from '@/common/helpers';
+import { METRIC_TYPE, METRIC_VALUE_BACKEND_VERSION, PLOT_TYPE } from '@/api/enum';
 import { normalizeDashboard as normalizeDashboardOld } from '../../view/normalizeDashboard';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 export function dashboardMigrate(data: unknown) {
   return encodeParams(normalizeDashboardOld(data as DashboardInfo));
 }
 
 export function dashboardMigrateNewToOld(params: QueryParams): OldQueryParams {
-  const mapPlotIndex: Record<PlotKey, number> = params.orderPlot.reduce(
+  //todo: add restore old group
+  const orderPlot = selectorOrderPlot({ params });
+  const mapPlotIndex: Record<PlotKey, number> = orderPlot.reduce(
     (res, pK, index) => {
       res[pK] = index;
       return res;
     },
     {} as Record<PlotKey, number>
   );
-  const plots: OldPlotParams[] = params.orderPlot.map((pK, index) => {
+  const plots: OldPlotParams[] = orderPlot.map((pK, index) => {
     const plot: OldPlotParams = {
       id: index.toString(),
       metricName: params.plots[pK]?.metricName ?? '',

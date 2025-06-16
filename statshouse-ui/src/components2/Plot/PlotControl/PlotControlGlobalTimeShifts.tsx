@@ -9,22 +9,23 @@ import cn from 'classnames';
 import { ToggleButton } from '@/components/UI';
 import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '@/view/utils2';
 import { setParams } from '@/store2/methods';
-import { StatsHouseStore, useStatsHouseShallow } from '@/store2';
+import { StatsHouseStore, useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 export type PlotControlGlobalTimeShiftsProps = {
   className?: string;
 };
 
-const selectorStore = ({ params: { timeShifts, plots, orderPlot } }: StatsHouseStore) => ({
+const selectorStore = ({ params: { timeShifts, plots } }: StatsHouseStore) => ({
   timeShifts,
   plots,
-  orderPlot,
 });
 
 export const PlotControlGlobalTimeShifts = memo(function PlotControlGlobalTimeShifts({
   className,
 }: PlotControlGlobalTimeShiftsProps) {
-  const { timeShifts, plots, orderPlot } = useStatsHouseShallow(selectorStore);
+  const { timeShifts, plots } = useStatsHouseShallow(selectorStore);
+  const orderPlot = useStatsHouse(selectorOrderPlot);
 
   const maxCustomAgg = useMemo(
     () => Math.max(0, ...orderPlot.map((pK) => plots[pK]?.customAgg ?? 0)),

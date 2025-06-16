@@ -127,12 +127,12 @@ export function urlEncodeGroup(group: GroupInfo, defaultGroup: GroupInfo = getNe
   if (defaultGroup.description !== group.description) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoDescription, group.description]);
   }
-  if (defaultGroup.count !== group.count) {
-    paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoCount, group.count.toString()]);
-  }
-  if (defaultGroup.size !== group.size) {
-    paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoSize, group.size]);
-  }
+  // if (defaultGroup.count !== group.count) {
+  //   paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoCount, group.count.toString()]);
+  // }
+  // if (defaultGroup.size !== group.size) {
+  //   paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoSize, group.size]);
+  // }
   if (defaultGroup.show !== group.show) {
     paramArr.push([prefix + GET_PARAMS.dashboardGroupInfoShow, group.show ? '1' : '0']);
   }

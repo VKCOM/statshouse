@@ -90,7 +90,12 @@ export function PlotHeaderDashboard({}: PlotHeaderDashboardProps) {
           </>
         )}
 
-        <div hidden={!dashboardLayoutEdit} onMouseOver={stopPropagation} onPointerDown={stopPropagation}>
+        <div
+          hidden={!dashboardLayoutEdit}
+          onMouseOver={stopPropagation}
+          onPointerDown={stopPropagation}
+          onMouseDown={stopPropagation}
+        >
           <Dropdown
             className={cn(css.plotMenu, 'btn btn-sm ms-1 border-0')}
             caption={
@@ -98,6 +103,7 @@ export function PlotHeaderDashboard({}: PlotHeaderDashboardProps) {
                 <SVGThreeDotsVertical />
               </Tooltip>
             }
+            autoClose={false}
           >
             <PlotMenu className={css.plotMenu} />
           </Dropdown>

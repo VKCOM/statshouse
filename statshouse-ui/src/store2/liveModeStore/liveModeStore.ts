@@ -66,7 +66,7 @@ export const useLiveModeStore = createStore<LiveModeStore>(liveModeStore);
 
 export function updateLiveMode(state: StatsHouseStore): ProduceUpdate<LiveModeStore> {
   return (s) => {
-    s.disabled = !state.params.orderPlot.every(
+    s.disabled = !Object.keys(state.params.plots).every(
       (plotKey) => state.params.plots[plotKey]?.backendVersion !== METRIC_VALUE_BACKEND_VERSION.v1
     );
     s.interval = getLiveModeInterval(state.params.timeRange.from);

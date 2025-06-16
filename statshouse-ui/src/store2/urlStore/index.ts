@@ -8,3 +8,5 @@ export * from './urlStore';
 export { toggleGroupShow } from './toggleGroupShow';
 export { updateTitle } from '../helpers/updateTitle';
 export { mergeParams } from './mergeParams';
+export { findGroupPositionLayout } from '@/store2/urlStore/findGroupPositionLayout';
+export { updatePlotRemove } from '@/store2/urlStore/updatePlotRemove';

@@ -7,7 +7,10 @@
 import { QueryParams } from '@/url2/queryParams';
 
 export function urlDecodeVersion(params: Pick<QueryParams, 'plots' | 'orderPlot'>) {
-  if (params.orderPlot && Object.values(params.plots).some((plot) => plot && plot.group != null && plot.layout)) {
+  if (
+    params.orderPlot.length === 0 &&
+    Object.values(params.plots).some((plot) => plot && plot.group != null && plot.layout)
+  ) {
     return '4';
   }
   return '3';

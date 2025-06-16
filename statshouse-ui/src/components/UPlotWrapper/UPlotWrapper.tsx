@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import { debug } from '@/common/debug';
 import { deepClone, labelAsString } from '@/common/helpers';
@@ -347,7 +347,7 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
     onUpdateLegend?.(legendF);
   }, [legend, seriesFocus, onUpdateLegend]);
 
-  useLayoutEffect(
+  useEffect(
     () => () => {
       if (uRef.current) {
         debug.log('%cUPlotWrapper destroy', 'color:blue;');
@@ -358,7 +358,7 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
     [opts]
   );
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (width === 0 || uRef.current) {
       return;
     }
@@ -404,9 +404,22 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
     };
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (width > 0) {
-      uRef.current?.setSize({ width, height });
+      if (uRef.current) {
+        const uWrap = uRef.current.root.querySelector<HTMLDivElement>('.u-wrap');
+        if (uWrap) {
+          uWrap.setAttribute('data-s', '1');
+          uWrap.style.width = `${width}px`;
+          uWrap.style.height = `${height}px`;
+        }
+        const timeout = setTimeout(() => {
+          uRef.current?.setSize({ width, height });
+        }, 100);
+        return () => {
+          clearTimeout(timeout);
+        };
+      }
     }
   }, [height, width]);
 
@@ -428,11 +441,17 @@ function UPlotWrapperNoMemo<LV = Record<string, unknown>>({
 
   useEffect(() => {
     if (uRef.current) {
-      microTask(() => {
-        if (uRef.current) {
-          onUpdatePreview?.(uRef.current);
-        }
-      });
+      const timeout = setTimeout(() => {
+        microTask(() => {
+          if (uRef.current) {
+            onUpdatePreview?.(uRef.current);
+          }
+        });
+      }, 200);
+
+      return () => {
+        clearTimeout(timeout);
+      };
     }
   }, [series, data, scales, width, height, onUpdatePreview]);
 
