@@ -78,7 +78,7 @@ const (
 	NamespaceSeparatorRune = ':'
 
 	// agents with older commitTs will be declined
-	LeastAllowedAgentCommitTs uint32 = 0
+	LeastAllowedAgentCommitTs uint32 = 1741804412 // Release: v2025.03.0
 
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseJournalDump                  = "statshouse_journal_dump" // journals will be dumped to disk for analysis at each point before this event
