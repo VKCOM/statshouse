@@ -7,7 +7,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -312,24 +311,26 @@ func run() int {
 	//		log.Printf("Get() took %v error %v", time.Since(slowNow), err)
 	//	}
 	//}()
-	tagsCacheEmpty := main.worker.mapper.TagValueDiskCacheEmpty()
-	if !tagsCacheEmpty {
-		logOk.Printf("Tag Value cache not empty")
-	} else {
-		logOk.Printf("Tag Value cache empty, loading boostrap...")
-		mappings, ttl, err := main.agent.GetTagMappingBootstrap(context.Background())
-		if err != nil {
-			logErr.Printf("failed to load boostrap mappings: %v", err)
-		} else {
-			now := time.Now()
-			for _, ma := range mappings {
-				if err := main.worker.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
-					logErr.Printf("failed to set boostrap mapping %q <-> %d: %v", ma.Str, ma.Value, err)
-				}
-			}
-			logOk.Printf("Loaded and set %d boostrap mappings", len(mappings))
-		}
-	}
+
+	// TODO: check new cache for emptiness and fill bootstrap
+	//tagsCacheEmpty := main.agent.mappingsCache..TagValueDiskCacheEmpty()
+	//if !tagsCacheEmpty {
+	//	logOk.Printf("Tag Value cache not empty")
+	//} else {
+	//	logOk.Printf("Tag Value cache empty, loading boostrap...")
+	//	mappings, ttl, err := main.agent.GetTagMappingBootstrap(context.Background())
+	//	if err != nil {
+	//		logErr.Printf("failed to load boostrap mappings: %v", err)
+	//	} else {
+	//		now := time.Now()
+	//		for _, ma := range mappings {
+	//			if err := main.worker.mapper.SetBootstrapValue(now, ma.Str, pcache.Int32ToValue(ma.Value), ttl); err != nil {
+	//				logErr.Printf("failed to set boostrap mapping %q <-> %d: %v", ma.Str, ma.Value, err)
+	//			}
+	//		}
+	//		logOk.Printf("Loaded and set %d boostrap mappings", len(mappings))
+	//	}
+	//}
 
 	for i, u := range main.receiversUDP {
 		main.receiversWG.Add(1)

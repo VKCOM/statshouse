@@ -33,9 +33,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
-	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -174,14 +172,14 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 			Data:       string(data),
 		}}, 1, err
 	}
-	pmcLoader := func(ctxParent context.Context, key string, floodLimitKey interface{}) (pcache.Value, time.Duration, error) {
-		key = strings.TrimPrefix(key, keyPrefix)
-		i, err := strconv.Atoi(key)
-		if err != nil {
-			return nil, time.Second * 1000, err
-		}
-		return pcache.Int32ToValue(int32(i)), time.Second * 1000, nil
-	}
+	//pmcLoader := func(ctxParent context.Context, key string, floodLimitKey interface{}) (pcache.Value, time.Duration, error) {
+	//	key = strings.TrimPrefix(key, keyPrefix)
+	//	i, err := strconv.Atoi(key)
+	//	if err != nil {
+	//		return nil, time.Second * 1000, err
+	//	}
+	//	return pcache.Int32ToValue(int32(i)), time.Second * 1000, nil
+	//}
 
 	var wrongID atomic.Int64
 	var wrongTag1 atomic.Int64
@@ -228,7 +226,6 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil, []metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	journal.Start(nil, nil, dolphinLoader)
-	mapper := mapping.NewMapper("", pmcLoader, nil, nil, 1000, handleMappedMetric)
 
 	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil, nil)
 	if err != nil {
@@ -293,7 +290,6 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 				if almostReceiveOnly && r%1024 != 0 {
 					return h, true
 				}
-				done = mapper.Map(data_model.HandlerArgs{MetricBytes: m, MapCallback: cb}, metricStorage.GetMetaMetricByNameBytes(m.Name), &h)
 				if done {
 					handleMappedMetric(*m, h)
 				}

@@ -39,10 +39,7 @@ type Config struct {
 	SendMoreBytes          int
 	StatsHouseEnv          string
 	Cluster                string
-	SkipShards             int    // if cluster is extended, first shard might be almost full, so we can skip them for some time.
-	NewShardingByName      string // metrics with name <= NewShardingByName will be sharded new way
-	ConveyorV3Staging      string
-	ConveyorV3StagingList  []int
+	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	LegacyApplyValues      bool
 
 	MappingCacheSize int64
@@ -78,8 +75,6 @@ func DefaultConfig() Config {
 		SaveSecondsImmediately:           false,
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",
-		NewShardingByName:                "", // false by default because agent deploy is slow, should be enabled after full deploy and then removed
-		ConveyorV3Staging:                "", // should be enabled after full deploy and then removed
 
 		MappingCacheSize: 100 << 20,
 		MappingCacheTTL:  86400,
@@ -125,8 +120,6 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
-	f.StringVar(&c.NewShardingByName, "new-sharding-by-name", d.NewShardingByName, "Shard by metric_id % 16 for metrics with name less then given")
-	f.StringVar(&c.ConveyorV3Staging, "conveyor-v3-staging", d.ConveyorV3Staging, "Comma separated StatsHouse env for which new mapping conveyor is enabled")
 	f.BoolVar(&c.LegacyApplyValues, "legacy-apply-values", d.LegacyApplyValues, "Statshouse will sample at key level.")
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
@@ -146,17 +139,6 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 			continue
 		}
 		_ = f.Parse([]string{t})
-	}
-	c.ConveyorV3StagingList = c.ConveyorV3StagingList[:0]
-	for _, env := range strings.Split(c.ConveyorV3Staging, ",") {
-		if env == "" {
-			continue
-		}
-		if l := stagingLevel(strings.Trim(env, " ")); l >= 0 {
-			c.ConveyorV3StagingList = append(c.ConveyorV3StagingList, l)
-		} else {
-			return fmt.Errorf("unknown statshouse environment: %s", env)
-		}
 	}
 	return c.ValidateConfigSource()
 }

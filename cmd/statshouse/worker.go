@@ -29,7 +29,6 @@ const (
 type worker struct {
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
-	mapper        *mapping.Mapper
 	autoCreate    *data_model.AutoCreate
 	logPackets    func(format string, args ...interface{})
 
@@ -44,7 +43,6 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pm
 		autoCreate:    ac,
 		logPackets:    logPackets,
 	}
-	w.mapper = mapping.NewMapper(suffix, pmcLoader, dc, ac, metricMapQueueSize, w.handleMappedMetricUnlocked)
 	return w
 }
 
@@ -69,29 +67,16 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	}
 	w.fillTime(args, &h)
 	metaOk := w.fillMetricMeta(args, &h)
-	conveyorV3 := w.sh2.UseConveyorV3() || (h.MetricMeta != nil && h.MetricMeta.PipelineVersion == 3)
-	if conveyorV3 {
-		if metaOk {
-			w.sh2.Map(args, &h, w.autoCreate, false)
-		} else {
-			w.sh2.MapEnvironment(args.MetricBytes, &h)
-		}
-		done = true
+	if metaOk {
+		w.sh2.Map(args, &h, w.autoCreate, false)
 	} else {
-		if metaOk {
-			done = w.mapper.Map(args, h.MetricMeta, &h)
-		} else {
-			w.mapper.MapEnvironment(args.MetricBytes, &h)
-			done = true
-		}
+		w.sh2.MapEnvironment(args.MetricBytes, &h)
 	}
-	if done {
-		if w.logPackets != nil {
-			w.printMetric("cached", *args.MetricBytes, h)
-		}
-		w.sh2.TimingsMapping.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
-		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached, args.Scratch)
+	if w.logPackets != nil {
+		w.printMetric("cached", *args.MetricBytes, h)
 	}
+	w.sh2.TimingsMapping.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
+	w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached, args.Scratch)
 	return h, done
 }
 

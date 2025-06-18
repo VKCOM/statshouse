@@ -15,7 +15,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,11 +68,9 @@ type Agent struct {
 	logF            rpc.LoggerFunc
 	envLoader       *env.Loader
 
-	statshouseRemoteConfigString string        // optimization
-	skipShards                   atomic.Int32  // copy from config.
-	newShardingByName            atomic.String // copy from config.
-	shardByMetricCount           uint32        // never changes, access without lock
-	conveyorV3                   atomic.Bool   // copy from config.
+	statshouseRemoteConfigString string       // optimization
+	skipShards                   atomic.Int32 // copy from config.
+	shardByMetricCount           uint32       // never changes, access without lock
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -498,14 +495,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	} else {
 		s.skipShards.Store(0)
 	}
-	s.newShardingByName.Store(config.NewShardingByName)
-	conveyorV3 := slices.Contains(config.ConveyorV3StagingList, s.stagingLevel)
-	if conveyorV3 {
-		log.Printf("New conveyor is enabled")
-	} else {
-		log.Printf("New conveyor is disabled")
-	}
-	s.conveyorV3.Store(conveyorV3)
+	log.Printf("New conveyor is enabled")
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -717,7 +707,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, s.newShardingByName.Load(), scratch)
+	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, scratch)
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
@@ -732,10 +722,6 @@ func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags 
 	result := &BuiltInItemValue{key: key, metricInfo: metricInfo}
 	s.BuiltInItemValues = append(s.BuiltInItemValues, result)
 	return result
-}
-
-func (s *Agent) UseConveyorV3() bool {
-	return s.conveyorV3.Load()
 }
 
 func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32, scratch *[]byte) {
