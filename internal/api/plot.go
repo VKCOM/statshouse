@@ -88,7 +88,7 @@ set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$meta.Color}}'
 
 $data << EOD
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
-"{{$d.MetaToLabel $meta}}"
+{{$d.MetaToLabel $meta | printf "%q" }}
 {{$d.WriteData $i}}
 {{end}}
 EOD
@@ -99,7 +99,7 @@ set yrange [{{$d.YL}}:{{$d.YH}}]
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle linestyle (10+n), \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps notitle linestyle (10+n) linewidth 0.7 \
-     {{range $i, $meta := $d.Legend -}}, NaN with points pt 5 ps 2 lc rgb "{{$meta.Color}}" title "{{$d.MetaToLabel $meta}}"{{end}}
+     {{range $i, $meta := $d.Legend -}}, NaN with points pt 5 ps 2 lc rgb "{{$meta.Color}}" title {{$d.MetaToLabel $meta | printf "%q" }}{{end}}
 {{else -}}
 set key off
 set yrange [0:100]
