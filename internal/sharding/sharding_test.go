@@ -114,7 +114,7 @@ func TestShard(t *testing.T) {
 	scratch := make([]byte, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotShard, newStrategy, _, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, uint32(tt.args.numShards), tt.args.newShardingByName, &scratch)
+			gotShard, newStrategy, _, gotHash := Shard(&tt.args.key, tt.args.meta, tt.args.numShards, uint32(tt.args.numShards), &scratch)
 			if gotShard != tt.expectedShard {
 				t.Errorf("Sharding() = %v, want %v", gotShard, tt.expectedShard)
 			}
