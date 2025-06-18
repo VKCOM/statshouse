@@ -21,6 +21,7 @@ import (
 )
 
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead
+const oldTagNumber = 16
 
 type (
 	TagUnion struct {
@@ -383,8 +384,9 @@ func (s *MultiItem) FinishStringTop(rng *rand.Rand, capacity int) float64 {
 //}
 
 func (s *MultiItem) RowBinarySizeEstimate() int {
-	keySize := 4 + 4 + format.MaxTags*4 // time, metric, tags
-	for _, st := range s.Key.STags {    // stags
+	// we don't want sampling to jump, so we keep assuming that key is still 16 tags
+	keySize := 4 + 4 + oldTagNumber*4 // time, metric, tags
+	for _, st := range s.Key.STags {  // stags
 		keySize += len(st)
 	}
 	size := keySize + s.Tail.RowBinarySizeEstimate()
