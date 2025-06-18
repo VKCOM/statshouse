@@ -9,6 +9,7 @@ import (
 
 type argv struct {
 	n, m      int
+	tagsNum   int
 	maxStrLen int
 	viewCode  bool
 	keepTemp  bool
@@ -22,6 +23,7 @@ func main() {
 	var args argv
 	flag.IntVar(&args.n, "n", 100, "number of iterations")
 	flag.IntVar(&args.m, "m", 300, "number of series to send per iteration")
+	flag.IntVar(&args.tagsNum, "tags", 16, "number of tags to use")
 	flag.IntVar(&args.maxStrLen, "max-str-len", 32, "maximum string length")
 	flag.BoolVar(&args.viewCode, "view-code", false, "open generated source files in Visual Studio Code")
 	flag.BoolVar(&args.keepTemp, "keep-temp", false, "do not remove generated temporary files")

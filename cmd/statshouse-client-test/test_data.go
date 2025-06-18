@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
 )
 
@@ -54,9 +53,9 @@ func newTestData(args argv) testData {
 			m.Timestamp = r.Uint32n(now)
 		}
 		m.Name = string(str[:rand.Intn(len(str)-1)+1])
-		m.Tags = make([][2]string, r.Intn(format.MaxTags))
-		for i, j := r.Intn(format.MaxTags), 0; j < len(m.Tags); i, j = i+1, j+1 {
-			m.Tags[j] = [2]string{strconv.Itoa(i % format.MaxTags), string(str[:rand.Intn(len(str)-1)+1])}
+		m.Tags = make([][2]string, r.Intn(args.tagsNum))
+		for i, j := r.Intn(args.tagsNum), 0; j < len(m.Tags); i, j = i+1, j+1 {
+			m.Tags[j] = [2]string{strconv.Itoa(i % args.tagsNum), string(str[:rand.Intn(len(str)-1)+1])}
 		}
 		m.Kind = r.Intn(3)
 		switch m.Kind {
