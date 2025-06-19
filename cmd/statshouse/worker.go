@@ -21,10 +21,6 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 )
 
-const (
-	metricMapQueueSize = 1000
-)
-
 type worker struct {
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
@@ -129,14 +125,6 @@ func (w *worker) fillMetricMeta(args data_model.HandlerArgs, h *data_model.Mappe
 	h.InvalidString = metric.Name
 	h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrMetricNameEncoding
 	return false
-}
-
-func (w *worker) handleMappedMetricUnlocked(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
-	if w.logPackets != nil {
-		w.printMetric("uncached", m, h)
-	}
-	w.sh2.TimingsMappingSlow.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
-	w.sh2.ApplyMetric(m, h, format.TagValueIDSrcIngestionStatusOKUncached, nil) // will be allocation for resolution hash, but this is slow path
 }
 
 func (w *worker) HandleParseError(pkt []byte, err error) {
