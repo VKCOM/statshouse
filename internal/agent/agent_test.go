@@ -132,6 +132,7 @@ func Test_AgentQueue(t *testing.T) {
 		config:                            config,
 		logF:                              func(f string, a ...any) { fmt.Printf(f, a...) },
 		mappingsCache:                     pcache.NewMappingsCache(1024*1024, 86400),
+		shardByMetricCount:                1,
 		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
 		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
