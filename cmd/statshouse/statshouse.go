@@ -87,14 +87,12 @@ var argv struct {
 
 	// for old mode
 	historicStorageDir string
-	diskCacheFilename  string
 
 	agent.Config
 }
 
 type mainAgent struct {
 	agent           *agent.Agent
-	diskCache       *pcache.DiskCache
 	worker          *worker
 	mirrorUdpConn   net.Conn
 	receiverHTTP    *receiver.HTTP
@@ -166,17 +164,6 @@ func run() int {
 	var fpmc *os.File
 	if argv.cacheDir != "" { // we support working without touching disk (on readonly filesystems, in stateless containers, etc)
 		var err error
-		if main.diskCache, err = pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration); err != nil {
-			logErr.Printf("failed to open disk cache: %v", err)
-			return 1
-		}
-		// we do not want to delay shutdown for saving cache
-		// defer func() {
-		//	if err := dc.Close(); err != nil {
-		//		logErr.Printf("failed to close disk cache: %v", err)
-		//	}
-		// }()
-
 		// we do not want to confuse mappings from different clusters, this would be a disaster
 		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
@@ -292,14 +279,7 @@ func run() int {
 		defer ac.Shutdown()
 	}
 
-	main.worker = startWorker(main.agent,
-		metricStorage,
-		main.agent.LoadOrCreateMapping,
-		main.diskCache,
-		ac,
-		argv.Cluster,
-		main.logPackets,
-	)
+	main.worker = startWorker(main.agent, metricStorage, ac, main.logPackets)
 	//code to populate cache for test below
 	//for i := 0; i != 10000000; i++ {
 	//	v := "hren_test_" + strconv.Itoa(i)
@@ -512,13 +492,9 @@ func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
 		a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentUDPReceiveBufferSize,
 			[]int32{}, v, 1)
 	}
-	if main.diskCache != nil {
-		s, err := main.diskCache.DiskSizeBytes()
-		if err == nil {
-			a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
-				[]int32{0, 0, 0, 0, a.ComponentTag()}, float64(s), 1)
-		}
-	}
+	// TODO: mappings cache size
+	//a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
+	//	[]int32{0, 0, 0, 0, a.ComponentTag()}, float64(s), 1)
 }
 
 func (main *mainAgent) startHardwareMetricsCollector() {
@@ -637,7 +613,6 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 		flag.IntVar(&sampleFactor, "sample-factor", 1, "Deprecated - If 2, 50% of stats will be throw away, if 10, 90% of stats will be thrown away. If <= 1, keep all stats.")
 		flag.Uint64Var(&maxMemLimit, "m", 0, "Deprecated - max memory usage limit")
 		flag.StringVar(&argv.historicStorageDir, "historic-storage", "", "Data that cannot be immediately sent will be stored here together with metric cache.")
-		flag.StringVar(&argv.diskCacheFilename, "disk-cache-filename", "", "disk cache file name")
 
 		build.FlagParseShowVersionHelp()
 		parseListenAddress()
@@ -645,9 +620,6 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 		// TODO: legacy mode options, to be removed
 		if argv.cacheDir == "" && argv.historicStorageDir != "" {
 			argv.cacheDir = argv.historicStorageDir
-		}
-		if argv.cacheDir == "" && argv.diskCacheFilename != "" {
-			argv.cacheDir = filepath.Dir(argv.diskCacheFilename)
 		}
 
 		argv.AggregatorAddresses = strings.Split(argv.aggAddr, ",")
