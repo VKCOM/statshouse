@@ -15,7 +15,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
@@ -99,70 +98,6 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 		[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKFirst},
 		time.Since(now).Seconds(), 1)
 	return ret.Events, ret.CurrentVersion, nil
-}
-
-func (s *Agent) LoadOrCreateMapping(ctxParent context.Context, key string, floodLimitKey interface{}) (pcache.Value, time.Duration, error) {
-	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	// Use 2 alive random aggregators for mapping
-	s0, s1 := s.getRandomLiveShardReplicas()
-	if s0 == nil {
-		s.AddValueCounter(0, format.BuiltinMetricMetaAgentMapping,
-			[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead},
-			0, 1)
-		return nil, 0, fmt.Errorf("all aggregators are dead")
-	}
-	now := time.Now()
-
-	args := tlstatshouse.GetTagMapping2{
-		Key: key,
-	}
-	s0.fillProxyHeader(&args.FieldsMask, &args.Header)
-	args.SetCreate(true)
-
-	if floodLimitKey != nil {
-		// cache passes nil floodLimitKey when updating existing records, so in theory, we will never need to actually create key
-		// when extra is nil. But if we attempt to do it, will record attempts in common key for all metrics.
-		e := floodLimitKey.(format.CreateMappingExtra)
-		args.Metric = e.Metric
-		args.ClientEnv = e.ClientEnv
-		args.TagIdKey = e.TagIDKey
-	}
-
-	var ret tlstatshouse.GetTagMappingResult
-
-	ctx, cancel := context.WithTimeout(ctxParent, data_model.AgentMappingTimeout1)
-	defer cancel()
-	s0client := s0.client()
-	err := s0client.GetTagMapping2(ctx, args, &extra, &ret)
-	if err == nil {
-		s.AddValueCounter(0, format.BuiltinMetricMetaAgentMapping,
-			[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKFirst},
-			time.Since(now).Seconds(), 1)
-		return pcache.Int32ToValue(ret.Value), time.Duration(ret.TtlNanosec), nil
-	}
-	if s1 == nil {
-		s.AddValueCounter(0, format.BuiltinMetricMetaAgentMapping,
-			[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrSingle},
-			time.Since(now).Seconds(), 1)
-		return nil, 0, fmt.Errorf("the only live aggregator %q returned error: %w", s0client.Address, err)
-	}
-
-	s1.fillProxyHeader(&args.FieldsMask, &args.Header)
-
-	ctx2, cancel2 := context.WithTimeout(ctxParent, data_model.AgentMappingTimeout2)
-	defer cancel2()
-	s1client := s1.client()
-	err2 := s1client.GetTagMapping2(ctx2, args, &extra, &ret)
-	if err2 == nil {
-		s.AddValueCounter(0, format.BuiltinMetricMetaAgentMapping,
-			[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKSecond},
-			time.Since(now).Seconds(), 1)
-		return pcache.Int32ToValue(ret.Value), time.Duration(ret.TtlNanosec), nil
-	}
-	s.AddValueCounter(0, format.BuiltinMetricMetaAgentMapping,
-		[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusErrBoth},
-		time.Since(now).Seconds(), 1)
-	return nil, 0, fmt.Errorf("two live aggregators %q %q returned errors: %v %w", s0client.Address, s1client.Address, err, err2)
 }
 
 func (s *Agent) GetTagMappingBootstrap(ctxParent context.Context) ([]tlstatshouse.Mapping, time.Duration, error) {
