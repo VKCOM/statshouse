@@ -19,7 +19,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
-	"github.com/vkcom/statshouse/internal/pcache"
 )
 
 const (
@@ -36,7 +35,7 @@ type worker struct {
 	floodTimeHandlePkgFail time.Time
 }
 
-func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *data_model.AutoCreate, suffix string, logPackets func(format string, args ...interface{})) *worker {
+func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, ac *data_model.AutoCreate, logPackets func(format string, args ...interface{})) *worker {
 	w := &worker{
 		sh2:           sh2,
 		metricStorage: metricStorage,
