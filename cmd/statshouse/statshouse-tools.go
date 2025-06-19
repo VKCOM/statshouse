@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -473,6 +474,43 @@ func mainTagMapping() int {
 			fmt.Printf("%q ERROR <%v> setting mapping budget %d\n", argv.metric, err, argv.budget)
 		}
 	}
+	return 0
+}
+
+func mainPutTagBootstrap() int {
+	// Accept JSON from stdin: [{"str": "tag1", "value": 123}, ...]
+	var input []struct {
+		Str   string `json:"str"`
+		Value int32  `json:"value"`
+	}
+	if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to decode input: %v\n", err)
+		return 1
+	}
+
+	aesPwd := readAESPwd()
+	client := tlmetadata.Client{
+		Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		Network: argv.metadataNet,
+		Address: argv.metadataAddr,
+		ActorID: argv.metadataActorID,
+	}
+
+	mappings := make([]tlstatshouse.Mapping, 0, len(input))
+	for _, pair := range input {
+		mappings = append(mappings, tlstatshouse.Mapping{Str: pair.Str, Value: pair.Value})
+	}
+
+	args := tlmetadata.PutTagMappingBootstrap{
+		Mappings: mappings,
+	}
+	var ret tlstatshouse.PutTagMappingBootstrapResult
+	err := client.PutTagMappingBootstrap(context.Background(), args, nil, &ret)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "PutTagMappingBootstrap error: %v\n", err)
+		return 1
+	}
+	fmt.Printf("Inserted %d mappings\n", ret.CountInserted)
 	return 0
 }
 

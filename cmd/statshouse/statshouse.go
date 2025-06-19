@@ -716,6 +716,13 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 		flag.StringVar(&argv.tags, "tag", "", "string to be searched for a int32 mapping")
 		build.FlagParseShowVersionHelp()
 		return mainTagMapping, nil
+	case "put_tag_bootstrap":
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		build.FlagParseShowVersionHelp()
+		return mainPutTagBootstrap, nil
 	case "publish_tag_drafts":
 		flag.BoolVar(&argv.dryRun, "dry-run", true, "do not publish changes")
 		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
