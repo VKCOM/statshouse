@@ -706,7 +706,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
-func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32, newStrategy bool, weightMul int, legacyKeyHash uint64) {
+func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32, byMetric bool, weightMul int, legacyKeyHash uint64) {
 	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, scratch)
 }
 
@@ -737,7 +737,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			h.InvalidString, 1)
 		return
 	}
-	shardId, newStrategy, weightMul, resolutionHash := s.shard(&h.Key, h.MetricMeta, scratch)
+	shardId, byMetric, weightMul, resolutionHash := s.shard(&h.Key, h.MetricMeta, scratch)
 	if shardId >= uint32(len(s.Shards)) {
 		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
@@ -745,7 +745,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		return
 	}
 	shard := s.Shards[shardId]
-	if newStrategy && h.MetricMeta.EffectiveResolution != 1 { // new sharding and need resolution hash
+	if byMetric && h.MetricMeta.EffectiveResolution != 1 { // sharding by metric and need resolution hash
 		var scr []byte
 		if scratch != nil {
 			scr = *scratch
