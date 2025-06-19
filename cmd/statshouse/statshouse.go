@@ -92,17 +92,18 @@ var argv struct {
 }
 
 type mainAgent struct {
-	agent           *agent.Agent
-	worker          *worker
-	mirrorUdpConn   net.Conn
-	receiverHTTP    *receiver.HTTP
-	receiverTCP     *receiver.TCP
-	receiversUDP    []*receiver.UDP
-	hijackHTTP      *rpc.HijackListener
-	hijackTCP       *rpc.HijackListener
-	receiversWG     sync.WaitGroup
-	logPackets      func(format string, args ...interface{})
-	hardwareMetrics *stats.CollectorManager
+	agent             *agent.Agent
+	worker            *worker
+	mirrorUdpConn     net.Conn
+	receiverHTTP      *receiver.HTTP
+	receiverTCP       *receiver.TCP
+	receiversUDP      []*receiver.UDP
+	hijackHTTP        *rpc.HijackListener
+	hijackTCP         *rpc.HijackListener
+	receiversWG       sync.WaitGroup
+	logPackets        func(format string, args ...interface{})
+	hardwareMetrics   *stats.CollectorManager
+	mappingsCachePath string
 }
 
 var (
@@ -165,7 +166,8 @@ func run() int {
 	if argv.cacheDir != "" { // we support working without touching disk (on readonly filesystems, in stateless containers, etc)
 		var err error
 		// we do not want to confuse mappings from different clusters, this would be a disaster
-		fpmc, err = os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
+		main.mappingsCachePath = filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster))
+		fpmc, err = os.OpenFile(main.mappingsCachePath, os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			logErr.Printf("failed to open agent mappings cache: %v", err)
 			return 1
@@ -492,9 +494,13 @@ func (main *mainAgent) beforeFlushBucket(a *agent.Agent, unixNow uint32) {
 		a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentUDPReceiveBufferSize,
 			[]int32{}, v, 1)
 	}
-	// TODO: mappings cache size
-	//a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
-	//	[]int32{0, 0, 0, 0, a.ComponentTag()}, float64(s), 1)
+	if main.mappingsCachePath != "" {
+		fi, err := os.Stat(main.mappingsCachePath)
+		if err == nil && fi != nil {
+			a.AddValueCounter(unixNow, format.BuiltinMetricMetaAgentDiskCacheSize,
+				[]int32{0, 0, 0, 0, a.ComponentTag()}, float64(fi.Size()), 1)
+		}
+	}
 }
 
 func (main *mainAgent) startHardwareMetricsCollector() {
