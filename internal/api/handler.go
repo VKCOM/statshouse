@@ -30,9 +30,10 @@ import (
 	ttemplate "text/template"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/chutil"
 	"go.uber.org/atomic"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/vkcom/statshouse/internal/chutil"
 
 	"github.com/prometheus/prometheus/model/labels"
 
@@ -1435,17 +1436,17 @@ func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr stri
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
-			return nil, 0, fmt.Errorf("can't parse %s", metricIDStr)
+			return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", metricIDStr))
 		}
 		if versionStr == "" {
 			metricName = h.getMetricNameByID(int32(metricID))
 			if metricName == "" {
-				return nil, 0, fmt.Errorf("can't find metric %d", metricID)
+				return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("can't find metric %d", metricID))
 			}
 		} else {
 			version, err := strconv.ParseInt(versionStr, 10, 64)
 			if err != nil {
-				return nil, 0, fmt.Errorf("can't parse %s", versionStr)
+				return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", versionStr))
 			}
 			m, err := h.metadataLoader.GetMetric(h.Context(), metricID, version)
 			if err != nil {
