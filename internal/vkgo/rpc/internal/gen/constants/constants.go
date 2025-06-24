@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -52,8 +52,11 @@ const (
 	RpcReqResultExtra              = 0xc5011709 // rpcReqResultExtra
 	RpcReqResultHeader             = 0x63aeda4e // rpcReqResultHeader
 	RpcServerWantsFin              = 0xa8ddbc46 // rpcServerWantsFin
+	RpcTL2Marker                   = 0x29324c54 // rpcTL2Marker
 	Stat                           = 0x9d56e6b2 // stat
 	String                         = 0xb5286e24 // string
+	TracingTraceContext            = 0xc463a95c // tracing.traceContext
+	TracingTraceID                 = 0x2f4ac855 // tracing.traceID
 	True                           = 0x3fedd339 // true
 	Tuple                          = 0x9770768a // tuple
 	Vector                         = 0x1cb5c415 // vector

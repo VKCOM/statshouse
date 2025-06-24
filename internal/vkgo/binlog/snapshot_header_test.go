@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -96,9 +96,7 @@ func TestExtract(t *testing.T) {
 	t.Run("general", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			offset := rapid.Int64Min(0).Draw(t, "offset")
-			zone, err := time.LoadLocation("UTC")
-			require.NoError(t, err)
-			testTime := time.Unix(time.Now().Unix(), 0).In(zone)
+			testTime := time.Now().UTC().Truncate(time.Second)
 			name := CanonicalSnapshotName("kv_eng", "123_2000", offset, testTime)
 
 			_, offset2, time2, _, err := ExtractDataFromName(name)

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,7 +14,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.1.13" }
+func SchemaGenerator() string { return "v1.2.3" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -28,14 +28,14 @@ type Object interface {
 	FillRandom(rg *basictl.RandGenerator)
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
-	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
 }
 
 type Function interface {
@@ -204,7 +204,6 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]
 }
@@ -344,7 +343,10 @@ func init() {
 	fillObject("rpcReqResultExtra#c5011709", "#c5011709", &TLItem{tag: 0xc5011709, annotations: 0x0, tlName: "rpcReqResultExtra", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("rpcReqResultHeader#63aeda4e", "#63aeda4e", &TLItem{tag: 0x63aeda4e, annotations: 0x0, tlName: "rpcReqResultHeader", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("rpcServerWantsFin#a8ddbc46", "#a8ddbc46", &TLItem{tag: 0xa8ddbc46, annotations: 0x0, tlName: "rpcServerWantsFin", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("rpcTL2Marker#29324c54", "#29324c54", &TLItem{tag: 0x29324c54, annotations: 0x0, tlName: "rpcTL2Marker", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("tracing.traceContext#c463a95c", "#c463a95c", &TLItem{tag: 0xc463a95c, annotations: 0x0, tlName: "tracing.traceContext", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("tracing.traceID#2f4ac855", "#2f4ac855", &TLItem{tag: 0x2f4ac855, annotations: 0x0, tlName: "tracing.traceID", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

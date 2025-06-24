@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -71,7 +71,10 @@ func init() {
 	meta.SetGlobalFactoryCreateForObject(0xc5011709, func() meta.Object { var ret internal.RpcReqResultExtra; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x63aeda4e, func() meta.Object { var ret internal.RpcReqResultHeader; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xa8ddbc46, func() meta.Object { var ret internal.RpcServerWantsFin; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x29324c54, func() meta.Object { var ret internal.RpcTL2Marker; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x9d56e6b2, func() meta.Object { var ret internal.Stat; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xb5286e24, func() meta.Object { var ret internal.String; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0xc463a95c, func() meta.Object { var ret internal.TracingTraceContext; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0x2f4ac855, func() meta.Object { var ret internal.TracingTraceID; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x3fedd339, func() meta.Object { var ret internal.True; return &ret })
 }

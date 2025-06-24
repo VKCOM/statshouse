@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,6 +14,7 @@ import (
 type ClientOptions struct {
 	Logf                LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
 	Hooks               func() ClientHooks
+	TracingInject       TracingInjectFunc
 	TrustedSubnetGroups [][]*net.IPNet
 	ForceEncryption     bool
 	CryptoKey           string
@@ -24,6 +25,7 @@ type ClientOptions struct {
 	DefaultTimeout      time.Duration // has no effect if <= 0
 	localUDPAddress     string        // experimental, for tests only
 	MaxReconnectDelay   time.Duration
+	DebugUdp            int
 
 	trustedSubnetGroupsParseErrors []error
 }
@@ -39,6 +41,12 @@ func ClientWithLogf(f LoggerFunc) ClientOptionsFunc {
 func ClientWithHooks(hooks func() ClientHooks) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		o.Hooks = hooks
+	}
+}
+
+func ClientWithTracingInject(inject TracingInjectFunc) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.TracingInject = inject
 	}
 }
 
@@ -112,6 +120,12 @@ func ClientWithProtocolVersion(protocolVersion uint32) ClientOptionsFunc {
 func ClientWithExperimentalLocalUDPAddress(localUDPAddress string) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		o.localUDPAddress = localUDPAddress
+	}
+}
+
+func ClientWithDebugUdp(DebugUdp int) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.DebugUdp = DebugUdp
 	}
 }
 

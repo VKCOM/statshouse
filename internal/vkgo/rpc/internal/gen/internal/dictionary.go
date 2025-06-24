@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,7 +33,6 @@ func (item *DictionaryLong) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *DictionaryLong) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -50,7 +49,6 @@ func (item *DictionaryLong) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *DictionaryLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -63,7 +61,6 @@ func (item *DictionaryLong) WriteBoxed(w []byte) []byte {
 func (item DictionaryLong) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]int64)(item)
 	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -117,7 +114,6 @@ func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *DictionaryString) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -134,7 +130,6 @@ func (item *DictionaryString) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *DictionaryString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -147,7 +142,6 @@ func (item *DictionaryString) WriteBoxed(w []byte) []byte {
 func (item DictionaryString) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
 	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {

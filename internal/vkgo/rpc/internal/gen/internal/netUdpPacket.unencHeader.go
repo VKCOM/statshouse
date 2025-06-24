@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -37,7 +37,7 @@ func (item *NetUdpPacketUnencHeader) ClearLocalPid() {
 	item.LocalPid.Reset()
 	item.Flags &^= 1 << 0
 }
-func (item NetUdpPacketUnencHeader) IsSetLocalPid() bool { return item.Flags&(1<<0) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetLocalPid() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPid) {
 	item.RemotePid = v
@@ -47,7 +47,7 @@ func (item *NetUdpPacketUnencHeader) ClearRemotePid() {
 	item.RemotePid.Reset()
 	item.Flags &^= 1 << 0
 }
-func (item NetUdpPacketUnencHeader) IsSetRemotePid() bool { return item.Flags&(1<<0) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetRemotePid() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetGeneration(v uint32) {
 	item.Generation = v
@@ -57,7 +57,7 @@ func (item *NetUdpPacketUnencHeader) ClearGeneration() {
 	item.Generation = 0
 	item.Flags &^= 1 << 0
 }
-func (item NetUdpPacketUnencHeader) IsSetGeneration() bool { return item.Flags&(1<<0) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetGeneration() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetPidHash(v int64) {
 	item.PidHash = v
@@ -67,7 +67,7 @@ func (item *NetUdpPacketUnencHeader) ClearPidHash() {
 	item.PidHash = 0
 	item.Flags &^= 1 << 2
 }
-func (item NetUdpPacketUnencHeader) IsSetPidHash() bool { return item.Flags&(1<<2) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetPidHash() bool { return item.Flags&(1<<2) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetCryptoFlags(v uint32) {
 	item.CryptoFlags = v
@@ -77,7 +77,7 @@ func (item *NetUdpPacketUnencHeader) ClearCryptoFlags() {
 	item.CryptoFlags = 0
 	item.Flags &^= 1 << 3
 }
-func (item NetUdpPacketUnencHeader) IsSetCryptoFlags() bool { return item.Flags&(1<<3) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetCryptoFlags() bool { return item.Flags&(1<<3) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetCryptoSha(v bool) {
 	if v {
@@ -86,7 +86,7 @@ func (item *NetUdpPacketUnencHeader) SetCryptoSha(v bool) {
 		item.Flags &^= 1 << 4
 	}
 }
-func (item NetUdpPacketUnencHeader) IsSetCryptoSha() bool { return item.Flags&(1<<4) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetCryptoSha() bool { return item.Flags&(1<<4) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetCryptoRandom(v [8]uint32) {
 	item.CryptoRandom = v
@@ -96,7 +96,7 @@ func (item *NetUdpPacketUnencHeader) ClearCryptoRandom() {
 	BuiltinTuple8Reset(&item.CryptoRandom)
 	item.Flags &^= 1 << 5
 }
-func (item NetUdpPacketUnencHeader) IsSetCryptoRandom() bool { return item.Flags&(1<<5) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetCryptoRandom() bool { return item.Flags&(1<<5) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetEncryptedData(v bool) {
 	if v {
@@ -105,7 +105,7 @@ func (item *NetUdpPacketUnencHeader) SetEncryptedData(v bool) {
 		item.Flags &^= 1 << 7
 	}
 }
-func (item NetUdpPacketUnencHeader) IsSetEncryptedData() bool { return item.Flags&(1<<7) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetEncryptedData() bool { return item.Flags&(1<<7) != 0 }
 
 func (item *NetUdpPacketUnencHeader) SetSupportMsgOffsets(v bool) {
 	if v {
@@ -114,7 +114,7 @@ func (item *NetUdpPacketUnencHeader) SetSupportMsgOffsets(v bool) {
 		item.Flags &^= 1 << 8
 	}
 }
-func (item NetUdpPacketUnencHeader) IsSetSupportMsgOffsets() bool { return item.Flags&(1<<8) != 0 }
+func (item *NetUdpPacketUnencHeader) IsSetSupportMsgOffsets() bool { return item.Flags&(1<<8) != 0 }
 
 func (item *NetUdpPacketUnencHeader) Reset() {
 	item.Flags = 0
@@ -162,6 +162,7 @@ func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.RemotePid.Reset()
 	}
 	if item.Flags&(1<<0) != 0 {
+		item.Generation = basictl.RandomUint(rg)
 	} else {
 		item.Generation = 0
 	}
@@ -171,6 +172,7 @@ func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.PidHash = 0
 	}
 	if item.Flags&(1<<3) != 0 {
+		item.CryptoFlags = basictl.RandomUint(rg)
 	} else {
 		item.CryptoFlags = 0
 	}
@@ -230,7 +232,6 @@ func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *NetUdpPacketUnencHeader) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -265,7 +266,6 @@ func (item *NetUdpPacketUnencHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *NetUdpPacketUnencHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }

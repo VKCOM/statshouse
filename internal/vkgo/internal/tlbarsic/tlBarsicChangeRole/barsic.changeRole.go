@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,7 @@ func (item *BarsicChangeRole) SetMaster(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicChangeRole) IsSetMaster() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicChangeRole) IsSetMaster() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicChangeRole) SetReady(v bool) {
 	if v {
@@ -45,7 +45,7 @@ func (item *BarsicChangeRole) SetReady(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicChangeRole) IsSetReady() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicChangeRole) IsSetReady() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicChangeRole) SetEpochNumberLegacyFlag(v bool) {
 	if v {
@@ -54,7 +54,7 @@ func (item *BarsicChangeRole) SetEpochNumberLegacyFlag(v bool) {
 		item.FieldsMask &^= 1 << 30
 	}
 }
-func (item BarsicChangeRole) IsSetEpochNumberLegacyFlag() bool { return item.FieldsMask&(1<<30) != 0 }
+func (item *BarsicChangeRole) IsSetEpochNumberLegacyFlag() bool { return item.FieldsMask&(1<<30) != 0 }
 
 func (item *BarsicChangeRole) Reset() {
 	item.FieldsMask = 0
@@ -97,7 +97,6 @@ func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicChangeRole) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -117,7 +116,6 @@ func (item *BarsicChangeRole) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicChangeRole) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -375,4 +373,12 @@ func (item *BarsicChangeRole) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.changeRole", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicChangeRole) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicChangeRole) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.changeRole")
 }

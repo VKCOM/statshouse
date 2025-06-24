@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -31,6 +31,7 @@ func (item *NetUdpPacketObsoletePid) Reset() {
 func (item *NetUdpPacketObsoletePid) FillRandom(rg *basictl.RandGenerator) {
 	item.ObsoletePid.FillRandom(rg)
 	item.ActualPid.FillRandom(rg)
+	item.Generation = basictl.RandomUint(rg)
 }
 
 func (item *NetUdpPacketObsoletePid) Read(w []byte) (_ []byte, err error) {
@@ -43,7 +44,6 @@ func (item *NetUdpPacketObsoletePid) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.Generation)
 }
 
-// This method is general version of Write, use it instead!
 func (item *NetUdpPacketObsoletePid) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -62,7 +62,6 @@ func (item *NetUdpPacketObsoletePid) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *NetUdpPacketObsoletePid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }

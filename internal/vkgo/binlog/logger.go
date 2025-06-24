@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,7 +6,10 @@
 
 package binlog
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Logger interface {
 	Tracef(format string, args ...interface{})
@@ -30,16 +33,31 @@ type StdoutLogger struct {
 
 func (*StdoutLogger) Tracef(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		fmt.Printf("\n")
+	}
 }
 func (*StdoutLogger) Debugf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		fmt.Printf("\n")
+	}
 }
 func (*StdoutLogger) Infof(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		fmt.Printf("\n")
+	}
 }
 func (*StdoutLogger) Warnf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		fmt.Printf("\n")
+	}
 }
 func (*StdoutLogger) Errorf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		fmt.Printf("\n")
+	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,7 +21,7 @@ import (
 const beginSize = 24 + 20 // start lev + tag lev
 
 func TestSimpleWrite(t *testing.T) {
-	fs := gofs.NewMemoryFs()
+	fs := gofs.NewThreadSafeMemoryFs()
 	dir := fs.TempDir()
 
 	options := Options{
@@ -83,7 +83,7 @@ func TestSimpleWrite(t *testing.T) {
 }
 
 func TestRotate(t *testing.T) {
-	fs := gofs.NewMemoryFs()
+	fs := gofs.NewThreadSafeMemoryFs()
 	dir := fs.TempDir()
 
 	options := Options{

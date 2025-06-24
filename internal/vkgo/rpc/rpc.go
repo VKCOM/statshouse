@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,12 +33,17 @@ const (
 	// rpc-error-codes.h
 	TLErrorSyntax           = -1000 // TL_ERROR_SYNTAX
 	TlErrorNoHandler        = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
+	TlErrorTooLongString    = -2003 // TOO_LONG_STRING
+	TlErrorValueNotInRange  = -2004 // VALUE_NOT_IN_RANGE
+	TlErrorQueryIncorrect   = -2005 // QUERY_INCORRECT
+	TlErrorBadValue         = -2006 // BAD_VALUE
 	TlErrorGracefulShutdown = -2014 // TL_ERROR_GRACEFUL_SHUTDOWN
 	TlErrorTimeout          = -3000 // TL_ERROR_QUERY_TIMEOUT
 	TLErrorNoConnections    = -3002 // TL_ERROR_NO_CONNECTIONS
 	TlErrorInternal         = -3003 // TL_ERROR_INTERNAL
 	TLErrorResultToLarge    = -3011 // TL_ERROR_RESULT_TOO_LARGE
 	TlErrorUnknown          = -4000 // TL_ERROR_UNKNOWN
+	TlErrorResponseSyntax   = -4101 // RESPONSE_SYNTAX
 
 	DefaultPacketTimeout = 10 * time.Second
 	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
@@ -69,6 +74,14 @@ type InvokeReqExtra struct { // additional parameters to auto generated client c
 	// Here, because generated code calls GetRequest() so caller has no access to request
 	FailIfNoConnection bool
 
+	// By settings this, client certifies that deployed server (and all RPC proxies between) supports TL2
+	// If combinator is TL1-only, request will still use TL1.
+	// If combinator is TL2-only, request will always use TL2.
+	// If TL2 is selected for body format, then rpc2.invokeReq will also be used as a packet format
+	// Once all deployed production servers and proxies support rpc2.invokeReq packet format,
+	// rpc2.invokeReq will always be used, independent of body format (which will stay TL1 for many engines).
+	PreferTL2 bool
+
 	ResponseExtra ResponseExtra // after call, response extra is available here
 }
 
@@ -81,6 +94,19 @@ func NoopLogf(string, ...any) {}
 type Error struct {
 	Code        int32
 	Description string
+}
+
+func NewError(code int32, description string) *Error {
+	return &Error{
+		Code:        code,
+		Description: description,
+	}
+}
+
+func NewDefaultError(description string) *Error {
+	return &Error{
+		Description: description,
+	}
 }
 
 type tagError struct {

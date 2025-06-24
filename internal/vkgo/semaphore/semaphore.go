@@ -17,6 +17,7 @@ type waiter struct {
 }
 
 // SetN and ForceAcquire is a natural extension of semaphore by VK Team that can have limit changed in runtime
+// WaitEmpty allows using semaphore as a wait group
 
 // SetN is used when max value is controlled by config and config is reloaded with different value
 // If new value is less than current number, semaphore will wait until enough clients release before allowing Acquire to succeed
@@ -38,6 +39,17 @@ func (s *Weighted) ForceAcquire(n int64) {
 	s.mu.Lock()
 	s.cur += n
 	s.mu.Unlock()
+}
+
+// On success, returns nil. On failure, returns ctx.Err().
+// Leaves the semaphore unchanged otherwise.
+func (s *Weighted) WaitEmpty(ctx context.Context) error {
+	// we can acquire whole semaphore only if it is empty
+	if err := s.Acquire(ctx, s.size); err != nil {
+		return err
+	}
+	s.Release(s.size)
+	return nil
 }
 
 // We observe state to write metrics on semaphore utilisation

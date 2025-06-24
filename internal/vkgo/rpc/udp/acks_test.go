@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,7 @@ import (
 )
 
 func TestAcksRandom(t *testing.T) {
-	maxAckInterval := uint32(300)
+	maxAckInterval := uint32(100)
 
 	acksDS := AcksToSend{
 		ackPrefix: rand.Uint32n(maxAckInterval), // to have chance test different ack prefixes and their changes
@@ -25,7 +25,7 @@ func TestAcksRandom(t *testing.T) {
 
 	// N = maxAckInterval
 	// O(N) * O(N^2) = O(N^3)
-	for i := 0; i < int(maxAckInterval); i++ {
+	for i := 0; i < int(3*maxAckInterval); i++ {
 		ackFrom := rand.Uint32n(maxAckInterval * maxAckInterval)
 		ackTo := ackFrom + rand.Uint32n(maxAckInterval)
 

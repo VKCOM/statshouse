@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -29,6 +29,7 @@ func (item *BarsicSnapshotExternalFile) Reset() {
 }
 
 func (item *BarsicSnapshotExternalFile) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.RelativePath = basictl.RandomString(rg)
 }
 
@@ -39,7 +40,6 @@ func (item *BarsicSnapshotExternalFile) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.RelativePath)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotExternalFile) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -57,7 +57,6 @@ func (item *BarsicSnapshotExternalFile) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotExternalFile) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -157,6 +156,14 @@ func (item *BarsicSnapshotExternalFile) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicSnapshotExternalFile) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotExternalFile) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotExternalFile")
+}
+
 type BarsicSnapshotExternalFileBytes struct {
 	FieldsMask   uint32
 	RelativePath []byte
@@ -171,6 +178,7 @@ func (item *BarsicSnapshotExternalFileBytes) Reset() {
 }
 
 func (item *BarsicSnapshotExternalFileBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.RelativePath = basictl.RandomStringBytes(rg)
 }
 
@@ -181,7 +189,6 @@ func (item *BarsicSnapshotExternalFileBytes) Read(w []byte) (_ []byte, err error
 	return basictl.StringReadBytes(w, &item.RelativePath)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotExternalFileBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -199,7 +206,6 @@ func (item *BarsicSnapshotExternalFileBytes) ReadBoxed(w []byte) (_ []byte, err 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotExternalFileBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -297,4 +303,12 @@ func (item *BarsicSnapshotExternalFileBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.snapshotExternalFile", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicSnapshotExternalFileBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotExternalFileBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotExternalFile")
 }

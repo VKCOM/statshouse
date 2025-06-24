@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -335,6 +335,14 @@ func (b *fsBinlog) doAppend(onOffset int64, body []byte, asap bool) (int64, erro
 		return 0, fmt.Errorf("writer is not initialized (still reading?)")
 	}
 
+	if b.logger != nil {
+		var magic uint32
+		if len(body) > 4 {
+			magic = binary.LittleEndian.Uint32(body)
+		}
+		b.logger.Tracef("binlog.Append, offset=%d len=%d magic=0x%x, asap=%t", onOffset, len(body), magic, asap)
+	}
+
 	// return errStopper if write cycle is finished
 	curBuffSize, nextPos, err := b.putLevToBuffer(onOffset, body, asap)
 	if err != nil {
@@ -485,6 +493,8 @@ func (b *fsBinlog) AddStats(stats map[string]string) {
 	if b.options.ReplicaMode {
 		stats["binlog_last_file_size"] = strconv.FormatUint(uint64(b.stat.positionInCurFile.Load()), 10)
 	}
+
+	stats[binlog.StatSwitchStatus] = "no"
 }
 
 func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, error) {

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -46,6 +46,7 @@ func (item *BarsicEngineStatus) Reset() {
 }
 
 func (item *BarsicEngineStatus) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.Version = basictl.RandomString(rg)
 	item.LoadedSnapshot = basictl.RandomString(rg)
 	item.LoadedSnapshotOffset = basictl.RandomLong(rg)
@@ -88,7 +89,6 @@ func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PreparedSnapshotSize)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicEngineStatus) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -114,7 +114,6 @@ func (item *BarsicEngineStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicEngineStatus) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -419,6 +418,14 @@ func (item *BarsicEngineStatus) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicEngineStatus) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicEngineStatus) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.engineStatus")
+}
+
 type BarsicEngineStatusBytes struct {
 	FieldsMask               uint32
 	Version                  []byte
@@ -449,6 +456,7 @@ func (item *BarsicEngineStatusBytes) Reset() {
 }
 
 func (item *BarsicEngineStatusBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.Version = basictl.RandomStringBytes(rg)
 	item.LoadedSnapshot = basictl.RandomStringBytes(rg)
 	item.LoadedSnapshotOffset = basictl.RandomLong(rg)
@@ -491,7 +499,6 @@ func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PreparedSnapshotSize)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicEngineStatusBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -517,7 +524,6 @@ func (item *BarsicEngineStatusBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicEngineStatusBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -820,4 +826,12 @@ func (item *BarsicEngineStatusBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicEngineStatusBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicEngineStatusBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.engineStatus")
 }

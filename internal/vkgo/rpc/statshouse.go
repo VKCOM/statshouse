@@ -268,7 +268,7 @@ func (hctx *HandlerContext) ForwardAndFlush(conn *PacketConn, tip uint32, timeou
 		req := Request{
 			Body:    hctx.Request,
 			Extra:   hctx.RequestExtra,
-			queryID: hctx.QueryID,
+			queryID: hctx.QueryID(),
 		}
 		if err := preparePacket(&req); err != nil {
 			return err

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -34,7 +34,7 @@ func (item *BarsicApplyPayload) SetCommitASAP(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicApplyPayload) IsSetCommitASAP() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicApplyPayload) IsSetCommitASAP() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicApplyPayload) SetCommitted(v bool) {
 	if v {
@@ -43,7 +43,7 @@ func (item *BarsicApplyPayload) SetCommitted(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicApplyPayload) IsSetCommitted() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicApplyPayload) IsSetCommitted() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicApplyPayload) Reset() {
 	item.FieldsMask = 0
@@ -75,7 +75,6 @@ func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Payload)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicApplyPayload) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -94,7 +93,6 @@ func (item *BarsicApplyPayload) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicApplyPayload) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -312,6 +310,14 @@ func (item *BarsicApplyPayload) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicApplyPayload) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicApplyPayload) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
 type BarsicApplyPayloadBytes struct {
 	FieldsMask uint32
 	// CommitASAP (TrueType) // Conditional: item.FieldsMask.0
@@ -330,7 +336,7 @@ func (item *BarsicApplyPayloadBytes) SetCommitASAP(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicApplyPayloadBytes) IsSetCommitASAP() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicApplyPayloadBytes) IsSetCommitASAP() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicApplyPayloadBytes) SetCommitted(v bool) {
 	if v {
@@ -339,7 +345,7 @@ func (item *BarsicApplyPayloadBytes) SetCommitted(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicApplyPayloadBytes) IsSetCommitted() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicApplyPayloadBytes) IsSetCommitted() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicApplyPayloadBytes) Reset() {
 	item.FieldsMask = 0
@@ -371,7 +377,6 @@ func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringReadBytes(w, &item.Payload)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicApplyPayloadBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -390,7 +395,6 @@ func (item *BarsicApplyPayloadBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicApplyPayloadBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -606,4 +610,12 @@ func (item *BarsicApplyPayloadBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicApplyPayloadBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicApplyPayloadBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }

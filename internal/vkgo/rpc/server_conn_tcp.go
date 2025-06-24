@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,9 +19,7 @@ type serverConnTCP struct {
 
 	listenAddr net.Addr
 
-	inFlight     int
-	maxInflight  int
-	inflightCond sync.Cond
+	inFlight int
 
 	closeWaitCond sync.Cond
 
@@ -98,7 +96,6 @@ func (sc *serverConnTCP) close(cause error) {
 		sc.server.releaseHandlerCtx(hctx)
 	}
 
-	sc.inflightCond.Signal()
 	sc.writeQCond.Signal()
 }
 
@@ -138,16 +135,8 @@ func (sc *serverConnTCP) canGracefullyShutdown() bool {
 	return sc.inFlight == 0
 }
 
-func (sc *serverConnTCP) acquireHandlerCtx() (*HandlerContext, bool) {
+func (sc *serverConnTCP) acquireHandlerCtx() *HandlerContext {
 	sc.mu.Lock()
-	for !(sc.closedFlag || sc.inFlight < sc.maxInflight) {
-		sc.server.rareLog(&sc.server.lastHctxWaitLog, "rpc: waiting to acquire handler context; consider increasing Server.MaxInflightPackets")
-		sc.inflightCond.Wait()
-	}
-	if sc.closedFlag {
-		sc.mu.Unlock()
-		return nil, false
-	}
 	sc.inFlight++
 	sc.mu.Unlock()
 
@@ -159,7 +148,7 @@ func (sc *serverConnTCP) acquireHandlerCtx() (*HandlerContext, bool) {
 	hctx.remoteAddr = sc.conn.conn.RemoteAddr()
 	hctx.keyID = sc.conn.keyID
 	hctx.protocolVersion = sc.conn.ProtocolVersion()
-	return hctx, true
+	return hctx
 }
 
 func (sc *serverConnTCP) releaseHandlerCtx(hctx *HandlerContext) {
@@ -169,15 +158,11 @@ func (sc *serverConnTCP) releaseHandlerCtx(hctx *HandlerContext) {
 	if debugTrace {
 		sc.server.addTrace(fmt.Sprintf("releaseHandlerCtx %p", hctx))
 	}
-	wakeupAcquireHandlerCtx := sc.inFlight >= sc.maxInflight
 	sc.inFlight--
 	wasReadFINFlag := sc.readFINFlag
 	wakeupWaitClosed := sc.canGracefullyShutdown()
 	sc.mu.Unlock() // unlock without defer to try to reduce lock contention
 
-	if wakeupAcquireHandlerCtx {
-		sc.inflightCond.Signal()
-	}
 	if wakeupWaitClosed {
 		sc.closeWaitCond.Signal()
 	}

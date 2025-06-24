@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -29,7 +29,7 @@ type writeReq struct {
 }
 
 type clientConn struct {
-	client *Client
+	client *ClientImpl
 
 	address NetAddr
 
@@ -63,6 +63,7 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 	cctx.cb = cb
 	cctx.userData = userData
 	cctx.failIfNoConnection = req.FailIfNoConnection
+	cctx.bodyFormatTL2 = req.BodyFormatTL2
 	cctx.readonly = req.ReadOnly
 	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
@@ -247,7 +248,7 @@ func (pc *clientConn) dropClientConn(stopConnecting bool) {
 }
 
 func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-chan struct{}) {
-	defer pc.client.wg.Done()
+	defer pc.client.wg.Release(1)
 	reconnectTimer := time.NewTimer(0)
 	if !reconnectTimer.Stop() {
 		<-reconnectTimer.C
@@ -334,17 +335,17 @@ func (pc *clientConn) run() (goodHandshake bool) {
 		return false
 	}
 
-	var wg sync.WaitGroup
+	wg := make(chan error)
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		if sendErr := pc.sendLoop(conn); sendErr != nil {
+		sendErr := pc.sendLoop(conn)
+		if sendErr != nil {
 			pc.dropClientConn(false) // only in case of error, not when sent FIN or responded to close
 		}
+		wg <- sendErr
 	}()
 	pc.receiveLoop(conn)
-	wg.Wait()
+	<-wg
 
 	return true
 }

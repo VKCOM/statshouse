@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -60,11 +60,7 @@ func newBinlogReader(fs gofs.FS, pidChanged chan struct{}, reindexEvent chan boo
 }
 
 func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string, expectedMagic uint32, engine binlog.Engine, sm *seekInfo, endlessMode bool) (int64, uint32, error) {
-	var (
-		err          error
-		posAfterRead int64
-		crcAfterRead uint32
-	)
+	var err error
 
 	if endlessMode {
 		b.fsWatcher, err = fsnotify.NewWatcher()
@@ -99,6 +95,8 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 		}
 	}
 
+	posAfterRead := int64(0)
+	crcAfterRead := uint32(0)
 loop:
 	for {
 		rotated := false
@@ -121,6 +119,10 @@ loop:
 			}
 
 			if err != nil {
+				if pos > posAfterRead {
+					// if read something, return position for error log
+					posAfterRead, crcAfterRead = pos, crc
+				}
 				return posAfterRead, crcAfterRead, err
 			}
 			posAfterRead, crcAfterRead = pos, crc
@@ -495,7 +497,8 @@ loop:
 			}
 
 			if readBytes <= 0 && processErr == nil {
-				return curPos, curCrc32, false, fmt.Errorf("engine does not read eny bytes and does not return eny error")
+				magic := binary.LittleEndian.Uint32(alignedBuff)
+				return curPos, curCrc32, false, fmt.Errorf("engine Apply(...) call didnt read any bytes nor return any error (magic: %x)", magic)
 			}
 
 			// Если колбек не вычитал данные с выравниванием, то делаем это за него. // TODO: нужно ли это делать?

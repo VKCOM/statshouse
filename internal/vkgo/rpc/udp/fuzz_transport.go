@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -100,7 +100,7 @@ func FuzzTransport(fuzz []byte) int {
 		fctx.ts[tId], err = NewTransport(
 			MaxFuzzTransportMemory,
 			[]string{
-				"abacaba",
+				"01234567890123456789012345678901",
 			},
 			conn,
 			uint32(time.Now().Unix()),
@@ -111,6 +111,7 @@ func FuzzTransport(fuzz []byte) int {
 			func(_ *Connection) {},
 			nil,
 			nil,
+			0,
 			0,
 		)
 		if err != nil {

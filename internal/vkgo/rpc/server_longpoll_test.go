@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -48,7 +48,6 @@ func testLongpollServer(t *rapid.T) {
 	ts := shutdownTestServer{clients: map[*HandlerContext]struct{}{}}
 	s := NewServer(
 		ServerWithSyncHandler(ts.testShutdownHandler),
-		ServerWithMaxInflightPackets(numRequests+1), // for ping/cancel packet
 		ServerWithCryptoKeys(testCryptoKeys),
 		ServerWithMaxConns(len(clients)), //  rapid.IntRange(0, 3).Draw(t, "maxConns")
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
@@ -75,13 +74,13 @@ func testLongpollServer(t *rapid.T) {
 	sendWG.Add(len(clients) * numRequests)
 	receiveWG.Add(len(clients) * numRequests)
 	for _, c := range clients {
-		go func(c *Client) {
+		go func(c Client) {
 			for j := 0; j < numRequests; j++ {
 				go func() {
 					n := rand.New().Int31()
 					req := c.GetRequest()
 					req.FailIfNoConnection = true
-					req.Body = basictl.NatWrite(req.Body, requestType)
+					req.Body = basictl.NatWrite(req.Body, testRequestType)
 					req.Body = basictl.IntWrite(req.Body, n)
 
 					ctx := context.Background()

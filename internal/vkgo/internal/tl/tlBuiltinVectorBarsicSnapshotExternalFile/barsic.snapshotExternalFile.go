@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -52,6 +52,10 @@ func BuiltinVectorBarsicSnapshotExternalFileWrite(w []byte, vec []tlBarsicSnapsh
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorBarsicSnapshotExternalFileInternalReadTL2(r []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile")
 }
 
 func BuiltinVectorBarsicSnapshotExternalFileReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) error {
@@ -130,6 +134,10 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesWrite(w []byte, vec []tlBarsicS
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorBarsicSnapshotExternalFileBytesInternalReadTL2(r []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes")
 }
 
 func BuiltinVectorBarsicSnapshotExternalFileBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) error {

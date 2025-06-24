@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,6 +11,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
 )
 
@@ -30,7 +31,21 @@ func (sc *UdpServerConn) pushUnlock(hctx *HandlerContext) {
 	*responseMessage = append(*responseMessage, hctx.Response[hctx.extraStart:]...)
 	*responseMessage = append(*responseMessage, hctx.Response[:hctx.extraStart]...)
 
-	err := sc.conn.SendMessage(responseMessage)
+	_, err := basictl.NatReadExactTag(hctx.Response, tlnet.Pid{}.TLTag())
+	pong := err == nil
+
+	if pong {
+		err = sc.conn.SendUnreliableMessage(responseMessage)
+	} else {
+		err = sc.conn.SendMessage(responseMessage)
+	}
+
+	if sc.serverConnCommon.server.opts.DebugUdpRPC >= 2 {
+		log.Printf("udp rpc response sent")
+		if pong {
+			log.Printf("udp pong sent")
+		}
+	}
 	sc.server.releaseHandlerCtx(hctx)
 
 	if err != nil {
