@@ -545,7 +545,7 @@ func readAESPwd() string {
 	return string(aesPwd)
 }
 
-func argvCreateClient() (*rpc.Client, string) {
+func argvCreateClient() (rpc.Client, string) {
 	cryptoKey := readAESPwd()
 	return rpc.NewClient(
 		rpc.ClientWithLogf(logErr.Printf), rpc.ClientWithCryptoKey(cryptoKey), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())), cryptoKey

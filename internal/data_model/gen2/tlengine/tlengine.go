@@ -84,7 +84,7 @@ type (
 )
 
 type Client struct {
-	Client  *rpc.Client
+	Client  rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
 	ActorID int64         // should be >0 for routing via rpc-proxy

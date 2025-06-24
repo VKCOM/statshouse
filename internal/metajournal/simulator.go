@@ -19,7 +19,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
-func TestMapper(aggAddr []string, mapString string, client *rpc.Client) {
+func TestMapper(aggAddr []string, mapString string, client rpc.Client) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	for i, addr := range aggAddr {
 		statshouseClient := tlstatshouse.Client{
@@ -82,7 +82,7 @@ func TestMapper(aggAddr []string, mapString string, client *rpc.Client) {
 	}
 }
 
-func testLongPoll(addr string, shardReplica int, shardsTotal int, client *rpc.Client, timeoutSec int32) {
+func testLongPoll(addr string, shardReplica int, shardsTotal int, client rpc.Client, timeoutSec int32) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	statshouseClient := tlstatshouse.Client{
 		Client:  client,
@@ -115,7 +115,7 @@ func testLongPoll(addr string, shardReplica int, shardsTotal int, client *rpc.Cl
 	}
 }
 
-func TestLongpoll(aggAddr []string, client *rpc.Client, timeoutSec int32) {
+func TestLongpoll(aggAddr []string, client rpc.Client, timeoutSec int32) {
 	var wg sync.WaitGroup
 	wg.Add(len(aggAddr))
 	log.Printf("will test longpoll, nothing should happen for %d seconds", timeoutSec)
