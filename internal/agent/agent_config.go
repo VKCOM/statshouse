@@ -197,7 +197,7 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 	return res, err
 }
 
-func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string, cacheDir string, logF func(format string, args ...interface{})) (dst tlstatshouse.GetConfigResult, err error) {
+func GetConfig(network string, rpcClient rpc.Client, addressesExt []string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string, cacheDir string, logF func(format string, args ...interface{})) (dst tlstatshouse.GetConfigResult, err error) {
 	addresses := append([]string{}, addressesExt...) // For simulator, where many start concurrently with the copy of the config
 	rnd := rand.New()
 	rnd.Shuffle(len(addresses), func(i, j int) { // randomize configuration load
@@ -230,7 +230,7 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hos
 	return tlstatshouse.GetConfigResult{}, err
 }
 
-func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
+func clientGetConfig(network string, rpcClient rpc.Client, shardReplicaNum int, addr string, hostName string, stagingLevel int, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	client := tlstatshouse.Client{
 		Client:  rpcClient,

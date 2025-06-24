@@ -58,7 +58,7 @@ type Agent struct {
 
 	network         string // to communicate to aggregators
 	cacheDir        string
-	rpcClientConfig *rpc.Client
+	rpcClientConfig rpc.Client
 	diskBucketCache *DiskBucketStorage
 	hostName        []byte
 	argsHash        int32
@@ -148,7 +148,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	journalHV func() (int64, string, string), journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult3, envLoader *env.Loader, sendSourceBucket2 bool) (*Agent, error) {
-	newClient := func() *rpc.Client {
+	newClient := func() rpc.Client {
 		return rpc.NewClient(
 			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 			rpc.ClientWithCryptoKey(aesPwd),
